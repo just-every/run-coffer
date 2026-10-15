@@ -1,0 +1,10 @@
+{
+  "name": "Coffer",
+  "repository": "https://github.com/just-every/run-coffer",
+  "clone": "git clone https://github.com/just-every/run-coffer.git",
+  "folder": "run-coffer",
+  "requirements": "Needs Node 22 or later and pnpm 10.12.4, on macOS, Linux or Windows with WSL2.",
+  "licence": "MIT",
+  "docs": false,
+  "hosted": []
+}

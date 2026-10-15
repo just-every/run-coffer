@@ -1,0 +1,660 @@
+{
+ "object": "list",
+ "data": [
+  {
+   "id": "ch_3RbLpCharge0019",
+   "object": "charge",
+   "amount": 5000,
+   "amount_captured": 5000,
+   "amount_refunded": 0,
+   "balance_transaction": "txn_3RbLp0019",
+   "billing_details": {
+    "address": {
+     "city": "Springfield",
+     "country": "US",
+     "line1": "12 Elm Street",
+     "line2": null,
+     "postal_code": "62701",
+     "state": "IL"
+    },
+    "email": "maya.okafor@example.org",
+    "name": "Maya Okafor",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1788620400,
+   "currency": "usd",
+   "customer": "cus_RbLp0001",
+   "description": "Monthly gift",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {
+    "fund": "Reading Buddies"
+   },
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0019",
+   "payment_method": "pm_1RbLp0019",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "maya.okafor@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0018",
+   "object": "charge",
+   "amount": 30000,
+   "amount_captured": 30000,
+   "amount_refunded": 0,
+   "balance_transaction": "txn_3RbLp0018",
+   "billing_details": {
+    "address": {
+     "city": null,
+     "country": "US",
+     "line1": null,
+     "line2": null,
+     "postal_code": null,
+     "state": null
+    },
+    "email": "grace.liu@example.org",
+    "name": "Grace Liu",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1787151600,
+   "currency": "cad",
+   "customer": "cus_RbLp0005",
+   "description": "Gift",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {},
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0018",
+   "payment_method": "pm_1RbLp0018",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "grace.liu@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0017",
+   "object": "charge",
+   "amount": 500000,
+   "amount_captured": 500000,
+   "amount_refunded": 0,
+   "balance_transaction": "txn_3RbLp0017",
+   "billing_details": {
+    "address": {
+     "city": "Chicago",
+     "country": "US",
+     "line1": "1 Commerce Plaza, Suite 900",
+     "line2": null,
+     "postal_code": "60601",
+     "state": "IL"
+    },
+    "email": "grants@hollisfoundation.example.org",
+    "name": "Hollis Family Foundation",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1785769200,
+   "currency": "usd",
+   "customer": "cus_RbLp0006",
+   "description": "Grant installment 2 of 2",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {
+    "fund": "Adult Literacy"
+   },
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0017",
+   "payment_method": "pm_1RbLp0017",
+   "payment_method_details": {
+    "type": "us_bank_account",
+    "us_bank_account": {
+     "account_holder_type": "individual",
+     "account_type": "checking",
+     "bank_name": "STRIPE TEST BANK",
+     "last4": "6789",
+     "routing_number": "110000000"
+    }
+   },
+   "receipt_email": "grants@hollisfoundation.example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0016",
+   "object": "charge",
+   "amount": 2500,
+   "amount_captured": 2500,
+   "amount_refunded": 0,
+   "balance_transaction": "txn_3RbLp0016",
+   "billing_details": {
+    "address": {
+     "city": null,
+     "country": "US",
+     "line1": null,
+     "line2": null,
+     "postal_code": null,
+     "state": null
+    },
+    "email": "walkin.donor@example.org",
+    "name": "Jordan Avery",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1783177200,
+   "currency": "usd",
+   "customer": null,
+   "description": "Gift",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {},
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0016",
+   "payment_method": "pm_1RbLp0016",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "walkin.donor@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0015",
+   "object": "charge",
+   "amount": 30000,
+   "amount_captured": 30000,
+   "amount_refunded": 0,
+   "balance_transaction": "txn_3RbLp0015",
+   "billing_details": {
+    "address": {
+     "city": null,
+     "country": "US",
+     "line1": null,
+     "line2": null,
+     "postal_code": null,
+     "state": null
+    },
+    "email": "priya.shah@example.org",
+    "name": "Priya Shah",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1781967600,
+   "currency": "usd",
+   "customer": null,
+   "description": "Gift",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {},
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0015",
+   "payment_method": "pm_1RbLp0015",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "priya.shah@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0014",
+   "object": "charge",
+   "amount": 60000,
+   "amount_captured": 60000,
+   "amount_refunded": 10000,
+   "balance_transaction": "txn_3RbLp0014",
+   "billing_details": {
+    "address": {
+     "city": "Madison",
+     "country": "US",
+     "line1": "88 Lake Road",
+     "line2": null,
+     "postal_code": "53703",
+     "state": "WI"
+    },
+    "email": "dan.reyes@example.org",
+    "name": "Daniel Reyes",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1781017200,
+   "currency": "usd",
+   "customer": "cus_RbLp0002",
+   "description": "Summer reading sponsor",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {},
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0014",
+   "payment_method": "pm_1RbLp0014",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "dan.reyes@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0013",
+   "object": "charge",
+   "amount": 20000,
+   "amount_captured": 20000,
+   "amount_refunded": 20000,
+   "balance_transaction": "txn_3RbLp0013",
+   "billing_details": {
+    "address": {
+     "city": "Ann Arbor",
+     "country": "US",
+     "line1": "400 Oak Avenue",
+     "line2": null,
+     "postal_code": "48104",
+     "state": "MI"
+    },
+    "email": "priya.shah@example.org",
+    "name": "Priya Shah",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1777647600,
+   "currency": "usd",
+   "customer": "cus_RbLp0003",
+   "description": "Gift",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {},
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0013",
+   "payment_method": "pm_1RbLp0013",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "priya.shah@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": true,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0012",
+   "object": "charge",
+   "amount": 27500,
+   "amount_captured": 27500,
+   "amount_refunded": 0,
+   "balance_transaction": "txn_3RbLp0012",
+   "billing_details": {
+    "address": {
+     "city": "Peoria",
+     "country": "US",
+     "line1": "230 Pine Street",
+     "line2": null,
+     "postal_code": "61602",
+     "state": "IL"
+    },
+    "email": "sam.ortiz@example.org",
+    "name": "Samuel Ortiz",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1776870000,
+   "currency": "usd",
+   "customer": "cus_RbLp0008",
+   "description": "Spring appeal gift",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {},
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0012",
+   "payment_method": "pm_1RbLp0012",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "sam.ortiz@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0011",
+   "object": "charge",
+   "amount": 50000,
+   "amount_captured": 50000,
+   "amount_refunded": 0,
+   "balance_transaction": "txn_3RbLp0011",
+   "billing_details": {
+    "address": {
+     "city": "Dubuque",
+     "country": "US",
+     "line1": "7 River Lane",
+     "line2": null,
+     "postal_code": "52001",
+     "state": "IA"
+    },
+    "email": "t.becker@example.org",
+    "name": "Thomas Becker",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1773500400,
+   "currency": "usd",
+   "customer": "cus_RbLp0004",
+   "description": "Spring gala ticket (dinner for two)",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {},
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0011",
+   "payment_method": "pm_1RbLp0011",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "t.becker@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0010",
+   "object": "charge",
+   "amount": 40000,
+   "amount_captured": 40000,
+   "amount_refunded": 0,
+   "balance_transaction": "txn_3RbLp0010",
+   "billing_details": {
+    "address": {
+     "city": null,
+     "country": "US",
+     "line1": null,
+     "line2": null,
+     "postal_code": null,
+     "state": null
+    },
+    "email": "maya.okafor@example.org",
+    "name": "Maya Okafor",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1770822000,
+   "currency": "usd",
+   "customer": "cus_RbLp0007",
+   "description": "Gift in memory of Ruth Okafor",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {},
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0010",
+   "payment_method": "pm_1RbLp0010",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "maya.okafor@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  },
+  {
+   "id": "ch_3RbLpCharge0009",
+   "object": "charge",
+   "amount": 5000,
+   "amount_captured": 5000,
+   "amount_refunded": 0,
+   "balance_transaction": "txn_3RbLp0009",
+   "billing_details": {
+    "address": {
+     "city": "Springfield",
+     "country": "US",
+     "line1": "12 Elm Street",
+     "line2": null,
+     "postal_code": "62701",
+     "state": "IL"
+    },
+    "email": "maya.okafor@example.org",
+    "name": "Maya Okafor",
+    "phone": null
+   },
+   "calculated_statement_descriptor": "RIVERBEND LITERACY",
+   "captured": true,
+   "created": 1767625200,
+   "currency": "usd",
+   "customer": "cus_RbLp0001",
+   "description": "Monthly gift",
+   "disputed": false,
+   "failure_code": null,
+   "failure_message": null,
+   "livemode": false,
+   "metadata": {
+    "fund": "Reading Buddies"
+   },
+   "outcome": {
+    "network_status": "approved_by_network",
+    "reason": null,
+    "risk_level": "normal",
+    "seller_message": "Payment complete.",
+    "type": "authorized"
+   },
+   "paid": true,
+   "payment_intent": "pi_3RbLp0009",
+   "payment_method": "pm_1RbLp0009",
+   "payment_method_details": {
+    "card": {
+     "brand": "visa",
+     "country": "US",
+     "exp_month": 8,
+     "exp_year": 2029,
+     "funding": "credit",
+     "last4": "4242",
+     "network": "visa"
+    },
+    "type": "card"
+   },
+   "receipt_email": "maya.okafor@example.org",
+   "receipt_number": null,
+   "receipt_url": null,
+   "refunded": false,
+   "status": "succeeded"
+  }
+ ],
+ "has_more": false,
+ "url": "/v1/charges"
+}

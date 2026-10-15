@@ -1,0 +1,218 @@
+import type { Bindings } from '../auth.server'
+import { runtimeBindings } from '../auth.server'
+import { createPortability, createPortabilityHandler } from '@runeditrun/rer/modules/portability'
+import policy from './archive-policy.mjs'
+import { identity, manager, originGuard, person, type Actor, type Authority } from './auth'
+import { CofferError, fail, type Context } from './db'
+import { execute } from './commands'
+import { listDonors, donorHistory } from './donors'
+import { batchDetail, batches, batchLetters, dueGifts, lettersCsv } from './acknowledgements'
+import { appealDetail, appeals, recipientsCsv, recipientsOf } from './appeals'
+import { settings } from './settings'
+import * as imports from './imports/index'
+import { page } from './ui/common'
+import { home } from './ui/home'
+import { donorsPage, donorPage } from './ui/donors'
+import { lettersPage, batchPage } from './ui/letters'
+import { appealsPage, appealPage } from './ui/appeals'
+import { morePage, settingsPage, dataPage } from './ui/more'
+import { moveInPage, previewPage, journalPage } from './ui/move-in'
+
+const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' }
+const json = (value: unknown, status = 200) => Response.json(value, { status, headers })
+const redirect = (path: string) => new Response(null, { status: 303, headers: { ...headers, location: path } })
+const download = (body: string, name: string) => new Response(body, { headers: { ...headers, 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${name}.csv"` } })
+const LIMIT = 1024 * 1024, MOVE_IN_LIMIT = 12 * 1024 * 1024
+
+async function textBody(request: Request, limit: number) {
+ const reader = request.body?.getReader(); if (!reader) return ''
+ const chunks: Uint8Array[] = []; let length = 0
+ try { for (;;) { const { value, done } = await reader.read(); if (done) break; length += value.length; if (length > limit) fail('body_too_large', 'That upload is too large.', 413); chunks.push(value) } } finally { await reader.cancel(); reader.releaseLock() }
+ const bytes = new Uint8Array(length); let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length }
+ return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+}
+async function jsonBody(request: Request, limit = LIMIT) {
+ if (!request.headers.get('content-type')?.startsWith('application/json')) fail('json_required', 'Send JSON.', 415)
+ const text = await textBody(request, limit)
+ try { const input = JSON.parse(text); if (!input || typeof input !== 'object' || Array.isArray(input)) throw Error(); return input } catch { return fail('invalid_json', 'The request body is not a JSON object.', 400) }
+}
+/** Native forms: url-encoded, or multipart for the move-in file pickers. */
+async function formBody(request: Request, limit = LIMIT): Promise<FormData> {
+ const type = request.headers.get('content-type') ?? ''
+ if (type.startsWith('multipart/form-data')) {
+  if (Number(request.headers.get('content-length') ?? 0) > limit) fail('body_too_large', 'That upload is too large.', 413)
+  return request.formData() as Promise<FormData>
+ }
+ if (!type.startsWith('application/x-www-form-urlencoded')) fail('form_required', 'Send the form.', 415)
+ const data = new FormData(); for (const [key, value] of new URLSearchParams(await textBody(request, limit))) data.append(key, value)
+ return data
+}
+function formInput(data: FormData) {
+ const input: Record<string, any> = Object.fromEntries(data)
+ for (const name of ['version', 'targetDays']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
+ if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
+ if (input.command === 'ack.prepare' && data.has('giftIds')) input.giftIds = data.getAll('giftIds')
+ return input
+}
+/** Stripe pages from file pickers and/or pasted JSON: one list response or an array of them. */
+async function pages(data: FormData, name: string) {
+ const out: unknown[] = []
+ const add = (text: string, label: string) => { if (!text.trim()) return; let value; try { value = JSON.parse(text) } catch { fail('IMPORT_SHAPE', `${label} is not valid JSON.`, 400) } out.push(...(Array.isArray(value) ? value : [value])) }
+ for (const file of data.getAll(`${name}Files`)) if (typeof file !== 'string') add(await file.text(), file.name || name)
+ const pasted = data.get(name); if (typeof pasted === 'string') add(pasted, name)
+ return out
+}
+
+const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
+export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
+ const url = new URL(request.url), path = url.pathname
+ if (!ROUTES.test(path)) return null
+ const env = runtimeBindings(original), isApi = path.startsWith('/api/')
+ let actor: Actor | undefined
+ try {
+  const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
+  if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
+  const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString() }
+  if (path.startsWith('/api/portability/')) {
+   if (actor.role !== 'owner') fail('owner_required', 'Only the owner can back up or restore.', 403)
+   const handler = await createPortabilityHandler({ db: env.DB, policy, appOrigin: env.AUTH_ORIGIN, authorize: async req => { const current = await identity(req, env); originGuard(req, env, current.bearer); return current.actor.role === 'owner' ? current.actor.id : null } })
+   return await handler(request)
+  }
+  if (path.startsWith('/api/coffer/imports/') || path.startsWith('/app/move-in/')) return await moveIn(request, c, auth.authority, path, isApi)
+  if ((path === '/api/coffer/commands' || path === '/app/actions') && request.method === 'POST') {
+   const data = path === '/app/actions' ? formInput(await formBody(request)) : await jsonBody(request), command = String(data.command), input = data.input ?? data
+   const result = command === 'donor.erase' ? await eraseDonor(c, auth.authority, input) : await execute(c, command, input)
+   if (isApi) return json(result)
+   return actionPage(command, input, result, actor)
+  }
+  if (path === '/app/backup' && request.method === 'POST') {
+   if (actor.role !== 'owner') fail('owner_required', 'Only the owner can download a backup.', 403)
+   const service = await createPortability({ db: env.DB, policy }), id = await service.exports.create(actor.id)
+   let state = await service.exports.advance(id, { maxParts: 1 })
+   while (state.phase !== 'complete') state = await service.exports.advance(id, { expectedPart: state.completed, maxParts: 1 })
+   return new Response(await service.exports.download(id), { headers: { ...headers, 'content-type': 'application/x-ndjson', 'content-disposition': 'attachment; filename="coffer.rer"' } })
+  }
+  if (request.method !== 'GET' && request.method !== 'HEAD') fail('method_not_allowed', 'Use the page’s buttons for changes.', 405)
+  return isApi ? await api(c, url) : await screen(c, url)
+ } catch (error: any) {
+  const known = error instanceof CofferError || error instanceof imports.ImportError || typeof error?.code === 'string'
+  // The import kit reports its refusals by code, alone or inside a D1 error.
+  const kitCode = error instanceof Error ? (error.message.match(/^[A-Z][A-Z0-9_]{1,100}$/)?.[0] ?? error.message.match(/\b(IMPORT_[A-Z0-9_]+|NATIVE_EDIT_CONFLICT|SOURCE_ID_CONTENT_CONFLICT|TARGET_OWNER_BUSY)\b/)?.[1] ?? null) : null
+  const status = known ? (error.status ?? 409) : kitCode ? 409 : 500, code = error?.code ?? kitCode ?? 'operation_failed'
+  const message = known ? error.message : kitCode ? kitMessage(kitCode) : 'The operation failed.'
+  if (status === 500) console.error('coffer request failed', error)
+  if (isApi) return json({ error: code, message, details: error?.details ?? undefined }, status)
+  if (status === 401) return redirect('/signin?returnTo=' + encodeURIComponent(path))
+  const back = path.startsWith('/app/actions') || path.startsWith('/app/move-in/') ? (request.headers.get('referer') && new URL(request.headers.get('referer')!).origin === url.origin ? new URL(request.headers.get('referer')!).pathname : '/app') : '/app'
+  return page('Could not complete that', `<p role="alert" class="alert">${esc(message)}</p>${error?.details ? `<details class="facts"><summary>Details</summary><pre>${esc(JSON.stringify(error.details, null, 2))}</pre></details>` : ''}<p><a href="${esc(back)}">Go back</a></p>`, actor, status, path)
+ }
+}
+const esc = (v: string) => v.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+function kitMessage(code: string) {
+ if (code === 'IMPORT_ATOMIC_GUARD' || code === 'NATIVE_EDIT_CONFLICT') return 'Some imported records have changed or been used since the import (for example a new gift, consent, letter or appeal). Undo leaves them in place and stops here.'
+ if (code === 'IMPORT_D1_REQUEST_LIMIT') return 'This step ran out of database room for one request. Use Continue to carry on.'
+ return `The import stopped: ${code}.`
+}
+
+async function eraseDonor(c: Context, authority: Authority, input: any) {
+ if (c.actor.role !== 'owner') fail('owner_required', 'Only the owner can erase a donor.', 403)
+ if (input?.confirm !== 'ERASE') fail('confirmation_required', 'Type ERASE to confirm.', 400)
+ const donorId = String(input.donorId ?? ''), placeholder = `erased-${crypto.randomUUID()}`
+ const donor = await c.db.prepare('SELECT id,email FROM cf_donors WHERE id=? AND erased_at IS NULL').bind(donorId).first<{ id: string; email: string | null }>()
+ if (!donor) fail('NOT_FOUND', 'That donor does not exist or was already erased.', 404)
+ const checkpoint = await imports.portabilityCheckpoint(c.db)
+ const nativeStatements = [...imports.donorErasureStatements(donor, placeholder, c.now), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,'{}')", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder] }]
+ const result: any = await imports.erase(c.db, c.actor, donorId, authority, { nativeStatements, checkpoint })
+ return { erased: donorId, donorId: placeholder, receiptId: result.receiptId ?? result.id }
+}
+
+function actionPage(command: string, input: any, result: any, actor: Actor) {
+ if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(new Date(result.expiresAt).toISOString().slice(0, 10))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
+ if (command === 'agent.revoke') return redirect('/app/data')
+ if (command === 'settings.update') return redirect('/app/settings?saved=1')
+ if (command === 'donor.create') return redirect(`/app/donors/${result.id}`)
+ if (command === 'donor.erase') return redirect(`/app/donors/${result.donorId}`)
+ if (command === 'consent.record') return redirect(input.returnTo === 'donor' && input.donorIds?.length === 1 ? `/app/donors/${input.donorIds[0]}#consent` : '/app/donors?consent=' + result.recorded)
+ if (command.startsWith('ack.')) return redirect(`/app/letters/${result.id ?? input.batchId}`)
+ if (command.startsWith('appeal.')) return redirect(`/app/appeals/${result.id ?? input.appealId}`)
+ return redirect(input.donorId ? `/app/donors/${input.donorId}` : '/app/donors')
+}
+
+async function moveIn(request: Request, c: Context, authority: Authority, path: string, isApi: boolean) {
+ if (!manager(c.actor)) fail('manager_required', 'Only the owner or an admin moves records in.', 403)
+ const action = path.split('/').at(-1)
+ if (action === 'journal' && request.method === 'GET') {
+  const result = await imports.journal(c.db, c.actor, new URL(request.url).searchParams.get('id') ?? '', authority)
+  return isApi ? json(result) : page('Import journal', journalPage(result), c.actor, 200, '/app/more')
+ }
+ if (request.method !== 'POST') fail('post_required', 'Use the page’s buttons.', 405)
+ const data = isApi ? await jsonBody(request, MOVE_IN_LIMIT) : await formBody(request, MOVE_IN_LIMIT)
+ const get = (name: string) => isApi ? (data as any)[name] : (data as FormData).get(name)
+ if (action === 'resume' || action === 'undo') {
+  const result = await imports[action](c.db, c.actor, String(get('id')), authority)
+  return isApi ? json(result) : redirect(`/app/move-in/journal?id=${encodeURIComponent(result.id)}`)
+ }
+ const input = isApi ? data : {
+  customers: await pages(data as FormData, 'customers'), charges: await pages(data as FormData, 'charges'),
+  noGoodsOrServices: get('noGoodsOrServices') === 'yes', fingerprint: get('fingerprint') ?? undefined,
+ }
+ if (action === 'preview') { const result = await imports.preview(c.db, c.actor, input, authority); return isApi ? json(result) : page('Review the move-in', previewPage(input, result), c.actor, 200, '/app/more') }
+ if (action === 'apply') {
+  if (!isApi && get('confirm') !== 'yes') fail('confirmation_required', 'Tick the box to approve this exact plan.', 400)
+  const result = await imports.apply(c.db, c.actor, input, authority)
+  return isApi ? json(result) : redirect(`/app/move-in/journal?id=${encodeURIComponent(result.id)}`)
+ }
+ return fail('not_found', 'Not found.', 404)
+}
+
+async function api(c: Context, url: URL): Promise<Response> {
+ const path = url.pathname, match = (re: RegExp) => path.match(re)
+ if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0 }))
+ let m = match(/^\/api\/coffer\/donors\/([^/]+)$/)
+ if (m) return json(await donorHistory(c, m[1]))
+ if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, batches: await batches(c) }) }
+ if ((m = match(/^\/api\/coffer\/letters\/([^/]+)$/))) return json(await batchDetail(c, m[1]))
+ if ((m = match(/^\/api\/coffer\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
+ if (path === '/api/coffer/appeals') return json({ appeals: await appeals(c) })
+ if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)$/))) return json(await appealDetail(c, m[1]))
+ if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
+ if (path === '/api/coffer/settings') return json(await settings(c))
+ return fail('not_found', 'Not found.', 404)
+}
+async function lettersFile(c: Context, batchId: string) {
+ if (!manager(c.actor)) fail('manager_required', 'Only the owner or an admin downloads letters.', 403)
+ const { batch } = await batchDetail(c, batchId)
+ if (!['exported', 'sent'].includes(batch.status)) fail('NOT_EXPORTED', 'Export the approved letters first.')
+ return download(lettersCsv(await batchLetters(c, batchId)), `coffer-letters-${batch.prepared_at.slice(0, 10)}`)
+}
+async function recipientsFile(c: Context, appealId: string) {
+ if (!manager(c.actor)) fail('manager_required', 'Only the owner or an admin downloads an audience.', 403)
+ const { appeal } = await appealDetail(c, appealId)
+ if (!['exported', 'sent'].includes(appeal.status)) fail('NOT_EXPORTED', 'Export the approved audience first.')
+ return download(recipientsCsv(appeal, await recipientsOf(c, appealId)), `coffer-appeal-${appeal.prepared_at.slice(0, 10)}`)
+}
+
+async function screen(c: Context, url: URL): Promise<Response> {
+ const path = url.pathname, actor = c.actor
+ if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
+ const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if (path === '/app') return show('Today', await home(c))
+ if (path === '/app/donors') return show('Donors', await donorsPage(c, url))
+ let m = path.match(/^\/app\/donors\/([^/]+)$/)
+ if (m) { const view = await donorPage(c, m[1]); return show(view.title, view.body) }
+ if (path === '/app/letters') return show('Acknowledgement letters', await lettersPage(c))
+ if ((m = path.match(/^\/app\/letters\/([^/]+)$/))) return show('Letter batch', await batchPage(c, m[1]))
+ if ((m = path.match(/^\/app\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
+ if (path === '/app/appeals') return show('Appeals', await appealsPage(c))
+ if ((m = path.match(/^\/app\/appeals\/([^/]+)$/))) return show('Appeal', await appealPage(c, m[1]))
+ if ((m = path.match(/^\/app\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
+ if (path === '/app/more') return show('More', morePage(actor))
+ if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved')))
+ if (path === '/app/data') {
+  if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
+  return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results))
+ }
+ if (path === '/app/move-in') { if (!manager(actor)) fail('manager_required', 'Only the owner or an admin moves records in.', 403); return show('Move in from Stripe', moveInPage(await imports.jobs(c.db as any))) }
+ if (path === '/app/backup') fail('post_required', 'Use the backup button.', 405)
+ return page('Page not found', '<p>There is nothing at this address.</p><p><a href="/app">Back to today</a></p>', actor, 404, path)
+}

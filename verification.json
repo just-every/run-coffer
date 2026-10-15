@@ -1,0 +1,47 @@
+{
+  "push": [
+    {
+      "name": "source",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run check --profile first-party"
+      ]
+    },
+    {
+      "name": "typecheck",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run typecheck"
+      ]
+    },
+    {
+      "name": "runtime",
+      "browser": true,
+      "hosted": true,
+      "commands": [
+        "pnpm run build",
+        "pnpm run test:runtime"
+      ]
+    },
+    {
+      "name": "donors",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:coffer"
+      ]
+    }
+  ],
+  "nightly": [
+    {
+      "name": "clone-journey",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node tests/clone-journey.mjs"
+      ]
+    }
+  ]
+}

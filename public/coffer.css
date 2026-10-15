@@ -1,0 +1,51 @@
+/* Coffer's working screens on Base's --rer-* theme tokens. */
+.rer-themed main.coffer{max-width:1240px;padding:32px}
+.coffer{--cf-line:color-mix(in srgb,var(--rer-border) 35%,transparent);--cf-ok:#1f6b45;--cf-warn:#8a5a00;--cf-alarm:#a1262b;--cf-info:#1f4f7a}
+.coffer header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.coffer .eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin:0 0 6px}
+.coffer .who{margin:0}
+.coffer nav{display:flex;gap:6px;flex-wrap:wrap;padding:12px 0 20px;border-bottom:1px solid var(--cf-line);margin-bottom:8px}
+.coffer nav a{padding:8px 14px;border-radius:999px;text-decoration:none;font-weight:500}
+.coffer nav a[aria-current=page]{background:var(--rer-text);color:var(--rer-surface)}
+.coffer h2{font-size:20px;margin:0 0 14px}.coffer h3{font-size:16px;margin:16px 0 8px}
+.coffer .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.coffer .grid.wide{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+.coffer .card{padding:22px;border:1px solid var(--cf-line);border-radius:var(--rer-radius);margin-top:20px;min-width:0;background:var(--rer-surface)}
+.coffer .list{list-style:none;padding:0;margin:0}.coffer .list li{padding:12px 0;border-bottom:1px solid var(--cf-line);overflow-wrap:anywhere}.coffer .list li:last-child{border:0}
+.coffer .chip{display:inline-block;padding:1px 10px;border:1px solid currentColor;border-radius:999px;font-size:13px;line-height:1.6;white-space:nowrap;vertical-align:middle}
+.coffer .chip.ok{color:var(--cf-ok)}.coffer .chip.warn{color:var(--cf-warn)}.coffer .chip.alarm{color:var(--cf-alarm)}.coffer .chip.info{color:var(--cf-info)}
+.coffer .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-top:20px}
+.coffer .stat{display:grid;gap:2px;padding:18px;border:1px solid var(--cf-line);border-radius:var(--rer-radius);text-decoration:none;color:var(--rer-text);background:var(--rer-surface)}
+.coffer .stat strong{font-size:26px;font-family:var(--rer-font-heading)}.coffer .stat span{color:var(--rer-muted)}.coffer .stat.alarm strong{color:var(--cf-alarm)}
+.coffer table{width:100%;border-collapse:collapse;font-size:15px}.coffer th,.coffer td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--cf-line);vertical-align:top}
+.coffer th{font-weight:600;font-size:13px;color:var(--rer-muted)}.coffer tr.reversal td{color:var(--rer-muted)}
+.coffer .scroll{overflow-x:auto}
+.coffer .fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.coffer textarea,.coffer select{box-sizing:border-box;width:100%;padding:10px 14px;border:1px solid var(--rer-border);border-radius:calc(var(--rer-radius) / 2);background:var(--rer-surface);color:var(--rer-text);font:inherit}
+.coffer textarea{min-height:96px;resize:vertical}.coffer select{min-height:46px}
+.rer-themed main.coffer input[type=radio]{flex:none;width:18px;height:18px;min-height:0;padding:0;margin:3px 0 0;accent-color:var(--rer-accent,var(--rer-brand-accent))}
+.coffer label:has(input[type=radio]){display:flex;gap:10px;align-items:flex-start;font-weight:400}
+.coffer input[type=file]{min-height:auto!important;padding:8px!important}
+.coffer fieldset{border:1px solid var(--cf-line);border-radius:calc(var(--rer-radius) / 2);padding:14px;display:grid;gap:10px;margin:0}.coffer legend{font-weight:500;padding:0 6px}
+.coffer details{margin-top:12px}.coffer summary{cursor:pointer;font-weight:500;color:var(--rer-link)}
+.coffer details.edit>form,.coffer details.edit>*:not(summary){margin-top:12px}
+.coffer .facts dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px}.coffer .facts code,.coffer code{font-size:13px;overflow-wrap:anywhere}
+.coffer .letter{border:1px solid var(--cf-line);border-radius:var(--rer-radius);padding:20px;margin-top:20px;background:var(--rer-surface)}.coffer .letter h3{margin-top:0}
+.coffer .letter .body{white-space:pre-wrap;line-height:1.55}
+.coffer .actions{display:flex;gap:12px;flex-wrap:wrap}.coffer .actions form{flex:1 1 160px}
+.coffer button.secondary,.coffer form.secondary button{background:transparent;color:var(--rer-text);border:1px solid var(--rer-border)}
+.coffer form.inline{display:inline-block;margin-left:8px}.coffer form.inline button{width:auto;min-height:36px;padding:4px 14px}
+.coffer form.danger button{background:var(--cf-alarm);color:#fff}
+.coffer a.button{display:inline-block;padding:12px 20px;border-radius:var(--rer-radius);background:var(--rer-accent,var(--rer-brand-accent));color:var(--rer-accent-text,var(--rer-brand-accent-text));font-weight:600;text-decoration:none}
+.coffer .notice,.coffer .alert{padding:14px 16px;border-radius:calc(var(--rer-radius) / 2);border:1px solid var(--cf-line);background:var(--rer-page);color:var(--rer-text)}.coffer .alert{border-color:var(--cf-alarm);color:var(--cf-alarm)}
+.coffer .muted,.coffer .empty{color:var(--rer-muted)}.coffer .empty{font-style:italic}
+.coffer .tiles{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.coffer .tiles a{display:grid;gap:4px;padding:20px;border:1px solid var(--cf-line);border-radius:var(--rer-radius);text-decoration:none;color:var(--rer-text);height:100%;box-sizing:border-box}.coffer .tiles span{color:var(--rer-muted)}
+.coffer .steps{padding-left:20px;display:grid;gap:8px}
+.coffer .search{grid-template-columns:1fr auto;align-items:end}.coffer .search button{width:auto}
+.coffer .paging{display:flex;gap:16px;margin-top:12px}
+.coffer pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--rer-page);padding:12px;border-radius:8px}
+.coffer .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.coffer input[type=checkbox]{width:20px;height:20px;accent-color:var(--rer-accent,var(--rer-brand-accent))}
+@media(max-width:900px){.coffer .grid,.coffer .grid.wide{grid-template-columns:1fr}}
+@media(max-width:560px){.coffer table.stack thead{display:none}.coffer table.stack tr{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;padding:12px 0;border-bottom:1px solid var(--cf-line)}.coffer table.stack td{display:block;border:0;padding:0;grid-column:2}.coffer table.stack td.pick{grid-column:1;grid-row:1 / span 4}.coffer table.stack td.lead{font-weight:600}.coffer table.stack td[data-label]::before{content:attr(data-label) ': ';color:var(--rer-muted);font-size:13px}.coffer table.stack td:empty{display:none}.rer-themed main.coffer{padding:20px 16px}.coffer .fields{grid-template-columns:1fr}.coffer .search{grid-template-columns:1fr}.coffer nav a{padding:6px 10px}.coffer th,.coffer td{padding:8px 4px;font-size:14px}}

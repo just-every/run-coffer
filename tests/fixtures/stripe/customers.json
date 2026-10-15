@@ -1,0 +1,281 @@
+{
+ "object": "list",
+ "data": [
+  {
+   "id": "cus_RbLp0008",
+   "object": "customer",
+   "address": {
+    "city": "Peoria",
+    "country": "US",
+    "line1": "230 Pine Street",
+    "line2": null,
+    "postal_code": "61602",
+    "state": "IL"
+   },
+   "balance": 0,
+   "created": 1776870000,
+   "currency": "usd",
+   "default_source": null,
+   "delinquent": false,
+   "description": null,
+   "email": "sam.ortiz@example.org",
+   "invoice_prefix": "LP0008",
+   "invoice_settings": {
+    "custom_fields": null,
+    "default_payment_method": null,
+    "footer": null,
+    "rendering_options": null
+   },
+   "livemode": false,
+   "metadata": {},
+   "name": "Samuel Ortiz",
+   "phone": null,
+   "preferred_locales": [
+    "en-US"
+   ],
+   "shipping": null,
+   "tax_exempt": "none",
+   "test_clock": null
+  },
+  {
+   "id": "cus_RbLp0007",
+   "object": "customer",
+   "address": null,
+   "balance": 0,
+   "created": 1770822000,
+   "currency": "usd",
+   "default_source": null,
+   "delinquent": false,
+   "description": null,
+   "email": "maya.okafor@example.org",
+   "invoice_prefix": "LP0007",
+   "invoice_settings": {
+    "custom_fields": null,
+    "default_payment_method": null,
+    "footer": null,
+    "rendering_options": null
+   },
+   "livemode": false,
+   "metadata": {},
+   "name": "Maya Okafor",
+   "phone": null,
+   "preferred_locales": [
+    "en-US"
+   ],
+   "shipping": null,
+   "tax_exempt": "none",
+   "test_clock": null
+  },
+  {
+   "id": "cus_RbLp0006",
+   "object": "customer",
+   "address": {
+    "city": "Chicago",
+    "country": "US",
+    "line1": "1 Commerce Plaza, Suite 900",
+    "line2": null,
+    "postal_code": "60601",
+    "state": "IL"
+   },
+   "balance": 0,
+   "created": 1759503600,
+   "currency": "usd",
+   "default_source": null,
+   "delinquent": false,
+   "description": null,
+   "email": "grants@hollisfoundation.example.org",
+   "invoice_prefix": "LP0006",
+   "invoice_settings": {
+    "custom_fields": null,
+    "default_payment_method": null,
+    "footer": null,
+    "rendering_options": null
+   },
+   "livemode": false,
+   "metadata": {},
+   "name": "Hollis Family Foundation",
+   "phone": "+1 555-0106",
+   "preferred_locales": [
+    "en-US"
+   ],
+   "shipping": null,
+   "tax_exempt": "none",
+   "test_clock": null
+  },
+  {
+   "id": "cus_RbLp0005",
+   "object": "customer",
+   "address": null,
+   "balance": 0,
+   "created": 1757862000,
+   "currency": "usd",
+   "default_source": null,
+   "delinquent": false,
+   "description": null,
+   "email": "grace.liu@example.org",
+   "invoice_prefix": "LP0005",
+   "invoice_settings": {
+    "custom_fields": null,
+    "default_payment_method": null,
+    "footer": null,
+    "rendering_options": null
+   },
+   "livemode": false,
+   "metadata": {},
+   "name": "Grace Liu",
+   "phone": null,
+   "preferred_locales": [
+    "en-US"
+   ],
+   "shipping": null,
+   "tax_exempt": "none",
+   "test_clock": null
+  },
+  {
+   "id": "cus_RbLp0004",
+   "object": "customer",
+   "address": {
+    "city": "Dubuque",
+    "country": "US",
+    "line1": "7 River Lane",
+    "line2": null,
+    "postal_code": "52001",
+    "state": "IA"
+   },
+   "balance": 0,
+   "created": 1756566000,
+   "currency": "usd",
+   "default_source": null,
+   "delinquent": false,
+   "description": null,
+   "email": "t.becker@example.org",
+   "invoice_prefix": "LP0004",
+   "invoice_settings": {
+    "custom_fields": null,
+    "default_payment_method": null,
+    "footer": null,
+    "rendering_options": null
+   },
+   "livemode": false,
+   "metadata": {},
+   "name": "Thomas Becker",
+   "phone": "+1 555-0104",
+   "preferred_locales": [
+    "en-US"
+   ],
+   "shipping": null,
+   "tax_exempt": "none",
+   "test_clock": null
+  },
+  {
+   "id": "cus_RbLp0003",
+   "object": "customer",
+   "address": {
+    "city": "Ann Arbor",
+    "country": "US",
+    "line1": "400 Oak Avenue",
+    "line2": null,
+    "postal_code": "48104",
+    "state": "MI"
+   },
+   "balance": 0,
+   "created": 1748876400,
+   "currency": "usd",
+   "default_source": null,
+   "delinquent": false,
+   "description": null,
+   "email": "priya.shah@example.org",
+   "invoice_prefix": "LP0003",
+   "invoice_settings": {
+    "custom_fields": null,
+    "default_payment_method": null,
+    "footer": null,
+    "rendering_options": null
+   },
+   "livemode": false,
+   "metadata": {},
+   "name": "Priya Shah",
+   "phone": null,
+   "preferred_locales": [
+    "en-US"
+   ],
+   "shipping": null,
+   "tax_exempt": "none",
+   "test_clock": null
+  },
+  {
+   "id": "cus_RbLp0002",
+   "object": "customer",
+   "address": {
+    "city": "Madison",
+    "country": "US",
+    "line1": "88 Lake Road",
+    "line2": null,
+    "postal_code": "53703",
+    "state": "WI"
+   },
+   "balance": 0,
+   "created": 1747666800,
+   "currency": "usd",
+   "default_source": null,
+   "delinquent": false,
+   "description": null,
+   "email": "dan.reyes@example.org",
+   "invoice_prefix": "LP0002",
+   "invoice_settings": {
+    "custom_fields": null,
+    "default_payment_method": null,
+    "footer": null,
+    "rendering_options": null
+   },
+   "livemode": false,
+   "metadata": {},
+   "name": "Daniel Reyes",
+   "phone": "+1 555-0102",
+   "preferred_locales": [
+    "en-US"
+   ],
+   "shipping": null,
+   "tax_exempt": "none",
+   "test_clock": null
+  },
+  {
+   "id": "cus_RbLp0001",
+   "object": "customer",
+   "address": {
+    "city": "Springfield",
+    "country": "US",
+    "line1": "12 Elm Street",
+    "line2": null,
+    "postal_code": "62701",
+    "state": "IL"
+   },
+   "balance": 0,
+   "created": 1741100400,
+   "currency": "usd",
+   "default_source": null,
+   "delinquent": false,
+   "description": null,
+   "email": "maya.okafor@example.org",
+   "invoice_prefix": "LP0001",
+   "invoice_settings": {
+    "custom_fields": null,
+    "default_payment_method": null,
+    "footer": null,
+    "rendering_options": null
+   },
+   "livemode": false,
+   "metadata": {},
+   "name": "Maya Okafor",
+   "phone": "+1 555-0101",
+   "preferred_locales": [
+    "en-US"
+   ],
+   "shipping": null,
+   "tax_exempt": "none",
+   "test_clock": null
+  }
+ ],
+ "has_more": false,
+ "url": "/v1/customers"
+}
