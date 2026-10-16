@@ -10,20 +10,13 @@ Coffer's public run site will live at https://run-coffer.com once that domain is
 
 ## Start from a fresh clone
 
-You need macOS, Linux or Windows with WSL2, and git. Install the `rer` launcher once if you don't have it:
+You need macOS, Linux or Windows with WSL2, and git. One line clones Coffer, installs the `rer` launcher if you don't have it and starts it:
 
 ```sh
-npx -y @runeditrun/rer@0.2.22 cli install
-export PATH="$HOME/.local/bin:$PATH"
+npx -y @runeditrun/rer dev just-every/run-coffer
 ```
 
-Then clone and start Coffer:
-
-```sh
-git clone https://github.com/just-every/run-coffer.git
-cd run-coffer
-rer dev
-```
+To start it again later, run `cd run-coffer && rer dev`.
 
 `rer dev` installs dependencies (with the pinned Node 22.20.0 and pnpm 10.12.4), sets up a local owner and starts the real app. The first launch can take a few minutes; if it is interrupted, run `rer dev` again and it picks up where it stopped. When it is ready it prints:
 
