@@ -10,11 +10,14 @@ Coffer's public run site will live at https://run-coffer.com once that domain is
 
 ## Start from a fresh clone
 
-You need macOS, Linux or Windows with WSL2, and git. One line clones Coffer, installs the `rer` launcher if you don't have it and starts it:
+You need macOS, Linux or Windows with WSL2, and git. Two lines install the `rer` launcher, clone Coffer and start it:
 
 ```sh
-npx -y @runeditrun/rer dev just-every/run-coffer
+curl -fsSL https://runeditrun.com/install.sh | sh
+rer dev just-every/run-coffer
 ```
+
+The first line installs `rer` for you alone, with its own Node if you have none. It changes no shell settings: if it prints an `export PATH=…` line, run that line before the second. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-coffer` does both lines in one.
 
 To start it again later, run `cd run-coffer && rer dev`.
 
