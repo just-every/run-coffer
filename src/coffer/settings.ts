@@ -4,6 +4,7 @@ import { amount, usd } from './money'
 export type Settings = {
  version: number; organisation: string; ein: string; timezone: string; threshold_cents: number; target_days: number
  letter_subject: string; letter_template: string; none_statement: string; goods_statement: string; reviewed_at: string | null; reviewed_by: string | null
+ fiscal_year_start: string
  online_receipts: 'automatic' | 'review'
 }
 export async function settings(c: { db: D1Database }): Promise<Settings> {
@@ -37,10 +38,12 @@ export async function settingsCommand(c: Context, p: Row) {
  check(none, 'No goods or services statement', [], [])
  check(goods, 'Goods or services statement', GOODS, ['goods_value', 'goods_description'])
  if (!ein && placeholders(subject + template).includes('ein')) fail('TEMPLATE', 'Add your EIN or remove {{ein}} from the letter.', 400)
+ const fiscalStart = p.fiscalYearStart === undefined ? null : text(p.fiscalYearStart, 'Fiscal year start', 5)
+ if (fiscalStart && (!/^\d{2}-\d{2}$/.test(fiscalStart) || Number.isNaN(Date.parse(`2001-${fiscalStart}T00:00:00Z`)) || new Date(`2001-${fiscalStart}T00:00:00Z`).toISOString().slice(5, 10) !== fiscalStart)) fail('INPUT', 'Fiscal year start must be a month and day such as 07-01 (not February 29).', 400)
  const onlineReceipts = p.onlineReceipts === undefined || p.onlineReceipts === '' ? null : p.onlineReceipts === 'review' ? 'review' : p.onlineReceipts === 'automatic' ? 'automatic' : fail('INPUT', 'Choose when online gift receipts go out.', 400)
  await commit(c, [guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'VERSION', 'Settings changed. Refresh before saving.', version),
-  sql('UPDATE cf_settings SET version=version+1,organisation=?,ein=?,timezone=?,threshold_cents=?,target_days=?,letter_subject=?,letter_template=?,none_statement=?,goods_statement=?,online_receipts=COALESCE(?,online_receipts),reviewed_at=?,reviewed_by=? WHERE id=1',
-   organisation, ein, timezone, threshold, targetDays, subject, template, none, goods, onlineReceipts, c.now, c.actor.name),
+  sql('UPDATE cf_settings SET version=version+1,organisation=?,ein=?,timezone=?,threshold_cents=?,target_days=?,letter_subject=?,letter_template=?,none_statement=?,goods_statement=?,online_receipts=COALESCE(?,online_receipts),fiscal_year_start=COALESCE(?,fiscal_year_start),reviewed_at=?,reviewed_by=? WHERE id=1',
+   organisation, ein, timezone, threshold, targetDays, subject, template, none, goods, onlineReceipts, fiscalStart, c.now, c.actor.name),
   event(c, 'settings.update', 'settings', '1', null, { version: version + 1, thresholdCents: threshold })])
  return { version: version + 1 }
 }

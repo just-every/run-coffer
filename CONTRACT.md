@@ -208,7 +208,7 @@ Every constituent shows lifetime giving, first gift, largest gift, last gift, nu
 
 *Acceptance:* An HTTP journey records gifts across three years with a July fiscal year and reads each summary figure back from the donor API and page.
 
-*Status:* partial. Lifetime and yearly hard-credit totals, first-gift date/amount/appeal, separate recognition and installment balances derive from ledger records, including merges/imports. Largest gift, giving streaks, fiscal-year setting and remaining summary metrics remain. Evidence: `src/coffer/donors.ts`, `src/coffer/donor-merge.ts`, `tests/soft-credits.test.mjs`, `tests/pledges.test.mjs`.
+*Status:* done. The donor API and record show ledger-derived lifetime, first/largest/last remaining gift, count, consecutive fiscal giving years, monthly plan states, open pledge balance and separate soft credits. An audited fiscal-year start setting drives current versus previous fiscal totals; signed corrections retain their ledger dates. Evidence: `src/coffer/giving-summary.ts`, `src/coffer/ui/giving-summary.ts`, `tests/giving-summary.test.mjs`, `tests/giving.test.mjs`.
 
 #### DONOR-012 — Constituent status: active, inactive and deceased.
 
@@ -1259,7 +1259,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 20 | soft credits | `GIFT-006` | partial |
 | 21 | tributes | `GIFT-008` | partial |
 | 22 | employer matches | `GIFT-007` | partial |
-| 23 | Lifetime giving and first gift | `DONOR-011` | partial |
+| 23 | Lifetime giving and first gift | `DONOR-011` | done |
 | 24 | Gifts sync from Stripe as they happen | `PAY-001` | partial |
 | 25 | fees, refunds | `PAY-003`, `PAY-004` | partial |
 | 26 | failed monthly payments | `GIVE-006` | partial |
@@ -1308,8 +1308,8 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 4 | 67 | 55 | 126 |
-| All | 13 | 67 | 55 | 135 |
+| Target and push further | 5 | 66 | 55 | 126 |
+| All | 14 | 66 | 55 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1331,7 +1331,7 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | `DONOR-008` | Documents on records | target | missing |  | No attachments. |
 | `DONOR-009` | Address verification and NCOA | target | missing |  | No address verification or NCOA. |
 | `DONOR-010` | Volunteer history | target | missing |  | No volunteer records. |
-| `DONOR-011` | Giving summary | target | partial | `src/coffer/donors.ts`, `src/coffer/donor-merge.ts`, `tests/soft-credits.test.mjs`, `tests/pledges.test.mjs` | Lifetime and yearly hard-credit totals, first-gift date/amount/appeal, separate recognition and installment balances derive from ledger records, including merges/imports. Largest gift, giving streaks, fiscal-year setting and remaining summary metrics remain. |
+| `DONOR-011` | Giving summary | target | done | `src/coffer/giving-summary.ts`, `src/coffer/ui/giving-summary.ts`, `tests/giving-summary.test.mjs`, `tests/giving.test.mjs` |  |
 | `DONOR-012` | Constituent status: active, inactive and deceased | target | missing |  | Constituents have no status; appeals exclude only on consent and address, and erasure is the only way to stop a record being used. |
 | `DONOR-013` | Several emails, phones and addresses | target | partial | `src/coffer/donors.ts`, `migrations/core/0016_coffer.sql` | A donor has one email (refused if any other record has it), one phone and one postal address; no further contact points, types, primaries, seasonal ranges or email shared within a household. |
 | `DONOR-014` | Name parts, salutations and envelope name | target | partial | `src/coffer/donors.ts`, `src/coffer/settings.ts`, `tests/coffer.test.mjs` | A donor has one free-text name and letters merge only `{{donor_name}}`; no prefix, first, middle and last name, suffix or nickname, no computed or overridden salutations or envelope name, and no admin-set defaults. |

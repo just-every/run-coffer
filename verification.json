@@ -70,7 +70,8 @@
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm run test:donor-depth"
+        "pnpm run test:donor-depth",
+        "node --test tests/giving-summary.test.mjs"
       ]
     },
     {

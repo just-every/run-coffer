@@ -136,6 +136,8 @@ test('a failed monthly donation recovers on its second retry without duplicate g
   assert.equal(recovered.gifts[0].fund,'Reading')
   assert.equal(recovered.totals.lifetimeCents,2500)
   assert.equal(recovered.subscriptions[0].status,'active')
+  assert.equal(recovered.summary.recurring[0].status,'active')
+  assert.equal(recovered.summary.recurring[0].amountCents,2500)
   assert.equal(recovered.subscriptions[0].recovered,1)
   assert.equal(recovered.subscriptions[0].next_attempt_at,null)
   assert.equal((await h.get('/api/coffer/lapses')).rows.some(r=>r.sourceId==='sub_monthly'),false)
