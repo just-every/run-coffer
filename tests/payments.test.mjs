@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {createHash,createHmac} from 'node:crypto'
 import {run} from './harness.mjs'
 
-const secret='whsec_payments_network_edge',at=Math.floor(Date.now()/1000)
+const secret='synthetic_whsec_payments_network_edge',at=Math.floor(Date.now()/1000)
 const charge=(id,amount,fund,email,fee)=>({id,object:'charge',paid:true,status:'succeeded',amount,currency:'usd',created:at,metadata:{fund},billing_details:{name:email.split('@')[0],email},balance_transaction:'txn_'+id,amount_refunded:0,fee})
 const a=charge('ch_reading',10000,'Reading','maria@example.test',320),b=charge('ch_meals',5000,'Meals','jonah@example.test',175)
 const refund={id:'re_reading',object:'refund',status:'succeeded',charge:a.id,balance_transaction:'txn_refund'}
