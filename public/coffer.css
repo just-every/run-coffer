@@ -90,6 +90,9 @@
 .coffer a { color: var(--rer-link); text-underline-offset: 2px; }
 .coffer .card { min-width: 0; margin-top: 16px; padding: 18px 20px; background: var(--rer-surface); border: 1px solid var(--cf-line); border-radius: var(--cf-radius); box-shadow: var(--cf-shadow); }
 .coffer .card > :last-child { margin-bottom: 0; }
+/* Screens that wrap their content in a bare section get the same card. */
+.coffer > section:not([class]) { min-width: 0; margin-top: 16px; padding: 18px 20px; background: var(--rer-surface); border: 1px solid var(--cf-line); border-radius: var(--cf-radius); box-shadow: var(--cf-shadow); }
+.coffer > section:not([class]) > :last-child { margin-bottom: 0; }
 .coffer .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .coffer .grid.wide { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
 .coffer .grid > div > .card:first-child, .coffer .grid > .card:first-child { margin-top: 16px; }
@@ -99,7 +102,6 @@
 .coffer .muted { color: var(--cf-soft); }
 .coffer .empty { padding: 4px 0; color: var(--cf-soft); }
 .cf-app .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.coffer .eyebrow { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
 
 /* Status chips: pale tints with a small glyph; the label carries the meaning. */
 .coffer .chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 10px; border-radius: 999px; background: var(--cf-plain-tint); color: #4a5180; font-size: 12.5px; font-weight: 500; line-height: 1.4; vertical-align: middle; }
@@ -157,7 +159,7 @@
 .coffer form.danger button { background: var(--cf-alarm); }
 .coffer form.inline { display: inline-block; margin-left: 8px; }
 .coffer form.inline button { min-height: 32px; padding: 4px 14px; }
-.coffer .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.coffer .actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
 .coffer .actions > form { flex: 1 1 180px; }
 .coffer p.actions a { padding: 7px 14px; border: 1px solid var(--cf-line); border-radius: 999px; background: var(--rer-surface); color: var(--cf-body); font-weight: 500; text-decoration: none; }
 .coffer p.actions a:hover { border-color: var(--cf-violet-line); color: var(--cf-violet-ink); }

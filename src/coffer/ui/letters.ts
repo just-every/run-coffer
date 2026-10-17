@@ -6,7 +6,7 @@ import { box, chip, details, e, empty, field, form, money, status, when } from '
 
 export const letterStatus = (value: string) => value === 'approved' ? chip('Approved', 'info') : value === 'exported' ? chip('Exported', 'info') : status(value)
 /** A gift's acknowledgement state: its live letter, or whether one is due. */
-export const giftLetter = (g: Row, thresholdCents: number, date = when) => g.kind !== 'gift' ? '' : g.ack_status ? `<a href="/app/letters/${e(g.ack_batch)}">${letterStatus(g.ack_status)}</a>${g.ack_sent_on ? ` ${date(g.ack_sent_on)}` : ''}` : g.reversed_by ? chip('Reversed') : g.amount_cents >= thresholdCents ? chip('Letter due', 'warn') : '<span class="muted">Below threshold</span>'
+export const giftLetter = (g: Row, thresholdCents: number, date: ((day: string) => string) | null = when) => g.kind !== 'gift' ? '' : g.ack_status ? `<a href="/app/letters/${e(g.ack_batch)}">${letterStatus(g.ack_status)}</a>${g.ack_sent_on && date ? ` ${date(g.ack_sent_on)}` : ''}` : g.reversed_by ? chip('Reversed') : g.amount_cents >= thresholdCents ? chip('Letter due', 'warn') : '<span class="muted">Below threshold</span>'
 
 export async function lettersPage(c: Context) {
  const due = await dueGifts(c), s = due.settings, all = await batches(c), boss = manager(c.actor)
