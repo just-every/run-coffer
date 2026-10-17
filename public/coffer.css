@@ -60,3 +60,6 @@
 .coffer .stewardship-sources{display:block;overflow-wrap:anywhere}.coffer .stewardship-sources dt{margin-top:20px}.coffer .stewardship-sources dd{margin:8px 0 20px}.coffer .stewardship-sources p{margin:6px 0}
 .coffer pre.copy{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
 .coffer p.copy{white-space:pre-wrap}
+.coffer .filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:8px 12px;align-items:end;margin:12px 0}.coffer .filters button{width:auto}
+.coffer .pager{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-top:12px}.coffer ol.issues{padding-left:1.6em}.coffer ol.issues li p{margin:4px 0 0;overflow-wrap:anywhere}
+@media(max-width:560px){.coffer .filters{grid-template-columns:1fr}}

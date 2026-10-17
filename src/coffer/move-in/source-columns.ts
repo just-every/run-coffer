@@ -3,7 +3,7 @@ import type { ImportSource } from './types'
 /** Exact report labels plus documented, user-configurable export label variants. */
 const common: Record<string, string[]> = {
  name: ['Name', 'Full Name', 'Constituent Name', 'Donor Name'], firstName: ['First Name'], middleName: ['Middle Name'], lastName: ['Last Name'],
- organization: ['Organization Name', 'Organisation Name'], email: ['Email', 'Email Address', 'Primary Email', 'Primary Email Address', 'Preferred Email'],
+ organization: ['Organization Name', 'Organisation Name', 'Org Name'], isOrg: ['Is Org', 'Is Organization', 'Is Organisation'], email: ['Email', 'Email Address', 'Primary Email', 'Primary Email Address', 'Preferred Email'],
  phone: ['Phone', 'Phone Number', 'Primary Phone', 'Primary Phone Number', 'Preferred Phone'],
  addressLine1: ['Address', 'Address Line 1', 'Address 1', 'Street Address', 'Street', 'Primary Street', 'Primary Street Address', 'Preferred Address'],
  addressLine2: ['Address Line 2', 'Address 2', 'Street Address 2', 'Primary Street 2'], city: ['City', 'Primary City'],
