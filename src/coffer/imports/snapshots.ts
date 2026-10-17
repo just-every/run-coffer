@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { canonicalJson, sha256, type ImportMapping, type Json, type SourceArtifact, type SourceBundle, type SourceRecord, type TargetEffect } from '../../modules/import-kit/src/d1/index.ts'
 import { mappingVersion, namespace } from './context.ts'
+import { planSubscriptions, type SubscriptionIndex } from './subscriptions.ts'
 import { reject, type Skipped, type SnapshotInput, type SnapshotObject } from './types.ts'
 
 export const kitName = 'Stripe customers and charges'
@@ -11,7 +12,7 @@ export const giftId = (charge: string) => `stripe-${sha256(canonicalJson([namesp
 export const erasureHash = (value: string) => sha256(canonicalJson(['coffer-erasure', value.trim().toLowerCase()]))
 
 /** What Coffer already holds, read before planning so the mapping stays pure. */
-export type NativeIndex = { donorIds: Set<string>; aliases?: Map<string,string>; erased: Set<string>; emails: Map<string, string>; charges: Map<string, number>; timezone: string }
+export type NativeIndex = { donorIds: Set<string>; aliases?: Map<string,string>; erased: Set<string>; emails: Map<string, string>; charges: Map<string, number>; timezone: string; subscriptions: SubscriptionIndex }
 const ERASED = 'Belongs to a donor erased from Coffer; not imported again.'
 
 const object = (value: unknown, label: string): SnapshotObject => {
@@ -33,8 +34,9 @@ const day = (seconds: number, timezone: string) => {
   return ['year', 'month', 'day'].map(t => parts.find(p => p.type === t)!.value).join('-')
 }
 
-type Page = { kind: 'customer' | 'charge'; root: SnapshotObject; artifact: SourceArtifact; records: SourceRecord[] }
-function pages(value: unknown, kind: 'customer' | 'charge', key: string, prefix: RegExp): Page[] {
+type SourceKind = 'customer' | 'charge' | 'subscription' | 'paymentIntent' | 'invoice'
+type Page = { kind: SourceKind; root: SnapshotObject; artifact: SourceArtifact; records: SourceRecord[] }
+function pages(value: unknown, kind: SourceKind, key: string, prefix: RegExp): Page[] {
   if (value === undefined || value === null) return []
   const list = Array.isArray(value) ? value : [value]
   return list.map((raw, page) => {
@@ -57,9 +59,12 @@ function pages(value: unknown, kind: 'customer' | 'charge', key: string, prefix:
 
 export function snapshotSource(input: SnapshotInput, native: NativeIndex): { source: SourceBundle; mapping: ImportMapping; skipped: Skipped[] } {
   object(input, 'Import input')
-  const all = [...pages(input.customers, 'customer', 'customers', /^cus_[A-Za-z0-9]{1,100}$/), ...pages(input.charges, 'charge', 'charges', /^(ch|py)_[A-Za-z0-9]{1,100}$/)]
+  const all = [...pages(input.customers, 'customer', 'customers', /^cus_[A-Za-z0-9]{1,100}$/), ...pages(input.charges, 'charge', 'charges', /^(ch|py)_[A-Za-z0-9]{1,100}$/),
+    ...pages(input.subscriptions, 'subscription', 'subscriptions', /^sub_[A-Za-z0-9]{1,100}$/),
+    ...pages(input.paymentIntents, 'paymentIntent', 'payment-intents', /^pi_[A-Za-z0-9]{1,100}$/),
+    ...pages(input.invoices, 'invoice', 'invoices', /^in_[A-Za-z0-9]{1,100}$/)]
   const records = all.flatMap(p => p.records), bytes = all.reduce((n, p) => n + p.artifact.size, 0)
-  if (!records.some(r => r.kind === 'charge')) reject('IMPORT_EMPTY', 'Add at least one page of Stripe charges.', 400)
+  if (!records.some(r => r.kind === 'charge' || r.kind === 'subscription')) reject('IMPORT_EMPTY', 'Add Stripe charges or subscriptions to preview.', 400)
   if (all.length > snapshotLimits.pages || records.length > snapshotLimits.records || bytes > snapshotLimits.bytes)
     reject('IMPORT_LIMIT', `One review holds at most ${snapshotLimits.records} Stripe objects in ${snapshotLimits.pages} pages (${snapshotLimits.bytes / 1024 / 1024} MB). Import a year in several reviews, for example by quarter.`, 400)
   const seen = new Set<string>()
@@ -120,15 +125,17 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
       source: 'stripe', createdAt: new Date(created * 1000).toISOString(), createdBy: 'Stripe move-in',
     } })
   }
-  if (!effects.size) reject('IMPORT_NOTHING_NEW', 'Nothing in these pages adds a donor or gift.', 409, skipped)
+  const subscriptionPlan = planSubscriptions(records.filter(r => r.kind === 'subscription'), donorFor, native.subscriptions)
+  skipped.push(...subscriptionPlan.skipped)
+  if (!effects.size && !subscriptionPlan.effects.size) reject('IMPORT_NOTHING_NEW', 'Nothing in these pages adds a donor or gift.', 409, skipped)
   const diagnostics: SourceBundle['diagnostics'] = all.filter(p => p.root.has_more === true)
     .map(p => ({ severity: 'warning' as const, code: 'PARTIAL_SNAPSHOT', message: `${p.artifact.name} says Stripe has more results. Fetch the next page with starting_after if you need them.` }))
   const mapping: ImportMapping = {
     version: mappingVersion,
     map(record) {
-      const effect = effects.get(`${record.kind}:${record.sourceId}`)!
-      return { effects: [effect], unmapped: record.kind === 'customer' ? [{ reason: 'Stripe metadata and payment settings stay in the retained original.' }] : [] }
+      const planned = subscriptionPlan.effects.get(`subscription:${record.sourceId}`) ?? [effects.get(`${record.kind}:${record.sourceId}`)!]
+      return { effects: planned, unmapped: record.kind === 'customer' ? [{ reason: 'Stripe metadata and payment settings stay in the retained original.' }] : [] }
     },
   }
-  return { source: { records: records.filter(r => effects.has(`${r.kind}:${r.sourceId}`)), artifacts: all.map(p => p.artifact), diagnostics }, mapping, skipped }
+  return { source: { records: records.filter(r => effects.has(`${r.kind}:${r.sourceId}`) || (r.kind === 'subscription' && subscriptionPlan.effects.has(`subscription:${r.sourceId}`))), artifacts: all.map(p => p.artifact), diagnostics }, mapping, skipped }
 }

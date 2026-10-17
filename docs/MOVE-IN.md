@@ -1,44 +1,42 @@
 # Move in from Stripe
 
-Coffer's first move-in kit reads the JSON that Stripe's own API returns. You save the pages; Coffer never asks for your Stripe key and never contacts Stripe.
+Open **More → Move in from Stripe**, or follow Today’s second setup step. Coffer reads the account connected under Giving. Choose the first and last gift dates and press **Read Stripe and preview**. Dates include the whole day in UTC. Coffer follows Stripe’s next pages automatically; there are no commands or files to prepare.
 
-## Save the pages
+## Use a read-only key instead
 
-Use the [Stripe CLI](https://docs.stripe.com/stripe-cli) on your own computer, signed in with `stripe login` (a restricted key with read access to Customers and Charges is enough). Each call returns up to 100 objects:
+The page also explains this alternative in full:
 
-```sh
-# Customers (donors)
-stripe get /v1/customers -d limit=100 > customers-1.json
+1. Open [Stripe API keys](https://dashboard.stripe.com/apikeys). Select the organization and live mode, or the sandbox for a test move-in.
+2. Under **Restricted keys**, choose **Create restricted key** and name it **Coffer move-in**.
+3. Give **Customers**, **Charges**, **Payment Intents**, **Subscriptions** and **Invoices** **Read** permission. Leave everything else at **None**.
+4. Copy the restricted key into the page. Coffer uses it only for this preview; it is never saved or carried into the approval form. Expire the key in Stripe after the move-in.
 
-# Charges (gifts) for one year, here October 2025 to September 2026
-stripe get /v1/charges -d limit=100 -d "created[gte]=1759276800" -d "created[lt]=1790812800" > charges-1.json
-```
+Stripe’s [key documentation](https://docs.stripe.com/keys) describes restricted keys and sandbox/live separation. The importer makes only GET requests, including when it uses Giving’s existing key.
 
-If a page ends with `"has_more": true`, fetch the next one by adding `-d starting_after=<id of the last object>` and save it as the next file. Coffer warns when a page says more results exist.
+## Review, approve and check
 
-Each file must be Stripe's list response, `{"object":"list","data":[...],"has_more":...,"url":...}`, unchanged. The documented shapes are [List all customers](https://docs.stripe.com/api/customers/list) and [List all charges](https://docs.stripe.com/api/charges/list). `tests/fixtures/stripe/` holds a synthetic year in exactly this shape.
+Customers with charges in the selected dates, monthly plans for those customers, and plans created during the period are read directly. Coffer reads [charges](https://docs.stripe.com/api/charges/list), [Payment Intents](https://docs.stripe.com/api/payment_intents/list), [invoices](https://docs.stripe.com/api/invoices/list) and [subscriptions](https://docs.stripe.com/api/subscriptions/list). A successful PaymentIntent resolves to its real charge. Payment Intents and invoices supply context and never create another copy of a gift; invoices marked paid outside Stripe do not create gifts.
 
-## What Coffer does with them
+The preview shows new donors, gifts, net cents, monthly plans and every skip reason. Compare the gift count and total with Stripe’s payments for those dates, after the refunds and skips shown. Tick the approval box to apply that exact plan. The journal then compares the actual gifts in Coffer with the approved count and cents. Large imports apply in parts; use **Continue the import** until complete.
 
-| Stripe | Coffer |
+| Stripe record | Coffer result |
 | --- | --- |
-| Customer | A donor: name (or email), email, phone, address. Metadata stays in the retained page. |
-| A second customer with the same email | Skipped; its charges go to the first customer's donor. |
-| Customer whose email matches an existing donor | Skipped; its charges go to that donor. |
-| Successful (`status: succeeded`, `paid: true`) US-dollar charge | A gift on its customer's donor, dated by the charge time in your settings' time zone, net of any partial refund. `metadata.fund` or `metadata.campaign` becomes the fund; `description` becomes the note. |
-| Charge without a customer | Attached to the donor whose email matches its billing or receipt email. |
-| Failed, fully refunded or non-USD charge; charge with no matching donor | Skipped, with the reason shown in the preview. |
-| Charge already imported | Skipped. If Stripe now shows a different net amount, the preview tells you to record the refund as a reversal. |
-| Customer or email of an erased donor | Skipped; never imported again. |
+| Customer | Donor name (or email), email, phone and address. Existing matching emails attach to that donor. |
+| Successful US-dollar charge | One gift, net of refunds, dated in the organization’s time zone. Metadata fund/campaign and description are carried. |
+| Failed, fully refunded, non-USD or unmatched charge | Listed and skipped. |
+| Charge already in Coffer | Skipped. A changed refund balance is named for a person to reconcile. |
+| Active, fixed-price USD monthly subscription | A monthly plan on the donor, using its existing Stripe subscription and customer IDs. Stripe continues billing it; Coffer creates no new subscription and transfers no card. |
+| Other subscription schedule, currency, status, usage, discounts or tax | Listed with a specific skip reason; not silently reduced to a different plan. |
+| Erased donor or email | Not restored. |
 
-Consent is never imported: Stripe does not record appeal consent. Record it in Coffer.
+Consent is never inferred. Importing sends no receipts. The donations checkbox records that no goods or services were provided; leave it unticked for tickets, meals or merchandise so those receipts wait for a person’s answer.
 
-The **These charges were donations** box records that no goods or services were given for every imported gift. Leave it unticked if some charges paid for tickets, dinners or merchandise: those gifts then show **Goods/services not answered**, and their letters wait until an owner or admin answers on the donor page.
+## Large histories and undo
 
-## Limits
+One review holds at most 1,000 source objects, 40 retained pages and 4 MB. Use a month or quarter for larger histories; Coffer skips earlier imported records. An incomplete read fails without adding any records.
 
-One review holds at most 1,000 Stripe objects in 40 pages and 4 MB. Import a larger year in several reviews, for example by quarter; customers already in Coffer are skipped, so later reviews only need the charge pages (add customer pages for new donors). Applying writes in parts that fit one request; the journal's **Continue** button carries on.
+The journal’s **Undo** removes exactly the donors, gifts and monthly plans this import added. It does not cancel anything in Stripe. It stops if someone has since changed or built on those records, including a letter, gift, recovery action or another plan using the imported campaign. Retained responses have verified digests; PaymentIntent client secrets are never included in a connected preview.
 
-## Undo
+## Advanced: saved JSON
 
-The journal's **Undo** removes exactly what that import added. It stops at anything a person has since built on: a new gift, consent, pledge, letter or appeal for an imported donor, or a letter for an imported gift.
+JSON files are copies of Stripe API responses. Use the collapsed **Advanced: upload saved Stripe JSON** option only if someone has already saved those files for you. It accepts unchanged Customers and Charges list responses, such as `{"object":"list","data":[...],"has_more":false}`. Multiple files or pasted pages are supported. A saved page whose `has_more` is true is explicitly warned as incomplete. The normal connected path reads the remaining pages for you.

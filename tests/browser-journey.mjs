@@ -38,11 +38,12 @@ export async function browserJourney(openUrl,{directory='.cache/browser',fixture
 
   stage='move in'
   await go('More');await page.getByRole('link',{name:/Move in from Stripe/}).click()
+  await page.getByText('Advanced: upload saved Stripe JSON',{exact:true}).click()
   await page.getByLabel('Customer pages (.json)',{exact:true}).setInputFiles(join(fixtures,'customers.json'))
   await page.getByLabel('Charge pages (.json)',{exact:true}).setInputFiles([join(fixtures,'charges-2025-q4.json'),join(fixtures,'charges-2026.json')])
-  await page.getByLabel(/These charges were donations/).check()
-  await click('Preview the move-in');await page.getByText('7 new donors and 15 gifts').waitFor();await shot('03-move-in-preview')
-  await page.getByLabel('I approve adding exactly these donors and gifts.',{exact:true}).check()
+  await page.locator('form[action="/app/move-in/preview"]').getByLabel(/These payments were donations/).check()
+  await click('Preview saved files');await page.getByText('7 new donors and 15 gifts').waitFor();await shot('03-move-in-preview')
+  await page.getByLabel('I approve adding exactly these donors, gifts and monthly plans.',{exact:true}).check()
   await click('Apply the move-in');await page.getByText('Applied').first().waitFor();await shot('04-move-in-journal')
 
   stage='consent'

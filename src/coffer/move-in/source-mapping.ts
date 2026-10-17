@@ -20,7 +20,7 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  if (!existing) out.donors.push(donor)
  else {
   for (const key of ['name', ...donorFields] as const) {
-   if (existing[key] && donor[key] && existing[key] !== donor[key]) r.error('DONOR_CONFLICT', `Conflicting ${key} for source constituent ${externalId}. Export one authoritative value.`, key)
+   if (existing[key] && donor[key] && existing[key] !== donor[key]) r.error('DONOR_CONFLICT', `Conflicting ${key} for source constituent ${externalId}${out.source === 'lgl' ? ' in the constituents report. Correct the constituent rows so this ID has one value' : '. Export one authoritative value'}.`, key)
    else if (!existing[key]) existing[key] = donor[key]
   }
   existing.firstName ||= donor.firstName; existing.lastName ||= donor.lastName; existing.organization ||= donor.organization
@@ -95,8 +95,14 @@ function installment(r: SourceRow, out: ParsedImport) {
 }
 export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {
  const kind = r.kind(); r.get('type')
+ // LGL repeats display names in gift and relationship reports. Only constituent
+ // records define donors: labels on referenced records cannot create or rename one.
+ if (out.source === 'lgl') {
+  r.get('sortName'); r.get('relatedName')
+  if (kind !== 'donor' && kind !== 'control') for (const field of ['name', 'organization', 'firstName', 'middleName', 'lastName']) r.get(field)
+ }
  if (kind === 'unsupported') { r.error('ROW_TYPE', 'Unrecognized record or transaction type. Include Gift Type/Transaction Type and export unsupported records separately.'); r.finish(); return }
- addDonor(r, out)
+ if (out.source !== 'lgl' || kind === 'donor' || kind === 'control') addDonor(r, out)
  if (kind === 'control') { note(r, out); return }
  switch (kind) {
   case 'donor': note(r, out); if (r.peek('relatedDonor')) relationship(r, out); break

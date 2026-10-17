@@ -24,6 +24,8 @@ import { batchDetail, batches, batchLetters, dueGifts, lettersCsv, currentLetter
 import { appealDetail, appeals, recipientsCsv, recipientsOf } from './appeals'
 import { settings } from './settings'
 import * as imports from './imports/index'
+import { readStripe } from './imports/live-stripe'
+import { available as stripeAvailable } from './giving/stripe'
 import { page } from './ui/common'
 import { givingResponse } from './giving/http'
 import { paymentsResponse } from './payments/http'
@@ -235,8 +237,14 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
   const result = await imports[action](c.db, c.actor, String(get('id')), authority)
   return isApi ? json(result) : redirect(`/app/move-in/journal?id=${encodeURIComponent(result.id)}`)
  }
+ if (action === 'read-stripe') {
+  const input = await readStripe(c.env!, Object.fromEntries(['start', 'end', 'readKey', 'noGoodsOrServices'].map(name => [name, get(name)])))
+  const result = await imports.preview(c.db, c.actor, input, authority)
+  return isApi ? json({ input, ...result }) : page('Review the move-in', previewPage(input, result), c.actor, 200, '/app/more')
+ }
  const input = isApi ? data : {
   customers: await pages(data as FormData, 'customers'), charges: await pages(data as FormData, 'charges'),
+  subscriptions: await pages(data as FormData, 'subscriptions'), paymentIntents: await pages(data as FormData, 'paymentIntents'), invoices: await pages(data as FormData, 'invoices'),
   noGoodsOrServices: get('noGoodsOrServices') === 'yes', fingerprint: get('fingerprint') ?? undefined,
  }
  if (action === 'preview') { const result = await imports.preview(c.db, c.actor, input, authority); return isApi ? json(result) : page('Review the move-in', previewPage(input, result), c.actor, 200, '/app/more') }
@@ -323,7 +331,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
   return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited') }))
  }
- if (path === '/app/move-in') { if (!manager(actor)) fail('manager_required', 'Only the owner or an admin moves records in.', 403); return show('Move in from Stripe', moveInPage(await imports.jobs(c.db as any))) }
+ if (path === '/app/move-in') { if (!manager(actor)) fail('manager_required', 'Only the owner or an admin moves records in.', 403); return show('Move in from Stripe', moveInPage(await imports.jobs(c.db as any), stripeAvailable(c.env!))) }
  if (path === '/app/backup') fail('post_required', 'Use the backup button.', 405)
  return page('Page not found', '<p>There is nothing at this address.</p><p><a href="/app">Back to today</a></p>', actor, 404, path)
 }

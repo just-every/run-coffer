@@ -25,7 +25,7 @@
       "pages": [
         { "slug": "people", "title": "People and roles", "file": "people.md", "summary": "Owner, admin, member and agent keys: who can approve, export, move in, back up and erase." },
         { "slug": "agent-commands", "title": "Agent keys and commands", "file": "AGENT-COMMANDS.md", "summary": "Every endpoint and command an agent or script can call, and who may call it." },
-        { "slug": "move-in", "title": "Move in from Stripe", "file": "MOVE-IN.md", "summary": "Save your Stripe customer and charge pages, preview the move-in, apply the exact plan and undo it if needed." },
+        { "slug": "move-in", "title": "Move in from Stripe", "file": "MOVE-IN.md", "summary": "Read donors, gifts and monthly plans from Stripe, preview and check the totals, then approve or undo." },
         { "slug": "move-in-crm", "title": "Move in from a CRM", "file": "MOVE-IN-SOURCES.md", "summary": "Export from Little Green Light, Bloomerang or Raiser's Edge NXT, check totals and switch in one reviewed step." },
         { "slug": "backup", "title": "Back up, restore and erase", "file": "backup.md", "summary": "Download a backup, restore it into an empty installation, and erase a donor without losing the ledger." },
         { "slug": "hosting", "title": "Host it on Cloudflare", "file": "hosting.md", "summary": "Deploy Coffer to your own Cloudflare account with SendGrid mail, back it up, and take it down." }

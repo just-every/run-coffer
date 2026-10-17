@@ -46,7 +46,7 @@ export function validateImport(out: ParsedImport) {
   out.diagnostics.push({ severity: 'warning', code: 'RECONCILIATION', message: 'Raw received gift totals and mapped gift totals do not reconcile by count, cents, year, fund, and constituent.' })
  }
  const donors = new Set(out.donors.map(d => d.externalId)), gifts = new Map(out.gifts.map(g => [g.externalId, g])), pledges = new Map(out.pledges.map(p => [p.externalId, p]))
- const missing = (row: { location: object }, kind: string, id: string) => out.diagnostics.push({ ...row.location, severity: 'error', code: 'MISSING_REFERENCE', message: `${kind} ${id || '(empty)'} is missing from the supplied exports.` })
+ const missing = (row: { location: object }, kind: string, id: string) => out.diagnostics.push({ ...row.location, severity: 'error', code: 'MISSING_REFERENCE', message: `${kind} ${id || '(empty)'} is missing from the supplied exports.${out.source === 'lgl' && /constituent/i.test(kind) ? ' Include this ID in the constituents report with its name; names in other reports are only labels.' : ''}` })
  for (const collection of [out.gifts, out.relationships, out.softCredits, out.pledges, out.installments, out.notes]) {
   const ids = new Set<string>()
   for (const row of collection) {

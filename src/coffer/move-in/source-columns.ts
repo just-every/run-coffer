@@ -24,7 +24,11 @@ const common: Record<string, string[]> = {
  controlYear: ['Year', 'Calendar Year'],
 }
 const vendor: Record<ImportSource, Record<string, string[]>> = {
- lgl: { donorId: ['LGL Constituent ID', 'Constituent ID'], giftId: ['LGL Gift ID', 'Gift ID'] },
+ lgl: {
+  donorId: ['LGL Constituent ID', 'Constituent ID'], giftId: ['LGL Gift ID', 'Gift ID'],
+  sortName: ['Sort Name'], relatedName: ['Related Constituent Name'],
+  deductible: ['Deductible', 'Deductible Amount', 'Tax Deductible Amt'],
+ },
  bloomerang: { name: ['Name', 'Full Name', 'Constituent Name'], softName: ['Donor Name', 'Soft Credit Name(s)'], donorId: ['Account Number', 'Constituent ID'], giftId: ['Transaction Number', 'Transaction ID'] },
  're-nxt': { donorId: ['Constituent ID', 'Constituent System Record ID'], giftId: ['Gift ID', 'Gift System Record ID'] },
 }

@@ -24,7 +24,7 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     sql("UPDATE cf_acks SET donor_id=?,recipient_name=?,recipient_email=NULL,address=NULL,statement_gifts=NULL,delivery_note=NULL,subject='[erased]',body='[erased]' WHERE donor_id=?", placeholderId, ERASED, donorId),
     sql('UPDATE cf_appeal_recipients SET donor_id=?,name=?,email=NULL,address=NULL WHERE donor_id=?', placeholderId, ERASED, donorId),
     sql('UPDATE cf_events SET donor_id=? WHERE donor_id=?', placeholderId, donorId),
-    sql("DELETE FROM cf_import_revisions WHERE (kind='donor' AND id=?) OR (kind='gift' AND id IN (SELECT id FROM cf_gifts WHERE donor_id=?))", donorId, placeholderId),
+    sql("DELETE FROM cf_import_revisions WHERE (kind='donor' AND id=?) OR (kind='gift' AND id IN (SELECT id FROM cf_gifts WHERE donor_id=?)) OR (kind='subscription' AND id IN (SELECT id FROM cf_subscriptions WHERE donor_id=?))", donorId, placeholderId, placeholderId),
     sql('DELETE FROM cf_donors WHERE id=?', donorId),
   ]
 }
@@ -63,7 +63,8 @@ export async function erase(db: D1Database, actor: ImportActor, donorId: string,
   while (!index.complete) index = await upgradeD1ImportErasureIndex(context)
   // Stripe objects name a donor by customer id or email: the customer record
   // itself, and every charge that points at the customer or carries the email.
-  const ids = new Set([donor.source_ref].filter(Boolean) as string[]), email = donor.email?.toLowerCase() ?? ''
+  const linked = await db.prepare('SELECT customer_id FROM cf_subscriptions WHERE donor_id=? UNION SELECT customer_id FROM cf_giving_customers WHERE donor_id=?').bind(donorId, donorId).all<{customer_id:string}>()
+  const ids = new Set([donor.source_ref, ...linked.results.map(r => r.customer_id)].filter(Boolean) as string[]), email = donor.email?.toLowerCase() ?? ''
   const names = (p: SnapshotObject) => {
     const billing = (p.billing_details ?? {}) as SnapshotObject
     return ids.has(String(p.id)) || ids.has(String(p.customer)) || (!!email && [p.email, billing.email, p.receipt_email].some(x => typeof x === 'string' && x.trim().toLowerCase() === email))
