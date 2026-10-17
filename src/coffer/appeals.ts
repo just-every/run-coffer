@@ -7,7 +7,7 @@ const MAX_RECIPIENTS = 10000
 const CONSENT = `(SELECT k.id FROM cf_consents k WHERE k.donor_id=r.donor_id AND k.channel=? ORDER BY k.id DESC LIMIT 1)`
 // Every frozen recipient still has the exact consent answer that admitted them.
 const UNCHANGED = `NOT EXISTS(SELECT 1 FROM cf_appeal_recipients r WHERE r.appeal_id=? AND ${CONSENT} IS NOT r.consent_id)`
-const hashOf = (name: string, channel: string, recipients: Row[]) => sha256(JSON.stringify([name, channel, recipients.map(r => [r.donor_id, r.consent_id, r.name, r.email, r.address])]))
+export const hashOf = (name: string, channel: string, recipients: Row[]) => sha256(JSON.stringify([name, channel, recipients.map(r => [r.donor_id, r.consent_id, r.name, r.email, r.address])]))
 const postal = (d: Row) => d.address_line1 && d.city && d.postal_code
 
 /** Splits the segment into consenting recipients and counted exclusions. */

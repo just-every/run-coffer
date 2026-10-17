@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "domain": "run-coffer.com",
+  "name": "Coffer",
+  "ownerEmail": "dana.whitfield@copperhollowpantry.example",
+  "settings": {
+    "MAIL_FROM": "hello@copperhollowpantry.example"
+  }
+}

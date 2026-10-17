@@ -6,13 +6,15 @@ import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import assert from 'node:assert/strict'
-let bundle
-export async function installation() {
- bundle??=await build({entryPoints:['tests/worker.ts'],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']})
+const bundles=new Map()
+// `entry` swaps the Worker under test (tests/demo-worker.ts wraps it in withDemo); `bindings` adds or overrides vars.
+export async function installation({entry='tests/worker.ts',bindings={}}={}) {
+ if(!bundles.has(entry))bundles.set(entry,build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']}))
+ const bundle=await bundles.get(entry)
  const directory=await mkdtemp(join(tmpdir(),'coffer-api-')),setup=randomBytes(32).toString('hex'),messages=[]
  let origin='https://127.0.0.1'
  const secret=randomBytes(32).toString('hex')
- const options=()=>({...convertV4MiniflareOptions({host:'127.0.0.1',port:Number(new URL(origin).port),modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'auth@example.test'},outboundService:async request=>{assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})}}),resourcePersistencePath:directory})
+ const options=()=>({...convertV4MiniflareOptions({host:'127.0.0.1',port:Number(new URL(origin).port),modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'auth@example.test',...bindings},outboundService:async request=>{assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})}}),resourcePersistencePath:directory})
  const mf=new Miniflare(options())
  try {
   origin='https://'+(await mf.ready).host
@@ -39,10 +41,10 @@ export async function installation() {
    const cookie=confirmed.headers.getSetCookie().map(x=>x.split(';')[0]).join('; '),session=await api('/auth/session',undefined,{as:cookie})
    return {cookie,id:session.operator.id,session}
   }
-  return {mf,origin,owner,request,api,command,get,person,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  return {mf,origin,owner,messages,request,api,command,get,person,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(error){await mf.dispose();await rm(directory,{recursive:true,force:true});throw error}
 }
-export async function run(fn){const h=await installation();try{return await fn(h)}finally{await h.close()}}
+export async function run(fn,options){const h=await installation(options);try{return await fn(h)}finally{await h.close()}}
 export async function archive(h) {
  const {id}=await h.api('/api/portability/exports',{},{status:201})
  let state;do{state=await h.api(`/api/portability/exports/${id}/advance`,{})}while(state.phase!=='complete')
