@@ -12,7 +12,7 @@ async function providerEvent(h,letter,event,eventId) {
 const gift=(h,donorId,amount,receivedOn='2025-08-10',extra={})=>h.command('gift.record',{donorId,amount,receivedOn,method:'check',goods:'none',...extra})
 const consent=(h,donorId)=>h.command('consent.record',{donorIds:[donorId],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic donor approved email',capturedOn:'2025-01-01'})
 
-test('approved receipts send once, signed provider delivery is recorded and bounces route to print',()=>{
+test('approved receipts survive marketing opt-outs, send once, track delivery and route bounces to print',()=>{
  const messages=[]
  return run(async h=>{
   await reviewed(h)
@@ -24,9 +24,9 @@ test('approved receipts send once, signed provider delivery is recorded and boun
   await h.command('ack.approve',{batchId:b.id,version:1})
   await h.command('consent.record',{donorIds:[ben.id],channel:'email',status:'withdrawn',method:'paper form',evidence:'Synthetic donor withdrew before dispatch',capturedOn:'2025-01-02'})
   const sent=await h.command('ack.send',{batchId:b.id,version:2})
-  assert.equal(messages.length,1)
-  assert.equal(sent.print,2)
-  assert.equal(messages[0].personalizations[0].to[0].email,'ana.diaz@example.org')
+  assert.equal(messages.length,2)
+  assert.equal(sent.print,1)
+  assert.deepEqual(messages.map(m=>m.personalizations[0].to[0].email).sort(),['ana.diaz@example.org','ben.cole@example.org'])
   assert.match(messages[0].content[0].value,/\$250\.00/)
   assert.match(messages[0].content[0].value,/No goods or services/)
   const detail=await h.get(`/api/coffer/letters/${b.id}`),letter=detail.letters.find(l=>l.donor_id===ana.id)
@@ -38,10 +38,10 @@ test('approved receipts send once, signed provider delivery is recorded and boun
   assert.equal((await providerEvent(h,letter,'delivered','delivery-1')).status,200)
   const delivered=await h.get(`/api/coffer/letters/${b.id}`)
   assert.equal(delivered.letters.find(l=>l.id===letter.id).delivery_status,'delivered')
-  assert.equal(delivered.deliveryEvents.length,1)
+  assert.equal(delivered.deliveryEvents.length,2)
   assert.equal((await h.get(`/api/coffer/donors/${ana.id}`)).letters[0].delivery_status,'delivered')
   await h.command('ack.send',{batchId:b.id,version:sent.version})
-  assert.equal(messages.length,1)
+  assert.equal(messages.length,2)
   assert.equal((await providerEvent(h,letter,'bounce','bounce-1')).status,200)
   assert.equal((await providerEvent(h,letter,'delivered','late-delivery')).status,200)
   const bounced=await h.get(`/api/coffer/letters/${b.id}`)
@@ -54,18 +54,18 @@ test('approved receipts send once, signed provider delivery is recorded and boun
   await gift(h,ana.id,'260','2025-10-01')
   const next=await h.command('ack.prepare');await h.command('ack.approve',{batchId:next.id,version:1})
   assert.equal((await h.command('ack.send',{batchId:next.id,version:2})).print,1)
-  assert.equal(messages.length,1)
+  assert.equal(messages.length,2)
  },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_EVENT_PUBLIC_KEY:publicKey},outbound:async r=>{
   const u=new URL(r.url);assert.equal(u.hostname,'api.sendgrid.com')
-  if(u.pathname==='/v3/logs') {assert.equal(r.method,'POST');return Response.json({messages:[{sg_message_id:'provider-message-1.recvd.0',to_email:'ana.diaz@example.org'}]})}
-  if(u.pathname==='/v3/logs/provider-message-1.recvd.0')return Response.json({sg_message_id:'provider-message-1.recvd.0',to_email:'ana.diaz@example.org',events:[{event:'delivered',timestamp:Math.floor(Date.now()/1000),sg_event_id:'delivery-1',custom_args:messages[0].custom_args}]})
-  assert.equal(u.pathname,'/v3/mail/send');messages.push(await r.json());return new Response(null,{status:202,headers:{'x-message-id':'provider-message-1'}})
+  if(u.pathname==='/v3/logs') {assert.equal(r.method,'POST');const query=(await r.json()).query;return Response.json({messages:messages.filter(m=>query.includes(m.personalizations[0].to[0].email)).map(m=>({sg_message_id:`provider-message-${messages.indexOf(m)+1}.recvd.0`,to_email:m.personalizations[0].to[0].email}))})}
+  if(u.pathname.startsWith('/v3/logs/provider-message-')){const index=Number(u.pathname.match(/provider-message-(\d+)/)[1])-1;const m=messages[index];return Response.json({sg_message_id:`provider-message-${index+1}.recvd.0`,to_email:m.personalizations[0].to[0].email,events:[{event:'delivered',timestamp:Math.floor(Date.now()/1000),sg_event_id:`delivery-${index+1}`,custom_args:m.custom_args}]})}
+  assert.equal(u.pathname,'/v3/mail/send');messages.push(await r.json());return new Response(null,{status:202,headers:{'x-message-id':`provider-message-${messages.length}`}})
  }})
 })
 
 test('a calendar-year statement itemizes every unreversed gift and totals deductible giving',()=>run(async h=>{
  await reviewed(h)
- const ana=await donor(h,'Ana Diaz')
+ const ana=await donor(h,'Ana Diaz',{email:null})
  const tributeGift=await gift(h,ana.id,'150','2025-03-01',{goods:'provided',goodsValue:'60',goodsDescription:'gala dinner'})
  await h.command('tribute.record',{giftId:tributeGift.id,kind:'memory',honoree:'Leela Diaz',notifiedName:'Mira Diaz'})
  await gift(h,ana.id,'25.50','2025-12-31')

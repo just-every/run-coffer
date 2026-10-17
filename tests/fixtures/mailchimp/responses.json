@@ -1,0 +1,106 @@
+{
+  "provenance": {
+    "kind": "documentation-derived synthetic network-edge fixtures",
+    "retrieved_on": "2026-10-17",
+    "live_account_recording": false,
+    "description": "Minimal documented Marketing API response shapes, with synthetic identifiers and example.test addresses substituted. Not evidence of Mailchimp account acceptance, sending, delivery, or a real consent event. These fixtures belong only at the network boundary in tests.",
+    "sources": {
+      "member": "https://mailchimp.com/developer/marketing/api/lists/members/upsert-member",
+      "segment": "https://mailchimp.com/developer/marketing/api/lists/segments/create-segment",
+      "segment_members": "https://mailchimp.com/developer/marketing/api/lists/segments/list-segment-members",
+      "campaign": "https://mailchimp.com/developer/marketing/api/campaigns/get",
+      "content": "https://mailchimp.com/developer/marketing/api/campaigns/upsert-content",
+      "send": "https://mailchimp.com/developer/marketing/api/campaigns/create-action-send",
+      "recipients": "https://mailchimp.com/developer/marketing/api/reports/sent-to/list-sent-to",
+      "recipient_status": "https://mailchimp.com/developer/marketing/api/reports/sent-to/get-sent-to"
+    }
+  },
+  "member_subscribed": {
+    "id": "synthetic-member",
+    "email_address": "avery@example.test",
+    "status": "subscribed",
+    "list_id": "fixture-list"
+  },
+  "member_pending": {
+    "id": "synthetic-member",
+    "email_address": "avery@example.test",
+    "status": "pending",
+    "list_id": "fixture-list"
+  },
+  "member_unsubscribed": {
+    "id": "synthetic-member",
+    "email_address": "avery@example.test",
+    "status": "unsubscribed",
+    "list_id": "fixture-list"
+  },
+  "static_segment": {
+    "id": 101,
+    "list_id": "fixture-list",
+    "name": "Coffer fixture-message",
+    "type": "static",
+    "member_count": 1
+  },
+  "segment_members": {
+    "members": [
+      {
+        "id": "synthetic-member",
+        "email_address": "avery@example.test",
+        "status": "subscribed"
+      }
+    ],
+    "total_items": 1
+  },
+  "campaign_saved": {
+    "id": "fixture-campaign",
+    "type": "regular",
+    "status": "save",
+    "recipients": {
+      "list_id": "fixture-list",
+      "recipient_count": 1,
+      "segment_opts": { "saved_segment_id": 101 }
+    },
+    "settings": {
+      "title": "Coffer fixture-message",
+      "subject_line": "Thank you, Avery",
+      "from_name": "Fixture organisation",
+      "reply_to": "replies@example.test",
+      "use_conversation": false,
+      "auto_footer": true
+    }
+  },
+  "campaign_sent": {
+    "id": "fixture-campaign",
+    "type": "regular",
+    "status": "sent",
+    "emails_sent": 1
+  },
+  "content_saved": {
+    "html": "<p>Thank you, Avery.</p><p><a href=\"*|UNSUB|*\">Unsubscribe</a></p><p>*|HTML:LIST_ADDRESS_HTML|*</p>",
+    "plain_text": "Thank you, Avery.\nUnsubscribe: *|UNSUB|*\n*|LIST:ADDRESS|*"
+  },
+  "send_accepted": { "http_status": 204, "body": null },
+  "sent_to": {
+    "campaign_id": "fixture-campaign",
+    "sent_to": [
+      {
+        "campaign_id": "fixture-campaign",
+        "email_address": "avery@example.test",
+        "email_id": "synthetic-member",
+        "status": "sent"
+      }
+    ],
+    "total_items": 1
+  },
+  "hard_bounce": {
+    "campaign_id": "fixture-campaign",
+    "sent_to": [
+      {
+        "campaign_id": "fixture-campaign",
+        "email_address": "avery@example.test",
+        "email_id": "synthetic-member",
+        "status": "hard"
+      }
+    ],
+    "total_items": 1
+  }
+}

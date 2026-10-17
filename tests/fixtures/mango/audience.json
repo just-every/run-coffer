@@ -1,0 +1,32 @@
+{
+  "contacts": [
+    {
+      "id": "01M54QNAYYFS9FQ3XXM9M06RXA",
+      "email": "avery@example.test",
+      "displayName": "Avery",
+      "emailStatus": "subscribed",
+      "smsStatus": "non-subscribed",
+      "emailStatusAt": "2026-10-17T10:48:58.590Z",
+      "smsStatusAt": "2026-10-17T10:48:58.590Z",
+      "sourceCustomerRecordId": null,
+      "mergeLock": null,
+      "lastActivityAt": "2026-10-17T10:48:58.568Z",
+      "createdAt": "2026-10-17T10:48:58.590Z",
+      "updatedAt": "2026-10-17T10:48:58.590Z"
+    },
+    {
+      "id": "01M54QNAYY7KH6VQMMNSXH8N2R",
+      "email": "jordan@example.test",
+      "displayName": "Jordan",
+      "emailStatus": "subscribed",
+      "smsStatus": "non-subscribed",
+      "emailStatusAt": "2026-10-17T10:48:58.590Z",
+      "smsStatusAt": "2026-10-17T10:48:58.590Z",
+      "sourceCustomerRecordId": null,
+      "mergeLock": null,
+      "lastActivityAt": "2026-10-17T10:48:58.568Z",
+      "createdAt": "2026-10-17T10:48:58.590Z",
+      "updatedAt": "2026-10-17T10:48:58.590Z"
+    }
+  ]
+}

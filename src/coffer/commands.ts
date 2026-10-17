@@ -1,3 +1,7 @@
+import { marketingCommand } from './communications/commands'
+import { syncPreferences } from './communications/preferences'
+import { welcomeCommand } from './communications/welcome'
+import { replyCommand } from './communications/replies'
 import { callTaskCommand } from './call-tasks'
 import { majorGiftCommand } from './major-gifts'
 import { digest, requireRole, type Role } from './auth'
@@ -25,6 +29,7 @@ export const ACCESS: Record<string, Role[]> = {
  'pledge.remind': STAFF, 'pledge.match': STAFF,
  'gift.reverse': MANAGERS, 'gift.classify': MANAGERS, 'settings.update': MANAGERS,
  'ack.prepareStatements': MANAGERS, 'ack.send': MANAGERS, 'ack.checkDelivery': MANAGERS, 'ack.printed': MANAGERS, 'ack.prepare': PREPARERS, 'ack.approve': MANAGERS, 'ack.discard': MANAGERS, 'ack.export': MANAGERS, 'ack.markSent': MANAGERS,
+ 'marketing.sync': MANAGERS, 'marketing.refresh': MANAGERS, 'appeal.send': MANAGERS, 'welcome.publish': MANAGERS, 'welcome.run': MANAGERS, 'reply.complete': STAFF,
  'appeal.prepare': PREPARERS, 'appeal.approve': MANAGERS, 'appeal.discard': MANAGERS, 'appeal.export': MANAGERS, 'appeal.markSent': MANAGERS,
  'agent.create': MANAGERS, 'agent.revoke': MANAGERS,
 }
@@ -39,9 +44,12 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'donor.merge') return mergeDonor(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
-  if (result !== undefined) return result
+  if (result !== undefined) {
+   if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }
+   return result
+  }
  }
  return fail('COMMAND', 'Unknown Coffer command.', 400)
 }

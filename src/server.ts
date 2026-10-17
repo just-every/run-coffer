@@ -1,3 +1,6 @@
+import { runWelcome } from './coffer/communications/welcome'
+import { receiveReply } from './coffer/communications/replies'
+import { runMarketingSync } from './coffer/communications/scheduler'
 import { withDemo } from './modules/demo/index.mjs'
 import { rejectedResponse } from './base/rejected-response'
 import start from '@tanstack/react-start/server-entry'
@@ -26,8 +29,12 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo<Bindings, ExportedHandler<Bindings>>({
+  async email(message,env) { await receiveReply(message,runtimeBindings(env)) },
   async scheduled(controller, env, execution) {
-    execution.waitUntil(runPledgeReminders(runtimeBindings(env), new Date(controller.scheduledTime)))
+    execution.waitUntil(runMarketingSync(runtimeBindings(env),new Date(controller.scheduledTime)))
+    execution.waitUntil(runWelcome(runtimeBindings(env),new Date(controller.scheduledTime)))
+    const tick=new Date(controller.scheduledTime)
+    if(tick.getUTCHours()===13 && tick.getUTCMinutes()===0) execution.waitUntil(runPledgeReminders(runtimeBindings(env),tick))
   },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)

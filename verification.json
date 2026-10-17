@@ -88,6 +88,14 @@
       "commands": [
         "pnpm run test:move-in"
       ]
+    },
+    {
+      "name": "communications",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:communications"
+      ]
     }
   ],
   "nightly": [

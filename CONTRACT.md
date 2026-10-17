@@ -560,7 +560,7 @@ An approved acknowledgement batch (`ACK-001`) is sent by email from Coffer to ev
 
 *Acceptance:* An HTTP journey with the mail edge faked approves a batch of three letters, sends it, and reads two delivered emails and one letter routed to print, with the batch status computed from delivery.
 
-*Status:* done. Approved frozen batches send once per letter through self-hosted SendGrid, route donors without current email consent/address to print, and show submitted versus signed provider delivery results. RER Managed sending is not available yet. Evidence: `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs`.
+*Status:* done. Approved frozen batches send once per letter through self-hosted SendGrid, route donors without an address or with a known receipt bounce/complaint to print; marketing withdrawals still receive receipts, and show submitted versus signed provider delivery results. RER Managed sending is not available yet. Evidence: `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs`.
 
 #### RCPT-003 — Print-ready letters, labels and envelopes.
 
@@ -644,7 +644,7 @@ Consent covers email, postal mail, SMS and phone, with frequency preferences (at
 
 *Acceptance:* An HTTP journey with sender edges faked has a donor unsubscribe in Mailchimp, reply STOP by text and change topics in the portal, and the next appeal of each channel excludes them with the reason; a donor who chose at most one appeal email a month is excluded from a second appeal that month with the reason "frequency"; a donor who left the appeals topic but kept the newsletter is excluded from a mail appeal with the reason "topic" and included in the next newsletter.
 
-*Status:* partial. Append-only email and postal consent gates appeals; no SMS or phone channel, topics, unsubscribe links or provider sync. Evidence: `src/coffer/donors.ts`, `src/coffer/appeals.ts`, `tests/coffer.test.mjs`.
+*Status:* partial. Email provider opt-outs append withdrawals and Coffer email withdrawals synchronize to Mango or Mailchimp; each marketing submission checks both sides. Receipts remain transactional. SMS/phone, topics, frequency preferences and other providers remain. Evidence: `src/coffer/communications/preferences.ts`, `tests/communications.test.mjs`, `tests/receipts.test.mjs`, `docs/COMMUNICATIONS.md`.
 
 #### COMM-002 — Appeals sent through Mango or Mailchimp.
 
@@ -652,7 +652,7 @@ Coffer syncs consenting constituents into Mango (Run Edit Run's email product) o
 
 *Acceptance:* An HTTP journey with the Mango and Mailchimp edges faked syncs an audience whose members carry the informal-salutation, envelope-name and a custom-field merge field, sends an approved appeal to exactly its frozen recipients, receives results and an unsubscribe, and attributes a gift made from the tracked link; a second appeal approved with a send time is created on the edge as a campaign scheduled for that time and sent only when the test clock reaches it; a do-not-solicit donor with email consent is absent from both appeal campaigns and present in a newsletter campaign.
 
-*Status:* partial. An approved audience exports as CSV for any sender; no sender connection, sending, results or attribution. Evidence: `src/coffer/appeals.ts`, `tests/coffer.test.mjs`.
+*Status:* partial. Frozen, hash-approved appeals merge donor names and giving figures into exact-recipient Mango or Mailchimp campaigns, with per-donor submission and provider results. Real local Mango draft/sync paths and hosted appeal/welcome delivery, a real unsubscribe click, reverse withdrawal and a transactional receipt after opt-out are proven. Mailchimp remains fixture-only. Name-part/custom-field merges, tags, engagement/attribution, scheduled appeals and solicitation restrictions remain. Evidence: `src/coffer/communications/outbound.ts`, `src/coffer/communications/mango.ts`, `src/coffer/communications/mailchimp.ts`, `docs/COMMUNICATIONS.md`.
 
 #### COMM-003 — Constant Contact.
 
@@ -676,7 +676,7 @@ Replies to receipts, acknowledgements and appeals arrive at a Coffer inbound add
 
 *Acceptance:* An HTTP journey with inbound mail faked receives a thank-you reply, an out-of-office and a "please remove me", and sees a task for the manager, a filed auto-reply and a proposed withdrawal.
 
-*Status:* missing. No inbound mail.
+*Status:* partial. The actual Email Routing handler logs known-donor replies, assigns and forwards to an active prospect owner (or the installation owner), files automatic replies, and exposes follow-up tasks. Live routing needs an inbound rule and verified forward destination outside the fleet token; proposed stop-request withdrawals remain. Evidence: `src/coffer/communications/replies.ts`, `src/coffer/communications/replies-ui.ts`, `docs/COMMUNICATIONS.md`.
 
 #### COMM-006 — SMS outreach.
 
@@ -727,7 +727,7 @@ Admins build journeys triggered by first gift, recurring start, a gift over an a
 
 *Acceptance:* An HTTP journey with sender edges faked publishes a three-step first-gift welcome, enrols a new donor, advances time through each step, and sees the donor leave when they give again; a gift-over-$1,000 journey enrols a donor when a $1,500 gift arrives, and a lapse journey enrols a donor whose last gift passes twelve months on the test clock; a second journey respects the frequency cap; a do-not-solicit donor enrolled in a journey receives its thank-you step and skips its ask step with that reason.
 
-*Status:* missing. No journeys.
+*Status:* partial. A person publishes the first-gift thank-you, impact and second-ask series. Durable due steps run through the provider on the minute Worker scheduler; another gift, unavailable email consent, merge or erasure stops pending work. Other triggers, branches, frequency caps, inactive/deceased statuses and solicitation restrictions remain. Evidence: `src/coffer/communications/welcome.ts`, `docs/COMMUNICATIONS.md`.
 
 #### STEW-004 — Pledge reminders and invoices.
 
@@ -1255,7 +1255,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 16 | Households | `DONOR-001` | done |
 | 17 | relationships | `DONOR-003` | partial |
 | 18 | every gift | `GIFT-001` | done |
-| 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` partial · `COMM-004` missing · `COMM-005` missing |
+| 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` partial · `COMM-004` missing · `COMM-005` partial |
 | 20 | soft credits | `GIFT-006` | partial |
 | 21 | tributes | `GIFT-008` | partial |
 | 22 | employer matches | `GIFT-007` | partial |
@@ -1272,10 +1272,10 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 33 | with the right IRS language | `ACK-001`, `RCPT-005` | `ACK-001` done · `RCPT-005` partial |
 | 34 | proof of delivery | `RCPT-006` | partial |
 | 35 | Thank-yous sent · 48 donors tonight | `RCPT-002` | done |
-| 36 | Appeals and welcome journeys go out through Mango or Mailchimp | `COMM-002`, `STEW-003` | `COMM-002` partial · `STEW-003` missing |
-| 37 | welcome journeys | `STEW-003` | missing |
+| 36 | Appeals and welcome journeys go out through Mango or Mailchimp | `COMM-002`, `STEW-003` | `COMM-002` partial · `STEW-003` partial |
+| 37 | welcome journeys | `STEW-003` | partial |
 | 38 | Unsubscribes are honored everywhere | `CONSENT-001`, `APPEAL-001`, `COMM-001` | `CONSENT-001` done · `APPEAL-001` done · `COMM-001` partial |
-| 39 | replies land with the right person | `COMM-005` | missing |
+| 39 | replies land with the right person | `COMM-005` | partial |
 | 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | partial (core claim implemented; broader clauses remain) |
 | 41 | reconciles every gift | `DEV-001` | missing |
 | 42 | rescues failed monthly gifts | `DEV-002` | missing |
@@ -1308,8 +1308,8 @@ The giving, receipt, payments, donor-depth and CRM export move-in clauses and th
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 4 | 62 | 60 | 126 |
-| All | 13 | 62 | 60 | 135 |
+| Target and push further | 4 | 64 | 58 | 126 |
+| All | 13 | 64 | 58 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1372,7 +1372,7 @@ The giving, receipt, payments, donor-depth and CRM export move-in clauses and th
 | `FIN-004` | Journal export for other ledgers | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Each reconciled payout exports a mapped journal CSV or Desktop IIF. A combined per-period download remains outstanding. |
 | `FIN-005` | Reconciliation report | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Per-payout gifts, refunds, fees, net, match difference and Pantry destination/journal ID are visible. Period-wide ledger/processor/deposit reconciliation including pending ACH and check batches remains outstanding. |
 | `RCPT-001` | Immediate email receipts | target | partial | `src/coffer/receipt-mail.ts`, `tests/receipts.test.mjs` | Approved per-gift receipts are sent from install SendGrid; automatic online-gift triggers within a minute, domain verification and attached PDFs remain unbuilt. Managed integrations are not available yet. |
-| `RCPT-002` | Acknowledgements delivered by email | target | done | `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs` | Approved frozen batches send once per letter through self-hosted SendGrid, route donors without current email consent/address to print, and show submitted versus signed provider delivery results. RER Managed sending is not available yet. |
+| `RCPT-002` | Acknowledgements delivered by email | target | done | `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs` | Approved frozen batches send once per letter through self-hosted SendGrid, route donors without an address or with a known receipt bounce/complaint to print; marketing withdrawals still receive receipts, and show submitted versus signed provider delivery results. RER Managed sending is not available yet. |
 | `RCPT-003` | Print-ready letters, labels and envelopes | target | partial | `src/coffer/ui/print-letters.ts`, `tests/receipts.test.mjs` | Single and batch print-styled US Letter documents support window-envelope placement and browser Save as PDF alongside CSV. Labels, envelope-only layouts, Word files, household grouping and Lob remain unbuilt. |
 | `RCPT-004` | Year-end giving statements | target | partial | `src/coffer/year-end.ts`, `tests/receipts.test.mjs` | Per-donor calendar-year statements itemize all unreversed gifts including imported gifts, goods values and deductible totals, then use approved email or print delivery. Unknown goods answers require review. Portal requests, automatic January scheduling, household grouping, deceased-recipient rules and corrected reissues remain unbuilt. |
 | `RCPT-005` | US receipt rules | target | partial | `src/coffer/settings.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | Templates must carry donor, amount, date, organization and the goods-or-services statement, and the $250 threshold works; no quid pro quo rule for payments over $75, token-benefit or religious-benefit wording. |
@@ -1382,17 +1382,17 @@ The giving, receipt, payments, donor-depth and CRM export move-in clauses and th
 | `RCPT-009` | One piece per household | target | missing |  | Letters and appeal exports are one row per gift or per donor; no household grouping, addressee or combined totals. |
 | `RCPT-010` | Merge fields in every template | target | partial | `src/coffer/settings.ts`, `tests/coffer.test.mjs` | Letter templates merge a fixed list of nine fields (date, donor name, amount, gift date, fund, goods statement, organization, EIN, deductible amount) and are refused for unknown, missing required or unclosed fields; no name parts, salutations, household, contact-point, giving-summary or custom fields, no fallbacks, field list API or blank check. |
 | `RCPT-011` | Acknowledgement status on every gift and soft credit | target | partial | `src/coffer/donors.ts`, `src/coffer/ui/donors.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | A gift is due until it sits in a live letter batch, and the donor page shows each gift's letter state (prepared, approved, exported, sent) or "Letter due"; there is no stored acknowledgement status, method or link, no way to mark a gift acknowledged outside a batch or do not acknowledge, no status on soft credits, and no imported status. |
-| `COMM-001` | Preferences and unsubscribes everywhere | target | partial | `src/coffer/donors.ts`, `src/coffer/appeals.ts`, `tests/coffer.test.mjs` | Append-only email and postal consent gates appeals; no SMS or phone channel, topics, unsubscribe links or provider sync. |
-| `COMM-002` | Appeals sent through Mango or Mailchimp | target | partial | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` | An approved audience exports as CSV for any sender; no sender connection, sending, results or attribution. |
+| `COMM-001` | Preferences and unsubscribes everywhere | target | partial | `docs/COMMUNICATIONS.md` | Email provider opt-outs append withdrawals and Coffer email withdrawals synchronize to Mango or Mailchimp; each marketing submission checks both sides. Receipts remain transactional. SMS/phone, topics, frequency preferences and other providers remain. |
+| `COMM-002` | Appeals sent through Mango or Mailchimp | target | partial | `docs/COMMUNICATIONS.md` | Frozen, hash-approved appeals merge donor names and giving figures into exact-recipient Mango or Mailchimp campaigns, with per-donor submission and provider results. Real local Mango draft/sync paths and hosted appeal/welcome delivery, a real unsubscribe click, reverse withdrawal and a transactional receipt after opt-out are proven. Mailchimp remains fixture-only. Name-part/custom-field merges, tags, engagement/attribution, scheduled appeals and solicitation restrictions remain. |
 | `COMM-003` | Constant Contact | target | missing |  | No Constant Contact connection. |
 | `COMM-004` | One-to-one email and mailbox logging | target | missing |  | No mailbox connection or personal email. |
-| `COMM-005` | Replies reach the right person | target | missing |  | No inbound mail. |
+| `COMM-005` | Replies reach the right person | target | partial | `docs/COMMUNICATIONS.md` | The actual Email Routing handler logs known-donor replies, assigns and forwards to an active prospect owner (or the installation owner), files automatic replies, and exposes follow-up tasks. Live routing needs an inbound rule and verified forward destination outside the fleet token; proposed stop-request withdrawals remain. |
 | `COMM-006` | SMS outreach | target | missing |  | No SMS. |
 | `COMM-007` | Direct mail appeals | target | partial | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` | Mail-channel audiences with postal addresses export as CSV; no ask amounts, response codes or mailing history. |
 | `COMM-008` | Appeal results | target | missing |  | No appeal results. |
 | `STEW-001` | Tasks with owners and reminders | target | partial | `src/coffer/call-tasks.ts`, `src/coffer/ui/call-tasks.ts`, `tests/pipeline.test.mjs` | Owned, dated call tasks from lapses and unpaid due pledge installments support assignment, reassignment, snooze and atomic donor-timeline call completion. Recurring tasks, reminders, escalation and other task kinds remain. |
 | `STEW-002` | Recurring tasks | target | missing |  | No tasks. |
-| `STEW-003` | Stewardship journeys | target | missing |  | No journeys. |
+| `STEW-003` | Stewardship journeys | target | partial | `docs/COMMUNICATIONS.md` | A person publishes the first-gift thank-you, impact and second-ask series. Durable due steps run through the provider on the minute Worker scheduler; another gift, unavailable email consent, merge or erasure stops pending work. Other triggers, branches, frequency caps, inactive/deceased statuses and solicitation restrictions remain. |
 | `STEW-004` | Pledge reminders and invoices | target | partial | `src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs` | Self-hosted SendGrid reminders run daily or by staff before each unpaid installment using current email permission, with durable single-attempt submission states. Managed email is not available yet. Unpaid due installments now feed the owned call list. Pay links, printable invoices and automatic overdue follow-up remain. |
 | `STEW-005` | Gift-triggered rules | target | missing |  | No rules. |
 | `STEW-006` | Meetings and calendars | target | missing |  | No calendar connection. |

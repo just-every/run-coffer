@@ -13,6 +13,7 @@ export function donorTimeline(h: Row): string {
   const day = l.delivered_at ?? l.sent_on ?? l.printed_at
   items.push({ day: day.slice(0,10), order: day, html: `<li><a href="/app/letters/${e(l.batch_id)}">${l.kind === 'statement' ? `${e(l.statement_year)} statement` : 'Gift receipt'}</a> · ${l.delivered_at ? 'Delivered' : l.printed_at ? 'Printed' : 'Sent'} · ${when(day)}</li>` })
  }
+ for(const m of h.communications??[])items.push({day:m.created_at.slice(0,10),order:m.created_at,html:`<li><strong>${m.source_kind==='welcome'?'Welcome email':'Appeal email'} · ${e(m.subject)}</strong> · ${e(m.remote_status??m.status)}<p>${e(m.note)}</p></li>`})
  items.sort((a,b) => b.day.localeCompare(a.day) || b.order.localeCompare(a.order))
  return box('Timeline', items.length ? `<ol class="list">${items.map(i=>i.html).join('')}</ol>` : empty('Gifts, pledges and conversations will appear here.'), 'timeline')
 }

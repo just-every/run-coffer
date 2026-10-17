@@ -1,3 +1,4 @@
+import { communicationHistory } from './communications/outbound'
 import { all, choice, commit, date, email, event, fail, guard, id, integer, newId, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { canonicalDonor } from './donor-merge'
 import { donorDepth } from './donor-depth'
@@ -93,7 +94,7 @@ export async function donorHistory(c: { db: D1Database }, donorId: string) {
  for (const g of gifts) byYear.set(g.received_on.slice(0, 4), (byYear.get(g.received_on.slice(0, 4)) ?? 0) + g.amount_cents)
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
-  donor, household, gifts, pledges, consents, letters, appeals, events, subscriptions: await subscriptions(c, donorId),
+  donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: await subscriptions(c, donorId),
   depth: await donorDepth(c, donorId), giftDepth: await donorGiftDepth(c, donorId),
   notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? ORDER BY occurred_on DESC,recorded_at DESC', donorId),
   firstGift: await one(c, `SELECT g.*,COALESCE((SELECT appeal FROM cf_gift_appeals WHERE gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal FROM cf_gift_balances g WHERE g.donor_id=? AND g.net_cents>0 ORDER BY g.received_on,g.created_at,g.id LIMIT 1`,donorId),

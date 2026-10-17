@@ -11,6 +11,16 @@ import branding from './branding.json'
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
 
 export interface Bindings {
+ COMMUNICATIONS_PROVIDER?: string
+ MAILCHIMP_API_KEY?: string
+ MAILCHIMP_LIST_ID?: string
+ MAILCHIMP_FROM_NAME?: string
+ MAILCHIMP_FROM_EMAIL?: string
+ MANGO_ORIGIN?: string
+ MANGO_SESSION_COOKIE?: string
+ MANGO_DEV_KEY?: string
+ COFFER_REPLY_ADDRESS?: string
+ COFFER_REPLY_DOMAIN?: string
  STRIPE_SECRET_KEY?: string
  STRIPE_WEBHOOK_SECRET?: string
  PANTRY_ORIGIN?: string

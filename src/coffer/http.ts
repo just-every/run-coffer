@@ -1,3 +1,6 @@
+import { welcomeState } from './communications/welcome'
+import { preferenceState } from './communications/preferences'
+import { replyTasks } from './communications/replies'
 import { callTasks, taskOwners, taskSources } from './call-tasks'
 import { lapses } from './lapses'
 import { retention } from './retention'
@@ -174,6 +177,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 }
 
 function actionPage(command: string, input: any, result: any, actor: Actor) {
+ if (command.startsWith('welcome.') || command.startsWith('marketing.') || command.startsWith('reply.')) return redirect('/app/appeals')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command === 'prospect.save') return redirect('/app/pipeline')
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(new Date(result.expiresAt).toISOString().slice(0, 10))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
@@ -223,6 +227,9 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, batches: await batches(c) }) }
  if ((m = match(/^\/api\/coffer\/letters\/([^/]+)$/))) return json(await batchDetail(c, m[1]))
  if ((m = match(/^\/api\/coffer\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
+ if (path === '/api/coffer/welcome') return json(await welcomeState(c))
+ if (path === '/api/coffer/marketing/preferences') return json(await preferenceState(c))
+ if (path === '/api/coffer/replies') return json(await replyTasks(c))
  if (path === '/api/coffer/appeals') return json({ appeals: await appeals(c) })
  if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)$/))) return json(await appealDetail(c, m[1]))
  if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])

@@ -4,8 +4,7 @@ import { batchLetters, letterHash, currentLetterGifts } from './acknowledgements
 import { all, commit, event, fail, guard, id, integer, newId, one, sql, type Context, type Row } from './db'
 import { assertReceiptMailAvailable, sendReceipt, verifySendgridEvents } from './receipt-mail'
 
-const eligible = `(SELECT k.status FROM cf_consents k WHERE k.donor_id=d.id AND k.channel='email' ORDER BY k.id DESC LIMIT 1)='granted'
- AND d.erased_at IS NULL AND d.email IS NOT NULL AND d.email=a.recipient_email
+const eligible = `d.erased_at IS NULL AND d.email IS NOT NULL AND d.email=a.recipient_email
  AND NOT EXISTS(SELECT 1 FROM cf_acks bad WHERE bad.donor_id=d.id AND bad.recipient_email=d.email AND bad.delivery_status IN ('bounced','complained'))`
 
 export async function deliveryCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
@@ -44,7 +43,7 @@ export async function deliveryCommand(c: Context, command: string, p: Row): Prom
  const pending = await all(c, "SELECT id FROM cf_acks WHERE batch_id=? AND route='pending' ORDER BY position LIMIT 8", batchId)
  for (const l of pending) {
   const attempt = newId()
-  // Consent and the current email are rechecked in the same transaction that
+  // The current email and deliverability are rechecked in the transaction that
   // claims the letter. Once claimed it is never silently retried.
   await commit(c, [
    sql(`UPDATE cf_acks AS a SET route=CASE WHEN EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=a.donor_id AND ${eligible}) THEN 'email' ELSE 'print' END,

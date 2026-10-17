@@ -23,8 +23,9 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('DELETE FROM cf_soft_credits WHERE donor_id IN (?,?) AND gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=?)', source, target, target),
   sql('DELETE FROM cf_soft_credits WHERE donor_id=? AND gift_id IN (SELECT gift_id FROM cf_soft_credits WHERE donor_id=?)', source, target),
  ]
- for (const table of ['cf_pledges', 'cf_acks', 'cf_events', 'cf_soft_credits', 'cf_gift_tributes', 'cf_giving_customers', 'cf_giving_intents', 'cf_subscriptions'])
+ for (const table of ['cf_pledges', 'cf_acks', 'cf_events', 'cf_soft_credits', 'cf_gift_tributes', 'cf_giving_customers', 'cf_giving_intents', 'cf_subscriptions','cf_communications','cf_reply_tasks'])
   statements.push(sql(`UPDATE ${table} SET donor_id=? WHERE donor_id=?`, target, source))
+ statements.push(sql("UPDATE cf_welcome_steps SET status='cancelled',note='Donor was merged; no further welcome emails.' WHERE donor_id IN (?,?) AND status='pending'",source,target),sql("UPDATE cf_welcome_enrollments SET status='completed',stopped_at=? WHERE donor_id IN (?,?) AND status='active'",c.now,source,target),sql('DELETE FROM cf_preference_sync WHERE donor_id IN (?,?)',source,target))
  statements.push(sql('UPDATE cf_call_tasks SET donor_id=?,version=version+1 WHERE donor_id=?',target,source))
  statements.push(sql('UPDATE cf_employer_matches SET employer_donor_id=? WHERE employer_donor_id=?', target, source))
  // Relationship endpoints are reconciled by the module helper below.

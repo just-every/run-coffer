@@ -34,7 +34,8 @@
     "test:payments": "node --test tests/payments.test.mjs",
     "test:donor-depth": "node --test --test-concurrency=1 tests/soft-credits.test.mjs tests/pledges.test.mjs",
     "test:pipeline": "node --test tests/pipeline.test.mjs",
-    "test:move-in": "node --test --test-concurrency=1 tests/move-in.test.mjs"
+    "test:move-in": "node --test --test-concurrency=1 tests/move-in.test.mjs",
+    "test:communications": "node --test tests/communications.test.mjs"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.41",
