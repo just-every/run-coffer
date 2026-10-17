@@ -3,8 +3,8 @@ import { amount } from '../money'
 import { requireRole } from '../auth'
 
 const summary = `SELECT c.*,
- (SELECT COALESCE(SUM(g.amount_cents),0) FROM cf_campaign_gifts cg JOIN cf_contribution_ledger g ON COALESCE(g.reverses,(SELECT p.gift_id FROM cf_payment_entries p WHERE p.id=g.id),g.id)=cg.gift_id WHERE cg.campaign_id=c.id) AS raised_cents,
- (SELECT COUNT(*) FROM cf_campaign_gifts cg JOIN cf_gifts g ON g.id=cg.gift_id WHERE cg.campaign_id=c.id AND g.kind='gift') AS gift_count,
+ (SELECT COALESCE(SUM(g.amount_cents),0) FROM cf_fund_ledger g WHERE g.campaign_id=c.id) AS raised_cents,
+ (SELECT COUNT(DISTINCT g.gift_id) FROM cf_fund_ledger g WHERE g.campaign_id=c.id AND g.kind='gift' AND g.source<>'stripe-adjustment') AS gift_count,
  (SELECT COUNT(DISTINCT donor_id) FROM cf_subscriptions s WHERE s.campaign_id=c.id AND s.status IN ('active','trialing','past_due') AND s.cancel_at_period_end=0) AS recurring_donors
  FROM cf_campaigns c`
 

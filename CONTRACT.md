@@ -208,7 +208,7 @@ Every constituent shows lifetime giving, first gift, largest gift, last gift, nu
 
 *Acceptance:* An HTTP journey records gifts across three years with a July fiscal year and reads each summary figure back from the donor API and page.
 
-*Status:* partial. Lifetime and yearly hard-credit totals, first-gift date/amount/appeal, separate recognition and installment balances derive from ledger records, including merges/imports. Largest gift, giving streaks, fiscal-year setting and remaining summary metrics remain. Evidence: `src/coffer/donors.ts`, `src/coffer/donor-merge.ts`, `tests/soft-credits.test.mjs`, `tests/pledges.test.mjs`.
+*Status:* done. The donor API and record show ledger-derived lifetime, first/largest/last remaining gift, count, consecutive fiscal giving years, monthly plan states, open pledge balance and separate soft credits. An audited fiscal-year start setting drives current versus previous fiscal totals; signed corrections retain their ledger dates. Evidence: `src/coffer/giving-summary.ts`, `src/coffer/ui/giving-summary.ts`, `tests/giving-summary.test.mjs`, `tests/giving.test.mjs`.
 
 #### DONOR-012 — Constituent status: active, inactive and deceased.
 
@@ -268,7 +268,7 @@ One payment can be split across several funds or campaigns in exact cents that s
 
 *Acceptance:* An HTTP journey splits a $1,000 check $600/$400 across two funds, refuses a split that sums to $999.99, issues one receipt for $1,000 and reads each fund's total.
 
-*Status:* missing. No split gifts.
+*Status:* done. One payment has immutable, exact-cent fund or campaign allocations that must sum to its amount. Donor totals and tax receipts count the payment once; fund/campaign reports, accounting CSV and payout accounting count each part, including signed reversals. Receipt and statement wording lists each allocation. Browser journeys at 1440 and 390 exercised entry, refusal, fund drill-down, printing and a real hosted receipt email. Evidence: `src/coffer/gift-splits.ts`, `migrations/core/0039_coffer_gift_splits.sql`, `src/coffer/fund-report.ts`, `tests/split-gifts.test.mjs`.
 
 #### GIFT-005 — Pledges, installments and balances.
 
@@ -886,7 +886,7 @@ Coffer reads Little Green Light's exports (constituents with all fields, includi
 
 *Acceptance:* An HTTP journey imports a fixture LGL export set, previews counts and totals by year and fund, applies, reads a donor's full history with relationships, soft credits and notes, carries a constituent's three emails and two addresses with their types and primaries, carries its salutations and addressee unchanged, reads the fixture's custom fields and categories defined in Coffer with each record's values (`MOVE-010`), carries a $500 gift with an assigned acknowledgment template as acknowledged with that template named, a $500 gift marked "do not acknowledge via LGL" as do not acknowledge and a recent $500 gift with neither as not acknowledged, so only that gift is due in the acknowledgement queue, maps a "Do not solicit" communication tag to the restriction and a "No mail" tag to mail consent no with source Little Green Light and the import date, so the next appeal excludes each with its reason, reads a memorial tribute's total equal to the source, and undoes.
 
-*Status:* partial. Documented LGL CSV/XLSX constituent and fundraising exports up to 16 MB and 100,000 rows preview donors, households (explicit, or one per spouse pair), gifts, funds/campaigns, relationships, soft credits, pledges/installments and notes in one fundraising report, with source controls, part-by-part apply (about 800 records per transaction, resumable), a totals check from Coffer's own gifts after the last part, re-import and undo; a synthetic 5,000-constituent, 40,000-gift export reconciles exactly. Full multi-contact/name/custom-field, consent/restriction, acknowledgement, tribute and recurring-vault migration remains outside this export implementation. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
+*Status:* partial. Documented LGL CSV/XLSX constituent and fundraising exports up to 16 MB and 100,000 rows preview donors, households (explicit, or spouses and people at one mailing address; never merged by name), gifts, funds/campaigns, relationships, soft credits, pledges/installments and notes in one fundraising report, with source controls, part-by-part apply (about 800 records per transaction, resumable), a totals check from Coffer's own gifts after the last part, re-import, year-by-year move-ins that find earlier donors and pledges by LGL ID, and undo. Every blocking row is listed (paged, filterable, CSV) and the review plans every part against Coffer before apply; a 5,000-constituent, 40,000-gift LGL export with shared spouse emails, soft credits and pledges reconciles to the cent locally and hosted. Full multi-contact/name/custom-field, consent/restriction, acknowledgement, tribute and recurring-vault migration remains outside this export implementation. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
 
 #### MOVE-002 — From Bloomerang.
 
@@ -934,7 +934,7 @@ Every move-in ends in a reconciliation: donors, gifts and dollars by year and fu
 
 *Acceptance:* An HTTP journey imports a fixture with one deliberate gap, reads the difference in the reconciliation, adopts two Stripe subscriptions, moves two vault-transferred plans, lists one plan whose payment method is missing from the mapping for reauthorization, finds an imported donor by its legacy ID, reads gift counts per acknowledgement status, the non-deductible total and the count of restricted constituents equal to the source, sets the acknowledge-from date and sees a not-acknowledged gift older than it absent from the queue, and records the owner's sign-off.
 
-*Status:* partial. CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs, resumable part-by-part apply with a recheckable totals check from the gifts in Coffer, and undo ship; later call tasks and opportunities block undo. The review asks whether gifts before a date (default the move-in date) were already thanked; those never become due or missing receipts. Recurring adoption/vault transfer, per-gift acknowledgement status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
+*Status:* partial. CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs, resumable part-by-part apply with a recheckable totals check from the gifts in Coffer (per move-in, including gifts an earlier move-in brought), and undo ship; later call tasks and opportunities block undo. The review asks whether gifts before a date (default the move-in date) were already thanked; those never become due or missing receipts. Recurring adoption/vault transfer, per-gift acknowledgement status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
 
 #### MOVE-009 — Recurring donors move with their cards and bank accounts.
 
@@ -1259,12 +1259,12 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 20 | soft credits | `GIFT-006` | partial |
 | 21 | tributes | `GIFT-008` | partial |
 | 22 | employer matches | `GIFT-007` | partial |
-| 23 | Lifetime giving and first gift | `DONOR-011` | partial |
+| 23 | Lifetime giving and first gift | `DONOR-011` | done |
 | 24 | Gifts sync from Stripe as they happen | `PAY-001` | partial |
 | 25 | fees, refunds | `PAY-003`, `PAY-004` | partial |
 | 26 | failed monthly payments | `GIVE-006` | partial |
 | 27 | each payout matches its deposit in QuickBooks Online or Pantry | `PAY-002`, `FIN-001`, `FIN-002` | `PAY-002` done · `FIN-001` / `FIN-002` partial |
-| 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` missing · `FIN-003` partial |
+| 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` done · `FIN-003` partial |
 | 29 | Thank-you letters | `ACK-001`, `RCPT-002` | `ACK-001` done · `RCPT-002` done |
 | 30 | year-end tax receipts | `RCPT-004` | partial |
 | 31 | by email | `RCPT-001`, `RCPT-002` | `RCPT-001` partial · `RCPT-002` done |
@@ -1301,15 +1301,17 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `bd5b8083f6dc57be381ae1469367aed7e543f4a5` (17 October 2026).
+Judged from the code and tests at commit `231694e67ba4b595574afe99f554ebf16d01fe5b` (18 October 2026).
+
+The giving summary and split-gift clauses were also exercised through the product at 1440 and 390 pixels on 18 October 2026.
 
 The giving, receipt, payments, donor-depth, development-agent and CRM export move-in clauses and their claim mappings include their current implementations and named tests.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 4 | 67 | 55 | 126 |
-| All | 13 | 67 | 55 | 135 |
+| Target and push further | 6 | 66 | 54 | 126 |
+| All | 15 | 66 | 54 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1331,14 +1333,14 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | `DONOR-008` | Documents on records | target | missing |  | No attachments. |
 | `DONOR-009` | Address verification and NCOA | target | missing |  | No address verification or NCOA. |
 | `DONOR-010` | Volunteer history | target | missing |  | No volunteer records. |
-| `DONOR-011` | Giving summary | target | partial | `src/coffer/donors.ts`, `src/coffer/donor-merge.ts`, `tests/soft-credits.test.mjs`, `tests/pledges.test.mjs` | Lifetime and yearly hard-credit totals, first-gift date/amount/appeal, separate recognition and installment balances derive from ledger records, including merges/imports. Largest gift, giving streaks, fiscal-year setting and remaining summary metrics remain. |
+| `DONOR-011` | Giving summary | target | done | `src/coffer/giving-summary.ts`, `src/coffer/ui/giving-summary.ts`, `tests/giving-summary.test.mjs`, `tests/giving.test.mjs` |  |
 | `DONOR-012` | Constituent status: active, inactive and deceased | target | missing |  | Constituents have no status; appeals exclude only on consent and address, and erasure is the only way to stop a record being used. |
 | `DONOR-013` | Several emails, phones and addresses | target | partial | `src/coffer/donors.ts`, `migrations/core/0016_coffer.sql` | A donor has one email (refused if any other record has it), one phone and one postal address; no further contact points, types, primaries, seasonal ranges or email shared within a household. |
 | `DONOR-014` | Name parts, salutations and envelope name | target | partial | `src/coffer/donors.ts`, `src/coffer/settings.ts`, `tests/coffer.test.mjs` | A donor has one free-text name and letters merge only `{{donor_name}}`; no prefix, first, middle and last name, suffix or nickname, no computed or overridden salutations or envelope name, and no admin-set defaults. |
 | `DONOR-015` | Solicitation restrictions | target | missing |  | No solicitation restriction: consent is per channel (email and postal) only, and appeals exclude only on consent and address. |
 | `GIFT-002` | Batch gift entry and deposits | target | missing |  | Gifts are entered one at a time; no batches or deposit totals. |
 | `GIFT-003` | Campaign, appeal, fund and channel attribution | target | partial | `src/coffer/gifts.ts` | Each gift has one free-text fund; no campaigns, appeals or source as structured references. |
-| `GIFT-004` | Split gifts | target | missing |  | No split gifts. |
+| `GIFT-004` | Split gifts | target | done | `src/coffer/gift-splits.ts`, `migrations/core/0039_coffer_gift_splits.sql`, `src/coffer/fund-report.ts`, `tests/split-gifts.test.mjs` |  |
 | `GIFT-005` | Pledges, installments and balances | target | partial | `src/coffer/pledges.ts`, `src/coffer/ui/pledges.ts`, `tests/pledges.test.mjs` | Dated installments total the pledge, allocations match gifts by donor/fund without overpayment, and reversals reopen balances. Write-offs, reductions, campaign attribution and recurring-plan payment remain. |
 | `GIFT-006` | Soft credits | target | partial | `src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs` | Full or partial recognition links another donor to a gift and appears in a separate reversal-aware total without increasing received totals or tax receipts. Separate acknowledgement status and report integration remain. |
 | `GIFT-007` | Matching gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/ui/gift-depth.ts`, `tests/soft-credits.test.mjs` | Expected employer amount/deadline links the original gift to a received employer ledger gift, with overdue and reversal-aware states. Program lookup, submission workflow, automatic employee recognition and submission reminders remain. |
@@ -1411,13 +1413,13 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | `REPORT-006` | Recurring giving health | target | missing |  | No recurring plans to report. |
 | `REPORT-007` | IRS Form 990 support | target | missing |  | No Form 990 reports. |
 | `REPORT-008` | Raised by state | target | missing |  | Each donor stores a current state, but there is no address history or report by state. |
-| `MOVE-001` | From Little Green Light | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Documented LGL CSV/XLSX constituent and fundraising exports preview donors, explicit households, gifts, funds/campaigns, relationships, soft credits, pledges/installments and notes, with source controls and atomic apply/re-import/undo. Full multi-contact/name/custom-field, consent/restriction, acknowledgement, tribute and recurring-vault migration remains outside this export implementation. |
+| `MOVE-001` | From Little Green Light | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Documented LGL CSV/XLSX constituent and fundraising exports preview donors, households (explicit, or spouses and people at one address; never merged by name), gifts, funds/campaigns, relationships, soft credits, pledges/installments and notes, with source controls, every blocking row listed (paged, filterable, CSV), a preview that plans every part, part-by-part apply that names a failing part's rows, year-by-year re-import by LGL ID, and undo. Full multi-contact/name/custom-field, consent/restriction, acknowledgement, tribute and recurring-vault migration remains outside this export implementation. |
 | `MOVE-002` | From Bloomerang | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Documented Bloomerang CSV/XLSX reports import the same donor/gift history and attribution with source-control reconciliation and atomic apply/undo. REST API, full contact/custom-field, task, consent/restriction, acknowledgement, tribute and recurring-vault migration remains unbuilt. |
 | `MOVE-003` | From Raiser's Edge NXT | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Configured NXT database-view CSV/XLSX constituent/gift reports import donor/gift history, households, relationships, soft credits, pledges and notes. Grouped web-list splits and repeated source IDs are explicitly blocked pending designation exports. SKY API, opportunities, full custom fields/contacts, restrictions, acknowledgement and recurring-vault migration remains unbuilt. |
 | `MOVE-004` | From Neon CRM | target | missing |  | No Neon CRM importer. |
 | `MOVE-005` | From Givebutter and Zeffy | target | missing |  | No Givebutter or Zeffy importer. |
 | `MOVE-006` | Any spreadsheet | target | missing |  | No general importer. |
-| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs, resumable part-by-part apply with a recheckable totals check from the gifts in Coffer, and undo ship; later call tasks and opportunities block undo. The review asks whether gifts before a date (default the move-in date) were already thanked; those never become due or missing receipts. Recurring adoption/vault transfer, per-gift acknowledgement status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. |
+| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs, resumable part-by-part apply with a recheckable totals check from the gifts in Coffer (per move-in, including gifts an earlier move-in brought), and undo ship; later call tasks and opportunities block undo. The review asks whether gifts before a date (default the move-in date) were already thanked; those never become due or missing receipts. Recurring adoption/vault transfer, per-gift acknowledgement status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. |
 | `MOVE-009` | Recurring donors move with their cards and bank accounts | target | missing |  | No recurring plans, mapping-file reader (card or ACH) or transfer move-in. |
 | `MOVE-008` | Consent and preferences moved with provenance | target | missing |  | No importer carries consent. |
 | `MOVE-010` | Custom fields carried across | target | missing |  | No custom fields, and no importer other than Stripe's, which reads no custom data. |

@@ -54,7 +54,8 @@ export function validateImport(out: ParsedImport) {
    ids.add(row.externalId)
    if ('donorExternalId' in row && !donors.has(row.donorExternalId)) missing(row, 'Constituent', row.donorExternalId)
    if ('relatedDonorExternalId' in row && !donors.has(row.relatedDonorExternalId)) missing(row, 'Related constituent', row.relatedDonorExternalId)
-   if ('pledgeExternalId' in row && row.pledgeExternalId && !pledges.has(row.pledgeExternalId)) missing(row, 'Pledge', row.pledgeExternalId)
+   // A pledge payment may pay a pledge an earlier move-in brought (another year's file); the review plan checks those against Coffer.
+   if ('pledgeExternalId' in row && row.pledgeExternalId && !pledges.has(row.pledgeExternalId) && collection !== out.gifts) missing(row, 'Pledge', row.pledgeExternalId)
   }
  }
  for (const credit of out.softCredits) {

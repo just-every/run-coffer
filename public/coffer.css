@@ -370,3 +370,10 @@
   .cf-donor::before { content: ''; justify-self: center; width: 44px; height: 4px; border-radius: 99px; background: #b8bcd8; }
 }
 @media (prefers-reduced-motion: reduce) { .cf-app * { scroll-behavior: auto; } }
+
+/* Filters and pagers on list screens (CRM move-in issues). */
+.coffer .filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px 12px; align-items: end; margin: 12px 0; }
+.coffer .pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; }
+.coffer ol.issues { padding-left: 1.6em; }
+.coffer ol.issues li p { margin: 4px 0 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .coffer .filters { grid-template-columns: 1fr; } }

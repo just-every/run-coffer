@@ -27,7 +27,7 @@ const mapped = (map: Record<string, string>, key: string, label: string) => {
 export function evidenceCsv(view: any): string {
  const p = view.payout
  const rows: unknown[][] = [['Payout ID', 'Arrival date', 'Currency', 'Source ID', 'Kind', 'Fund', 'Gross', 'Fees', 'Net', 'Gift ID']]
- for (const l of [...view.lines].sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
+ for (const l of [...view.accountingLines].sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
   rows.push([p.id, p.arrival_on, p.currency, l.source_id, l.kind, l.fund, dollars(l.amount_cents), dollars(l.fee_cents), dollars(l.net_cents), l.gift_id])
  }
  return csv(rows, [6, 7, 8])

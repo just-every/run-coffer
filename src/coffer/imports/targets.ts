@@ -62,9 +62,9 @@ export const ledgerTargets: D1TargetAdapter = {
     const k = scope(target, kind)
     // Undo leaves anything a person has since built on the record in place.
     const inUse = k === 'gift'
-      ? `NOT EXISTS(SELECT 1 FROM cf_acks WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE reverses=?) AND NOT EXISTS(SELECT 1 FROM cf_soft_credits WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_gift_tributes WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_employer_matches WHERE gift_id=? OR received_gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_pledge_allocations WHERE gift_id=?)`
+      ? `NOT EXISTS(SELECT 1 FROM cf_acks WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE reverses=?) AND NOT EXISTS(SELECT 1 FROM cf_soft_credits WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_gift_tributes WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_employer_matches WHERE gift_id=? OR received_gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_pledge_allocations WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_gift_allocations WHERE gift_id=?)`
       : `NOT EXISTS(SELECT 1 FROM cf_gifts WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_consents WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_pledges WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_appeal_recipients WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_relationships WHERE donor_id=? OR related_donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_interactions WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=? OR into_id=?) AND NOT EXISTS(SELECT 1 FROM cf_donor_notes WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_move_in_records WHERE donor_id=? OR related_id=?) AND NOT EXISTS(SELECT 1 FROM cf_prospects WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_call_tasks WHERE donor_id=?)`
-    return [guard(sql(inUse, ...Array(k === 'gift' ? 7 : 15).fill(id))), sql(`DELETE FROM cf_import_revisions WHERE kind='${k}' AND id=?`, id), sql(`DELETE FROM ${TABLE[k]} WHERE id=?`, id)]
+    return [guard(sql(inUse, ...Array(k === 'gift' ? 8 : 15).fill(id))), sql(`DELETE FROM cf_import_revisions WHERE kind='${k}' AND id=?`, id), sql(`DELETE FROM ${TABLE[k]} WHERE id=?`, id)]
   },
   async list(db, target) {
     scope(target)

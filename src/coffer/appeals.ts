@@ -18,7 +18,7 @@ export async function audience(c: { db: D1Database }, channel: 'email' | 'mail',
   (SELECT MAX(received_on) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS last_gift FROM cf_donors d
   LEFT JOIN cf_consents k ON k.id=(SELECT id FROM cf_consents WHERE donor_id=d.id AND channel=? ORDER BY id DESC LIMIT 1)
   WHERE d.erased_at IS NULL AND (? IS NULL OR (SELECT COALESCE(SUM(amount_cents),0) FROM cf_gifts g WHERE g.donor_id=d.id AND g.received_on>=?)>=?)
-  AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.donor_id=d.id AND g.fund=? AND g.net_cents>0))
+  AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_fund_ledger g WHERE g.donor_id=d.id AND g.fund=? GROUP BY g.fund HAVING SUM(g.amount_cents)>0))
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
   ORDER BY lower(d.name),d.id`, channel, segment.givenSince, segment.givenSince, Math.max(1, segment.minTotalCents), segment.fund??null,segment.fund??null)
  const excluded = { 'no consent recorded': 0, 'consent withdrawn': 0, 'no email address': 0, 'no postal address': 0 }

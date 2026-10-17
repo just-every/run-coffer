@@ -2,6 +2,7 @@ import { emptyTotals } from './source-totals'
 import type { ParsedImport } from './types'
 
 export const PART_RECORDS = 800
+const PART_BYTES = 400 * 1024
 
 /** Splits one reviewed export into parts that each apply in a single transaction.
  * A part repeats the donors (and pledges, gifts) it refers to; those resolve to the
@@ -15,7 +16,17 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   parts.push({ source: parsed.source, donors: ds, households: [...new Set(ds.map(d => d.householdKey).filter(Boolean))].map(k => households.get(k)!).filter(Boolean),
    gifts: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [], ...fill })
  }
- const chunks = <T>(rows: T[], size = PART_RECORDS) => Array.from({ length: Math.ceil(rows.length / size) }, (_, i) => rows.slice(i * size, (i + 1) * size))
+ // A part also stays under PART_BYTES of its own records, so long notes never push one past D1's 2 MB value limit.
+ const chunks = <T>(rows: T[], size = PART_RECORDS) => {
+  const out: T[][] = []; let chunk: T[] = [], bytes = 0
+  for (const row of rows) {
+   const length = JSON.stringify(row).length
+   if (chunk.length && (chunk.length >= size || bytes + length > PART_BYTES)) { out.push(chunk); chunk = []; bytes = 0 }
+   chunk.push(row); bytes += length
+  }
+  if (chunk.length) out.push(chunk)
+  return out
+ }
  for (const chunk of chunks(parsed.donors)) part({}, chunk.map(d => d.externalId))
  for (const chunk of chunks(parsed.relationships)) part({ relationships: chunk }, chunk.flatMap(r => [r.donorExternalId, r.relatedDonorExternalId]))
  const installmentsOf = (ids: Set<string>) => parsed.installments.filter(i => ids.has(i.pledgeExternalId))
@@ -30,7 +41,12 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   part({ gifts: batch, pledges: used, installments: installmentsOf(ids) }, [...batch.map(g => g.donorExternalId), ...used.map(p => p.donorExternalId)])
   batch = []
  }
- for (const group of groups.values()) { if (batch.length + group.length > PART_RECORDS) flushGifts(); batch.push(...group) }
+ let batchBytes = 0
+ for (const group of groups.values()) {
+  const bytes = JSON.stringify(group).length
+  if (batch.length + group.length > PART_RECORDS || batchBytes + bytes > PART_BYTES) { flushGifts(); batchBytes = 0 }
+  batch.push(...group); batchBytes += bytes
+ }
  flushGifts()
  for (const chunk of chunks(parsed.softCredits)) {
   // A credited pledge payment brings its whole pledge, so the payment split matches the earlier part.

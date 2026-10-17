@@ -1,3 +1,4 @@
+import { paymentFundLines } from '../gift-splits'
 import { all, fail, guard, one, sql, text, type Context } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { syncEntry } from './entries'
@@ -8,8 +9,10 @@ export async function payoutDetail(c: { db: D1Database }, id: string) {
  const payout = await one(c, `SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p WHERE id=?`, id)
  if (!payout) fail('not_found', 'That payout is not available.', 404)
  const lines = await all(c, `SELECT e.*,d.name AS donor_name FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id LEFT JOIN cf_gifts g ON g.id=e.gift_id LEFT JOIN cf_donors d ON d.id=g.donor_id WHERE x.payout_id=? ORDER BY e.received_on,e.id`, id)
- const splits = await all(c, `SELECT e.fund,SUM(e.amount_cents) AS gross_cents,SUM(e.fee_cents) AS fee_cents,SUM(e.net_cents) AS net_cents FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=? GROUP BY e.fund ORDER BY e.fund`, id)
- return { payout, lines, splits, posting: await one(c, 'SELECT * FROM cf_payout_postings WHERE payout_id=?', id) }
+ const accountingLines=await paymentFundLines(c,lines), funds=new Map<string,{fund:string;gross_cents:number;fee_cents:number;net_cents:number}>()
+ for(const line of accountingLines){const total=funds.get(line.fund)??{fund:line.fund,gross_cents:0,fee_cents:0,net_cents:0};total.gross_cents+=line.amount_cents;total.fee_cents+=line.fee_cents;total.net_cents+=line.net_cents;funds.set(line.fund,total)}
+ const splits=[...funds.values()].sort((a,b)=>a.fund.localeCompare(b.fund))
+ return { payout, lines, accountingLines, splits, posting: await one(c, 'SELECT * FROM cf_payout_postings WHERE payout_id=?', id) }
 }
 export async function payoutList(c: { db: D1Database }) {
  const postings = await all(c, 'SELECT * FROM cf_payout_postings')

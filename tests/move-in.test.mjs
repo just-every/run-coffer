@@ -111,3 +111,45 @@ test('lgl: a large export moves in part by part, with pledges, soft credits, spo
  await post(h,'undo',{id:preview.id})
  assert.equal((await h.get('/api/coffer/donors')).total,0)
 }))
+
+// The page-alone path a newcomer takes with a real export: every blocking row listed and downloadable,
+// spouses sharing one email moved in as one household, and the gift report moved in one span of years at a time.
+test('lgl: the review lists every row to fix, spouses share an email, and a later year finds earlier donors and pledges',()=>run(async h=>{
+ const {syntheticLgl}=await import('../scripts/synthetic-lgl.mjs')
+ const files=syntheticLgl(300,900), lines=t=>t.trimEnd().split('\r\n'), text=rows=>rows.join('\r\n')+'\r\n'
+ const input=set=>({source:'lgl',files:Object.entries(set).map(([name,t])=>({name,base64:Buffer.from(t).toString('base64')}))})
+ const people=lines(files['constituents.csv']), gifts=lines(files['gifts.csv']), shared=people[1].split(',')[3]
+ people[2]=people[2].split(',').map((v,i)=>i===3?shared:v).join(',')
+ let zeroed=0
+ const broken=gifts.map((row,i)=>{const c=row.split(',');if(i&&c[2]==='Gift'&&!c[9]&&zeroed<60){zeroed++;c[10]='0.00'}return c.join(',')})
+ broken.push(gifts.find(r=>r.split(',')[2]==='Soft credit').replace(/^S\d+/,'S9999'))
+ const blocked=await post(h,'preview',input({'constituents.csv':text(people),'gifts.csv':text(broken),'relationships.csv':files['relationships.csv']}))
+ assert.equal(blocked.canApply,false)
+ assert.ok(blocked.diagnostics.some(d=>d.code==='SHARED_EMAIL_HOUSEHOLD'&&d.severity==='warning'))
+ const first=await h.get(`${endpoint}/issues?id=${blocked.id}&severity=error`)
+ assert.deepEqual([first.total,first.pages],[61,2])
+ assert.deepEqual(first.codes.filter(c=>c.severity==='error').map(c=>[c.code,c.n]).sort(),[['GOODS_VALUE',60],['SOFT_DUPLICATE',1]])
+ assert.equal((await h.get(`${endpoint}/issues?id=${blocked.id}&severity=error&page=2`)).rows.length,11)
+ const download=(await (await h.request(`/app/move-in/crm/issues.csv?id=${blocked.id}&show=error`)).text()).trimEnd().split('\r\n')
+ assert.equal(download.length,62)
+ assert.ok(download.slice(1).every(r=>/^gifts\.csv,,\d+,/.test(r)),download[1])
+ assert.match(await (await h.request(`/app/move-in/crm/review?id=${blocked.id}`)).text(),/61 rows must be fixed/)
+ await post(h,'apply',{id:blocked.id,fingerprint:blocked.fingerprint,acceptedReason:'x'},{status:409})
+ const [header,...body]=gifts, year=r=>r.split(',')[3].slice(0,4)
+ const early=await post(h,'preview',input({'constituents.csv':text(people),'relationships.csv':files['relationships.csv'],'gifts-2019-2024.csv':text([header,...body.filter(r=>year(r)<'2025')])}))
+ assert.equal(early.canApply,true,JSON.stringify(early.diagnostics.filter(d=>d.severity==='error').slice(0,3)))
+ assert.equal((await moveIn(h,early)).state,'completed')
+ const later=await post(h,'preview',input({'constituents.csv':text(people),'gifts-2025-2026.csv':text([header,...body.filter(r=>year(r)>='2025')])}))
+ assert.equal(later.canApply,true,JSON.stringify(later.diagnostics.filter(d=>d.severity==='error').slice(0,3)))
+ assert.ok(later.gifts.some(g=>g.pledgeExternalId),'A 2025 payment pays a 2024 pledge')
+ assert.equal((await moveIn(h,later)).state,'completed')
+ const check=(await h.get(`${endpoint}/journal?id=${later.id}`)).job.check_report
+ assert.ok(check.matches,JSON.stringify(check.rows.filter(r=>!r.matches).slice(0,3)))
+ assert.equal(check.donors.matching,check.donors.total)
+ const earlyCheck=(await h.get(`${endpoint}/journal?id=${early.id}`)).job.check_report, cents=body.filter(r=>r.split(',')[2]==='Gift').reduce((n,r)=>n+Math.round(Number(r.split(',')[4])*100),0)
+ assert.equal(earlyCheck.rows.find(r=>r.scope==='all').cofferCents+check.rows.find(r=>r.scope==='all').cofferCents,cents)
+ assert.equal((await h.get('/api/coffer/donors')).total,300)
+ const spouses=(await h.get(`/api/coffer/donors?q=${encodeURIComponent(shared)}`)).donors
+ assert.equal(spouses.length,1)
+ assert.equal((await h.get(`/api/coffer/donors/${spouses[0].id}`)).household.length,1)
+}))

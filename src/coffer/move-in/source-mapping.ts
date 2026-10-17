@@ -9,7 +9,9 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  const name = names[0] || names[1] || names.slice(2).filter(Boolean).join(' ')
  if (!name) return
  const externalId = r.required('donorId'); if (!externalId) return
- const donor: ParsedDonor = { location: r.location, externalId, name, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
+ // An organization keeps no household: LGL's Is Org, a Bloomerang Organization type, or an organization name alone.
+ const organization = /^(yes|true|y|1)$/i.test(r.get('isOrg')) || normalizeLabel(r.peek('type')) === 'organization' || (!!names[1] && !names[2] && !names[4])
+ const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], lastName: names[4], organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
  donor.email = donor.email.toLowerCase()
  if (donor.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donor.email)) r.error('EMAIL', 'Export a single valid primary email address.', 'email')
  if (donor.householdName && !donor.householdKey) r.error('HOUSEHOLD_ID', 'Household name needs its source household ID; names are not reliable identity keys.', 'householdKey')
@@ -21,6 +23,7 @@ function addDonor(r: SourceRow, out: ParsedImport) {
    if (existing[key] && donor[key] && existing[key] !== donor[key]) r.error('DONOR_CONFLICT', `Conflicting ${key} for source constituent ${externalId}. Export one authoritative value.`, key)
    else if (!existing[key]) existing[key] = donor[key]
   }
+  existing.firstName ||= donor.firstName; existing.lastName ||= donor.lastName; existing.organization ||= donor.organization
  }
  if (donor.householdKey && donor.householdName) {
   const household = out.households.find(h => h.externalId === donor.householdKey)
@@ -71,7 +74,7 @@ function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
    else goodsCents = difference
   }
  }
- if (goodsCents !== null && amountCents !== null && goodsCents >= amountCents && goodsCents !== 0) r.error('GOODS_VALUE', 'Benefit amount must be less than the received gift amount.', 'goodsAmount')
+ if (goodsCents !== null && amountCents !== null && goodsCents >= amountCents && goodsCents !== 0) r.error('GOODS_VALUE', r.peek('deductible') ? `Deductible Amount ${r.peek('deductible')} means the donor received goods or services worth the whole ${r.peek('amount')}, so no part of it was a gift. Coffer records gifts worth more than what the donor received: set Deductible Amount to the part that was a gift, or delete the row if it was a purchase.` : 'Benefit amount must be less than the received gift amount.', r.peek('deductible') ? 'Deductible Amount' : 'goodsAmount')
  if (goodsCents === null && input.noGoodsOrServices === true) goodsCents = 0
  if (fund.includes(';') || campaign.includes(';')) r.error('SPLIT_GIFT', 'Export one designation per row with a unique gift/designation ID and amount; grouped split funds or campaigns cannot be allocated safely.')
  if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription })

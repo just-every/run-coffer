@@ -1,3 +1,5 @@
+import { creditChecks, sharedEmails } from './checks'
+import { inferHouseholds } from './households'
 import { readExports } from './parse-input'
 import { columnFields, normalizeLabel } from './source-columns'
 import { mapRow } from './source-mapping'
@@ -26,23 +28,10 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  }
  sourceTotals(rows, out.sourceTotals)
  for (const row of rows) if (row.kind() === 'control') { mapRow(row, out, input); controlRow(row, out) } else mapRow(row, out, input)
- spouseHouseholds(out)
+ inferHouseholds(out)
+ sharedEmails(out)
+ creditChecks(out)
  validateImport(out)
  if (!rows.length) out.diagnostics.push({ severity: 'error', code: 'EMPTY', message: 'No source records were found.' })
  return out
-}
-
-/** CRMs such as Little Green Light record a couple as a spouse relationship, not a household.
- * A spouse pair with no household from the export becomes one household. */
-function spouseHouseholds(out: ParsedImport) {
- const donors = new Map(out.donors.map(d => [d.externalId, d]))
- for (const r of out.relationships) {
-  const a = donors.get(r.donorExternalId), b = donors.get(r.relatedDonorExternalId)
-  if (r.type !== 'spouse' || !a || !b || a.householdKey || b.householdKey) continue
-  const [first, second] = [a, b].sort((x, y) => x.externalId.localeCompare(y.externalId))
-  const surname = first.name.trim().split(/\s+/).at(-1)
-  const household = { externalId: `spouses:${first.externalId}:${second.externalId}`, name: `${surname} household`, location: r.location }
-  out.households.push(household)
-  for (const d of [first, second]) { d.householdKey = household.externalId; d.householdName = household.name }
- }
 }

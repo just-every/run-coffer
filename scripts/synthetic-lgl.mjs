@@ -16,7 +16,7 @@ export function syntheticLgl(constituents = 5000, gifts = 40000) {
  const csv = (header, rows) => [header, ...rows].map(row => row.map(quote).join(',')).join('\r\n') + '\r\n'
  const people = Array.from({ length: constituents }, (_, i) => {
   const id = String(100001 + i), f = pick(first), l = pick(last)
-  return [id, f, l, `${f}.${l}.${id}@example.org`.toLowerCase(), `555-01${String(i % 100).padStart(2, '0')}`, `${1 + (i % 900)} ${pick(['Oak', 'Elm', 'Maple', 'Cedar'])} Street`, '', 'Springfield', 'IL', String(62701 + (i % 50)), 'US']
+  return [id, f, l, `${f}.${l}.${id}@example.org`.toLowerCase(), `555-01${String(i % 100).padStart(2, '0')}`, `${1 + i} ${pick(['Oak', 'Elm', 'Maple', 'Cedar'])} Street`, '', 'Springfield', 'IL', String(62701 + (i % 50)), 'US']
  })
  // Every tenth pair of neighbours are spouses: LGL keeps a couple as a Spouse relationship.
  const relationships = []
