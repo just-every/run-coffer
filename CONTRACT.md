@@ -14,15 +14,15 @@ This is a target contract: the product Coffer is being built towards, not a desc
 
 Givebutter and Zeffy are the up-and-comers: they bundle collection with a donor CRM at no platform fee. Coffer has to beat them on giving and the incumbents on records, stewardship and reporting. Switching means a buyer of any of them finds the whole job:
 
-- **Know every supporter.** People and organizations, households and relationships, a timeline of every touch, custom fields, duplicates merged, saved lists with bulk actions, documents, verified addresses, volunteer history and an active, inactive or deceased status every send honours (`DONOR-001` to `DONOR-012`).
+- **Know every supporter.** People and organizations with several emails, phones and addresses each, households and relationships, a timeline of every touch, custom fields, duplicates merged, saved lists with bulk actions, documents, verified addresses, volunteer history and an active, inactive or deceased status every send honours (`DONOR-001` to `DONOR-013`).
 - **Record every gift exactly.** An immutable ledger with batch entry, attribution, splits, pledges with installments, soft credits, matching, tribute, in-kind, stock, DAF and IRA gifts, and anonymous gifts with recognition names (`GIFT-001` to `GIFT-011`).
-- **Take gifts online.** Forms, campaign pages, recurring giving, card, ACH, wallets, PayPal and Venmo, a donor portal, failed-payment recovery, fraud protection and text-to-give; campaigns, events with auction results, peer-to-peer pages and memberships (`GIVE-*`, `CAMP-*`).
+- **Take gifts online and by phone.** Forms, campaign pages, recurring giving, card, ACH, wallets, PayPal and Venmo, staff-entered card and bank payments, a donor portal, failed-payment recovery, fraud protection and text-to-give; campaigns, events with auction results, peer-to-peer pages and memberships (`GIVE-*`, `CAMP-*`).
 - **Reconcile with the books.** Live Stripe, other giving platforms and shop orders with payouts, fees, refunds and disputes, posted by fund to QuickBooks Online or Pantry and reconciled to the cent (`PAY-*`, `FIN-*`).
 - **Thank and receipt.** Immediate email receipts, delivered acknowledgements, print-ready letters, year-end statements, one piece per household, US receipt rules and delivery tracking (`ACK-001`, `RCPT-*`).
 - **Reach donors and hear back.** Consent on every channel, appeals sent through Mango or Mailchimp, one-to-one email, replies routed to the right person, SMS and direct mail, with results (`CONSENT-001`, `APPEAL-001`, `COMM-*`).
 - **Follow up.** Tasks, recurring tasks, stewardship journeys, pledge reminders, gift-triggered rules and meetings (`STEW-*`), and the major-gift pipeline with portfolios, plans, scores, research, grants and planned giving (`MAJOR-*`).
 - **Report.** Retention, LYBUNT and SYBUNT, dashboards, a report builder, scheduled reports, recurring health, Form 990 support and giving by state (`REPORT-*`).
-- **Move in and own it.** Importers from Little Green Light, Bloomerang, Raiser's Edge NXT, Neon CRM, Givebutter, Zeffy and any spreadsheet with a checked cutover, monthly donors moved with their cards; roles, SSO and an audit log; an API, webhooks and MCP; phone and native apps; and free, open-source ownership with exports and erasure (`MOVE-*`, `TEAM-*`, `API-*`, `MOBILE-*`, `DATA-*`, `OWN-*`).
+- **Move in and own it.** Importers from Little Green Light, Bloomerang, Raiser's Edge NXT, Neon CRM, Givebutter, Zeffy and any spreadsheet with a checked cutover, monthly donors moved with their cards and bank accounts; roles, SSO and an audit log; an API, webhooks and MCP; phone and native apps; and free, open-source ownership with exports and erasure (`MOVE-*`, `TEAM-*`, `API-*`, `MOBILE-*`, `DATA-*`, `OWN-*`).
 - **Go further.** A development agent that reconciles every gift, rescues failed monthly gifts, sends missing receipts, drafts stewardship from the nonprofit's own history and shows who needs a human call next, under named grants (`DEV-001` to `DEV-012`).
 
 ### Neighbouring products stay separate
@@ -60,7 +60,7 @@ Hono serves `/health` and owns `/api`; native owner/operator sessions protect `/
 
 #### DONOR-001 — Donors and households.
 
-A donor has one unique email (or none). A household is found by name or created. Members, admins and the owner add and edit donors; edits are versioned, and a stale version is refused rather than overwritten.
+A donor has an email (or none) that no unrelated record shares. A household is found by name or created. Several emails, phones and postal addresses per constituent with one primary of each, and an email shared by members of one household, are `DONOR-013`. Members, admins and the owner add and edit donors; edits are versioned, and a stale version is refused rather than overwritten.
 
 *Acceptance:* A member adds donors through HTTP and the browser journey adds, edits and opens donors; the donor page lists household members.
 
@@ -164,9 +164,9 @@ An admin adds custom fields (text, number, date, single and multi choice, checkb
 
 #### DONOR-006 — Duplicate detection and merge.
 
-Coffer flags likely duplicates (same email, same name and postal address, same phone, near-name matches) when a record is added, imported or comes in from a form, and in a review queue. A person compares two records side by side, picks the surviving value per field and merges: gifts, pledges, consent rows, interactions, relationships and provider links move to the survivor, the ledger is untouched and the merge is undoable from the audit log.
+Coffer flags likely duplicates (same email, same name and postal address, same phone, near-name matches) when a record is added, imported or comes in from a form, and in a review queue. Members of one household who share an email, phone or address are not flagged for it (`DONOR-013`); unrelated records sharing any one of them are. A person compares two records side by side, picks the surviving value per field and merges: gifts, pledges, consent rows, interactions, relationships and provider links move to the survivor, the ledger is untouched and the merge is undoable from the audit log.
 
-*Acceptance:* An HTTP and browser journey creates two records for one person through a form gift and a manual entry, finds them in the duplicates queue, merges them, reads one combined history with unchanged ledger totals, then undoes the merge.
+*Acceptance:* An HTTP and browser journey creates two records for one person through a form gift and a manual entry, finds them in the duplicates queue, merges them, reads one combined history with unchanged ledger totals, then undoes the merge; two spouses in one household who share an email never appear in the queue.
 
 *Status:* partial. Duplicate emails are refused and same-email Stripe imports attach to the existing donor; there is no duplicate queue, comparison or merge. Evidence: `src/coffer/imports/snapshots.ts`, `tests/coffer.test.mjs`.
 
@@ -218,15 +218,23 @@ Every constituent has a status: active, inactive (with a reason, such as asked f
 
 *Status:* missing. Constituents have no status; appeals exclude only on consent and address, and erasure is the only way to stop a record being used.
 
+#### DONOR-013 — Several emails, phones and addresses.
+
+A constituent holds any number of email addresses, phone numbers and postal addresses. Each has a type (email: personal, work, other; phone: mobile, home, work; address: home, work, vacation, seasonal, other) and each kind has exactly one primary: making another one primary demotes the old one in the same change, and every change is versioned and kept in history with its source and date. A seasonal address carries a yearly active range (for example 1 November to 31 March) and is the mailing address while it is active. Email receipts and acknowledgements (`RCPT-001`, `RCPT-002`), appeals and journeys (`APPEAL-001`, `COMM-002`, `STEW-003`), letters, statements and mail files (`RCPT-003`, `RCPT-004`, `COMM-007`) use the primary of the kind they need, or the type a run chooses (for example a work email for a matching-gift reminder), and record which contact point each message went to. Members of one household may share an email, phone or address: they are not flagged as duplicates for it and stay separate people, while an unrelated record with the same email, phone or address goes to the duplicates queue (`DONOR-006`). Consent (`CONSENT-001`, `COMM-001`) stays per person and channel even when the address is shared, so one spouse withdrawing never withdraws the other, and one appeal never sends the same message twice to one shared email (one piece per household is `RCPT-009`). Donor lookup, batch entry and form matching search every contact point, not only the primary. Every importer (`MOVE-001` to `MOVE-006`) carries all contact points with their types and primary flags.
+
+*Acceptance:* An HTTP journey gives a donor a home and a work email, a mobile and a home phone, and a home and a vacation address, then makes the work email primary; the next receipt goes to the work email and records it, and a mail appeal file uses the primary address; a seasonal address active from November to March is used by a mail file dated in January and not by one dated in June; two spouses in one household are saved with the same email and neither is flagged as a duplicate, an unrelated record with that email lands in the duplicates queue, and withdrawing one spouse's email consent leaves the other's current answer yes; the Bloomerang and Little Green Light importers read a fixture constituent with three emails and two addresses and carry all five with their types and primaries.
+
+*Status:* partial. A donor has one email (refused if any other record has it), one phone and one postal address; no further contact points, types, primaries, seasonal ranges or email shared within a household. Evidence: `src/coffer/donors.ts`, `migrations/core/0016_coffer.sql`.
+
 ### Gifts and pledges
 
 Every way US donors give, entered fast and attributed exactly.
 
 #### GIFT-002 — Batch gift entry and deposits.
 
-Staff enter a stack of checks or cash as a batch: shared defaults (date, fund, campaign, appeal, method), keyboard-only entry with donor lookup and add-new inline, a running total checked against the expected deposit total, and a batch that closes only when it balances. A closed batch is one bank deposit for `FIN-001`.
+Staff enter a stack of checks or cash as a batch: shared defaults (date, fund, campaign, appeal, method), keyboard-only entry with donor lookup and add-new inline, a running total checked against the expected deposit total, and a batch that closes only when it balances. A closed batch is one bank deposit for `FIN-001`. Each check keeps its check number, searchable and shown on the deposit for bank matching and donor questions. Donor lookup finds a record by name, any email or phone (`DONOR-013`) or the legacy ID every importer keeps (`MOVE-007`), so reply cards printed by the old system still match. A card or bank account written on a reply card is charged from the batch through `GIVE-009`.
 
-*Acceptance:* A browser journey enters a 12-check batch at 1440 pixels with defaults, is refused closing it while it is $50 off the expected total, corrects it, closes it, and sees one deposit with 12 gifts.
+*Acceptance:* A browser journey enters a 12-check batch at 1440 pixels with defaults, is refused closing it while it is $50 off the expected total, corrects it, closes it, and sees one deposit with 12 gifts, each with its check number; searching one check number finds its gift, and a reply card printed with a Bloomerang account number finds its donor by that number in batch lookup.
 
 *Status:* missing. Gifts are entered one at a time; no batches or deposit totals.
 
@@ -318,13 +326,13 @@ An admin builds branded donation forms (logo, colors, copy, suggested amounts, o
 
 A campaign page tells the story with images and video, shows a goal thermometer and donor count from the ledger, lists recent donors who chose to be shown, and holds a form. Pages have a custom path on the nonprofit's domain and close on a date.
 
-*Acceptance:* A browser journey publishes a campaign page with a $60,000 goal, gives twice through it, and sees the thermometer, donor count and opt-in donor wall update; after the close date the page refuses new gifts with a message.
+*Acceptance:* A browser journey publishes a campaign page with a $60,000 goal, gives twice through it, and sees the thermometer, donor count and opt-in donor wall update; the page is served at the custom path set on the nonprofit's own domain (for example `/give/spring`); after the close date the page refuses new gifts with a message.
 
 *Status:* missing. No campaign pages.
 
 #### GIVE-003 — Recurring giving.
 
-Donors choose monthly, quarterly or annual giving on any form. Coffer schedules each installment itself against the donor's saved Stripe payment method (or keeps an adopted Stripe subscription running), records every successful installment as a gift linked to its plan, and shows plan status (active, past due, paused, cancelled) with its history. Staff can create a plan from a signed pledge form, change amount or date, pause and cancel, each recorded.
+Donors choose monthly, quarterly or annual giving on any form. Coffer schedules each installment itself against the donor's saved Stripe payment method (or keeps an adopted Stripe subscription running), records every successful installment as a gift linked to its plan, and shows plan status (active, past due, paused, cancelled) with its history. Staff create a plan from a signed pledge form or a phone call by collecting its card or bank account through staff payment entry (`GIVE-009`), and change amount or date, pause and cancel, each recorded.
 
 *Acceptance:* An HTTP journey with Stripe in test mode and a test clock starts a $25 monthly plan, advances three months, reads three linked gifts, pauses and resumes the plan, and cancels it.
 
@@ -332,7 +340,7 @@ Donors choose monthly, quarterly or annual giving on any form. Coffer schedules 
 
 #### GIVE-004 — Card, bank, wallet and PayPal checkout.
 
-Forms accept cards, US bank accounts through ACH Direct Debit with instant verification, Apple Pay and Google Pay through Stripe, and PayPal and Venmo through PayPal Checkout. ACH gifts are pending until they settle and become ledger lines only when funds arrive; a later return (insufficient funds, closed account) reverses the gift and opens follow-up. Coffer never sees or stores card or account numbers.
+Forms accept cards, US bank accounts through ACH Direct Debit with instant verification, Apple Pay and Google Pay through Stripe, and PayPal and Venmo through PayPal Checkout. ACH gifts are pending until they settle and become ledger lines only when funds arrive; a later return (insufficient funds, closed account) reverses the gift and opens follow-up. Staff take the same card and bank payments by phone or mail through `GIVE-009`. Coffer never sees or stores card or account numbers.
 
 *Acceptance:* A browser journey with provider test modes gives by card, ACH (with a later R01 return that writes a reversal and a task), Apple Pay on a WebKit device profile and PayPal, and an inspection of stored records finds no card or account numbers.
 
@@ -369,6 +377,14 @@ A nonprofit claims a keyword on its Twilio number; a donor who texts it gets a l
 *Acceptance:* An HTTP journey with the Twilio edge faked texts a keyword, follows the link, gives, and sees the gift attributed to text-to-give; a STOP reply records SMS consent as withdrawn.
 
 *Status:* missing. No text-to-give.
+
+#### GIVE-009 — Staff-entered card and bank payments.
+
+A fundraiser takes a gift by phone or from a mailed reply card without the donor-facing form. From a donor page or a gift batch (`GIFT-002`), they open a payment entry and choose one of three ways to pay: key a card into Stripe Elements as a card-not-present (mail or telephone order) payment; enter a US bank account into Stripe's bank account element with the donor's spoken or written ACH authorization recorded (method, date, who took it, and the signed form attached under `DONOR-008` or the call logged on the timeline); or charge a payment method already saved on the donor. One step charges the payment and records the gift with the entering user, its source (phone, mail, in person), fund, campaign and appeal, and sends the usual receipt (`RCPT-001`); an ACH payment is pending until it settles, as in `GIVE-004`. The same entry can start a recurring plan (`GIVE-003`) on the new or saved payment method, which is how a signed monthly pledge form becomes a plan. Staff payments never pass through the public form, so the card-testing limits of `GIVE-007` neither count nor block them. They are limited by role (`TEAM-001`): fundraisers, admins and the owner may charge, data-entry, volunteer and read-only roles may not, and an admin can turn charging off for a role. Card and account numbers go from the browser straight to Stripe; Coffer stores only Stripe references, the last four digits and the card brand or bank name.
+
+*Acceptance:* A browser journey with Stripe in test mode has a fundraiser key in a $100 card gift on a donor page, start a $20 monthly plan on an ACH test account with a spoken authorization recorded, and charge the donor's saved card for a second gift; it reads three ledger lines (the ACH one after its test settlement) with source "phone", the fundraiser as entering user and a receipt for each, and the plan active on the ACH payment method with its authorization; a data-entry user is refused the charge through HTTP, no `GIVE-007` limit counts the three payments, and an inspection of stored records finds no card or account number.
+
+*Status:* missing. Coffer takes no payments; staff record a gift by hand after the money arrives elsewhere.
 
 ### Campaigns, events and memberships
 
@@ -518,7 +534,7 @@ Every donor is thanked and receipted, correctly for US tax rules, and Coffer kno
 
 Every online gift gets an emailed receipt within a minute from the nonprofit's verified domain, with the form's or campaign's thank-you text, the IRS language of `RCPT-005` and a PDF. Receipts are transactional: they are sent even to donors who unsubscribed from appeals. Offline gifts get one when the batch closes, if the admin turns that on.
 
-*Acceptance:* An HTTP journey with the mail and DNS edges faked shows the sending domain unverified until its SPF and DKIM records check, then gives online and reads one receipt message from that domain with the right amount, statement and PDF within a minute; a donor who withdrew email consent for appeals still receives it.
+*Acceptance:* An HTTP journey with the mail and DNS edges faked shows the sending domain unverified until its SPF and DKIM records check, then gives online and reads one receipt message from that domain with the right amount, statement and PDF within a minute; a donor who withdrew email consent for appeals still receives it; with the batch setting on, closing a batch of three offline gifts sends a receipt for each gift with an email address, and with it off sends none.
 
 *Status:* missing. Coffer sends no donor email.
 
@@ -592,9 +608,9 @@ Appeals and donor conversations actually go out, through the sender the nonprofi
 
 #### COMM-001 — Preferences and unsubscribes everywhere.
 
-Consent covers email, postal mail, SMS and phone, with frequency preferences and topic subscriptions (newsletter, appeals, events). Every marketing email carries a one-click unsubscribe; unsubscribes and preference changes from the donor portal, Mango, Mailchimp, Constant Contact and Twilio arrive as new consent rows with their source, and every send in Coffer checks the current answer.
+Consent covers email, postal mail, SMS and phone, with frequency preferences (at most one appeal a month or a quarter per channel) and topic subscriptions (newsletter, appeals, events). Every marketing email carries a one-click unsubscribe; unsubscribes and preference changes from the donor portal, Mango, Mailchimp, Constant Contact and Twilio arrive as new consent rows with their source, and every send in Coffer checks the current answer.
 
-*Acceptance:* An HTTP journey with sender edges faked has a donor unsubscribe in Mailchimp, reply STOP by text and change topics in the portal, and the next appeal of each channel excludes them with the reason.
+*Acceptance:* An HTTP journey with sender edges faked has a donor unsubscribe in Mailchimp, reply STOP by text and change topics in the portal, and the next appeal of each channel excludes them with the reason; a donor who chose at most one appeal email a month is excluded from a second appeal that month with the reason "frequency".
 
 *Status:* partial. Append-only email and postal consent gates appeals; no SMS or phone channel, topics, unsubscribe links or provider sync. Evidence: `src/coffer/donors.ts`, `src/coffer/appeals.ts`, `tests/coffer.test.mjs`.
 
@@ -736,9 +752,9 @@ A cultivation plan is a template of steps (tour, lunch with the board chair, pro
 
 #### MAJOR-004 — Engagement and retention scores.
 
-Every constituent gets a transparent engagement score from recency, frequency and amount of giving plus opens, replies, events, volunteering and meetings, and a retention-risk flag; the formula and each donor's contributing factors are shown, and the weights are an admin setting.
+Every constituent gets a transparent engagement score from recency, frequency and amount of giving plus opens, replies, events, volunteering and meetings, and a retention-risk flag; the formula with its current weights is shown on the scores settings page (and returned by its API), each donor's contributing factors are shown on the donor page, and the weights are an admin setting.
 
-*Acceptance:* An HTTP journey builds donors with different histories and reads scores and factors that follow the stated formula, then changes a weight and sees the scores change.
+*Acceptance:* An HTTP journey builds donors with different histories and reads scores and factors that follow the formula as read from the scores settings page and its API, then changes a weight and sees the scores change.
 
 *Status:* missing. No scores.
 
@@ -796,9 +812,9 @@ A home dashboard and report pages show raised this fiscal year against last and 
 
 #### REPORT-004 — Report builder.
 
-Staff build reports on constituents, gifts, pledges, opportunities and interactions with columns, filters, grouping and totals, save and share them, and export CSV or Excel; definitions are editable and portable.
+Staff build reports on constituents, gifts, pledges, opportunities and interactions with columns, filters, grouping and totals, save and share them, and export CSV or Excel (.xlsx). A saved definition can be edited later and exported as a JSON file that imports into another Coffer installation.
 
-*Acceptance:* An HTTP journey saves a gifts-by-fund-by-month report, shares it with a member, and exports it with totals that match the ledger.
+*Acceptance:* An HTTP journey saves a gifts-by-fund-by-month report, shares it with a member, and exports it as CSV and .xlsx with the same rows and totals that match the ledger; it then adds a column to the saved definition, exports the definition as JSON, imports it into a second installation and gets the same totals there.
 
 *Status:* missing. No report builder.
 
@@ -840,23 +856,23 @@ A buyer of each named incumbent moves in with full history, checked before the s
 
 #### MOVE-001 — From Little Green Light.
 
-Coffer reads Little Green Light's exports (constituents with all fields, gifts with funds, campaigns and appeals, split and soft-credit details, pledges and installments, relationships and households, notes and contact reports, groups and categories, memberships, volunteer time, mailing history, email preferences, constituent status with date of death, and recurring gifts with their LGL Forms or processor references for `MOVE-009`) with a saved mapping, previews without writing, applies the reviewed plan and can undo, as `IMPORT-001` does for Stripe.
+Coffer reads Little Green Light's exports (constituents with all fields and every email, phone and address with its type and primary flag, gifts with funds, campaigns and appeals, split and soft-credit details, pledges and installments, relationships and households, notes and contact reports, groups and categories, memberships, volunteer time, mailing history, email preferences, constituent status with date of death, and recurring gifts with their LGL Forms or processor customer, card and bank account references for `MOVE-009`) with a saved mapping, previews without writing, applies the reviewed plan and can undo, as `IMPORT-001` does for Stripe.
 
-*Acceptance:* An HTTP journey imports a fixture LGL export set, previews counts and totals by year and fund, applies, reads a donor's full history with relationships, soft credits and notes, and undoes.
+*Acceptance:* An HTTP journey imports a fixture LGL export set, previews counts and totals by year and fund, applies, reads a donor's full history with relationships, soft credits and notes, carries a constituent's three emails and two addresses with their types and primaries, and undoes.
 
 *Status:* missing. Only the Stripe importer exists.
 
 #### MOVE-002 — From Bloomerang.
 
-Coffer reads Bloomerang through its REST API with the nonprofit's key (or its exports): constituents, households, relationships, transactions with designations, soft credits, pledges, recurring donation records with their Bloomerang Payments customer and card references for the vault transfer (`MOVE-009`), interactions, notes, tasks, communication preferences and constituent status (active, inactive, deceased with date), with the same preview, apply and undo.
+Coffer reads Bloomerang through its REST API with the nonprofit's key (or its exports): constituents with every email, phone and address and its type and primary flag, households, relationships, transactions with designations, soft credits, pledges, recurring donation records with their Bloomerang Payments customer, card and bank account references for the transfer (`MOVE-009`), interactions, notes, tasks, communication preferences and constituent status (active, inactive, deceased with date), with the same preview, apply and undo.
 
-*Acceptance:* An HTTP journey with the Bloomerang edge faked imports a fixture account, reads totals by year and designation equal to the source, and undoes.
+*Acceptance:* An HTTP journey with the Bloomerang edge faked imports a fixture account, reads totals by year and designation equal to the source, carries a constituent's three emails and two addresses with their types and primaries, finds a donor by its Bloomerang account number, and undoes.
 
 *Status:* missing. No Bloomerang importer.
 
 #### MOVE-003 — From Raiser's Edge NXT.
 
-Coffer reads Raiser's Edge NXT through Blackbaud's SKY API (or database view exports): constituents, relationships, gifts with splits and soft credits, funds, campaigns and appeals, pledges, recurring gifts, actions, opportunities, notes, solicit codes and inactive and deceased status with date, with preview, apply and undo.
+Coffer reads Raiser's Edge NXT through Blackbaud's SKY API (or database view exports): constituents with every email, phone and address and its type and primary flag, relationships, gifts with splits and soft credits, funds, campaigns and appeals, pledges, recurring gifts, actions, opportunities, notes, solicit codes and inactive and deceased status with date, with preview, apply and undo.
 
 *Acceptance:* An HTTP journey with the SKY API edge faked imports a fixture database, reads gifts with splits and opportunities equal to the source, and undoes.
 
@@ -864,7 +880,7 @@ Coffer reads Raiser's Edge NXT through Blackbaud's SKY API (or database view exp
 
 #### MOVE-004 — From Neon CRM.
 
-Coffer reads Neon CRM through its API (or exports): accounts, households, donations, pledges, recurring donations with their Neon Pay customer and card references for `MOVE-009`, memberships, event registrations, activities, soft credits and account status (active, inactive, deceased with date), with preview, apply and undo.
+Coffer reads Neon CRM through its API (or exports): accounts with every email, phone and address and its type and primary flag, households, donations, pledges, recurring donations with their Neon Pay customer, card and bank account references for `MOVE-009`, memberships, event registrations, activities, soft credits and account status (active, inactive, deceased with date), with preview, apply and undo.
 
 *Acceptance:* An HTTP journey with the Neon edge faked imports a fixture organization with memberships and events and reads matching totals.
 
@@ -888,19 +904,19 @@ A CSV or Excel file of constituents, gifts or interactions maps column by column
 
 #### MOVE-007 — Totals checked before the switch.
 
-Every move-in ends in a reconciliation: donors, gifts and dollars by year and fund in the source against Coffer, open pledges, active recurring plans, consent counts and receipts already sent, with each difference listed. Recurring plans on the nonprofit's own Stripe account are adopted without donor action. Plans whose cards sit with the incumbent's processor (Bloomerang Payments, LGL Forms, Neon Pay, Qgiv, Givebutter, Donorbox) move with their cards through the vault transfer of `MOVE-009`, also without donor action. Only a plan whose card did not arrive in that transfer gets a reauthorization campaign (`DEV-007`). No source plan is cancelled by Coffer, and the cutover checklist has the owner stop each source plan before its replacement first charges. The owner signs off the cutover.
+Every move-in ends in a reconciliation: donors, gifts and dollars by year and fund in the source against Coffer, open pledges, active recurring plans, consent counts and receipts already sent, with each difference listed. Recurring plans on the nonprofit's own Stripe account are adopted without donor action. Plans whose cards or bank accounts sit with the incumbent's processor (Bloomerang Payments, LGL Forms, Neon Pay, Qgiv, Givebutter, Donorbox) move with them through the PCI data transfer of `MOVE-009`, also without donor action. Only a plan whose card or bank account did not arrive in that transfer gets a reauthorization campaign (`DEV-007`). No source plan is cancelled by Coffer, and the cutover checklist has the owner stop each source plan before its replacement first charges. The owner signs off the cutover. Every importer keeps each record's source-system ID (Bloomerang account number, LGL constituent ID, Raiser's Edge constituent ID, Neon account ID, Givebutter or Zeffy contact ID) as a searchable legacy ID, so reply cards printed before the switch are found by it in lookup and batch entry (`GIFT-002`).
 
-*Acceptance:* An HTTP journey imports a fixture with one deliberate gap, reads the difference in the reconciliation, adopts two Stripe subscriptions, moves two vault-transferred plans, lists one plan whose card is missing from the mapping for reauthorization, and records the owner's sign-off.
+*Acceptance:* An HTTP journey imports a fixture with one deliberate gap, reads the difference in the reconciliation, adopts two Stripe subscriptions, moves two vault-transferred plans, lists one plan whose payment method is missing from the mapping for reauthorization, finds an imported donor by its legacy ID, and records the owner's sign-off.
 
-*Status:* partial. The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption, vault-transferred plans or cutover sign-off. Evidence: `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs`.
+*Status:* partial. The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption, transferred plans, legacy IDs beyond the Stripe customer reference or cutover sign-off. Evidence: `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs`.
 
-#### MOVE-009 — Recurring donors move with their cards.
+#### MOVE-009 — Recurring donors move with their cards and bank accounts.
 
-A nonprofit whose monthly donors are on its incumbent's processor moves them without asking any donor to act. The owner requests a PCI card-vault transfer: the old processor sends its encrypted card file directly to Stripe, Stripe imports the cards into the nonprofit's own account, and Stripe returns a mapping file from the old customer and card IDs to new `cus_` and `pm_` IDs. Coffer never receives a card number. Coffer reads the incumbent's recurring-plan export (amount, frequency, fund, campaign, next charge date and past installments, from `MOVE-001` to `MOVE-005`) with the mapping file (CSV or JSON), previews which plans match an imported payment method, and on apply creates each plan (`GIVE-003`) on its new `pm_` ID with the same amount, frequency, fund, campaign and next charge date, its past installments linked as its history. A plan whose card is missing, expired or rejected in the transfer is listed for reauthorization (`DEV-007`) with the reason. Each moved plan holds its first charge until the owner confirms in the cutover (`MOVE-007`) that the source plans are stopped; a plan whose next date passed while held charges once on confirmation, so no donor is charged twice or skipped. Coffer drafts the notice telling moved donors that their card statement descriptor changes, for the owner to approve. Preview, apply and undo follow `IMPORT-001`.
+A nonprofit whose monthly donors are on its incumbent's processor moves them without asking any donor to act, whether they give by card or by US bank account (ACH). The owner requests a PCI data transfer: the old processor sends its encrypted file of card numbers and of bank routing and account numbers directly to Stripe, Stripe imports them into the nonprofit's own account, and Stripe returns its post-import mapping files from the old customer, card and bank account IDs to new `cus_` IDs, to `pm_` payment methods for cards, and for bank accounts to either `ba_` bank accounts or `pm_` payment methods. Coffer never receives a card or account number. Coffer reads the incumbent's recurring-plan export (amount, frequency, fund, campaign, payment type, next charge date, past installments and, for ACH plans, the donor's debit authorization with its date and method, from `MOVE-001` to `MOVE-005`) with every mapping file Stripe returns: the card file and both ACH shapes, each as CSV or JSON. It previews which plans match an imported payment method, and on apply creates each plan (`GIVE-003`) on its new ID with the same amount, frequency, fund, campaign and next charge date, its past installments linked as its history. An ACH plan keeps a reference to the donor's existing debit authorization (the incumbent's record of it, its date and method) and debits the imported account, charged by its `pm_` or `ba_` ID, so no ACH donor re-authorizes. A plan whose card or bank account is missing, expired or rejected in the transfer is listed for reauthorization (`DEV-007`) with the reason. Each moved plan holds its first charge until the owner confirms in the cutover (`MOVE-007`) that the source plans are stopped; a plan whose next date passed while held charges once on confirmation, so no donor is charged twice or skipped. Coffer drafts the notice telling moved donors that the descriptor on their card or bank statement changes, for the owner to approve. Preview, apply and undo follow `IMPORT-001`.
 
-*Acceptance:* An HTTP journey takes a fixture Bloomerang recurring-plan export and a fixture Stripe mapping file, once as CSV and once as JSON, previews and applies; it reads each matched plan active on its imported `pm_` ID with its original amount, fund, next charge date and history, confirms the source stop, and charges one plan on a Stripe test clock; a plan whose card is missing from the mapping is listed for reauthorization with that reason, nothing cancels the source plan, no stored record holds a card number, and the descriptor notice waits for approval.
+*Acceptance:* An HTTP journey takes a fixture Bloomerang recurring-plan export with card and ACH plans and fixture Stripe mapping files: the card file once as CSV and once as JSON, and the ACH file in the `pm_` shape and in the `ba_` shape. It previews and applies, and reads each matched plan active on its imported ID with its original amount, fund, next charge date and history, each ACH plan citing the donor's original debit authorization. After the owner confirms the source stop, one card plan and one ACH plan each charge exactly once on a Stripe test clock. A plan whose card and a plan whose bank account are missing from the mappings are listed for reauthorization with that reason, nothing cancels the source plan, no stored record holds a card or account number, and the descriptor notice waits for approval.
 
-*Status:* missing. No recurring plans, mapping-file reader or vault-transfer move-in.
+*Status:* missing. No recurring plans, mapping-file reader (card or ACH) or transfer move-in.
 
 #### MOVE-008 — Consent and preferences moved with provenance.
 
@@ -916,7 +932,7 @@ Roles a small development shop and its volunteers need.
 
 #### TEAM-001 — Roles and record-level access.
 
-Roles cover owner, admin, fundraiser, finance, data entry, volunteer and read-only, plus agents; a fundraiser can be limited to their portfolio, confidential notes and prospect research are restricted, finance can post and reconcile but not export donor lists, and exports of donor data are permitted per role and logged. An admin sets each team member's manager (the person they report to) and weekly call capacity; task escalation (`STEW-001`) and the call list (`DEV-005`) use them.
+Roles cover owner, admin, fundraiser, finance, data entry, volunteer and read-only, plus agents; a fundraiser can be limited to their portfolio, confidential notes and prospect research are restricted, finance can post and reconcile but not export donor lists, and exports of donor data are permitted per role and logged, and only permitted roles charge cards and bank accounts (`GIVE-009`). An admin sets each team member's manager (the person they report to) and weekly call capacity; task escalation (`STEW-001`) and the call list (`DEV-005`) use them.
 
 *Acceptance:* An HTTP journey signs in as each role and is allowed or refused each listed action, including a portfolio-limited fundraiser opening another portfolio's prospect; an admin sets a member's manager and call capacity and reads them back, and a member is refused setting them.
 
@@ -1094,7 +1110,7 @@ Before a scheduled donor meeting the agent prepares a one-page brief: giving sum
 
 #### DEV-007 — Proves the move-in and the cutover.
 
-During a migration the agent compares source and Coffer totals, finds duplicates, missing acknowledgements and consent gaps, lists the recurring plans whose cards did not arrive in the vault transfer (`MOVE-009`) and drafts a reauthorization campaign for those plans only, and tracks each plan until the donor has re-authorized; it never cancels a source plan. The owner approves merges, the reauthorization message and the cutover.
+During a migration the agent compares source and Coffer totals, finds duplicates, missing acknowledgements and consent gaps, lists the recurring plans whose cards or bank accounts did not arrive in the transfer (`MOVE-009`) and drafts a reauthorization campaign for those plans only, and tracks each plan until the donor has re-authorized; it never cancels a source plan. The owner approves merges, the reauthorization message and the cutover.
 
 *Acceptance:* An HTTP journey imports a fixture with gaps and a non-adoptable plan, runs the agent, reads the exception list and drafted campaign, re-authorizes the plan and records the owner's cutover.
 
@@ -1146,7 +1162,7 @@ Coffer does not do these itself; buyers get them as follows, US-first.
 
 | Coffer does not | How buyers get it |
 | --- | --- |
-| Card and bank credentials, ACH rails and holding charitable funds | Stripe and PayPal collect, verify and pay out; Coffer keeps provider references and settlement records only (`GIVE-004`, `PAY-001`); saved cards move between processors by a PCI vault transfer that Coffer maps to its plans (`MOVE-009`). |
+| Card and bank credentials, ACH rails and holding charitable funds | Stripe and PayPal collect, verify and pay out; Coffer keeps provider references and settlement records only (`GIVE-004`, `PAY-001`); staff key cards and bank accounts into Stripe's own fields, never Coffer's (`GIVE-009`); saved cards and bank accounts move between processors by a PCI data transfer that Coffer maps to its plans (`MOVE-009`). |
 | The general ledger, audits and tax advice | Pantry or QuickBooks Online keep the books (`FIN-001`, `FIN-002`); receipt rules follow IRS Publication 1771 as templates the nonprofit reviews, and its CPA prepares Form 990 from `REPORT-007` data. |
 | Bulk email infrastructure | Mango, Mailchimp or Constant Contact send appeals at volume (`COMM-002`, `COMM-003`); Coffer sends transactional receipts and personal email through the installation's mail provider. Coffer has no mass-email designer of its own: Bloomerang's built-in email editor is replaced by Mango or Mailchimp, and the switching guide says so. |
 | Printing and postage | A mail house or Lob prints and mails (`RCPT-003`, `COMM-007`); Coffer produces the files and records the events. |
@@ -1166,7 +1182,7 @@ Each item the owner-approved scope (16 October 2026) names, and the clauses that
 
 | Scope item | Clauses |
 | --- | --- |
-| Online donation forms and campaign pages with recurring gifts, card/ACH/wallet checkout via Stripe and a donor self-service portal | `GIVE-001`, `GIVE-002`, `GIVE-003`, `GIVE-004`, `GIVE-005`, `GIVE-006`, `GIVE-007` |
+| Online donation forms and campaign pages with recurring gifts, card/ACH/wallet checkout via Stripe and a donor self-service portal | `GIVE-001`, `GIVE-002`, `GIVE-003`, `GIVE-004`, `GIVE-005`, `GIVE-006`, `GIVE-007`, `GIVE-009` |
 | Live Stripe sync of gifts, payouts, fees, refunds and failed recurring payments, with QuickBooks Online/Pantry deposit reconciliation by fund | `PAY-001`, `PAY-002`, `PAY-003`, `PAY-004`, `GIVE-006`, `FIN-001`, `FIN-002`, `FIN-003`, `FIN-005` |
 | Acknowledgements and year-end tax receipts delivered by email (and print-ready mail merge) with IRS goods-and-services language and delivery tracking | `ACK-001`, `RCPT-001`, `RCPT-002`, `RCPT-003`, `RCPT-004`, `RCPT-005`, `RCPT-006`, `RCPT-008` |
 | Appeals and automated stewardship journeys sent through Mango or Mailchimp, with unsubscribe and reply handling | `APPEAL-001`, `COMM-001`, `COMM-002`, `COMM-005`, `STEW-003` |
@@ -1249,8 +1265,8 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 2 | 31 | 85 | 118 |
-| All | 11 | 31 | 85 | 127 |
+| Target and push further | 2 | 32 | 86 | 120 |
+| All | 11 | 32 | 86 | 129 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1274,6 +1290,7 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | `DONOR-010` | Volunteer history | target | missing |  | No volunteer records. |
 | `DONOR-011` | Giving summary | target | partial | `src/coffer/donors.ts`, `tests/coffer.test.mjs` | Lifetime and calendar-year totals exist; first, largest and last gift, consecutive years, recurring status, soft credits and fiscal years do not. |
 | `DONOR-012` | Constituent status: active, inactive and deceased | target | missing |  | Constituents have no status; appeals exclude only on consent and address, and erasure is the only way to stop a record being used. |
+| `DONOR-013` | Several emails, phones and addresses | target | partial | `src/coffer/donors.ts`, `migrations/core/0016_coffer.sql` | A donor has one email (refused if any other record has it), one phone and one postal address; no further contact points, types, primaries, seasonal ranges or email shared within a household. |
 | `GIFT-002` | Batch gift entry and deposits | target | missing |  | Gifts are entered one at a time; no batches or deposit totals. |
 | `GIFT-003` | Campaign, appeal, fund and channel attribution | target | partial | `src/coffer/gifts.ts` | Each gift has one free-text fund; no campaigns, appeals or source as structured references. |
 | `GIFT-004` | Split gifts | target | missing |  | No split gifts. |
@@ -1292,6 +1309,7 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | `GIVE-006` | Failed recurring payments | target | missing |  | No recurring payments, retries, notices or expiry warnings. |
 | `GIVE-007` | Fraud and card-testing protection | target | missing |  | No forms to protect. |
 | `GIVE-008` | Text-to-give | target | missing |  | No text-to-give. |
+| `GIVE-009` | Staff-entered card and bank payments | target | missing |  | Coffer takes no payments; staff record a gift by hand after the money arrives elsewhere. |
 | `CAMP-001` | Campaigns with goals | target | missing |  | No campaigns or goals. |
 | `CAMP-002` | Fundraising events | target | missing |  | No events. |
 | `CAMP-003` | Peer-to-peer fundraising | target | missing |  | No peer-to-peer pages. |
@@ -1352,8 +1370,8 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | `MOVE-004` | From Neon CRM | target | missing |  | No Neon CRM importer. |
 | `MOVE-005` | From Givebutter and Zeffy | target | missing |  | No Givebutter or Zeffy importer. |
 | `MOVE-006` | Any spreadsheet | target | missing |  | No general importer. |
-| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs` | The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption, vault-transferred plans or cutover sign-off. |
-| `MOVE-009` | Recurring donors move with their cards | target | missing |  | No recurring plans, mapping-file reader or vault-transfer move-in. |
+| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs` | The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption, transferred plans, legacy IDs beyond the Stripe customer reference or cutover sign-off. |
+| `MOVE-009` | Recurring donors move with their cards and bank accounts | target | missing |  | No recurring plans, mapping-file reader (card or ACH) or transfer move-in. |
 | `MOVE-008` | Consent and preferences moved with provenance | target | missing |  | No importer carries consent. |
 | `TEAM-001` | Roles and record-level access | target | partial | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs` | Owner, admin, member and agent roles guard every command; no fundraiser, finance, volunteer or read-only roles, portfolio scoping, confidential fields, managers or call capacity. |
 | `TEAM-002` | Single sign-on and two-step sign-in | target | partial | `src/modules/operator-auth/identity/oidc` | Base sign-in supports an OIDC provider; requiring SSO and a second factor are not offered in Coffer. |
