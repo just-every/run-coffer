@@ -4,7 +4,7 @@ import type { Connection } from './connection'
 /** Mango's scoped integration API (Mango → Settings → Integration credentials).
  * A credential can sync contacts, lists and opt-outs; only a person in Mango approves a campaign. */
 const SCOPES: Record<string, string> = {
- 'contacts:read': 'Read contacts', 'contacts:write': 'Update contacts', 'events:read': 'Read opt-outs', 'campaigns:send': 'Send approved campaigns',
+ 'contacts:read': 'Read contacts', 'contacts:write': 'Write contacts', 'events:read': 'Read campaign events', 'campaigns:send': 'Send to a segment',
 }
 async function call(conn: Connection, path: string, method = 'GET', body?: unknown): Promise<Response> {
  try {
@@ -37,7 +37,7 @@ export async function checkMango(conn: Connection): Promise<{ ok: boolean; note:
   else if (response.status !== 400) await refusal(response)
  }
  const lists = Array.isArray(segments.segments) ? segments.segments.map((s: Row) => String(s.name ?? s.id)) : []
- return missing.length ? { ok: false, note: `Connected, but the credential is missing: ${missing.join(', ')}. Create a new credential with all four boxes ticked.`, lists }
+ return missing.length ? { ok: false, note: `Mango accepted the credential, but it is missing: ${missing.join(', ')}. Create a new credential with all four boxes ticked.`, lists }
   : { ok: true, note: `Connected. Mango accepted the credential with all four permissions${lists.length ? ` and has ${lists.length} Coffer list${lists.length === 1 ? '' : 's'}` : ''}.`, lists }
 }
 
@@ -55,7 +55,7 @@ export async function suppressMango(conn: Connection, address: string, key: stri
  if (saved && !restricted(saved)) fail('MANGO_PREFERENCE', 'Mango has not confirmed this opt-out. Sync email preferences again before sending.', 502)
 }
 
-const consent = (donor: Row, organisation: string) => ({ source: 'Coffer consent record', evidence: donor.evidence, brandOrLegalSender: organisation, messageCategory: 'fundraising',
+const consent = (donor: Row, organisation: string) => ({ source: 'Coffer consent record', evidence: donor.evidence, brandOrLegalSender: organisation, messageCategory: 'newsletter',
  frequencyDisclosure: 'Occasional appeals and welcome emails', destinationJurisdiction: 'US', consentVersion: `coffer-consent-${donor.consent_id}`, occurredAt: `${donor.captured_on}T00:00:00.000Z` })
 /** Puts one consenting donor on a Coffer list in Mango, carrying Coffer's consent evidence. */
 export async function listInMango(conn: Connection, donor: Row, organisation: string, listName: string, fields: Row = {}): Promise<Row> {

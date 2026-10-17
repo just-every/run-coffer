@@ -18,7 +18,13 @@ export function crmMoveInPage(jobs:Row[]) {
  ${box('Recent CRM imports',jobs.length?`<ul class="list">${jobs.map(j=>`<li><a href="/app/move-in/crm/journal?id=${e(j.id)}">${e(name(j.source))} · ${j.state==='completed'?'Moved in':j.state==='applying'?`Part ${j.applied_parts} of ${j.parts}`:j.state==='reviewed'?'Reviewed':'Undone'}</a> · ${when(j.created_at)}</li>`).join('')}</ul>`:empty('No CRM exports imported yet.'))}</div></div>`
 }
 
-function totals(rows:Row[]) {
+/** Every difference is listed; matching per-donor rows collapse into one line so large move-ins stay readable. */
+function totals(all:Row[]) {
+ const donors=all.filter(r=>r.scope==='donor'),matching=donors.filter(r=>r.matches)
+ const rows=donors.length>20?all.filter(r=>r.scope!=='donor'||!r.matches):all
+ return `${donors.length>20?`<p>${matching.length} of ${donors.length} donors’ gift totals match one by one.${matching.length<donors.length?' The donors that differ are listed below.':''}</p>`:''}${totals_(rows)}`
+}
+function totals_(rows:Row[]) {
  return `<div class="scroll"><table class="stack crm-totals"><thead><tr><th>Group</th><th>Gifts in your files</th><th>Gifts in Coffer</th><th>Amount in your files</th><th>Amount in Coffer</th><th>Check</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="lead">${e(r.scope)} · ${e(r.key||'All gifts')}</td><td data-label="Gifts in your files">${r.sourceCount??'Not supplied'}</td><td data-label="Gifts in Coffer">${r.cofferCount}</td><td data-label="Amount in your files">${r.sourceCents===null?'Not supplied':money(r.sourceCents)}</td><td data-label="Amount in Coffer">${money(r.cofferCents)}</td><td>${chip(r.matches?'Match':'Difference',r.matches?'ok':'warn')}</td></tr>`).join('')}</tbody></table></div>`
 }
 const counts=(values:Row)=>`<ul class="list">${Object.entries(values).map(([k,v])=>`<li><strong>${v}</strong> ${e(k==='softCredits'?'soft credits':k)}</li>`).join('')}</ul>`

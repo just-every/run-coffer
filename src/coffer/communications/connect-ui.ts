@@ -6,7 +6,7 @@ import { mailchimpLists } from './mailchimp'
 
 const mangoSteps = `<ol class="steps">
  <li><strong>Get Mango.</strong> Mango is a free, open-source email and text marketing app from the same family as Coffer. You run your own copy, like Coffer. If you already use Mango, skip to the next step. Otherwise open <a href="https://run-mango.com/run">run-mango.com/run</a> and follow it, or in a terminal run <code>curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-mango</code>. It prints Mango’s address, for example <code>http://127.0.0.1:8788</code>, and a sign-in link.</li>
- <li><strong>Make a credential for Coffer inside Mango.</strong> Sign in to Mango as its owner and open <strong>Settings</strong>. Scroll to <strong>Integration credentials</strong>. Name it <code>Coffer</code>, tick all four boxes (<strong>contacts:read</strong>, <strong>contacts:write</strong>, <strong>events:read</strong> and <strong>campaigns:send</strong>) and press <strong>Create credential</strong>.</li>
+ <li><strong>Make a credential for Coffer inside Mango.</strong> Sign in to Mango as its owner and open <strong>Settings</strong> (at the address Mango printed, then <code>/app/settings</code>). Scroll to <strong>Integration credentials</strong>. Under <strong>Credential name</strong> type <code>Coffer</code>, tick all four boxes (<strong>Read contacts</strong>, <strong>Write contacts</strong>, <strong>Read campaign events</strong> and <strong>Send to a segment</strong>) and press <strong>Create credential</strong>.</li>
  <li><strong>Copy it right away.</strong> Mango shows the credential once. Copy it, paste it below with Mango’s address, then press <strong>Connect Mango</strong>. Coffer checks it with Mango before saving.</li>
 </ol>`
 

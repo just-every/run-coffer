@@ -25,7 +25,7 @@ Open **Appeals → Connect Mango or Mailchimp**. You need to do this once.
 
 **Mango** is a free, open-source email and text marketing app from the same family as Coffer, which you run yourself. To get one, open [run-mango.com/run](https://run-mango.com/run), or run `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-mango`.
 
-1. Sign in to Mango as its owner and open **Settings**. Under **Integration credentials**, name a credential `Coffer`, tick all four boxes (contacts:read, contacts:write, events:read, campaigns:send) and press **Create credential**.
+1. Sign in to Mango as its owner and open **Settings** (`/app/settings`). Under **Integration credentials**, type `Coffer` as the **Credential name**, tick all four boxes (**Read contacts**, **Write contacts**, **Read campaign events** and **Send to a segment**) and press **Create credential**.
 2. Copy the credential straight away: Mango shows it only once.
 3. In Coffer, paste Mango's address (as your browser shows it) and the credential, then press **Connect Mango**. Coffer checks both with Mango before saving them. They stay in Coffer's own database; you do not change any deploy settings.
 
