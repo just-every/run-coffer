@@ -1,4 +1,5 @@
 import { all, choice, commit, date, email, event, fail, guard, id, integer, newId, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
+import { subscriptions } from './giving/campaigns'
 import { amount } from './money'
 import { settings } from './settings'
 
@@ -94,7 +95,7 @@ export async function donorHistory(c: { db: D1Database }, donorId: string) {
  for (const g of gifts) byYear.set(g.received_on.slice(0, 4), (byYear.get(g.received_on.slice(0, 4)) ?? 0) + g.amount_cents)
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
-  donor, household, gifts, pledges, consents, letters, appeals, events,
+  donor, household, gifts, pledges, consents, letters, appeals, events, subscriptions: await subscriptions(c, donorId),
   totals: { lifetimeCents: gifts.reduce((s, g) => s + g.amount_cents, 0), byYear: [...byYear].sort((a, b) => b[0].localeCompare(a[0])).map(([year, cents]) => ({ year, cents })) },
   current: { email: consent('email'), mail: consent('mail') },
  }

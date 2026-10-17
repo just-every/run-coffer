@@ -1,0 +1,168 @@
+import {test} from 'node:test'
+import assert from 'node:assert/strict'
+import {createHmac,randomUUID} from 'node:crypto'
+import {run,donor} from './harness.mjs'
+
+const webhookSecret='whsec_giving_test_edge'
+const form=(values,as='')=>({method:'POST',as,headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(values).toString()})
+const cookie=response=>response.headers.getSetCookie().map(value=>value.split(';')[0]).join('; ')
+
+// Only Stripe and mail are faked. Payment state, donor matching, ledger entries,
+// campaign totals and portal authorization all run through the real HTTP handlers.
+function stripeEdge() {
+ const state={attempt:1,status:'past_due',cancelled:false,intent:null}
+ const subscription=()=>({id:'sub_monthly',customer:'cus_monthly',metadata:{coffer_intent:state.intent},status:state.status,cancel_at_period_end:state.cancelled,items:{data:[{price:{unit_amount:2500}}]},latest_invoice:'in_monthly'})
+ const invoice=()=>({id:'in_monthly',customer:'cus_monthly',currency:'usd',parent:{type:'subscription_details',subscription_details:{subscription:'sub_monthly'}},status:state.status==='active'?'paid':'open',amount_paid:state.status==='active'?2500:0,attempt_count:state.attempt,next_payment_attempt:state.status==='active'?null:Math.floor(Date.now()/1000)+86400,status_transitions:{paid_at:state.status==='active'?Math.floor(Date.now()/1000):null}})
+ const outbound=async request=>{
+  const url=new URL(request.url)
+  assert.equal(url.hostname,'api.stripe.com')
+  const params=new URLSearchParams(await request.text())
+  if(url.pathname==='/v1/customers'&&request.method==='POST')return Response.json({id:'cus_monthly'})
+  if(url.pathname==='/v1/checkout/sessions'&&request.method==='POST') {
+   assert.equal(params.get('mode'),'subscription')
+   assert.equal(params.get('line_items[0][price_data][unit_amount]'),'2500')
+   assert.equal(params.get('line_items[0][price_data][recurring][interval]'),'month')
+   state.intent=params.get('subscription_data[metadata][coffer_intent]')
+   assert.ok(state.intent)
+   assert.equal(state.intent,params.get('metadata[coffer_intent]'))
+   return Response.json({id:'cs_monthly',url:'https://checkout.stripe.com/c/pay/cs_monthly'})
+  }
+  if(url.pathname==='/v1/subscriptions/sub_monthly') {
+   if(request.method==='POST') {
+    assert.equal(params.get('cancel_at_period_end'),'true')
+    state.cancelled=true
+   }
+   return Response.json(subscription())
+  }
+  if(url.pathname==='/v1/invoices/in_monthly'&&request.method==='GET')return Response.json(invoice())
+  if(url.pathname==='/v1/billing_portal/configurations'&&request.method==='POST') {
+   assert.equal(params.get('features[payment_method_update][enabled]'),'true')
+   for(const feature of ['customer_update','invoice_history','subscription_cancel','subscription_update'])assert.equal(params.get(`features[${feature}][enabled]`),'false')
+   assert.equal(params.get('login_page[enabled]'),'false')
+   return Response.json({id:'bpc_card_only'})
+  }
+  if(url.pathname==='/v1/billing_portal/sessions'&&request.method==='POST') {
+   assert.equal(params.get('customer'),'cus_monthly')
+   assert.equal(params.get('configuration'),'bpc_card_only')
+   assert.equal(params.get('flow_data[type]'),'payment_method_update')
+   return Response.json({url:'https://billing.stripe.com/p/session/card-update'})
+  }
+  assert.fail(`Unexpected Stripe request: ${request.method} ${url.pathname}`)
+ }
+ return {state,outbound}
+}
+
+async function deliver(h,id,type,{invalid=false}={}) {
+ const raw=JSON.stringify({id,type,data:{object:{id:'in_monthly'}}}),timestamp=Math.floor(Date.now()/1000)
+ const signature=createHmac('sha256',invalid?'wrong-signing-secret':webhookSecret).update(`${timestamp}.${raw}`).digest('hex')
+ // Stripe has no browser Origin or operator session.
+ return h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'content-type':'application/json','stripe-signature':`t=${timestamp},v1=${signature}`},body:raw})
+}
+
+test('a failed monthly donation recovers on its second retry without duplicate gifts, with a private card and cancellation portal',async()=>{
+ const edge=stripeEdge()
+ await run(async h=>{
+  const known=await donor(h,'Ana Diaz')
+  const campaign=await h.api('/api/coffer/giving/campaigns',{name:'Keep reading',slug:'keep-reading',description:'Monthly support for local readers.',fund:'Reading',goal:'60000.00'})
+  const summary=async()=>{
+   const {campaigns}=await h.get('/api/coffer/giving/campaigns')
+   return campaigns.find(value=>value.id===campaign.id)
+  }
+  const history=()=>h.get(`/api/coffer/donors/${known.id}`)
+  const page=await h.request('/give/keep-reading',{as:''})
+  assert.equal(page.status,200)
+  assert.match(await page.text(),/action="\/give\/keep-reading\/checkout"/)
+  const checkout=await h.request('/give/keep-reading/checkout',form({name:'Ana Diaz',email:'ana.diaz@example.org',amount:'25.00',frequency:'monthly',requestId:randomUUID()}))
+  assert.equal(checkout.status,303,await checkout.text())
+  assert.equal(new URL(checkout.headers.get('location')).hostname,'checkout.stripe.com')
+  assert.equal((await history()).gifts.length,0)
+
+  const invalid=await deliver(h,'evt_initial_failure','invoice.payment_failed',{invalid:true})
+  assert.equal(invalid.status,400,await invalid.text())
+  assert.equal((await history()).gifts.length,0)
+  assert.equal(h.messages.length,0)
+  for(const attempt of [1,2]) {
+   edge.state.attempt=attempt
+   const response=await deliver(h,`evt_failure_${attempt}`,'invoice.payment_failed')
+   assert.equal(response.status,200,await response.text())
+   const current=await history()
+   assert.equal(current.donor.id,known.id)
+   assert.equal(current.gifts.length,0,'Failed charges never enter the gift ledger')
+   assert.equal(current.totals.lifetimeCents,0)
+   assert.equal(current.subscriptions.length,1)
+   assert.equal(current.subscriptions[0].failed_attempts,attempt)
+   assert.equal(current.subscriptions[0].status,'past_due')
+   assert.equal(current.subscriptions[0].recovered,0)
+   const progress=await summary()
+   assert.equal(progress.raised_cents,0)
+   assert.equal(progress.gift_count,0)
+   assert.equal(progress.recurring_donors,1)
+  }
+  assert.equal((await h.get('/api/coffer/donors')).total,1,'Checkout matches the donor already using this email')
+  const updateMail=h.messages.findLast(message=>message.to.includes('ana.diaz@example.org'))
+  assert.ok(updateMail,'A failed charge sends the donor a private card update link')
+  const match=updateMail.text.match(/https?:\/\/[^\s<>]+\/giving\/portal\/confirm\?token=[a-f0-9]+/)
+  assert.ok(match)
+  const link=new URL(match[0]),token=link.searchParams.get('token')
+  assert.equal(link.origin,h.origin)
+  const confirmPage=await h.request(link.pathname+link.search,{as:''})
+  assert.equal(confirmPage.status,200)
+  const confirmed=await h.request('/giving/portal/confirm',form({token}))
+  assert.equal(confirmed.status,303)
+  const donorCookie=cookie(confirmed)
+  assert.ok(donorCookie)
+  const portal=await h.request('/giving/portal',{as:donorCookie})
+  assert.equal(portal.status,200)
+  assert.match(await portal.text(),/name="subscription" value="sub_monthly"/)
+  const updateCard=await h.request('/giving/portal/card',form({subscription:'sub_monthly'},donorCookie))
+  assert.equal(updateCard.status,303,await updateCard.text())
+  assert.equal(new URL(updateCard.headers.get('location')).hostname,'billing.stripe.com')
+
+  edge.state.attempt=3
+  edge.state.status='active'
+  const paid=await deliver(h,'evt_retry_paid','invoice.paid')
+  assert.equal(paid.status,200,await paid.text())
+  const recovered=await history()
+  assert.equal(recovered.gifts.length,1)
+  assert.equal(recovered.gifts[0].amount_cents,2500)
+  assert.equal(recovered.gifts[0].reference,'in_monthly')
+  assert.equal(recovered.gifts[0].fund,'Reading')
+  assert.equal(recovered.totals.lifetimeCents,2500)
+  assert.equal(recovered.subscriptions[0].status,'active')
+  assert.equal(recovered.subscriptions[0].recovered,1)
+  assert.equal(recovered.subscriptions[0].next_attempt_at,null)
+  const donorPage=await h.request(`/app/donors/${known.id}`)
+  assert.equal(donorPage.status,200)
+  const progress=await summary()
+  assert.equal(progress.raised_cents,2500)
+  assert.equal(progress.gift_count,1)
+  assert.equal(progress.recurring_donors,1)
+  const publicProgress=await h.request('/give/keep-reading',{as:''})
+  assert.equal(publicProgress.status,200)
+  assert.match(await publicProgress.text(),/\$25\.00/)
+
+  const messagesBeforeReplay=h.messages.length
+  for(const [id,type] of [['evt_retry_paid','invoice.paid'],['evt_failure_2','invoice.payment_failed'],['evt_payment_succeeded','invoice.payment_succeeded']]) {
+   const replay=await deliver(h,id,type)
+   assert.equal(replay.status,200,await replay.text())
+  }
+  assert.equal((await history()).gifts.length,1)
+  assert.equal((await history()).subscriptions[0].recovered,1)
+  assert.equal((await summary()).raised_cents,2500)
+  assert.equal(h.messages.length,messagesBeforeReplay)
+
+  const cancellation=await h.request('/giving/portal/cancel?subscription=sub_monthly',{as:donorCookie})
+  assert.equal(cancellation.status,200)
+  const cancelled=await h.request('/giving/portal/cancel',form({subscription:'sub_monthly',confirm:'yes'},donorCookie))
+  assert.equal(cancelled.status,303,await cancelled.text())
+  assert.equal(edge.state.cancelled,true)
+  assert.equal((await history()).subscriptions[0].cancel_at_period_end,1)
+  assert.equal((await history()).gifts.length,1,'Cancellation preserves the recovered gift')
+  assert.equal((await summary()).recurring_donors,0)
+  await h.command('donor.erase',{donorId:known.id,confirm:'ERASE'})
+  const expiredPortal=await h.request('/giving/portal',{as:donorCookie})
+  assert.equal(expiredPortal.status,200)
+  assert.doesNotMatch(await expiredPortal.text(),/name="subscription" value="sub_monthly"/)
+  assert.equal((await summary()).raised_cents,2500,'Erasure keeps anonymous financial history')
+ },{bindings:{STRIPE_SECRET_KEY:'sk_test_network_edge',STRIPE_WEBHOOK_SECRET:webhookSecret},outbound:edge.outbound})
+})

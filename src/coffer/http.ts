@@ -11,6 +11,9 @@ import { appealDetail, appeals, recipientsCsv, recipientsOf } from './appeals'
 import { settings } from './settings'
 import * as imports from './imports/index'
 import { page } from './ui/common'
+import { givingResponse } from './giving/http'
+import { createCampaign, campaigns } from './giving/campaigns'
+import { givingManagePage } from './giving/manage-ui'
 import { home } from './ui/home'
 import { donorsPage, donorPage } from './ui/donors'
 import { lettersPage, batchPage } from './ui/letters'
@@ -65,6 +68,7 @@ async function pages(data: FormData, name: string) {
 
 const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
+ const publicGiving = await givingResponse(request, original); if (publicGiving) return publicGiving
  const url = new URL(request.url), path = url.pathname
  if (!ROUTES.test(path)) return null
  const env = runtimeBindings(original), isApi = path.startsWith('/api/')
@@ -73,6 +77,13 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
   const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString() }
+  if (path === '/api/coffer/giving/campaigns' || path === '/app/giving/campaigns') {
+   if (request.method === 'GET' && isApi) return json({ campaigns: await campaigns(c) })
+   if (request.method !== 'POST') fail('method_not_allowed', 'Use the campaign form.', 405)
+   const input = isApi ? await jsonBody(request) : Object.fromEntries(await formBody(request))
+   const result = await createCampaign(c, input)
+   return isApi ? json(result) : redirect('/app/giving')
+  }
   if (path.startsWith('/api/portability/')) {
    if (actor.role !== 'owner') fail('owner_required', 'Only the owner can back up or restore.', 403)
    const handler = await createPortabilityHandler({ db: env.DB, policy, appOrigin: env.AUTH_ORIGIN, authorize: async req => { const current = await identity(req, env); originGuard(req, env, current.bearer); return current.actor.role === 'owner' ? current.actor.id : null } })
@@ -121,7 +132,15 @@ async function eraseDonor(c: Context, authority: Authority, input: any) {
  const donor = await c.db.prepare('SELECT id,email FROM cf_donors WHERE id=? AND erased_at IS NULL').bind(donorId).first<{ id: string; email: string | null }>()
  if (!donor) fail('NOT_FOUND', 'That donor does not exist or was already erased.', 404)
  const checkpoint = await imports.portabilityCheckpoint(c.db)
- const nativeStatements = [...imports.donorErasureStatements(donor, placeholder, c.now), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,'{}')", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder] }]
+ const nativeErasure = imports.donorErasureStatements(donor, placeholder, c.now)
+ const givingErasure = [
+  { sql: 'DELETE FROM cf_donor_tokens WHERE donor_id=?', params: [donorId] },
+  { sql: 'DELETE FROM cf_giving_customers WHERE donor_id=?', params: [donorId] },
+  { sql: "UPDATE cf_giving_intents SET donor_id=?,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR email=?", params: [placeholder, donorId, donor.email ?? ''] },
+  { sql: "UPDATE cf_subscriptions SET donor_id=?,customer_id='' WHERE donor_id=?", params: [placeholder, donorId] },
+ ]
+ // The placeholder must exist before its references move; delete the old donor last.
+ const nativeStatements = [...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,'{}')", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder] }]
  const result: any = await imports.erase(c.db, c.actor, donorId, authority, { nativeStatements, checkpoint })
  return { erased: donorId, donorId: placeholder, receiptId: result.receiptId ?? result.id }
 }
@@ -197,6 +216,7 @@ async function screen(c: Context, url: URL): Promise<Response> {
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
  if (path === '/app') return show('Today', await home(c))
+ if (path === '/app/giving') return show('Online giving', await givingManagePage(c))
  if (path === '/app/donors') return show('Donors', await donorsPage(c, url))
  let m = path.match(/^\/app\/donors\/([^/]+)$/)
  if (m) { const view = await donorPage(c, m[1]); return show(view.title, view.body) }

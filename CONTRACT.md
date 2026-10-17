@@ -336,7 +336,7 @@ An admin builds branded donation forms (logo, colors, copy, suggested amounts, o
 
 *Acceptance:* A browser journey builds a form with a custom question, embeds it on a test page, and gives $50 at 1440 and 390 pixels with the Stripe edge in test mode; the gift, donor, consent answer, custom-field answer and receipt appear in Coffer, and an axe check of the form passes; a timing run of the hosted form under the stated profile (CDP network emulation and `Emulation.setCPUThrottlingRate` 4) records a median of five cold loads under one second to input-ready and under two seconds to payment-field-ready.
 
-*Status:* missing. No donation forms; Coffer takes no payments.
+*Status:* partial. Hosted campaign forms collect once/monthly card and Link gifts and retain fund/campaign attribution. Advanced fields, embedding and the specified performance/accessibility acceptance remain outstanding. Evidence: `src/coffer/giving/`, `tests/giving.test.mjs`.
 
 #### GIVE-002 — Campaign pages.
 
@@ -344,7 +344,7 @@ A campaign page tells the story with images and video, shows a goal thermometer 
 
 *Acceptance:* A browser journey publishes a campaign page with a $60,000 goal, an uploaded image and an embedded video, sees both on the published page at 1440 and 390 pixels, gives twice through it, and sees the thermometer, donor count and opt-in donor wall update; the page is served at the custom path set on the nonprofit's own domain (for example `/give/spring`); after the close date the page refuses new gifts with a message.
 
-*Status:* missing. No campaign pages.
+*Status:* partial. Custom-path public campaign stories, goals, ledger totals, gift counts and recurring donor counts ship. Uploaded media, donor walls and closing dates remain outstanding. Evidence: `src/coffer/giving/`, `tests/giving.test.mjs`.
 
 #### GIVE-003 — Recurring giving.
 
@@ -352,7 +352,7 @@ Donors choose monthly, quarterly or annual giving on any form. Coffer schedules 
 
 *Acceptance:* An HTTP journey with Stripe in test mode and a test clock starts a $25 monthly plan, advances three months, reads three linked gifts, pauses and resumes the plan, and cancels it.
 
-*Status:* missing. No recurring plans.
+*Status:* partial. Monthly Stripe subscriptions record successful installments and show status and recovery; donors cancel at period end. Quarterly/annual plans, staff editing, pause/resume and the three-month test-clock acceptance remain outstanding. Evidence: `src/coffer/giving/`, `tests/giving.test.mjs`.
 
 #### GIVE-004 — Card, bank, wallet and PayPal checkout.
 
@@ -360,7 +360,7 @@ Forms accept cards, US bank accounts through ACH Direct Debit with instant verif
 
 *Acceptance:* A browser journey with provider test modes gives by card, ACH (with a later R01 return that writes a reversal and a task), Apple Pay on a WebKit device profile and PayPal, and an inspection of stored records finds no card or account numbers.
 
-*Status:* missing. No checkout.
+*Status:* partial. Stripe-hosted card and Link checkout ships, with Apple Pay offered on supported devices. ACH is coming soon pending a US test account; Apple Pay device payment, PayPal/Venmo, ACH settlement/returns and staff entry remain outstanding. No card numbers enter Coffer. Evidence: `src/coffer/giving/`, `tests/giving.test.mjs`.
 
 #### GIVE-005 — Donor portal.
 
@@ -368,7 +368,7 @@ Donors sign in with an emailed link (no password) to see their gifts, download r
 
 *Acceptance:* A browser journey at 390 pixels signs a donor in by link, downloads last year's statement, replaces an expiring card, lowers the monthly amount and withdraws email consent; staff see each change on the timeline and a cancellation task.
 
-*Status:* missing. No donor-facing portal.
+*Status:* partial. Emailed single-use links open a donor-only portal to view monthly plans, update cards at Stripe and cancel. Statements, amounts/frequencies, pause, communication preferences and cancellation tasks remain outstanding. Evidence: `src/coffer/giving/`, `tests/giving.test.mjs`.
 
 #### GIVE-006 — Failed recurring payments.
 
@@ -376,7 +376,7 @@ When an installment fails, Coffer retries on a schedule (or follows Stripe's ret
 
 *Acceptance:* An HTTP journey with the Stripe edge faked fails a monthly installment, sends the donor notice, recovers on the second retry and records it; a second plan exhausts retries and opens a task; an expiring card sends the warning a month ahead; a do-not-solicit donor's failed-installment notice still goes.
 
-*Status:* missing. No recurring payments, retries, notices or expiry warnings.
+*Status:* partial. Stripe schedules retries; verified failure outcomes email private card-update links and successful recovery is recorded. Expiry warnings and staff escalation after exhausted retries remain outstanding. Evidence: `src/coffer/giving/`, `tests/giving.test.mjs`.
 
 #### GIVE-007 — Fraud and card-testing protection.
 
@@ -412,7 +412,7 @@ A campaign has a goal, dates, funds, appeals and forms under it; progress is cou
 
 *Acceptance:* An HTTP journey creates a spring appeal campaign with a $60,000 goal, records form, check and pledge gifts against it, and reads raised, pledged, donor and recurring counts that match the ledger.
 
-*Status:* missing. No campaigns or goals.
+*Status:* partial. Published campaigns have a goal and fund, with ledger-derived raised/gift totals and distinct recurring donors. Dates, nested campaigns, pledges/soft credits, manual attribution and additional campaign statistics remain outstanding. Evidence: `src/coffer/giving/`, `tests/giving.test.mjs`.
 
 #### CAMP-002 — Fundraising events.
 
@@ -1244,21 +1244,21 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 | # | Claim | Clauses | Status |
 | ---: | --- | --- | --- |
-| 1 | Coffer takes donations | `GIVE-001`, `GIVE-003`, `GIVE-004` | missing |
+| 1 | Coffer takes donations | `GIVE-001`, `GIVE-003`, `GIVE-004` | partial |
 | 2 | keeps every donor's story | `DONOR-001`, `DONOR-004` | `DONOR-001` done · `DONOR-004` partial |
 | 3 | sends the receipts | `ACK-001`, `RCPT-001`, `RCPT-002` | `ACK-001` done · `RCPT-001` missing · `RCPT-002` partial |
 | 4 | and thank-yous | `RCPT-002`, `RCPT-007` | partial |
 | 5 | shows who needs a call | `DEV-005`, `REPORT-002` | missing |
 | 6 | 100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM | `OWN-001`, `MOVE-001`, `MOVE-002`, `MOVE-004` | `OWN-001` done · `MOVE-001` missing · `MOVE-002` missing · `MOVE-004` missing |
-| 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` missing · `REPORT-003` partial |
-| 8 | Monthly $25 · Active | `GIVE-003` | missing |
-| 9 | Failed card · Retried successfully | `GIVE-006` | missing |
+| 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` partial · `REPORT-003` partial |
+| 8 | Monthly $25 · Active | `GIVE-003` | partial |
+| 9 | Failed card · Retried successfully | `GIVE-006` | partial |
 | 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` missing · `RCPT-005` partial |
 | 11 | Call Tom Okafor · lapsed 14 months | `DEV-005`, `STEW-001` | missing |
-| 12 | Donation forms and campaign pages | `GIVE-001`, `GIVE-002` | missing |
-| 13 | monthly giving | `GIVE-003` | missing |
-| 14 | card, bank and Apple Pay checkout | `GIVE-004` | missing |
-| 15 | a portal where donors update their own card | `GIVE-005` | missing |
+| 12 | Donation forms and campaign pages | `GIVE-001`, `GIVE-002` | partial |
+| 13 | monthly giving | `GIVE-003` | partial |
+| 14 | card, bank and Apple Pay checkout | `GIVE-004` | partial |
+| 15 | a portal where donors update their own card | `GIVE-005` | partial |
 | 16 | Households | `DONOR-001` | done |
 | 17 | relationships | `DONOR-003` | partial |
 | 18 | every gift | `GIFT-001` | done |
@@ -1269,7 +1269,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 23 | Lifetime giving and first gift | `DONOR-011` | partial |
 | 24 | Gifts sync from Stripe as they happen | `PAY-001` | partial |
 | 25 | fees, refunds | `PAY-003`, `PAY-004` | `PAY-003` partial · `PAY-004` missing |
-| 26 | failed monthly payments | `GIVE-006` | missing |
+| 26 | failed monthly payments | `GIVE-006` | partial |
 | 27 | each payout matches its deposit in QuickBooks Online or Pantry | `PAY-002`, `FIN-001`, `FIN-002` | missing |
 | 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` missing · `FIN-003` partial |
 | 29 | Thank-you letters | `ACK-001`, `RCPT-002` | `ACK-001` done · `RCPT-002` partial |
@@ -1308,13 +1308,15 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a7629543` (17 October 2026).
+Judged from the code and tests at commit `12e75786aba38e62ce0bafcc748249f817e46ca1` (17 October 2026).
+
+The giving clauses and their claim mappings include the implementation in this change.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 2 | 36 | 88 | 126 |
-| All | 11 | 36 | 88 | 135 |
+| Target and push further | 2 | 43 | 81 | 126 |
+| All | 11 | 43 | 81 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1351,16 +1353,16 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | `GIFT-009` | In-kind gifts | target | missing |  | Gifts are monetary only. |
 | `GIFT-010` | Stock, DAF grants and IRA distributions | target | missing |  | No stock, DAF or QCD gift types. |
 | `GIFT-011` | Anonymous gifts and recognition names | target | missing |  | No anonymity flag or recognition name. |
-| `GIVE-001` | Donation forms | target | missing |  | No donation forms; Coffer takes no payments. |
-| `GIVE-002` | Campaign pages | target | missing |  | No campaign pages. |
-| `GIVE-003` | Recurring giving | target | missing |  | No recurring plans. |
-| `GIVE-004` | Card, bank, wallet and PayPal checkout | target | missing |  | No checkout. |
-| `GIVE-005` | Donor portal | target | missing |  | No donor-facing portal. |
-| `GIVE-006` | Failed recurring payments | target | missing |  | No recurring payments, retries, notices or expiry warnings. |
+| `GIVE-001` | Donation forms | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Hosted campaign forms collect once/monthly card and Link gifts and retain fund/campaign attribution. Advanced fields, embedding and the specified performance/accessibility acceptance remain outstanding. |
+| `GIVE-002` | Campaign pages | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Custom-path public campaign stories, goals, ledger totals, gift counts and recurring donor counts ship. Uploaded media, donor walls and closing dates remain outstanding. |
+| `GIVE-003` | Recurring giving | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Monthly Stripe subscriptions record successful installments and show status and recovery; donors cancel at period end. Quarterly/annual plans, staff editing, pause/resume and the three-month test-clock acceptance remain outstanding. |
+| `GIVE-004` | Card, bank, wallet and PayPal checkout | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Stripe-hosted card and Link checkout ships, with Apple Pay offered on supported devices. ACH is coming soon pending a US test account; Apple Pay device payment, PayPal/Venmo, ACH settlement/returns and staff entry remain outstanding. No card numbers enter Coffer. |
+| `GIVE-005` | Donor portal | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Emailed single-use links open a donor-only portal to view monthly plans, update cards at Stripe and cancel. Statements, amounts/frequencies, pause, communication preferences and cancellation tasks remain outstanding. |
+| `GIVE-006` | Failed recurring payments | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Stripe schedules retries; verified failure outcomes email private card-update links and successful recovery is recorded. Expiry warnings and staff escalation after exhausted retries remain outstanding. |
 | `GIVE-007` | Fraud and card-testing protection | target | missing |  | No forms to protect. |
 | `GIVE-008` | Text-to-give | target | missing |  | No text-to-give. |
 | `GIVE-009` | Staff-entered card and bank payments | target | missing |  | Coffer takes no payments; staff record a gift by hand after the money arrives elsewhere. |
-| `CAMP-001` | Campaigns with goals | target | missing |  | No campaigns or goals. |
+| `CAMP-001` | Campaigns with goals | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Published campaigns have a goal and fund, with ledger-derived raised/gift totals and distinct recurring donors. Dates, nested campaigns, pledges/soft credits, manual attribution and additional campaign statistics remain outstanding. |
 | `CAMP-002` | Fundraising events | target | missing |  | No events. |
 | `CAMP-003` | Peer-to-peer fundraising | target | missing |  | No peer-to-peer pages. |
 | `CAMP-004` | Memberships | target | missing |  | No memberships. |

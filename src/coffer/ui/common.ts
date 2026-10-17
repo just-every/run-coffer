@@ -24,7 +24,7 @@ export const STATUS: Record<string, [string, string]> = {
 }
 export const status = (s: string) => chip(STATUS[s]?.[0] ?? s, STATUS[s]?.[1] ?? '')
 
-const NAV: [string, string][] = [['/app', 'Today'], ['/app/donors', 'Donors'], ['/app/letters', 'Letters'], ['/app/appeals', 'Appeals'], ['/app/more', 'More']]
+const NAV: [string, string][] = [['/app', 'Today'], ['/app/donors', 'Donors'], ['/app/letters', 'Letters'], ['/app/appeals', 'Appeals'], ['/app/giving', 'Giving'], ['/app/more', 'More']]
 export async function page(title: string, body: string, actor?: { name: string; role: string }, statusCode = 200, path = '') {
  const frame = await themeFrame({ href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor })
  const current = NAV.filter(([href]) => path === href || (href !== '/app' && path.startsWith(href))).at(-1)?.[0]

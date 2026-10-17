@@ -12,3 +12,5 @@ dist/
 .rer/local/
 .rer/demo/
 .rer/demo-host/
+
+.rer/deploy/

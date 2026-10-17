@@ -1,3 +1,4 @@
+import { donorGiving } from '../giving/manage-ui'
 import { manager } from '../auth'
 import { today, type Context, type Row } from '../db'
 import { CONSENT_METHODS, donorHistory, listDonors } from '../donors'
@@ -40,7 +41,7 @@ export async function donorPage(c: Context, donorId: string) {
  const outreach = box('Letters and appeals', `${h.letters.length ? `<h3>Acknowledgement letters</h3><ul class="list">${h.letters.map(l => `<li><a href="/app/letters/${e(l.batch_id)}">${money(l.amount_cents)} gift of ${when(l.received_on)}</a> ${status(l.status)}${l.sent_on ? ` on ${when(l.sent_on)}` : ''}</li>`).join('')}</ul>` : ''}${h.appeals.length ? `<h3>Appeals</h3><ul class="list">${h.appeals.map(a => `<li><a href="/app/appeals/${e(a.id)}">${e(a.name)}</a> · ${a.channel === 'email' ? 'email' : 'mail'} ${status(a.status)}${a.sent_on ? ` on ${when(a.sent_on)}` : ''}</li>`).join('')}</ul>` : ''}${!h.letters.length && !h.appeals.length ? empty('No letters or appeals yet.') : ''}`)
  const erase = c.actor.role === 'owner' ? box('Erase this donor', `<p>Erasing removes this person’s name, contact details, consent evidence and letter text, and the Stripe originals that mention them. Gift amounts and dates stay as anonymous ledger lines, because they are the charity’s financial record. Download a fresh backup afterwards and keep it with older ones.</p>${form('donor.erase', field('Type ERASE to confirm', 'confirm', 'text', '', 'required autocomplete="off"'), 'Erase donor', { donorId: d.id }, 'danger')}`) : ''
  const activity = `<details class="facts"><summary>Activity (${h.events.length})</summary><ul class="list">${h.events.map(ev => `<li>${e(ev.action)} · ${e(ev.actor_name)} (${e(ev.actor_role)}) · ${e(ev.at.slice(0, 16).replace('T', ' '))} UTC</li>`).join('')}</ul></details>`
- return { title: d.name, body: `${summary}<div class="grid wide"><div>${box('Gifts', giftsTable(h.gifts, boss, s))}${record}${pledgeBox}</div><div>${contact}${consentBox}${outreach}${erase}${activity}</div></div>` }
+ return { title: d.name, body: `${summary}<div class="grid wide"><div>${box('Gifts', giftsTable(h.gifts, boss, s))}${record}${pledgeBox}</div><div>${contact}${await donorGiving(c, d.id)}${consentBox}${outreach}${erase}${activity}</div></div>` }
 }
 
 function giftsTable(gifts: Row[], boss: boolean, s: { threshold_cents: number }) {

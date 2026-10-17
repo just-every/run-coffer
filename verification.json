@@ -40,6 +40,14 @@
       "commands": [
         "pnpm run test:site"
       ]
+    },
+    {
+      "name": "giving",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:giving"
+      ]
     }
   ],
   "nightly": [

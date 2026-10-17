@@ -1,0 +1,71 @@
+# Coffer homepage claims → code
+
+Every capability claim on the built homepage (`src/site/landing/`, branch `br/style`), tracked against the current implementation. Giving rows were updated on 17 October 2026. The copy is the desk's owner-accepted copy and is not watered down; this table is what the run-site gate reads before any deploy.
+
+`CONTRACT.md` defines the full fundraising CRM target. Its Status table keeps broader unfinished features explicit; the giving rows here describe the self-hosted donation, subscription and donor portal implementation.
+
+**Totals: 61 claims · 19 in code · 19 partly · 23 contract, not yet in code.**
+
+| # | Section | Claim | Status | Backed by |
+|---|---|---|---|---|
+| 1 | Hero | "Coffer takes donations" | in code | Self-hosted campaign checkout takes card and Link gifts through Stripe and writes each paid gift once to the immutable ledger with its fund and matched donor (`src/coffer/giving/checkout.ts`, `src/coffer/giving/recording.ts`). Managed integrations are not available yet. |
+| 2 | Hero | "keeps every donor's story" | in code | `src/coffer/donors.ts` `donorHistory` (gifts, pledges, consent, letters, appeals, activity) on `src/coffer/ui/donors.ts` `donorPage`. |
+| 3 | Hero | "sends the receipts" | partly | `src/coffer/acknowledgements.ts` prepares, approves, exports and records letters as sent; Coffer never sends them itself. |
+| 4 | Hero | "and thank-yous" | partly | Same letters (`acknowledgements.ts`, wording in `settings.ts`); sending is the charity's own mail. |
+| 5 | Hero | "shows who needs a call" | contract, not yet in code | No lapsed-donor or call list; Today (`ui/home.ts`) lists letters due and waiting approvals only. |
+| 6 | Hero | "100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM" | partly | Free and MIT (`LICENSE`); covers donor records, gift ledger, consent, letters and appeals, not the incumbents' giving, email or reporting. |
+| 7 | Hero card | Spring appeal $48,210 of $60,000, gifts and recurring donors | in code | Campaign pages show goal, ledger-derived raised total, gift count and recurring donor count (`src/coffer/giving/campaigns.ts`, `src/coffer/giving/ui.ts`). |
+| 8 | Hero card | Monthly $25 · Active | in code | Stripe monthly subscriptions appear on donor records and in the donor portal with amount and active/past-due/cancelled state (`src/coffer/giving/recording.ts`, `src/coffer/giving/manage-ui.ts`). |
+| 9 | Hero card | Failed card · Retried successfully | in code | Verified invoice outcomes record failed attempts, Stripe next-attempt timing and successful recovery; donors receive a private card-update link (`src/coffer/giving/webhooks.ts`, `tests/giving.test.mjs`). |
+| 10 | Hero card | Receipt sent · Gift $250.00 · No goods or services provided | partly | $250 threshold, goods-or-services statement and recorded sent date exist (`acknowledgements.ts`, `settings.ts` `renderLetter`); not sent by Coffer. |
+| 11 | Hero card | Call Tom Okafor · lapsed 14 months | contract, not yet in code | No lapse detection or call tasks. |
+| 12 | Online giving | Donation forms and campaign pages | in code | Admins publish campaign donation forms at `/give/<slug>` with a story, fund, goal and once/monthly checkout (`src/coffer/giving/http.ts`, `src/coffer/giving/ui.ts`). |
+| 13 | Online giving | monthly giving | in code | Monthly Stripe subscriptions, installment ledger entries, recovery and end-of-period cancellation (`src/coffer/giving/recording.ts`, `src/coffer/giving/portal.ts`). |
+| 14 | Online giving | card, bank and Apple Pay checkout | partly | Card and Link use Stripe Checkout; Apple Pay is offered by Stripe on eligible devices with a registered domain. US bank is explicitly coming soon; the available test account is AU. A real Apple Wallet device is still needed to exercise Apple Pay. |
+| 15 | Online giving | a portal where donors update their own card | in code | Emailed, hashed, expiring one-use donor links open only that donor’s monthly plans; card updates use Stripe Billing Portal (`src/coffer/giving/portal.ts`). |
+| 16 | Donors | Households | in code | `src/coffer/donors.ts` `household()` finds or creates by name; members listed on the donor page. |
+| 17 | Donors | relationships | partly | Household membership only; no other relationship types. |
+| 18 | Donors | every gift | in code | `src/coffer/gifts.ts` ledger lines; `donorHistory` lists them by year. |
+| 19 | Donors | every conversation in one place | contract, not yet in code | Gift notes and the audit trail only; no interaction or conversation records. |
+| 20 | Donors | soft credits | contract, not yet in code | None in code. |
+| 21 | Donors | tributes | contract, not yet in code | None in code (a gift note can mention one). |
+| 22 | Donors | employer matches | contract, not yet in code | None in code. |
+| 23 | Donors card | Lifetime giving and first gift | partly | Lifetime and yearly totals in `donorHistory` `totals`; first-gift date is not shown. |
+| 24 | Payments | Gifts sync from Stripe as they happen | partly | `src/coffer/imports/` moves in saved Stripe customer and charge pages with preview, apply and undo; no live sync. |
+| 25 | Payments | fees, refunds | partly | Move-in nets partial refunds and skips full refunds (`imports/snapshots.ts`); no fees. |
+| 26 | Payments | failed monthly payments | in code | Signed failed-invoice events update monthly state, email card-update links and record successful retries without counting failed charges as gifts (`src/coffer/giving/webhooks.ts`, `tests/giving.test.mjs`). |
+| 27 | Payments | each payout matches its deposit in QuickBooks Online or Pantry | contract, not yet in code | No payouts or accounting link. |
+| 28 | Payments | split by fund | partly | Every gift carries a fund (`gifts.ts`, move-in `metadata.fund`); no payout split. |
+| 29 | Receipts | Thank-you letters | partly | Prepared from the charity's wording, approved, exported as CSV and recorded as sent (`acknowledgements.ts`). |
+| 30 | Receipts | year-end tax receipts | contract, not yet in code | No year-end statements; letters are per gift. |
+| 31 | Receipts | by email | contract, not yet in code | Coffer sends no email; letters are exported. |
+| 32 | Receipts | print-ready for mail | partly | CSV export for a mail merge (`lettersCsv`); no print layout. |
+| 33 | Receipts | with the right IRS language | in code | `settings.ts` requires donor, amount, date, organization and the goods-or-services statement; default 501(c)(3) wording in `migrations/core/0016_coffer.sql`. |
+| 34 | Receipts | proof of delivery | partly | Sent date and method recorded per batch (`ack.markSent`); no delivery or open tracking. |
+| 35 | Interlude | Thank-yous sent · 48 donors tonight | partly | Letter batches are recorded as sent; Coffer does not send them. |
+| 36 | Appeals | Appeals and welcome journeys go out through Mango or Mailchimp | contract, not yet in code | Appeals export a CSV audience (`recipientsCsv`); no journeys or email integrations. |
+| 37 | Appeals | welcome journeys | contract, not yet in code | None in code. |
+| 38 | Appeals | Unsubscribes are honored everywhere | partly | Append-only consent per channel; appeals include only donors whose latest answer is yes and refuse approval or export when it changes (`appeals.ts`); no unsubscribe link or sync. |
+| 39 | Appeals | replies land with the right person | contract, not yet in code | No inbound mail. |
+| 40 | Major gifts | major-gift pipeline with next steps, owners and engagement scores | contract, not yet in code | None in code. |
+| 41 | Development agent | reconciles every gift | contract, not yet in code | Agent keys can only read and prepare (`auth.ts`, `commands.ts`). |
+| 42 | Development agent | rescues failed monthly gifts | contract, not yet in code | None in code. |
+| 43 | Development agent | sends missing receipts | partly | An agent key may run `ack.prepare`; a person approves and sends. |
+| 44 | Development agent | drafts stewardship from your own history | contract, not yet in code | None in code. |
+| 45 | Development agent | tracks retention donor by donor | contract, not yet in code | No retention reporting. |
+| 46 | Move in | Move from Little Green Light | contract, not yet in code | Only the Stripe importer exists (`src/coffer/imports/`). |
+| 47 | Move in | Bloomerang | contract, not yet in code | No importer. |
+| 48 | Move in | Raiser's Edge NXT | contract, not yet in code | No importer. |
+| 49 | Move in | with every donor, household and gift | partly | Stripe customers become donors and charges become gifts; no households from Stripe. |
+| 50 | Move in | check the totals before you switch | partly | Preview shows donors, gifts, the total and every skip with its reason, and apply needs the reviewed fingerprint (`imports/service.ts`, `ui/move-in.ts`). |
+| 51 | Ownership | Run Coffer on your own computer | in code | `rer dev` (`scripts/installer/local.mjs`, README), local D1. |
+| 52 | Ownership | keep every donor record / Your donors, your database | in code | The installation's own D1 database (`wrangler.jsonc`, `migrations/`). |
+| 53 | Ownership | Export everything, any time | in code | `/app/backup` and `rer export` through Base portability (`src/coffer/http.ts`, `archive-policy.mjs`). |
+| 54 | Quiet details | Soft credits | contract, not yet in code | None in code. |
+| 55 | Quiet details | Tribute gifts | contract, not yet in code | None in code. |
+| 56 | Quiet details | Matching gifts | contract, not yet in code | None in code. |
+| 57 | Quiet details | Pledges: schedules, reminders and balances kept current | partly | Pledges with due-by date, paid and remaining balance (`donors.ts`, `gifts.ts` pledge link); no schedules or reminders. |
+| 58 | Quiet details | Consent: email and mail preferences honored everywhere | in code | `donors.ts` consent history per channel; enforced in `appeals.ts`. |
+| 59 | Quiet details | Gift ledger: every change recorded; no gift is silently edited | in code | Database triggers refuse changes; corrections are reversals (`gifts.ts`, `migrations/core/0016_coffer.sql`); every command writes `cf_events`. |
+| 60 | Closing | Open source donor management for every nonprofit | in code | MIT `LICENSE`; donor records as above. |
+| 61 | Closing | Free and open source, MIT licensed | in code | `LICENSE`. |
