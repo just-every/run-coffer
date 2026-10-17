@@ -552,7 +552,7 @@ Every online gift gets an emailed receipt within a minute from the nonprofit's v
 
 *Acceptance:* An HTTP journey with the mail and DNS edges faked shows the sending domain unverified until its SPF and DKIM records check, then gives online and reads one receipt message from that domain with the right amount, statement and PDF within a minute; a donor who withdrew email consent for appeals still receives it; with the batch setting on, closing a batch of three offline gifts sends a receipt for each gift with an email address, and with it off sends none.
 
-*Status:* missing. Coffer sends no donor email.
+*Status:* partial. Approved per-gift receipts are sent from install SendGrid; automatic online-gift triggers within a minute, domain verification and attached PDFs remain unbuilt. Managed integrations are not available yet. Evidence: `src/coffer/receipt-mail.ts`, `tests/receipts.test.mjs`.
 
 #### RCPT-002 — Acknowledgements delivered by email.
 
@@ -560,7 +560,7 @@ An approved acknowledgement batch (`ACK-001`) is sent by email from Coffer to ev
 
 *Acceptance:* An HTTP journey with the mail edge faked approves a batch of three letters, sends it, and reads two delivered emails and one letter routed to print, with the batch status computed from delivery.
 
-*Status:* partial. Letters are prepared, approved and exported as CSV, and a person records a sent date; Coffer does not send them. Evidence: `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs`.
+*Status:* done. Approved frozen batches send once per letter through self-hosted SendGrid, route donors without current email consent/address to print, and show submitted versus signed provider delivery results. RER Managed sending is not available yet. Evidence: `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs`.
 
 #### RCPT-003 — Print-ready letters, labels and envelopes.
 
@@ -568,7 +568,7 @@ Letters render to a print-ready PDF on letterhead (one per page, window-envelope
 
 *Acceptance:* An HTTP journey downloads the PDF, labels and merge file for a batch and checks page count, addresses and placement; with the Lob edge faked the batch is mailed and tracking events land on each donor's timeline; a single letter produced from one donor's page renders with that donor's envelope name and salutation and is logged on the timeline.
 
-*Status:* partial. A CSV with letter text and postal fields exists for a mail merge; no PDF, labels, envelopes or Lob. Evidence: `src/coffer/acknowledgements.ts`.
+*Status:* partial. Single and batch print-styled US Letter documents support window-envelope placement and browser Save as PDF alongside CSV. Labels, envelope-only layouts, Word files, household grouping and Lob remain unbuilt. Evidence: `src/coffer/ui/print-letters.ts`, `tests/receipts.test.mjs`.
 
 #### RCPT-004 — Year-end giving statements.
 
@@ -576,7 +576,7 @@ In January Coffer prepares one statement per donor, or per household as `RCPT-00
 
 *Acceptance:* An HTTP journey approves and sends statements for donors with one-time, monthly and event gifts, reads each statement's gift lines and totals, and downloads one from the portal; a donor requests a copy from the portal and receives it; a gift corrected after sending reissues that statement marked as corrected with the change shown; a household run reads one statement for two spouses; and after the `MOVE-002` import a migration-year statement lists the imported $150 gala payment with $60 of goods and $90 deductible beside a gift given in Coffer.
 
-*Status:* missing. No year-end statements.
+*Status:* partial. Per-donor calendar-year statements itemize all unreversed gifts including imported gifts, goods values and deductible totals, then use approved email or print delivery. Unknown goods answers require review. Portal requests, automatic January scheduling, household grouping, deceased-recipient rules and corrected reissues remain unbuilt. Evidence: `src/coffer/year-end.ts`, `tests/receipts.test.mjs`.
 
 #### RCPT-005 — US receipt rules.
 
@@ -592,7 +592,7 @@ Every receipt, acknowledgement and statement keeps its delivery result from the 
 
 *Acceptance:* An HTTP journey with the mail edge faked sends three receipts, one bounces, and the bounced one shows on the donor page with a task and a print option.
 
-*Status:* partial. A person records a sent date and method per batch; no provider delivery, bounce or open results. Evidence: `src/coffer/acknowledgements.ts`.
+*Status:* partial. Signed SendGrid delivered, bounce, dropped and complaint events are recorded per letter, deduplicated and shown on donor and batch; negative results route the donor to print. Configure the signed provider webhook and verification key, or explicitly fetch events with SendGrid Email Logs access. Open tracking, address-fix tasks and print-vendor events remain unbuilt. Evidence: `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs`.
 
 #### RCPT-007 — Thank-you templates.
 
@@ -1246,14 +1246,14 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | ---: | --- | --- | --- |
 | 1 | Coffer takes donations | `GIVE-001`, `GIVE-003`, `GIVE-004` | partial |
 | 2 | keeps every donor's story | `DONOR-001`, `DONOR-004` | `DONOR-001` done · `DONOR-004` partial |
-| 3 | sends the receipts | `ACK-001`, `RCPT-001`, `RCPT-002` | `ACK-001` done · `RCPT-001` missing · `RCPT-002` partial |
-| 4 | and thank-yous | `RCPT-002`, `RCPT-007` | partial |
+| 3 | sends the receipts | `ACK-001`, `RCPT-001`, `RCPT-002` | `ACK-001` done · `RCPT-001` partial · `RCPT-002` done |
+| 4 | and thank-yous | `RCPT-002`, `RCPT-007` | `RCPT-002` done · `RCPT-007` partial |
 | 5 | shows who needs a call | `DEV-005`, `REPORT-002` | missing |
 | 6 | 100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM | `OWN-001`, `MOVE-001`, `MOVE-002`, `MOVE-004` | `OWN-001` done · `MOVE-001` missing · `MOVE-002` missing · `MOVE-004` missing |
 | 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` partial · `REPORT-003` partial |
 | 8 | Monthly $25 · Active | `GIVE-003` | partial |
 | 9 | Failed card · Retried successfully | `GIVE-006` | partial |
-| 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` missing · `RCPT-005` partial |
+| 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` partial |
 | 11 | Call Tom Okafor · lapsed 14 months | `DEV-005`, `STEW-001` | missing |
 | 12 | Donation forms and campaign pages | `GIVE-001`, `GIVE-002` | partial |
 | 13 | monthly giving | `GIVE-003` | partial |
@@ -1272,13 +1272,13 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 26 | failed monthly payments | `GIVE-006` | partial |
 | 27 | each payout matches its deposit in QuickBooks Online or Pantry | `PAY-002`, `FIN-001`, `FIN-002` | missing |
 | 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` missing · `FIN-003` partial |
-| 29 | Thank-you letters | `ACK-001`, `RCPT-002` | `ACK-001` done · `RCPT-002` partial |
-| 30 | year-end tax receipts | `RCPT-004` | missing |
-| 31 | by email | `RCPT-001`, `RCPT-002` | `RCPT-001` missing · `RCPT-002` partial |
+| 29 | Thank-you letters | `ACK-001`, `RCPT-002` | `ACK-001` done · `RCPT-002` done |
+| 30 | year-end tax receipts | `RCPT-004` | partial |
+| 31 | by email | `RCPT-001`, `RCPT-002` | `RCPT-001` partial · `RCPT-002` done |
 | 32 | print-ready for mail | `RCPT-003` | partial |
 | 33 | with the right IRS language | `ACK-001`, `RCPT-005` | `ACK-001` done · `RCPT-005` partial |
 | 34 | proof of delivery | `RCPT-006` | partial |
-| 35 | Thank-yous sent · 48 donors tonight | `RCPT-002` | partial |
+| 35 | Thank-yous sent · 48 donors tonight | `RCPT-002` | done |
 | 36 | Appeals and welcome journeys go out through Mango or Mailchimp | `COMM-002`, `STEW-003` | `COMM-002` partial · `STEW-003` missing |
 | 37 | welcome journeys | `STEW-003` | missing |
 | 38 | Unsubscribes are honored everywhere | `CONSENT-001`, `APPEAL-001`, `COMM-001` | `CONSENT-001` done · `APPEAL-001` done · `COMM-001` partial |
@@ -1310,13 +1310,13 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 Judged from the code and tests at commit `12e75786aba38e62ce0bafcc748249f817e46ca1` (17 October 2026).
 
-The giving clauses and their claim mappings include the implementation in this change.
+The giving and receipt clauses and their claim mappings include their current implementations.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 2 | 43 | 81 | 126 |
-| All | 11 | 43 | 81 | 135 |
+| Target and push further | 3 | 44 | 79 | 126 |
+| All | 12 | 44 | 79 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1378,12 +1378,12 @@ The giving clauses and their claim mappings include the implementation in this c
 | `FIN-003` | Restricted funds | target | partial | `src/coffer/gifts.ts` | Every gift has a free-text fund (default Unrestricted); no restriction type, mapping or release report. |
 | `FIN-004` | Journal export for other ledgers | target | missing |  | No journal export. |
 | `FIN-005` | Reconciliation report | target | missing |  | No reconciliation report. |
-| `RCPT-001` | Immediate email receipts | target | missing |  | Coffer sends no donor email. |
-| `RCPT-002` | Acknowledgements delivered by email | target | partial | `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | Letters are prepared, approved and exported as CSV, and a person records a sent date; Coffer does not send them. |
-| `RCPT-003` | Print-ready letters, labels and envelopes | target | partial | `src/coffer/acknowledgements.ts` | A CSV with letter text and postal fields exists for a mail merge; no PDF, labels, envelopes or Lob. |
-| `RCPT-004` | Year-end giving statements | target | missing |  | No year-end statements. |
+| `RCPT-001` | Immediate email receipts | target | partial | `src/coffer/receipt-mail.ts`, `tests/receipts.test.mjs` | Approved per-gift receipts are sent from install SendGrid; automatic online-gift triggers within a minute, domain verification and attached PDFs remain unbuilt. Managed integrations are not available yet. |
+| `RCPT-002` | Acknowledgements delivered by email | target | done | `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs` | Approved frozen batches send once per letter through self-hosted SendGrid, route donors without current email consent/address to print, and show submitted versus signed provider delivery results. RER Managed sending is not available yet. |
+| `RCPT-003` | Print-ready letters, labels and envelopes | target | partial | `src/coffer/ui/print-letters.ts`, `tests/receipts.test.mjs` | Single and batch print-styled US Letter documents support window-envelope placement and browser Save as PDF alongside CSV. Labels, envelope-only layouts, Word files, household grouping and Lob remain unbuilt. |
+| `RCPT-004` | Year-end giving statements | target | partial | `src/coffer/year-end.ts`, `tests/receipts.test.mjs` | Per-donor calendar-year statements itemize all unreversed gifts including imported gifts, goods values and deductible totals, then use approved email or print delivery. Unknown goods answers require review. Portal requests, automatic January scheduling, household grouping, deceased-recipient rules and corrected reissues remain unbuilt. |
 | `RCPT-005` | US receipt rules | target | partial | `src/coffer/settings.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | Templates must carry donor, amount, date, organization and the goods-or-services statement, and the $250 threshold works; no quid pro quo rule for payments over $75, token-benefit or religious-benefit wording. |
-| `RCPT-006` | Delivery tracking | target | partial | `src/coffer/acknowledgements.ts` | A person records a sent date and method per batch; no provider delivery, bounce or open results. |
+| `RCPT-006` | Delivery tracking | target | partial | `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs` | Signed SendGrid delivered, bounce, dropped and complaint events are recorded per letter, deduplicated and shown on donor and batch; negative results route the donor to print. Configure the signed provider webhook and verification key, or explicitly fetch events with SendGrid Email Logs access. Open tracking, address-fix tasks and print-vendor events remain unbuilt. |
 | `RCPT-007` | Thank-you templates | target | partial | `src/coffer/settings.ts`, `tests/coffer.test.mjs` | One reviewed letter template with required facts exists; no templates per form, campaign or gift type. |
 | `RCPT-008` | Corrected and voided receipts | target | missing |  | No receipt numbering, voiding or reissue. |
 | `RCPT-009` | One piece per household | target | missing |  | Letters and appeal exports are one row per gift or per donor; no household grouping, addressee or combined totals. |

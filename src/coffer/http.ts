@@ -6,7 +6,7 @@ import { identity, manager, originGuard, person, type Actor, type Authority } fr
 import { CofferError, fail, type Context } from './db'
 import { execute } from './commands'
 import { listDonors, donorHistory } from './donors'
-import { batchDetail, batches, batchLetters, dueGifts, lettersCsv } from './acknowledgements'
+import { batchDetail, batches, batchLetters, dueGifts, lettersCsv, currentLetterGiftsCondition } from './acknowledgements'
 import { appealDetail, appeals, recipientsCsv, recipientsOf } from './appeals'
 import { settings } from './settings'
 import * as imports from './imports/index'
@@ -14,6 +14,8 @@ import { page } from './ui/common'
 import { givingResponse } from './giving/http'
 import { createCampaign, campaigns } from './giving/campaigns'
 import { givingManagePage } from './giving/manage-ui'
+import { receiptEvents } from './letter-delivery'
+import { printLetters } from './ui/print-letters'
 import { home } from './ui/home'
 import { donorsPage, donorPage } from './ui/donors'
 import { lettersPage, batchPage } from './ui/letters'
@@ -68,6 +70,7 @@ async function pages(data: FormData, name: string) {
 
 const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
+ if (new URL(request.url).pathname === '/api/coffer/mail/events') return receiptEvents(request, original)
  const publicGiving = await givingResponse(request, original); if (publicGiving) return publicGiving
  const url = new URL(request.url), path = url.pathname
  if (!ROUTES.test(path)) return null
@@ -76,7 +79,7 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
  try {
   const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
-  const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString() }
+  const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
   if (path === '/api/coffer/giving/campaigns' || path === '/app/giving/campaigns') {
    if (request.method === 'GET' && isApi) return json({ campaigns: await campaigns(c) })
    if (request.method !== 'POST') fail('method_not_allowed', 'Use the campaign form.', 405)
@@ -222,6 +225,14 @@ async function screen(c: Context, url: URL): Promise<Response> {
  if (m) { const view = await donorPage(c, m[1]); return show(view.title, view.body) }
  if (path === '/app/letters') return show('Acknowledgement letters', await lettersPage(c))
  if ((m = path.match(/^\/app\/letters\/([^/]+)$/))) return show('Letter batch', await batchPage(c, m[1]))
+ if ((m = path.match(/^\/app\/letters\/([^/]+)\/print$/))) {
+  if (!manager(actor)) fail('manager_required', 'Only the owner or an admin prints letters.', 403)
+  const { batch, letters } = await batchDetail(c, m[1])
+  if (!['approved','exported','sent'].includes(batch.status)) fail('NOT_APPROVED', 'Approve these letters before printing.')
+  if (!(await c.db.prepare(`SELECT CASE WHEN (${currentLetterGiftsCondition}) THEN 1 ELSE 0 END AS ok`).bind(m[1]).first<{ok:number}>())?.ok) fail('GIFT_CHANGED', 'A statement gift changed. Prepare an updated statement before printing.')
+  const selected = letters.filter(l => (!url.searchParams.has('letter') || l.id === url.searchParams.get('letter')) && (!url.searchParams.has('pending') || (l.route === 'print' && !l.printed_at)))
+  return printLetters(selected, (await settings(c)).organisation)
+ }
  if ((m = path.match(/^\/app\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
  if (path === '/app/appeals') return show('Appeals', await appealsPage(c))
  if ((m = path.match(/^\/app\/appeals\/([^/]+)$/))) return show('Appeal', await appealPage(c, m[1]))

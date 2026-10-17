@@ -38,6 +38,7 @@ export interface Bindings {
  MAIL_FROM?: string
  MAIL_API_KEY?: string
  MAIL_ACCOUNT_ID?: string
+ MAIL_EVENT_PUBLIC_KEY?: string
  /** A signed owner claim (the hosted demo's front, RER Managed); set together or not at all. */
  RER_OWNER_CLAIM_PUBLIC_KEYS?: string
  RER_OWNER_CLAIM_ISSUER?: string

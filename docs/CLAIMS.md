@@ -1,23 +1,23 @@
 # Coffer homepage claims → code
 
-Every capability claim on the built homepage (`src/site/landing/`, branch `br/style`), tracked against the current implementation. Giving rows were updated on 17 October 2026. The copy is the desk's owner-accepted copy and is not watered down; this table is what the run-site gate reads before any deploy.
+Every capability claim on the built homepage (`src/site/landing/`, branch `br/style`), tracked against the current implementation. Giving and receipt rows were updated on 17 October 2026. The copy is the desk's owner-accepted copy and is not watered down; this table is what the run-site gate reads before any deploy.
 
 `CONTRACT.md` defines the full fundraising CRM target. Its Status table keeps broader unfinished features explicit; the giving rows here describe the self-hosted donation, subscription and donor portal implementation.
 
-**Totals: 61 claims · 19 in code · 19 partly · 23 contract, not yet in code.**
+**Totals: 61 claims · 28 in code · 12 partly · 21 contract, not yet in code.**
 
 | # | Section | Claim | Status | Backed by |
 |---|---|---|---|---|
 | 1 | Hero | "Coffer takes donations" | in code | Self-hosted campaign checkout takes card and Link gifts through Stripe and writes each paid gift once to the immutable ledger with its fund and matched donor (`src/coffer/giving/checkout.ts`, `src/coffer/giving/recording.ts`). Managed integrations are not available yet. |
 | 2 | Hero | "keeps every donor's story" | in code | `src/coffer/donors.ts` `donorHistory` (gifts, pledges, consent, letters, appeals, activity) on `src/coffer/ui/donors.ts` `donorPage`. |
-| 3 | Hero | "sends the receipts" | partly | `src/coffer/acknowledgements.ts` prepares, approves, exports and records letters as sent; Coffer never sends them itself. |
-| 4 | Hero | "and thank-yous" | partly | Same letters (`acknowledgements.ts`, wording in `settings.ts`); sending is the charity's own mail. |
+| 3 | Hero | "sends the receipts" | in code | Approved per-gift receipts are emailed through the installation’s SendGrid account; current consent and email are checked at dispatch, otherwise letters go to print (`src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs`). Managed email integrations are not available yet. |
+| 4 | Hero | "and thank-yous" | in code | The charity’s reviewed wording is frozen and approved, then sent by Coffer through SendGrid in bounded batch steps; no-consent/no-email donors go to print (`src/coffer/receipt-mail.ts`, `src/coffer/ui/letters.ts`). |
 | 5 | Hero | "shows who needs a call" | contract, not yet in code | No lapsed-donor or call list; Today (`ui/home.ts`) lists letters due and waiting approvals only. |
 | 6 | Hero | "100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM" | partly | Free and MIT (`LICENSE`); covers donor records, gift ledger, consent, letters and appeals, not the incumbents' giving, email or reporting. |
 | 7 | Hero card | Spring appeal $48,210 of $60,000, gifts and recurring donors | in code | Campaign pages show goal, ledger-derived raised total, gift count and recurring donor count (`src/coffer/giving/campaigns.ts`, `src/coffer/giving/ui.ts`). |
 | 8 | Hero card | Monthly $25 · Active | in code | Stripe monthly subscriptions appear on donor records and in the donor portal with amount and active/past-due/cancelled state (`src/coffer/giving/recording.ts`, `src/coffer/giving/manage-ui.ts`). |
 | 9 | Hero card | Failed card · Retried successfully | in code | Verified invoice outcomes record failed attempts, Stripe next-attempt timing and successful recovery; donors receive a private card-update link (`src/coffer/giving/webhooks.ts`, `tests/giving.test.mjs`). |
-| 10 | Hero card | Receipt sent · Gift $250.00 · No goods or services provided | partly | $250 threshold, goods-or-services statement and recorded sent date exist (`acknowledgements.ts`, `settings.ts` `renderLetter`); not sent by Coffer. |
+| 10 | Hero card | Receipt sent · Gift $250.00 · No goods or services provided | in code | Gift receipt email contains donor, gift amount/date, organization and the reviewed goods-or-services statement; signed provider events confirm delivery (`tests/receipts.test.mjs`). |
 | 11 | Hero card | Call Tom Okafor · lapsed 14 months | contract, not yet in code | No lapse detection or call tasks. |
 | 12 | Online giving | Donation forms and campaign pages | in code | Admins publish campaign donation forms at `/give/<slug>` with a story, fund, goal and once/monthly checkout (`src/coffer/giving/http.ts`, `src/coffer/giving/ui.ts`). |
 | 13 | Online giving | monthly giving | in code | Monthly Stripe subscriptions, installment ledger entries, recovery and end-of-period cancellation (`src/coffer/giving/recording.ts`, `src/coffer/giving/portal.ts`). |
@@ -36,13 +36,13 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 | 26 | Payments | failed monthly payments | in code | Signed failed-invoice events update monthly state, email card-update links and record successful retries without counting failed charges as gifts (`src/coffer/giving/webhooks.ts`, `tests/giving.test.mjs`). |
 | 27 | Payments | each payout matches its deposit in QuickBooks Online or Pantry | contract, not yet in code | No payouts or accounting link. |
 | 28 | Payments | split by fund | partly | Every gift carries a fund (`gifts.ts`, move-in `metadata.fund`); no payout split. |
-| 29 | Receipts | Thank-you letters | partly | Prepared from the charity's wording, approved, exported as CSV and recorded as sent (`acknowledgements.ts`). |
-| 30 | Receipts | year-end tax receipts | contract, not yet in code | No year-end statements; letters are per gift. |
-| 31 | Receipts | by email | contract, not yet in code | Coffer sends no email; letters are exported. |
-| 32 | Receipts | print-ready for mail | partly | CSV export for a mail merge (`lettersCsv`); no print layout. |
+| 29 | Receipts | Thank-you letters | in code | Reviewed, hash-approved thank-you letters are sent through install mail or printed individually or by batch, with donor-level delivery states (`src/coffer/acknowledgements.ts`, `src/coffer/letter-delivery.ts`). |
+| 30 | Receipts | year-end tax receipts | in code | Calendar-year statements itemize every unreversed gift, total gifts, goods value and deductible portions; approved statements use the same email/print workflow (`src/coffer/year-end.ts`, `tests/receipts.test.mjs`). |
+| 31 | Receipts | by email | in code | Self-hosted SendGrid sending uses the installation’s existing sign-in mail credentials and sender. RER Managed provider integration is not available yet (`src/coffer/receipt-mail.ts`). |
+| 32 | Receipts | print-ready for mail | in code | Standalone print-styled US Letter documents for each letter and whole or pending print batches, with window-envelope address placement and browser Save as PDF, alongside CSV (`src/coffer/ui/print-letters.ts`). |
 | 33 | Receipts | with the right IRS language | in code | `settings.ts` requires donor, amount, date, organization and the goods-or-services statement; default 501(c)(3) wording in `migrations/core/0016_coffer.sql`. |
-| 34 | Receipts | proof of delivery | partly | Sent date and method recorded per batch (`ack.markSent`); no delivery or open tracking. |
-| 35 | Interlude | Thank-yous sent · 48 donors tonight | partly | Letter batches are recorded as sent; Coffer does not send them. |
+| 34 | Receipts | proof of delivery | in code | Signed SendGrid delivered/bounce events and explicit Email Logs lookups are recorded per letter and shown on donor and batch; bounced donors route to print. Configure a signed webhook or grant Email Logs access; submission alone is never labeled delivered (`src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs`). |
+| 35 | Interlude | Thank-yous sent · 48 donors tonight | in code | Batch sending reports the number submitted and separately the number provider-confirmed delivered; repeated send clicks do not resubmit claimed letters (`src/coffer/ui/letters.ts`, `tests/receipts.test.mjs`). |
 | 36 | Appeals | Appeals and welcome journeys go out through Mango or Mailchimp | contract, not yet in code | Appeals export a CSV audience (`recipientsCsv`); no journeys or email integrations. |
 | 37 | Appeals | welcome journeys | contract, not yet in code | None in code. |
 | 38 | Appeals | Unsubscribes are honored everywhere | partly | Append-only consent per channel; appeals include only donors whose latest answer is yes and refuse approval or export when it changes (`appeals.ts`); no unsubscribe link or sync. |

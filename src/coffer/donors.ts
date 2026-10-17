@@ -81,13 +81,13 @@ export async function donorHistory(c: { db: D1Database }, donorId: string) {
  const [household, gifts, pledges, consents, letters, appeals, events] = await Promise.all([
   donor.household_id ? all(c, 'SELECT id,name,erased_at FROM cf_donors WHERE household_id=? AND id<>? ORDER BY lower(name)', donor.household_id, donorId) : Promise.resolve([]),
   all(c, `SELECT g.*,(SELECT r.id FROM cf_gifts r WHERE r.reverses=g.id) AS reversed_by,
-    (SELECT b.status FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_status,
+    (SELECT CASE WHEN a.printed_at IS NOT NULL THEN 'printed' ELSE COALESCE(NULLIF(a.delivery_status,'pending'),b.status) END FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_status,
     (SELECT b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_sent_on,
     (SELECT a.batch_id FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1) AS ack_batch
    FROM cf_gifts g WHERE g.donor_id=? ORDER BY g.received_on DESC, g.created_at DESC`, donorId),
   all(c, 'SELECT p.*,(SELECT COALESCE(SUM(amount_cents),0) FROM cf_gifts g WHERE g.pledge_id=p.id) AS paid_cents FROM cf_pledges p WHERE donor_id=? ORDER BY pledged_on DESC', donorId),
   all(c, 'SELECT * FROM cf_consents WHERE donor_id=? ORDER BY id DESC', donorId),
-  all(c, 'SELECT a.id,a.batch_id,a.gift_id,a.amount_cents,a.received_on,b.status,b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.donor_id=? AND a.live=1 ORDER BY a.received_on DESC', donorId),
+  all(c, `SELECT a.id,a.batch_id,a.gift_id,a.amount_cents,a.received_on,a.delivery_status,a.route,a.printed_at,a.delivered_at,a.delivery_note,b.kind,b.statement_year,b.status,b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.donor_id=? AND (a.live=1 OR b.kind='statement') AND b.status<>'discarded' ORDER BY a.received_on DESC`, donorId),
   all(c, 'SELECT p.id,p.name,p.channel,p.status,p.sent_on,p.prepared_at FROM cf_appeal_recipients r JOIN cf_appeals p ON p.id=r.appeal_id WHERE r.donor_id=? AND p.status<>\'discarded\' ORDER BY p.prepared_at DESC', donorId),
   all(c, 'SELECT * FROM cf_events WHERE donor_id=? ORDER BY id DESC LIMIT 100', donorId),
  ])

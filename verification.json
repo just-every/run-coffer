@@ -48,6 +48,14 @@
       "commands": [
         "pnpm run test:giving"
       ]
+    },
+    {
+      "name": "receipts",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:receipts"
+      ]
     }
   ],
   "nightly": [

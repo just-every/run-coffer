@@ -8,10 +8,11 @@ import {join} from 'node:path'
 // appeal, hand an agent a key and erase a donor on request.
 export async function browserJourney(openUrl,{directory='.cache/browser',fixtures='tests/fixtures/stripe'}={}) {
  await mkdir(directory,{recursive:true})
- const browser=await chromium.launch({headless:true,args:['--disable-gpu']})
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
  let stage='open app'
  try {
-  const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true})
+  const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true})
+  const page=await context.newPage()
   await page.goto(openUrl)
   await page.waitForURL(url=>['/setup','/app'].includes(url.pathname))
   if(new URL(page.url()).pathname==='/setup') {await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup'}).click()}
@@ -61,10 +62,10 @@ export async function browserJourney(openUrl,{directory='.cache/browser',fixture
   await go('Letters');await shot('07-letters-due')
   await page.getByRole('button',{name:/^Prepare \d+ letters$/}).click();await page.waitForLoadState('domcontentloaded')
   await page.getByText('Waiting for approval').first().waitFor();await shot('08-letters-prepared')
-  await click('Approve these letters');await click('Export letters')
+  await click('Approve these letters');await click('Export letters (CSV)')
   const download=page.waitForEvent('download');await page.getByRole('link',{name:'Download letters (CSV)'}).click()
   assert.match((await download).suggestedFilename(),/^coffer-letters-.*\.csv$/)
-  await click('Record as sent');await page.getByText(/^Sent by mail on/).waitFor();await shot('09-letters-sent')
+  await click('Record all letters as printed');await page.getByText(/Printed /).first().waitFor();await shot('09-letters-printed')
 
   stage='appeal'
   await go('Appeals');await page.getByLabel('Appeal name',{exact:true}).fill('Fall 2026 reading appeal')

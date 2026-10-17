@@ -1,4 +1,5 @@
 import type { Actor, Authority } from './auth'
+import type { Bindings } from '../auth.server'
 
 export class CofferError extends Error {
  constructor(public code: string, message: string, public status = 409, public details: unknown = null) { super(message); this.name = 'CofferError' }
@@ -6,7 +7,7 @@ export class CofferError extends Error {
 export function fail(code: string, message: string, status = 409, details: unknown = null): never { throw new CofferError(code, message, status, details) }
 
 export type Stmt = { sql: string; params: unknown[]; check?: { condition: string; code: string; message: string } }
-export type Context = { db: D1Database; actor: Actor; authority: Authority; now: string }
+export type Context = { db: D1Database; actor: Actor; authority: Authority; now: string; env?: Bindings }
 export type Row = Record<string, any>
 
 export const sql = (text: string, ...params: unknown[]): Stmt => ({ sql: text, params })

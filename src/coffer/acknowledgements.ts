@@ -19,7 +19,7 @@ export async function dueGifts(c: { db: D1Database }) {
 }
 
 export const address = (d: Row) => JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country })
-export const letterHash = (s: number, letters: Row[]) => sha256(JSON.stringify([s, letters.map(l => [l.gift_id, l.donor_id, l.recipient_name, l.recipient_email, l.address, l.subject, l.body, l.amount_cents, l.received_on])]))
+export const letterHash = (s: number, letters: Row[]) => sha256(JSON.stringify([s, letters.map(l => [l.gift_id, l.donor_id, l.recipient_name, l.recipient_email, l.address, l.subject, l.body, l.amount_cents, l.received_on, ...(l.statement_gifts ? [l.statement_gifts] : [])])]))
 export const batchLetters = (c: { db: D1Database }, batchId: string) => all(c, 'SELECT * FROM cf_acks WHERE batch_id=? ORDER BY position', batchId)
 
 export async function ackCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
@@ -59,12 +59,14 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
   const letters = await batchLetters(c, batchId)
   if (await letterHash(batch.settings_version, letters) !== batch.content_hash) fail('CONTENT_CHANGED', 'These letters no longer match what was prepared. Discard the batch and prepare again.')
   await commit(c, [at(['prepared']),
+   currentLetterGifts(batchId),
    guard("NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.batch_id=? AND (EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=a.gift_id) OR EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=a.donor_id AND d.erased_at IS NOT NULL)))", 'GIFT_CHANGED', 'A gift in this batch was reversed or its donor erased. Discard the batch and prepare again.', batchId),
    sql('INSERT INTO cf_approvals VALUES(?,?,?,?,?,?,?,?,?,?,?)', newId(), 'acknowledgements', batchId, batch.content_hash, batch.prepared_by_id, batch.prepared_by_name, batch.prepared_by_role, c.actor.id, c.actor.name, c.actor.role, c.now),
    bump('approved'), event(c, 'ack.approve', 'acknowledgements', batchId, null, { letters: batch.letters, preparedBy: batch.prepared_by_role })])
   return { id: batchId, version: version + 1, status: 'approved' }
  }
  if (command === 'ack.discard') {
+  if ((await one(c, "SELECT count(*) AS n FROM cf_acks WHERE batch_id=? AND route<>'pending'", batchId))!.n) fail('ALREADY_SENT', 'Letters already routed for sending or printing must be kept.')
   if (!['prepared', 'approved'].includes(batch.status)) fail('ALREADY_EXPORTED', 'Exported letters are kept; record them as sent instead.')
   await commit(c, [at(['prepared', 'approved']), sql('UPDATE cf_acks SET live=0 WHERE batch_id=?', batchId), bump('discarded', ',discarded_at=?', c.now), event(c, 'ack.discard', 'acknowledgements', batchId, null)])
   return { id: batchId, version: version + 1, status: 'discarded' }
@@ -91,11 +93,17 @@ export function lettersCsv(letters: Row[]) {
 }
 
 export async function batches(c: { db: D1Database }) {
- return all(c, "SELECT * FROM cf_ack_batches ORDER BY CASE status WHEN 'prepared' THEN 0 WHEN 'approved' THEN 1 WHEN 'exported' THEN 2 ELSE 3 END, prepared_at DESC LIMIT 100")
+ return all(c, "SELECT b.*,(SELECT count(*) FROM cf_acks a WHERE a.batch_id=b.id AND a.delivery_status='delivered') AS delivered,(SELECT count(*) FROM cf_acks a WHERE a.batch_id=b.id AND a.route='print' AND a.printed_at IS NULL) AS to_print FROM cf_ack_batches b ORDER BY CASE status WHEN 'prepared' THEN 0 WHEN 'approved' THEN 1 WHEN 'exported' THEN 2 ELSE 3 END, prepared_at DESC LIMIT 100")
 }
 export async function batchDetail(c: { db: D1Database }, batchId: string) {
  const batch = await one(c, 'SELECT * FROM cf_ack_batches WHERE id=?', batchId)
  if (!batch) fail('NOT_FOUND', 'That acknowledgement batch does not exist.', 404)
- const [letters, approval, events] = await Promise.all([batchLetters(c, batchId), one(c, "SELECT * FROM cf_approvals WHERE subject_kind='acknowledgements' AND subject_id=?", batchId), all(c, "SELECT * FROM cf_events WHERE subject_kind='acknowledgements' AND subject_id=? ORDER BY id", batchId)])
- return { batch, letters, approval, events }
+ const [letters, approval, events, deliveryEvents] = await Promise.all([batchLetters(c, batchId), one(c, "SELECT * FROM cf_approvals WHERE subject_kind='acknowledgements' AND subject_id=?", batchId), all(c, "SELECT * FROM cf_events WHERE subject_kind='acknowledgements' AND subject_id=? ORDER BY id", batchId), all(c, 'SELECT e.* FROM cf_letter_events e JOIN cf_acks a ON a.id=e.letter_id WHERE a.batch_id=? ORDER BY e.occurred_at', batchId)])
+ return { batch, letters, approval, events, deliveryEvents }
 }
+
+/** Annual statements freeze the complete calendar year, including late gifts. */
+export const currentLetterGiftsCondition = `NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.batch_id=? AND b.kind='statement' AND (
+ (SELECT count(*) FROM cf_gifts g WHERE g.donor_id=a.donor_id AND g.kind='gift' AND substr(g.received_on,1,4)=CAST(b.statement_year AS TEXT) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id))<>json_array_length(a.statement_gifts)
+ OR EXISTS(SELECT 1 FROM json_each(a.statement_gifts) j WHERE NOT EXISTS(SELECT 1 FROM cf_gifts g WHERE g.id=json_extract(j.value,'$.id') AND g.version=json_extract(j.value,'$.version') AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)))))`
+export const currentLetterGifts = (batchId: string) => guard(currentLetterGiftsCondition, 'GIFT_CHANGED', 'A statement gift changed. Discard this batch and prepare it again.', batchId)

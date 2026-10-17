@@ -52,6 +52,11 @@
       "environment": "MAIL_FROM",
       "verifyStandIn": "auth@example.test",
       "optional": true
+    },
+    {
+      "binding": "MAIL_EVENT_PUBLIC_KEY",
+      "environment": "MAIL_EVENT_PUBLIC_KEY",
+      "optional": true
     }
   ]
 }

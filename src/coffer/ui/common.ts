@@ -20,6 +20,7 @@ export const chip = (value: unknown, tone = '') => `<span class="chip${tone ? ` 
 export const details = (facts: Record<string, unknown>) => `<details class="facts"><summary>Details</summary><dl>${Object.entries(facts).map(([k, v]) => `<dt>${e(k)}</dt><dd><code>${e(typeof v === 'string' ? v : JSON.stringify(v))}</code></dd>`).join('')}</dl></details>`
 export const empty = (text: string) => `<p class="empty">${e(text)}</p>`
 export const STATUS: Record<string, [string, string]> = {
+ delivered: ['Delivered', 'ok'], submitted: ['Email submitted', 'info'], print: ['Print batch', 'warn'], printed: ['Printed', 'ok'], bounced: ['Bounced · print instead', 'alarm'], complained: ['Complaint · print instead', 'alarm'], rejected: ['Email rejected · print instead', 'warn'], sending: ['Sending', 'info'], uncertain: ['Submission uncertain', 'warn'],
  prepared: ['Waiting for approval', 'warn'], approved: ['Approved · export next', 'info'], exported: ['Exported · record sending', 'info'], sent: ['Sent', 'ok'], discarded: ['Discarded', ''],
 }
 export const status = (s: string) => chip(STATUS[s]?.[0] ?? s, STATUS[s]?.[1] ?? '')

@@ -21,7 +21,7 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     sql('DELETE FROM cf_consents WHERE donor_id=?', donorId),
     sql('UPDATE cf_gifts SET version=version+1,note=NULL,donor_id=? WHERE donor_id=?', placeholderId, donorId),
     sql('UPDATE cf_pledges SET donor_id=? WHERE donor_id=?', placeholderId, donorId),
-    sql("UPDATE cf_acks SET donor_id=?,recipient_name=?,recipient_email=NULL,address=NULL,subject='[erased]',body='[erased]' WHERE donor_id=?", placeholderId, ERASED, donorId),
+    sql("UPDATE cf_acks SET donor_id=?,recipient_name=?,recipient_email=NULL,address=NULL,statement_gifts=NULL,delivery_note=NULL,subject='[erased]',body='[erased]' WHERE donor_id=?", placeholderId, ERASED, donorId),
     sql('UPDATE cf_appeal_recipients SET donor_id=?,name=?,email=NULL,address=NULL WHERE donor_id=?', placeholderId, ERASED, donorId),
     sql('UPDATE cf_events SET donor_id=? WHERE donor_id=?', placeholderId, donorId),
     sql("DELETE FROM cf_import_revisions WHERE (kind='donor' AND id=?) OR (kind='gift' AND id IN (SELECT id FROM cf_gifts WHERE donor_id=?))", donorId, placeholderId),
