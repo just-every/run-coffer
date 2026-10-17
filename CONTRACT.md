@@ -14,15 +14,15 @@ This is a target contract: the product Coffer is being built towards, not a desc
 
 Givebutter and Zeffy are the up-and-comers: they bundle collection with a donor CRM at no platform fee. Coffer has to beat them on giving and the incumbents on records, stewardship and reporting. Switching means a buyer of any of them finds the whole job:
 
-- **Know every supporter.** People and organizations, households and relationships, a timeline of every touch, custom fields, duplicates merged, saved lists, documents, verified addresses and volunteer history (`DONOR-001` to `DONOR-011`).
-- **Record every gift exactly.** An immutable ledger with batch entry, attribution, splits, pledges with installments, soft credits, matching, tribute, in-kind, stock, DAF and IRA gifts (`GIFT-001` to `GIFT-010`).
-- **Take gifts online.** Forms, campaign pages, recurring giving, card, ACH, wallets, PayPal and Venmo, a donor portal, failed-payment recovery, fraud protection and text-to-give; campaigns, events, peer-to-peer pages and memberships (`GIVE-*`, `CAMP-*`).
-- **Reconcile with the books.** Live Stripe and other platforms with payouts, fees, refunds and disputes, posted by fund to QuickBooks Online or Pantry and reconciled to the cent (`PAY-*`, `FIN-*`).
-- **Thank and receipt.** Immediate email receipts, delivered acknowledgements, print-ready letters, year-end statements, US receipt rules and delivery tracking (`ACK-001`, `RCPT-*`).
+- **Know every supporter.** People and organizations, households and relationships, a timeline of every touch, custom fields, duplicates merged, saved lists with bulk actions, documents, verified addresses, volunteer history and an active, inactive or deceased status every send honours (`DONOR-001` to `DONOR-012`).
+- **Record every gift exactly.** An immutable ledger with batch entry, attribution, splits, pledges with installments, soft credits, matching, tribute, in-kind, stock, DAF and IRA gifts, and anonymous gifts with recognition names (`GIFT-001` to `GIFT-011`).
+- **Take gifts online.** Forms, campaign pages, recurring giving, card, ACH, wallets, PayPal and Venmo, a donor portal, failed-payment recovery, fraud protection and text-to-give; campaigns, events with auction results, peer-to-peer pages and memberships (`GIVE-*`, `CAMP-*`).
+- **Reconcile with the books.** Live Stripe, other giving platforms and shop orders with payouts, fees, refunds and disputes, posted by fund to QuickBooks Online or Pantry and reconciled to the cent (`PAY-*`, `FIN-*`).
+- **Thank and receipt.** Immediate email receipts, delivered acknowledgements, print-ready letters, year-end statements, one piece per household, US receipt rules and delivery tracking (`ACK-001`, `RCPT-*`).
 - **Reach donors and hear back.** Consent on every channel, appeals sent through Mango or Mailchimp, one-to-one email, replies routed to the right person, SMS and direct mail, with results (`CONSENT-001`, `APPEAL-001`, `COMM-*`).
 - **Follow up.** Tasks, recurring tasks, stewardship journeys, pledge reminders, gift-triggered rules and meetings (`STEW-*`), and the major-gift pipeline with portfolios, plans, scores, research, grants and planned giving (`MAJOR-*`).
-- **Report.** Retention, LYBUNT and SYBUNT, dashboards, a report builder, scheduled reports, recurring health and Form 990 support (`REPORT-*`).
-- **Move in and own it.** Importers from Little Green Light, Bloomerang, Raiser's Edge NXT, Neon CRM, Givebutter, Zeffy and any spreadsheet with a checked cutover; roles, SSO and an audit log; an API, webhooks and MCP; phone and native apps; and free, open-source ownership with exports and erasure (`MOVE-*`, `TEAM-*`, `API-*`, `MOBILE-*`, `DATA-*`, `OWN-*`).
+- **Report.** Retention, LYBUNT and SYBUNT, dashboards, a report builder, scheduled reports, recurring health, Form 990 support and giving by state (`REPORT-*`).
+- **Move in and own it.** Importers from Little Green Light, Bloomerang, Raiser's Edge NXT, Neon CRM, Givebutter, Zeffy and any spreadsheet with a checked cutover, monthly donors moved with their cards; roles, SSO and an audit log; an API, webhooks and MCP; phone and native apps; and free, open-source ownership with exports and erasure (`MOVE-*`, `TEAM-*`, `API-*`, `MOBILE-*`, `DATA-*`, `OWN-*`).
 - **Go further.** A development agent that reconciles every gift, rescues failed monthly gifts, sends missing receipts, drafts stewardship from the nonprofit's own history and shows who needs a human call next, under named grants (`DEV-001` to `DEV-012`).
 
 ### Neighbouring products stay separate
@@ -39,6 +39,7 @@ Where the market sells a neighbouring product separately, Coffer connects to it;
 | Meeting scheduling | [Dial](https://github.com/just-every/run-dial) (or Calendly) | Booking links from donor pages (`STEW-006`) |
 | Workflow automation | [Crank](https://github.com/just-every/run-crank) (or Zapier) | Triggers and actions (`API-003`) |
 | Team chat | [Nook](https://github.com/just-every/run-nook) (or Slack) | Task and gift notifications (`STEW-001`, `STEW-005`) |
+| Merchandise and online shop | [Stall](https://github.com/just-every/run-stall) (or Shopify) | Donation lines and charity-priced items from orders become gifts (`PAY-006`) |
 | Signed pledge agreements | [Inkwell](https://github.com/just-every/run-inkwell) (or Docusign) | Signed documents attach to pledges (`DONOR-008`) |
 
 ### How to read this contract
@@ -83,7 +84,7 @@ Consent is append-only per donor and channel with method, evidence, capture date
 
 #### ACK-001 — Acknowledgement letters.
 
-Gifts at or over the threshold (default $250) without a live letter are due within the target days (default 14). No letter is prepared until a person has saved the settings; the letter must state donor name, amount, gift date, organization and the goods-or-services statement. A batch freezes its letters and content hash. A person approves the exact hash; export, then a recorded sent date. Imported gifts with an unknown goods answer wait for a person's answer. This is the reviewed letter path for printed and hand-mailed acknowledgements; delivering the same approved letters by email is `RCPT-002` and print layouts are `RCPT-003`.
+Gifts at or over the threshold (default $250) without a live letter are due within the target days (default 14). No letter is prepared until a person has saved the settings; the letter must state donor name, amount, gift date, organization and the goods-or-services statement. A batch freezes its letters and content hash. A person approves the exact hash; export, then a recorded sent date. Imported gifts with an unknown goods answer wait for a person's answer. This is the reviewed letter path for printed and hand-mailed acknowledgements; delivering the same approved letters by email is `RCPT-002`, print layouts are `RCPT-003` and one letter per household is `RCPT-009`.
 
 *Acceptance:* The acknowledgement test has an agent prepare a batch, refuses preparation before settings are reviewed, lets only a person approve, exports the CSV with the exact letter text and records the sent date.
 
@@ -91,7 +92,7 @@ Gifts at or over the threshold (default $250) without a live letter are due with
 
 #### APPEAL-001 — Consent-checked appeals.
 
-An audience includes only donors whose newest consent for the channel is yes and who have the needed address; exclusions are counted by reason. Each recipient is frozen with the exact consent row; approval, export and sending refuse if any of those rows is no longer current. Sending the approved audience through Mango or Mailchimp is `COMM-002`; this clause is the consent gate every send passes.
+An audience includes only donors whose newest consent for the channel is yes and who have the needed address; exclusions are counted by reason. Each recipient is frozen with the exact consent row; approval, export and sending refuse if any of those rows is no longer current. Sending the approved audience through Mango or Mailchimp is `COMM-002`; this clause is the consent gate every send passes. Excluding inactive and deceased constituents is `DONOR-012`, and one piece per household is `RCPT-009`.
 
 *Acceptance:* The appeal test prepares an audience, counts exclusions by reason, refuses approval after a withdrawal and exports only consenting recipients.
 
@@ -147,9 +148,9 @@ Any two constituents can be related with a reciprocal type (spouse/spouse, paren
 
 #### DONOR-004 — Interaction timeline.
 
-Each constituent has one timeline of everything that happened: gifts, pledges, receipts sent and delivered, appeal sends, opens and replies, logged calls, meetings, visits, notes, tasks, event attendance and volunteer hours, newest first and filterable. A person logs a call, meeting or note in under ten seconds from the donor page or a phone. Notes marked confidential are visible only to the roles `TEAM-001` allows.
+Each constituent has one timeline of everything that happened: gifts, pledges, receipts sent and delivered, appeal sends, opens and replies, logged calls, meetings, visits, notes, tasks, event attendance and volunteer hours, newest first and filterable. Logging a call, meeting or note takes under ten seconds from the donor page or a phone: at most two taps or clicks plus the note text, with type, date and author defaulting to a call now by the signed-in person, and the entry shows on the timeline as soon as it is saved. Notes marked confidential are visible only to the roles `TEAM-001` allows.
 
-*Acceptance:* A browser journey at 1440 and 390 pixels logs a call and a confidential note on a donor, sees both on the timeline with the gift and receipt events, and a data-entry user is refused the confidential note through HTTP.
+*Acceptance:* A browser journey at 1440 and 390 pixels logs a call and a confidential note on a donor, counting at most two taps or clicks plus typing for each, and a timed run with a 30-character note typed at five characters a second takes under ten seconds from the first tap to the entry on the timeline; it sees both on the timeline with the gift and receipt events, and a data-entry user is refused the confidential note through HTTP.
 
 *Status:* partial. The donor page shows gifts, consent, letters, appeals and the change history; there are no logged calls, meetings, notes or a filterable timeline. Evidence: `src/coffer/donors.ts`, `src/coffer/ui/donors.ts`.
 
@@ -157,7 +158,7 @@ Each constituent has one timeline of everything that happened: gifts, pledges, r
 
 An admin adds custom fields (text, number, date, single and multi choice, checkbox) to constituents, gifts and opportunities, and defines tags and categories (board member, volunteer, alumni, legacy society). Fields and tags are searchable, segmentable, importable and exportable, and appear in reports.
 
-*Acceptance:* An HTTP journey defines a choice field and two tags, sets them on donors, finds the donors by field and tag in search and an appeal segment, and sees them in a CSV export.
+*Acceptance:* An HTTP journey defines a choice field and two tags, sets them on donors, finds the donors by field and tag in search and an appeal segment, sees them in a CSV export, and groups a report by the field (`REPORT-004`).
 
 *Status:* missing. No custom fields, tags or categories.
 
@@ -171,9 +172,9 @@ Coffer flags likely duplicates (same email, same name and postal address, same p
 
 #### DONOR-007 — Saved searches and lists.
 
-A person filters constituents on any field, tag, giving range, date of last gift, fund, campaign, relationship manager, consent, engagement score and lapsed status, and saves the filter as a named list that stays current. Lists drive appeals, journeys, reports, tasks and exports.
+A person filters constituents on any field, tag, giving range, date of last gift, fund, campaign, relationship manager, consent, engagement score and lapsed status, and saves the filter as a named list that stays current. Lists drive appeals, journeys, reports, tasks and exports. From a list, an admin applies a bulk action to every record in it (add or remove a tag, assign a relationship manager, set a custom field or change status) as one audited change that can be undone.
 
-*Acceptance:* An HTTP journey saves a list of donors who gave $500 or more last year with email consent, adds a qualifying gift, and sees the list grow without editing it; the list feeds an appeal audience.
+*Acceptance:* An HTTP journey saves a list of donors who gave $500 or more last year with email consent, adds a qualifying gift, and sees the list grow without editing it; the list feeds an appeal audience; a bulk action adds a tag and assigns a relationship manager to every record in the list, and undoing it restores each record.
 
 *Status:* partial. Search covers name, email and household, and appeal segments filter on giving since a date; there are no general filters or saved lists. Evidence: `src/coffer/donors.ts`, `src/coffer/appeals.ts`.
 
@@ -208,6 +209,14 @@ Every constituent shows lifetime giving, first gift, largest gift, last gift, nu
 *Acceptance:* An HTTP journey records gifts across three years with a July fiscal year and reads each summary figure back from the donor API and page.
 
 *Status:* partial. Lifetime and calendar-year totals exist; first, largest and last gift, consecutive years, recurring status, soft credits and fiscal years do not. Evidence: `src/coffer/donors.ts`, `tests/coffer.test.mjs`.
+
+#### DONOR-012 — Constituent status: active, inactive and deceased.
+
+Every constituent has a status: active, inactive (with a reason, such as asked for no contact, moved away or no longer engaged) or deceased (with the date of death and who recorded it). Status changes are versioned and audited, and a deceased record keeps its whole history. Every send and print path excludes inactive and deceased constituents by default and counts them under that reason: email and mail appeals (`APPEAL-001`, `COMM-002`, `COMM-007`), journeys (`STEW-003`, which also removes donors already enrolled), SMS (`COMM-006`), pledge reminders (`STEW-004`), year-end statements (`RCPT-004`), saved lists unless a person asks to include them (`DONOR-007`), new tasks and the call list (`DEV-005`). Open tasks and journey enrolments on a donor marked deceased close with that reason and the relationship manager is told. A gift that is itself being receipted is still receipted: a gift from the estate or in the donor's memory is addressed to the estate or the surviving household member, never to the deceased. When a household member is marked deceased, the household addressee and salutations (`DONOR-003`) are recomputed for the survivor ("Mr. and Mrs. John Smith" becomes "Mrs. Jane Smith") and shown for a person to confirm before the next mailing; joint giving history stays with the household. Every importer (`MOVE-001` to `MOVE-006`) carries the incumbent's status and date of death.
+
+*Acceptance:* An HTTP journey marks a consenting donor deceased with a date; the next email appeal, mail appeal and journey step exclude them with the reason "deceased", their open task closes with that reason, and the household addressee and salutation change to the surviving spouse; an inactive donor is excluded with the reason "inactive"; the Little Green Light and Bloomerang importers read fixture records marked deceased and inactive and carry both statuses and the date of death.
+
+*Status:* missing. Constituents have no status; appeals exclude only on consent and address, and erasure is the only way to stop a record being used.
 
 ### Gifts and pledges
 
@@ -285,15 +294,23 @@ Gifts of publicly traded securities (shares, symbol, transfer date, the mean of 
 
 *Status:* missing. No stock, DAF or QCD gift types.
 
+#### GIFT-011 — Anonymous gifts and recognition names.
+
+A donor or a single gift can be marked anonymous, and every constituent has a recognition name ("The Rivera Family", "Anonymous") for honour rolls. Anonymous gifts never appear under the donor's name on campaign pages, donor walls, peer-to-peer leaderboards or an exported honour roll, while staff still see the donor, and the gift counts in every total and receipt. An honour-roll report lists donors by giving level for a period under their recognition names.
+
+*Acceptance:* An HTTP journey marks one donor anonymous and one gift anonymous, gives through a campaign page, and reads a donor wall and an honour-roll export that show "Anonymous" for both and recognition names for the others, while the staff donor page, totals and receipts include both gifts.
+
+*Status:* missing. No anonymity flag or recognition name.
+
 ### Online giving
 
 Coffer takes donations itself through the nonprofit's own Stripe account (and PayPal), so a buyer of Givebutter, Zeffy or Bloomerang's forms can switch.
 
 #### GIVE-001 — Donation forms.
 
-An admin builds branded donation forms (logo, colors, copy, suggested amounts, one-time and recurring toggle, designation picker, tribute fields, employer field, comment, optional fee cover) and publishes them as a hosted page and an embeddable script for any website, including Pane, WordPress and Squarespace. Forms are accessible (WCAG 2.2 AA), work at 390 pixels, load in under one second and record each gift with its form, campaign and source.
+An admin builds branded donation forms (logo, colors, copy, suggested amounts, one-time and recurring toggle, designation picker, tribute fields, employer field, comment, optional fee cover) and publishes them as a hosted page and an embeddable script for any website, including Pane, WordPress and Squarespace. Custom questions on a form map to custom fields (`DONOR-005`). Forms are accessible (WCAG 2.2 AA), work at 390 pixels and record each gift with its form, campaign and source. A form loads in under one second: on a cold cache at 390 pixels over a 4G profile (9 Mbps down, 1.5 Mbps up, 85 ms round trip) with 4x CPU throttling, the form's own content is rendered and accepts input within one second of navigation, and the Stripe payment field is ready within two seconds.
 
-*Acceptance:* A browser journey builds a form, embeds it on a test page, and gives $50 at 1440 and 390 pixels with the Stripe edge in test mode; the gift, donor, consent answer and receipt appear in Coffer, and an axe check of the form passes.
+*Acceptance:* A browser journey builds a form with a custom question, embeds it on a test page, and gives $50 at 1440 and 390 pixels with the Stripe edge in test mode; the gift, donor, consent answer, custom-field answer and receipt appear in Coffer, and an axe check of the form passes; a timing run of the hosted form under the stated profile (CDP network emulation and `Emulation.setCPUThrottlingRate` 4) records a median of five cold loads under one second to input-ready and under two seconds to payment-field-ready.
 
 *Status:* missing. No donation forms; Coffer takes no payments.
 
@@ -367,7 +384,7 @@ A campaign has a goal, dates, funds, appeals and forms under it; progress is cou
 
 #### CAMP-002 — Fundraising events.
 
-An event has ticket types with the fair market value of the benefit, registration through a hosted page with attendee names and dietary notes, sponsorship and table packages, a guest list, and check-in on a phone. A ticket's contribution part (price minus fair market value) is receipted with the quid pro quo disclosure (`RCPT-005`); attendance joins each guest's timeline.
+An event has ticket types with the fair market value of the benefit, registration through a hosted page with attendee names, dietary notes and custom questions mapped to custom fields (`DONOR-005`), sponsorship and table packages, a guest list, and check-in on a phone. A ticket's contribution part (price minus fair market value) is receipted with the quid pro quo disclosure (`RCPT-005`); attendance joins each guest's timeline.
 
 *Acceptance:* A browser journey sells a $150 gala ticket with a $60 dinner value, checks the guest in at 390 pixels, and reads a receipt stating $90 deductible and the attendance on the guest's timeline.
 
@@ -385,9 +402,17 @@ Supporters create personal or team fundraising pages under a campaign, share the
 
 Membership levels with price, term and benefits; joins and renewals through forms or entry; automatic renewal on a recurring plan; expiry, grace period and lapsed status; renewal reminders; and member counts by level. The contribution part of a membership is receipted like any gift with its benefits disclosed.
 
-*Acceptance:* An HTTP journey sells an annual membership with auto-renew, advances a test clock past the term, sees the renewal charge, then lets a second membership lapse and receives its reminder and lapsed status.
+*Acceptance:* An HTTP journey sells an annual membership with auto-renew, advances a test clock past the term, sees the renewal charge, then lets a second membership lapse and receives its reminder and lapsed status, and reads member counts by level.
 
 *Status:* missing. No memberships.
+
+#### CAMP-005 — Auction results as gifts.
+
+After a gala, the auction platform's results (Qgiv, Givebutter, OneCause, GiveSmart, Handbid, or any CSV with lot, item, winning bidder, winning bid, fair market value and paid status) import into the event (`CAMP-002`) with preview, apply and undo. Each paid lot is recorded on the winning bidder, matched to donors by the review queue of `PAY-001`: the item's fair market value is its goods-or-services value and the excess of the bid over that value is a gift receipted with the quid pro quo disclosure (`RCPT-005`); a bid at or under fair market value is recorded as event revenue with no contribution. A lot without a fair market value waits for a person, as an unknown goods answer does in `ACK-001`. Fund-a-need paddle raises import as plain gifts, unpaid lots stay as open balances on the bidder, and donated auction items record their donors as in-kind gifts (`GIFT-009`).
+
+*Acceptance:* An HTTP journey imports a fixture auction-results CSV with a $500 winning bid on a lot valued at $200, a $150 bid on a lot valued at $300, a $1,000 fund-a-need raise and one lot without a value; it reads a $500 payment with $300 deductible, a purchase with no contribution, a $1,000 gift and the valueless lot waiting for a person, and each receipt carries the quid pro quo statement.
+
+*Status:* missing. No events or auction import.
 
 ### Payments
 
@@ -432,6 +457,14 @@ A nonprofit that keeps Givebutter, Donorbox, PayPal Giving Fund or a workplace-g
 *Acceptance:* An HTTP journey with the Givebutter edge faked ingests transactions and a changed transaction, and imports a Benevity disbursement CSV, reading gifts with source, fees and payout matched to donors.
 
 *Status:* missing. No other platform connections.
+
+#### PAY-006 — Shop orders record only the contribution.
+
+When the nonprofit sells through Stall (Run Edit Run's shop) or Shopify, Coffer receives each paid order by signed webhook and writes only its contribution as a gift: a donation line, a round-up, or the part of a charity-priced item above its stated fair market value. Merchandise, shipping and sales tax never enter the gift ledger or a receipt; the buyer is matched to a donor by the review queue of `PAY-001`, and a refunded order reverses only its contribution.
+
+*Acceptance:* An HTTP journey with the Stall edge faked receives an order with a $40 T-shirt, $6 shipping, $3.20 sales tax and a $25 donation line, and writes one $25 gift with a receipt for $25 only; a $60 charity T-shirt with a stated value of $20 writes a $40 contribution; refunding the order reverses only the contribution; the same order from the Shopify edge writes the same gift.
+
+*Status:* missing. No shop connection.
 
 ### Accounting
 
@@ -485,7 +518,7 @@ Every donor is thanked and receipted, correctly for US tax rules, and Coffer kno
 
 Every online gift gets an emailed receipt within a minute from the nonprofit's verified domain, with the form's or campaign's thank-you text, the IRS language of `RCPT-005` and a PDF. Receipts are transactional: they are sent even to donors who unsubscribed from appeals. Offline gifts get one when the batch closes, if the admin turns that on.
 
-*Acceptance:* An HTTP journey with the mail edge faked gives online and reads one receipt message with the right amount, statement and PDF within a minute; a donor who withdrew email consent for appeals still receives it.
+*Acceptance:* An HTTP journey with the mail and DNS edges faked shows the sending domain unverified until its SPF and DKIM records check, then gives online and reads one receipt message from that domain with the right amount, statement and PDF within a minute; a donor who withdrew email consent for appeals still receives it.
 
 *Status:* missing. Coffer sends no donor email.
 
@@ -499,7 +532,7 @@ An approved acknowledgement batch (`ACK-001`) is sent by email from Coffer to ev
 
 #### RCPT-003 — Print-ready letters, labels and envelopes.
 
-Letters render to a print-ready PDF on letterhead (one per page, window-envelope address placement), with mailing labels (Avery 5160) and #10 envelopes, and a Word mail-merge file for nonprofits that prefer it. Optional sending through Lob prints and mails them and records USPS tracking events.
+Letters render to a print-ready PDF on letterhead (one per page, window-envelope address placement), with mailing labels (Avery 5160) and #10 envelopes, and a Word mail-merge file for nonprofits that prefer it, grouped one piece per gift, constituent or household (`RCPT-009`). Optional sending through Lob prints and mails them and records USPS tracking events.
 
 *Acceptance:* An HTTP journey downloads the PDF, labels and merge file for a batch and checks page count, addresses and placement; with the Lob edge faked the batch is mailed and tracking events land on each donor's timeline.
 
@@ -507,9 +540,9 @@ Letters render to a print-ready PDF on letterhead (one per page, window-envelope
 
 #### RCPT-004 — Year-end giving statements.
 
-In January Coffer prepares one statement per donor (or household) for the prior calendar year listing each gift, its goods-or-services value and deductible part, excluding DAF grants and soft credits, for approval; then emails it, routes no-email donors to print, and publishes it in the donor portal. Donors can request a copy any time; corrections reissue with the change shown.
+In January Coffer prepares one statement per donor, or per household as `RCPT-009` sets out, for the prior calendar year listing each gift, its goods-or-services value and deductible part, excluding DAF grants and soft credits, for approval; then emails it, routes no-email donors to print, and publishes it in the donor portal. A deceased donor's statement is addressed to the surviving household member or waits for a person (`DONOR-012`). Donors can request a copy any time; corrections reissue with the change shown.
 
-*Acceptance:* An HTTP journey approves and sends statements for donors with one-time, monthly and event gifts, reads each statement's gift lines and totals, and downloads one from the portal.
+*Acceptance:* An HTTP journey approves and sends statements for donors with one-time, monthly and event gifts, reads each statement's gift lines and totals, and downloads one from the portal; a donor requests a copy from the portal and receives it; a gift corrected after sending reissues that statement marked as corrected with the change shown; and a household run reads one statement for two spouses.
 
 *Status:* missing. No year-end statements.
 
@@ -544,6 +577,14 @@ When a gift is reversed, refunded, split differently or reassigned, its receipt 
 *Acceptance:* An HTTP journey refunds half a receipted gift and reads a corrected receipt with the next number referencing the original, and a voided one for a fully reversed gift.
 
 *Status:* missing. No receipt numbering, voiding or reissue.
+
+#### RCPT-009 — One piece per household.
+
+Every print and mail run (a mail appeal file or Lob send under `COMM-007`, an acknowledgement batch under `ACK-001` and `RCPT-003`, and the year-end statement run under `RCPT-004`) has a "one piece per" setting of gift, constituent or household, defaulting to household for appeals and statements. A household piece is addressed with the household addressee and formal or informal salutation (`DONOR-003`) to the household's verified address, and lists the gifts of all its members with a gift two members share (hard credit to one, soft credit to the other) counted once. For an appeal, a household piece needs at least one member with current mail consent and is addressed to the consenting members only when another member has withdrawn; members at a different address get their own piece. Email receipts stay per donor. Recipient counts, exclusions and postage estimates show the piece count after grouping.
+
+*Acceptance:* An HTTP journey with two consenting spouses at one address, a gift from each and a joint gift hard-credited to one and soft-credited to the other prepares a mail appeal and a year-end statement run per household, and reads one piece each addressed with the household addressee and salutation, with a statement total that counts the joint gift once; the same runs set per constituent read two pieces each.
+
+*Status:* missing. Letters and appeal exports are one row per gift or per donor; no household grouping, addressee or combined totals.
 
 ### Communication
 
@@ -599,7 +640,7 @@ Thank-you and reminder texts through Twilio from a registered 10DLC number, only
 
 #### COMM-007 — Direct mail appeals.
 
-A mail appeal produces a mail-house file (or a Lob send) with names, verified addresses, salutations, ask amounts based on last gift, and a response code per piece; returned reply cards and gifts entered with that code attribute to the appeal, and mailing history is kept per donor.
+A mail appeal produces a mail-house file (or a Lob send) with one piece per household or per constituent (`RCPT-009`), each with its household or personal addressee and salutation, a verified address (undeliverable, inactive and deceased records excluded with their reason, `DONOR-009`, `DONOR-012`), ask amounts based on last gift, and a response code per piece; returned reply cards and gifts entered with that code attribute to the appeal, and mailing history is kept per donor.
 
 *Acceptance:* An HTTP journey prepares a mail appeal with ask amounts and codes, enters two coded reply gifts in a batch, and reads the appeal's response rate and the mailing on each donor.
 
@@ -619,9 +660,9 @@ Every donor gets the next touch, and the team knows who owes it.
 
 #### STEW-001 — Tasks with owners and reminders.
 
-Tasks (call, meeting, thank-you, follow-up, data fix) are assigned to a person with a due date and a linked constituent, gift or opportunity; overdue tasks escalate to the assignee's manager; each person has a daily list and email or Nook and Slack reminders. Completing a task logs it on the timeline.
+Tasks (call, meeting, thank-you, follow-up, data fix) are assigned to a person with a due date and a linked constituent, gift or opportunity; a task overdue by the escalation delay (a setting, default two business days) escalates to the assignee's manager as set in `TEAM-001`, or to the owner when none is set, on the manager's daily list and reminder; each person has a daily list and email or Nook and Slack reminders. Completing a task logs it on the timeline.
 
-*Acceptance:* A browser journey assigns a thank-you call due tomorrow, receives the reminder, completes it with a note that lands on the timeline, and lets a second task go overdue to see the escalation.
+*Acceptance:* A browser journey assigns a thank-you call due tomorrow, receives the reminder, completes it with a note that lands on the timeline, lets a second task go overdue past the delay and sees it on the assignee's manager's list and reminder, and sees a third, assigned to a person with no manager, escalate to the owner.
 
 *Status:* missing. No tasks.
 
@@ -635,7 +676,7 @@ A task can repeat (quarterly board-member check-in, monthly donor-retention revi
 
 #### STEW-003 — Stewardship journeys.
 
-Admins build journeys triggered by first gift, recurring start, a gift over an amount, giving anniversary, lapse (no gift in twelve months), event attendance or joining a list. Steps send email (personal-style through `RCPT-001`'s path or marketing through Mango or Mailchimp), create tasks, wait, and branch on whether the donor gave or replied; a donor leaves when they give, unsubscribe or are moved. A journey runs only after a person publishes it, enrollment is visible per donor, and a frequency cap applies across journeys.
+Admins build journeys triggered by first gift, recurring start, a gift over an amount, giving anniversary, lapse (no gift in twelve months), event attendance or joining a list. Steps send email (personal-style through `RCPT-001`'s path or marketing through Mango or Mailchimp), create tasks, wait, and branch on whether the donor gave or replied; a donor leaves when they give, unsubscribe, are moved or become inactive or deceased (`DONOR-012`). A journey runs only after a person publishes it, enrollment is visible per donor, and a frequency cap applies across journeys.
 
 *Acceptance:* An HTTP journey with sender edges faked publishes a three-step first-gift welcome, enrols a new donor, advances time through each step, and sees the donor leave when they give again; a second journey respects the frequency cap.
 
@@ -785,13 +826,21 @@ A contributor report for Schedule B (contributors at or above the $5,000 general
 
 *Status:* missing. No Form 990 reports.
 
+#### REPORT-008 — Raised by state.
+
+For any fiscal or calendar year, a report sums gifts by the donor's US state at the gift date (from the address history of `DONOR-009`), with donors, gifts and dollars per state, separate rows for foreign and unknown addresses, organizations by their own address, and filters for fund, campaign, form and channel. Its rows sum to the ledger for the period, and it exports as CSV for state charitable-solicitation registrations and renewals.
+
+*Acceptance:* An HTTP journey records gifts from donors in three states, one with no address and one who moves state mid-year, and reads a by-state report for the year whose rows assign each gift to the state at its date and sum to the ledger total, then exports it as CSV.
+
+*Status:* missing. Each donor stores a current state, but there is no address history or report by state.
+
 ### Moving in
 
 A buyer of each named incumbent moves in with full history, checked before the switch.
 
 #### MOVE-001 — From Little Green Light.
 
-Coffer reads Little Green Light's exports (constituents with all fields, gifts with funds, campaigns and appeals, split and soft-credit details, pledges and installments, relationships and households, notes and contact reports, groups and categories, memberships, volunteer time, mailing history and email preferences) with a saved mapping, previews without writing, applies the reviewed plan and can undo, as `IMPORT-001` does for Stripe.
+Coffer reads Little Green Light's exports (constituents with all fields, gifts with funds, campaigns and appeals, split and soft-credit details, pledges and installments, relationships and households, notes and contact reports, groups and categories, memberships, volunteer time, mailing history, email preferences, constituent status with date of death, and recurring gifts with their LGL Forms or processor references for `MOVE-009`) with a saved mapping, previews without writing, applies the reviewed plan and can undo, as `IMPORT-001` does for Stripe.
 
 *Acceptance:* An HTTP journey imports a fixture LGL export set, previews counts and totals by year and fund, applies, reads a donor's full history with relationships, soft credits and notes, and undoes.
 
@@ -799,7 +848,7 @@ Coffer reads Little Green Light's exports (constituents with all fields, gifts w
 
 #### MOVE-002 — From Bloomerang.
 
-Coffer reads Bloomerang through its REST API with the nonprofit's key (or its exports): constituents, households, relationships, transactions with designations, soft credits, pledges, recurring donation records, interactions, notes, tasks and communication preferences, with the same preview, apply and undo.
+Coffer reads Bloomerang through its REST API with the nonprofit's key (or its exports): constituents, households, relationships, transactions with designations, soft credits, pledges, recurring donation records with their Bloomerang Payments customer and card references for the vault transfer (`MOVE-009`), interactions, notes, tasks, communication preferences and constituent status (active, inactive, deceased with date), with the same preview, apply and undo.
 
 *Acceptance:* An HTTP journey with the Bloomerang edge faked imports a fixture account, reads totals by year and designation equal to the source, and undoes.
 
@@ -807,7 +856,7 @@ Coffer reads Bloomerang through its REST API with the nonprofit's key (or its ex
 
 #### MOVE-003 — From Raiser's Edge NXT.
 
-Coffer reads Raiser's Edge NXT through Blackbaud's SKY API (or database view exports): constituents, relationships, gifts with splits and soft credits, funds, campaigns and appeals, pledges, actions, opportunities, notes and solicit codes, with preview, apply and undo.
+Coffer reads Raiser's Edge NXT through Blackbaud's SKY API (or database view exports): constituents, relationships, gifts with splits and soft credits, funds, campaigns and appeals, pledges, recurring gifts, actions, opportunities, notes, solicit codes and inactive and deceased status with date, with preview, apply and undo.
 
 *Acceptance:* An HTTP journey with the SKY API edge faked imports a fixture database, reads gifts with splits and opportunities equal to the source, and undoes.
 
@@ -815,7 +864,7 @@ Coffer reads Raiser's Edge NXT through Blackbaud's SKY API (or database view exp
 
 #### MOVE-004 — From Neon CRM.
 
-Coffer reads Neon CRM through its API (or exports): accounts, households, donations, pledges, recurring donations, memberships, event registrations, activities and soft credits, with preview, apply and undo.
+Coffer reads Neon CRM through its API (or exports): accounts, households, donations, pledges, recurring donations with their Neon Pay customer and card references for `MOVE-009`, memberships, event registrations, activities, soft credits and account status (active, inactive, deceased with date), with preview, apply and undo.
 
 *Acceptance:* An HTTP journey with the Neon edge faked imports a fixture organization with memberships and events and reads matching totals.
 
@@ -823,7 +872,7 @@ Coffer reads Neon CRM through its API (or exports): accounts, households, donati
 
 #### MOVE-005 — From Givebutter and Zeffy.
 
-Coffer reads Givebutter (API: contacts, transactions, recurring plans, campaigns) and Zeffy (exports) history, keeping each gift's campaign and fees.
+Coffer reads Givebutter (API: contacts, transactions, recurring plans, campaigns) and Zeffy (exports) history, keeping each gift's campaign and fees, and each recurring plan with its processor references for `MOVE-009`.
 
 *Acceptance:* An HTTP journey imports fixture Givebutter and Zeffy data and reads gifts with campaign and fee totals equal to the source.
 
@@ -839,11 +888,19 @@ A CSV or Excel file of constituents, gifts or interactions maps column by column
 
 #### MOVE-007 — Totals checked before the switch.
 
-Every move-in ends in a reconciliation: donors, gifts and dollars by year and fund in the source against Coffer, open pledges, active recurring plans, consent counts and receipts already sent, with each difference listed. Recurring plans on the nonprofit's own Stripe account are adopted without donor action; plans on a processor Coffer cannot adopt get a reauthorization campaign (`DEV-007`) and are never cancelled at the source until the replacement is confirmed. The owner signs off the cutover.
+Every move-in ends in a reconciliation: donors, gifts and dollars by year and fund in the source against Coffer, open pledges, active recurring plans, consent counts and receipts already sent, with each difference listed. Recurring plans on the nonprofit's own Stripe account are adopted without donor action. Plans whose cards sit with the incumbent's processor (Bloomerang Payments, LGL Forms, Neon Pay, Qgiv, Givebutter, Donorbox) move with their cards through the vault transfer of `MOVE-009`, also without donor action. Only a plan whose card did not arrive in that transfer gets a reauthorization campaign (`DEV-007`). No source plan is cancelled by Coffer, and the cutover checklist has the owner stop each source plan before its replacement first charges. The owner signs off the cutover.
 
-*Acceptance:* An HTTP journey imports a fixture with one deliberate gap, reads the difference in the reconciliation, adopts two Stripe subscriptions, lists one plan for reauthorization, and records the owner's sign-off.
+*Acceptance:* An HTTP journey imports a fixture with one deliberate gap, reads the difference in the reconciliation, adopts two Stripe subscriptions, moves two vault-transferred plans, lists one plan whose card is missing from the mapping for reauthorization, and records the owner's sign-off.
 
-*Status:* partial. The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption or cutover sign-off. Evidence: `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs`.
+*Status:* partial. The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption, vault-transferred plans or cutover sign-off. Evidence: `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs`.
+
+#### MOVE-009 — Recurring donors move with their cards.
+
+A nonprofit whose monthly donors are on its incumbent's processor moves them without asking any donor to act. The owner requests a PCI card-vault transfer: the old processor sends its encrypted card file directly to Stripe, Stripe imports the cards into the nonprofit's own account, and Stripe returns a mapping file from the old customer and card IDs to new `cus_` and `pm_` IDs. Coffer never receives a card number. Coffer reads the incumbent's recurring-plan export (amount, frequency, fund, campaign, next charge date and past installments, from `MOVE-001` to `MOVE-005`) with the mapping file (CSV or JSON), previews which plans match an imported payment method, and on apply creates each plan (`GIVE-003`) on its new `pm_` ID with the same amount, frequency, fund, campaign and next charge date, its past installments linked as its history. A plan whose card is missing, expired or rejected in the transfer is listed for reauthorization (`DEV-007`) with the reason. Each moved plan holds its first charge until the owner confirms in the cutover (`MOVE-007`) that the source plans are stopped; a plan whose next date passed while held charges once on confirmation, so no donor is charged twice or skipped. Coffer drafts the notice telling moved donors that their card statement descriptor changes, for the owner to approve. Preview, apply and undo follow `IMPORT-001`.
+
+*Acceptance:* An HTTP journey takes a fixture Bloomerang recurring-plan export and a fixture Stripe mapping file, once as CSV and once as JSON, previews and applies; it reads each matched plan active on its imported `pm_` ID with its original amount, fund, next charge date and history, confirms the source stop, and charges one plan on a Stripe test clock; a plan whose card is missing from the mapping is listed for reauthorization with that reason, nothing cancels the source plan, no stored record holds a card number, and the descriptor notice waits for approval.
+
+*Status:* missing. No recurring plans, mapping-file reader or vault-transfer move-in.
 
 #### MOVE-008 — Consent and preferences moved with provenance.
 
@@ -859,11 +916,11 @@ Roles a small development shop and its volunteers need.
 
 #### TEAM-001 — Roles and record-level access.
 
-Roles cover owner, admin, fundraiser, finance, data entry, volunteer and read-only, plus agents; a fundraiser can be limited to their portfolio, confidential notes and prospect research are restricted, finance can post and reconcile but not export donor lists, and exports of donor data are permitted per role and logged.
+Roles cover owner, admin, fundraiser, finance, data entry, volunteer and read-only, plus agents; a fundraiser can be limited to their portfolio, confidential notes and prospect research are restricted, finance can post and reconcile but not export donor lists, and exports of donor data are permitted per role and logged. An admin sets each team member's manager (the person they report to) and weekly call capacity; task escalation (`STEW-001`) and the call list (`DEV-005`) use them.
 
-*Acceptance:* An HTTP journey signs in as each role and is allowed or refused each listed action, including a portfolio-limited fundraiser opening another portfolio's prospect.
+*Acceptance:* An HTTP journey signs in as each role and is allowed or refused each listed action, including a portfolio-limited fundraiser opening another portfolio's prospect; an admin sets a member's manager and call capacity and reads them back, and a member is refused setting them.
 
-*Status:* partial. Owner, admin, member and agent roles guard every command; no fundraiser, finance, volunteer or read-only roles, portfolio scoping or confidential fields. Evidence: `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs`.
+*Status:* partial. Owner, admin, member and agent roles guard every command; no fundraiser, finance, volunteer or read-only roles, portfolio scoping, confidential fields, managers or call capacity. Evidence: `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs`.
 
 #### TEAM-002 — Single sign-on and two-step sign-in.
 
@@ -933,7 +990,7 @@ Every staff screen works at 390 pixels, and the phone views put donor lookup, th
 
 Native apps keep the signed-in staff member's portfolio and today's tasks available offline, sync logged calls and notes when back online, and push notifications for new major gifts, assigned tasks and replies.
 
-*Acceptance:* A native test on iOS and Android simulators logs a call offline, reconnects and sees it on the web timeline, and receives a push notification for an assigned task.
+*Acceptance:* A native test on iOS and Android simulators logs a call offline, reconnects and sees it on the web timeline, and receives push notifications for an assigned task, a new major gift and a reply.
 
 *Status:* missing. No native apps.
 
@@ -1021,9 +1078,9 @@ For each donor due a touch the agent drafts the thank-you call notes, personal e
 
 #### DEV-005 — Shows who needs a human call next.
 
-Each week the agent ranks, per relationship manager, the donors most worth a call (lapse risk, upgrade signals, anniversaries, unanswered replies, overdue pledges) with the reason for each, creates call tasks within each manager's capacity, and measures donor by donor whether calls were made and whether retention moved.
+Each week the agent ranks, per relationship manager, the donors most worth a call (lapse risk, upgrade signals, anniversaries, unanswered replies, overdue pledges; never inactive or deceased constituents) with the reason for each, creates call tasks up to the manager's weekly call capacity (`TEAM-001`, default 10) and lists the rest as overflow. It then measures donor by donor: whether the call was made (the task completed with a logged call), whether the donor gave within N days of the call (N a setting, default 90), and whether the donor was retained under the `REPORT-001` definition at the end of the fiscal year; and it reports the retention rate of called donors against listed donors who were not called.
 
-*Acceptance:* An HTTP journey builds a history with lapsing, upgrading and silent donors, runs the agent, reads ranked call tasks with reasons per manager, completes some, and reads the follow-through and retention measurement a period later.
+*Acceptance:* An HTTP journey builds a history with lapsing, upgrading and silent donors and a manager with a capacity of 5; the agent creates 5 ranked call tasks with reasons and lists the rest as overflow; 3 calls are logged, 2 of those donors give within N days, the fiscal year closes, and the per-donor table reads call made, gift within N days and retained for every listed donor, with called and uncalled retention rates that match a hand calculation.
 
 *Status:* missing. No call list, scores or retention measurement.
 
@@ -1037,7 +1094,7 @@ Before a scheduled donor meeting the agent prepares a one-page brief: giving sum
 
 #### DEV-007 — Proves the move-in and the cutover.
 
-During a migration the agent compares source and Coffer totals, finds duplicates, missing acknowledgements and consent gaps, lists recurring plans that need donor reauthorization and drafts that campaign, and tracks each plan until the donor has re-authorized; it never cancels a source plan. The owner approves merges, the reauthorization message and the cutover.
+During a migration the agent compares source and Coffer totals, finds duplicates, missing acknowledgements and consent gaps, lists the recurring plans whose cards did not arrive in the vault transfer (`MOVE-009`) and drafts a reauthorization campaign for those plans only, and tracks each plan until the donor has re-authorized; it never cancels a source plan. The owner approves merges, the reauthorization message and the cutover.
 
 *Acceptance:* An HTTP journey imports a fixture with gaps and a non-adoptable plan, runs the agent, reads the exception list and drafted campaign, re-authorizes the plan and records the owner's cutover.
 
@@ -1045,7 +1102,7 @@ During a migration the agent compares source and Coffer totals, finds duplicates
 
 #### DEV-008 — Keeps the database clean.
 
-The agent proposes duplicate merges, address updates from NCOA and returned mail, deceased flags from returned mail and family notes, and missing salutations, each with its evidence; a person accepts or rejects in a queue, and accepted changes go through the normal audited commands.
+The agent proposes duplicate merges, address updates from NCOA and returned mail, a deceased or inactive status (`DONOR-012`) from returned mail, family notes and obituary notices the nonprofit forwards, and missing salutations, each with its evidence; a person accepts or rejects in a queue, and accepted changes go through the normal audited commands.
 
 *Acceptance:* An HTTP journey seeds duplicates, a returned letter and a missing salutation, runs the agent, and reads proposals that change nothing until accepted and then appear in the audit log.
 
@@ -1089,17 +1146,18 @@ Coffer does not do these itself; buyers get them as follows, US-first.
 
 | Coffer does not | How buyers get it |
 | --- | --- |
-| Card and bank credentials, ACH rails and holding charitable funds | Stripe and PayPal collect, verify and pay out; Coffer keeps provider references and settlement records only (`GIVE-004`, `PAY-001`). |
+| Card and bank credentials, ACH rails and holding charitable funds | Stripe and PayPal collect, verify and pay out; Coffer keeps provider references and settlement records only (`GIVE-004`, `PAY-001`); saved cards move between processors by a PCI vault transfer that Coffer maps to its plans (`MOVE-009`). |
 | The general ledger, audits and tax advice | Pantry or QuickBooks Online keep the books (`FIN-001`, `FIN-002`); receipt rules follow IRS Publication 1771 as templates the nonprofit reviews, and its CPA prepares Form 990 from `REPORT-007` data. |
-| Bulk email infrastructure | Mango, Mailchimp or Constant Contact send appeals at volume (`COMM-002`, `COMM-003`); Coffer sends transactional receipts and personal email through the installation's mail provider. |
+| Bulk email infrastructure | Mango, Mailchimp or Constant Contact send appeals at volume (`COMM-002`, `COMM-003`); Coffer sends transactional receipts and personal email through the installation's mail provider. Coffer has no mass-email designer of its own: Bloomerang's built-in email editor is replaced by Mango or Mailchimp, and the switching guide says so. |
 | Printing and postage | A mail house or Lob prints and mails (`RCPT-003`, `COMM-007`); Coffer produces the files and records the events. |
 | Postal address data | Smarty and an NCOA licensee supply verification and change-of-address data (`DONOR-009`). |
 | Wealth data | DonorSearch or WealthEngine supply screening (`MAJOR-005`); Coffer never infers wealth. |
 | Donor-advised funds, brokerage, appraisals, vehicle donations and planned-giving instruments | DAF sponsors, brokers, qualified appraisers, vehicle-donation partners (Form 1098-C) and attorneys handle the regulated transfer or document; Coffer records the gift and the stewardship (`GIFT-009`, `GIFT-010`, `MAJOR-007`). |
-| Volunteer shift scheduling and online auctions | VolunteerHub or Galaxy Digital schedule volunteers and an auction platform runs bidding; Coffer imports hours (`DONOR-010`) and auction proceeds as gifts with their fair market value. |
-| Charitable solicitation registration | A compliance service such as Harbor Compliance files state registrations; Coffer reports what was raised by state. |
-| Merchandise and sales tax | Stall sells merchandise with its sales tax; Coffer records only the contribution part of any purchase. |
+| Volunteer shift scheduling and online auctions | VolunteerHub or Galaxy Digital schedule volunteers and an auction platform runs bidding; Coffer imports hours (`DONOR-010`) and auction results as gifts net of each lot's fair market value (`CAMP-005`). |
+| Charitable solicitation registration | A compliance service such as Harbor Compliance files state registrations; Coffer reports what was raised by state (`REPORT-008`). |
+| Merchandise and sales tax | Stall sells merchandise with its sales tax; Coffer records only the contribution part of any order (`PAY-006`). |
 | Generic sales CRM, email marketing, website, forms and surveys, e-signature and team chat | Orbit, Mango, Pane, Pencil, Inkwell and Nook (or HubSpot, Mailchimp, Squarespace, Typeform, Docusign and Slack) stay separate products that Coffer connects to. |
+| Recording video thank-yous | ThankView or BombBomb record and send video; the sent message logs on the donor's timeline through the BCC address (`COMM-004`). |
 | Receipts outside the US | Canadian, UK and other receipting rules are not offered in the US-first edition. |
 
 ## Scope mapping
@@ -1113,7 +1171,7 @@ Each item the owner-approved scope (16 October 2026) names, and the clauses that
 | Acknowledgements and year-end tax receipts delivered by email (and print-ready mail merge) with IRS goods-and-services language and delivery tracking | `ACK-001`, `RCPT-001`, `RCPT-002`, `RCPT-003`, `RCPT-004`, `RCPT-005`, `RCPT-006`, `RCPT-008` |
 | Appeals and automated stewardship journeys sent through Mango or Mailchimp, with unsubscribe and reply handling | `APPEAL-001`, `COMM-001`, `COMM-002`, `COMM-005`, `STEW-003` |
 | Moves management: major-gift pipeline, tasks, soft credits, tribute and matching gifts, and donor engagement/retention scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-003`, `MAJOR-004`, `STEW-001`, `GIFT-006`, `GIFT-007`, `GIFT-008`, `REPORT-001` |
-| Migration from Little Green Light, Bloomerang and Raiser's Edge with full gift history | `MOVE-001`, `MOVE-002`, `MOVE-003`, `MOVE-004`, `MOVE-007`, `MOVE-008` |
+| Migration from Little Green Light, Bloomerang and Raiser's Edge with full gift history | `MOVE-001`, `MOVE-002`, `MOVE-003`, `MOVE-004`, `MOVE-007`, `MOVE-008`, `MOVE-009` |
 | Push further: a development agent that reconciles every gift, catches failed recurring donations and unsent receipts, drafts and schedules stewardship touches from the nonprofit's own interaction history, and measures retention by donor | `DEV-001`, `DEV-002`, `DEV-003`, `DEV-004`, `DEV-005`, `DEV-012` |
 
 ## Homepage claims
@@ -1191,8 +1249,8 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 2 | 31 | 78 | 111 |
-| All | 11 | 31 | 78 | 120 |
+| Target and push further | 2 | 31 | 85 | 118 |
+| All | 11 | 31 | 85 | 127 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1215,6 +1273,7 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | `DONOR-009` | Address verification and NCOA | target | missing |  | No address verification or NCOA. |
 | `DONOR-010` | Volunteer history | target | missing |  | No volunteer records. |
 | `DONOR-011` | Giving summary | target | partial | `src/coffer/donors.ts`, `tests/coffer.test.mjs` | Lifetime and calendar-year totals exist; first, largest and last gift, consecutive years, recurring status, soft credits and fiscal years do not. |
+| `DONOR-012` | Constituent status: active, inactive and deceased | target | missing |  | Constituents have no status; appeals exclude only on consent and address, and erasure is the only way to stop a record being used. |
 | `GIFT-002` | Batch gift entry and deposits | target | missing |  | Gifts are entered one at a time; no batches or deposit totals. |
 | `GIFT-003` | Campaign, appeal, fund and channel attribution | target | partial | `src/coffer/gifts.ts` | Each gift has one free-text fund; no campaigns, appeals or source as structured references. |
 | `GIFT-004` | Split gifts | target | missing |  | No split gifts. |
@@ -1224,6 +1283,7 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | `GIFT-008` | Tribute gifts | target | missing |  | No tribute records; a gift note can only mention one. |
 | `GIFT-009` | In-kind gifts | target | missing |  | Gifts are monetary only. |
 | `GIFT-010` | Stock, DAF grants and IRA distributions | target | missing |  | No stock, DAF or QCD gift types. |
+| `GIFT-011` | Anonymous gifts and recognition names | target | missing |  | No anonymity flag or recognition name. |
 | `GIVE-001` | Donation forms | target | missing |  | No donation forms; Coffer takes no payments. |
 | `GIVE-002` | Campaign pages | target | missing |  | No campaign pages. |
 | `GIVE-003` | Recurring giving | target | missing |  | No recurring plans. |
@@ -1236,11 +1296,13 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | `CAMP-002` | Fundraising events | target | missing |  | No events. |
 | `CAMP-003` | Peer-to-peer fundraising | target | missing |  | No peer-to-peer pages. |
 | `CAMP-004` | Memberships | target | missing |  | No memberships. |
+| `CAMP-005` | Auction results as gifts | target | missing |  | No events or auction import. |
 | `PAY-001` | Live Stripe connection | target | partial | `src/coffer/imports/snapshots.ts`, `src/coffer/imports/service.ts` | Only saved Stripe customer and charge pages can be moved in; there is no connection, webhook, backfill or sweep. |
 | `PAY-002` | Payouts with their gifts | target | missing |  | No payouts. |
 | `PAY-003` | Refunds and disputes | target | partial | `src/coffer/gifts.ts`, `src/coffer/imports/snapshots.ts` | Reversal lines exist, and move-in nets partial refunds and skips full refunds; no live refunds, disputes or receipt corrections. |
 | `PAY-004` | Processing fees and fee cover | target | missing |  | No fees recorded. |
 | `PAY-005` | Other giving platforms | target | missing |  | No other platform connections. |
+| `PAY-006` | Shop orders record only the contribution | target | missing |  | No shop connection. |
 | `FIN-001` | QuickBooks Online sync | target | missing |  | No accounting connection. |
 | `FIN-002` | Pantry sync | target | missing |  | No Pantry connection. |
 | `FIN-003` | Restricted funds | target | partial | `src/coffer/gifts.ts` | Every gift has a free-text fund (default Unrestricted); no restriction type, mapping or release report. |
@@ -1254,6 +1316,7 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | `RCPT-006` | Delivery tracking | target | partial | `src/coffer/acknowledgements.ts` | A person records a sent date and method per batch; no provider delivery, bounce or open results. |
 | `RCPT-007` | Thank-you templates | target | partial | `src/coffer/settings.ts`, `tests/coffer.test.mjs` | One reviewed letter template with required facts exists; no templates per form, campaign or gift type. |
 | `RCPT-008` | Corrected and voided receipts | target | missing |  | No receipt numbering, voiding or reissue. |
+| `RCPT-009` | One piece per household | target | missing |  | Letters and appeal exports are one row per gift or per donor; no household grouping, addressee or combined totals. |
 | `COMM-001` | Preferences and unsubscribes everywhere | target | partial | `src/coffer/donors.ts`, `src/coffer/appeals.ts`, `tests/coffer.test.mjs` | Append-only email and postal consent gates appeals; no SMS or phone channel, topics, unsubscribe links or provider sync. |
 | `COMM-002` | Appeals sent through Mango or Mailchimp | target | partial | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` | An approved audience exports as CSV for any sender; no sender connection, sending, results or attribution. |
 | `COMM-003` | Constant Contact | target | missing |  | No Constant Contact connection. |
@@ -1282,15 +1345,17 @@ Judged from the code and tests at commit `b7437e87b8f6bea2f8e1e425202a3e69a76295
 | `REPORT-005` | Scheduled reports | target | missing |  | No scheduled reports. |
 | `REPORT-006` | Recurring giving health | target | missing |  | No recurring plans to report. |
 | `REPORT-007` | IRS Form 990 support | target | missing |  | No Form 990 reports. |
+| `REPORT-008` | Raised by state | target | missing |  | Each donor stores a current state, but there is no address history or report by state. |
 | `MOVE-001` | From Little Green Light | target | missing |  | Only the Stripe importer exists. |
 | `MOVE-002` | From Bloomerang | target | missing |  | No Bloomerang importer. |
 | `MOVE-003` | From Raiser's Edge NXT | target | missing |  | No Raiser's Edge NXT importer. |
 | `MOVE-004` | From Neon CRM | target | missing |  | No Neon CRM importer. |
 | `MOVE-005` | From Givebutter and Zeffy | target | missing |  | No Givebutter or Zeffy importer. |
 | `MOVE-006` | Any spreadsheet | target | missing |  | No general importer. |
-| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs` | The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption or cutover sign-off. |
+| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs` | The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption, vault-transferred plans or cutover sign-off. |
+| `MOVE-009` | Recurring donors move with their cards | target | missing |  | No recurring plans, mapping-file reader or vault-transfer move-in. |
 | `MOVE-008` | Consent and preferences moved with provenance | target | missing |  | No importer carries consent. |
-| `TEAM-001` | Roles and record-level access | target | partial | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs` | Owner, admin, member and agent roles guard every command; no fundraiser, finance, volunteer or read-only roles, portfolio scoping or confidential fields. |
+| `TEAM-001` | Roles and record-level access | target | partial | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs` | Owner, admin, member and agent roles guard every command; no fundraiser, finance, volunteer or read-only roles, portfolio scoping, confidential fields, managers or call capacity. |
 | `TEAM-002` | Single sign-on and two-step sign-in | target | partial | `src/modules/operator-auth/identity/oidc` | Base sign-in supports an OIDC provider; requiring SSO and a second factor are not offered in Coffer. |
 | `TEAM-003` | Audit log | target | partial | `src/coffer/db.ts`, `src/coffer/ui/donors.ts` | Every command writes an event shown per donor and per batch; no organization-wide log, filters or export. |
 | `API-001` | Public REST API | target | partial | `src/coffer/http.ts`, `src/coffer/commands.ts`, `tests/coffer.test.mjs` | Authenticated donor reads and a command API exist; no versioned public API, OpenAPI document, scoped keys or idempotency keys. |
