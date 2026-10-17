@@ -82,6 +82,7 @@ export async function undo(c: Context,id:string) {
   ['cf_soft_credits','donor_id','donor','softCredit','id'],['cf_soft_credits','gift_id','gift','softCredit','id'],['cf_donor_notes','donor_id','donor','note','id'],['cf_interactions','donor_id','donor','interaction','id'],
   ['cf_donors','household_id','household','donor','id'],['cf_pledge_installments','pledge_id','pledge','installment','id'],['cf_pledge_allocations','installment_id','installment','allocation','id'],['cf_pledge_allocations','gift_id','gift','allocation','id'],
   ['cf_consents','donor_id','donor',null,'id'],['cf_acks','gift_id','gift',null,'id'],['cf_appeal_recipients','donor_id','donor',null,'donor_id'],['cf_gift_tributes','gift_id','gift',null,'gift_id'],['cf_employer_matches','gift_id','gift',null,'id'],['cf_gifts','reverses','gift',null,'id'],
+  ['cf_prospects','donor_id','donor',null,'id'],['cf_call_tasks','donor_id','donor',null,'id'],['cf_call_tasks','interaction_id','interaction',null,'id'],
  ]
  for(const [table,fk,parent,child,key] of dependencies)writes.push(guard(`NOT EXISTS(SELECT 1 FROM ${table} WHERE ${fk} IN (${owned(parent)})${child?` AND ${key} NOT IN (${owned(child)})`:''})`,'MOVE_IN_USED','Someone has used these imported records. Nothing was undone.',id,...(child?[id]:[])))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}

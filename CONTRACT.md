@@ -934,7 +934,7 @@ Every move-in ends in a reconciliation: donors, gifts and dollars by year and fu
 
 *Acceptance:* An HTTP journey imports a fixture with one deliberate gap, reads the difference in the reconciliation, adopts two Stripe subscriptions, moves two vault-transferred plans, lists one plan whose payment method is missing from the mapping for reauthorization, finds an imported donor by its legacy ID, reads gift counts per acknowledgement status, the non-deductible total and the count of restricted constituents equal to the source, sets the acknowledge-from date and sees a not-acknowledged gift older than it absent from the queue, and records the owner's sign-off.
 
-*Status:* partial. CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs and atomic reviewed apply/undo ship. Recurring adoption/vault transfer, acknowledgement-from/status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
+*Status:* partial. CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs and atomic reviewed apply/undo ship; later call tasks and opportunities block undo. Recurring adoption/vault transfer, acknowledgement-from/status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
 
 #### MOVE-009 — Recurring donors move with their cards and bank accounts.
 
@@ -1301,7 +1301,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `a0e85dd` (17 October 2026).
+Judged from the code and tests at commit `8065198` (17 October 2026).
 
 The giving, receipt, payments, donor-depth and CRM export move-in clauses and their claim mappings include their current implementations and named tests.
 
@@ -1417,7 +1417,7 @@ The giving, receipt, payments, donor-depth and CRM export move-in clauses and th
 | `MOVE-004` | From Neon CRM | target | missing |  | No Neon CRM importer. |
 | `MOVE-005` | From Givebutter and Zeffy | target | missing |  | No Givebutter or Zeffy importer. |
 | `MOVE-006` | Any spreadsheet | target | missing |  | No general importer. |
-| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs and atomic reviewed apply/undo ship. Recurring adoption/vault transfer, acknowledgement-from/status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. |
+| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs and atomic reviewed apply/undo ship; later call tasks and opportunities block undo. Recurring adoption/vault transfer, acknowledgement-from/status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. |
 | `MOVE-009` | Recurring donors move with their cards and bank accounts | target | missing |  | No recurring plans, mapping-file reader (card or ACH) or transfer move-in. |
 | `MOVE-008` | Consent and preferences moved with provenance | target | missing |  | No importer carries consent. |
 | `MOVE-010` | Custom fields carried across | target | missing |  | No custom fields, and no importer other than Stripe's, which reads no custom data. |

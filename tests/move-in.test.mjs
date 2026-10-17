@@ -70,6 +70,11 @@ for(const source of ['lgl','bloomerang','re-nxt'])test(`${source}: exports previ
   assert.equal((await h.get('/api/coffer/donors')).total,0)
   const accepted=await post(h,'apply',{...different,fingerprint:p.fingerprint,acceptedReason:'Source summary includes a $1 adjustment outside the received gifts. Color is intentionally omitted.'})
   assert.match((await h.get(`${endpoint}/journal?id=${accepted.id}`)).job.accepted_reason,/Source summary/)
+  const importedDonor=(await h.get('/api/coffer/donors')).donors[0]
+  const owner=(await h.get('/auth/session')).operator
+  const prospect=await h.command('prospect.save',{donorId:importedDonor.id,ownerId:owner.id,stage:'cultivate',askAmount:'5000',expectedCloseOn:'2026-12-01',nextStep:'Discuss the library renewal.'})
+  await post(h,'undo',{id:accepted.id},{status:409})
+  assert.ok((await h.get('/api/coffer/prospects')).some(p=>p.id===prospect.id))
   await h.command('gift.record',{donorId:(await h.get('/api/coffer/donors')).donors[0].id,amount:'10',receivedOn:'2026-10-01',method:'check',goods:'none'})
   await post(h,'undo',{id:accepted.id},{status:409})
   assert.equal((await h.get('/api/coffer/donors')).total,4)
