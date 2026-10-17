@@ -111,5 +111,6 @@ export function donorDepthMergeStatements(sourceId: string, targetId: string): S
   sql(`${mapped} UPDATE cf_relationships SET donor_id=(SELECT a FROM projected WHERE projected.id=cf_relationships.id),
    related_donor_id=(SELECT b FROM projected WHERE projected.id=cf_relationships.id) WHERE donor_id=? OR related_donor_id=?`, ...params, sourceId, sourceId),
   sql('UPDATE cf_interactions SET donor_id=? WHERE donor_id=?', targetId, sourceId),
+  sql('UPDATE cf_donor_notes SET donor_id=? WHERE donor_id=?', targetId, sourceId),
  ]
 }

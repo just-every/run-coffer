@@ -1,0 +1,4 @@
+Gift ID,Constituent ID,Gift Type,Gift Date,Gift Amount,Fund,Campaign,Pay Method,Pledge ID,Non-Deductible Amount,Gift Notes,Soft Credit Constituent ID,Soft Credit Amount
+G100,101,Cash,2024-12-12,500.00,Library,Winter reading,Check,,0.00,First gift,103,100.00
+G101,102,Cash,2025-06-01,250.00,General,Community breakfast,Check,,60.00,Breakfast tickets,,
+G102,101,Pay-Cash,2025-11-01,150.00,Library,Winter reading,Check,P100,0.00,Pledge payment,,

@@ -886,7 +886,7 @@ Coffer reads Little Green Light's exports (constituents with all fields, includi
 
 *Acceptance:* An HTTP journey imports a fixture LGL export set, previews counts and totals by year and fund, applies, reads a donor's full history with relationships, soft credits and notes, carries a constituent's three emails and two addresses with their types and primaries, carries its salutations and addressee unchanged, reads the fixture's custom fields and categories defined in Coffer with each record's values (`MOVE-010`), carries a $500 gift with an assigned acknowledgment template as acknowledged with that template named, a $500 gift marked "do not acknowledge via LGL" as do not acknowledge and a recent $500 gift with neither as not acknowledged, so only that gift is due in the acknowledgement queue, maps a "Do not solicit" communication tag to the restriction and a "No mail" tag to mail consent no with source Little Green Light and the import date, so the next appeal excludes each with its reason, reads a memorial tribute's total equal to the source, and undoes.
 
-*Status:* missing. Only the Stripe importer exists.
+*Status:* partial. Documented LGL CSV/XLSX constituent and fundraising exports preview donors, explicit households, gifts, funds/campaigns, relationships, soft credits, pledges/installments and notes, with source controls and atomic apply/re-import/undo. Full multi-contact/name/custom-field, consent/restriction, acknowledgement, tribute and recurring-vault migration remains outside this export implementation. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
 
 #### MOVE-002 — From Bloomerang.
 
@@ -894,7 +894,7 @@ Coffer reads Bloomerang through its REST API with the nonprofit's key (or its ex
 
 *Acceptance:* An HTTP journey with the Bloomerang edge faked imports a fixture account, reads totals by year and designation, by campaign and by appeal equal to the source (so `REPORT-002` LYBUNT and `COMM-008` appeal results start from the imported history), reads a memorial tribute's total equal to the source, carries a constituent's three emails and two addresses with their types and primaries, finds a donor by its Bloomerang account number, carries a constituent's Informal Name and Envelope Name unchanged, carries the fixture's pick-one and pick-many constituent fields, currency transaction field and text interaction field with their types, pick lists and values (`MOVE-010`), and reads from the same fixture a household with its members, a spouse relationship, a soft credit on the soliciting board member, an open pledge with its balance, an interaction, a note, an open task with its owner and an email-opted-out donor whose email consent imports as no (`MOVE-008`). The fixture has three gifts of $500 or more marked Acknowledged? Yes with a linked acknowledgement interaction, Do Not Acknowledge, and No, and a $150 gala payment with a $60 Non-deductible amount: after the import the acknowledgement queue lists only the No gift as due, the Yes gift links its imported interaction, the gala payment needs no goods answer and appears on its donor's year-end statement with $90 deductible (`RCPT-004`), and the reconciliation counts per acknowledgement status equal the source (`MOVE-007`). The fixture also has three constituents with Communication Restrictions: one Do Not Solicit with mail and email consent, one Do Not Mail and one Do Not Call. After the import the first carries the do-not-solicit restriction with source Bloomerang and the import date, the second's mail consent is no and the third's phone consent is no; the next email appeal and mail appeal both exclude the first with the reason "do not solicit" while its next gift is still receipted, and the reconciliation's restricted count equals the source. Then it undoes.
 
-*Status:* missing. No Bloomerang importer.
+*Status:* partial. Documented Bloomerang CSV/XLSX reports import the same donor/gift history and attribution with source-control reconciliation and atomic apply/undo. REST API, full contact/custom-field, task, consent/restriction, acknowledgement, tribute and recurring-vault migration remains unbuilt. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
 
 #### MOVE-003 — From Raiser's Edge NXT.
 
@@ -902,7 +902,7 @@ Coffer reads Raiser's Edge NXT through Blackbaud's SKY API (or database view exp
 
 *Acceptance:* An HTTP journey with the SKY API edge faked imports a fixture database, reads gifts with splits and opportunities equal to the source, carries a constituent's primary addressee and salutation unchanged and a constituent and a gift custom field with their values, carries one acknowledged, one do-not-acknowledge and one not-acknowledged gift with their statuses and a gift with a benefits value as its goods value, maps a fixture "Do not solicit" solicit code to the restriction, a "Do not mail" code to mail consent no and a "Solicit once annually" code to a once-a-year limit, with the next appeals excluding each by its reason, reads a tribute's total equal to the source, and undoes.
 
-*Status:* missing. No Raiser's Edge NXT importer.
+*Status:* partial. Configured NXT database-view CSV/XLSX constituent/gift reports import donor/gift history, households, relationships, soft credits, pledges and notes. Grouped web-list splits and repeated source IDs are explicitly blocked pending designation exports. SKY API, opportunities, full custom fields/contacts, restrictions, acknowledgement and recurring-vault migration remains unbuilt. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
 
 #### MOVE-004 — From Neon CRM.
 
@@ -934,7 +934,7 @@ Every move-in ends in a reconciliation: donors, gifts and dollars by year and fu
 
 *Acceptance:* An HTTP journey imports a fixture with one deliberate gap, reads the difference in the reconciliation, adopts two Stripe subscriptions, moves two vault-transferred plans, lists one plan whose payment method is missing from the mapping for reauthorization, finds an imported donor by its legacy ID, reads gift counts per acknowledgement status, the non-deductible total and the count of restricted constituents equal to the source, sets the acknowledge-from date and sees a not-acknowledged gift older than it absent from the queue, and records the owner's sign-off.
 
-*Status:* partial. The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption, transferred plans, legacy IDs beyond the Stripe customer reference or cutover sign-off. Evidence: `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs`.
+*Status:* partial. CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs and atomic reviewed apply/undo ship. Recurring adoption/vault transfer, acknowledgement-from/status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
 
 #### MOVE-009 — Recurring donors move with their cards and bank accounts.
 
@@ -966,7 +966,7 @@ For each named incumbent (Little Green Light, Bloomerang, Raiser's Edge NXT, Neo
 
 *Acceptance:* A browser journey at 1440 and 390 pixels opens the move-in screen for Bloomerang, reads its ordered steps each linked to a built guide page that names the export or API key, the PCI transfer request, the mapping files and the cutover stop, and sees steps marked done as a fixture import, a mapping-file upload and the owner's sign-off complete.
 
-*Status:* partial. A step-by-step guide and move-in screen exist for Stripe JSON pages only; no guide or checklist for any incumbent, PCI transfer or cutover. Evidence: `docs/MOVE-IN.md`, `src/coffer/ui/move-in.ts`.
+*Status:* partial. The CRM export guide gives vendor report/menu guidance, official source links, required IDs, supported fields and source control interpretation for LGL, Bloomerang and NXT, alongside the Stripe guide. PCI transfer and an installation cutover checklist remain unbuilt. Evidence: `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`.
 
 ### Team and access
 
@@ -1242,7 +1242,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 3 | sends the receipts | `ACK-001`, `RCPT-001`, `RCPT-002` | `ACK-001` done · `RCPT-001` partial · `RCPT-002` done |
 | 4 | and thank-yous | `RCPT-002`, `RCPT-007` | `RCPT-002` done · `RCPT-007` partial |
 | 5 | shows who needs a call | `DEV-005`, `REPORT-002` | partial (core claim implemented; broader clauses remain) |
-| 6 | 100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM | `OWN-001`, `MOVE-001`, `MOVE-002`, `MOVE-004` | `OWN-001` done · `MOVE-001` missing · `MOVE-002` missing · `MOVE-004` missing |
+| 6 | 100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM | `OWN-001`, `MOVE-001`, `MOVE-002`, `MOVE-004` | `OWN-001` done · `MOVE-001` partial · `MOVE-002` partial · `MOVE-004` missing |
 | 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` partial · `REPORT-003` partial |
 | 8 | Monthly $25 · Active | `GIVE-003` | partial |
 | 9 | Failed card · Retried successfully | `GIVE-006` | partial |
@@ -1282,11 +1282,11 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 43 | sends missing receipts | `DEV-003` | partial |
 | 44 | drafts stewardship from your own history | `DEV-004` | missing |
 | 45 | tracks retention donor by donor | `DEV-005`, `REPORT-001` | partial (core claim implemented; broader clauses remain) |
-| 46 | Move from Little Green Light | `MOVE-001` | missing |
-| 47 | Bloomerang | `MOVE-002` | missing |
-| 48 | Raiser's Edge NXT | `MOVE-003` | missing |
-| 49 | with every donor, household and gift | `MOVE-001`, `MOVE-002`, `MOVE-003`, `IMPORT-001` | `MOVE-001` missing · `MOVE-002` missing · `MOVE-003` missing · `IMPORT-001` done |
-| 50 | check the totals before you switch | `IMPORT-001`, `MOVE-007` | `IMPORT-001` done · `MOVE-007` partial |
+| 46 | Move from Little Green Light | `MOVE-001` | `MOVE-001` partial (CSV/XLSX exports implemented) |
+| 47 | Bloomerang | `MOVE-002` | `MOVE-002` partial (CSV/XLSX exports implemented) |
+| 48 | Raiser's Edge NXT | `MOVE-003` | `MOVE-003` partial (CSV/XLSX exports implemented) |
+| 49 | with every donor, household and gift | `MOVE-001`, `MOVE-002`, `MOVE-003`, `IMPORT-001` | `MOVE-001` partial · `MOVE-002` partial · `MOVE-003` partial · `IMPORT-001` done |
+| 50 | check the totals before you switch | `IMPORT-001`, `MOVE-007` | `IMPORT-001` done · `MOVE-007` partial (gift reconciliation implemented) |
 | 51 | Run Coffer on your own computer | `OWN-002` | done |
 | 52 | keep every donor record / Your donors, your database | `OWN-001`, `DATA-001` | done |
 | 53 | Export everything, any time | `DATA-001`, `DATA-002` | `DATA-001` done · `DATA-002` partial |
@@ -1301,15 +1301,15 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `b3dcf6c` (17 October 2026).
+Judged from the code and tests at commit `a0e85dd` (17 October 2026).
 
-The giving, receipt, payments and donor-depth clauses and their claim mappings include their current implementations and named tests.
+The giving, receipt, payments, donor-depth and CRM export move-in clauses and their claim mappings include their current implementations and named tests.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 4 | 59 | 63 | 126 |
-| All | 13 | 59 | 63 | 135 |
+| Target and push further | 4 | 62 | 60 | 126 |
+| All | 13 | 62 | 60 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1411,17 +1411,17 @@ The giving, receipt, payments and donor-depth clauses and their claim mappings i
 | `REPORT-006` | Recurring giving health | target | missing |  | No recurring plans to report. |
 | `REPORT-007` | IRS Form 990 support | target | missing |  | No Form 990 reports. |
 | `REPORT-008` | Raised by state | target | missing |  | Each donor stores a current state, but there is no address history or report by state. |
-| `MOVE-001` | From Little Green Light | target | missing |  | Only the Stripe importer exists. |
-| `MOVE-002` | From Bloomerang | target | missing |  | No Bloomerang importer. |
-| `MOVE-003` | From Raiser's Edge NXT | target | missing |  | No Raiser's Edge NXT importer. |
+| `MOVE-001` | From Little Green Light | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Documented LGL CSV/XLSX constituent and fundraising exports preview donors, explicit households, gifts, funds/campaigns, relationships, soft credits, pledges/installments and notes, with source controls and atomic apply/re-import/undo. Full multi-contact/name/custom-field, consent/restriction, acknowledgement, tribute and recurring-vault migration remains outside this export implementation. |
+| `MOVE-002` | From Bloomerang | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Documented Bloomerang CSV/XLSX reports import the same donor/gift history and attribution with source-control reconciliation and atomic apply/undo. REST API, full contact/custom-field, task, consent/restriction, acknowledgement, tribute and recurring-vault migration remains unbuilt. |
+| `MOVE-003` | From Raiser's Edge NXT | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Configured NXT database-view CSV/XLSX constituent/gift reports import donor/gift history, households, relationships, soft credits, pledges and notes. Grouped web-list splits and repeated source IDs are explicitly blocked pending designation exports. SKY API, opportunities, full custom fields/contacts, restrictions, acknowledgement and recurring-vault migration remains unbuilt. |
 | `MOVE-004` | From Neon CRM | target | missing |  | No Neon CRM importer. |
 | `MOVE-005` | From Givebutter and Zeffy | target | missing |  | No Givebutter or Zeffy importer. |
 | `MOVE-006` | Any spreadsheet | target | missing |  | No general importer. |
-| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/imports/service.ts`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs` | The Stripe move-in preview shows donors, gifts, totals and every skip before apply; no per-year and fund reconciliation, recurring adoption, transferred plans, legacy IDs beyond the Stripe customer reference or cutover sign-off. |
+| `MOVE-007` | Totals checked before the switch | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | CSV/XLSX move-ins compare received gift counts and cents by year, fund and donor with raw source rows and independently supplied source report controls; existing imported net balances participate. Named differences or unmapped values block until resolved or accepted with a recorded reason. Stable source IDs and atomic reviewed apply/undo ship. Recurring adoption/vault transfer, acknowledgement-from/status reconciliation, restriction/tribute controls and cutover sign-off remain unbuilt. |
 | `MOVE-009` | Recurring donors move with their cards and bank accounts | target | missing |  | No recurring plans, mapping-file reader (card or ACH) or transfer move-in. |
 | `MOVE-008` | Consent and preferences moved with provenance | target | missing |  | No importer carries consent. |
 | `MOVE-010` | Custom fields carried across | target | missing |  | No custom fields, and no importer other than Stripe's, which reads no custom data. |
-| `MOVE-011` | Switching guide for each incumbent | target | partial | `docs/MOVE-IN.md`, `src/coffer/ui/move-in.ts` | A step-by-step guide and move-in screen exist for Stripe JSON pages only; no guide or checklist for any incumbent, PCI transfer or cutover. |
+| `MOVE-011` | Switching guide for each incumbent | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | The CRM export guide gives vendor report/menu guidance, official source links, required IDs, supported fields and source control interpretation for LGL, Bloomerang and NXT, alongside the Stripe guide. PCI transfer and an installation cutover checklist remain unbuilt. |
 | `TEAM-001` | Roles and record-level access | target | partial | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs` | Owner, admin, member and agent roles guard every command; no fundraiser, finance, volunteer or read-only roles, portfolio scoping, confidential fields, managers or call capacity. |
 | `TEAM-002` | Single sign-on and two-step sign-in | target | partial | `src/modules/operator-auth/identity/oidc` | Base sign-in supports an OIDC provider; requiring SSO and a second factor are not offered in Coffer. |
 | `TEAM-003` | Audit log | target | partial | `src/coffer/db.ts`, `src/coffer/ui/donors.ts` | Every command writes an event shown per donor and per batch; no organization-wide log, filters or export. |

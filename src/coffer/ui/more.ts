@@ -6,6 +6,7 @@ import { area, box, e, field, form, money } from './common'
 export function morePage(actor: Actor) {
  const boss = manager(actor)
  return `<ul class="tiles">
+  ${boss ? '<li><a href="/app/move-in/crm"><strong>Move in from a CRM</strong><span>Little Green Light, Bloomerang or Raiser’s Edge NXT exports, with totals checked before switching.</span></a></li>' : ''}
   ${boss ? '<li><a href="/app/move-in"><strong>Move in from Stripe</strong><span>Bring a year of customers and charges, review, apply or undo.</span></a></li>' : ''}
   <li><a href="/app/settings"><strong>Letter settings</strong><span>Organization name, EIN, threshold and your letter wording.</span></a></li>
   ${boss ? '<li><a href="/app/data"><strong>Data &amp; access</strong><span>Backup and restore, people and roles, agent keys, erasure.</span></a></li>' : ''}

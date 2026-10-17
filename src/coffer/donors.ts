@@ -95,6 +95,7 @@ export async function donorHistory(c: { db: D1Database }, donorId: string) {
  return {
   donor, household, gifts, pledges, consents, letters, appeals, events, subscriptions: await subscriptions(c, donorId),
   depth: await donorDepth(c, donorId), giftDepth: await donorGiftDepth(c, donorId),
+  notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? ORDER BY occurred_on DESC,recorded_at DESC', donorId),
   firstGift: await one(c, `SELECT g.*,COALESCE((SELECT appeal FROM cf_gift_appeals WHERE gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal FROM cf_gift_balances g WHERE g.donor_id=? AND g.net_cents>0 ORDER BY g.received_on,g.created_at,g.id LIMIT 1`,donorId),
   totals: { lifetimeCents: gifts.reduce((s, g) => s + g.amount_cents, 0), byYear: [...byYear].sort((a, b) => b[0].localeCompare(a[0])).map(([year, cents]) => ({ year, cents })) },
   current: { email: consent('email'), mail: consent('mail') },

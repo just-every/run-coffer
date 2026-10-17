@@ -53,3 +53,5 @@
 
 .coffer .engagement-inputs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px 16px}.coffer .engagement-inputs dt{font-weight:600}.coffer .engagement-inputs dd{margin:0}
 @media(max-width:560px){.coffer .engagement-inputs{display:block}.coffer .engagement-inputs dt{margin-top:12px}.coffer .engagement-inputs dd{margin:4px 0 12px}}
+
+.coffer .crm-totals td:nth-child(4),.coffer .crm-totals td:nth-child(5){white-space:nowrap}

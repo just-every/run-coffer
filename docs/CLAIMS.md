@@ -4,7 +4,7 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 
 `CONTRACT.md` defines the full fundraising CRM target. Its Status table keeps broader unfinished features explicit; the giving rows here describe the self-hosted donation, subscription and donor portal implementation.
 
-**Totals: 61 claims · 45 in code · 7 partly · 9 contract, not yet in code.**
+**Totals: 61 claims · 50 in code · 5 partly · 6 contract, not yet in code.**
 
 | # | Section | Claim | Status | Backed by |
 |---|---|---|---|---|
@@ -53,11 +53,11 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 | 43 | Development agent | sends missing receipts | partly | An agent key may run `ack.prepare`; a person approves and sends. |
 | 44 | Development agent | drafts stewardship from your own history | contract, not yet in code | None in code. |
 | 45 | Development agent | tracks retention donor by donor | in code | Calendar-year retained, new, lapsed and recaptured counts and signed amounts drill to donor rows, with refunds/adjustments and erased identities reconciled separately (`src/coffer/retention.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs`). |
-| 46 | Move in | Move from Little Green Light | contract, not yet in code | Only the Stripe importer exists (`src/coffer/imports/`). |
-| 47 | Move in | Bloomerang | contract, not yet in code | No importer. |
-| 48 | Move in | Raiser's Edge NXT | contract, not yet in code | No importer. |
-| 49 | Move in | with every donor, household and gift | partly | Stripe customers become donors and charges become gifts; no households from Stripe. |
-| 50 | Move in | check the totals before you switch | partly | Preview shows donors, gifts, the total and every skip with its reason, and apply needs the reviewed fingerprint (`imports/service.ts`, `ui/move-in.ts`). |
+| 46 | Move in | Move from Little Green Light | in code | Documented Little Green Light constituent/fundraising CSV and XLSX exports preview and reconcile before a reviewed atomic apply; same-file re-import is unchanged and one-step undo is guarded (`src/coffer/move-in/`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`). |
+| 47 | Move in | Bloomerang | in code | Documented Bloomerang constituent/transaction CSV and XLSX reports use the same preview, source-control reconciliation, atomic apply, deduplication and undo (`src/coffer/move-in/`, `tests/move-in.test.mjs`). Export files require no provider call on either hosting mode. |
+| 48 | Move in | Raiser's Edge NXT | in code | Configured database-view constituent/gift CSV and XLSX exports preserve IDs, funds, campaigns, pledge payments and soft credits (`src/coffer/move-in/`, `tests/move-in.test.mjs`). Grouped web-list splits need a designation export; unsupported rows and columns are named before apply. |
+| 49 | Move in | with every donor, household and gift | in code | Preview enumerates donors, explicit household memberships, gifts, relationships, soft credits, pledges/installments and notes; apply writes into the donor-depth ledger and first-gift view together. Missing links or conflicting identities block the whole import; unmapped values are named and require explicit acceptance (`src/coffer/move-in/plan.ts`, `tests/move-in.test.mjs`). |
+| 50 | Move in | check the totals before you switch | in code | Counts and received gift totals by year, fund and donor compare raw source rows and supplied source report controls against Coffer, including existing imported balances. Differences block until resolved or accepted with a recorded reason; stale previews and subsequent use stop apply/undo atomically (`src/coffer/move-in/reconcile.ts`, `src/coffer/move-in/service.ts`, `tests/move-in.test.mjs`). |
 | 51 | Ownership | Run Coffer on your own computer | in code | `rer dev` (`scripts/installer/local.mjs`, README), local D1. |
 | 52 | Ownership | keep every donor record / Your donors, your database | in code | The installation's own D1 database (`wrangler.jsonc`, `migrations/`). |
 | 53 | Ownership | Export everything, any time | in code | `/app/backup` and `rer export` through Base portability (`src/coffer/http.ts`, `archive-policy.mjs`). |

@@ -80,6 +80,14 @@
       "commands": [
         "pnpm run test:pipeline"
       ]
+    },
+    {
+      "name": "move-in",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:move-in"
+      ]
     }
   ],
   "nightly": [

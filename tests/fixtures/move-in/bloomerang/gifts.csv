@@ -1,0 +1,4 @@
+Transaction Number,Account Number,Transaction Type,Date,Amount,Fund,Campaign,Transaction Method,Pledge Number,Non-Deductible Amount,Gift Notes
+G100,101,Donation,2024-12-12,500.00,Library,Winter reading,Check,,0.00,First gift
+G101,102,Donation,2025-06-01,250.00,General,Community breakfast,Check,,60.00,Breakfast tickets
+G102,101,Pledge Payment,2025-11-01,150.00,Library,Winter reading,Check,P100,0.00,Pledge payment

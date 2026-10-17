@@ -33,14 +33,17 @@
     "test:receipts": "node --test tests/receipts.test.mjs",
     "test:payments": "node --test tests/payments.test.mjs",
     "test:donor-depth": "node --test --test-concurrency=1 tests/soft-credits.test.mjs tests/pledges.test.mjs",
-    "test:pipeline": "node --test tests/pipeline.test.mjs"
+    "test:pipeline": "node --test tests/pipeline.test.mjs",
+    "test:move-in": "node --test --test-concurrency=1 tests/move-in.test.mjs"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.41",
     "@tanstack/react-start": "1.168.60",
+    "fflate": "0.8.3",
     "hono": "4.13.7",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "read-excel-file": "9.3.12"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.54.5",
