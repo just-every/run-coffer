@@ -268,7 +268,7 @@ One payment can be split across several funds or campaigns in exact cents that s
 
 *Acceptance:* An HTTP journey splits a $1,000 check $600/$400 across two funds, refuses a split that sums to $999.99, issues one receipt for $1,000 and reads each fund's total.
 
-*Status:* missing. No split gifts.
+*Status:* done. One payment has immutable, exact-cent fund or campaign allocations that must sum to its amount. Donor totals and tax receipts count the payment once; fund/campaign reports, accounting CSV and payout accounting count each part, including signed reversals. Receipt and statement wording lists each allocation. Browser journeys at 1440 and 390 exercised entry, refusal, fund drill-down, printing and a real hosted receipt email. Evidence: `src/coffer/gift-splits.ts`, `migrations/core/0039_coffer_gift_splits.sql`, `src/coffer/fund-report.ts`, `tests/split-gifts.test.mjs`.
 
 #### GIFT-005 — Pledges, installments and balances.
 
@@ -1264,7 +1264,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 25 | fees, refunds | `PAY-003`, `PAY-004` | partial |
 | 26 | failed monthly payments | `GIVE-006` | partial |
 | 27 | each payout matches its deposit in QuickBooks Online or Pantry | `PAY-002`, `FIN-001`, `FIN-002` | `PAY-002` done · `FIN-001` / `FIN-002` partial |
-| 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` missing · `FIN-003` partial |
+| 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` done · `FIN-003` partial |
 | 29 | Thank-you letters | `ACK-001`, `RCPT-002` | `ACK-001` done · `RCPT-002` done |
 | 30 | year-end tax receipts | `RCPT-004` | partial |
 | 31 | by email | `RCPT-001`, `RCPT-002` | `RCPT-001` partial · `RCPT-002` done |
@@ -1301,15 +1301,15 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `bd5b8083f6dc57be381ae1469367aed7e543f4a5` (17 October 2026).
+Status follows the implementation and tests named in each row. The giving summary and split-gift clauses were also exercised through the product at 1440 and 390 pixels on 18 October 2026.
 
 The giving, receipt, payments, donor-depth, development-agent and CRM export move-in clauses and their claim mappings include their current implementations and named tests.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 5 | 66 | 55 | 126 |
-| All | 14 | 66 | 55 | 135 |
+| Target and push further | 6 | 66 | 54 | 126 |
+| All | 15 | 66 | 54 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1338,7 +1338,7 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | `DONOR-015` | Solicitation restrictions | target | missing |  | No solicitation restriction: consent is per channel (email and postal) only, and appeals exclude only on consent and address. |
 | `GIFT-002` | Batch gift entry and deposits | target | missing |  | Gifts are entered one at a time; no batches or deposit totals. |
 | `GIFT-003` | Campaign, appeal, fund and channel attribution | target | partial | `src/coffer/gifts.ts` | Each gift has one free-text fund; no campaigns, appeals or source as structured references. |
-| `GIFT-004` | Split gifts | target | missing |  | No split gifts. |
+| `GIFT-004` | Split gifts | target | done | `src/coffer/gift-splits.ts`, `migrations/core/0039_coffer_gift_splits.sql`, `src/coffer/fund-report.ts`, `tests/split-gifts.test.mjs` |  |
 | `GIFT-005` | Pledges, installments and balances | target | partial | `src/coffer/pledges.ts`, `src/coffer/ui/pledges.ts`, `tests/pledges.test.mjs` | Dated installments total the pledge, allocations match gifts by donor/fund without overpayment, and reversals reopen balances. Write-offs, reductions, campaign attribution and recurring-plan payment remain. |
 | `GIFT-006` | Soft credits | target | partial | `src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs` | Full or partial recognition links another donor to a gift and appears in a separate reversal-aware total without increasing received totals or tax receipts. Separate acknowledgement status and report integration remain. |
 | `GIFT-007` | Matching gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/ui/gift-depth.ts`, `tests/soft-credits.test.mjs` | Expected employer amount/deadline links the original gift to a received employer ledger gift, with overdue and reversal-aware states. Program lookup, submission workflow, automatic employee recognition and submission reminders remain. |

@@ -33,7 +33,7 @@ const SOURCE_SQL = `SELECT json_object(
   ORDER BY l.received_on DESC,l.created_at,l.id))),
  'funds',json((SELECT json_group_array(json(j)) FROM (
   SELECT json_object('fund',l.fund,'current_amount_cents',SUM(l.amount_cents)) AS j
-  FROM cf_contribution_ledger l WHERE l.donor_id=d.id GROUP BY l.fund ORDER BY l.fund))),
+  FROM cf_fund_ledger l WHERE l.donor_id=d.id GROUP BY l.fund ORDER BY l.fund))),
  'conversations',json((SELECT json_group_array(json(j)) FROM (
   SELECT json_object('id',i.id,'kind',i.kind,'occurred_on',i.occurred_on,'notes',i.notes,'next_step',i.next_step) AS j
   FROM cf_interactions i WHERE i.donor_id=d.id ORDER BY i.occurred_on DESC,i.id LIMIT 10))),

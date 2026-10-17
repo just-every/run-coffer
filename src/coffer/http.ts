@@ -1,3 +1,5 @@
+import { fundEntries, fundLedgerCsv, fundReport } from './fund-report'
+import { fundReportPage } from './ui/fund-report'
 import { welcomeState } from './communications/welcome'
 import { preferenceState } from './communications/preferences'
 import { replyTasks } from './communications/replies'
@@ -73,6 +75,10 @@ async function formBody(request: Request, limit = LIMIT): Promise<FormData> {
 function formInput(data: FormData) {
  const input: Record<string, any> = Object.fromEntries(data)
  for (const name of ['version', 'sourceVersion', 'targetDays', 'reminderDays']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
+ if (input.command === 'gift.record' && data.has('splitAmount')) {
+  const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
+  input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
+ }
  if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
  if (input.command === 'ack.prepare' && data.has('giftIds')) input.giftIds = data.getAll('giftIds')
  return input
@@ -260,6 +266,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/tasks') return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: await taskSources(c) })
  if (path === '/api/coffer/retention') return json(await retention(c,url.searchParams.has('year') ? Number(url.searchParams.get('year')) : undefined))
  if (path === '/api/coffer/prospects') return json(await prospects(c))
+ if (path === '/api/coffer/reports/funds') return json(await fundReport(c,url))
  if (path === '/api/coffer/settings') return json(await settings(c))
  return fail('not_found', 'Not found.', 404)
 }
@@ -280,6 +287,11 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if (path === '/app/funds') return show('Giving by fund',await fundReportPage(c,url))
+ if (path === '/app/funds/ledger.csv') {
+  if (!manager(actor)) fail('manager_required','Only the owner or an admin exports accounting entries.',403)
+  return download(fundLedgerCsv(await fundEntries(c,url,null)),'coffer-fund-ledger')
+ }
  if (path === '/app/calls') return show('Call list', await callTasksPage(c,url))
  if (path === '/app/lapses') return show('Donors who need a call', await lapsesPage(c,url))
  if (path === '/app/retention') return show('Donor retention', await retentionPage(c,url))
@@ -289,7 +301,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/giving/setup') return show('Connect Stripe', await givingSetupPage(c))
  if (path === '/app/donors') return show('Donors', await donorsPage(c, url))
  let m = path.match(/^\/app\/donors\/([^/]+)$/)
- if (m) { const view = await donorPage(c, m[1]); return show(view.title, view.body) }
+ if (m) { const view = await donorPage(c, m[1], url); return show(view.title, view.body) }
  if (path === '/app/letters') return show('Acknowledgement letters', await lettersPage(c))
  if ((m = path.match(/^\/app\/letters\/([^/]+)$/))) return show('Letter batch', await batchPage(c, m[1]))
  if ((m = path.match(/^\/app\/letters\/([^/]+)\/print$/))) {

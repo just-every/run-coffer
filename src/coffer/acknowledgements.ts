@@ -1,3 +1,4 @@
+import { receiptFundLabels } from './gift-splits'
 import { addDays, all, choice, commit, date, daysBetween, event, fail, guard, id, integer, newId, one, sha256, sql, today, type Context, type Row } from './db'
 import { renderLetter, settings } from './settings'
 import { csv } from './csv'
@@ -14,6 +15,7 @@ const DUE = `g.kind='gift' AND g.amount_cents>=? AND d.erased_at IS NULL
 export async function dueGifts(c: { db: D1Database }) {
  const s = await settings(c), day = today(s.timezone)
  const rows = await all(c, `SELECT g.*,d.name AS donor_name,d.email AS donor_email FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE ${DUE} ORDER BY g.received_on,g.id LIMIT 2000`, s.threshold_cents)
+ await receiptFundLabels(c,rows)
  return {
   settings: s, today: day,
   gifts: rows.map((g): Row => { const due = addDays(g.received_on, s.target_days); return { ...g, due_on: due, overdue: day > due, age_days: daysBetween(g.received_on, day) } }),

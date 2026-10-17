@@ -58,6 +58,6 @@ export const goodsStatement = (s: Settings, gift: Row) => gift.goods === 'provid
 
 export function renderLetter(s: Settings, gift: Row, donorName: string, day: string) {
  const deductible = usd(gift.amount_cents - gift.goods_cents), goods = goodsStatement(s, gift)
- const fields = { date: longDate(day), donor_name: donorName, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
+ const fields = { date: longDate(day), donor_name: donorName, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
  return { subject: fill(s.letter_subject, fields), body: fill(s.letter_template, fields) }
 }

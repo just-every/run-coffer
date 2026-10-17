@@ -71,7 +71,8 @@
       "hosted": false,
       "commands": [
         "pnpm run test:donor-depth",
-        "node --test tests/giving-summary.test.mjs"
+        "node --test tests/giving-summary.test.mjs",
+        "node --test tests/split-gifts.test.mjs"
       ]
     },
     {

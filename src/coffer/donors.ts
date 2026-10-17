@@ -1,4 +1,5 @@
 import { givingSummary } from './giving-summary'
+import { allGiftAllocations } from './gift-splits'
 import { communicationHistory } from './communications/outbound'
 import { all, choice, commit, date, email, event, fail, guard, id, integer, newId, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { canonicalDonor } from './donor-merge'
@@ -95,6 +96,8 @@ export async function donorHistory(c: { db: D1Database }, donorId: string) {
  for (const g of gifts) byYear.set(g.received_on.slice(0, 4), (byYear.get(g.received_on.slice(0, 4)) ?? 0) + g.amount_cents)
  const [plans, depth, giftDepth] = await Promise.all([subscriptions(c, donorId), donorDepth(c, donorId), donorGiftDepth(c, donorId)])
  const summary = await givingSummary(c, donorId, { gifts, pledges, subscriptions: plans, recognitionCents: giftDepth.recognitionCents })
+ const allocations=await allGiftAllocations(c,gifts.map(g=>g.id))
+ for(const gift of gifts)gift.allocations=allocations.filter(a=>a.gift_id===(gift.reverses??gift.id))
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
   donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: plans, summary,
