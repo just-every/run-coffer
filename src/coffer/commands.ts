@@ -1,3 +1,5 @@
+import { callTaskCommand } from './call-tasks'
+import { majorGiftCommand } from './major-gifts'
 import { digest, requireRole, type Role } from './auth'
 import { commit, event, fail, newId, object, sql, text, type Context, type Row } from './db'
 import { mergeDonor, canonicalDonor } from './donor-merge'
@@ -16,6 +18,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // Who may run each command. Agents prepare letters and appeal audiences; a
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
+ 'task.generate': STAFF, 'task.assign': STAFF, 'task.snooze': STAFF, 'task.complete': STAFF, 'prospect.save': STAFF,
  'donor.create': STAFF, 'donor.update': STAFF, 'gift.record': STAFF, 'consent.record': STAFF, 'pledge.create': STAFF,
  'donor.merge': MANAGERS, 'relationship.create': STAFF, 'relationship.remove': STAFF, 'interaction.record': STAFF,
  'softCredit.record': STAFF, 'softCredit.remove': STAFF, 'tribute.record': STAFF, 'match.record': STAFF, 'match.receive': STAFF,
@@ -36,7 +39,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'donor.merge') return mergeDonor(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) return result
  }

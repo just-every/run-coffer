@@ -22,7 +22,7 @@ export async function home(c: Context) {
   [counts!.sent > 0, 'Send your first acknowledgement letters', '/app/letters'],
  ]
  const checklist = steps.every(([done]) => done) ? '' : box('Getting started', `<ol class="steps">${steps.map(([done, label, href]) => `<li>${done ? chip('Done', 'ok') : chip('To do', 'warn')} <a href="${href}">${e(label)}</a></li>`).join('')}</ol>`)
- return `${checklist}<div class="stats">
+ return `<p class="notice"><a href="/app/lapses">Who needs a call?</a> Review lapses and amounts at risk, then <a href="/app/calls">work your owned call list</a>.</p>${checklist}<div class="stats">
   <a class="stat" href="/app/letters"><strong>${due.gifts.length}</strong><span>gifts waiting for a letter</span></a>
   <a class="stat${overdue.length ? ' alarm' : ''}" href="/app/letters"><strong>${overdue.length}</strong><span>past the ${s.target_days}-day target</span></a>
   <a class="stat" href="/app/donors"><strong>${counts!.donors}</strong><span>donors</span></a>

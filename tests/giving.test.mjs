@@ -98,6 +98,10 @@ test('a failed monthly donation recovers on its second retry without duplicate g
    assert.equal(progress.gift_count,0)
    assert.equal(progress.recurring_donors,1)
   }
+  const stopped=(await h.get('/api/coffer/lapses')).rows.find(r=>r.sourceId==='sub_monthly')
+  assert.equal(stopped.donorId,known.id)
+  assert.equal(stopped.lastGift,null)
+  assert.equal(stopped.amountCents,30000)
   assert.equal((await h.get('/api/coffer/donors')).total,1,'Checkout matches the donor already using this email')
   const updateMail=h.messages.findLast(message=>message.to.includes('ana.diaz@example.org'))
   assert.ok(updateMail,'A failed charge sends the donor a private card update link')
@@ -131,6 +135,16 @@ test('a failed monthly donation recovers on its second retry without duplicate g
   assert.equal(recovered.subscriptions[0].status,'active')
   assert.equal(recovered.subscriptions[0].recovered,1)
   assert.equal(recovered.subscriptions[0].next_attempt_at,null)
+  assert.equal((await h.get('/api/coffer/lapses')).rows.some(r=>r.sourceId==='sub_monthly'),false)
+  // Status still diagnoses a stopped plan after its linked paid history exists.
+  edge.state.status='canceled'
+  const stoppedAgain=await deliver(h,'evt_stopped_plan','invoice.updated')
+  assert.equal(stoppedAgain.status,200,await stoppedAgain.text())
+  const linked=(await h.get('/api/coffer/lapses')).rows.find(r=>r.sourceId==='sub_monthly')
+  assert.equal(linked.lastGift,recovered.gifts[0].received_on)
+  edge.state.status='active'
+  const activeAgain=await deliver(h,'evt_active_plan','invoice.paid')
+  assert.equal(activeAgain.status,200,await activeAgain.text())
   const donorPage=await h.request(`/app/donors/${known.id}`)
   assert.equal(donorPage.status,200)
   const progress=await summary()

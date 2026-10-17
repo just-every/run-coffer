@@ -1,0 +1,81 @@
+import {test} from 'node:test'
+import assert from 'node:assert/strict'
+import {run,donor} from './harness.mjs'
+
+const year=new Date().getUTCFullYear(), day=new Date().toISOString().slice(0,10)
+const gift=(h,d,amount,receivedOn)=>h.command('gift.record',{donorId:d.id,amount,receivedOn,method:'check',goods:'none',fund:'Library'})
+
+test('a lapsed donor becomes an owned call, reassignment and snooze preserve it, and completion logs on the donor',()=>run(async h=>{
+ const tom=await donor(h,'Tom Okafor',{phone:'202-555-0149'})
+ await gift(h,tom,'1200',`${year-1}-06-12`)
+ const owner=(await h.get('/auth/session')).operator
+ const colleague=await h.person('riley@example.test')
+ const flagged=(await h.get('/api/coffer/lapses')).rows.find(d=>d.donorId===tom.id)
+ assert.ok(flagged)
+ assert.equal(flagged.amountCents,120000)
+ const input={sourceKey:flagged.key,ownerId:owner.id,dueOn:day}
+ await h.command('task.generate',input,{as:'',status:401})
+ await h.command('task.generate',{...input,ownerId:'unknown'},{status:409})
+ let task=await h.command('task.generate',input)
+ const repeated=await h.command('task.generate',{...input,ownerId:colleague.id})
+ assert.equal(repeated.id,task.id)
+ assert.equal(repeated.owner_id,owner.id)
+ task=await h.command('task.assign',{taskId:task.id,version:task.version,ownerId:colleague.id,dueOn:day})
+ await h.command('task.assign',{taskId:task.id,version:1,ownerId:owner.id,dueOn:day},{status:409})
+ const later=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
+ task=await h.command('task.snooze',{taskId:task.id,version:task.version,dueOn:later},{as:colleague.cookie})
+ assert.equal(task.status,'snoozed')
+ assert.equal((await h.get(`/api/coffer/tasks?owner=${colleague.id}`)).tasks[0].due_on,later)
+ task=await h.command('task.complete',{taskId:task.id,version:task.version,outcome:'connected',notes:'Discussed the library renewal. Tom requested a proposal.',nextStep:'Send the reading-room proposal Friday.'},{as:colleague.cookie})
+ assert.equal(task.status,'done')
+ const prospect=await h.command('prospect.save',{donorId:tom.id,ownerId:colleague.id,stage:'cultivate',askAmount:'5000',expectedCloseOn:later,nextStep:'Discuss the library renewal.'})
+ const pipeline=await h.get('/api/coffer/prospects')
+ const opportunity=pipeline.find(p=>p.id===prospect.id)
+ assert.equal(opportunity.ask_amount_cents,500000)
+ assert.equal(opportunity.engagement.conversations.count,1)
+ assert.ok(opportunity.engagement.conversations.points>0)
+ const moved=await h.command('prospect.save',{id:prospect.id,version:prospect.version,donorId:tom.id,ownerId:owner.id,stage:'ask',askAmount:'6000',expectedCloseOn:later,nextStep:'Send final proposal.'})
+ assert.equal(moved.version,prospect.version+1)
+ const history=await h.get(`/api/coffer/donors/${tom.id}`)
+ const call=history.depth.interactions.find(i=>i.id===task.interaction_id)
+ assert.equal(call.kind,'call')
+ assert.match(call.notes,/Tom requested a proposal/)
+ assert.match(call.next_step,/reading-room/)
+ await h.command('task.complete',{taskId:task.id,version:task.version,outcome:'no_answer',notes:'Again'},{status:409})
+ const html=await (await h.request(`/app/donors/${tom.id}`)).text()
+ assert.match(html,/Tom requested a proposal/)
+ // A different source, an overdue pledge, feeds the same list.
+ await h.command('pledge.create',{donorId:tom.id,amount:'90',pledgedOn:`${year-1}-01-01`,fund:'Library',installments:[{dueOn:`${year-1}-03-01`,amount:'90'}]})
+ const source=(await h.get('/api/coffer/tasks')).sources.find(s=>s.kind==='pledge')
+ assert.equal(source.amountCents,9000)
+ const pledgeTask=await h.command('task.generate',{sourceKey:source.key,ownerId:colleague.id,dueOn:day})
+ assert.notEqual(pledgeTask.id,task.id)
+}))
+
+test('retention counts and amounts drill to the exact donors, including recapture and corrected gifts',()=>run(async h=>{
+ const retained=await donor(h,'Retained Ada'),fresh=await donor(h,'New Ben'),lapsed=await donor(h,'Lapsed Chen'),recaptured=await donor(h,'Recaptured Dee'),reversed=await donor(h,'Corrected Eli')
+ await gift(h,retained,'100',`${year-1}-01-03`);await gift(h,retained,'125',`${year}-01-03`)
+ await gift(h,fresh,'80',`${year}-01-03`)
+ await gift(h,lapsed,'210',`${year-1}-01-03`)
+ await gift(h,recaptured,'90',`${year-2}-01-03`);await gift(h,recaptured,'95',`${year}-01-03`)
+ const correction=await gift(h,reversed,'35',`${year}-01-03`)
+ await h.command('gift.reverse',{giftId:correction.id,reason:'Synthetic duplicate entry'})
+ const report=await h.get(`/api/coffer/retention?year=${year}`)
+ const expected={retained:[retained.id,10000,12500],new:[fresh.id,0,8000],lapsed:[lapsed.id,21000,0],recaptured:[recaptured.id,0,9500]}
+ for(const [kind,[donorId,prior,current]] of Object.entries(expected)){
+  const group=report.groups[kind]
+  assert.equal(group.count,1)
+  assert.deepEqual(group.rows.map(d=>d.donorId),[donorId])
+  assert.equal(group.priorCents,prior)
+  assert.equal(group.currentCents,current)
+  assert.equal(group.priorCents,group.rows.reduce((n,d)=>n+d.priorCents,0))
+  assert.equal(group.currentCents,group.rows.reduce((n,d)=>n+d.currentCents,0))
+  const page=await h.request(`/app/retention?year=${year}&group=${kind}`)
+  assert.equal(page.status,200)
+  assert.match(await page.text(),new RegExp(`/app/donors/${donorId}`))
+ }
+ assert.equal(report.totals.priorCents,31000)
+ assert.equal(report.totals.currentCents,30000)
+ await h.get('/api/coffer/retention?year=not-a-year',{status:400})
+ await h.get('/api/coffer/retention',{as:'',status:401})
+}))

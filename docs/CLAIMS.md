@@ -4,7 +4,7 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 
 `CONTRACT.md` defines the full fundraising CRM target. Its Status table keeps broader unfinished features explicit; the giving rows here describe the self-hosted donation, subscription and donor portal implementation.
 
-**Totals: 61 claims · 41 in code · 7 partly · 13 contract, not yet in code.**
+**Totals: 61 claims · 45 in code · 7 partly · 9 contract, not yet in code.**
 
 | # | Section | Claim | Status | Backed by |
 |---|---|---|---|---|
@@ -12,13 +12,13 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 | 2 | Hero | "keeps every donor's story" | in code | `src/coffer/donors.ts` `donorHistory` (gifts, pledges, consent, letters, appeals, activity) on `src/coffer/ui/donors.ts` `donorPage`. |
 | 3 | Hero | "sends the receipts" | in code | Approved per-gift receipts are emailed through the installation’s SendGrid account; current consent and email are checked at dispatch, otherwise letters go to print (`src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs`). Managed email integrations are not available yet. |
 | 4 | Hero | "and thank-yous" | in code | The charity’s reviewed wording is frozen and approved, then sent by Coffer through SendGrid in bounded batch steps; no-consent/no-email donors go to print (`src/coffer/receipt-mail.ts`, `src/coffer/ui/letters.ts`). |
-| 5 | Hero | "shows who needs a call" | contract, not yet in code | No lapsed-donor or call list; Today (`ui/home.ts`) lists letters due and waiting approvals only. |
+| 5 | Hero | "shows who needs a call" | in code | Lapse lists show annual and stopped-monthly reasons and amounts at risk; staff turn them into owned, dated calls (`src/coffer/lapses.ts`, `src/coffer/call-tasks.ts`, `tests/pipeline.test.mjs`). |
 | 6 | Hero | "100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM" | partly | Free and MIT (`LICENSE`); covers donor records, gift ledger, consent, letters and appeals, not the incumbents' giving, email or reporting. |
 | 7 | Hero card | Spring appeal $48,210 of $60,000, gifts and recurring donors | in code | Campaign pages show goal, ledger-derived raised total, gift count and recurring donor count (`src/coffer/giving/campaigns.ts`, `src/coffer/giving/ui.ts`). |
 | 8 | Hero card | Monthly $25 · Active | in code | Stripe monthly subscriptions appear on donor records and in the donor portal with amount and active/past-due/cancelled state (`src/coffer/giving/recording.ts`, `src/coffer/giving/manage-ui.ts`). |
 | 9 | Hero card | Failed card · Retried successfully | in code | Verified invoice outcomes record failed attempts, Stripe next-attempt timing and successful recovery; donors receive a private card-update link (`src/coffer/giving/webhooks.ts`, `tests/giving.test.mjs`). |
 | 10 | Hero card | Receipt sent · Gift $250.00 · No goods or services provided | in code | Gift receipt email contains donor, gift amount/date, organization and the reviewed goods-or-services statement; signed provider events confirm delivery (`tests/receipts.test.mjs`). |
-| 11 | Hero card | Call Tom Okafor · lapsed 14 months | contract, not yet in code | No lapse detection or call tasks. |
+| 11 | Hero card | Call Tom Okafor · lapsed 14 months | in code | A donor such as Tom with last-year giving and none this year is flagged with the last gift date; an assigned call can be snoozed or completed with an outcome on the donor timeline (`src/coffer/ui/lapses.ts`, `src/coffer/ui/call-tasks.ts`, `tests/pipeline.test.mjs`). |
 | 12 | Online giving | Donation forms and campaign pages | in code | Admins publish campaign donation forms at `/give/<slug>` with a story, fund, goal and once/monthly checkout (`src/coffer/giving/http.ts`, `src/coffer/giving/ui.ts`). |
 | 13 | Online giving | monthly giving | in code | Monthly Stripe subscriptions, installment ledger entries, recovery and end-of-period cancellation (`src/coffer/giving/recording.ts`, `src/coffer/giving/portal.ts`). |
 | 14 | Online giving | card, bank and Apple Pay checkout | partly | Card and Link use Stripe Checkout; Apple Pay is offered by Stripe on eligible devices with a registered domain. US bank is explicitly coming soon; the available test account is AU. A real Apple Wallet device is still needed to exercise Apple Pay. |
@@ -47,12 +47,12 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 | 37 | Appeals | welcome journeys | contract, not yet in code | None in code. |
 | 38 | Appeals | Unsubscribes are honored everywhere | partly | Append-only consent per channel; appeals include only donors whose latest answer is yes and refuse approval or export when it changes (`appeals.ts`); no unsubscribe link or sync. |
 | 39 | Appeals | replies land with the right person | contract, not yet in code | No inbound mail. |
-| 40 | Major gifts | major-gift pipeline with next steps, owners and engagement scores | contract, not yet in code | None in code. |
+| 40 | Major gifts | major-gift pipeline with next steps, owners and engagement scores | in code | Identify, qualify, cultivate, ask and stewardship opportunities carry ask amount, expected close, next step and active staff owner; each engagement score exposes recency, frequency, amount and conversation inputs (`src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs`). |
 | 41 | Development agent | reconciles every gift | contract, not yet in code | Agent keys can only read and prepare (`auth.ts`, `commands.ts`). |
 | 42 | Development agent | rescues failed monthly gifts | contract, not yet in code | None in code. |
 | 43 | Development agent | sends missing receipts | partly | An agent key may run `ack.prepare`; a person approves and sends. |
 | 44 | Development agent | drafts stewardship from your own history | contract, not yet in code | None in code. |
-| 45 | Development agent | tracks retention donor by donor | contract, not yet in code | No retention reporting. |
+| 45 | Development agent | tracks retention donor by donor | in code | Calendar-year retained, new, lapsed and recaptured counts and signed amounts drill to donor rows, with refunds/adjustments and erased identities reconciled separately (`src/coffer/retention.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs`). |
 | 46 | Move in | Move from Little Green Light | contract, not yet in code | Only the Stripe importer exists (`src/coffer/imports/`). |
 | 47 | Move in | Bloomerang | contract, not yet in code | No importer. |
 | 48 | Move in | Raiser's Edge NXT | contract, not yet in code | No importer. |

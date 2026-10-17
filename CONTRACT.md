@@ -712,8 +712,7 @@ Tasks (call, meeting, thank-you, follow-up, data fix) are assigned to a person w
 
 *Acceptance:* A browser journey assigns a thank-you call due tomorrow, receives the reminder, completes it with a note that lands on the timeline, lets a second task go overdue past the delay and sees it on the assignee's manager's list and reminder, and sees a third, assigned to a person with no manager, escalate to the owner.
 
-*Status:* missing. No tasks.
-
+*Status:* partial. Owned, dated call tasks from lapses and unpaid due pledge installments support assignment, reassignment, snooze and atomic donor-timeline call completion. Recurring tasks, reminders, escalation and other task kinds remain. Evidence: `src/coffer/call-tasks.ts`, `src/coffer/ui/call-tasks.ts`, `tests/pipeline.test.mjs`.
 #### STEW-002 — Recurring tasks.
 
 A task can repeat (quarterly board-member check-in, monthly donor-retention review); the next one is created when the last is completed or its due date passes.
@@ -736,7 +735,7 @@ Before each installment is due Coffer sends the donor a reminder or invoice (ema
 
 *Acceptance:* An HTTP journey creates a quarterly pledge, receives the reminder a week before an installment, pays through the link, and lets the next installment go overdue to see the follow-up and task; a do-not-solicit donor's installment reminder still goes.
 
-*Status:* partial. Self-hosted SendGrid reminders run daily or by staff before each unpaid installment using current email permission, with durable single-attempt submission states. Managed email is not available yet. Pay links, printable invoices, overdue follow-up and tasks remain. Evidence: `src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs`.
+*Status:* partial. Self-hosted SendGrid reminders run daily or by staff before each unpaid installment using current email permission, with durable single-attempt submission states. Managed email is not available yet. Unpaid due installments now feed the owned call list. Pay links, printable invoices and automatic overdue follow-up remain. Evidence: `src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs`.
 
 #### STEW-005 — Gift-triggered rules.
 
@@ -764,16 +763,14 @@ An opportunity has a prospect, ask amount, expected amount, probability, target 
 
 *Acceptance:* A browser journey creates three opportunities for two managers and two campaigns, filters the board by manager, by stage and by campaign and sees only the matching opportunities each time, moves one through to solicit, closes it won with a pledge, and reads a pipeline total that excludes the closed amount from the forecast.
 
-*Status:* missing. No opportunities or pipeline.
-
+*Status:* partial. Identify, qualify, cultivate, ask and stewardship opportunities carry ask amount, expected close, owner and next step; lists filter by owner and stage. Configurable stages, probability, campaign/fund forecasts and closed-won gift linkage remain. Evidence: `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs`.
 #### MAJOR-002 — Portfolios and moves.
 
 Each major-gift prospect has a relationship manager and a portfolio; Coffer counts each manager's moves (meaningful contacts) per period, flags prospects with no contact in a set number of days, and shows portfolio size, pipeline and dollars raised per manager.
 
 *Acceptance:* An HTTP journey assigns two portfolios, logs contacts on some prospects, and reads moves counts and a flagged list of untouched prospects per manager.
 
-*Status:* missing. No portfolios.
-
+*Status:* partial. Opportunities have staff owners, next steps and engagement inputs from recorded contacts. Portfolio definitions, manager moves reporting and untouched-prospect flags remain. Evidence: `src/coffer/major-gifts.ts`, `tests/pipeline.test.mjs`.
 #### MAJOR-003 — Action plans and proposals.
 
 A cultivation plan is a template of steps (tour, lunch with the board chair, proposal, ask) applied to an opportunity as dated tasks; proposals are drafted and attached, sent, and their response recorded.
@@ -788,8 +785,7 @@ Every constituent gets a transparent engagement score from recency, frequency an
 
 *Acceptance:* An HTTP journey builds donors with different histories and reads scores and factors that follow the formula as read from the scores settings page and its API, then changes a weight and sees the scores change.
 
-*Status:* missing. No scores.
-
+*Status:* partial. Prospect scores expose recency, frequency, amount and conversation inputs with their points and the full fixed formula. Configurable weights, broader engagement sources and scores on every constituent remain. Evidence: `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs`.
 #### MAJOR-005 — Prospect research.
 
 An admin screens selected records through DonorSearch or WealthEngine; ratings, capacity ranges and philanthropic indicators are stored with provider and date, visible only to permitted roles, never shown to donors, and removed by erasure.
@@ -824,16 +820,14 @@ Retention, new, retained, recaptured, upgraded, downgraded and lapsed donors and
 
 *Acceptance:* An HTTP journey builds three years of giving and reads retention figures that match a hand calculation, then opens the lapsed figure to its donors.
 
-*Status:* partial. Per-donor lifetime and yearly totals exist; no organization-wide retention, cohorts or lapse. Evidence: `src/coffer/donors.ts`, `tests/coffer.test.mjs`.
-
+*Status:* partial. Calendar-year retained, new, lapsed and recaptured counts and net amounts drill to every underlying donor; signed adjustments and erased identities reconcile to the contribution ledger. Fiscal years, list/fund/campaign filters and upgraded/downgraded cohorts remain. Evidence: `src/coffer/retention.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs`.
 #### REPORT-002 — LYBUNT and SYBUNT lists.
 
 Donors who gave last year but not this year (LYBUNT) and some year but not this year (SYBUNT), with last gift and amount, as lists that feed appeals, journeys and call tasks.
 
 *Acceptance:* An HTTP journey reads both lists for a built history and sends the LYBUNT list to an appeal.
 
-*Status:* missing. No lapse lists.
-
+*Status:* partial. LYBUNT and earlier-year SYBUNT lists show reasons, last gifts and annual amounts at risk, with stopped monthly-plan flags and owned call creation. Direct appeal and journey enrollment remain. Evidence: `src/coffer/lapses.ts`, `src/coffer/ui/lapses.ts`, `tests/pipeline.test.mjs`, `tests/giving.test.mjs`.
 #### REPORT-003 — Fundraising dashboards.
 
 A home dashboard and report pages show raised this fiscal year against last and goal, by fund, campaign, appeal, form, channel and month, with recurring revenue, new donors, retention and pipeline; every number opens to its gifts.
@@ -1146,8 +1140,7 @@ Each week the agent ranks, per relationship manager, the donors most worth a cal
 
 *Acceptance:* An HTTP journey builds a history with lapsing, upgrading and silent donors and a manager with a capacity of 5; the agent creates 5 ranked call tasks with reasons and lists the rest as overflow; a do-not-solicit donor with upgrade signals gets no ask task and appears only as a thank-you call marked not an ask; 3 calls are logged, 2 of those donors give within N days, the fiscal year closes, and the per-donor table reads call made, gift within N days and retained for every listed donor, with called and uncalled retention rates that match a hand calculation.
 
-*Status:* missing. No call list, scores or retention measurement.
-
+*Status:* partial. Staff review explained lapse/monthly/pledge flags, create owned dated calls, log outcomes on donor timelines and inspect donor-by-donor retention. Weekly agent ranking, capacity overflow, solicitation/status restrictions and called-vs-uncalled outcome attribution remain. Evidence: `src/coffer/call-tasks.ts`, `src/coffer/lapses.ts`, `src/coffer/retention.ts`, `tests/pipeline.test.mjs`.
 #### DEV-006 — Briefs before a meeting.
 
 Before a scheduled donor meeting the agent prepares a one-page brief: giving summary, recent interactions, open opportunities and pledges, relationships, and questions left open last time, each line linked to its source. It does not speculate about capacity beyond stored prospect research the reader may see.
@@ -1248,13 +1241,13 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 2 | keeps every donor's story | `DONOR-001`, `DONOR-004` | `DONOR-001` done · `DONOR-004` partial |
 | 3 | sends the receipts | `ACK-001`, `RCPT-001`, `RCPT-002` | `ACK-001` done · `RCPT-001` partial · `RCPT-002` done |
 | 4 | and thank-yous | `RCPT-002`, `RCPT-007` | `RCPT-002` done · `RCPT-007` partial |
-| 5 | shows who needs a call | `DEV-005`, `REPORT-002` | missing |
+| 5 | shows who needs a call | `DEV-005`, `REPORT-002` | partial (core claim implemented; broader clauses remain) |
 | 6 | 100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM | `OWN-001`, `MOVE-001`, `MOVE-002`, `MOVE-004` | `OWN-001` done · `MOVE-001` missing · `MOVE-002` missing · `MOVE-004` missing |
 | 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` partial · `REPORT-003` partial |
 | 8 | Monthly $25 · Active | `GIVE-003` | partial |
 | 9 | Failed card · Retried successfully | `GIVE-006` | partial |
 | 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` partial |
-| 11 | Call Tom Okafor · lapsed 14 months | `DEV-005`, `STEW-001` | missing |
+| 11 | Call Tom Okafor · lapsed 14 months | `DEV-005`, `STEW-001` | partial (core claim implemented; broader clauses remain) |
 | 12 | Donation forms and campaign pages | `GIVE-001`, `GIVE-002` | partial |
 | 13 | monthly giving | `GIVE-003` | partial |
 | 14 | card, bank and Apple Pay checkout | `GIVE-004` | partial |
@@ -1283,12 +1276,12 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 37 | welcome journeys | `STEW-003` | missing |
 | 38 | Unsubscribes are honored everywhere | `CONSENT-001`, `APPEAL-001`, `COMM-001` | `CONSENT-001` done · `APPEAL-001` done · `COMM-001` partial |
 | 39 | replies land with the right person | `COMM-005` | missing |
-| 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | missing |
+| 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | partial (core claim implemented; broader clauses remain) |
 | 41 | reconciles every gift | `DEV-001` | missing |
 | 42 | rescues failed monthly gifts | `DEV-002` | missing |
 | 43 | sends missing receipts | `DEV-003` | partial |
 | 44 | drafts stewardship from your own history | `DEV-004` | missing |
-| 45 | tracks retention donor by donor | `DEV-005`, `REPORT-001` | `DEV-005` missing · `REPORT-001` partial |
+| 45 | tracks retention donor by donor | `DEV-005`, `REPORT-001` | partial (core claim implemented; broader clauses remain) |
 | 46 | Move from Little Green Light | `MOVE-001` | missing |
 | 47 | Bloomerang | `MOVE-002` | missing |
 | 48 | Raiser's Edge NXT | `MOVE-003` | missing |
@@ -1308,15 +1301,15 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `facdb31a1c171f491dc29395f0b771786a994a1d` (17 October 2026).
+Judged from the code and tests at commit `b3dcf6c` (17 October 2026).
 
 The giving, receipt, payments and donor-depth clauses and their claim mappings include their current implementations and named tests.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 4 | 53 | 69 | 126 |
-| All | 13 | 53 | 69 | 135 |
+| Target and push further | 4 | 59 | 63 | 126 |
+| All | 13 | 59 | 63 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1397,21 +1390,21 @@ The giving, receipt, payments and donor-depth clauses and their claim mappings i
 | `COMM-006` | SMS outreach | target | missing |  | No SMS. |
 | `COMM-007` | Direct mail appeals | target | partial | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` | Mail-channel audiences with postal addresses export as CSV; no ask amounts, response codes or mailing history. |
 | `COMM-008` | Appeal results | target | missing |  | No appeal results. |
-| `STEW-001` | Tasks with owners and reminders | target | missing |  | No tasks. |
+| `STEW-001` | Tasks with owners and reminders | target | partial | `src/coffer/call-tasks.ts`, `src/coffer/ui/call-tasks.ts`, `tests/pipeline.test.mjs` | Owned, dated call tasks from lapses and unpaid due pledge installments support assignment, reassignment, snooze and atomic donor-timeline call completion. Recurring tasks, reminders, escalation and other task kinds remain. |
 | `STEW-002` | Recurring tasks | target | missing |  | No tasks. |
 | `STEW-003` | Stewardship journeys | target | missing |  | No journeys. |
-| `STEW-004` | Pledge reminders and invoices | target | partial | `src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs` | Self-hosted SendGrid reminders run daily or by staff before each unpaid installment using current email permission, with durable single-attempt submission states. Managed email is not available yet. Pay links, printable invoices, overdue follow-up and tasks remain. |
+| `STEW-004` | Pledge reminders and invoices | target | partial | `src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs` | Self-hosted SendGrid reminders run daily or by staff before each unpaid installment using current email permission, with durable single-attempt submission states. Managed email is not available yet. Unpaid due installments now feed the owned call list. Pay links, printable invoices and automatic overdue follow-up remain. |
 | `STEW-005` | Gift-triggered rules | target | missing |  | No rules. |
 | `STEW-006` | Meetings and calendars | target | missing |  | No calendar connection. |
-| `MAJOR-001` | Opportunity pipeline | target | missing |  | No opportunities or pipeline. |
-| `MAJOR-002` | Portfolios and moves | target | missing |  | No portfolios. |
+| `MAJOR-001` | Opportunity pipeline | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Identify, qualify, cultivate, ask and stewardship opportunities carry ask amount, expected close, owner and next step; lists filter by owner and stage. Configurable stages, probability, campaign/fund forecasts and closed-won gift linkage remain. |
+| `MAJOR-002` | Portfolios and moves | target | partial | `src/coffer/major-gifts.ts`, `tests/pipeline.test.mjs` | Opportunities have staff owners, next steps and engagement inputs from recorded contacts. Portfolio definitions, manager moves reporting and untouched-prospect flags remain. |
 | `MAJOR-003` | Action plans and proposals | target | missing |  | No plans or proposals. |
-| `MAJOR-004` | Engagement and retention scores | target | missing |  | No scores. |
+| `MAJOR-004` | Engagement and retention scores | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Prospect scores expose recency, frequency, amount and conversation inputs with their points and the full fixed formula. Configurable weights, broader engagement sources and scores on every constituent remain. |
 | `MAJOR-005` | Prospect research | target | missing |  | No prospect research. |
 | `MAJOR-006` | Grants from foundations and corporations | target | missing |  | No grant tracking. |
 | `MAJOR-007` | Planned giving | target | missing |  | No planned-giving records. |
-| `REPORT-001` | Donor retention | target | partial | `src/coffer/donors.ts`, `tests/coffer.test.mjs` | Per-donor lifetime and yearly totals exist; no organization-wide retention, cohorts or lapse. |
-| `REPORT-002` | LYBUNT and SYBUNT lists | target | missing |  | No lapse lists. |
+| `REPORT-001` | Donor retention | target | partial | `src/coffer/retention.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs` | Calendar-year retained, new, lapsed and recaptured counts and net amounts drill to every underlying donor; signed adjustments and erased identities reconcile to the contribution ledger. Fiscal years, list/fund/campaign filters and upgraded/downgraded cohorts remain. |
+| `REPORT-002` | LYBUNT and SYBUNT lists | target | partial | `src/coffer/lapses.ts`, `src/coffer/ui/lapses.ts`, `tests/pipeline.test.mjs`, `tests/giving.test.mjs` | LYBUNT and earlier-year SYBUNT lists show reasons, last gifts and annual amounts at risk, with stopped monthly-plan flags and owned call creation. Direct appeal and journey enrollment remain. |
 | `REPORT-003` | Fundraising dashboards | target | partial | `src/coffer/ui/home.ts` | Today shows the current calendar year's total and acknowledgement backlog; no breakdowns, goals, comparisons or drill-down. |
 | `REPORT-004` | Report builder | target | missing |  | No report builder. |
 | `REPORT-005` | Scheduled reports | target | missing |  | No scheduled reports. |
@@ -1447,7 +1440,7 @@ The giving, receipt, payments and donor-depth clauses and their claim mappings i
 | `DEV-002` | Rescues failed monthly gifts | push-further | missing |  | No recurring plans or recovery agent. |
 | `DEV-003` | Sends missing receipts | push-further | partial | `src/coffer/commands.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | An agent key can prepare due acknowledgement letters for a person to approve; it cannot find bounced or missing receipts, and nothing is sent. |
 | `DEV-004` | Drafts stewardship from the nonprofit's own history | push-further | missing |  | No interaction history or drafting agent. |
-| `DEV-005` | Shows who needs a human call next | push-further | missing |  | No call list, scores or retention measurement. |
+| `DEV-005` | Shows who needs a human call next | push-further | partial | `src/coffer/call-tasks.ts`, `src/coffer/lapses.ts`, `src/coffer/retention.ts`, `tests/pipeline.test.mjs` | Staff review explained lapse/monthly/pledge flags, create owned dated calls, log outcomes on donor timelines and inspect donor-by-donor retention. Weekly agent ranking, capacity overflow, solicitation/status restrictions and called-vs-uncalled outcome attribution remain. |
 | `DEV-006` | Briefs before a meeting | push-further | missing |  | No meetings or briefs. |
 | `DEV-007` | Proves the move-in and the cutover | push-further | partial | `src/coffer/imports/service.ts`, `tests/coffer.test.mjs` | The Stripe move-in previews totals and skips for a person to approve; no comparison agent, recurring reauthorization or cutover. |
 | `DEV-008` | Keeps the database clean | push-further | missing |  | No data hygiene agent. |

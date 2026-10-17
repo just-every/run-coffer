@@ -1,3 +1,11 @@
+import { callTasks, taskOwners, taskSources } from './call-tasks'
+import { lapses } from './lapses'
+import { retention } from './retention'
+import { prospects } from './major-gifts'
+import { callTasksPage } from './ui/call-tasks'
+import { lapsesPage } from './ui/lapses'
+import { retentionPage } from './ui/retention'
+import { majorGiftsPage } from './ui/major-gifts'
 import type { Bindings } from '../auth.server'
 import { runtimeBindings } from '../auth.server'
 import { createPortability, createPortabilityHandler } from '@runeditrun/rer/modules/portability'
@@ -163,6 +171,8 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 }
 
 function actionPage(command: string, input: any, result: any, actor: Actor) {
+ if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
+ if (command === 'prospect.save') return redirect('/app/pipeline')
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(new Date(result.expiresAt).toISOString().slice(0, 10))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
  if (command === 'agent.revoke') return redirect('/app/data')
  if (command === 'settings.update') return redirect('/app/settings?saved=1')
@@ -213,6 +223,10 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/appeals') return json({ appeals: await appeals(c) })
  if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)$/))) return json(await appealDetail(c, m[1]))
  if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
+ if (path === '/api/coffer/lapses') return json(await lapses(c))
+ if (path === '/api/coffer/tasks') return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: await taskSources(c) })
+ if (path === '/api/coffer/retention') return json(await retention(c,url.searchParams.has('year') ? Number(url.searchParams.get('year')) : undefined))
+ if (path === '/api/coffer/prospects') return json(await prospects(c))
  if (path === '/api/coffer/settings') return json(await settings(c))
  return fail('not_found', 'Not found.', 404)
 }
@@ -233,6 +247,10 @@ async function screen(c: Context, url: URL): Promise<Response> {
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if (path === '/app/calls') return show('Call list', await callTasksPage(c,url))
+ if (path === '/app/lapses') return show('Donors who need a call', await lapsesPage(c,url))
+ if (path === '/app/retention') return show('Donor retention', await retentionPage(c,url))
+ if (path === '/app/pipeline') return show('Major-gift pipeline', await majorGiftsPage(c,url))
  if (path === '/app') return show('Today', await home(c))
  if (path === '/app/giving') return show('Online giving', await givingManagePage(c))
  if (path === '/app/donors') return show('Donors', await donorsPage(c, url))

@@ -41,13 +41,14 @@ export async function syncSubscription(env: GivingEnv, subscriptionId: string) {
 }
 
 /** The reference and deterministic ID make return-page/webhook races harmless. */
-export async function recordGift(env: GivingEnv, intent: Row, reference: string, cents: number, paidAt: number) {
+export async function recordGift(env: GivingEnv, intent: Row, reference: string, cents: number, paidAt: number, subscriptionId?: string) {
  if (!Number.isSafeInteger(cents) || cents <= 0 || !reference || !Number.isSafeInteger(paidAt)) fail('invalid_payment', 'Stripe returned an invalid gift.', 409)
  const id = 'giving-' + reference, now = new Date().toISOString(), day = new Date(paidAt * 1000).toISOString().slice(0, 10)
  await env.DB.batch([
   env.DB.prepare(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,source,created_at,created_by)
    VALUES(?,1,?,'gift',?,?,'card',?,?,'none',0,'stripe',?,'Stripe')`).bind(id, intent.donor_id, day, cents, reference, intent.fund, now),
   env.DB.prepare('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=? AND kind=\'gift\'').bind(intent.campaign_id, reference),
+  ...(subscriptionId ? [env.DB.prepare('INSERT OR IGNORE INTO cf_subscription_gifts(subscription_id,gift_id) VALUES(?,?)').bind(subscriptionId,id)] : []),
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'stripe','Stripe','agent','giving.paid','gift',?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_events WHERE action='giving.paid' AND subject_id=?)`).bind(now, id, intent.donor_id, JSON.stringify({ amountCents: cents, campaignId: intent.campaign_id }), id),
  ])

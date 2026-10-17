@@ -1,3 +1,4 @@
+import { majorGiftMergeStatements } from './major-gifts'
 import { donorDepthMergeStatements } from './donor-depth'
 import { commit, event, fail, guard, id, integer, one, sql, type Context, type Row, type Stmt } from './db'
 
@@ -24,9 +25,10 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
  ]
  for (const table of ['cf_pledges', 'cf_acks', 'cf_events', 'cf_soft_credits', 'cf_gift_tributes', 'cf_giving_customers', 'cf_giving_intents', 'cf_subscriptions'])
   statements.push(sql(`UPDATE ${table} SET donor_id=? WHERE donor_id=?`, target, source))
+ statements.push(sql('UPDATE cf_call_tasks SET donor_id=?,version=version+1 WHERE donor_id=?',target,source))
  statements.push(sql('UPDATE cf_employer_matches SET employer_donor_id=? WHERE employer_donor_id=?', target, source))
  // Relationship endpoints are reconciled by the module helper below.
- statements.push(...donorDepthMergeStatements(source, target))
+ statements.push(...donorDepthMergeStatements(source, target), ...majorGiftMergeStatements(source,target))
  statements.push(sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)', source, target),
   sql('UPDATE cf_donors SET version=version+1 WHERE id IN (?,?)', source, target),
   event(c, 'donor.merge', 'donor', source, target, { sourceDonorId: source, targetDonorId: target }))
