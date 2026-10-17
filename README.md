@@ -6,9 +6,9 @@ Coffer keeps donor records for a US nonprofit: donors and households, every gift
 
 Coffer does not process payments, send email, screen wealth or give tax advice. Your gifts arrive through your existing processor (Stripe is the first move-in kit), and the letter wording is your organization's own.
 
-## The run site is local for now
+## The run site
 
-Coffer's public run site will live at https://run-coffer.com once that domain is registered. **It is not live yet.** Until then, the same site runs on your computer: `rer dev` (below) prints a line like `RER_SITE http://127.0.0.1:8904`. Open that address for the homepage, `/run` for the run page and `/docs` for the guides, for example http://127.0.0.1:8904/docs, using the port `rer` printed for you. The guides are also in [docs/](docs/site.json) as Markdown.
+Coffer's run site is at https://run-coffer.com, with the run page at https://run-coffer.com/run and the guides at https://run-coffer.com/docs. The same site also runs on your computer: `rer dev` (below) prints a line like `RER_SITE http://127.0.0.1:8904`. Open that address for the homepage, `/run` for the run page and `/docs` for the guides, for example http://127.0.0.1:8904/docs, using the port `rer` printed for you. The guides are also in [docs/](docs/site.json) as Markdown.
 
 ## Start from a fresh clone
 

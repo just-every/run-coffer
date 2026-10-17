@@ -1,9 +1,11 @@
 import { links } from '../../shell/links'
 import { Icon } from '../parts'
 
-const COMMANDS = ['git clone https://github.com/just-every/run-coffer.git coffer', 'cd coffer', 'rer install', 'rer setup', 'rer dev']
+const REPO = 'just-every/run-coffer'
+/** Lines rer prints on a first start (rer 0.2.38: Restart, one of its progress lines, then the ready line). */
+const OUTPUT = ['Restart: cd run-coffer && rer dev', 'rer dev: installing dependencies', 'RER_READY http://127.0.0.1:8787']
 
-/** Ownership: run it on your own computer, keep the database, export any time; the terminal holds the five commands. */
+/** Ownership: run it on your own computer, keep the database, export any time; the terminal holds the one command that clones, sets up and starts it. */
 export function Ownership() {
   return <section className="ownership" aria-labelledby="ownership-title">
     <div className="site-wrap own-row">
@@ -19,7 +21,7 @@ export function Ownership() {
       </div>
       <figure className="terminal" aria-label="Start Coffer from the source">
         <p className="terminal-bar" aria-hidden="true"><span /><span /><span /></p>
-        <pre><code>{COMMANDS.map(line => <span key={line} className="terminal-line"><span className="prompt" aria-hidden="true">$ </span>{line}{'\n'}</span>)}</code></pre>
+        <pre><code><span className="terminal-line"><span className="prompt" aria-hidden="true">$ </span>npx -y @runeditrun/rer dev <span style={{ whiteSpace: 'nowrap' }}>{REPO}</span>{'\n'}</span>{OUTPUT.map(line => <span key={line} className="terminal-line">{line}{'\n'}</span>)}</code></pre>
       </figure>
     </div>
   </section>
