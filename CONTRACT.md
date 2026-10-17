@@ -1301,7 +1301,9 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Status follows the implementation and tests named in each row. The giving summary and split-gift clauses were also exercised through the product at 1440 and 390 pixels on 18 October 2026.
+Judged from the code and tests at commit `231694e67ba4b595574afe99f554ebf16d01fe5b` (18 October 2026).
+
+The giving summary and split-gift clauses were also exercised through the product at 1440 and 390 pixels on 18 October 2026.
 
 The giving, receipt, payments, donor-depth, development-agent and CRM export move-in clauses and their claim mappings include their current implementations and named tests.
 
