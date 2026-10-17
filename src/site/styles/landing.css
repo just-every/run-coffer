@@ -6,10 +6,13 @@
 .site-header.over-art { position: absolute; inset: 0 0 auto; }
 
 /* ---------- Hero ---------- */
-.hero { position: relative; isolation: isolate; aspect-ratio: 3 / 2; min-height: 780px; max-height: 1060px; overflow: hidden; background: var(--night-sky); }
+/* The painted bands keep their aspect ratio until max-height, then grow only in width: an explicit width
+   stops max-height from shrinking them through the aspect ratio on wide screens. */
+.hero { position: relative; isolation: isolate; width: 100%; aspect-ratio: 3 / 2; min-height: 780px; max-height: 1060px; overflow: hidden; background: var(--night-sky); }
 .hero-art, .hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hero-art { z-index: -1; }
-.hero-art img { object-fit: cover; object-position: 50% 100%; }
+/* Past 3:2 (wider than 1590) the band crops the painting; keep the sky behind the copy. */
+.hero-art img { object-fit: cover; object-position: 50% 40%; }
 /* The painting's foot eases into the plain night of the sections below. */
 .hero::after { content: ''; position: absolute; z-index: -1; inset: auto 0 0; height: 70px; background: linear-gradient(transparent, var(--night)); pointer-events: none; }
 .hero-grid { position: relative; height: 100%; padding-top: 136px; }
@@ -57,7 +60,7 @@
 .interlude-badge .check { width: 40px; height: 40px; }
 .interlude-badge .check circle { fill: var(--green); }
 .interlude-badge .check path { stroke: #fff; stroke-width: 2.4; }
-.interlude-art { display: block; position: relative; margin-top: 30px; aspect-ratio: 1536 / 656; max-height: 720px; overflow: hidden; }
+.interlude-art { display: block; position: relative; width: 100%; margin-top: 30px; aspect-ratio: 1536 / 656; max-height: 720px; overflow: hidden; }
 .interlude-art img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: 50% 50%; -webkit-mask-image: linear-gradient(transparent, #000 4%, #000 92%, transparent); mask-image: linear-gradient(transparent, #000 4%, #000 92%, transparent); }
 
 /* ---------- Ownership ---------- */
