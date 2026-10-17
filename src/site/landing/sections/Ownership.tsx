@@ -2,8 +2,8 @@ import { links } from '../../shell/links'
 import { Icon } from '../parts'
 
 const REPO = 'just-every/run-coffer'
-/** Lines rer prints on a first start (rer 0.2.38: Restart, one of its progress lines, then the ready line). */
-const OUTPUT = ['Restart: cd run-coffer && rer dev', 'rer dev: installing dependencies', 'RER_READY http://127.0.0.1:8787']
+/** Lines rer prints on a first start (rer 0.2.38: Restart, then two of its progress lines; no loopback address or RER_ line on a public page). */
+const OUTPUT = ['Restart: cd run-coffer && rer dev', 'rer dev: installing dependencies', 'rer dev: starting the app']
 
 /** Ownership: run it on your own computer, keep the database, export any time; the terminal holds the one command that clones, sets up and starts it. */
 export function Ownership() {
