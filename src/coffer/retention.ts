@@ -1,5 +1,5 @@
 import { all, fail, integer, today, type Context } from './db'
-import { settings } from './settings'
+import { longDate, settings } from './settings'
 
 export type RetentionKind = 'retained' | 'new' | 'lapsed' | 'recaptured'
 export type RetentionRow = {
@@ -66,7 +66,7 @@ export async function retention(c: Context, selectedYear?: number | string) {
  return {
   year, priorYear, asOf, timezone: s.timezone,
   prior: { from: priorStart, through: `${priorYear}-12-31`, label: `${priorYear} complete calendar year` },
-  current: { from: start, through: end, label: year === currentYear ? `${year} year to date through ${end}` : `${year} complete calendar year` },
+  current: { from: start, through: end, label: year === currentYear ? `${year} year to date through ${longDate(end)}` : `${year} complete calendar year` },
   groups, adjustments: { rows: adjustmentRows, ...summarize(adjustmentRows) },
   totals: { ...totals, priorDonors, currentDonors, retentionRate: priorDonors ? groups.retained.count / priorDonors : null },
   excluded: excludedTotals,

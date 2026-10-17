@@ -3,7 +3,6 @@ import { all, commit, event, fail, guard, newId, one, sql, type Context, type Ro
 import { settings, renderLetter } from '../settings'
 import { tributeReceiptText } from '../gift-depth'
 import { activityStatement } from './activity'
-import { box, e, empty, money } from '../ui/common'
 
 const ELIGIBLE=`g.kind='gift' AND d.erased_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
@@ -11,7 +10,7 @@ const ELIGIBLE=`g.kind='gift' AND d.erased_at IS NULL
   AND (a.delivery_status NOT IN ('bounced','rejected','complained') OR a.printed_at IS NOT NULL))
  AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)`
 export async function missingReceipts(c:Context) {
- return all(c,`SELECT g.*,d.name AS donor_name,
+ return all(c,`SELECT g.*,d.name AS donor_name,d.city,d.region,
  (SELECT a.delivery_status FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1 LIMIT 1) AS previous_status
  FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE ${ELIGIBLE} ORDER BY g.received_on,g.id LIMIT 500`)
 }
@@ -44,8 +43,4 @@ export async function undoReceiptQueue(c:Context,batchId:string) {
  const b=await one(c,'SELECT version FROM cf_ack_batches WHERE id=?',batchId)
  if (!b) fail('NOT_FOUND','That batch no longer exists.',404)
  return ackCommand(c,'ack.discard',{batchId,version:b.version})
-}
-export async function receiptAgentPage(c:Context) {
- const gifts=await missingReceipts(c)
- return box('Missing receipts',`<p>Finds every unreceipted gift, including gifts below the usual letter threshold, and bounced receipts. A person reviews and approves the frozen batch in Letters. Bounced addresses go to print; uncertain email submissions are held.</p><form method="post" action="/app/agent/receipts/queue"><button>Queue missing receipts for approval</button></form>${gifts.length?`<ul class="list">${gifts.map(g=>`<li><a href="/app/donors/${e(g.donor_id)}">${e(g.donor_name)}</a> · ${money(g.amount_cents)} · ${e(g.received_on)}<br><span class="muted">${g.goods==='unknown'?'Held: answer goods or services on the gift.':g.previous_status?'Delivery failed; prepare for review and print.':'No sent receipt or pending batch.'}</span></li>`).join('')}</ul>`:empty('Every eligible gift has a receipt or is already in a batch.')}`)
 }

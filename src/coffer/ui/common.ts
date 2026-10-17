@@ -10,6 +10,15 @@ export const money = usd
 export const when = (day: string | null | undefined) => day ? longDate(day.slice(0, 10)) : ''
 /** "Oct 16, 2026": the dense tables' date. */
 export const shortDate = (day: string | null | undefined) => day ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${day.slice(0, 10)}T00:00:00Z`)) : ''
+/** "Oct 15, 2026 · 8:04 AM" in the organization's time zone: every recorded moment on screen. */
+export const moment = (at: string | null | undefined, timeZone: string) => {
+ if (!at) return ''
+ if (at.length <= 10) return shortDate(at)
+ const t = new Date(at)
+ return `${shortDate(t.toLocaleDateString('en-CA', { timeZone }))} · ${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone }).format(t)}`
+}
+/** "Check · 4471", "Card", "Bank transfer": how a gift was paid, as every ledger shows it. */
+export const paidBy = (g: Record<string, any>) => `${g.method.charAt(0).toUpperCase()}${g.method.slice(1)}${g.method === 'check' && g.reference ? ` · ${g.reference}` : ''}`
 export const hidden = (name: string, value: unknown) => `<input type="hidden" name="${e(name)}" value="${e(value)}">`
 export const field = (label: string, name: string, type = 'text', value: unknown = '', extra = '') =>
  `<label>${e(label)}<input name="${e(name)}" type="${type}" value="${e(value)}" ${extra}></label>`
@@ -42,7 +51,7 @@ function shell(title: string, body: string, actor: { name: string; role: string;
  if (!actor) return `<main class="coffer cf-solo" id="main">${brand}${heading}${body}</main>`
  const current = NAV.filter(([href]) => path === href || (href !== '/app' && path.startsWith(href))).at(-1)?.[0]
  const nav = NAV.map(([href, label, glyph]) => `<a href="${href}"${href === current ? ' aria-current="page"' : ''}>${icon(glyph)}<span>${label}</span></a>`).join('')
- const top = `<header class="cf-top"><form class="cf-find" role="search" method="get" action="/app/donors"><label class="sr" for="cf-find">Find a donor</label>${icon('search')}<input id="cf-find" name="q" type="search" placeholder="Name, email or household"></form>${actor.org ? `<span class="cf-org">${e(actor.org)}</span>` : ''}<a class="cf-record" href="/app/donors">Record gift</a><span class="cf-who"><span class="cf-avatar" aria-hidden="true">${e(initials(actor.name))}</span><span class="cf-who-name">${e(actor.name)}<small>${e(actor.role)}</small></span></span></header>`
+ const top = `<header class="cf-top"><form class="cf-find" role="search" method="get" action="/app/donors"><label class="sr" for="cf-find">Find a donor</label>${icon('search')}<input id="cf-find" name="q" type="search" placeholder="Name, email or household"></form>${actor.org ? `<span class="cf-org">${e(actor.org)}</span>` : ''}<a class="cf-record" href="/app/donors?record=1">Record gift</a><span class="cf-who"><span class="cf-avatar" aria-hidden="true">${e(initials(actor.name))}</span><span class="cf-who-name">${e(actor.name)}<small>${e(actor.role)}</small></span></span></header>`
  return `<a class="cf-skip" href="#main">Skip to content</a>${sprite}<div class="cf-shell"><aside class="cf-rail">${brand}<input type="checkbox" id="cf-menu" class="cf-menu-toggle"><label for="cf-menu" class="cf-menu-button">${icon('menu')}<span>Menu</span></label><nav aria-label="Main">${nav}</nav><div class="cf-windows" aria-hidden="true"></div></aside><div class="cf-work">${top}<main class="coffer" id="main">${heading}${body}</main></div></div>`
 }
 export async function page(title: string, body: string, actor?: { name: string; role: string; org?: string }, statusCode = 200, path = '', options: { hideTitle?: boolean } = {}) {

@@ -8,7 +8,9 @@ import { recoveryData, recoveryAction, runRecovery } from './recovery'
 import { recoveryPage } from './recovery-ui'
 import { reconciliationData, runReconciliation, applyReconciliation, undoReconciliation } from './reconciliation'
 import { reconciliationPage } from './reconciliation-ui'
-import { missingReceipts, queueMissingReceipts, receiptAgentPage, undoReceiptQueue } from './receipts'
+import { missingReceipts, queueMissingReceipts, undoReceiptQueue } from './receipts'
+import { receiptAgentPage } from './receipts-ui'
+import { activityTable } from './activity-ui'
 import { stewardshipState, stewardshipCommand } from './stewardship'
 import { setupPage, stewardshipPage } from './stewardship-ui'
 
@@ -30,8 +32,8 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
   else if(tail==='/stewardship'){title='Draft stewardship';content=await stewardshipPage(c,url)}
   else if(tail==='/reconcile'){title='Reconcile gifts';content=await reconciliationPage(c)}
   else if(tail==='/recovery'){title='Recover monthly gifts';content=await recoveryPage(c)}
-  else if(tail==='/receipts'){title='Find missing receipts';content=await receiptAgentPage(c)}
-  else if(tail==='') {title='Development agent';content=await overview(c,env)}
+  else if(tail==='/receipts'){title='Find missing receipts';content=await receiptAgentPage(c,url)}
+  else if(tail==='') {title='Development agent';content=await overview(c,env,url)}
   else return fail('NOT_FOUND','That agent page does not exist.',404)
   return page(title,nav()+content,c.actor,200,'/app/agent')
  }
@@ -53,9 +55,8 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  return api?json(result):redirect(back)
 }
 const nav=()=>`<p class="actions"><a href="/app/agent">Activity</a><a href="/app/agent/reconcile">Reconcile</a><a href="/app/agent/recovery">Monthly recovery</a><a href="/app/agent/receipts">Missing receipts</a><a href="/app/agent/stewardship">Stewardship</a><a href="/app/agent/setup">AI setup</a></p>`
-async function overview(c:Context,env:GivingEnv) {
- const records=await activity(c)
- return `<p>Reconcile gifts, follow failed monthly plans, prepare missing receipts and draft personal stewardship. Every proposal keeps its sources and reason. People approve corrections, receipts and messages.</p>${managed(env)?'<p class="notice">Provider integrations are not available yet on RER Managed.</p>':''}<ul class="tiles"><li><a href="/app/agent/reconcile"><strong>Reconcile gifts</strong><span>Compare Stripe, the gift ledger and Pantry; review, apply and undo corrections.</span></a></li><li><a href="/app/agent/recovery"><strong>Recover monthly gifts</strong><span>Private card-update email, Stripe retry schedule and recovered or lapsed outcomes.</span></a></li><li><a href="/app/agent/receipts"><strong>Find missing receipts</strong><span>Prepare missing and bounced receipts for a person to approve.</span></a></li><li><a href="/app/agent/stewardship"><strong>Draft from donor history</strong><span>Gifts, funds, conversations and tributes, with sources to review before sending.</span></a></li></ul>${box('Agent activity',records.length?`<ul class="list">${records.map(a=>`<li><strong>${e(a.summary)}</strong><br>${e(a.actor_name)} · ${e(a.at)}<p>${e(a.why)}</p><code>${e(a.subject_id)}</code>${a.undone_at?'<p class="muted">Undone '+e(a.undone_at)+'</p>':a.undo_kind?`<form method="post" action="/app/agent/activity/undo">${hidden('id',a.id)}<button class="secondary">Undo this action</button></form>`:''}</li>`).join('')}</ul>`:empty('No agent actions yet. Start with one of the jobs above.'))}`
+async function overview(c:Context,env:GivingEnv,url:URL) {
+  return `<p>Reconcile gifts, follow failed monthly plans, prepare missing receipts and draft personal stewardship. Every proposal keeps its sources and reason. People approve corrections, receipts and messages.</p>${managed(env)?'<p class="notice">Provider integrations are not available yet on RER Managed.</p>':''}<ul class="tiles"><li><a href="/app/agent/reconcile"><strong>Reconcile gifts</strong><span>Compare Stripe, the gift ledger and Pantry; review, apply and undo corrections.</span></a></li><li><a href="/app/agent/recovery"><strong>Recover monthly gifts</strong><span>Private card-update email, Stripe retry schedule and recovered or lapsed outcomes.</span></a></li><li><a href="/app/agent/receipts"><strong>Find missing receipts</strong><span>Prepare missing and bounced receipts for a person to approve.</span></a></li><li><a href="/app/agent/stewardship"><strong>Draft from donor history</strong><span>Gifts, funds, conversations and tributes, with sources to review before sending.</span></a></li></ul>${await activityTable(c,url)}`
 }
 async function undoActivity(c:Context,env:GivingEnv,p:Row) {
  const key=id(p.id,'Activity'),a=await one(c,'SELECT * FROM cf_agent_activity WHERE id=?',key)

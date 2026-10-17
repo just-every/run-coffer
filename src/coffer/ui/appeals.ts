@@ -5,10 +5,11 @@ import { emailConnection, providerTitle } from '../communications/connection'
 import { appealListName, sendBatch } from '../communications/commands'
 import { mangoMessage } from '../communications/mango-message'
 import { manager } from '../auth'
-import { today, type Context } from '../db'
+import { today, type Context, type Row } from '../db'
 import { appealDetail, appeals } from '../appeals'
 import { settings } from '../settings'
 import { area, box, chip, details, e, empty, field, form, select, status, when } from './common'
+import { ledgerCard } from './ledger'
 
 export async function appealsPage(c: Context, draft: { error: string; values: Record<string, any> } | null = null) {
  const v = (key: string) => draft?.values?.[key] ?? ''
@@ -42,6 +43,16 @@ export async function appealPage(c: Context, appealId: string) {
   : a.status === 'exported' ? `<p><a class="button" href="/app/appeals/${e(a.id)}/recipients.csv">Download audience (CSV)</a></p>${form('appeal.markSent', field('Sent on', 'sentOn', 'date', day, 'required'), 'Record as sent', v)}`
   : a.status === 'sent' ? `<p>Sent on ${when(a.sent_on)}, recorded by ${e(a.sent_recorded_by)}. Each recipient’s history shows this appeal.</p><p><a href="/app/appeals/${e(a.id)}/recipients.csv">Download audience (CSV)</a></p>` : '<p>This appeal was discarded.</p>'
  const decided = approval ? `<p>Prepared by ${e(approval.prepared_by_name)} (${e(approval.prepared_by_role)}) · approved by ${e(approval.approved_by_name)} (${e(approval.approved_by_role)}) on ${when(approval.approved_at)}.</p>` : `<p>Prepared by ${e(a.prepared_by_name)} (${e(a.prepared_by_role)}) on ${when(a.prepared_at)}.</p>`
- return `<p><strong>${e(a.name)}</strong> · ${a.channel === 'email' ? 'Email' : 'Postal mail'} · ${a.recipients} recipients ${a.status==='approved'?chip('Approved','info'):status(a.status)}</p>${warning}<div class="grid wide"><div>${box('Recipients', `<div class="scroll"><table><thead><tr><th>Donor</th><th>${a.channel === 'email' ? 'Email' : 'City'}</th></tr></thead><tbody>${recipients.map(r => `<tr><td><a href="/app/donors/${e(r.donor_id)}">${e(r.name)}</a></td><td>${e(a.channel === 'email' ? r.email : r.address ? JSON.parse(r.address).city : '')}</td></tr>`).join('')}</tbody></table></div>`)}</div>
+ return `<p><strong>${e(a.name)}</strong> · ${a.channel === 'email' ? 'Email' : 'Postal mail'} · ${a.recipients} recipients ${a.status==='approved'?chip('Approved','info'):status(a.status)}</p>${warning}<div class="grid wide"><div>${ledgerCard(`Recipients (${recipients.length})`, recipientTable(a, recipients, messages))}</div>
  <div>${box('Decision', decided + send + actions)}${finish}${preview}${progress}${box('Left out', excluded.length ? `<ul class="list">${excluded.map(([reason, n]) => `<li>${chip(n)} ${e(reason)}</li>`).join('')}</ul>` : empty('Nobody in the segment was left out.'))}${details({ 'Appeal ID': a.id, Segment: JSON.parse(a.segment), 'Content hash': a.content_hash, 'Export hash': a.export_hash ?? '' })}</div></div>`
+}
+
+/** One dense row per recipient: who and where, the frozen address the appeal goes to, and how far it got. */
+function recipientTable(a: Row, recipients: Row[], messages: Row[]) {
+ if (!recipients.length) return empty('Nobody is in this audience.')
+ const sent = new Map(messages.map(m => [m.donor_id, m]))
+ const state = (r: Row) => { const m = sent.get(r.donor_id); return m ? chip(m.remote_status ?? (m.status === 'listed' ? 'On Mango list' : m.status), m.status === 'failed' ? 'alarm' : 'info') : a.status === 'sent' ? chip('Sent', 'ok') : a.status === 'discarded' ? chip('Discarded') : chip('In audience') }
+ const rows = recipients.map(r => { const at = r.address ? JSON.parse(r.address) : {}, town = [at.city, at.region].filter(Boolean).join(', ')
+  return `<tr><td class="cf-who-cell"><a href="/app/donors/${e(r.donor_id)}"><strong>${e(r.name)}</strong></a><small${town ? '' : ' class="cf-none"'}>${town ? e(town) : 'No address on file'}</small></td><td class="cf-fund" data-label="${a.channel === 'email' ? 'Email' : 'Mail to'}">${e(a.channel === 'email' ? r.email : [at.line1, town, at.postalCode].filter(Boolean).join(' · '))}</td><td class="cf-status">${state(r)}</td></tr>` }).join('')
+ return `<table class="cf-ledger-table cf-wrap"><thead><tr><th>Donor</th><th>${a.channel === 'email' ? 'Email' : 'Mail to'}</th><th>State</th></tr></thead><tbody>${rows}</tbody></table>`
 }

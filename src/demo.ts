@@ -3,7 +3,8 @@
 // small team, donors and households, a year of one-off, monthly and in-kind
 // gifts, pledges, reversals, consent history, acknowledgement letters and
 // appeals at every stage, online giving on its Holiday Meals campaign page with
-// monthly plans and one recovered card, and the audit trail those leave. Rows go through
+// monthly plans and one recovered card, the agent's saved thank-you for that donor,
+// and the audit trail those leave. Rows go through
 // Coffer's own write path (commit) and are shaped by its domain code
 // (renderLetter, letterHash, audience, hashOf, the Stripe move-in ids). Fixed ids
 // with ON CONFLICT DO NOTHING keep it idempotent; nothing is fetched or sent.
@@ -12,6 +13,7 @@ import { commit, sha256, sql, today, type Context, type Row, type Stmt } from '.
 import { settings } from './coffer/settings'
 import { appealPlan, appeals, letterPlan, letters } from './coffer/demo/outreach'
 import { onlineGiving } from './coffer/demo/giving'
+import { demoThankYou } from './coffer/demo/stewardship'
 import { ledger, teamRows, timeOf, type AuditEvent, type Clock, type Person } from './coffer/demo/ledger'
 import { agentKeys, donors, organization, ownerName, team } from './coffer/demo/people'
 
@@ -85,4 +87,7 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
   ...rows('cf_approvals', [...ack.approvals, ...out.approvals]),
   ...rows('cf_events', audit.map((e, i) => ({ id: i + 1, at: e.at, actor_id: e.actor.id, actor_name: e.actor.name, actor_role: e.actor.role, action: e.action, subject_kind: e.subject_kind, subject_id: e.subject_id, donor_id: e.donor_id, detail: JSON.stringify(e.detail) }))),
  ])
+ // The development agent's thank-you for the donor whose card Stripe recovered, waiting for review.
+ const recovered = online.plans.find(p => p.id === online.recovery?.subscription_id)
+ if (recovered) await demoThankYou(c, recovered.donor_id, name)
 }

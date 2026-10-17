@@ -21,8 +21,11 @@ test('the demo opens on a lived-in pantry whose waiting work a person can finish
  // Gifts: the campaign's progress and the monthly card Stripe declined and cleared on retry, in the selected donor's panel.
  const gifts=await (await h.request('/app/gifts')).text()
  assert.match(gifts,/Holiday Meals \d{4}<\/h2>/)
- assert.match(gifts,/class="is-selected"[^]*Terrence Jackson[^]*Failed card · Retried successfully/)
+ assert.match(gifts,/class="is-selected"[^]*Terrence Jackson[^]*Card failed · retried/)
  assert.match(gifts,/Card declined[^]*Retry cleared/)
+ // The development agent's saved thank-you waits for review, through drafting's own store.
+ assert.match(gifts,/class="cf-agent"[^]*I drafted a thank-you[^]*Review and send/)
+ assert.equal((await h.get('/api/coffer/agent/stewardship')).drafts.filter(d=>d.status==='draft').length,1)
  // Base's invitation email completes as a simulated send: the mail edge sees nothing.
  assert.deepEqual(await h.api('/auth/invite',{email:'sam.ortiz@copperhollowpantry.example',role:'member',displayName:'Sam Ortiz',returnTo:'/app'},{status:202}),{status:'accepted'})
  assert.equal(h.messages.length,0)

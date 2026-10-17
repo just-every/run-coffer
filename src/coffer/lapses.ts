@@ -1,5 +1,5 @@
 import { addDays, all, today, type Context } from './db'
-import { settings } from './settings'
+import { longDate, settings } from './settings'
 
 export type LapseKind = 'lybunt' | 'sybunt' | 'monthly'
 export type LapseRow = {
@@ -63,8 +63,8 @@ export async function lapses(c: Context) {
   rows.push({ key, sourceKey: key, donorId: donor.donorId, name: donor.name, kind, lastGift: donor.lastGift, referenceYear,
    amountCents: donor.priorCents > 0 ? donor.priorCents : donor.referenceCents,
    reason: kind === 'lybunt'
-    ? `Positive net giving in ${year - 1}; no positive net giving in ${year} through ${asOf} (LYBUNT).`
-    : `Last positive net giving year was ${referenceYear}; no positive net giving in ${year - 1} or ${year} through ${asOf} (SYBUNT).`,
+    ? `Positive net giving in ${year - 1}; no positive net giving in ${year} through ${longDate(asOf)} (LYBUNT).`
+    : `Last positive net giving year was ${referenceYear}; no positive net giving in ${year - 1} or ${year} through ${longDate(asOf)} (SYBUNT).`,
   })
  }
  rows.sort((a, b) => b.amountCents - a.amountCents || a.name.localeCompare(b.name) || a.key.localeCompare(b.key))

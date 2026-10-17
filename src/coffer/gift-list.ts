@@ -1,21 +1,27 @@
 // The Gifts screen's reads: every recorded gift, newest first, with its donor,
-// monthly plan, campaign and acknowledgement state, filtered by tab; plus the
-// selected donor's card-retry history and the overnight work line.
+// monthly plan, campaign and acknowledgement state, filtered by tab and by the
+// strip's scope (one campaign, or one fund in a year); plus the selected donor's
+// card-retry history and the overnight work line.
 import { manager } from './auth'
 import { DUE } from './acknowledgements'
 import { addDays, all, one, today, type Context, type Row } from './db'
+import { fundTotals } from './gift-splits'
 import { lapses } from './lapses'
 import { settings } from './settings'
 
 export const GIFT_TABS = ['all', 'attention', 'letters', 'monthly'] as const
 export type GiftTab = typeof GIFT_TABS[number]
-export const GIFT_PAGE = 50
+/** One working screen of rows: the ledger, its footer and the donor panel share the first screen at 1440 by 900. */
+export const GIFT_PAGE = 12
+/** The strip's figures are the ledger's rows for one campaign, or for one fund in one calendar year. */
+export type GiftScope = { campaign: string } | { fund: string; year: string } | null
 
 const COLUMNS = `SELECT g.id,g.donor_id,g.kind,g.received_on,g.amount_cents,g.method,g.reference,g.fund,g.goods,g.source,g.pledge_id,g.created_at,
  d.name AS donor_name,d.city,d.region,
  (SELECT r.id FROM cf_gifts r WHERE r.reverses=g.id) AS reversed_by,
  s.id AS plan_id,s.status AS plan_status,s.failed_attempts,s.recovered,
  (SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id) AS campaign,
+ (SELECT COUNT(*) FROM cf_gift_allocations a WHERE a.gift_id=g.id) AS parts,
  (SELECT CASE WHEN a.printed_at IS NOT NULL THEN 'printed' ELSE COALESCE(NULLIF(a.delivery_status,'pending'),b.status) END FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_status,
  (SELECT b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_sent_on,
  (SELECT a.batch_id FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1) AS ack_batch
@@ -33,31 +39,41 @@ function filter(tab: GiftTab, threshold: number, overdueBefore: string): [string
  return ['1', []]
 }
 
-export async function giftList(c: Context, tab: GiftTab, page: number) {
+/** The same fund ledger the campaign page and fund report total, so a scope's rows are exactly what its figure counts. */
+function scoped(scope: GiftScope): [string, unknown[]] {
+ if (!scope) return ['1', []]
+ if ('campaign' in scope) return ["g.id IN (SELECT gift_id FROM cf_fund_ledger WHERE kind='gift' AND campaign_id=?)", [scope.campaign]]
+ return ["g.id IN (SELECT gift_id FROM cf_fund_ledger WHERE kind='gift' AND fund=? AND received_on>=? AND received_on<=?)", [scope.fund, `${scope.year}-01-01`, `${scope.year}-12-31`]]
+}
+
+export async function giftList(c: Context, tab: GiftTab, page: number, scope: GiftScope = null) {
  const s = await settings(c), day = today(s.timezone), overdueBefore = addDays(day, -s.target_days)
- const [where, params] = filter(tab, s.threshold_cents, overdueBefore)
- const [rows, counts] = await Promise.all([
-  all(c, `${COLUMNS} AND ${where} ORDER BY g.received_on DESC,g.created_at DESC,g.id LIMIT ? OFFSET ?`, ...params, GIFT_PAGE + 1, page * GIFT_PAGE),
-  one(c, `SELECT (SELECT count(*) FROM (${COLUMNS} AND ${ATTENTION})) AS attention,(SELECT count(*) FROM (${COLUMNS} AND (${DUE}))) AS letters,(SELECT count(*) FROM (${COLUMNS})) AS gifts`, s.threshold_cents, overdueBefore, s.threshold_cents),
+ const [where, params] = filter(tab, s.threshold_cents, overdueBefore), [within, scopeParams] = scoped(scope)
+ const [rows, counts, total] = await Promise.all([
+  all(c, `${COLUMNS} AND ${where} AND ${within} ORDER BY g.received_on DESC,g.created_at DESC,g.id LIMIT ? OFFSET ?`, ...params, ...scopeParams, GIFT_PAGE, page * GIFT_PAGE),
+  one(c, `SELECT (SELECT count(*) FROM (${COLUMNS} AND ${ATTENTION} AND ${within})) AS attention,(SELECT count(*) FROM (${COLUMNS} AND (${DUE}) AND ${within})) AS letters,(SELECT count(*) FROM (${COLUMNS} AND ${within})) AS gifts,(SELECT count(*) FROM (${COLUMNS} AND (${DUE}))) AS letters_all`, s.threshold_cents, overdueBefore, ...scopeParams, s.threshold_cents, ...scopeParams, ...scopeParams, s.threshold_cents),
+  one(c, `SELECT count(*) AS n FROM (${COLUMNS} AND ${where} AND ${within})`, ...params, ...scopeParams),
  ])
- return { settings: s, today: day, rows: rows.slice(0, GIFT_PAGE), more: rows.length > GIFT_PAGE, counts: counts as Row }
+ return { settings: s, today: day, rows, total: Number(total?.n ?? 0), counts: counts as Row }
 }
 
 export const giftById = (c: Context, giftId: string) => one(c, `${COLUMNS} AND g.id=?`, giftId)
 
-/** The newest active campaign's progress, or the calendar year's giving when none is published. */
-export async function givingSummary(c: Context, year: string) {
+/** The strip: the newest active campaign's progress, read from the same fund ledger as its
+ * campaign page, beside its fund's total for the year; or the year's giving when none is published. */
+export async function giftProgress(c: Context, year: string) {
  const [campaign, totals, payouts] = await Promise.all([
-  one(c, `SELECT c.name,c.goal_cents,
-   (SELECT COALESCE(SUM(g.amount_cents),0) FROM cf_campaign_gifts cg JOIN cf_contribution_ledger g ON COALESCE(g.reverses,(SELECT p.gift_id FROM cf_payment_entries p WHERE p.id=g.id),g.id)=cg.gift_id WHERE cg.campaign_id=c.id) AS raised_cents,
-   (SELECT COUNT(*) FROM cf_campaign_gifts cg JOIN cf_gifts g ON g.id=cg.gift_id WHERE cg.campaign_id=c.id AND g.kind='gift') AS gift_count,
+  one(c, `SELECT c.id,c.name,c.fund,c.goal_cents,
+   (SELECT COALESCE(SUM(g.amount_cents),0) FROM cf_fund_ledger g WHERE g.campaign_id=c.id) AS raised_cents,
+   (SELECT COUNT(DISTINCT g.gift_id) FROM cf_fund_ledger g WHERE g.campaign_id=c.id AND g.kind='gift') AS gift_count,
    (SELECT COUNT(DISTINCT donor_id) FROM cf_subscriptions s WHERE s.campaign_id=c.id AND s.status IN ('active','trialing','past_due') AND s.cancel_at_period_end=0) AS recurring_donors
    FROM cf_campaigns c WHERE c.active=1 ORDER BY c.created_at DESC LIMIT 1`),
   one(c, `SELECT (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger WHERE received_on>=?) AS year_cents,(SELECT count(*) FROM cf_gifts WHERE kind='gift' AND received_on>=?) AS year_gifts,
    (SELECT count(*) FROM cf_subscriptions WHERE status IN ('active','trialing','past_due') AND cancel_at_period_end=0) AS plans`, `${year}-01-01`, `${year}-01-01`),
   one(c, 'SELECT count(*) AS total,(SELECT count(DISTINCT payout_id) FROM cf_payout_postings) AS posted FROM cf_payouts'),
  ])
- return { campaign, totals: totals as Row, payouts: payouts as Row }
+ const fund = campaign ? (await fundTotals(c, { from: `${year}-01-01`, through: `${year}-12-31` })).find(f => f.fund === campaign.fund) ?? { fund: campaign.fund, amount_cents: 0, gift_count: 0 } : null
+ return { campaign, fund, totals: totals as Row, payouts: payouts as Row }
 }
 
 /** The selected donor's panel: totals, card retries, consent, household and the agent's draft. */

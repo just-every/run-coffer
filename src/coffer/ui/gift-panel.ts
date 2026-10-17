@@ -2,7 +2,7 @@
 // card retries, the development agent's place, and contact and consent.
 import type { Row, Context } from '../db'
 import { donorPanelData } from '../gift-list'
-import { STATUS, chip, e, money, shortDate } from './common'
+import { STATUS, chip, e, moment, money, shortDate } from './common'
 import { icon, type IconName } from './icons'
 
 type Step = { at: string; tone: 'ok' | 'alarm' | 'warn' | 'doc'; glyph: IconName; title: string; detail: string }
@@ -15,7 +15,7 @@ const consent = (value: string | undefined) => value === 'granted' ? chip('Yes',
 export async function donorPanel(c: Context, donorId: string, timezone: string) {
  const p = await donorPanelData(c, donorId), d = p.donor
  if (!d) return ''
- const stamp = (at: string) => at.length > 10 ? `${shortDate(new Date(at).toLocaleDateString('en-CA', { timeZone: timezone }))} · ${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone }).format(new Date(at))}` : shortDate(at)
+ const stamp = (at: string) => moment(at, timezone)
  const first = d.name.split(/\s+/)[0], href = `/app/donors/${encodeURIComponent(d.id)}`
  const since = p.totals.first_gift?.slice(0, 4), years = since ? Number(new Date(c.now).getUTCFullYear()) - Number(since) : 0
 
@@ -32,15 +32,17 @@ export async function donorPanel(c: Context, donorId: string, timezone: string) 
  const draftButton = p.aiReady
   ? `<form method="post" action="/app/agent/stewardship/draft">${['donorId', 'kind'].map((k, i) => `<input type="hidden" name="${k}" value="${e(i ? 'thank_you' : d.id)}">`).join('')}<button>Draft a thank-you</button></form>`
   : '<a class="button" href="/app/agent/setup">Set up AI drafting</a>'
+ const retried = r?.state === 'recovered' ? `${e(first)}’s monthly card was declined ${e(shortDate(r.created_at))} and Stripe’s retry cleared ${e(shortDate(r.last_checked_at))}. ` : ''
+ const review = p.draft ? `/app/agent/stewardship?donorId=${encodeURIComponent(d.id)}#draft-${e(p.draft.id)}` : ''
  const agent = !p.agent ? '' : `<section class="cf-agent" aria-label="Development agent"><h3>${icon('spark')}Development agent</h3>${p.draft
-  ? `<p>I drafted a ${p.draft.kind === 'impact' ? 'impact note' : 'thank-you note'} for ${e(first)}: “${e(p.draft.subject)}”. It waits for a person to review and send.</p><div class="cf-agent-actions"><a class="button" href="/app/agent/stewardship?donorId=${encodeURIComponent(d.id)}#draft-${e(p.draft.id)}">Review and send</a><a class="button secondary" href="/app/agent/stewardship?donorId=${encodeURIComponent(d.id)}#draft-${e(p.draft.id)}">Edit</a></div>`
-  : `<p>${r?.state === 'recovered' ? `${e(first)}’s monthly card was declined ${e(shortDate(r.created_at))} and Stripe’s retry cleared ${e(shortDate(r.last_checked_at))}. ` : ''}I can draft a thank-you from ${e(first)}’s gifts, funds and conversations for you to review.</p><div class="cf-agent-actions">${draftButton}</div>`}</section>`
+  ? `<p>${retried}I drafted a ${p.draft.kind === 'impact' ? 'impact note' : 'thank-you'} from ${e(first)}’s recorded gifts, “${e(p.draft.subject)}”, for you to review and send.</p><div class="cf-agent-actions"><a class="button" href="${review}">Review and send</a><a class="button secondary" href="${review}">Edit</a></div>`
+  : `<p>${retried}I can draft a thank-you from ${e(first)}’s gifts, funds and conversations for you to review.</p><div class="cf-agent-actions">${draftButton}</div>`}</section>`
 
  const mail = [d.address_line1, d.address_line2, [[d.city, d.region].filter(Boolean).join(', '), d.postal_code].filter(Boolean).join(' ')].filter(Boolean)
  const details = `<section class="cf-card cf-contact"><h3>Donor details <a href="${href}" aria-label="Edit ${e(d.name)}’s details">${icon('edit')}</a></h3><dl>
-  <dt>Email</dt><dd>${d.email ? e(d.email) : '<span class="muted">None</span>'}</dd><dd class="cf-consent">${consent(p.consent.email)}</dd>
-  <dt>Mail</dt><dd>${mail.length ? mail.map(e).join('<br>') : '<span class="muted">None</span>'}</dd><dd class="cf-consent">${consent(p.consent.mail)}</dd>
-  ${d.phone ? `<dt>Phone</dt><dd class="cf-wide">${e(d.phone)}</dd>` : ''}${d.household ? `<dt>Household</dt><dd class="cf-wide">${e(d.household)} (${p.members})</dd>` : ''}</dl></section>`
+  <dt>Email</dt><dd class="cf-val"><span class="cf-email">${d.email ? e(d.email).replace('@', '<wbr>@') : '<span class="muted">None</span>'}</span>${consent(p.consent.email)}</dd>
+  <dt>Mail</dt><dd class="cf-val"><span>${mail.length ? mail.map(e).join('<br>') : '<span class="muted">None</span>'}</span>${consent(p.consent.mail)}</dd>
+  ${d.phone ? `<dt>Phone</dt><dd>${e(d.phone)}</dd>` : ''}${d.household ? `<dt>Household</dt><dd>${e(d.household)} (${p.members})</dd>` : ''}</dl></section>`
 
  const initials = d.name.split(/\s+/).filter(Boolean).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
  return `<aside class="cf-donor" id="donor" aria-label="Selected donor"><section class="cf-card cf-identity-card"><div class="cf-identity"><span class="cf-initials" aria-hidden="true">${e(initials)}</span><div><h2><a href="${href}">${e(d.name)}</a></h2><p>${e([d.city, d.region].filter(Boolean).join(', '))}</p></div></div>
