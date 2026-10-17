@@ -32,6 +32,14 @@
       "commands": [
         "pnpm run test:coffer"
       ]
+    },
+    {
+      "name": "site",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:site"
+      ]
     }
   ],
   "nightly": [

@@ -1,0 +1,149 @@
+/* The homepage's layout: the painted hero, the feature pairs on the plain night, the
+   interlude band, ownership, the quiet details and the closing over the food bank.
+   The drawn product cards are in cards.css. Sizes are set at 1440 wide (the desk's 1536 x 0.9375). */
+
+/* The header lies over the hero's sky. */
+.site-header.over-art { position: absolute; inset: 0 0 auto; }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; isolation: isolate; aspect-ratio: 3 / 2; min-height: 780px; max-height: 1060px; overflow: hidden; background: var(--night-sky); }
+.hero-art, .hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hero-art { z-index: -1; }
+.hero-art img { object-fit: cover; object-position: 50% 100%; }
+/* The painting's foot eases into the plain night of the sections below. */
+.hero::after { content: ''; position: absolute; z-index: -1; inset: auto 0 0; height: 70px; background: linear-gradient(transparent, var(--night)); pointer-events: none; }
+.hero-grid { position: relative; height: 100%; padding-top: 136px; }
+.hero-copy { max-width: 680px; }
+.hero h1 { font: 600 72px/1.04 var(--font-head); letter-spacing: -.028em; color: #fff; }
+.hero-sub { max-width: 556px; margin-top: 22px; font-size: 24.5px; line-height: 1.33; color: #cfd0ee; letter-spacing: -.003em; }
+.hero-alt { margin-top: 26px; font-size: 21px; line-height: 1.5; color: #a9a8dc; }
+.hero-alt strong { font-weight: 600; color: #fff; }
+.hero-actions { margin-top: 30px; }
+
+/* The cards sit at the desk's positions, scaled as one drawing (623 x 462 at 1440). */
+.hero-cards { position: absolute; top: 112px; left: calc(50% + 33px); width: 623px; height: 462px; transform-origin: 0 0; transform: scale(var(--hero-k, 1)); }
+.hero-cards > div { position: relative; width: 100%; height: 100%; }
+@media (min-width: 1600px) { .hero-cards { --hero-k: 1.08; } .hero h1 { font-size: 78px; } }
+@media (max-width: 1399px) { .hero-cards { --hero-k: .92; } }
+@media (max-width: 1299px) { .hero-cards { --hero-k: .84; } .hero-copy { max-width: 560px; } .hero h1 { font-size: 64px; } .hero-sub { font-size: 22px; max-width: 520px; } }
+@media (max-width: 1159px) { .hero-cards { --hero-k: .74; } .hero-copy { max-width: 480px; } .hero h1 { font-size: 56px; } .hero-sub { font-size: 20px; } .hero-alt { font-size: 18px; } }
+
+/* ---------- Feature pairs: two ideas per screen, alternating sides ---------- */
+.pair { padding: 54px 0 40px; }
+.feature { position: relative; }
+.feature + .feature { margin-top: 64px; }
+.feature-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 72px; }
+.feature.flip .feature-copy { order: 2; }
+.feature.flip .feature-art { order: 1; }
+.feature-copy { padding-left: 52px; }
+.feature.flip .feature-copy { padding-left: 0; }
+.feature-art { display: flex; justify-content: flex-end; }
+.feature.flip .feature-art { justify-content: flex-start; }
+.feature-drawing { width: calc(100% + 56px); margin-left: -56px; display: flex; justify-content: inherit; }
+.feature.flip .feature-drawing { margin-left: 0; margin-right: -56px; }
+.eyebrow { font: 600 14px/1 var(--font-body); letter-spacing: .34em; text-transform: uppercase; color: var(--eyebrow); }
+.eyebrow.violet { color: #8f70ff; }
+/* Each heading at the size the desk drew it (its widest line's width at 1440), shrinking with the window below 1440. */
+.feature h2, .details h2, .ownership h2 { --h: 86; margin-top: 22px; font: 900 calc(var(--h) * min(1px, 100vw / 1440))/.92 var(--font-head); letter-spacing: -.05em; color: #fff; }
+.feature h2 .lead, .feature h2 .tint { display: block; white-space: nowrap; }
+#giving h2 { --h: 94.8; } #donors h2 { --h: 87.9; } #payments h2 { --h: 74.8; } #receipts h2 { --h: 73.3; } #appeals h2 { --h: 80.7; }
+#major-gifts h2 { --h: 81.2; } #agent h2 { --h: 97.4; } #move-in h2 { --h: 87.4; } #ownership-title { --h: 89.9; } #details-title { --h: 84.7; }
+.feature h2 .tint { padding-bottom: .08em; }
+.feature-body { max-width: 540px; margin-top: 22px; font-size: 24px; line-height: 1.55; color: var(--on-night-body); letter-spacing: -.003em; text-wrap: pretty; }
+
+/* ---------- Interlude ---------- */
+.interlude { position: relative; padding-top: 92px; }
+.interlude-badge { position: relative; z-index: 2; width: max-content; margin: 0 auto; display: flex; align-items: center; gap: 14px; padding: 13px 26px 13px 22px; border-radius: 16px; background: #fff; box-shadow: var(--card-shadow); font-size: 22px; font-weight: 600; letter-spacing: -.01em; color: var(--card-ink); white-space: nowrap; }
+.interlude-badge .check { width: 40px; height: 40px; }
+.interlude-badge .check circle { fill: var(--green); }
+.interlude-badge .check path { stroke: #fff; stroke-width: 2.4; }
+.interlude-art { display: block; position: relative; margin-top: 30px; aspect-ratio: 1536 / 656; max-height: 720px; overflow: hidden; }
+.interlude-art img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: 50% 50%; -webkit-mask-image: linear-gradient(transparent, #000 4%, #000 92%, transparent); mask-image: linear-gradient(transparent, #000 4%, #000 92%, transparent); }
+
+/* ---------- Ownership ---------- */
+.ownership { padding: 190px 0 200px; }
+.own-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 60px; }
+.own-copy { padding-left: 30px; }
+.ownership h2 { line-height: .94; }
+.ownership h2 .lead { display: inline; }
+.ownership .feature-body { max-width: 560px; font-size: 24px; line-height: 1.5; color: #c6c2ee; }
+.ownership .feature-body a { color: inherit; text-decoration: none; }
+.ownership .feature-body a:hover { color: #fff; text-decoration: underline; text-underline-offset: 5px; }
+.own-list { display: grid; gap: 24px; margin-top: 36px; }
+.own-list li { display: flex; align-items: center; gap: 36px; font-size: 22.5px; font-weight: 500; color: #fff; }
+.own-list .icon { width: 50px; height: 50px; fill: none; stroke: #8f70ff; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- The quiet details ---------- */
+.details { padding: 110px 0 120px; }
+.details h2 { margin-top: 24px; }
+.details-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px; margin-top: 44px; padding: 0 22px; }
+
+/* ---------- Closing ---------- */
+.closing { position: relative; padding-top: 86px; text-align: center; }
+.closing h2 { font: 600 72px/1.04 var(--font-head); letter-spacing: -.028em; color: #fff; }
+.closing-sub { margin-top: 18px; font-size: 26px; color: #c9c6f2; }
+.closing-actions { margin-top: 30px; flex-direction: row; justify-content: center; align-items: center; gap: 20px; }
+.closing-actions .site-ghost { min-width: 242px; min-height: 58px; font-size: 21px; font-weight: 600; border-color: rgba(255, 255, 255, .85); }
+.closing-small { margin-top: 30px; font-size: 16.5px; color: #e4e2ff; }
+.closing-art { display: block; position: relative; z-index: 0; margin-top: -10px; aspect-ratio: 1536 / 616; overflow: hidden; }
+.closing-art img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: 50% 100%; -webkit-mask-image: linear-gradient(transparent, #000 9%); mask-image: linear-gradient(transparent, #000 9%); }
+.closing .site-footer { position: relative; z-index: 1; text-align: left; background: var(--night); }
+.closing .site-footer .site-wrap > div { border-top: 0; }
+
+/* ---------- Narrow screens: one column, art cropped, nothing wider than the screen ---------- */
+@media (max-width: 1100px) {
+  .feature-row, .own-row { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .feature.flip .feature-copy { order: 1; }
+  .feature.flip .feature-art { order: 2; }
+  .feature-copy, .own-copy { padding-left: 0; }
+  .feature-art, .feature.flip .feature-art { justify-content: center; }
+  .feature-drawing, .feature.flip .feature-drawing { width: 100%; margin: 0; }
+  .feature h2, .details h2, .ownership h2 { font-size: 68px; }
+  .feature h2 .lead, .feature h2 .tint { white-space: normal; }
+  .details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; }
+}
+@media (max-width: 1100px) and (min-width: 761px) {
+  .hero { aspect-ratio: auto; max-height: none; min-height: 0; padding-bottom: 46vw; background: var(--night-sky); }
+  .hero-art img { object-position: 50% 100%; }
+  .hero-grid { padding-top: 120px; }
+  .hero-cards { position: relative; top: auto; left: auto; margin-top: 48px; transform: none; width: 100%; height: auto; }
+}
+@media (max-width: 760px) {
+  .hero { aspect-ratio: auto; min-height: 0; max-height: none; padding-bottom: 88vw; background: linear-gradient(#101e53, #17205a 70%, #2a2a73); }
+  .hero-art { inset: auto 0 0 0; height: 100vw; }
+  .hero-art img { object-position: 50% 100%; -webkit-mask-image: linear-gradient(transparent, #000 28%); mask-image: linear-gradient(transparent, #000 28%); }
+  .hero-grid { padding-top: 98px; height: auto; }
+  .hero h1 { font-size: 46px; line-height: 1.04; letter-spacing: -.03em; }
+  .hero h1 .tint { display: inline-block; }
+  .hero-sub { margin-top: 16px; font-size: 18.5px; line-height: 1.42; }
+  .hero-alt { margin-top: 18px; font-size: 16.5px; }
+  .hero-actions { margin-top: 24px; }
+  .hero-cards { position: relative; top: auto; left: auto; width: 100%; height: auto; margin-top: 34px; transform: none; }
+  .pair { padding: 44px 0 24px; }
+  .feature + .feature { margin-top: 72px; }
+  .feature-row { gap: 30px; }
+  .eyebrow { font-size: 12.5px; letter-spacing: .3em; }
+  .feature h2, .details h2, .ownership h2 { margin-top: 16px; font-size: 50px; line-height: .95; }
+  .feature-body { margin-top: 16px; font-size: 18px; line-height: 1.5; }
+  .interlude { padding-top: 56px; }
+  .interlude-badge { font-size: 16.5px; gap: 10px; padding: 10px 18px 10px 14px; border-radius: 14px; }
+  .interlude-badge .check { width: 30px; height: 30px; }
+  .interlude-art { margin-top: 20px; aspect-ratio: 4 / 3; }
+  .ownership { padding: 96px 0 100px; }
+  .ownership .feature-body { font-size: 18px; }
+  .own-list { gap: 16px; margin-top: 26px; }
+  .own-list li { gap: 20px; font-size: 18px; }
+  .own-list .icon { width: 38px; height: 38px; }
+  .details { padding: 72px 0 80px; }
+  .details-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 30px; }
+  .closing { padding-top: 70px; }
+  .closing h2 { font-size: 42px; line-height: 1.06; }
+  .closing h2 .tint { display: inline-block; }
+  .closing-sub { margin-top: 14px; font-size: 18px; }
+  .closing-actions { flex-direction: column; align-items: stretch; gap: 12px; }
+  .closing-actions .site-ghosts { display: flex; }
+  .closing-actions .site-ghost { width: 100%; min-height: 50px; font-size: 18px; }
+  .closing-small { margin-top: 20px; font-size: 14.5px; }
+  .closing-art { margin-top: 18px; aspect-ratio: 821 / 616; }
+  .closing-art img { object-position: 50% 100%; }
+}

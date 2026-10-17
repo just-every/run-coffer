@@ -76,7 +76,9 @@ export async function appealCommand(c: Context, command: string, p: Row): Promis
  }
  const sentOn = date(p.sentOn, 'Sent on')
  if (appeal.status !== 'exported') fail('NOT_EXPORTED', 'Export the approved audience before recording the appeal as sent.')
- if (sentOn > today((await settings(c)).timezone) || sentOn < appeal.exported_at.slice(0, 10)) fail('INPUT', 'Sent on must be between the export date and today.', 400)
+ const timezone = (await settings(c)).timezone
+ // The export date is the organization's calendar day, like Sent on itself.
+ if (sentOn > today(timezone) || sentOn < today(timezone, new Date(appeal.exported_at))) fail('INPUT', 'Sent on must be between the export date and today.', 400)
  await commit(c, [at(['exported']), bump('sent', ',sent_on=?,sent_recorded_by=?', sentOn, c.actor.name), event(c, 'appeal.markSent', 'appeal', appealId, null, { sentOn })])
  return { id: appealId, version: version + 1, status: 'sent' }
 }

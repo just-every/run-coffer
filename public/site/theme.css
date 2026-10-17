@@ -1,0 +1,99 @@
+/* The run site's tokens, defined once. The homepage, the docs and Base's Run and
+   not-found pages all link this file (the site's edition identity names it as the
+   theme), so /run and /404 wear the same night as the homepage.
+   Coffer's look (design desk, 16 Oct 2026): a calm deep-indigo night, white type
+   with the key words in a lavender-to-violet tint, crisp white cards with soft
+   shadows and small tinted round icon chips, the purse's violet as the one accent,
+   the windows' amber gold as warmth. Figtree throughout; JetBrains Mono for code. */
+@import url('/fonts/fonts.css');
+
+:root {
+  /* The night */
+  --night: #141b4e;
+  --night-sky: #101e53;
+  --night-raised: #1b2259;
+  --night-line: rgba(197, 198, 240, .16);
+  --on-night: #ffffff;
+  --on-night-body: #c3c5e8;
+  --on-night-soft: #a1a5d2;
+  --eyebrow: #b9badf;
+  --tint: linear-gradient(90deg, #d2b6ff 0%, #a77bff 48%, #7f52fb 100%);
+
+  /* The accent */
+  --violet: #7c4dff;
+  --violet-hover: #8c63ff;
+  --violet-press: #6a3cf0;
+  --violet-soft: #9e85ff;
+  --gold: #fecd45;
+
+  /* Cards */
+  --card: #ffffff;
+  --card-ink: #14173d;
+  --card-body: #474d75;
+  --card-soft: #757b9f;
+  --card-line: #e6e5f2;
+  --card-row: #f5f4fb;
+  --card-radius: 18px;
+  --card-shadow: 0 1px 2px rgba(8, 10, 40, .18), 0 24px 48px -22px rgba(4, 6, 30, .55);
+
+  /* Tinted chips */
+  --green: #20a462;
+  --green-ink: #138a4f;
+  --green-tint: #dcf4e7;
+  --violet-tint: #ece6ff;
+  --violet-ink: #6a3ff0;
+  --coral: #e5484d;
+  --coral-ink: #c8323a;
+  --coral-tint: #fde3e2;
+  --amber: #f6a524;
+  --amber-ink: #a8620a;
+  --amber-tint: #fdedcc;
+
+  --terminal: #13152f;
+  --terminal-line: #3b3a8f;
+
+  --font-head: 'Figtree', 'Figtree Fallback', Arial, sans-serif;
+  --font-body: 'Figtree', 'Figtree Fallback', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --wrap: 1272px;
+  --gutter: clamp(16px, 5.85vw, 84px);
+
+  /* Base's Run and not-found pages read these. */
+  --rer-font-body: var(--font-body);
+  --rer-font-heading: var(--font-head);
+  --rer-font-mono: var(--font-mono);
+  --rer-page: var(--night);
+  --rer-surface: var(--card);
+  --rer-text: var(--card-ink);
+  --rer-muted: var(--card-body);
+  --rer-border: #8a8fb0;
+  --rer-focus: #b49cff;
+  --rer-link: var(--violet-soft);
+  --rer-accent: var(--violet);
+  --rer-accent-text: #ffffff;
+  --rer-code-background: var(--terminal);
+  --rer-code-text: #ebe8ff;
+  --rer-button-radius: 999px;
+  --rer-wordmark-tracking: -.02em;
+  color-scheme: dark;
+}
+
+/* Base's Run and not-found pages on the night: white headline and lockup, white step cards, the town at the foot. */
+body:has(> .bar) { background: radial-gradient(70% 50% at 50% -10%, rgba(124, 77, 255, .22), transparent 70%), var(--night); color: var(--on-night); }
+body:has(> .bar) .brand { color: var(--on-night); font-weight: 700; }
+body:has(> .bar) .bar nav a { color: var(--on-night-body); }
+body:has(> .bar) .bar nav a:hover { color: var(--on-night); }
+body:has(> .bar) h1 { color: var(--on-night); font-weight: 800; letter-spacing: -.035em; }
+body:has(> .bar) .sub, body:has(> .bar) .facts { color: var(--on-night-body); }
+body:has(> .bar) .facts a { color: var(--on-night); }
+body:has(> .bar) .step { background: var(--card); border-color: transparent; box-shadow: var(--card-shadow); color: var(--card-ink); backdrop-filter: none; }
+body:has(> .bar) .step h2 { color: var(--card-ink); font-weight: 700; }
+body:has(> .bar) .body > p { color: var(--card-body); }
+body:has(> .bar) .step code { color: var(--card-ink); }
+body:has(> .bar) .code pre code { color: inherit; }
+body:has(> .bar) .num { background: var(--violet); color: #fff; font-weight: 700; }
+body:has(> .bar) .btn { background: var(--violet); color: #fff; box-shadow: 0 14px 30px -14px rgba(124, 77, 255, .9); }
+body:has(> .bar) .link { color: var(--on-night); }
+body:has(> .bar) .art img { -webkit-mask-image: linear-gradient(transparent, #000 45%); mask-image: linear-gradient(transparent, #000 45%); }
+body:has(> .bar) :focus-visible { outline-color: var(--rer-focus); }

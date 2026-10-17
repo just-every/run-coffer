@@ -1,25 +1,25 @@
-/* This edition's declared theme. The installer, sign-in, confirmation, /setup
-   read these --rer-* tokens; the app serves this file and its fonts.
-   Buttons keep the colour chosen at setup (src/branding.json primaryColor)
-   because no --rer-accent is declared here; declare --rer-accent and
-   --rer-accent-text together to fix them instead. */
-@font-face {
-  font-family: Outfit;
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/outfit/outfit-latin-wght-normal.woff2') format('woff2');
-}
+/* This edition's declared theme. The installer, sign-in, confirmation, /setup,
+   the Lobby and the app read these --rer-* tokens; the app serves this file and
+   its fonts. Coffer's look (design desk, 16 Oct 2026): the purse mark's violet
+   as the accent, deep indigo ink, Figtree throughout. The run site's own tokens
+   are in /site/theme.css. */
+@import url('/fonts/fonts.css');
+
 :root {
-  --rer-font-body: Outfit, Arial, sans-serif;
-  --rer-font-heading: Outfit, Arial, sans-serif;
-  --rer-page: #f4f6f5;
+  --rer-font-body: 'Figtree', 'Figtree Fallback', Arial, sans-serif;
+  --rer-font-heading: 'Figtree', 'Figtree Fallback', Arial, sans-serif;
+  --rer-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --rer-page: #f6f5fc;
   --rer-surface: #ffffff;
-  --rer-text: #1b2724;
-  --rer-muted: #4a5a55;
-  --rer-border: #6b7c76;
-  --rer-focus: #1b2724;
-  --rer-link: #1f5f52;
-  --rer-radius: 12px;
+  --rer-text: #14173d;
+  --rer-muted: #545a80;
+  --rer-border: #8a8fb0;
+  --rer-focus: #6a3ff0;
+  --rer-link: #5b35e0;
+  --rer-radius: 14px;
+  --rer-accent: #7c4dff;
+  --rer-accent-text: #ffffff;
+  --rer-wordmark-weight: 700;
+  --rer-wordmark-tracking: -.02em;
   --rer-logo: url('/brand/mark.svg');
 }

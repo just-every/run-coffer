@@ -78,7 +78,9 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
  }
  const sentOn = date(p.sentOn, 'Sent on'), method = choice(p.method, ['mail', 'email', 'mail and email'] as const, 'how the letters went out')
  if (batch.status !== 'exported') fail('NOT_EXPORTED', 'Export the approved letters before recording them as sent.')
- if (sentOn > today((await settings(c)).timezone) || sentOn < batch.exported_at.slice(0, 10)) fail('INPUT', 'Sent on must be between the export date and today.', 400)
+ const timezone = (await settings(c)).timezone
+ // The export date is the organization's calendar day, like Sent on itself.
+ if (sentOn > today(timezone) || sentOn < today(timezone, new Date(batch.exported_at))) fail('INPUT', 'Sent on must be between the export date and today.', 400)
  await commit(c, [at(['exported']), bump('sent', ',sent_on=?,sent_method=?,sent_recorded_by=?', sentOn, method, c.actor.name), event(c, 'ack.markSent', 'acknowledgements', batchId, null, { sentOn, method })])
  return { id: batchId, version: version + 1, status: 'sent' }
 }

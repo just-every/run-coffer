@@ -1,3 +1,5 @@
+<img src="public/brand/mark.svg" alt="" width="72" height="72">
+
 # Coffer
 
 Coffer keeps donor records for a US nonprofit: donors and households, every gift as an exact ledger line, pledges, and each donor's consent to hear from you. It prepares the written acknowledgement letters that gifts of $250 or more need, and it builds appeal lists that only ever include donors who said yes. You run the app and hold the data in your own account.
@@ -6,7 +8,7 @@ Coffer does not process payments, send email, screen wealth or give tax advice. 
 
 ## The run site is local for now
 
-Coffer's public run site will live at https://run-coffer.com once that domain is registered. **It is not live yet.** Until then, the same site runs on your computer: `rer dev` (below) prints a line like `RER_SITE http://127.0.0.1:8904`. Open that address with `/run` on the end, for example http://127.0.0.1:8904/run, using the port `rer` printed for you.
+Coffer's public run site will live at https://run-coffer.com once that domain is registered. **It is not live yet.** Until then, the same site runs on your computer: `rer dev` (below) prints a line like `RER_SITE http://127.0.0.1:8904`. Open that address for the homepage, `/run` for the run page and `/docs` for the guides, for example http://127.0.0.1:8904/docs, using the port `rer` printed for you. The guides are also in [docs/](docs/site.json) as Markdown.
 
 ## Start from a fresh clone
 
@@ -73,7 +75,7 @@ rer dev
 
 Restore only goes into an empty installation; a populated one is refused.
 
-To honour an erasure request, the owner opens the donor, types `ERASE` and presses **Erase donor**. Their name, contact details, consent evidence, letter text, gift notes and the Stripe pages that mention them are removed, and a later move-in will not bring them back. Their gift amounts and dates stay as anonymous ledger lines because they are the charity's financial record. Afterwards save a fresh backup; when restoring an older backup, pass it as the later journal so the erased person does not come back: `rer import --input exports/older.rer --journal exports/after-erasure.rer --yes`.
+To honor an erasure request, the owner opens the donor, types `ERASE` and presses **Erase donor**. Their name, contact details, consent evidence, letter text, gift notes and the Stripe pages that mention them are removed, and a later move-in will not bring them back. Their gift amounts and dates stay as anonymous ledger lines because they are the charity's financial record. Afterwards save a fresh backup; when restoring an older backup, pass it as the later journal so the erased person does not come back: `rer import --input exports/older.rer --journal exports/after-erasure.rer --yes`.
 
 ## Deploy in your own Cloudflare account
 
@@ -86,7 +88,7 @@ rer deploy --dry-run
 rer deploy
 ```
 
-The dry run builds and validates locally without contacting Cloudflare. The real deploy creates the Worker and D1 database, applies the migrations and checks the hosted `/health`. Keep the private `.rer/deploy/<environment>.json` it writes out of Git and back it up: later deploys use it to recognise the resources as yours. The [Base owner-account deploy kit](https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/modules/deploy-kit/README.md) and [OPERATIONS.md](OPERATIONS.md) describe recovery and flags. Local checks and a dry run do not prove hosted health or mail delivery.
+The dry run builds and validates locally without contacting Cloudflare. The real deploy creates the Worker and D1 database, applies the migrations and checks the hosted `/health`. Keep the private `.rer/deploy/<environment>.json` it writes out of Git and back it up: later deploys use it to recognize the resources as yours. The [Base owner-account deploy kit](https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/modules/deploy-kit/README.md) and [OPERATIONS.md](OPERATIONS.md) describe recovery and flags. Local checks and a dry run do not prove hosted health or mail delivery.
 
 ## What the first release covers
 

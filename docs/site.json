@@ -1,0 +1,30 @@
+{
+  "sections": [
+    {
+      "title": "Start here",
+      "pages": [
+        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Start Coffer on your own computer in two lines, sign in as the owner and finish setup." },
+        { "slug": "first-week", "title": "Your first week", "file": "first-week.md", "summary": "The four steps on Today: your letter wording, your donors, their consent and your first letters." }
+      ]
+    },
+    {
+      "title": "Everyday work",
+      "pages": [
+        { "slug": "donors", "title": "Donors and households", "file": "donors.md", "summary": "Add donors, group them in households and see each one's whole history on one page." },
+        { "slug": "gifts", "title": "Gifts, pledges and corrections", "file": "gifts.md", "summary": "Record gifts as exact ledger lines, track pledges and correct a mistake with a reversal." },
+        { "slug": "consent", "title": "Consent", "file": "consent.md", "summary": "Keep every donor's answer for email and postal mail, with how, when and your evidence." },
+        { "slug": "letters", "title": "Acknowledgement letters", "file": "letters.md", "summary": "Prepare the letters gifts of $250 or more need, approve them, export them and record when they went out." },
+        { "slug": "appeals", "title": "Appeals", "file": "appeals.md", "summary": "Build an audience of donors who said yes, approve it, export it for your own tool and record the send." }
+      ]
+    },
+    {
+      "title": "Keep it yours",
+      "pages": [
+        { "slug": "people", "title": "People and roles", "file": "people.md", "summary": "Owner, admin, member and agent keys: who can approve, export, move in, back up and erase." },
+        { "slug": "agent-commands", "title": "Agent keys and commands", "file": "AGENT-COMMANDS.md", "summary": "Every endpoint and command an agent or script can call, and who may call it." },
+        { "slug": "move-in", "title": "Move in from Stripe", "file": "MOVE-IN.md", "summary": "Save your Stripe customer and charge pages, preview the move-in, apply the exact plan and undo it if needed." },
+        { "slug": "backup", "title": "Back up, restore and erase", "file": "backup.md", "summary": "Download a backup, restore it into an empty installation, and erase a donor without losing the ledger." }
+      ]
+    }
+  ]
+}
