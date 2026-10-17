@@ -1,21 +1,68 @@
 # Online and monthly giving
 
-On a self-hosted install, set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` as Worker secrets. Use a Stripe test secret key while testing. Keep the install's mail provider, `MAIL_FROM` and `MAIL_API_KEY` configured for donor links. These credentials never enter browser code or exports.
+Coffer takes gifts on your own campaign pages through Stripe, the payment company that handles donors' cards. Donors pay on Stripe's secure page, so card numbers never reach Coffer. Stripe sends the money to your bank account; Coffer records each gift on the donor's record, adds it to the campaign total and reconciles your payouts.
 
-An owner or admin opens **Giving**, publishes a campaign with its own page address, story, fund and goal, and shares `/give/<address>`. Donors choose once or monthly and continue to Stripe Checkout for card or Link. Apple Pay appears in Stripe Checkout on eligible devices; register your install's domain under Stripe payment method domains. US bank giving is coming soon. Coffer does not store payment card numbers.
+## Connect Stripe
 
-Create a Stripe webhook endpoint at `https://<your-install>/api/coffer/giving/webhook`, with API version `2026-09-30.endive`, for:
+Open **Giving → Connect Stripe** in Coffer. The page shows whether Stripe is connected, in test or live mode, and walks through every step for your installation, with the exact commands filled in. In short:
 
-- `checkout.session.completed`, `checkout.session.async_payment_succeeded`
-- `invoice.paid`, `invoice.payment_succeeded`, `invoice.payment_failed`, `invoice.updated`
-- `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
+1. **Get your keys.** Sign in at dashboard.stripe.com (or create a free account for your organization). Turn on **Test mode** (or open your sandbox), open **Developers → API keys** and reveal the **Secret key**. A test key starts `sk_test_`; a live key starts `sk_live_`.
+2. **Add a webhook.** Stripe confirms each payment, monthly renewal, failed card, refund and payout by sending a message to Coffer. In **Developers → Webhooks**, choose **Add endpoint** (or **Add destination**, then **Webhook endpoint**). Use the address `https://<your Coffer address>/api/coffer/giving/webhook` and select the events listed below. Leave the API version at Stripe's default: Coffer reads each payment's current state from Stripe itself. Then reveal the endpoint's **Signing secret**, which starts `whsec_`.
+3. **Save the keys.** On a hosted Coffer they are secrets of its Cloudflare Worker. In a terminal in the Coffer folder you deployed from, with the same Cloudflare settings you used to deploy, run the lines the page shows. They look like this, with your environment name:
 
-Save the endpoint signing secret as `STRIPE_WEBHOOK_SECRET`. Without that secret, webhook requests are refused. Coffer verifies the raw signature, retrieves current provider state, matches the donor by email and writes each successful gift once to the immutable ledger with its campaign and fund. The return page also reconciles a completed checkout. A failed payment never counts as money raised.
+```sh
+read -rs STRIPE_SECRET_KEY && export STRIPE_SECRET_KEY
+read -rs STRIPE_WEBHOOK_SECRET && export STRIPE_WEBHOOK_SECRET
+rer deploy --environment production --set-secret STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET
+```
 
-Monthly plans run as Stripe subscriptions. Configure your account's Billing revenue recovery retry schedule in Stripe. Coffer follows that schedule and records failures, next attempt and successful recovery from verified events. It emails the donor a private card update link after a failed attempt; a failed email delivery leaves the webhook unacknowledged so Stripe can redeliver it. Notices are transactional, independent of appeal consent. Expiry warnings and staff escalation after retries run out are not implemented.
+Each `read` waits for you to paste a value and press Enter; nothing shows while you paste, and the value stays out of your command history. `rer deploy --set-secret` changes only those secrets, in one new version of the Worker named `coffer-<environment>`, without a rebuild or any data change.
 
-Donors open **Manage my monthly gift**, request an emailed link and confirm it to see only their own plans. Links expire after 30 minutes and work once; sessions last one hour. Card updates take place in Stripe Billing Portal. Cancellation stops future installments at the end of the current billing period. Donations already received remain in the ledger. Development and demo mode do not send email or create a local inbox.
+4. **Check it.** Back on **Connect Stripe**, choose **Check with Stripe**. Coffer asks Stripe whether the key works, shows your account's country and currency, and says whether a webhook sends to this address and which events it still lacks.
+5. **Take a test gift.** Publish a campaign under **Giving**, open its page and give with card `4242 4242 4242 4242`, any future expiry date and any three-digit code. The gift appears on the donor's record and in the campaign total.
 
-RER Managed does not yet have the integration egress relay. Any Stripe operation on a managed install says that Stripe is not available yet. Use a self-hosted install for giving today.
+When you are ready for real gifts, finish Stripe's account activation and repeat steps 1–3 with the live secret key and a live-mode webhook.
 
-The target contract also calls for advanced form fields, embedding, donor walls, campaign closing dates, additional recurring frequencies, ACH/PayPal and broader donor self-service. Those remain partial or missing in `CONTRACT.md`.
+### On your own computer
+
+Coffer on your computer reads its private settings file, `.dev.vars`, in the Coffer folder. **Connect Stripe** shows these lines for it:
+
+```sh
+rer dev --stop
+read -rs STRIPE_SECRET_KEY
+(umask 077; grep -v '^STRIPE_SECRET_KEY=' .dev.vars > .dev.vars.new; echo "STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY" >> .dev.vars.new; mv .dev.vars.new .dev.vars)
+rer dev
+```
+
+The file stays readable only by you. The webhook is optional on your computer: Stripe cannot reach it, and the thank-you page records each one-time and first monthly gift. To see renewals and refunds while testing, run the [Stripe CLI](https://docs.stripe.com/stripe-cli) with `stripe listen --forward-to http://127.0.0.1:<port>/api/coffer/giving/webhook` and save the `whsec_` secret it prints as `STRIPE_WEBHOOK_SECRET` the same way.
+
+### Webhook events
+
+| Group | Events |
+| --- | --- |
+| Checkout | `checkout.session.completed`, `checkout.session.async_payment_succeeded` |
+| Invoices (monthly gifts) | `invoice.paid`, `invoice.payment_succeeded`, `invoice.payment_failed`, `invoice.updated` |
+| Subscriptions (monthly gifts) | `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` |
+| Charges and refunds | `charge.succeeded`, `charge.updated`, `charge.refunded`, `charge.failed`, `refund.created`, `refund.updated`, `refund.failed`, `payment_intent.payment_failed` |
+| Disputes | `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated` |
+| Payouts | `payout.created`, `payout.updated`, `payout.paid`, `payout.failed`, `payout.canceled`, `payout.reconciliation_completed` |
+
+Without the signing secret, webhook requests are refused. Coffer verifies each message's signature, reads the current state from Stripe, matches the donor by email and writes each successful gift once to the ledger with its campaign and fund. A failed payment never counts as money raised.
+
+## Campaign pages
+
+An owner or admin opens **Giving**, publishes a campaign with its own page address, story, fund and goal, and shares `/give/<address>`. Donors choose one-time or monthly and continue to Stripe Checkout for card or Link. Apple Pay appears in Stripe Checkout on eligible devices once you register your Coffer's domain under Stripe's payment method domains. US bank giving is coming soon.
+
+The giving page asks separately whether the donor wants news and appeals by email. That box is optional and unticked; when a donor ticks it, Coffer records email consent with the checkout as evidence once the gift is paid. Gift receipts are transactional and go to the donor's email either way.
+
+## Monthly gifts
+
+Monthly plans run as Stripe subscriptions. Set your account's retry schedule in Stripe (Billing revenue recovery). Coffer follows that schedule and records failures, the next attempt and a successful recovery. After a failed attempt it emails the donor a private card-update link; if that email cannot be sent, Coffer leaves the webhook unacknowledged so Stripe delivers it again. Expiry warnings and staff escalation after retries run out are not implemented.
+
+Donors open **Manage my monthly gift**, request an emailed link and confirm it to see only their own plans. Links expire after 30 minutes and work once; sessions last one hour. Card updates happen in Stripe's billing portal. Cancelling stops future gifts at the end of the current billing period; gifts already received stay in the ledger. Coffer on your computer sends no email, so the portal link only works on a hosted Coffer.
+
+## RER Managed
+
+RER Managed does not have the payment connection yet. **Connect Stripe** says so, and any Stripe action on a managed installation says Stripe is not available yet. Use a self-hosted Coffer for giving today.
+
+Advanced form fields, embedding, donor walls, campaign closing dates, other recurring frequencies, ACH and PayPal remain on the roadmap in `CONTRACT.md`.

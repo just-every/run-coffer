@@ -2,39 +2,38 @@ import { all, commit, event, fail, guard, id, integer, newId, sql, today, type C
 import { address, letterHash } from './acknowledgements'
 import { tributeReceiptText } from './gift-depth'
 import { usd } from './money'
-import { longDate, renderLetter, settings, type Settings } from './settings'
+import { goodsStatement, longDate, settings, type Settings } from './settings'
 
 const MAX_LETTERS = 500
 const ELIGIBLE = `g.kind='gift' AND g.received_on>=? AND g.received_on<=?
  AND d.erased_at IS NULL AND (? IS NULL OR d.id=?)
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)`
 
+/** One letter per donor: each gift listed once, the totals, and the charity's goods wording. */
 function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: string) {
  const total = gifts.reduce((n, g) => n + g.amount_cents, 0)
  const goods = gifts.reduce((n, g) => n + g.goods_cents, 0)
- // Render every gift with the charity's reviewed template. In particular, a
- // mixed year must never inherit the no-goods wording from an aggregate gift.
+ const provided = gifts.filter(g => g.goods === 'provided')
  const items = gifts.map((g, i) => [
-  `Gift ${i + 1}: ${longDate(g.received_on)}`,
-  `Fund: ${g.fund}`,
-  `Amount: ${usd(g.amount_cents)}`,
-  `Goods or services: ${g.goods === 'provided' ? g.goods_description : 'None'}`,
-  `Goods or services value: ${usd(g.goods_cents)}`,
-  `Deductible portion: ${usd(g.amount_cents - g.goods_cents)}`,
-  '', renderLetter(s, g, donor.name, day).body, tributeReceiptText(g.tribute),
+  `${i + 1}. ${longDate(g.received_on)} · ${g.fund} · ${usd(g.amount_cents)} · goods or services: ${g.goods === 'provided' ? `${g.goods_description} (${usd(g.goods_cents)})` : 'none'} · deductible ${usd(g.amount_cents - g.goods_cents)}`,
+  ...(g.tribute ? [`   ${tributeReceiptText(g.tribute)}`] : []),
  ].join('\n'))
+ // A mixed year states each gift's own wording; it never inherits the no-goods sentence.
+ const wording = provided.length
+  ? [...provided.map(g => `For your gift of ${usd(g.amount_cents)} on ${longDate(g.received_on)}: ${goodsStatement(s, g)}`), ...(provided.length < gifts.length ? [`For each other gift listed: ${s.none_statement}`] : [])]
+  : [s.none_statement]
  return {
   subject: `${year} annual giving statement — ${s.organisation}`,
   body: [
-   `${s.organisation} — ${year} annual giving statement`,
-   `Prepared: ${longDate(day)}`,
-   `Donor: ${donor.name}`,
-   `Period: January 1, ${year} through December 31, ${year}`,
+   longDate(day), '', `Dear ${donor.name},`, '',
+   `Thank you for supporting ${s.organisation} in ${year}. For your tax records, this statement lists each gift you made from January 1 through December 31, ${year}.`, '',
+   ...items, '',
    `Total gifts: ${usd(total)}`,
    `Total goods or services value: ${usd(goods)}`,
-   `Total deductible portion: ${usd(total - goods)}`,
-   '', ...items.flatMap(item => [item, '']),
-  ].join('\n').trim(),
+   `Total deductible portion: ${usd(total - goods)}`, '',
+   ...wording, '',
+   'With thanks,', s.organisation, ...(s.ein ? [`EIN ${s.ein}`] : []),
+  ].join('\n'),
   amount_cents: total,
  }
 }

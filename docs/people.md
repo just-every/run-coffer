@@ -7,11 +7,19 @@ Everyone signs in with their own account. What they can do depends on their role
 | Member | Add and edit donors, and record gifts, pledges and consent. |
 | Agent key | Read records, and prepare letter batches and appeal audiences for a person to approve. |
 
-**More → Data & access** summarizes the roles and shows your operator ID.
+**More → Data & access** summarizes the roles and lists everyone with access.
 
 ## Invite someone
 
-Invitations use Coffer's sign-in routes, called while you are signed in as the owner from the app's own address: `POST /auth/invite` with the person's email, display name and role (`member` or `admin`). `GET /auth/operators` lists people, and `POST /auth/operator/role` and `POST /auth/operator/status` change a person's role or switch their access off. Hosted invitations need mail set up; local use sends no email.
+1. An owner or admin opens **More → Data & access**.
+2. Under **People and roles**, enter the person's email address and, if you like, their name, and choose **Member** or **Admin**.
+3. Press **Send invitation**.
+
+On a hosted Coffer, the person gets an email with a one-use sign-in link. Opening it signs them in with the role you chose; after that they sign in with that address from the sign-in page whenever they like. Invitations need the installation's mail settings ([Host it on Cloudflare](/docs/hosting#mail)).
+
+Coffer on your own computer sends no email. After you invite someone there, a **Sign in as** link appears next to their name: it signs this browser in as them, so you can see Coffer with their role. Open your `RER_OPEN` link again to come back as the owner.
+
+The person's role and status show in the list. The owner can invite members and admins; an admin can invite members.
 
 ## Agent keys
 

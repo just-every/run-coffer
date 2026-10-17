@@ -2,20 +2,28 @@
 
 Review your organization name, EIN and letter wording in Letter settings. Prepare
 per-gift thank-yous in Letters, read every frozen letter and approve the batch.
-Send approved letters in steps of up to eight. Each letter goes through the
-installation's existing `MAIL_PROVIDER=sendgrid`, `MAIL_API_KEY` and `MAIL_FROM`
-settings, the same provider and sender used for sign-in mail. Current email
-consent and the unchanged recipient email are checked when each letter is
-claimed for sending. No consent, no email, or an earlier bounce/complaint routes
-the donor's letters to print. RER Managed provider calls are not available yet.
-Local development and demo email remains suppressed and never counts as sent.
+Send approved letters in steps of up to eight. Each letter goes by email
+whenever the donor has an email address: a receipt is transactional mail, so it
+never depends on appeal consent, and a marketing opt-out does not stop it.
+Only donors without an email address, or whose earlier receipt bounced or drew
+a complaint, go to the print batch; so does a letter whose donor's address
+changed after approval. Email goes through the installation's
+`MAIL_PROVIDER=sendgrid`, `MAIL_API_KEY` and `MAIL_FROM` settings, the same
+provider and sender used for sign-in mail (see [Host it on Cloudflare](/docs/hosting#mail)).
+RER Managed provider calls are not available yet. Coffer on your own computer
+sends no email, so letters there go to print and never count as sent.
 
-Submitted means SendGrid accepted the email; it does not mean delivered.
-Configure a signed SendGrid Event Webhook for `https://YOUR-INSTALL/api/coffer/mail/events`
-and enable Delivered, Bounced, Dropped and Spam Reports. Save its verification
-public key as the optional deployment secret `MAIL_EVENT_PUBLIC_KEY` (base64
-SPKI, as supplied by SendGrid). The webhook requires the provider's signature
-and timestamp; repeated events are deduplicated. Negative delivery evidence
+Submitted means SendGrid accepted the email; it does not mean delivered. To
+have delivery and bounces show up on their own, turn on SendGrid's Event
+Webhook: in SendGrid, open **Settings → Mail Settings → Event Webhook**, set the
+URL to `https://YOUR-INSTALL/api/coffer/mail/events`, select Delivered,
+Bounced, Dropped and Spam Reports, and turn on **Signed Event Webhook**.
+SendGrid then shows a **Verification Key**: a long line of letters and digits.
+Copy it whole and save it as the deployment secret `MAIL_EVENT_PUBLIC_KEY`, the
+same way as the other secrets (`read -rs MAIL_EVENT_PUBLIC_KEY && export MAIL_EVENT_PUBLIC_KEY`,
+then `rer deploy --environment <name> --set-secret MAIL_EVENT_PUBLIC_KEY`).
+Coffer accepts only events signed with that key, and repeated events are
+counted once. Negative delivery evidence
 wins over a late delivery event and moves the letter to the print batch. Both
 the donor and batch show delivery results. Coffer does not configure other SendGrid account webhooks.
 
@@ -39,8 +47,10 @@ After printing, record the print batch as printed. CSV export remains available.
 Printing records staff action, not postal delivery.
 
 For year-end statements, choose a calendar year in Letters, optionally one donor.
-The statement lists every unreversed gift in that year, including imported
-entries, with total gifts, goods or services values and deductible portions.
+Each donor gets one letter that lists every unreversed gift in that year once,
+including imported entries, with its fund, goods or services and deductible
+portion, then the total gifts, goods or services value and deductible total,
+and your reviewed goods-or-services wording.
 Unknown goods answers must be resolved first. Review and approve the statements,
 then email or print them in the same flow. Statements do not replace per-gift
 acknowledgements. A donor's existing statement batch prevents duplicate annual

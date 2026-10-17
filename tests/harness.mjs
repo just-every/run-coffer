@@ -35,7 +35,8 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
   const command=(command,input={},options={})=>api('/api/coffer/commands',{command,input},options)
   const get=(path,options={})=>api(path,undefined,options)
   const person=async(email,role='member')=>{
-   await api('/auth/invite',{email,role,displayName:email.split('@')[0],returnTo:'/app'},{status:202})
+   // The Data & access invite form, which sends Base's invitation.
+   const invited=await request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email,role,displayName:email.split('@')[0]}).toString()});assert.equal(invited.status,303,await invited.text())
    const message=messages.findLast(m=>JSON.stringify(m.to).includes(email));assert.ok(message,'Invitation reached mail edge')
    const match=message.text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/);assert.ok(match)
    const token=new URL(match[0]).searchParams.get('token'),confirmed=await request('/auth/confirm',{method:'POST',as:'',body:{token}});assert.equal(confirmed.status,303)

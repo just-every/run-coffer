@@ -10,7 +10,7 @@ export async function home(c: Context) {
    (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger WHERE received_on>=?) AS year_cents,
    (SELECT count(*) FROM cf_gifts WHERE kind='gift' AND received_on>=?) AS year_gifts,
    (SELECT count(*) FROM cf_consents) AS consents,
-   (SELECT count(*) FROM cf_ack_batches WHERE status='sent') AS sent`, `${year}-01-01`, `${year}-01-01`),
+   (SELECT count(*) FROM cf_ack_batches b WHERE b.status='sent' OR EXISTS(SELECT 1 FROM cf_acks a WHERE a.batch_id=b.id AND (a.submitted_at IS NOT NULL OR a.printed_at IS NOT NULL))) AS sent`, `${year}-01-01`, `${year}-01-01`),
   one(c, `SELECT (SELECT count(*) FROM cf_ack_batches WHERE status IN ('prepared','approved','exported')) AS letters,
    (SELECT count(*) FROM cf_appeals WHERE status IN ('prepared','approved','exported')) AS appeals`),
  ])

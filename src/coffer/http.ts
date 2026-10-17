@@ -29,6 +29,8 @@ import { agentResponse } from './agent/http'
 import { crmMoveInResponse } from './move-in/http'
 import { createCampaign, campaigns } from './giving/campaigns'
 import { givingManagePage } from './giving/manage-ui'
+import { checkStripe, givingSetupPage } from './giving/setup'
+import { invitePerson, people } from './people'
 import { receiptEvents } from './letter-delivery'
 import { printLetters } from './ui/print-letters'
 import { home } from './ui/home'
@@ -108,6 +110,14 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
    const result = await createCampaign(c, input)
    return isApi ? json(result) : redirect('/app/giving')
   }
+  if (path === '/app/giving/setup/check' && request.method === 'POST') {
+   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin connects Stripe.', 403)
+   return page('Connect Stripe', await givingSetupPage(c, await checkStripe(c)), actor, 200, '/app/giving')
+  }
+  if (path === '/app/people/invite' && request.method === 'POST') {
+   const invited = await invitePerson(request, c, env, Object.fromEntries(await formBody(request)))
+   return redirect('/app/data?invited=' + encodeURIComponent(invited) + '#people')
+  }
   if (path.startsWith('/api/portability/')) {
    if (actor.role !== 'owner') fail('owner_required', 'Only the owner can back up or restore.', 403)
    const handler = await createPortabilityHandler({ db: env.DB, policy, appOrigin: env.AUTH_ORIGIN, authorize: async req => { const current = await identity(req, env); originGuard(req, env, current.bearer); return current.actor.role === 'owner' ? current.actor.id : null } })
@@ -128,7 +138,7 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
    return new Response(await service.exports.download(id), { headers: { ...headers, 'content-type': 'application/x-ndjson', 'content-disposition': 'attachment; filename="coffer.rer"' } })
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') fail('method_not_allowed', 'Use the page’s buttons for changes.', 405)
-  return isApi ? await api(c, url) : await screen(c, url)
+  return isApi ? await api(c, url) : await screen(c, url, request)
  } catch (error: any) {
   const known = error instanceof CofferError || error instanceof imports.ImportError || typeof error?.code === 'string'
   // The import kit reports its refusals by code, alone or inside a D1 error.
@@ -256,7 +266,7 @@ async function recipientsFile(c: Context, appealId: string) {
  return download(recipientsCsv(appeal, await recipientsOf(c, appealId)), `coffer-appeal-${appeal.prepared_at.slice(0, 10)}`)
 }
 
-async function screen(c: Context, url: URL): Promise<Response> {
+async function screen(c: Context, url: URL, request: Request): Promise<Response> {
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
@@ -266,6 +276,7 @@ async function screen(c: Context, url: URL): Promise<Response> {
  if (path === '/app/pipeline') return show('Major-gift pipeline', await majorGiftsPage(c,url))
  if (path === '/app') return show('Today', await home(c))
  if (path === '/app/giving') return show('Online giving', await givingManagePage(c))
+ if (path === '/app/giving/setup') return show('Connect Stripe', await givingSetupPage(c))
  if (path === '/app/donors') return show('Donors', await donorsPage(c, url))
  let m = path.match(/^\/app\/donors\/([^/]+)$/)
  if (m) { const view = await donorPage(c, m[1]); return show(view.title, view.body) }
@@ -287,7 +298,7 @@ async function screen(c: Context, url: URL): Promise<Response> {
  if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved')))
  if (path === '/app/data') {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
-  return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results))
+  return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited') }))
  }
  if (path === '/app/move-in') { if (!manager(actor)) fail('manager_required', 'Only the owner or an admin moves records in.', 403); return show('Move in from Stripe', moveInPage(await imports.jobs(c.db as any))) }
  if (path === '/app/backup') fail('post_required', 'Use the backup button.', 405)

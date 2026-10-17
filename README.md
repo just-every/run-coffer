@@ -4,7 +4,7 @@
 
 Coffer keeps donor records for a US nonprofit: donors and households, every gift as an exact ledger line, pledges, and each donor's consent to hear from you. It prepares and sends approved acknowledgement letters for gifts of $250 or more, produces year-end statements and print-ready letters, and builds appeal lists that only ever include donors who said yes. You run the app and hold the data in your own account.
 
-Coffer does not process payments, send email, screen wealth or give tax advice. Your gifts arrive through your existing processor (Stripe is the first move-in kit), and the letter wording is your organization's own.
+Coffer takes online and monthly gifts on your own campaign pages through your Stripe account, emails receipts, statements, pledge reminders and donor portal links through your SendGrid account, and moves in history from Stripe, Little Green Light, Bloomerang or Raiser's Edge NXT. It does not screen wealth or give tax advice, and the letter wording is your organization's own.
 
 ## The run site
 
@@ -40,8 +40,12 @@ The **Today** page lists these steps and ticks each one off as you finish it.
 2. **Move in a year of gifts from Stripe.** Open **More → Move in from Stripe**. Add your saved Stripe pages (see [docs/MOVE-IN.md](docs/MOVE-IN.md) for how to save them; to try it first, use the sample files in `tests/fixtures/stripe/`). Tick **These charges were donations** if none of them paid for tickets or goods. **Preview** shows the donors and gifts it would add and every Stripe object it skips, with the reason, and changes nothing. Tick the approval box and **Apply**. The journal page shows progress, keeps the original Stripe pages and offers **Undo**. A large import applies in parts: press **Continue** until it says **Applied**.
 3. **See each donor's history.** **Donors** lists everyone with their total given, last gift and consent. Open a donor for their gifts by year, pledges, consent history, letters, appeals and activity. You can also add a donor and **Record a gift** by hand (amount in dollars, the date received, how it was paid, and whether the donor got goods or services in return).
 4. **Record consent.** Appeals only include donors whose latest answer is yes. On **Donors**, tick donors, choose the channel (email or postal mail), the answer, how it was captured and your evidence, and **Record consent**. A donor page shows the full history and lets you record a withdrawal.
-5. **Send acknowledgement letters.** **Letters** lists every gift at or over the threshold that has no letter yet, with its due date and an **Overdue** flag. **Prepare letters** fills your wording for each gift. Read the batch, **Approve these letters**, then **Send approved letters** through your installation’s SendGrid account. Donors without current email consent or an address go to the print batch; bounces go there too. **Print all letters / save PDF**, print one letter or the pending print batch, and record paper letters as printed. CSV export remains available. Choose a calendar year to prepare itemized year-end statements for the same approval and delivery flow. **Check delivery with SendGrid** reads provider events when Email Logs access is enabled; a signed event webhook can update them automatically. See [receipt setup and delivery states](docs/RECEIPTS.md). Imported gifts without a goods-or-services answer wait until someone answers on the donor page.
+5. **Send acknowledgement letters.** **Letters** lists every gift at or over the threshold that has no letter yet, with its due date and an **Overdue** flag. **Prepare letters** fills your wording for each gift. Read the batch, **Approve these letters**, then **Send approved letters** through your installation’s SendGrid account. A receipt goes by email to every donor with an email address, whatever their appeal consent; only donors without an address, or whose earlier receipt bounced, go to the print batch. **Print all letters / save PDF**, print one letter or the pending print batch, and record paper letters as printed. CSV export remains available. Choose a calendar year to prepare year-end statements, one letter per donor listing each gift once with the total, for the same approval and delivery flow. **Check delivery with SendGrid** reads provider events when Email Logs access is enabled; a signed event webhook can update them automatically. See [receipt setup and delivery states](docs/RECEIPTS.md). Imported gifts without a goods-or-services answer wait until someone answers on the donor page.
 6. **Run an appeal.** **Appeals → Prepare an appeal**: name it, pick email or postal mail, and optionally only donors who gave since a date. Coffer shows who is included and how many were left out and why. **Approve**, **Export audience**, download the CSV for your email or mailing tool, then **Record as sent**. If anyone's consent changes before approval or export, Coffer refuses and asks you to prepare it again.
+
+Moving from another CRM? **More → Move in from a CRM** lists the export steps for Little Green Light, Bloomerang and Raiser's Edge NXT, previews the files and checks the totals before anything changes ([guide](https://run-coffer.com/docs/move-in-crm)).
+
+To take gifts online, open **Giving → Connect Stripe**. It explains what Stripe does, where to find your test and live keys, how to save them for this installation (the exact commands, filled in) and how to add Stripe's webhook, then checks the connection with Stripe ([guide](https://run-coffer.com/docs/online-giving)). Publish a campaign under **Giving** and share its `/give/<address>` page; the page asks donors separately whether they want appeals by email.
 
 Mistakes are corrected, not edited away: an owner or admin uses **Reverse this gift** on the donor page, which adds a matching negative line with your reason. Totals and letters follow the ledger.
 
@@ -52,7 +56,7 @@ Mistakes are corrected, not edited away: an owner or admin uses **Reverse this g
 - **Only the owner** backs up, restores and erases donors.
 - **Agent keys** read records and prepare letter batches and appeal audiences. A person must approve them; every approval records who prepared and who approved the exact content.
 
-Invite people with Base's sign-in routes while signed in as the owner: `POST /auth/invite` with `{"email":"…","displayName":"…","role":"member"}` (or `"admin"`), using the app's exact origin and your session (Base checks the `Origin` header on changes). `GET /auth/operators` lists people; `POST /auth/operator/role` and `POST /auth/operator/status` change access. Hosted invitations need configured mail; local development suppresses it. See the [Base auth contract](src/modules/operator-auth/README.md#http-contract).
+Invite people in **More → Data & access → People and roles**: enter their email, choose **Member** or **Admin** and press **Send invitation**. A hosted Coffer emails them a one-use sign-in link that admits them with that role. Coffer on your computer sends no email; a **Sign in as** link appears next to the invited person instead. See [People and roles](https://run-coffer.com/docs/people).
 
 Create an agent key in **More → Data & access**. It is shown once and expires after 30 days. [docs/AGENT-COMMANDS.md](docs/AGENT-COMMANDS.md) lists every endpoint and command an agent can call.
 
@@ -65,9 +69,13 @@ rer dev --stop
 rer export --output exports/coffer.rer
 ```
 
-The backup holds donors, gifts, consent history, letters, appeals, approvals and the retained Stripe pages. Sign-in accounts, sessions, agent keys and mail settings are left out. Keep it private. To restore on another computer, run `npx -y @runeditrun/rer dev just-every/run-coffer` once to set up a fresh owner, stop it, then:
+The backup holds donors, gifts, consent history, letters, appeals, approvals and the retained Stripe pages. Sign-in accounts, sessions, agent keys and mail settings are left out. Keep it private. To restore on another computer, run `npx -y @runeditrun/rer dev just-every/run-coffer` once to set up a fresh owner. Then, in that Coffer folder, stop it, move the downloaded backup in, make it private (browsers save downloads readable by other accounts, and `rer import` refuses them) and restore it:
 
 ```sh
+rer dev --stop
+mkdir -p exports
+mv ~/Downloads/coffer.rer exports/coffer.rer
+chmod 600 exports/coffer.rer
 rer import --input exports/coffer.rer --yes
 rer dev
 ```
@@ -78,16 +86,23 @@ To honor an erasure request, the owner opens the donor, types `ERASE` and presse
 
 ## Deploy in your own Cloudflare account
 
-Local use needs no Cloudflare account. To host Coffer you need your own Cloudflare account with a workers.dev subdomain and an account API token with **Workers Scripts: Edit** and **D1: Edit**. Coffer declares one D1 database; everything it creates belongs to your account.
+Local use needs no Cloudflare account. To host Coffer you need your own Cloudflare account with a workers.dev subdomain and an account API token with **Workers Scripts: Edit** and **D1: Edit**, plus a SendGrid account for mail. Coffer declares one D1 database; everything it creates belongs to your account.
 
-Put a real verified sender address in `deploy.json` in place of the example `MAIL_FROM` (the declared mail provider is Resend, used for sign-in links only). Then provide `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `OWNER_EMAIL`, `SESSION_SECRET`, `SETUP_TOKEN` and `MAIL_API_KEY` through your environment or a private `--env-file` (never in source or command arguments), and run:
+Hosted mail uses three Worker secrets: `MAIL_PROVIDER=sendgrid`, `MAIL_API_KEY` (a SendGrid API key with Mail Send permission) and `MAIL_FROM` (a sender address you verified in SendGrid). Receipts and statements only go through SendGrid. Stop the local app first (`rer deploy` refuses while `rer dev` holds the folder), then give the Cloudflare and mail settings through your environment (never in source or command arguments) and deploy:
 
 ```sh
+rer dev --stop
+export CLOUDFLARE_ACCOUNT_ID=your-account-id
+read -rs CLOUDFLARE_API_TOKEN && export CLOUDFLARE_API_TOKEN
+export OWNER_EMAIL=you@yourcharity.example.org MAIL_PROVIDER=sendgrid MAIL_FROM=receipts@yourcharity.example.org
+read -rs MAIL_API_KEY && export MAIL_API_KEY
 rer deploy --dry-run
-rer deploy
+rer deploy --environment production
 ```
 
-The dry run builds and validates locally without contacting Cloudflare. The real deploy creates the Worker and D1 database, applies the migrations and checks the hosted `/health`. Keep the private `.rer/deploy/<environment>.json` it writes out of Git and back it up: later deploys use it to recognize the resources as yours. The [Base owner-account deploy kit](https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/modules/deploy-kit/README.md) and [OPERATIONS.md](OPERATIONS.md) describe recovery and flags. Local checks and a dry run do not prove hosted health or mail delivery.
+Each `read` waits for you to paste a value and press Enter, without showing it. The dry run builds and validates locally without contacting Cloudflare. The real deploy creates the Worker `coffer-production` and its D1 database, applies the migrations, checks the hosted `/health`, claims the owner for `OWNER_EMAIL` and prints the address; rer generates the session and setup secrets. Keep the private `.rer/deploy/` folder it writes out of Git and back it up: later deploys use it to recognize the resources as yours. Change a secret later with `rer deploy --environment production --set-secret NAME`. Then connect Stripe in **Giving → Connect Stripe**.
+
+To take a hosted Coffer down, first sign in as the owner and **Download backup** from **More → Data & access** (or copy the whole database with `npx wrangler d1 export coffer-production-db --remote --output exports/coffer-production-db.sql`), then run `rer deploy --environment production --remove --yes`. It deletes the Worker and database it created, with every record in them, reads back that both are gone and touches nothing else. [Host it on Cloudflare](https://run-coffer.com/docs/hosting) covers each step; the [Base owner-account deploy kit](https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/modules/deploy-kit/README.md) and [OPERATIONS.md](OPERATIONS.md) describe recovery and flags. Local checks and a dry run do not prove hosted health or mail delivery.
 
 ## What the first release covers
 

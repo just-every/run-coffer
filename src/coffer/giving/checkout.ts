@@ -17,11 +17,11 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  if (!mail) fail('INPUT', 'Enter your email address.', 400)
  const cents = amount(p, 'amount', 'Gift amount'), frequency = choice(p.frequency, ['once', 'monthly'] as const, 'gift frequency')
  if (cents < 100 || cents > 10000000) fail('INPUT', 'Give between $1 and $100,000.', 400)
- const id = text(p.requestId, 'Checkout request', 100)
+ const consent = p.emailConsent === 'yes' ? 1 : 0, id = text(p.requestId, 'Checkout request', 100)
  if (!/^[0-9a-f-]{36}$/.test(id)) fail('INPUT', 'Reload the donation page and try again.', 400)
- await env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,created_at) VALUES(?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, frequency, new Date().toISOString()).run()
+ await env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at) VALUES(?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, frequency, consent, new Date().toISOString()).run()
  const intent = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
- if (!intent || intent.campaign_id !== c.id || intent.name !== name || intent.email !== mail || intent.amount_cents !== cents || intent.frequency !== frequency) fail('checkout_changed', 'Reload the donation page before changing this gift.', 409)
+ if (!intent || intent.campaign_id !== c.id || intent.name !== name || intent.email !== mail || intent.amount_cents !== cents || intent.frequency !== frequency || intent.email_consent !== consent) fail('checkout_changed', 'Reload the donation page before changing this gift.', 409)
  if (intent.session_id) return stripe(env, '/checkout/sessions/' + encodeURIComponent(intent.session_id))
  // An unverified public email must not reveal an existing Stripe customer's saved details.
  const customer = (await stripe(env, '/customers', { name, email: mail, 'metadata[coffer_install]': env.AUTH_ORIGIN }, 'customer-' + id)).id

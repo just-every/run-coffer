@@ -77,6 +77,8 @@ test('a calendar-year statement itemizes every unreversed gift and totals deduct
  const d=await h.get(`/api/coffer/letters/${b.id}`),l=d.letters[0]
  assert.equal(l.amount_cents,17550)
  assert.match(l.body,/Total gifts: \$175\.50/)
+ assert.equal(l.body.match(/Dear Ana Diaz/g).length,1,'One letter per statement, never a letter per gift')
+ assert.deepEqual(l.body.match(/^\d+\. .+$/gm).map(line=>line.split(' · ')[0]),['1. March 1, 2025','2. December 31, 2025'],'Each gift is listed once')
  assert.match(l.body,/Total deductible portion: \$115\.50/)
  assert.match(l.body,/March 1, 2025/);assert.match(l.body,/December 31, 2025/)
  assert.match(l.body,/gala dinner worth \$60\.00/)

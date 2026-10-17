@@ -18,6 +18,8 @@ export const form = (command: string, content: string, button: string, values: R
 export const box = (title: string, content: string, id = '') => `<section class="card"${id ? ` id="${e(id)}"` : ''}><h2>${e(title)}</h2>${content}</section>`
 export const chip = (value: unknown, tone = '') => `<span class="chip${tone ? ` ${tone}` : ''}">${e(value)}</span>`
 export const details = (facts: Record<string, unknown>) => `<details class="facts"><summary>Details</summary><dl>${Object.entries(facts).map(([k, v]) => `<dt>${e(k)}</dt><dd><code>${e(typeof v === 'string' ? v : JSON.stringify(v))}</code></dd>`).join('')}</dl></details>`
+/** Guides live on the run site, which every installation can link. */
+export const guide = (slug: string) => `https://run-coffer.com/docs/${slug}`
 export const empty = (text: string) => `<p class="empty">${e(text)}</p>`
 export const STATUS: Record<string, [string, string]> = {
  delivered: ['Delivered', 'ok'], submitted: ['Email submitted', 'info'], print: ['Print batch', 'warn'], printed: ['Printed', 'ok'], bounced: ['Bounced · print instead', 'alarm'], complained: ['Complaint · print instead', 'alarm'], rejected: ['Email rejected · print instead', 'warn'], sending: ['Sending', 'info'], uncertain: ['Submission uncertain', 'warn'],

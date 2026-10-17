@@ -25,7 +25,7 @@ export function available(env: GivingEnv): boolean {
 export function requireStripe(env: GivingEnv): string {
  if (managed(env)) throw new CofferError('not_available', 'Stripe is not available yet on RER Managed.', 503)
  const key = env.STRIPE_SECRET_KEY?.trim()
- if (!key) throw new CofferError('not_available', 'Set STRIPE_SECRET_KEY to enable Stripe giving.', 503)
+ if (!key) throw new CofferError('not_available', 'Online giving is not connected yet. An owner or admin connects Stripe in Coffer under Giving → Connect Stripe.', 503)
  return key
 }
 

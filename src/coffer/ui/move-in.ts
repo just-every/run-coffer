@@ -1,10 +1,10 @@
 import type { Row } from '../db'
-import { box, chip, details, e, empty, money, when } from './common'
+import { box, chip, details, e, empty, guide, money, when } from './common'
 
 const JOB: Record<string, string> = { queued: 'Approved, not started', applying: 'Partly applied', completed: 'Applied', failed: 'Stopped', undoing: 'Partly undone', undone: 'Undone', rolling_back: 'Rolling back', rolled_back: 'Rolled back' }
 
 export function moveInPage(jobs: Row[]) {
- return `<p>Bring donors and a year of gifts from Stripe. Save the JSON that Stripe’s API returns for <code>GET /v1/customers</code> and <code>GET /v1/charges</code> (100 per page), then add the pages here. Coffer never asks for your Stripe key and never contacts Stripe. <a href="https://github.com/just-every/run-coffer/blob/main/docs/MOVE-IN.md">How to save the pages</a>.</p>
+ return `<p>Bring donors and a year of gifts from Stripe. Save the JSON that Stripe’s API returns for <code>GET /v1/customers</code> and <code>GET /v1/charges</code> (100 per page), then add the pages here. Coffer never asks for your Stripe key and never contacts Stripe. <a href="${guide('move-in')}">How to save the pages</a>.</p>
  <div class="grid"><div>${box('1. Preview (changes nothing)', `<form method="post" action="/app/move-in/preview" enctype="multipart/form-data">
   <label>Customer pages (.json)<input type="file" name="customersFiles" accept=".json,application/json" multiple></label>
   <label>Charge pages (.json)<input type="file" name="chargesFiles" accept=".json,application/json" multiple></label>

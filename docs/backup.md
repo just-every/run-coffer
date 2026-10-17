@@ -14,15 +14,24 @@ A backup holds donors, gifts, consent history, letters, appeals, approvals and t
 ## Restore on another computer
 
 1. Get Coffer and start it once so it sets up a fresh owner ([Getting started](/docs/getting-started)).
-2. Stop it with `rer dev --stop`.
-3. Restore your backup and start again:
+2. In a terminal in that Coffer folder, stop it, move the downloaded backup in, make it private and restore it:
 
 ```sh
+rer dev --stop
+mkdir -p exports
+mv ~/Downloads/coffer.rer exports/coffer.rer
+chmod 600 exports/coffer.rer
 rer import --input exports/coffer.rer --yes
 rer dev
 ```
 
+Browsers save downloads so other accounts on the computer can read them. `chmod 600` makes the file yours alone, which `rer import` requires before it reads a backup. Change `~/Downloads` if your browser saves somewhere else. A backup made with `rer export` is already private.
+
 A restore only goes into an empty installation; Coffer refuses to restore over records you already have.
+
+## Back up a hosted Coffer
+
+**Download backup** works the same on a hosted Coffer and saves its records. [Host it on Cloudflare](/docs/hosting#back-up-a-hosted-coffer) also shows how to copy the whole hosted database, and how to take a hosted Coffer down once you have a backup.
 
 ## Erase a donor
 

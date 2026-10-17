@@ -1,6 +1,18 @@
-# CRM export move-in sources
+# Move in from a CRM
 
-Checked against public vendor documentation on 17 October 2026. Verification fixtures must be synthetic. These are **selected report/export layouts**, not promises that every vendor backup, account-specific report label, or ZIP dump has one fixed schema. The preview reports every populated unconsumed field, as well as unsupported empty columns; nothing is silently dropped. Source IDs remain strings, including leading zeroes. CSV/XLSX files are parsed locally by the server; no CRM credentials or live API connection are used.
+Open **More → Move in from a CRM** in Coffer. Choose where you are moving from, add your export files, preview them and compare totals before anything changes. The page lists each CRM's export steps; this guide adds the detail behind them. It was checked against each vendor's public documentation on 17 October 2026.
+
+These are **selected report and export layouts**: your account may label a column differently, and Coffer matches common variants. The preview lists every filled column it did not use, and every unsupported empty one, so nothing is silently dropped. Record IDs stay as text, including leading zeroes. Coffer reads the files itself; it never asks for your CRM password and never connects to the CRM.
+
+## Export steps at a glance
+
+| Moving from | File 1: people | File 2: gifts | Optional |
+| --- | --- | --- | --- |
+| Little Green Light | **Constituents** tab → **Reports** → new custom report → **Export → CSV** | **Fundraising** tab → **Reports** → **Full Export -- CSV** template, all years → **Export → CSV** | **Constituents → Reports → Relationships** report |
+| Bloomerang | **Reports** → new **Constituent** report → **Export** | **Reports** → new **Transactions** report, all dates → **Export** | **Reports** → **Notes** report |
+| Raiser's Edge NXT | Database view → **Export** → **New export** → **Constituent** type, one row per record, **Include header** → **Export now** as CSV | Same with the **Gift** export type | Relationships export |
+
+Upload all the files for one move-in together. The columns to select for each are in the sections below.
 
 ## Files and common rules
 
@@ -8,7 +20,7 @@ Upload the constituent report and the matching transaction report together, incl
 
 Dates accept `YYYY-MM-DD`, US `MM/DD/YYYY`, or actual Excel date cells; four-digit years and real calendar dates are required. Dollar amounts accept plain decimals, `$`, and conventional thousands separators, with at most two decimal places. Currency conversion is outside this importer; export one currency matching Coffer's ledger. Refunds, negative adjustments, securities, in-kind gifts, recurring schedules, and unrecognized transaction types require separate review, rather than being converted into received cash.
 
-Column matching ignores capitalization, spaces and punctuation. The authoritative accepted aliases are in `src/coffer/move-in/source-columns.ts`. Do not relabel an unrelated source field to make it match. Select one primary address/email/phone. Full name is preferred; first/middle/last name columns are joined when no full name is supplied. Conflicting donor values for one ID are errors. Household membership needs both a stable exported household ID and name; names alone are never used to merge families.
+Column matching ignores capitalization, spaces and punctuation, and accepts the column names listed in this guide. Do not rename an unrelated column to make it match. Select one primary address/email/phone. Full name is preferred; first/middle/last name columns are joined when no full name is supplied. Conflicting donor values for one ID are errors. Household membership needs both a stable exported household ID and name; names alone are never used to merge families.
 
 ## Little Green Light
 
@@ -64,4 +76,4 @@ Exported source controls provide that second check when available. Accepted coun
 
 Controls preserve exported values, independently calculated actual values, and a match flag. Missing/invalid references, malformed dates/amounts, duplicate gift IDs, and conflicting donor identities are structural errors. Control differences and unmapped fields require an explicit recorded acceptance reason or a corrected export before commit. Review positive benefits before receipting: source non-deductible amounts or gift-minus-deductible differences are preserved; explicit source zero establishes no goods/services. The checkbox only fills genuinely unknown benefit information. A missing payment method is labeled `imported`; unfamiliar source methods remain intact with a warning.
 
-Relationships normalize Spouse, Employer, Board Member, Foundation Officer, and Introduced By to Coffer's existing directional role names. Other roles remain raw for the transaction service to assess. Notes without source IDs use a visible file/sheet/row provenance key, not an invented vendor ID. Source gift, constituent and pledge IDs are always required. No live customer exports belong in fixtures or source control.
+Relationships normalize Spouse, Employer, Board Member, Foundation Officer, and Introduced By to Coffer's existing directional role names. Other roles remain raw for the transaction service to assess. Notes without source IDs use a visible file/sheet/row provenance key, not an invented vendor ID. Source gift, constituent and pledge IDs are always required.

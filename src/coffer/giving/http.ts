@@ -6,6 +6,7 @@ import { checkout } from './checkout'
 import { completed, webhook } from './webhooks'
 import { portalResponse } from './portal'
 import { campaignPage } from './ui'
+import { settings } from '../settings'
 
 const publicPath = /^\/(give(?:\/|$)|giving(?:\/|$)|api\/coffer\/giving\/webhook$)/
 const headers = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-robots-tag': 'noindex' }
@@ -38,7 +39,7 @@ export async function givingResponse(request: Request, original: Bindings): Prom
    response.headers.set('referrer-policy', 'strict-origin'); return response
   }
   const m = path.match(/^\/give\/([a-z0-9-]+)(\/checkout)?$/)
-  if (m && !m[2] && ['GET', 'HEAD'].includes(request.method)) return campaignPage(await campaign({ db: env.DB }, m[1]), env, url.searchParams.has('cancelled'))
+  if (m && !m[2] && ['GET', 'HEAD'].includes(request.method)) return campaignPage(await campaign({ db: env.DB }, m[1]), env, (await settings({ db: env.DB })).organisation, url.searchParams.has('cancelled'))
   if (m?.[2] && request.method === 'POST') {
    if (!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) fail('form_required', 'Send the donation form.', 415)
    const session = await checkout(env, request, m[1], Object.fromEntries(new URLSearchParams(await givingBody(request))))

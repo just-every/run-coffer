@@ -1,9 +1,10 @@
 import type { Row } from '../db'
-import { area, box, chip, e, empty, hidden, money, select, when } from './common'
+import { area, box, chip, e, empty, guide, hidden, money, select, when } from './common'
+import { exportSteps } from './crm-export-steps'
 
 export const sources: [string,string][]=[['lgl','Little Green Light'],['bloomerang','Bloomerang'],['re-nxt',"Raiser's Edge NXT"]]
 const name=(source:string)=>sources.find(([key])=>key===source)?.[1]||source
-const guide='https://github.com/just-every/run-coffer/blob/main/docs/MOVE-IN-SOURCES.md'
+const sourceGuide=guide('move-in-crm')
 
 export function crmMoveInPage(jobs:Row[]) {
  return `<p>Bring your donor records and gift history into Coffer. Preview every file and compare totals before you switch.</p><div class="grid"><div>
@@ -12,7 +13,8 @@ export function crmMoveInPage(jobs:Row[]) {
  <p class="muted">Include the constituent and gift exports, plus households, relationships, pledges, soft credits and notes. Workbooks can contain several sheets. Each review holds up to 1,000 rows and 4 MB of files.</p>
  <label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
  <p class="muted">Leave this unticked if you are unsure. Those gifts wait for a goods answer before a receipt.</p><button>Preview exports</button></form>`)}
- </div><div>${box('Prepare the switch',`<ol class="steps"><li><a href="${guide}">Follow your source’s export guide</a> and include stable record IDs.</li><li>Review counts, gifts by year, fund and donor, and any source report totals.</li><li>Resolve named rows or explicitly accept differences.</li><li>Apply the whole review, then inspect donor histories. Undo is one step while records remain unused.</li></ol><p>Exports move history. They do not move stored cards or start or stop recurring charges. Keep the old system until your cutover is complete.</p><p><a href="/app/move-in">Import Stripe JSON pages</a></p>`)}
+ </div><div>${box('Export from your CRM',`<p>Open your CRM’s steps below. Each export needs the record IDs, so gifts find their donors.</p>${exportSteps()}<p><a href="${sourceGuide}">CRM move-in guide</a> covers pledges, soft credits, households and total checks in more detail.</p>`)}
+ ${box('Prepare the switch',`<ol class="steps"><li>Export the files above, keeping the record ID columns.</li><li>Review counts, gifts by year, fund and donor, and any source report totals.</li><li>Resolve named rows or explicitly accept differences.</li><li>Apply the whole review, then inspect donor histories. Undo is one step while records remain unused.</li></ol><p>Exports move history. They do not move stored cards or start or stop recurring charges. Keep the old system until your cutover is complete.</p><p><a href="/app/move-in">Import Stripe JSON pages</a></p>`)}
  ${box('Recent CRM imports',jobs.length?`<ul class="list">${jobs.map(j=>`<li><a href="/app/move-in/crm/journal?id=${e(j.id)}">${e(name(j.source))} · ${j.state==='completed'?'Applied':'Undone'}</a> · ${when(j.created_at)}</li>`).join('')}</ul>`:empty('No CRM exports imported yet.'))}</div></div>`
 }
 
@@ -42,7 +44,7 @@ export function crmPreviewPage(input:Row,p:Row) {
  ${area('Reason for accepting differences or unmapped values','acceptedReason','',p.needsAcceptance?'required maxlength="2000"':'maxlength="2000"')}
  <label><input type="checkbox" name="confirm" value="yes" required> I reviewed the totals and mappings and approve this move-in.</label><p>The complete review applies in one transaction. The same files can be applied again without duplicates.</p><button>Apply reviewed import</button></form>`)}
  ${box('Named rows and columns',p.diagnostics.length||p.unmapped.length?`<ul class="list">${p.diagnostics.map((d:Row)=>`<li>${chip(d.severity,d.severity==='error'?'warn':'')} ${e(d.message)}<br>${location(d)}</li>`).join('')}${p.unmapped.map((u:Row)=>`<li>${location(u)}<p>${e(u.reason)}</p><code>${e(u.value)}</code></li>`).join('')}</ul>`:empty('Every supplied value mapped.'))}
- <p><a href="/app/move-in/crm">Choose corrected files</a> · <a href="${guide}">Export guide</a></p></div></div>`
+ <p><a href="/app/move-in/crm">Choose corrected files</a> · <a href="${sourceGuide}">CRM move-in guide</a></p></div></div>`
 }
 
 export function crmJournalPage(result:Row) {

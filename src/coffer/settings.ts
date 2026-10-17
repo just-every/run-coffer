@@ -46,11 +46,13 @@ export async function settingsCommand(c: Context, p: Row) {
 export const longDate = (day: string) => new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${day}T00:00:00Z`))
 const fill = (value: string, fields: Record<string, string>) => value.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, name) => fields[name] ?? '')
 
+/** The charity's reviewed goods-or-services wording for one gift. */
+export const goodsStatement = (s: Settings, gift: Row) => gift.goods === 'provided'
+ ? fill(s.goods_statement, { goods_value: usd(gift.goods_cents), goods_description: gift.goods_description ?? '', deductible_amount: usd(gift.amount_cents - gift.goods_cents), amount: usd(gift.amount_cents) })
+ : s.none_statement
+
 export function renderLetter(s: Settings, gift: Row, donorName: string, day: string) {
- const deductible = usd(gift.amount_cents - gift.goods_cents)
- const goods = gift.goods === 'provided'
-  ? fill(s.goods_statement, { goods_value: usd(gift.goods_cents), goods_description: gift.goods_description ?? '', deductible_amount: deductible, amount: usd(gift.amount_cents) })
-  : s.none_statement
+ const deductible = usd(gift.amount_cents - gift.goods_cents), goods = goodsStatement(s, gift)
  const fields = { date: longDate(day), donor_name: donorName, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
  return { subject: fill(s.letter_subject, fields), body: fill(s.letter_template, fields) }
 }

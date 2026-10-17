@@ -84,6 +84,21 @@ function plainExcerpt(raw: Uint8Array): string {
  return visit(binary, 0)
 }
 
+/** The From address, only when Cloudflare's own receiver header (always the topmost
+ * Authentication-Results) says it passed DMARC. Mail services send with their own
+ * envelope sender, so a donor replying through one is recognized by this instead. */
+function authenticatedFrom(raw: Uint8Array): string | null {
+ let head = ''
+ for (let i = 0; i < Math.min(raw.length, 65536); i++) head += String.fromCharCode(raw[i])
+ const lines = head.split(/\r?\n\r?\n/)[0].replace(/\r?\n[ \t]+/g, ' ').split(/\r?\n/)
+ const results = lines.find(line => /^authentication-results:/i.test(line))
+ if (!results || !/^authentication-results:\s*mx\.cloudflare\.net;/i.test(results)) return null
+ const domain = /\bdmarc=pass\b[^;]*?\bheader\.from=([^\s;]+)/i.exec(results)?.[1]?.toLowerCase()
+ const from = lines.find(line => /^from:/i.test(line))?.slice(5) ?? ''
+ const sender = address(/<([^<>\s]+@[^<>\s]+)>/.exec(from)?.[1] ?? from)
+ return domain && /^[^@\s]+@[^@\s]+$/.test(sender) && sender.split('@')[1] === domain ? sender : null
+}
+
 const routingOwner = (db: D1Database, donorId: string) => one({ db }, `SELECT id,email,display_name FROM (SELECT o.id,o.email,o.display_name,0 AS priority FROM oa_operators o
  WHERE o.status='active' AND o.role IN ('owner','admin','member') AND o.id=(
   SELECT p.owner_id FROM cf_prospects p JOIN oa_operators staff ON staff.id=p.owner_id
@@ -93,20 +108,21 @@ const routingOwner = (db: D1Database, donorId: string) => one({ db }, `SELECT id
 
 const threadSubject = (value: string) => subject(value).replace(/^(?:(?:re|fw|fwd|automatic reply|out of (?:the )?office|auto(?:matic)?[- ]response)\s*:\s*)+/i, '').trim().toLowerCase()
 
-async function findCommunication(message: ForwardableEmailMessage, env: Bindings): Promise<Row | null> {
+async function findCommunication(message: ForwardableEmailMessage, env: Bindings, raw: Uint8Array): Promise<Row | null> {
  const config = env as Bindings & { COFFER_REPLY_DOMAIN?: string; COFFER_REPLY_ADDRESS?: string }
  const destination = address(message.to), fixed = address(config.COFFER_REPLY_ADDRESS ?? '')
  const live = `SELECT c.*,d.email AS donor_email FROM cf_communications c JOIN cf_donors d ON d.id=c.donor_id
   WHERE c.status IN ('submitted','uncertain') AND d.erased_at IS NULL
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`
  if (fixed && destination === fixed) {
-  const candidates = await all({ db: env.DB }, `${live} AND lower(trim(d.email))=? AND lower(trim(c.reply_to))=? ORDER BY c.created_at DESC,c.id DESC`, address(message.from), destination)
+  const senders = [...new Set([address(message.from), authenticatedFrom(raw)].filter(Boolean))]
+  const candidates = await all({ db: env.DB }, `${live} AND lower(trim(d.email)) IN (SELECT value FROM json_each(?)) AND lower(trim(c.reply_to))=? ORDER BY c.created_at DESC,c.id DESC`, JSON.stringify(senders), destination)
   return candidates.find(c => threadSubject(c.subject) === threadSubject(message.headers.get('subject') ?? '')) ?? null
  }
  const match = /^coffer\+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@([^@\s]+)$/.exec(destination)
  if (!config.COFFER_REPLY_DOMAIN || !match || match[2] !== address(config.COFFER_REPLY_DOMAIN)) return null
  const communication = await one({ db: env.DB }, `${live} AND c.id=?`, match[1])
- return communication && address(communication.reply_to ?? '') === destination && address(communication.donor_email ?? '') === address(message.from) ? communication : null
+ return communication && address(communication.reply_to ?? '') === destination && [address(message.from), authenticatedFrom(raw)].includes(address(communication.donor_email ?? '')) ? communication : null
 }
 
 async function recordState(db: D1Database, taskId: string, attempt: string, state: string, note: string, at: string) {
@@ -121,12 +137,12 @@ async function recordState(db: D1Database, taskId: string, attempt: string, stat
 /** Cloudflare Email Routing ingress. A configured destination and a known donor sender must match. */
 export async function receiveReply(message: ForwardableEmailMessage, env: Bindings): Promise<void> {
  if (env.RER_INSTALLATION_ID || env.RER_MANAGEMENT_ORIGIN) { message.setReject('Reply routing is not available yet on RER Managed.'); return }
- const communication = await findCommunication(message, env)
+ const raw = await readRaw(message)
+ if (!raw) { message.setReject('Reply exceeds the 1 MB limit.'); return }
+ const communication = await findCommunication(message, env, raw)
  if (!communication) {
   message.setReject('Unknown reply sender or address.'); return
  }
- const raw = await readRaw(message)
- if (!raw) { message.setReject('Reply exceeds the 1 MB limit.'); return }
  const now = new Date().toISOString(), title = subject(message.headers.get('subject') ?? '')
  const body = plainExcerpt(raw), headerId = message.headers.get('message-id')?.trim()
  const contentHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', raw)), x => x.toString(16).padStart(2, '0')).join('')
