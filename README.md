@@ -12,14 +12,13 @@ Coffer's run site is at https://run-coffer.com, with the run page at https://run
 
 ## Start from a fresh clone
 
-You need macOS, Linux or Windows with WSL2, and git. Two lines install the `rer` launcher, clone Coffer and start it:
+You need macOS, Linux or Windows with WSL2, and git. One line installs the `rer` launcher, clones Coffer and starts it:
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh
-rer dev just-every/run-coffer
+npx -y @runeditrun/rer dev just-every/run-coffer
 ```
 
-The first line installs `rer` for you alone, with its own Node if you have none. It changes no shell settings: if it prints an `export PATH=…` line, run that line before the second. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-coffer` does both lines in one.
+No Node? `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-coffer` brings its own Node and does the same.
 
 To start it again later, run `cd run-coffer && rer dev`.
 
@@ -31,7 +30,7 @@ To start it again later, run `cd run-coffer && rer dev`.
 
 The link takes you to a one-time **Finish setup** page: tick the box and continue. You land on **Today**. Development mail is suppressed, so no mailbox is needed for local use. Stop the app with `rer dev --stop` or Ctrl-C.
 
-To install for a real owner mailbox instead of the automatic local owner, run `rer install`, then `rer setup` and answer its prompts, then `rer dev`. [RUN-LOCALLY.md](RUN-LOCALLY.md) covers private answers, the Node runtime and recovery; `rer describe` lists every command.
+To install for a real owner mailbox instead of the automatic local owner, run `npx -y @runeditrun/rer install just-every/run-coffer`, then `rer setup` and answer its prompts from the checkout, then `rer dev`. [RUN-LOCALLY.md](RUN-LOCALLY.md) covers private answers, the Node runtime and recovery; `rer describe` lists every command.
 
 ## Your first week in Coffer
 
@@ -66,7 +65,7 @@ rer dev --stop
 rer export --output exports/coffer.rer
 ```
 
-The backup holds donors, gifts, consent history, letters, appeals, approvals and the retained Stripe pages. Sign-in accounts, sessions, agent keys and mail settings are left out. Keep it private. To restore on another computer, clone this repository, run `rer dev` once to set up a fresh owner, stop it, then:
+The backup holds donors, gifts, consent history, letters, appeals, approvals and the retained Stripe pages. Sign-in accounts, sessions, agent keys and mail settings are left out. Keep it private. To restore on another computer, run `npx -y @runeditrun/rer dev just-every/run-coffer` once to set up a fresh owner, stop it, then:
 
 ```sh
 rer import --input exports/coffer.rer --yes

@@ -2,14 +2,13 @@ Coffer runs on your own computer. You need macOS, Linux or Windows with WSL2, an
 
 ## Start Coffer
 
-Two lines install the `rer` launcher, get Coffer and start it:
+One line installs the `rer` launcher, gets Coffer and starts it:
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh
-rer dev just-every/run-coffer
+npx -y @runeditrun/rer dev just-every/run-coffer
 ```
 
-The first line installs `rer` for you alone, with its own Node if you have none. It changes no shell settings: if it prints an `export PATH=…` line, run that line before the second. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-coffer` does both lines in one.
+No Node? `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-coffer` brings its own Node and does the same.
 
 The first start installs everything and can take a few minutes. If it is interrupted, run the same line again: it picks up where it stopped. When Coffer is ready it prints:
 
@@ -33,10 +32,9 @@ cd run-coffer && rer dev
 
 ## Install for a real owner mailbox
 
-The two lines above make a local owner automatically. To install with your own email as the owner instead, run these from the `run-coffer` folder and answer the prompts:
+The line above makes a local owner automatically. To install with your own email as the owner instead, run `npx -y @runeditrun/rer install just-every/run-coffer`, then run these from the `run-coffer` folder and answer the prompts:
 
 ```sh
-rer install
 rer setup
 rer dev
 ```
