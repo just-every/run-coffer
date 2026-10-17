@@ -1308,7 +1308,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `dba4a2871f7b06b62297de5ac450a606d9e1075d` (17 October 2026).
+Judged from the code and tests at commit `facdb31a1c171f491dc29395f0b771786a994a1d` (17 October 2026).
 
 The giving, receipt, payments and donor-depth clauses and their claim mappings include their current implementations and named tests.
 
