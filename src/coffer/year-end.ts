@@ -1,5 +1,6 @@
 import { all, commit, event, fail, guard, id, integer, newId, sql, today, type Context, type Row } from './db'
 import { address, letterHash } from './acknowledgements'
+import { tributeReceiptText } from './gift-depth'
 import { usd } from './money'
 import { longDate, renderLetter, settings, type Settings } from './settings'
 
@@ -20,7 +21,7 @@ function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: 
   `Goods or services: ${g.goods === 'provided' ? g.goods_description : 'None'}`,
   `Goods or services value: ${usd(g.goods_cents)}`,
   `Deductible portion: ${usd(g.amount_cents - g.goods_cents)}`,
-  '', renderLetter(s, g, donor.name, day).body,
+  '', renderLetter(s, g, donor.name, day).body, tributeReceiptText(g.tribute),
  ].join('\n'))
  return {
   subject: `${year} annual giving statement — ${s.organisation}`,
@@ -55,6 +56,8 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
   FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id
   WHERE ${ELIGIBLE} AND d.id IN (SELECT value FROM json_each(?)) ORDER BY g.received_on,g.id`, ...scope, donorIds)
  if (gifts.some(g => g.goods === 'unknown')) fail('GOODS_UNKNOWN', 'A gift in this year still needs its goods or services answer. Open the donor’s gift history, record that answer, then prepare the statement again.')
+ const tributes = new Map((await all(c, 'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))', JSON.stringify(gifts.map(g=>g.id)))).map(t=>[t.gift_id,t]))
+ for (const gift of gifts) gift.tribute = tributes.get(gift.id) ?? null
  const batchId = newId()
  const letters = donors.map((d, position) => {
   const selected = gifts.filter(g => g.donor_id === d.id)
@@ -69,6 +72,7 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  const total = letters.reduce((n, l) => n + l.amount_cents, 0), hash = await letterHash(s.version, letters)
  const snapshots = JSON.stringify(gifts.map(g => ({ ...g, donor_version: donors.find(d => d.id === g.donor_id)!.version })))
  await commit(c, [
+  guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE COALESCE((SELECT version FROM cf_gift_tributes WHERE gift_id=json_extract(j.value,'$.giftId')),0)<>json_extract(j.value,'$.version'))", 'TRIBUTE_CHANGED', 'A tribute changed while preparing. Prepare the statements again.', JSON.stringify(gifts.map(g=>({giftId:g.id,version:tributes.get(g.id)?.version??0})))),
   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version),
   // The count covers the entire requested scope, including donors added since
   // selection. Exact rows and donor versions also fence reversals and erasure.

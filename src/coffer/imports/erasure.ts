@@ -1,4 +1,4 @@
-import { retireD1ImportCustody, type D1Database, type D1Sql } from '../../modules/import-kit/src/d1/index.ts'
+import { retireD1ImportCustody, upgradeD1ImportErasureIndex, type D1Database, type D1Sql } from '../../modules/import-kit/src/d1/index.ts'
 import { guard } from '../../modules/import-kit/src/d1/database.ts'
 import { authorize, destination, importContext } from './context.ts'
 import { erasureHash } from './snapshots.ts'
@@ -57,6 +57,10 @@ export async function erase(db: D1Database, actor: ImportActor, donorId: string,
     await db.batch(statements.map(s => db.prepare(s.sql).bind(...s.params ?? [])))
     return { receiptId, recordsErased: 1 }
   }
+  // A previous erasure may invalidate the retained index. Upgrade through the
+  // kit's authorized public operation before selecting the next alias.
+  let index = await upgradeD1ImportErasureIndex(context)
+  while (!index.complete) index = await upgradeD1ImportErasureIndex(context)
   // Stripe objects name a donor by customer id or email: the customer record
   // itself, and every charge that points at the customer or carries the email.
   const ids = new Set([donor.source_ref].filter(Boolean) as string[]), email = donor.email?.toLowerCase() ?? ''

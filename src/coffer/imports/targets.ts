@@ -14,7 +14,7 @@ const TABLE: Record<Kind, string> = { donor: 'cf_donors', gift: 'cf_gifts' }
 // The bridge translates the kit's opaque revision into the native version.
 const revision = `CASE WHEN m.native_revision=t.version THEN m.import_revision ELSE 'native:'||t.version END`
 const from = (kind: Kind) => `${TABLE[kind]} t LEFT JOIN cf_import_revisions m ON m.kind='${kind}' AND m.id=t.id`
-const select = (kind: Kind) => `SELECT ${COLUMNS[kind].map(([c]) => `t.${c}`).join(',')},${revision} AS kit_revision FROM ${from(kind)}`
+const select = (kind: Kind) => `SELECT ${COLUMNS[kind].map(([c]) => `t.${c}`).join(',')},${revision} AS kit_revision${kind === 'gift' ? ',(SELECT appeal FROM cf_gift_appeals WHERE gift_id=t.id) AS appeal' : ''} FROM ${from(kind)}`
 
 function scope(target: string, kind?: string): Kind {
   if (target !== destination || (kind !== undefined && kind !== 'donor' && kind !== 'gift')) reject('IMPORT_SCOPE', 'Unsupported import destination or record kind.')
@@ -23,6 +23,7 @@ function scope(target: string, kind?: string): Kind {
 function decode(kind: Kind, row: Record<string, any>): TargetRow {
   const value: Record<string, Json> = {}
   for (const [column, key] of COLUMNS[kind]) value[key] = row[column] ?? null
+  if (kind === 'gift' && row.appeal) value.appeal = row.appeal
   return { destination, targetKind: kind, targetId: row.id, revision: row.kit_revision, value }
 }
 function values(kind: Kind, row: TargetRow): any[] {
@@ -54,15 +55,16 @@ export const ledgerTargets: D1TargetAdapter = {
     statements.push(
       sql(`INSERT INTO ${TABLE[k]}(${columns.join(',')}) VALUES(${columns.map(() => '?').join(',')}) ON CONFLICT(id) DO UPDATE SET ${columns.slice(1).map(c => `${c}=excluded.${c}`).join(',')}`, ...v),
       sql(`INSERT INTO cf_import_revisions(kind,id,import_revision,native_revision) VALUES('${k}',?,?,?) ON CONFLICT(kind,id) DO UPDATE SET import_revision=excluded.import_revision,native_revision=excluded.native_revision`, row.targetId, row.revision, v[1]))
+    if (k === 'gift' && (row.value as Record<string, Json>).appeal) statements.push(sql('INSERT INTO cf_gift_appeals(gift_id,appeal) VALUES(?,?) ON CONFLICT(gift_id) DO UPDATE SET appeal=excluded.appeal', row.targetId, (row.value as Record<string, Json>).appeal))
     return statements
   },
   remove(target, kind, id) {
     const k = scope(target, kind)
     // Undo leaves anything a person has since built on the record in place.
     const inUse = k === 'gift'
-      ? `NOT EXISTS(SELECT 1 FROM cf_acks WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE reverses=?)`
-      : `NOT EXISTS(SELECT 1 FROM cf_gifts WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_consents WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_pledges WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_appeal_recipients WHERE donor_id=?)`
-    return [guard(sql(inUse, ...Array(k === 'gift' ? 2 : 5).fill(id))), sql(`DELETE FROM cf_import_revisions WHERE kind='${k}' AND id=?`, id), sql(`DELETE FROM ${TABLE[k]} WHERE id=?`, id)]
+      ? `NOT EXISTS(SELECT 1 FROM cf_acks WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE reverses=?) AND NOT EXISTS(SELECT 1 FROM cf_soft_credits WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_gift_tributes WHERE gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_employer_matches WHERE gift_id=? OR received_gift_id=?) AND NOT EXISTS(SELECT 1 FROM cf_pledge_allocations WHERE gift_id=?)`
+      : `NOT EXISTS(SELECT 1 FROM cf_gifts WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_consents WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_pledges WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_appeal_recipients WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_relationships WHERE donor_id=? OR related_donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_interactions WHERE donor_id=?) AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=? OR into_id=?)`
+    return [guard(sql(inUse, ...Array(k === 'gift' ? 7 : 10).fill(id))), sql(`DELETE FROM cf_import_revisions WHERE kind='${k}' AND id=?`, id), sql(`DELETE FROM ${TABLE[k]} WHERE id=?`, id)]
   },
   async list(db, target) {
     scope(target)

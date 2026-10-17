@@ -4,7 +4,7 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 
 `CONTRACT.md` defines the full fundraising CRM target. Its Status table keeps broader unfinished features explicit; the giving rows here describe the self-hosted donation, subscription and donor portal implementation.
 
-**Totals: 61 claims · 31 in code · 10 partly · 20 contract, not yet in code.**
+**Totals: 61 claims · 41 in code · 7 partly · 13 contract, not yet in code.**
 
 | # | Section | Claim | Status | Backed by |
 |---|---|---|---|---|
@@ -24,13 +24,13 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 | 14 | Online giving | card, bank and Apple Pay checkout | partly | Card and Link use Stripe Checkout; Apple Pay is offered by Stripe on eligible devices with a registered domain. US bank is explicitly coming soon; the available test account is AU. A real Apple Wallet device is still needed to exercise Apple Pay. |
 | 15 | Online giving | a portal where donors update their own card | in code | Emailed, hashed, expiring one-use donor links open only that donor’s monthly plans; card updates use Stripe Billing Portal (`src/coffer/giving/portal.ts`). |
 | 16 | Donors | Households | in code | `src/coffer/donors.ts` `household()` finds or creates by name; members listed on the donor page. |
-| 17 | Donors | relationships | partly | Household membership only; no other relationship types. |
+| 17 | Donors | relationships | in code | Reciprocal spouse, employer, board member, foundation officer and introduced-by links show on both records; donor lists filter by type and connected donor (`src/coffer/donor-depth.ts`, `src/coffer/ui/donor-depth.ts`). |
 | 18 | Donors | every gift | in code | `src/coffer/gifts.ts` ledger lines; `donorHistory` lists them by year. |
-| 19 | Donors | every conversation in one place | contract, not yet in code | Gift notes and the audit trail only; no interaction or conversation records. |
-| 20 | Donors | soft credits | contract, not yet in code | None in code. |
-| 21 | Donors | tributes | contract, not yet in code | None in code (a gift note can mention one). |
-| 22 | Donors | employer matches | contract, not yet in code | None in code. |
-| 23 | Donors card | Lifetime giving and first gift | partly | Lifetime and yearly totals in `donorHistory` `totals`; first-gift date is not shown. |
+| 19 | Donors | every conversation in one place | in code | Calls, meetings and emails store date, participants, notes, next step and author, alongside gifts in one chronological timeline (`src/coffer/donor-depth.ts`, `src/coffer/ui/donor-timeline.ts`). |
+| 20 | Donors | soft credits | in code | Recognition links to the original gift, appears separately on the credited donor, and never increases hard-credit or organization received totals (`src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs`). |
+| 21 | Donors | tributes | in code | Honor/memory, honoree and notification contact are recorded against gifts; frozen gift and year-end receipts include the tribute (`src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/year-end.ts`). Notification sending remains outside this claim. |
+| 22 | Donors | employer matches | in code | Expected match amounts/deadlines link to the original gift and actual employer payment; expected, overdue and received states follow reversals (`src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs`). |
+| 23 | Donors card | Lifetime giving and first gift | in code | Lifetime giving and earliest unreversed gift date, amount and appeal derive from the ledger, including imported gifts and reviewed merges (`src/coffer/donors.ts`, `src/coffer/donor-merge.ts`, `src/coffer/imports/snapshots.ts`). |
 | 24 | Payments | Gifts sync from Stripe as they happen | in code | Signed Stripe charge webhooks share the giving endpoint, match external payments and saved-page move-ins, and deduplicate by event, charge and balance transaction (`src/coffer/payments/`, `tests/payments.test.mjs`). Self-hosted USD; Managed provider calls are not available yet. |
 | 25 | Payments | fees, refunds | in code | Immutable balance entries retain gross, processing fees, refunds, disputes and wins. Refunds append contribution reversals; saved move-in refunds are not counted twice (`migrations/core/0019_coffer_payments.sql`, `src/coffer/payments/entries.ts`, `tests/payments.test.mjs`). |
 | 26 | Payments | failed monthly payments | in code | Signed failed-invoice events update monthly state, email card-update links and record successful retries without counting failed charges as gifts (`src/coffer/giving/webhooks.ts`, `tests/giving.test.mjs`). |
@@ -61,10 +61,10 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 | 51 | Ownership | Run Coffer on your own computer | in code | `rer dev` (`scripts/installer/local.mjs`, README), local D1. |
 | 52 | Ownership | keep every donor record / Your donors, your database | in code | The installation's own D1 database (`wrangler.jsonc`, `migrations/`). |
 | 53 | Ownership | Export everything, any time | in code | `/app/backup` and `rer export` through Base portability (`src/coffer/http.ts`, `archive-policy.mjs`). |
-| 54 | Quiet details | Soft credits | contract, not yet in code | None in code. |
-| 55 | Quiet details | Tribute gifts | contract, not yet in code | None in code. |
-| 56 | Quiet details | Matching gifts | contract, not yet in code | None in code. |
-| 57 | Quiet details | Pledges: schedules, reminders and balances kept current | partly | Pledges with due-by date, paid and remaining balance (`donors.ts`, `gifts.ts` pledge link); no schedules or reminders. |
+| 54 | Quiet details | Soft credits | in code | Separate recognition credits and reversal-aware totals; received money is counted once (`src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs`). |
+| 55 | Quiet details | Tribute gifts | in code | Honor/memory gifts with honoree, notification contact and tribute text on receipts (`src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`). |
+| 56 | Quiet details | Matching gifts | in code | Expected, overdue and received employer matches link the donor and employer ledger gifts (`src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs`). |
+| 57 | Quiet details | Pledges: schedules, reminders and balances kept current | in code | Dated installment schedules, per-installment payment allocations and current balances; daily or staff-triggered SendGrid reminders before due dates on self-hosted installs, with durable single-attempt state. Managed email integrations are not available yet (`src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs`). |
 | 58 | Quiet details | Consent: email and mail preferences honored everywhere | in code | `donors.ts` consent history per channel; enforced in `appeals.ts`. |
 | 59 | Quiet details | Gift ledger: every change recorded; no gift is silently edited | in code | Database triggers refuse changes; corrections are reversals (`gifts.ts`, `migrations/core/0016_coffer.sql`); every command writes `cf_events`. |
 | 60 | Closing | Open source donor management for every nonprofit | in code | MIT `LICENSE`; donor records as above. |

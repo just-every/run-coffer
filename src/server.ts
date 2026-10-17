@@ -9,6 +9,7 @@ import { lobbyResponse } from './base/lobby'
 import { setupStateResponse } from './base/setup-state'
 import { authResponse, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
+import { runPledgeReminders } from './coffer/pledges'
 import { cofferResponse } from './coffer/http'
 import { seedDemo } from './demo'
 
@@ -25,6 +26,9 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo<Bindings, ExportedHandler<Bindings>>({
+  async scheduled(controller, env, execution) {
+    execution.waitUntil(runPledgeReminders(runtimeBindings(env), new Date(controller.scheduledTime)))
+  },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset

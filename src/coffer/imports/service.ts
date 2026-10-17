@@ -17,14 +17,14 @@ async function nativeIndex(db: D1Database, input: SnapshotInput): Promise<Native
   const hashes = [...ids, ...emails].map(erasureHash)
   const refs = charges.map((c: any) => c.id).filter(x => typeof x === 'string')
   const [byId, erased, byEmail, gifts, settings] = await db.batch([
-    db.prepare('SELECT id FROM cf_donors WHERE erased_at IS NULL AND id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(ids)),
+    db.prepare('SELECT id,COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=cf_donors.id),id) AS effective_id FROM cf_donors WHERE erased_at IS NULL AND id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(ids)),
     db.prepare('SELECT hash FROM cf_erasures WHERE hash IN (SELECT value FROM json_each(?))').bind(JSON.stringify(hashes)),
-    db.prepare('SELECT id,email FROM cf_donors WHERE erased_at IS NULL AND email IN (SELECT value FROM json_each(?))').bind(JSON.stringify(emails)),
+    db.prepare('SELECT COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=cf_donors.id),id) AS id,email FROM cf_donors WHERE erased_at IS NULL AND email IN (SELECT value FROM json_each(?))').bind(JSON.stringify(emails)),
     db.prepare("SELECT reference,amount_cents FROM cf_gifts WHERE source='stripe' AND kind='gift' AND reference IN (SELECT value FROM json_each(?))").bind(JSON.stringify(refs)),
     db.prepare('SELECT timezone FROM cf_settings WHERE id=1'),
   ]) as any[]
   return {
-    donorIds: new Set(byId.results.map((r: any) => r.id)), erased: new Set(erased.results.map((r: any) => r.hash)),
+    donorIds: new Set(byId.results.map((r: any) => r.id)), aliases: new Map(byId.results.map((r:any) => [r.id,r.effective_id])), erased: new Set(erased.results.map((r: any) => r.hash)),
     emails: new Map(byEmail.results.map((r: any) => [r.email, r.id])), charges: new Map(gifts.results.map((r: any) => [r.reference, r.amount_cents])),
     timezone: settings.results[0].timezone,
   }

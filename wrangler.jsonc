@@ -13,5 +13,10 @@
       "database_id": "local-foundation-only",
       "migrations_dir": "migrations/core"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": [
+      "0 13 * * *"
+    ]
+  }
 }

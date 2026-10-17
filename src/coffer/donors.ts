@@ -1,6 +1,9 @@
 import { all, choice, commit, date, email, event, fail, guard, id, integer, newId, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
+import { canonicalDonor } from './donor-merge'
+import { donorDepth } from './donor-depth'
+import { donorGiftDepth } from './gift-depth'
+import { pledgeHistory } from './pledges'
 import { subscriptions } from './giving/campaigns'
-import { amount } from './money'
 import { settings } from './settings'
 
 export const CONSENT_METHODS = ['web form', 'paper form', 'verbal', 'email reply', 'event sign-up', 'other'] as const
@@ -48,44 +51,39 @@ export async function donorCommand(c: Context, command: string, p: Row): Promise
    ...donors.map(d => event(c, 'consent.record', 'donor', d, d, { channel, status, method }))])
   return { recorded: donors.length, channel, status }
  }
- if (command === 'pledge.create') {
-  const donorId = id(p.donorId, 'Donor'), pledgeId = newId(), cents = amount(p, 'amount', 'Pledge amount'), pledged = date(p.pledgedOn, 'Pledged on')
-  const due = p.dueBy ? date(p.dueBy, 'Due by') : null, fund = optional(p.fund, 'Fund', 100) ?? 'Unrestricted'
-  if (due && due < pledged) fail('INPUT', 'A pledge cannot be due before it was made.', 400)
-  await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND ${LIVE})`, 'NOT_FOUND', 'That donor does not exist.', donorId),
-   sql('INSERT INTO cf_pledges VALUES(?,?,?,?,?,?,?,?)', pledgeId, donorId, cents, pledged, due, fund, c.now, c.actor.name),
-   event(c, 'pledge.create', 'pledge', pledgeId, donorId, { amountCents: cents })])
-  return { id: pledgeId }
- }
  return undefined
 }
 
 const CURRENT = (channel: string) => `(SELECT status FROM cf_consents k WHERE k.donor_id=d.id AND k.channel='${channel}' ORDER BY k.id DESC LIMIT 1)`
 export const PAGE = 50
-export async function listDonors(c: { db: D1Database }, query: { q?: string | null; page?: number } = {}) {
+export async function listDonors(c: { db: D1Database }, query: { q?: string | null; page?: number; relationship?: string | null; relatedTo?: string | null } = {}) {
  const q = (query.q ?? '').trim().toLowerCase().slice(0, 100), page = Math.max(0, Math.min(query.page ?? 0, 10000)), like = `%${q.replace(/[%_\\]/g, x => `\\${x}`)}%`
+ const relationship = query.relationship ?? '', relatedTo = query.relatedTo ?? ''
  const rows = await all(c, `SELECT d.id,d.version,d.name,d.email,d.city,d.region,d.source,d.erased_at,h.name AS household,
    (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger g WHERE g.donor_id=d.id) AS total_cents,
    (SELECT MAX(received_on) FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
    ${CURRENT('email')} AS email_consent, ${CURRENT('mail')} AS mail_consent
   FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id
-  WHERE (?='' OR lower(d.name) LIKE ? ESCAPE '\\' OR d.email LIKE ? ESCAPE '\\' OR lower(h.name) LIKE ? ESCAPE '\\')
-  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, q, like, like, like, PAGE + 1, page * PAGE)
- const count = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_donors WHERE ${LIVE}`)
+  WHERE NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR lower(d.name) LIKE ? ESCAPE '\\' OR d.email LIKE ? ESCAPE '\\' OR lower(h.name) LIKE ? ESCAPE '\\')
+  AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id OR r.related_donor_id=d.id) AND r.type=?))
+  AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id AND r.related_donor_id=?) OR (r.related_donor_id=d.id AND r.donor_id=?)))
+  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, q, like, like, like, relationship, relationship, relatedTo, relatedTo, relatedTo, PAGE + 1, page * PAGE)
+ const count = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_donors WHERE ${LIVE} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=cf_donors.id)`)
  return { donors: rows.slice(0, PAGE), more: rows.length > PAGE, page, q, total: count?.n ?? 0 }
 }
 
 export async function donorHistory(c: { db: D1Database }, donorId: string) {
+ donorId = await canonicalDonor(c, donorId)
  const donor = await one(c, 'SELECT d.*,h.name AS household FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id WHERE d.id=?', donorId)
  if (!donor) fail('NOT_FOUND', 'That donor does not exist.', 404)
  const [household, gifts, pledges, consents, letters, appeals, events] = await Promise.all([
   donor.household_id ? all(c, 'SELECT id,name,erased_at FROM cf_donors WHERE household_id=? AND id<>? ORDER BY lower(name)', donor.household_id, donorId) : Promise.resolve([]),
-  all(c, `SELECT g.*,(SELECT r.id FROM cf_gifts r WHERE r.reverses=g.id) AS reversed_by,
+  all(c, `SELECT g.*,COALESCE((SELECT appeal FROM cf_gift_appeals WHERE gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal,(SELECT r.id FROM cf_gifts r WHERE r.reverses=g.id) AS reversed_by,
     (SELECT CASE WHEN a.printed_at IS NOT NULL THEN 'printed' ELSE COALESCE(NULLIF(a.delivery_status,'pending'),b.status) END FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_status,
     (SELECT b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_sent_on,
     (SELECT a.batch_id FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1) AS ack_batch
    FROM cf_contribution_ledger g WHERE g.donor_id=? ORDER BY g.received_on DESC, g.created_at DESC`, donorId),
-  all(c, 'SELECT p.*,(SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger g WHERE g.pledge_id=p.id) AS paid_cents FROM cf_pledges p WHERE donor_id=? ORDER BY pledged_on DESC', donorId),
+  pledgeHistory(c, donorId),
   all(c, 'SELECT * FROM cf_consents WHERE donor_id=? ORDER BY id DESC', donorId),
   all(c, `SELECT a.id,a.batch_id,a.gift_id,a.amount_cents,a.received_on,a.delivery_status,a.route,a.printed_at,a.delivered_at,a.delivery_note,b.kind,b.statement_year,b.status,b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.donor_id=? AND (a.live=1 OR b.kind='statement') AND b.status<>'discarded' ORDER BY a.received_on DESC`, donorId),
   all(c, 'SELECT p.id,p.name,p.channel,p.status,p.sent_on,p.prepared_at FROM cf_appeal_recipients r JOIN cf_appeals p ON p.id=r.appeal_id WHERE r.donor_id=? AND p.status<>\'discarded\' ORDER BY p.prepared_at DESC', donorId),
@@ -96,6 +94,8 @@ export async function donorHistory(c: { db: D1Database }, donorId: string) {
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
   donor, household, gifts, pledges, consents, letters, appeals, events, subscriptions: await subscriptions(c, donorId),
+  depth: await donorDepth(c, donorId), giftDepth: await donorGiftDepth(c, donorId),
+  firstGift: await one(c, `SELECT g.*,COALESCE((SELECT appeal FROM cf_gift_appeals WHERE gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal FROM cf_gift_balances g WHERE g.donor_id=? AND g.net_cents>0 ORDER BY g.received_on,g.created_at,g.id LIMIT 1`,donorId),
   totals: { lifetimeCents: gifts.reduce((s, g) => s + g.amount_cents, 0), byYear: [...byYear].sort((a, b) => b[0].localeCompare(a[0])).map(([year, cents]) => ({ year, cents })) },
   current: { email: consent('email'), mail: consent('mail') },
  }

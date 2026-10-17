@@ -11,7 +11,7 @@ export const giftId = (charge: string) => `stripe-${sha256(canonicalJson([namesp
 export const erasureHash = (value: string) => sha256(canonicalJson(['coffer-erasure', value.trim().toLowerCase()]))
 
 /** What Coffer already holds, read before planning so the mapping stays pure. */
-export type NativeIndex = { donorIds: Set<string>; erased: Set<string>; emails: Map<string, string>; charges: Map<string, number>; timezone: string }
+export type NativeIndex = { donorIds: Set<string>; aliases?: Map<string,string>; erased: Set<string>; emails: Map<string, string>; charges: Map<string, number>; timezone: string }
 const ERASED = 'Belongs to a donor erased from Coffer; not imported again.'
 
 const object = (value: unknown, label: string): SnapshotObject => {
@@ -82,7 +82,7 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
       : native.donorIds.has(target) ? 'Already in Coffer from an earlier import.'
       : email && byEmail.has(email) ? 'Matches a donor already using this email; gifts attach to that donor.'
       : !name && !email ? 'No name or email to identify the donor.' : ''
-    if (native.donorIds.has(target)) donorFor.set(r.sourceId, target)
+    if (native.donorIds.has(target)) donorFor.set(r.sourceId, native.aliases?.get(target) ?? target)
     else if (reason && email && byEmail.has(email) && c.deleted !== true) donorFor.set(r.sourceId, byEmail.get(email)!)
     if (reason) { why.set(r.sourceId, reason); skip(r, reason); continue }
     donorFor.set(r.sourceId, target)
@@ -113,7 +113,7 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
     const meta = (p.metadata && typeof p.metadata === 'object' ? p.metadata : {}) as SnapshotObject
     const created = unix(p.created, 'charge.created'), type = (p.payment_method_details as SnapshotObject | null)?.type, id = giftId(r.sourceId)
     effects.set(`charge:${r.sourceId}`, { targetKind: 'gift', targetId: id, value: {
-      id, version: 1, donorId: donor, kind: 'gift', reverses: null, receivedOn: day(created, native.timezone), amountCents: net,
+      id, version: 1, donorId: donor, ...((meta.appeal || meta.campaign) ? {appeal: str(meta.appeal, 'metadata.appeal', 200) || str(meta.campaign, 'metadata.campaign', 200)} : {}), kind: 'gift', reverses: null, receivedOn: day(created, native.timezone), amountCents: net,
       method: type === 'us_bank_account' || type === 'ach_debit' ? 'bank transfer' : 'card', reference: r.sourceId,
       fund: str(meta.fund, 'metadata.fund', 100) || str(meta.campaign, 'metadata.campaign', 100) || 'Unrestricted', pledgeId: null,
       goods: noGoods ? 'none' : 'unknown', goodsCents: 0, goodsDescription: null, note: str(p.description, 'description', 1000) || null,

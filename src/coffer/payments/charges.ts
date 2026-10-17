@@ -1,3 +1,4 @@
+import { canonicalDonor } from '../donor-merge'
 import { email, fail, newId, one, sql, type Context } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { cents, day, stripeId, stripePages } from './stripe-data'
@@ -43,6 +44,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
    await paymentWrite(env, [sql("INSERT OR IGNORE INTO cf_donors(id,version,name,email,source,source_ref,created_at) VALUES(?,1,?,?,'stripe',?,?)", newId(), String(charge.billing_details?.name ?? customer?.name ?? mail).slice(0, 200), mail, customerId || charge.id, now)], authority)
    donor = await one(c, 'SELECT * FROM cf_donors WHERE email=?', mail)
   }
+  if (donor) donor = await one(c, 'SELECT * FROM cf_donors WHERE id=?', await canonicalDonor(c,donor.id))
   if (!donor) fail('donor_match_required', 'This Stripe donor could not be matched.', 409)
   const giftId = intent ? 'giving-' + (refs.find(ref => ref.startsWith('in_')) ?? (pi || charge.id)) : 'stripe-' + charge.id
   const fund = String(intent?.fund ?? charge.metadata?.fund ?? 'Unrestricted').trim().slice(0, 100) || 'Unrestricted'

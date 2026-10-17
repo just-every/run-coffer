@@ -1,5 +1,9 @@
 import { digest, requireRole, type Role } from './auth'
 import { commit, event, fail, newId, object, sql, text, type Context, type Row } from './db'
+import { mergeDonor, canonicalDonor } from './donor-merge'
+import { donorDepthCommand } from './donor-depth'
+import { giftDepthCommand } from './gift-depth'
+import { pledgeCommand } from './pledges'
 import { donorCommand } from './donors'
 import { giftCommand } from './gifts'
 import { ackCommand } from './acknowledgements'
@@ -13,6 +17,9 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
  'donor.create': STAFF, 'donor.update': STAFF, 'gift.record': STAFF, 'consent.record': STAFF, 'pledge.create': STAFF,
+ 'donor.merge': MANAGERS, 'relationship.create': STAFF, 'relationship.remove': STAFF, 'interaction.record': STAFF,
+ 'softCredit.record': STAFF, 'softCredit.remove': STAFF, 'tribute.record': STAFF, 'match.record': STAFF, 'match.receive': STAFF,
+ 'pledge.remind': STAFF, 'pledge.match': STAFF,
  'gift.reverse': MANAGERS, 'gift.classify': MANAGERS, 'settings.update': MANAGERS,
  'ack.prepareStatements': MANAGERS, 'ack.send': MANAGERS, 'ack.checkDelivery': MANAGERS, 'ack.printed': MANAGERS, 'ack.prepare': PREPARERS, 'ack.approve': MANAGERS, 'ack.discard': MANAGERS, 'ack.export': MANAGERS, 'ack.markSent': MANAGERS,
  'appeal.prepare': PREPARERS, 'appeal.approve': MANAGERS, 'appeal.discard': MANAGERS, 'appeal.export': MANAGERS, 'appeal.markSent': MANAGERS,
@@ -24,10 +31,12 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (!allowed) fail('COMMAND', 'Unknown Coffer command.', 400)
  requireRole(c.actor, allowed, `run ${command}`)
  const p = object(input)
+ for (const key of ['donorId','employerDonorId','relatedDonorId']) if (typeof p[key] === 'string' && p[key] && await canonicalDonor(c,p[key]) !== p[key]) fail('MERGED_DONOR', 'This record was merged. Open the surviving donor record before saving.')
  if (command === 'ack.prepareStatements') return prepareStatements(c, p)
+ if (command === 'donor.merge') return mergeDonor(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [donorCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) return result
  }

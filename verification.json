@@ -64,6 +64,14 @@
       "commands": [
         "pnpm run test:payments"
       ]
+    },
+    {
+      "name": "donor-depth",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:donor-depth"
+      ]
     }
   ],
   "nightly": [

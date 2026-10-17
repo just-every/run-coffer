@@ -144,7 +144,7 @@ Any two constituents can be related with a reciprocal type (spouse/spouse, paren
 
 *Acceptance:* An HTTP journey relates a donor to an employer and a spouse, reads the reciprocal relationship from both records, reads the household addressee and informal salutation computed from both spouses' name parts, and checks that the household total counts a joint gift once.
 
-*Status:* partial. Only household membership by name exists; no reciprocal relationship types, salutations or household totals. Evidence: `src/coffer/donors.ts`.
+*Status:* partial. Reciprocal spouse, employer, board member, foundation officer and introduced-by links show on both records and filter donor lists. Household salutations, head and combined totals remain. Evidence: `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-depth.ts`, `docs/donor-depth.md`.
 
 #### DONOR-004 — Interaction timeline.
 
@@ -152,7 +152,7 @@ Each constituent has one timeline of everything that happened: gifts, pledges, r
 
 *Acceptance:* A browser journey at 1440 and 390 pixels logs a call and a confidential note on a donor, counting at most two taps or clicks plus typing for each, and a timed run with a 30-character note typed at five characters a second takes under ten seconds from the first tap to the entry on the timeline; it sees both on the timeline with the gift and receipt events, filters the timeline to calls only and then to a date range and sees only the matching entries each time, and a data-entry user is refused the confidential note through HTTP.
 
-*Status:* partial. The donor page shows gifts, consent, letters, appeals and the change history; there are no logged calls, meetings, notes or a filterable timeline. Evidence: `src/coffer/donors.ts`, `src/coffer/ui/donors.ts`.
+*Status:* partial. Calls, meetings and emails record date, participants, notes, next step and author beside gifts, pledges and receipt events in one timeline. Confidential notes, timeline filters and the broader task/event integrations remain. Evidence: `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-timeline.ts`, `docs/donor-depth.md`.
 
 #### DONOR-005 — Custom fields and tags.
 
@@ -168,7 +168,7 @@ Coffer flags likely duplicates (same email, same name and postal address, same p
 
 *Acceptance:* An HTTP and browser journey creates two records for one person through a form gift and a manual entry, finds them in the duplicates queue, merges them, reads one combined history with unchanged ledger totals, then undoes the merge; two spouses in one household who share an email never appear in the queue.
 
-*Status:* partial. Duplicate emails are refused and same-email Stripe imports attach to the existing donor; there is no duplicate queue, comparison or merge. Evidence: `src/coffer/imports/snapshots.ts`, `tests/coffer.test.mjs`.
+*Status:* partial. Reviewed manual merges combine gifts, pledges, conversations, relationships and provider links, preserve financial facts and retain source import aliases. Duplicate suggestions, field comparison and undo remain. Evidence: `src/coffer/donor-merge.ts`, `src/coffer/imports/service.ts`, `docs/donor-depth.md`.
 
 #### DONOR-007 — Saved searches and lists.
 
@@ -176,7 +176,7 @@ A person filters constituents on any field, tag, giving range, date of last gift
 
 *Acceptance:* An HTTP journey saves a list of donors who gave $500 or more last year with email consent, adds a qualifying gift, and sees the list grow without editing it; the list feeds an appeal audience; a bulk action adds a tag and assigns a relationship manager to every record in the list, and undoing it restores each record; a second bulk action sets "do not solicit" on every record of a list, a list filtered on the restriction returns exactly those records, and the audit log names who set it.
 
-*Status:* partial. Search covers name, email and household, and appeal segments filter on giving since a date; there are no general filters or saved lists. Evidence: `src/coffer/donors.ts`, `src/coffer/appeals.ts`.
+*Status:* partial. Donor search includes reciprocal relationship-type and connected-donor filters. General saved lists and undoable bulk actions remain. Evidence: `src/coffer/donors.ts`, `src/coffer/ui/donors.ts`.
 
 #### DONOR-008 — Documents on records.
 
@@ -208,7 +208,7 @@ Every constituent shows lifetime giving, first gift, largest gift, last gift, nu
 
 *Acceptance:* An HTTP journey records gifts across three years with a July fiscal year and reads each summary figure back from the donor API and page.
 
-*Status:* partial. Lifetime and calendar-year totals exist; first, largest and last gift, consecutive years, recurring status, soft credits and fiscal years do not. Evidence: `src/coffer/donors.ts`, `tests/coffer.test.mjs`.
+*Status:* partial. Lifetime and yearly hard-credit totals, first-gift date/amount/appeal, separate recognition and installment balances derive from ledger records, including merges/imports. Largest gift, giving streaks, fiscal-year setting and remaining summary metrics remain. Evidence: `src/coffer/donors.ts`, `src/coffer/donor-merge.ts`, `tests/soft-credits.test.mjs`, `tests/pledges.test.mjs`.
 
 #### DONOR-012 — Constituent status: active, inactive and deceased.
 
@@ -276,7 +276,7 @@ A pledge has a total, a schedule (one date, or monthly, quarterly or annual inst
 
 *Acceptance:* An HTTP journey creates a $12,000 pledge in four quarterly installments, pays two, sees the third overdue on the pledge and the donor page, reduces the balance with a reason, and reads the full history.
 
-*Status:* partial. A pledge has an amount, an optional due date and linked gifts with a remaining balance; no installment schedule, overdue state or write-off, and no test exercises pledges. Evidence: `src/coffer/donors.ts`, `src/coffer/gifts.ts`.
+*Status:* partial. Dated installments total the pledge, allocations match gifts by donor/fund without overpayment, and reversals reopen balances. Write-offs, reductions, campaign attribution and recurring-plan payment remain. Evidence: `src/coffer/pledges.ts`, `src/coffer/ui/pledges.ts`, `tests/pledges.test.mjs`.
 
 #### GIFT-006 — Soft credits.
 
@@ -284,7 +284,7 @@ A gift can soft-credit other constituents (a spouse, the board member who solici
 
 *Acceptance:* An HTTP journey records a DAF grant hard-credited to the sponsor and soft-credited to the advisor, and reads the advisor's soft-credit total separately from hard credit in the donor API and a retention report.
 
-*Status:* missing. No soft credits.
+*Status:* partial. Full or partial recognition links another donor to a gift and appears in a separate reversal-aware total without increasing received totals or tax receipts. Separate acknowledgement status and report integration remain. Evidence: `src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs`.
 
 #### GIFT-007 — Matching gifts.
 
@@ -292,7 +292,7 @@ A gift can be marked as eligible for an employer match, with the employer looked
 
 *Acceptance:* An HTTP journey with the Double the Donation edge faked records a $500 gift, finds the employer's 1:1 program, moves the match through submitted to received when the employer's $500 check arrives, and reads the linked gifts and soft credit.
 
-*Status:* missing. No matching-gift tracking or Double the Donation connection.
+*Status:* partial. Expected employer amount/deadline links the original gift to a received employer ledger gift, with overdue and reversal-aware states. Program lookup, submission workflow, automatic employee recognition and submission reminders remain. Evidence: `src/coffer/gift-depth.ts`, `src/coffer/ui/gift-depth.ts`, `tests/soft-credits.test.mjs`.
 
 #### GIFT-008 — Tribute gifts.
 
@@ -300,7 +300,7 @@ A gift can be made in honor or in memory of someone, with an optional person to 
 
 *Acceptance:* A form gift in memory of a named person with a notify-address produces a tribute record, a notification for approval that omits the amount, and a tribute total of all gifts in that name; after the `MOVE-002` import, a memorial tribute's total includes its imported gifts and equals the source.
 
-*Status:* missing. No tribute records; a gift note can only mention one.
+*Status:* partial. Honor/memory, honoree and notification contact are recorded on gifts and included in approved gift/year-end receipt text. Tribute grouping, notification sending and incumbent tribute imports remain. Evidence: `src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/year-end.ts`, `tests/soft-credits.test.mjs`.
 
 #### GIFT-009 — In-kind gifts.
 
@@ -736,7 +736,7 @@ Before each installment is due Coffer sends the donor a reminder or invoice (ema
 
 *Acceptance:* An HTTP journey creates a quarterly pledge, receives the reminder a week before an installment, pays through the link, and lets the next installment go overdue to see the follow-up and task; a do-not-solicit donor's installment reminder still goes.
 
-*Status:* missing. No pledge reminders.
+*Status:* partial. Self-hosted SendGrid reminders run daily or by staff before each unpaid installment using current email permission, with durable single-attempt submission states. Managed email is not available yet. Pay links, printable invoices, overdue follow-up and tasks remain. Evidence: `src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs`.
 
 #### STEW-005 — Gift-triggered rules.
 
@@ -1263,9 +1263,9 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 17 | relationships | `DONOR-003` | partial |
 | 18 | every gift | `GIFT-001` | done |
 | 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` partial · `COMM-004` missing · `COMM-005` missing |
-| 20 | soft credits | `GIFT-006` | missing |
-| 21 | tributes | `GIFT-008` | missing |
-| 22 | employer matches | `GIFT-007` | missing |
+| 20 | soft credits | `GIFT-006` | partial |
+| 21 | tributes | `GIFT-008` | partial |
+| 22 | employer matches | `GIFT-007` | partial |
 | 23 | Lifetime giving and first gift | `DONOR-011` | partial |
 | 24 | Gifts sync from Stripe as they happen | `PAY-001` | partial |
 | 25 | fees, refunds | `PAY-003`, `PAY-004` | partial |
@@ -1297,10 +1297,10 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 51 | Run Coffer on your own computer | `OWN-002` | done |
 | 52 | keep every donor record / Your donors, your database | `OWN-001`, `DATA-001` | done |
 | 53 | Export everything, any time | `DATA-001`, `DATA-002` | `DATA-001` done · `DATA-002` partial |
-| 54 | Soft credits | `GIFT-006` | missing |
-| 55 | Tribute gifts | `GIFT-008` | missing |
-| 56 | Matching gifts | `GIFT-007` | missing |
-| 57 | Pledges: schedules, reminders and balances kept current | `GIFT-005`, `STEW-004` | `GIFT-005` partial · `STEW-004` missing |
+| 54 | Soft credits | `GIFT-006` | partial |
+| 55 | Tribute gifts | `GIFT-008` | partial |
+| 56 | Matching gifts | `GIFT-007` | partial |
+| 57 | Pledges: schedules, reminders and balances kept current | `GIFT-005`, `STEW-004` | `GIFT-005` partial · `STEW-004` partial |
 | 58 | Consent: email and mail preferences honored everywhere | `CONSENT-001`, `APPEAL-001` | done |
 | 59 | Gift ledger: every change recorded; no gift is silently edited | `GIFT-001` | done |
 | 60 | Open source donor management for every nonprofit | `OWN-001` | done |
@@ -1308,15 +1308,15 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `12e75786aba38e62ce0bafcc748249f817e46ca1` (17 October 2026).
+Judged from the code and tests at commit `dba4a2871f7b06b62297de5ac450a606d9e1075d` (17 October 2026).
 
-The giving, receipt and payments clauses and their claim mappings include their current implementations and named tests.
+The giving, receipt, payments and donor-depth clauses and their claim mappings include their current implementations and named tests.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 4 | 49 | 73 | 126 |
-| All | 13 | 49 | 73 | 135 |
+| Target and push further | 4 | 53 | 69 | 126 |
+| All | 13 | 53 | 69 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1330,15 +1330,15 @@ The giving, receipt and payments clauses and their claim mappings include their 
 | `IMPORT-001` | Reviewed Stripe move-in | published | done | `src/coffer/imports/service.ts`, `src/coffer/imports/snapshots.ts`, `tests/coffer.test.mjs` |  |
 | `DATA-001` | Custody and erasure | published | done | `src/coffer/archive-policy.mjs`, `src/coffer/imports/erasure.ts`, `tests/coffer.test.mjs` |  |
 | `DONOR-002` | Organization records | target | partial | `src/coffer/donors.ts` | Every constituent is a person-shaped donor record; there is no organization type, EIN, website or contact role. |
-| `DONOR-003` | Relationships | target | partial | `src/coffer/donors.ts` | Only household membership by name exists; no reciprocal relationship types, salutations or household totals. |
-| `DONOR-004` | Interaction timeline | target | partial | `src/coffer/donors.ts`, `src/coffer/ui/donors.ts` | The donor page shows gifts, consent, letters, appeals and the change history; there are no logged calls, meetings, notes or a filterable timeline. |
+| `DONOR-003` | Relationships | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-depth.ts`, `docs/donor-depth.md` | Reciprocal spouse, employer, board member, foundation officer and introduced-by links show on both records and filter donor lists. Household salutations, head and combined totals remain. |
+| `DONOR-004` | Interaction timeline | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-timeline.ts`, `docs/donor-depth.md` | Calls, meetings and emails record date, participants, notes, next step and author beside gifts, pledges and receipt events in one timeline. Confidential notes, timeline filters and the broader task/event integrations remain. |
 | `DONOR-005` | Custom fields and tags | target | missing |  | No custom fields, tags or categories. |
-| `DONOR-006` | Duplicate detection and merge | target | partial | `src/coffer/imports/snapshots.ts`, `tests/coffer.test.mjs` | Duplicate emails are refused and same-email Stripe imports attach to the existing donor; there is no duplicate queue, comparison or merge. |
-| `DONOR-007` | Saved searches and lists | target | partial | `src/coffer/donors.ts`, `src/coffer/appeals.ts` | Search covers name, email and household, and appeal segments filter on giving since a date; there are no general filters or saved lists. |
+| `DONOR-006` | Duplicate detection and merge | target | partial | `src/coffer/donor-merge.ts`, `src/coffer/imports/service.ts`, `docs/donor-depth.md` | Reviewed manual merges combine gifts, pledges, conversations, relationships and provider links, preserve financial facts and retain source import aliases. Duplicate suggestions, field comparison and undo remain. |
+| `DONOR-007` | Saved searches and lists | target | partial | `src/coffer/donors.ts`, `src/coffer/ui/donors.ts` | Donor search includes reciprocal relationship-type and connected-donor filters. General saved lists and undoable bulk actions remain. |
 | `DONOR-008` | Documents on records | target | missing |  | No attachments. |
 | `DONOR-009` | Address verification and NCOA | target | missing |  | No address verification or NCOA. |
 | `DONOR-010` | Volunteer history | target | missing |  | No volunteer records. |
-| `DONOR-011` | Giving summary | target | partial | `src/coffer/donors.ts`, `tests/coffer.test.mjs` | Lifetime and calendar-year totals exist; first, largest and last gift, consecutive years, recurring status, soft credits and fiscal years do not. |
+| `DONOR-011` | Giving summary | target | partial | `src/coffer/donors.ts`, `src/coffer/donor-merge.ts`, `tests/soft-credits.test.mjs`, `tests/pledges.test.mjs` | Lifetime and yearly hard-credit totals, first-gift date/amount/appeal, separate recognition and installment balances derive from ledger records, including merges/imports. Largest gift, giving streaks, fiscal-year setting and remaining summary metrics remain. |
 | `DONOR-012` | Constituent status: active, inactive and deceased | target | missing |  | Constituents have no status; appeals exclude only on consent and address, and erasure is the only way to stop a record being used. |
 | `DONOR-013` | Several emails, phones and addresses | target | partial | `src/coffer/donors.ts`, `migrations/core/0016_coffer.sql` | A donor has one email (refused if any other record has it), one phone and one postal address; no further contact points, types, primaries, seasonal ranges or email shared within a household. |
 | `DONOR-014` | Name parts, salutations and envelope name | target | partial | `src/coffer/donors.ts`, `src/coffer/settings.ts`, `tests/coffer.test.mjs` | A donor has one free-text name and letters merge only `{{donor_name}}`; no prefix, first, middle and last name, suffix or nickname, no computed or overridden salutations or envelope name, and no admin-set defaults. |
@@ -1346,10 +1346,10 @@ The giving, receipt and payments clauses and their claim mappings include their 
 | `GIFT-002` | Batch gift entry and deposits | target | missing |  | Gifts are entered one at a time; no batches or deposit totals. |
 | `GIFT-003` | Campaign, appeal, fund and channel attribution | target | partial | `src/coffer/gifts.ts` | Each gift has one free-text fund; no campaigns, appeals or source as structured references. |
 | `GIFT-004` | Split gifts | target | missing |  | No split gifts. |
-| `GIFT-005` | Pledges, installments and balances | target | partial | `src/coffer/donors.ts`, `src/coffer/gifts.ts` | A pledge has an amount, an optional due date and linked gifts with a remaining balance; no installment schedule, overdue state or write-off, and no test exercises pledges. |
-| `GIFT-006` | Soft credits | target | missing |  | No soft credits. |
-| `GIFT-007` | Matching gifts | target | missing |  | No matching-gift tracking or Double the Donation connection. |
-| `GIFT-008` | Tribute gifts | target | missing |  | No tribute records; a gift note can only mention one. |
+| `GIFT-005` | Pledges, installments and balances | target | partial | `src/coffer/pledges.ts`, `src/coffer/ui/pledges.ts`, `tests/pledges.test.mjs` | Dated installments total the pledge, allocations match gifts by donor/fund without overpayment, and reversals reopen balances. Write-offs, reductions, campaign attribution and recurring-plan payment remain. |
+| `GIFT-006` | Soft credits | target | partial | `src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs` | Full or partial recognition links another donor to a gift and appears in a separate reversal-aware total without increasing received totals or tax receipts. Separate acknowledgement status and report integration remain. |
+| `GIFT-007` | Matching gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/ui/gift-depth.ts`, `tests/soft-credits.test.mjs` | Expected employer amount/deadline links the original gift to a received employer ledger gift, with overdue and reversal-aware states. Program lookup, submission workflow, automatic employee recognition and submission reminders remain. |
+| `GIFT-008` | Tribute gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/year-end.ts`, `tests/soft-credits.test.mjs` | Honor/memory, honoree and notification contact are recorded on gifts and included in approved gift/year-end receipt text. Tribute grouping, notification sending and incumbent tribute imports remain. |
 | `GIFT-009` | In-kind gifts | target | missing |  | Gifts are monetary only. |
 | `GIFT-010` | Stock, DAF grants and IRA distributions | target | missing |  | No stock, DAF or QCD gift types. |
 | `GIFT-011` | Anonymous gifts and recognition names | target | missing |  | No anonymity flag or recognition name. |
@@ -1400,7 +1400,7 @@ The giving, receipt and payments clauses and their claim mappings include their 
 | `STEW-001` | Tasks with owners and reminders | target | missing |  | No tasks. |
 | `STEW-002` | Recurring tasks | target | missing |  | No tasks. |
 | `STEW-003` | Stewardship journeys | target | missing |  | No journeys. |
-| `STEW-004` | Pledge reminders and invoices | target | missing |  | No pledge reminders. |
+| `STEW-004` | Pledge reminders and invoices | target | partial | `src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs` | Self-hosted SendGrid reminders run daily or by staff before each unpaid installment using current email permission, with durable single-attempt submission states. Managed email is not available yet. Pay links, printable invoices, overdue follow-up and tasks remain. |
 | `STEW-005` | Gift-triggered rules | target | missing |  | No rules. |
 | `STEW-006` | Meetings and calendars | target | missing |  | No calendar connection. |
 | `MAJOR-001` | Opportunity pipeline | target | missing |  | No opportunities or pipeline. |

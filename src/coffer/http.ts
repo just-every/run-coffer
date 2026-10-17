@@ -4,6 +4,7 @@ import { createPortability, createPortabilityHandler } from '@runeditrun/rer/mod
 import policy from './archive-policy.mjs'
 import { identity, manager, originGuard, person, type Actor, type Authority } from './auth'
 import { CofferError, fail, type Context } from './db'
+import { canonicalDonor } from './donor-merge'
 import { execute } from './commands'
 import { listDonors, donorHistory } from './donors'
 import { batchDetail, batches, batchLetters, dueGifts, lettersCsv, currentLetterGiftsCondition } from './acknowledgements'
@@ -55,7 +56,7 @@ async function formBody(request: Request, limit = LIMIT): Promise<FormData> {
 }
 function formInput(data: FormData) {
  const input: Record<string, any> = Object.fromEntries(data)
- for (const name of ['version', 'targetDays']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
+ for (const name of ['version', 'sourceVersion', 'targetDays', 'reminderDays']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
  if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
  if (input.command === 'ack.prepare' && data.has('giftIds')) input.giftIds = data.getAll('giftIds')
  return input
@@ -134,7 +135,13 @@ function kitMessage(code: string) {
 async function eraseDonor(c: Context, authority: Authority, input: any) {
  if (c.actor.role !== 'owner') fail('owner_required', 'Only the owner can erase a donor.', 403)
  if (input?.confirm !== 'ERASE') fail('confirmation_required', 'Type ERASE to confirm.', 400)
- const donorId = String(input.donorId ?? ''), placeholder = `erased-${crypto.randomUUID()}`
+ const donorId = await canonicalDonor(c, String(input.donorId ?? ''))
+ const aliases = await c.db.prepare('SELECT donor_id FROM cf_donor_merges WHERE into_id=?').bind(donorId).all<{donor_id:string}>()
+ for (const alias of aliases.results) await eraseSingleDonor(c, authority, alias.donor_id)
+ return eraseSingleDonor(c, authority, donorId)
+}
+async function eraseSingleDonor(c: Context, authority: Authority, donorId: string) {
+ const placeholder = `erased-${crypto.randomUUID()}`
  const donor = await c.db.prepare('SELECT id,email FROM cf_donors WHERE id=? AND erased_at IS NULL').bind(donorId).first<{ id: string; email: string | null }>()
  if (!donor) fail('NOT_FOUND', 'That donor does not exist or was already erased.', 404)
  const checkpoint = await imports.portabilityCheckpoint(c.db)
@@ -142,6 +149,8 @@ async function eraseDonor(c: Context, authority: Authority, input: any) {
  const givingErasure = [
   { sql: 'INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_giving_customers WHERE donor_id=?', params: [placeholder, donorId] },
   { sql: "INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT source_ref,? FROM cf_donors WHERE id=? AND source='stripe' AND source_ref IS NOT NULL", params: [placeholder, donorId] },
+  { sql: 'DELETE FROM cf_donor_merges WHERE donor_id=?', params: [donorId] },
+  { sql: 'UPDATE cf_pledge_installments SET recipient_email=NULL,message_id=NULL,attempt_id=NULL WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', params: [placeholder] },
   { sql: 'DELETE FROM cf_donor_tokens WHERE donor_id=?', params: [donorId] },
   { sql: 'DELETE FROM cf_giving_customers WHERE donor_id=?', params: [donorId] },
   { sql: "UPDATE cf_giving_intents SET donor_id=?,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR email=?", params: [placeholder, donorId, donor.email ?? ''] },
@@ -158,6 +167,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor) {
  if (command === 'agent.revoke') return redirect('/app/data')
  if (command === 'settings.update') return redirect('/app/settings?saved=1')
  if (command === 'donor.create') return redirect(`/app/donors/${result.id}`)
+ if (input.returnDonorId) return redirect(`/app/donors/${encodeURIComponent(input.returnDonorId)}`)
  if (command === 'donor.erase') return redirect(`/app/donors/${result.donorId}`)
  if (command === 'consent.record') return redirect(input.returnTo === 'donor' && input.donorIds?.length === 1 ? `/app/donors/${input.donorIds[0]}#consent` : '/app/donors?consent=' + result.recorded)
  if (command.startsWith('ack.')) return redirect(`/app/letters/${result.id ?? input.batchId}`)
@@ -194,7 +204,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 
 async function api(c: Context, url: URL): Promise<Response> {
  const path = url.pathname, match = (re: RegExp) => path.match(re)
- if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0 }))
+ if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo') }))
  let m = match(/^\/api\/coffer\/donors\/([^/]+)$/)
  if (m) return json(await donorHistory(c, m[1]))
  if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, batches: await batches(c) }) }

@@ -88,5 +88,8 @@
       "environment": "QBO_ACCOUNT_NAMES",
       "optional": true
     }
+  ],
+  "crons": [
+    "0 13 * * *"
   ]
 }

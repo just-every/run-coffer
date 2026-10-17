@@ -1,4 +1,5 @@
 import { choice, commit, date, event, fail, guard, id, integer, newId, one, optional, sql, text, today, type Context, type Row } from './db'
+import { giftInstallmentStatements } from './pledges'
 import { amount } from './money'
 import { settings } from './settings'
 
@@ -18,11 +19,13 @@ export async function giftCommand(c: Context, command: string, p: Row): Promise<
   const donorId = id(p.donorId, 'Donor'), giftId = newId(), cents = amount(p, 'amount', 'Gift amount'), received = date(p.receivedOn, 'Received on')
   if (received > today((await settings(c)).timezone)) fail('INPUT', 'A gift records money already received; its date cannot be in the future.', 400)
   const method = choice(p.method, METHODS, 'how the gift was paid'), reference = optional(p.reference, 'Reference', 100), fund = optional(p.fund, 'Fund', 100) ?? 'Unrestricted'
-  const pledgeId = optional(p.pledgeId, 'Pledge', 100), g = goods(p, cents), note = optional(p.note, 'Note', 1000)
+  const pledgeId = optional(p.pledgeId, 'Pledge', 100), g = goods(p, cents), note = optional(p.note, 'Note', 1000), appeal = optional(p.appeal, 'Appeal', 200)
   await commit(c, [
    guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL)", 'NOT_FOUND', 'That donor does not exist.', donorId),
    ...(pledgeId ? [guard('EXISTS(SELECT 1 FROM cf_pledges WHERE id=? AND donor_id=?)', 'PLEDGE', 'That pledge belongs to another donor.', pledgeId, donorId)] : []),
    sql("INSERT INTO cf_gifts VALUES(?,1,?,'gift',NULL,?,?,?,?,?,?,?,?,?,?,'manual',?,?)", giftId, donorId, received, cents, method, reference, fund, pledgeId, g.kind, g.cents, g.description, note, c.now, c.actor.name),
+   ...(appeal ? [sql('INSERT INTO cf_gift_appeals VALUES(?,?)', giftId, appeal)] : []),
+   ...await giftInstallmentStatements(c, p, giftId, donorId, cents, pledgeId),
    event(c, 'gift.record', 'gift', giftId, donorId, { amountCents: cents, receivedOn: received })])
   return { id: giftId, amountCents: cents }
  }

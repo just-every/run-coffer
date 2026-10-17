@@ -66,7 +66,8 @@ test('approved receipts send once, signed provider delivery is recorded and boun
 test('a calendar-year statement itemizes every unreversed gift and totals deductible giving',()=>run(async h=>{
  await reviewed(h)
  const ana=await donor(h,'Ana Diaz')
- await gift(h,ana.id,'150','2025-03-01',{goods:'provided',goodsValue:'60',goodsDescription:'gala dinner'})
+ const tributeGift=await gift(h,ana.id,'150','2025-03-01',{goods:'provided',goodsValue:'60',goodsDescription:'gala dinner'})
+ await h.command('tribute.record',{giftId:tributeGift.id,kind:'memory',honoree:'Leela Diaz',notifiedName:'Mira Diaz'})
  await gift(h,ana.id,'25.50','2025-12-31')
  await gift(h,ana.id,'900','2024-12-31')
  const reversed=await gift(h,ana.id,'80','2025-06-01')
@@ -81,6 +82,8 @@ test('a calendar-year statement itemizes every unreversed gift and totals deduct
  assert.match(l.body,/gala dinner worth \$60\.00/)
  assert.doesNotMatch(l.body,/\$900\.00|\$80\.00/)
  assert.equal(JSON.parse(l.statement_gifts).length,2)
+ assert.equal(JSON.parse(l.statement_gifts).find(g=>g.id===tributeGift.id).tribute.honoree,'Leela Diaz')
+ assert.ok(l.body.includes('Leela Diaz'))
  await h.command('ack.approve',{batchId:b.id,version:1})
  const sent=await h.command('ack.send',{batchId:b.id,version:2})
  assert.equal(sent.print,1)
