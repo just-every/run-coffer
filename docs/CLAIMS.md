@@ -4,7 +4,7 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 
 `CONTRACT.md` defines the full fundraising CRM target. Its Status table keeps broader unfinished features explicit; the giving rows here describe the self-hosted donation, subscription and donor portal implementation.
 
-**Totals: 61 claims · 50 in code · 5 partly · 6 contract, not yet in code.**
+**Totals: 61 claims · 57 in code · 4 partly · 0 contract, not yet in code.**
 
 | # | Section | Claim | Status | Backed by |
 |---|---|---|---|---|
@@ -48,10 +48,10 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 | 38 | Appeals | Unsubscribes are honored everywhere | in code | A real Mango appeal unsubscribe click became Coffer email withdrawal; a Coffer withdrawal was confirmed as unsubscribed in Mango. Every marketing submission checks both sides, and a transactional receipt still reached the unsubscribed QA donor (`tests/communications.test.mjs`, `tests/receipts.test.mjs`, `docs/COMMUNICATIONS.md`). |
 | 39 | Appeals | replies land with the right person | partly | Actual Email Routing handler assigns known-donor appeal replies to the active prospect owner, forwards, and logs a donor interaction and follow-up task. Live acceptance needs a configured inbound address and verified forwarding destinations; fleet token cannot create those (`src/coffer/communications/replies.ts`, `docs/COMMUNICATIONS.md`). |
 | 40 | Major gifts | major-gift pipeline with next steps, owners and engagement scores | in code | Identify, qualify, cultivate, ask and stewardship opportunities carry ask amount, expected close, next step and active staff owner; each engagement score exposes recency, frequency, amount and conversation inputs (`src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs`). |
-| 41 | Development agent | reconciles every gift | contract, not yet in code | Agent keys can only read and prepare (`auth.ts`, `commands.ts`). |
-| 42 | Development agent | rescues failed monthly gifts | contract, not yet in code | None in code. |
-| 43 | Development agent | sends missing receipts | partly | An agent key may run `ack.prepare`; a person approves and sends. |
-| 44 | Development agent | drafts stewardship from your own history | contract, not yet in code | None in code. |
+| 41 | Development agent | reconciles every gift | in code | Stripe charges/payouts, contribution amounts and funds, exact payout membership and Pantry proposal/journal state are compared with source IDs and explained proposals. Safe contribution and missing-gift fixes apply explicitly and have compensating undo; accounting/currency exceptions stay in Payments/Pantry review (`src/coffer/agent/reconciliation.ts`, `tests/agent-reconciliation.test.mjs`). |
+| 42 | Development agent | rescues failed monthly gifts | in code | Signed failures request one private card-update email; Stripe owns retries and daily checks record recovered/lapsed outcomes without extra charges. Schedule changes have undo (`src/coffer/agent/recovery.ts`, `tests/agent-recovery.test.mjs`). |
+| 43 | Development agent | sends missing receipts | in code | Finds missing receipts of every amount and bounced receipts, freezes them in a human approval batch and supports undo before dispatch; no unseen send (`src/coffer/agent/receipts.ts`, `tests/agent-receipts.test.mjs`). |
+| 44 | Development agent | drafts stewardship from your own history | in code | Install-owned, encrypted AI key setup; cited drafts use gifts, signed refunds/corrections, funds, conversations and tributes. A person edits, reviews and explicitly sends; no-key setup explains how to add one (`src/coffer/agent/stewardship.ts`, `tests/stewardship.test.mjs`). |
 | 45 | Development agent | tracks retention donor by donor | in code | Calendar-year retained, new, lapsed and recaptured counts and signed amounts drill to donor rows, with refunds/adjustments and erased identities reconciled separately (`src/coffer/retention.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs`). |
 | 46 | Move in | Move from Little Green Light | in code | Documented Little Green Light constituent/fundraising CSV and XLSX exports preview and reconcile before a reviewed atomic apply; same-file re-import is unchanged and one-step undo is guarded (`src/coffer/move-in/`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md`). |
 | 47 | Move in | Bloomerang | in code | Documented Bloomerang constituent/transaction CSV and XLSX reports use the same preview, source-control reconciliation, atomic apply, deduplication and undo (`src/coffer/move-in/`, `tests/move-in.test.mjs`). Export files require no provider call on either hosting mode. |

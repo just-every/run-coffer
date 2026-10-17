@@ -12,6 +12,7 @@ import { lobbyResponse } from './base/lobby'
 import { setupStateResponse } from './base/setup-state'
 import { authResponse, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
+import { runAgentJobs } from './coffer/agent/jobs'
 import { runPledgeReminders } from './coffer/pledges'
 import { cofferResponse } from './coffer/http'
 import { seedDemo } from './demo'
@@ -34,7 +35,10 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     execution.waitUntil(runMarketingSync(runtimeBindings(env),new Date(controller.scheduledTime)))
     execution.waitUntil(runWelcome(runtimeBindings(env),new Date(controller.scheduledTime)))
     const tick=new Date(controller.scheduledTime)
-    if(tick.getUTCHours()===13 && tick.getUTCMinutes()===0) execution.waitUntil(runPledgeReminders(runtimeBindings(env),tick))
+    if(tick.getUTCHours()===13 && tick.getUTCMinutes()===0) {
+      execution.waitUntil(runPledgeReminders(runtimeBindings(env),tick))
+      execution.waitUntil(runAgentJobs(runtimeBindings(env),tick))
+    }
   },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)

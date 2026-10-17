@@ -96,6 +96,14 @@
       "commands": [
         "pnpm run test:communications"
       ]
+    },
+    {
+      "name": "agent",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:agent"
+      ]
     }
   ],
   "nightly": [

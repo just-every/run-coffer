@@ -1,0 +1,104 @@
+import { manager } from '../auth'
+import { all, choice, commit, event, fail, guard, one, sql, text, type Context, type Row } from '../db'
+import { emailPortalLink } from '../giving/portal'
+import { stripeId } from '../giving/recording'
+import { available, managed, requireStripe, stripe, type GivingEnv } from '../giving/stripe'
+import { invoice } from '../giving/webhooks'
+import { action, activityStatement } from './activity'
+
+function system(env: GivingEnv): Context {
+ return { db: env.DB, env, actor: { id: 'coffer-recovery', name: 'Coffer recovery', role: 'agent' }, authority: { sql: '1', params: [] }, now: new Date().toISOString() }
+}
+function authorize(c: Context) {
+ if (!manager(c.actor) && !(c.actor.role === 'agent' && c.authority.sql === '1')) fail('FORBIDDEN', 'Only the owner or an admin can manage recovery.', 403)
+}
+
+/** Observe current provider state, never the potentially stale webhook payload. */
+export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, intent: Row, failureEventId?: string) {
+ const c = system(env)
+ const previous = await one(c, 'SELECT * FROM cf_agent_recovery WHERE invoice_id=?', current.id)
+ const failed = current.status === 'open' && current.attempt_count > 0
+ if (!previous && !failed) return
+ const state = current.status === 'paid' && current.amount_paid > 0 ? 'recovered'
+  : ['void', 'uncollectible'].includes(current.status) || ['unpaid', 'canceled', 'incomplete_expired'].includes(sub.status) ? 'lapsed' : 'waiting'
+ const next = state === 'waiting' ? current.next_payment_attempt ?? null : null
+ const changed = await c.db.prepare(`INSERT INTO cf_agent_recovery(invoice_id,subscription_id,state,attempt_count,next_attempt_at,created_at,last_checked_at)
+  VALUES(?,?,?,?,?,?,?) ON CONFLICT(invoice_id) DO UPDATE SET state=excluded.state,attempt_count=excluded.attempt_count,
+  next_attempt_at=excluded.next_attempt_at,last_checked_at=excluded.last_checked_at
+  WHERE (state<>'recovered' OR excluded.state='recovered') AND
+  (state<>excluded.state OR attempt_count<>excluded.attempt_count OR next_attempt_at IS NOT excluded.next_attempt_at)`)
+  .bind(current.id, sub.id, state, current.attempt_count ?? 0, next, c.now, c.now).run()
+ await c.db.prepare('UPDATE cf_agent_recovery SET last_checked_at=? WHERE invoice_id=?').bind(c.now, current.id).run()
+ if (changed.meta.changes) await action(c, {
+  kind: `recovery.${state}`, subjectId: current.id,
+  summary: state === 'recovered' ? 'Monthly gift recovered at Stripe; the paid gift is recorded.' : state === 'lapsed' ? 'Monthly gift lapsed at Stripe.' : 'Failed monthly gift is waiting on Stripe recovery.',
+  why: `Current Stripe invoice and subscription state: ${current.status}; ${sub.status}. Stripe owns the retry schedule.`,
+ })
+ if (state !== 'waiting' || previous?.state === 'recovered') return
+ // One atomic claim across duplicate events and concurrent Worker instances.
+ // A crash after the claim is deliberately visible as uncertain; sending again
+ // would risk duplicate mail because emailPortalLink has no idempotent delivery API.
+ const claimed = await c.db.prepare(`UPDATE cf_agent_recovery SET notice_state='sending',notice_event_id=?,notice_at=?
+  WHERE invoice_id=? AND notice_state='pending' AND state='waiting' RETURNING invoice_id`).bind(failureEventId ?? null, c.now, current.id).first()
+ if (!claimed) return
+ await action(c, { kind: 'recovery.card_link_requested', subjectId: current.id, summary: 'Requested one private card-update email.', why: 'The monthly invoice failed. Email cannot be unsent; an interrupted send needs review before any new invitation.' })
+ let notice = 'failed'
+ try { notice = await emailPortalLink(env, intent.donor_id, 'Update your card for your monthly gift') ? 'sent' : 'skipped' } catch { /* Persist failure; never automatically repeat an uncertain external send. */ }
+ await c.db.prepare('UPDATE cf_agent_recovery SET notice_state=?,notice_at=? WHERE invoice_id=?').bind(notice, new Date().toISOString(), current.id).run()
+ await action(c, { kind: `recovery.card_link_${notice}`, subjectId: current.id, summary: notice === 'sent' ? 'Private card-update email accepted by the mail provider.' : notice === 'skipped' ? 'Card-update email unavailable: donor has no deliverable account.' : 'Card-update email failed or its delivery is uncertain.', why: notice === 'sent' ? 'The donor can update their card in the secure giving portal. This email cannot be unsent.' : 'No automatic resend is scheduled. Review delivery before contacting the donor through the existing giving portal.' })
+}
+
+export async function recoveryData(c: Context) {
+ const settings = await one(c, 'SELECT enabled,last_run_at FROM cf_agent_recovery_settings WHERE id=1')
+ const rows = await all(c, `SELECT r.*,s.donor_id,d.name AS donor_name,s.amount_cents,s.status AS subscription_status
+  FROM cf_agent_recovery r JOIN cf_subscriptions s ON s.id=r.subscription_id JOIN cf_donors d ON d.id=s.donor_id
+  WHERE d.erased_at IS NULL ORDER BY CASE r.state WHEN 'waiting' THEN 0 WHEN 'lapsed' THEN 1 ELSE 2 END,r.last_checked_at DESC LIMIT 100`)
+ return { enabled: settings?.enabled === 1, lastRunAt: settings?.last_run_at ?? null, rows }
+}
+
+/** Daily/manual reconciliation only: never creates an invoice or attempts a charge. */
+export async function runRecovery(c: Context, env: GivingEnv) {
+ authorize(c)
+ const settings = await one(c, 'SELECT enabled FROM cf_agent_recovery_settings WHERE id=1')
+ if (!settings?.enabled) return { enabled: false, checked: 0, recovered: 0, lapsed: 0, errors: 0 }
+ if (!available(env)) {
+  if (managed(env)) return { enabled: true, checked: 0, recovered: 0, lapsed: 0, errors: 0, unavailable: 'Stripe recovery is not available yet on RER Managed.' }
+  requireStripe(env)
+ }
+ await commit(c, [sql('UPDATE cf_agent_recovery_settings SET last_run_at=? WHERE id=1', c.now)])
+ const subscriptions = await all(c, `SELECT DISTINCT s.id FROM cf_subscriptions s JOIN cf_donors d ON d.id=s.donor_id
+  WHERE d.erased_at IS NULL AND (s.status IN ('active','trialing','past_due','unpaid','incomplete') OR EXISTS
+  (SELECT 1 FROM cf_agent_recovery r WHERE r.subscription_id=s.id AND r.state='waiting')) ORDER BY s.id`)
+ const result = { enabled: true, checked: 0, recovered: 0, lapsed: 0, errors: 0 }
+ for (const sub of subscriptions) {
+  try {
+   // Check each tracked invoice too: a subscription may already have advanced to
+   // a newer invoice while an earlier failure was paid or written off.
+   const tracked = await all(c, "SELECT invoice_id FROM cf_agent_recovery WHERE subscription_id=? AND state='waiting'", sub.id)
+   const current = await stripe(env, '/subscriptions/' + encodeURIComponent(sub.id))
+   const ids = new Set(tracked.map(row => row.invoice_id as string))
+   const latest = stripeId(current.latest_invoice)
+   if (latest) ids.add(latest)
+   for (const id of ids) { await invoice(env, id); result.checked++ }
+  } catch {
+   result.errors++
+   await action(c, { kind: 'recovery.reconcile_failed', subjectId: sub.id, summary: 'Stripe recovery reconciliation failed.', why: 'Provider state could not be verified. No extra charge or replacement gift was created. The next scheduled run can reconcile again.' })
+  }
+ }
+ const counts = await one(c, "SELECT SUM(state='recovered') AS recovered,SUM(state='lapsed') AS lapsed FROM cf_agent_recovery WHERE last_checked_at>=?", c.now)
+ result.recovered = counts?.recovered ?? 0; result.lapsed = counts?.lapsed ?? 0
+ await action(c, { kind: 'recovery.run', subjectId: 'recovery-schedule', summary: `Reconciled ${result.checked} Stripe invoices; ${result.errors} subscriptions need another check.`, why: 'Daily or operator-requested reconciliation reads Stripe state and records outcomes. Stripe alone schedules payment retries.' })
+ return result
+}
+
+export async function recoveryAction(c: Context, _env: GivingEnv, input: Row) {
+ authorize(c)
+ const requested = choice(input.action, ['pause', 'resume'] as const, 'a recovery schedule action'), why = text(input.why, 'Reason', 1000)
+ const enabled = requested === 'resume' ? 1 : 0
+ const previous = await one(c, 'SELECT enabled FROM cf_agent_recovery_settings WHERE id=1')
+ if (previous?.enabled === enabled) return { enabled: Boolean(enabled) }
+ const recorded = activityStatement(c, { kind: `recovery.${requested}`, subjectId: 'recovery-schedule', summary: `${enabled ? 'Resumed' : 'Paused'} Coffer recovery reconciliation. Stripe payment retries continue under Stripe settings.`, why, undoKind: 'recovery.schedule', undoData: { action: previous?.enabled ? 'resume' : 'pause' } })
+ await commit(c, [guard('EXISTS(SELECT 1 FROM cf_agent_recovery_settings WHERE id=1 AND enabled=?)', 'RECOVERY_CHANGED', 'The recovery schedule changed. Refresh and try again.', previous?.enabled),
+  sql('UPDATE cf_agent_recovery_settings SET enabled=? WHERE id=1', enabled), recorded.statement, event(c, `recovery.${requested}`, 'agent', 'recovery-schedule', null)])
+ return { enabled: Boolean(enabled) }
+}

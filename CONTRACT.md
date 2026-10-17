@@ -1108,7 +1108,7 @@ The agent compares, every night, each gift in the ledger with its processor even
 
 *Acceptance:* An HTTP journey with processor and accounting edges faked seeds four kinds of mismatch, runs the agent, and reads four explained exceptions with source citations and prepared corrections that apply only after a finance-role approval.
 
-*Status:* missing. No reconciliation agent; agent keys only prepare letters and audiences.
+*Status:* partial (core claim implemented). Stripe charges/payouts, contributions/funds and exact Pantry proposal/journal state are compared with source IDs. Safe contribution and missing-gift corrections have explicit apply and compensating undo; payout/accounting exceptions require Payments/Pantry review. Broader finance-role approvals and QuickBooks integration remain. Evidence: `src/coffer/agent/reconciliation.ts`, `tests/agent-reconciliation.test.mjs`, `docs/DEVELOPMENT-AGENT.md`.
 
 #### DEV-002 — Rescues failed monthly gifts.
 
@@ -1116,7 +1116,7 @@ For each failed or expiring recurring plan the agent reads plan history, consent
 
 *Acceptance:* An HTTP journey with the Stripe edge faked fails three plans (one major donor), runs the agent, sends two notices automatically under a standing approval, holds the major donor's for approval, recovers one plan and reports the outcome per plan.
 
-*Status:* missing. No recurring plans or recovery agent.
+*Status:* partial (core claim implemented). Signed failures request one private card-update email; Stripe schedules retries and daily reconciliation records recovery/lapse. Reversible pause/resume and activity explain outcomes. Major-donor approvals, expiring-card notices and per-donor frequency grants remain. Evidence: `src/coffer/agent/recovery.ts`, `tests/agent-recovery.test.mjs`, `docs/DEVELOPMENT-AGENT.md`.
 
 #### DEV-003 — Sends missing receipts.
 
@@ -1124,7 +1124,7 @@ The agent finds gifts whose acknowledgement status is "not acknowledged" (`RCPT-
 
 *Acceptance:* An HTTP journey seeds overdue and bounced receipts, runs the agent, sees standard ones sent under the standing approval and the unusual ones queued for a person with reasons; after the `MOVE-002` fixture import, the agent proposes nothing for the gifts imported as acknowledged or do not acknowledge, nor for a not-acknowledged gift older than the acknowledge-from date.
 
-*Status:* partial. An agent key can prepare due acknowledgement letters for a person to approve; it cannot find bounced or missing receipts, and nothing is sent. Evidence: `src/coffer/commands.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs`.
+*Status:* partial (core claim implemented). Finds all missing and bounced gift receipts, freezes a batch for human approval and supports undo before dispatch. Unknown goods/services are held. Standing template approvals, migration acknowledgement policies and year-end delivery recovery remain. Evidence: `src/coffer/agent/receipts.ts`, `tests/agent-receipts.test.mjs`, `docs/DEVELOPMENT-AGENT.md`.
 
 #### DEV-004 — Drafts stewardship from the nonprofit's own history.
 
@@ -1132,7 +1132,7 @@ For each donor due a touch the agent drafts the thank-you call notes, personal e
 
 *Acceptance:* An HTTP journey with the model edge faked drafts touches for three donors; every claim in each draft links to a record, a draft citing a non-existent fact is rejected by the check, a draft that asks a do-not-solicit donor for a gift is rejected too, and nothing is sent until a fundraiser approves.
 
-*Status:* missing. No interaction history or drafting agent.
+*Status:* partial (core claim implemented). An install-owned sealed AI key enables cited drafts from actual gifts, signed adjustments, funds, conversations and tributes; people edit/review/send, stale sources block sending and discarded drafts restore. Relationship-manager scheduling, event/reply sources and confidential role scoping remain. Evidence: `src/coffer/agent/stewardship.ts`, `tests/stewardship.test.mjs`, `docs/DEVELOPMENT-AGENT.md`.
 
 #### DEV-005 — Shows who needs a human call next.
 
@@ -1277,10 +1277,10 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 38 | Unsubscribes are honored everywhere | `CONSENT-001`, `APPEAL-001`, `COMM-001` | `CONSENT-001` done · `APPEAL-001` done · `COMM-001` partial |
 | 39 | replies land with the right person | `COMM-005` | partial |
 | 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | partial (core claim implemented; broader clauses remain) |
-| 41 | reconciles every gift | `DEV-001` | missing |
-| 42 | rescues failed monthly gifts | `DEV-002` | missing |
-| 43 | sends missing receipts | `DEV-003` | partial |
-| 44 | drafts stewardship from your own history | `DEV-004` | missing |
+| 41 | reconciles every gift | `DEV-001` | partial (core claim implemented; broader clauses remain) |
+| 42 | rescues failed monthly gifts | `DEV-002` | partial (core claim implemented; broader clauses remain) |
+| 43 | sends missing receipts | `DEV-003` | partial (core claim implemented; broader clauses remain) |
+| 44 | drafts stewardship from your own history | `DEV-004` | partial (core claim implemented; broader clauses remain) |
 | 45 | tracks retention donor by donor | `DEV-005`, `REPORT-001` | partial (core claim implemented; broader clauses remain) |
 | 46 | Move from Little Green Light | `MOVE-001` | `MOVE-001` partial (CSV/XLSX exports implemented) |
 | 47 | Bloomerang | `MOVE-002` | `MOVE-002` partial (CSV/XLSX exports implemented) |
@@ -1301,15 +1301,15 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `8065198` (17 October 2026).
+Judged from the code and tests at commit `7e72c146ef92b33b0cb58662108bd7bda2579359` (17 October 2026).
 
-The giving, receipt, payments, donor-depth and CRM export move-in clauses and their claim mappings include their current implementations and named tests.
+The giving, receipt, payments, donor-depth, development-agent and CRM export move-in clauses and their claim mappings include their current implementations and named tests.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 4 | 64 | 58 | 126 |
-| All | 13 | 64 | 58 | 135 |
+| Target and push further | 4 | 67 | 55 | 126 |
+| All | 13 | 67 | 55 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1436,10 +1436,10 @@ The giving, receipt, payments, donor-depth and CRM export move-in clauses and th
 | `DATA-003` | A donor's own data on request | target | missing |  | No per-donor access export. |
 | `OWN-001` | Free, open source and owned | target | done | `LICENSE`, `wrangler.jsonc`, `README.md` |  |
 | `OWN-002` | Runs on the nonprofit's own computer | target | done | `RUN-LOCALLY.md`, `tests/clone-journey.mjs` |  |
-| `DEV-001` | Reconciles every gift | push-further | missing |  | No reconciliation agent; agent keys only prepare letters and audiences. |
-| `DEV-002` | Rescues failed monthly gifts | push-further | missing |  | No recurring plans or recovery agent. |
-| `DEV-003` | Sends missing receipts | push-further | partial | `src/coffer/commands.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | An agent key can prepare due acknowledgement letters for a person to approve; it cannot find bounced or missing receipts, and nothing is sent. |
-| `DEV-004` | Drafts stewardship from the nonprofit's own history | push-further | missing |  | No interaction history or drafting agent. |
+| `DEV-001` | Reconciles every gift | push-further | partial | `src/coffer/agent/reconciliation.ts`, `tests/agent-reconciliation.test.mjs`, `docs/DEVELOPMENT-AGENT.md` | Stripe charges/payouts, contributions/funds and exact Pantry proposal/journal state are compared with source IDs. Safe contribution and missing-gift corrections have explicit apply and compensating undo; payout/accounting exceptions require Payments/Pantry review. Broader finance-role approvals and QuickBooks integration remain. |
+| `DEV-002` | Rescues failed monthly gifts | push-further | partial | `src/coffer/agent/recovery.ts`, `tests/agent-recovery.test.mjs`, `docs/DEVELOPMENT-AGENT.md` | Signed failures request one private card-update email; Stripe schedules retries and daily reconciliation records recovery/lapse. Reversible pause/resume and activity explain outcomes. Major-donor approvals, expiring-card notices and per-donor frequency grants remain. |
+| `DEV-003` | Sends missing receipts | push-further | partial | `src/coffer/agent/receipts.ts`, `tests/agent-receipts.test.mjs`, `docs/DEVELOPMENT-AGENT.md` | Finds all missing and bounced gift receipts, freezes a batch for human approval and supports undo before dispatch. Unknown goods/services are held. Standing template approvals, migration acknowledgement policies and year-end delivery recovery remain. |
+| `DEV-004` | Drafts stewardship from the nonprofit's own history | push-further | partial | `src/coffer/agent/stewardship.ts`, `tests/stewardship.test.mjs`, `docs/DEVELOPMENT-AGENT.md` | An install-owned sealed AI key enables cited drafts from actual gifts, signed adjustments, funds, conversations and tributes; people edit/review/send, stale sources block sending and discarded drafts restore. Relationship-manager scheduling, event/reply sources and confidential role scoping remain. |
 | `DEV-005` | Shows who needs a human call next | push-further | partial | `src/coffer/call-tasks.ts`, `src/coffer/lapses.ts`, `src/coffer/retention.ts`, `tests/pipeline.test.mjs` | Staff review explained lapse/monthly/pledge flags, create owned dated calls, log outcomes on donor timelines and inspect donor-by-donor retention. Weekly agent ranking, capacity overflow, solicitation/status restrictions and called-vs-uncalled outcome attribution remain. |
 | `DEV-006` | Briefs before a meeting | push-further | missing |  | No meetings or briefs. |
 | `DEV-007` | Proves the move-in and the cutover | push-further | partial | `src/coffer/imports/service.ts`, `tests/coffer.test.mjs` | The Stripe move-in previews totals and skips for a person to approve; no comparison agent, recurring reauthorization or cutover. |

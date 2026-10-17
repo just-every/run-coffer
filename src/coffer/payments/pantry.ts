@@ -119,3 +119,21 @@ export async function postToPantry(c: Context, env: PaymentsEnv, view: any, docu
   return record(c, claimed, 'uncertain')
  }
 }
+
+/** Verify the exact saved proposal without resubmitting or creating money.
+ * Posted rows are checked too: approval and its immutable journal ID must agree. */
+export async function reconciliationPosting(c: Context, env: PaymentsEnv, payoutId: string) {
+ if (managed(env)) fail('not_available', 'Pantry is not available yet on RER Managed.', 503)
+ const row = await saved(c, payoutId)
+ if (!row) return null
+ const conn = connection(env)
+ if (row.destination !== conn.origin) fail('PANTRY_INSTALLATION', 'Reconnect the Pantry installation that received this payout.', 409)
+ if (!row.proposal_id) {
+  if (row.state === 'posted') fail('PANTRY_RESPONSE', 'This posted payout has no verifiable Pantry proposal ID.', 409)
+  return refresh(c, conn, row)
+ }
+ const proposal = await request<Proposal>(conn, `/api/pantry/agent/proposals/${encodeURIComponent(row.proposal_id)}`)
+ if (proposal.id !== row.proposal_id) fail('PANTRY_RESPONSE', 'Pantry returned a different proposal ID.', 409)
+ if (row.state === 'posted' && (proposal.status !== 'approved' || proposal.result_kind !== 'journal' || proposal.result_id !== row.external_id)) fail('PANTRY_RESPONSE', 'The saved Pantry journal no longer matches its approval.', 409)
+ return outcome(c, row, proposal)
+}

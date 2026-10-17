@@ -25,6 +25,7 @@ import * as imports from './imports/index'
 import { page } from './ui/common'
 import { givingResponse } from './giving/http'
 import { paymentsResponse } from './payments/http'
+import { agentResponse } from './agent/http'
 import { crmMoveInResponse } from './move-in/http'
 import { createCampaign, campaigns } from './giving/campaigns'
 import { givingManagePage } from './giving/manage-ui'
@@ -94,6 +95,8 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
   const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
+  const agent = await agentResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
+  if (agent) return agent
   const crmMoveIn = await crmMoveInResponse(request, c, { jsonBody, formBody })
   if (crmMoveIn) return crmMoveIn
   const payments = await paymentsResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))

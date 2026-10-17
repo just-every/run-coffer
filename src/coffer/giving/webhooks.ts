@@ -1,5 +1,5 @@
 import { fail, one } from '../db'
-import { emailPortalLink } from './portal'
+import { observeRecovery } from '../agent/recovery'
 import { identify, recordGift, stripeId, syncSubscription } from './recording'
 import { requireStripe, stripe, verifyStripeSignature, type GivingEnv } from './stripe'
 import { paymentEvent } from '../payments/events'
@@ -17,14 +17,8 @@ export async function invoice(env: GivingEnv, id: string, failureEventId?: strin
   if (stripeId(sub.latest_invoice) === current.id) await env.DB.prepare('UPDATE cf_subscriptions SET recovered=CASE WHEN failed_attempts>0 OR ?>1 THEN 1 ELSE recovered END,next_attempt_at=NULL WHERE id=?').bind(current.attempt_count, sub.id).run()
  } else if (current.status === 'open' && current.attempt_count > 0 && stripeId(sub.latest_invoice) === current.id) {
   await env.DB.prepare("UPDATE cf_subscriptions SET failed_attempts=MAX(failed_attempts,?),recovered=0,next_attempt_at=? WHERE id=? AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE source='stripe' AND reference=?)").bind(current.attempt_count, current.next_payment_attempt ?? null, sub.id, current.id).run()
-  // Stripe owns retry timing. A failed mail delivery makes Stripe redeliver this
-  // webhook; it never turns a failed charge into a ledger gift.
-  if (failureEventId && !await one({ db: env.DB }, 'SELECT event_id FROM cf_giving_notices WHERE event_id=?', failureEventId)) {
-   const sent = await emailPortalLink(env, intent.donor_id, 'Update your card for your monthly gift')
-   if (!sent) fail('mail_unavailable', 'The card update email could not be sent.', 503)
-   await env.DB.prepare('INSERT OR IGNORE INTO cf_giving_notices(event_id,sent_at) VALUES(?,?)').bind(failureEventId, new Date().toISOString()).run()
-  }
  }
+ await observeRecovery(env, current, sub, intent, failureEventId)
 }
 
 export async function completed(env: GivingEnv, sessionId: string) {
