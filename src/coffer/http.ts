@@ -12,6 +12,7 @@ import { settings } from './settings'
 import * as imports from './imports/index'
 import { page } from './ui/common'
 import { givingResponse } from './giving/http'
+import { paymentsResponse } from './payments/http'
 import { createCampaign, campaigns } from './giving/campaigns'
 import { givingManagePage } from './giving/manage-ui'
 import { receiptEvents } from './letter-delivery'
@@ -80,6 +81,8 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
   const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
+  const payments = await paymentsResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
+  if (payments) return payments
   if (path === '/api/coffer/giving/campaigns' || path === '/app/giving/campaigns') {
    if (request.method === 'GET' && isApi) return json({ campaigns: await campaigns(c) })
    if (request.method !== 'POST') fail('method_not_allowed', 'Use the campaign form.', 405)
@@ -137,6 +140,8 @@ async function eraseDonor(c: Context, authority: Authority, input: any) {
  const checkpoint = await imports.portabilityCheckpoint(c.db)
  const nativeErasure = imports.donorErasureStatements(donor, placeholder, c.now)
  const givingErasure = [
+  { sql: 'INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_giving_customers WHERE donor_id=?', params: [placeholder, donorId] },
+  { sql: "INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT source_ref,? FROM cf_donors WHERE id=? AND source='stripe' AND source_ref IS NOT NULL", params: [placeholder, donorId] },
   { sql: 'DELETE FROM cf_donor_tokens WHERE donor_id=?', params: [donorId] },
   { sql: 'DELETE FROM cf_giving_customers WHERE donor_id=?', params: [donorId] },
   { sql: "UPDATE cf_giving_intents SET donor_id=?,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR email=?", params: [placeholder, donorId, donor.email ?? ''] },

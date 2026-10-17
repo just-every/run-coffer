@@ -12,7 +12,7 @@ export interface GivingEnv extends Bindings {
 export const STRIPE_API_VERSION = '2026-09-30.endive'
 
 /** Match the platform's managed-installation convention, including invalid origins. */
-function managed(env: GivingEnv): boolean {
+export function managed(env: GivingEnv): boolean {
  if (!env.RER_INSTALLATION_ID || !env.RER_MANAGEMENT_ORIGIN) return false
  try { return !isLoopbackHost(new URL(env.RER_MANAGEMENT_ORIGIN).hostname) } catch { return true }
 }

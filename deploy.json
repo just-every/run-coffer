@@ -57,6 +57,36 @@
       "binding": "MAIL_EVENT_PUBLIC_KEY",
       "environment": "MAIL_EVENT_PUBLIC_KEY",
       "optional": true
+    },
+    {
+      "binding": "PANTRY_ORIGIN",
+      "environment": "PANTRY_ORIGIN",
+      "optional": true
+    },
+    {
+      "binding": "PANTRY_AGENT_TOKEN",
+      "environment": "PANTRY_AGENT_TOKEN",
+      "optional": true
+    },
+    {
+      "binding": "PANTRY_DEPOSIT_ACCOUNT",
+      "environment": "PANTRY_DEPOSIT_ACCOUNT",
+      "optional": true
+    },
+    {
+      "binding": "PANTRY_FEE_ACCOUNT",
+      "environment": "PANTRY_FEE_ACCOUNT",
+      "optional": true
+    },
+    {
+      "binding": "PANTRY_FUND_ACCOUNTS",
+      "environment": "PANTRY_FUND_ACCOUNTS",
+      "optional": true
+    },
+    {
+      "binding": "QBO_ACCOUNT_NAMES",
+      "environment": "QBO_ACCOUNT_NAMES",
+      "optional": true
     }
   ]
 }

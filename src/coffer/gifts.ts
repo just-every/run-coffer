@@ -34,6 +34,7 @@ export async function giftCommand(c: Context, command: string, p: Row): Promise<
   if (on < gift.received_on) fail('INPUT', 'A reversal cannot be dated before its gift.', 400)
   await commit(c, [
    guard("NOT EXISTS(SELECT 1 FROM cf_gifts WHERE reverses=?)", 'ALREADY_REVERSED', 'This gift has already been reversed.', giftId),
+   guard("NOT EXISTS(SELECT 1 FROM cf_payment_entries WHERE gift_id=? AND contribution_cents<>0)", 'PROCESSOR_ADJUSTMENT', 'Stripe has already adjusted this gift. Record further refunds in Stripe.', giftId),
    guard("NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=? AND a.live=1 AND b.status IN ('prepared','approved'))", 'IN_ACKNOWLEDGEMENT', 'Discard the acknowledgement batch holding this gift before reversing it.', giftId),
    sql("INSERT INTO cf_gifts VALUES(?,1,?,'reversal',?,?,?,?,NULL,?,?,'none',0,NULL,?,'manual',?,?)", reversalId, gift.donor_id, giftId, on, -gift.amount_cents, gift.method, gift.fund, gift.pledge_id, reason, c.now, c.actor.name),
    event(c, 'gift.reverse', 'gift', giftId, gift.donor_id, { amountCents: -gift.amount_cents, reversal: reversalId })])

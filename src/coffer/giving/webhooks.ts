@@ -2,6 +2,7 @@ import { fail, one } from '../db'
 import { emailPortalLink } from './portal'
 import { identify, recordGift, stripeId, syncSubscription } from './recording'
 import { requireStripe, stripe, verifyStripeSignature, type GivingEnv } from './stripe'
+import { paymentEvent } from '../payments/events'
 
 export async function invoice(env: GivingEnv, id: string, failureEventId?: string) {
  const current = await stripe(env, '/invoices/' + encodeURIComponent(id))
@@ -61,5 +62,6 @@ export async function webhook(env: GivingEnv, request: Request, raw: string) {
  } else if (['customer.subscription.updated', 'customer.subscription.deleted', 'customer.subscription.created'].includes(event.type)) {
   await syncSubscription(env, object.id)
  }
+ await paymentEvent(env, event)
  await env.DB.prepare('INSERT OR IGNORE INTO cf_giving_events(id,type,processed_at) VALUES(?,?,?)').bind(event.id, event.type, new Date().toISOString()).run()
 }

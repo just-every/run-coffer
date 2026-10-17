@@ -65,8 +65,8 @@ export const PAGE = 50
 export async function listDonors(c: { db: D1Database }, query: { q?: string | null; page?: number } = {}) {
  const q = (query.q ?? '').trim().toLowerCase().slice(0, 100), page = Math.max(0, Math.min(query.page ?? 0, 10000)), like = `%${q.replace(/[%_\\]/g, x => `\\${x}`)}%`
  const rows = await all(c, `SELECT d.id,d.version,d.name,d.email,d.city,d.region,d.source,d.erased_at,h.name AS household,
-   (SELECT COALESCE(SUM(amount_cents),0) FROM cf_gifts g WHERE g.donor_id=d.id) AS total_cents,
-   (SELECT MAX(received_on) FROM cf_gifts g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
+   (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger g WHERE g.donor_id=d.id) AS total_cents,
+   (SELECT MAX(received_on) FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
    ${CURRENT('email')} AS email_consent, ${CURRENT('mail')} AS mail_consent
   FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id
   WHERE (?='' OR lower(d.name) LIKE ? ESCAPE '\\' OR d.email LIKE ? ESCAPE '\\' OR lower(h.name) LIKE ? ESCAPE '\\')
@@ -84,8 +84,8 @@ export async function donorHistory(c: { db: D1Database }, donorId: string) {
     (SELECT CASE WHEN a.printed_at IS NOT NULL THEN 'printed' ELSE COALESCE(NULLIF(a.delivery_status,'pending'),b.status) END FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_status,
     (SELECT b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_sent_on,
     (SELECT a.batch_id FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1) AS ack_batch
-   FROM cf_gifts g WHERE g.donor_id=? ORDER BY g.received_on DESC, g.created_at DESC`, donorId),
-  all(c, 'SELECT p.*,(SELECT COALESCE(SUM(amount_cents),0) FROM cf_gifts g WHERE g.pledge_id=p.id) AS paid_cents FROM cf_pledges p WHERE donor_id=? ORDER BY pledged_on DESC', donorId),
+   FROM cf_contribution_ledger g WHERE g.donor_id=? ORDER BY g.received_on DESC, g.created_at DESC`, donorId),
+  all(c, 'SELECT p.*,(SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger g WHERE g.pledge_id=p.id) AS paid_cents FROM cf_pledges p WHERE donor_id=? ORDER BY pledged_on DESC', donorId),
   all(c, 'SELECT * FROM cf_consents WHERE donor_id=? ORDER BY id DESC', donorId),
   all(c, `SELECT a.id,a.batch_id,a.gift_id,a.amount_cents,a.received_on,a.delivery_status,a.route,a.printed_at,a.delivered_at,a.delivery_note,b.kind,b.statement_year,b.status,b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.donor_id=? AND (a.live=1 OR b.kind='statement') AND b.status<>'discarded' ORDER BY a.received_on DESC`, donorId),
   all(c, 'SELECT p.id,p.name,p.channel,p.status,p.sent_on,p.prepared_at FROM cf_appeal_recipients r JOIN cf_appeals p ON p.id=r.appeal_id WHERE r.donor_id=? AND p.status<>\'discarded\' ORDER BY p.prepared_at DESC', donorId),

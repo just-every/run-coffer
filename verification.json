@@ -56,6 +56,14 @@
       "commands": [
         "pnpm run test:receipts"
       ]
+    },
+    {
+      "name": "payments",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:payments"
+      ]
     }
   ],
   "nightly": [

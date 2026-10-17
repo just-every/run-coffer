@@ -13,6 +13,12 @@ const theme = { href: '/rer-theme.css', productName: branding.name, accentColor:
 export interface Bindings {
  STRIPE_SECRET_KEY?: string
  STRIPE_WEBHOOK_SECRET?: string
+ PANTRY_ORIGIN?: string
+ PANTRY_AGENT_TOKEN?: string
+ PANTRY_DEPOSIT_ACCOUNT?: string
+ PANTRY_FEE_ACCOUNT?: string
+ PANTRY_FUND_ACCOUNTS?: string
+ QBO_ACCOUNT_NAMES?: string
  DB: D1Database
  /** Built browser files; hosted deploys run the Worker first (staticAssetResponse). */
  ASSETS?: Fetcher

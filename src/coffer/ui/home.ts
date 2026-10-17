@@ -7,7 +7,7 @@ export async function home(c: Context) {
  const due = await dueGifts(c), s = due.settings, year = due.today.slice(0, 4)
  const [counts, waiting] = await Promise.all([
   one(c, `SELECT (SELECT count(*) FROM cf_donors WHERE erased_at IS NULL) AS donors,
-   (SELECT COALESCE(SUM(amount_cents),0) FROM cf_gifts WHERE received_on>=?) AS year_cents,
+   (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger WHERE received_on>=?) AS year_cents,
    (SELECT count(*) FROM cf_gifts WHERE kind='gift' AND received_on>=?) AS year_gifts,
    (SELECT count(*) FROM cf_consents) AS consents,
    (SELECT count(*) FROM cf_ack_batches WHERE status='sent') AS sent`, `${year}-01-01`, `${year}-01-01`),

@@ -4,7 +4,7 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 
 `CONTRACT.md` defines the full fundraising CRM target. Its Status table keeps broader unfinished features explicit; the giving rows here describe the self-hosted donation, subscription and donor portal implementation.
 
-**Totals: 61 claims · 28 in code · 12 partly · 21 contract, not yet in code.**
+**Totals: 61 claims · 31 in code · 10 partly · 20 contract, not yet in code.**
 
 | # | Section | Claim | Status | Backed by |
 |---|---|---|---|---|
@@ -31,11 +31,11 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 | 21 | Donors | tributes | contract, not yet in code | None in code (a gift note can mention one). |
 | 22 | Donors | employer matches | contract, not yet in code | None in code. |
 | 23 | Donors card | Lifetime giving and first gift | partly | Lifetime and yearly totals in `donorHistory` `totals`; first-gift date is not shown. |
-| 24 | Payments | Gifts sync from Stripe as they happen | partly | `src/coffer/imports/` moves in saved Stripe customer and charge pages with preview, apply and undo; no live sync. |
-| 25 | Payments | fees, refunds | partly | Move-in nets partial refunds and skips full refunds (`imports/snapshots.ts`); no fees. |
+| 24 | Payments | Gifts sync from Stripe as they happen | in code | Signed Stripe charge webhooks share the giving endpoint, match external payments and saved-page move-ins, and deduplicate by event, charge and balance transaction (`src/coffer/payments/`, `tests/payments.test.mjs`). Self-hosted USD; Managed provider calls are not available yet. |
+| 25 | Payments | fees, refunds | in code | Immutable balance entries retain gross, processing fees, refunds, disputes and wins. Refunds append contribution reversals; saved move-in refunds are not counted twice (`migrations/core/0019_coffer_payments.sql`, `src/coffer/payments/entries.ts`, `tests/payments.test.mjs`). |
 | 26 | Payments | failed monthly payments | in code | Signed failed-invoice events update monthly state, email card-update links and record successful retries without counting failed charges as gifts (`src/coffer/giving/webhooks.ts`, `tests/giving.test.mjs`). |
-| 27 | Payments | each payout matches its deposit in QuickBooks Online or Pantry | contract, not yet in code | No payouts or accounting link. |
-| 28 | Payments | split by fund | partly | Every gift carries a fund (`gifts.ts`, move-in `metadata.fund`); no payout split. |
+| 27 | Payments | each payout matches its deposit in QuickBooks Online or Pantry | partly | Paid USD payouts reconcile to exact balance transactions and submit an evidence-backed fund journal to Pantry. A person approves in Pantry; refresh records its posted journal ID without resending. QBO-ready journal CSV and Desktop IIF ship; a live QBO connection remains later. Live Stripe-to-books proof awaits a USD-settling test account: the supplied account settles AUD (`docs/PAYMENTS.md`). |
+| 28 | Payments | split by fund | in code | Payout detail shows gross, fees and net per fund; mapped fund accounts become balanced Pantry journal lines or QBO journal export lines. Automatic payout membership comes from Stripe; manual payout membership is explicitly reviewed and must match to the cent (`tests/payments.test.mjs`). |
 | 29 | Receipts | Thank-you letters | in code | Reviewed, hash-approved thank-you letters are sent through install mail or printed individually or by batch, with donor-level delivery states (`src/coffer/acknowledgements.ts`, `src/coffer/letter-delivery.ts`). |
 | 30 | Receipts | year-end tax receipts | in code | Calendar-year statements itemize every unreversed gift, total gifts, goods value and deductible portions; approved statements use the same email/print workflow (`src/coffer/year-end.ts`, `tests/receipts.test.mjs`). |
 | 31 | Receipts | by email | in code | Self-hosted SendGrid sending uses the installation’s existing sign-in mail credentials and sender. RER Managed provider integration is not available yet (`src/coffer/receipt-mail.ts`). |

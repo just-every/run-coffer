@@ -1,0 +1,25 @@
+import { fail } from '../db'
+import { stripe, type GivingEnv } from '../giving/stripe'
+export { stripeId } from '../giving/recording'
+
+export function cents(value: unknown): number {
+ if (!Number.isSafeInteger(value)) fail('invalid_payment', 'Stripe returned an invalid amount.', 409)
+ return value as number
+}
+export function day(seconds: number): string {
+ if (!Number.isSafeInteger(seconds) || seconds <= 0) fail('invalid_payment', 'Stripe returned an invalid date.', 409)
+ return new Date(seconds * 1000).toISOString().slice(0, 10)
+}
+export async function* stripePages(env: GivingEnv, path: string): AsyncGenerator<any> {
+ let after = ''
+ for (;;) {
+  const separator = path.includes('?') ? '&' : '?'
+  const page = await stripe(env, path + separator + 'limit=100' + (after ? '&starting_after=' + encodeURIComponent(after) : ''))
+  if (!Array.isArray(page.data)) fail('invalid_payment', 'Stripe returned an invalid list.', 502)
+  for (const row of page.data) yield row
+  if (!page.has_more) return
+  const next = page.data.at(-1)?.id
+  if (!next || next === after) fail('invalid_payment', 'Stripe returned an incomplete list.', 502)
+  after = next
+ }
+}

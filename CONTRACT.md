@@ -456,7 +456,7 @@ The owner connects the nonprofit's Stripe account (Stripe Connect OAuth or a res
 
 *Acceptance:* An HTTP journey with Stripe in test mode connects an account, receives charge and refund webhooks (one replayed, one with a bad signature refused), drops one event and sees the daily sweep add it, and reviews an ambiguous donor match.
 
-*Status:* partial. Only saved Stripe customer and charge pages can be moved in; there is no connection, webhook, backfill or sweep. Evidence: `src/coffer/imports/snapshots.ts`, `src/coffer/imports/service.ts`.
+*Status:* partial. Signed live charge, refund, dispute, failure and payout events, external donor matching and replay-safe money entries ship alongside saved-page move-in. OAuth/automatic endpoint registration, scheduled backfill/sweep and an ambiguous-match review queue remain outstanding. Evidence: `src/coffer/payments/`, `src/coffer/giving/webhooks.ts`, `tests/payments.test.mjs`.
 
 #### PAY-002 — Payouts with their gifts.
 
@@ -464,7 +464,7 @@ Each Stripe payout is recorded with every gift, refund, dispute and fee it conta
 
 *Acceptance:* An HTTP journey with the Stripe edge faked receives a payout of 14 charges, two fees and one refund, opens it in Coffer, and reads gross, fees, refunds and net equal to the deposit.
 
-*Status:* missing. No payouts.
+*Status:* done. Payout detail retains every processor entry, gross, fees and fund split and flags differences; automatic membership comes from paginated Stripe balance APIs, manual membership is explicitly selected and validated. Posting requires a completed exact-cent match. Evidence: `src/coffer/payments/payouts.ts`, `tests/payments.test.mjs`.
 
 #### PAY-003 — Refunds and disputes.
 
@@ -472,7 +472,7 @@ A refund or dispute from the processor (or a staff-initiated refund through Coff
 
 *Acceptance:* An HTTP journey with the Stripe edge faked refunds half a gift, opens a dispute on another and wins it, and reads the reversal lines, the corrected receipt and the reinstated gift.
 
-*Status:* partial. Reversal lines exist, and move-in nets partial refunds and skips full refunds; no live refunds, disputes or receipt corrections. Evidence: `src/coffer/gifts.ts`, `src/coffer/imports/snapshots.ts`.
+*Status:* partial. Processor refunds and disputes append immutable contribution reversals and a dispute win reinstates the contribution. No receipt correction, staff-initiated refund, relationship-manager notice or evidence due-date workflow yet. Evidence: `src/coffer/payments/entries.ts`, `tests/payments.test.mjs`.
 
 #### PAY-004 — Processing fees and fee cover.
 
@@ -480,7 +480,7 @@ Each online gift records its processing fee from the processor's balance transac
 
 *Acceptance:* An HTTP journey gives $100 with fee cover, reads the gift, fee and receipt amounts, and a fee report by form that sums to the payouts.
 
-*Status:* missing. No fees recorded.
+*Status:* partial. Immutable balance transactions record processor gross, fees and net, shown by fund in each payout. Donor fee-cover checkout and form/campaign fee reports remain outstanding. Evidence: `src/coffer/payments/entries.ts`, `src/coffer/payments/ui.ts`, `tests/payments.test.mjs`.
 
 #### PAY-005 — Other giving platforms.
 
@@ -508,7 +508,7 @@ The owner connects QuickBooks Online and maps each fund to an income account and
 
 *Acceptance:* An HTTP journey with the QuickBooks Online edge faked maps three funds, posts a payout and a check batch, replays the post without a duplicate, and reads deposits whose lines and totals equal Coffer's.
 
-*Status:* missing. No accounting connection.
+*Status:* partial. Mapped fund, bank and fee accounts export as a balanced QBO journal CSV with fund classes; Desktop IIF is separate. No QBO OAuth/API connection or check-batch posting yet. Evidence: `src/coffer/payments/exports.ts`, `tests/payments.test.mjs`.
 
 #### FIN-002 — Pantry sync.
 
@@ -516,7 +516,7 @@ The same mapping and deposit posting as `FIN-001` into Pantry, Run Edit Run's ac
 
 *Acceptance:* An HTTP journey with the Pantry edge faked posts a payout and a check batch and reads matching deposits.
 
-*Status:* missing. No Pantry connection.
+*Status:* partial. Paid matched USD payouts become evidence-backed Pantry journal proposals; human Pantry approval posts the deposit, and Coffer refresh records its journal ID. Saved submission claims prevent duplicate or uncertain resends. Check batches remain outstanding; live Stripe-to-Pantry acceptance needs a USD-settling Stripe test account. Evidence: `src/coffer/payments/pantry.ts`, `tests/payments.test.mjs`, `docs/PAYMENTS.md`.
 
 #### FIN-003 — Restricted funds.
 
@@ -524,7 +524,7 @@ Funds are marked restricted (purpose or time) or unrestricted; restricted gifts 
 
 *Acceptance:* An HTTP journey records restricted and unrestricted gifts, enters a spend against a restricted fund, and reads the release report.
 
-*Status:* partial. Every gift has a free-text fund (default Unrestricted); no restriction type, mapping or release report. Evidence: `src/coffer/gifts.ts`.
+*Status:* partial. Every gift has a free-text fund (default Unrestricted); payout fund names map to accounting accounts through installation settings. Restriction types and release reports remain outstanding. Evidence: `src/coffer/gifts.ts`, `src/coffer/payments/pantry.ts`.
 
 #### FIN-004 — Journal export for other ledgers.
 
@@ -532,7 +532,7 @@ Nonprofits on QuickBooks Desktop, Xero, Aplos or Sage Intacct download the same 
 
 *Acceptance:* An HTTP journey downloads a month's journal and checks its totals by account against the ledger.
 
-*Status:* missing. No journal export.
+*Status:* partial. Each reconciled payout exports a mapped journal CSV or Desktop IIF. A combined per-period download remains outstanding. Evidence: `src/coffer/payments/exports.ts`, `tests/payments.test.mjs`.
 
 #### FIN-005 — Reconciliation report.
 
@@ -540,7 +540,7 @@ For any period Coffer shows gifts in the ledger, money received by the processor
 
 *Acceptance:* An HTTP journey builds a month with a pending ACH gift and a refund after payout and reads a report whose listed differences account for every cent.
 
-*Status:* missing. No reconciliation report.
+*Status:* partial. Per-payout gifts, refunds, fees, net, match difference and Pantry destination/journal ID are visible. Period-wide ledger/processor/deposit reconciliation including pending ACH and check batches remains outstanding. Evidence: `src/coffer/payments/ui.ts`, `src/coffer/payments/payouts.ts`, `tests/payments.test.mjs`.
 
 ### Receipts and acknowledgements
 
@@ -1268,9 +1268,9 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 22 | employer matches | `GIFT-007` | missing |
 | 23 | Lifetime giving and first gift | `DONOR-011` | partial |
 | 24 | Gifts sync from Stripe as they happen | `PAY-001` | partial |
-| 25 | fees, refunds | `PAY-003`, `PAY-004` | `PAY-003` partial · `PAY-004` missing |
+| 25 | fees, refunds | `PAY-003`, `PAY-004` | partial |
 | 26 | failed monthly payments | `GIVE-006` | partial |
-| 27 | each payout matches its deposit in QuickBooks Online or Pantry | `PAY-002`, `FIN-001`, `FIN-002` | missing |
+| 27 | each payout matches its deposit in QuickBooks Online or Pantry | `PAY-002`, `FIN-001`, `FIN-002` | `PAY-002` done · `FIN-001` / `FIN-002` partial |
 | 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` missing · `FIN-003` partial |
 | 29 | Thank-you letters | `ACK-001`, `RCPT-002` | `ACK-001` done · `RCPT-002` done |
 | 30 | year-end tax receipts | `RCPT-004` | partial |
@@ -1310,13 +1310,13 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 Judged from the code and tests at commit `12e75786aba38e62ce0bafcc748249f817e46ca1` (17 October 2026).
 
-The giving and receipt clauses and their claim mappings include their current implementations.
+The giving, receipt and payments clauses and their claim mappings include their current implementations and named tests.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 3 | 44 | 79 | 126 |
-| All | 12 | 44 | 79 | 135 |
+| Target and push further | 4 | 49 | 73 | 126 |
+| All | 13 | 49 | 73 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1367,17 +1367,17 @@ The giving and receipt clauses and their claim mappings include their current im
 | `CAMP-003` | Peer-to-peer fundraising | target | missing |  | No peer-to-peer pages. |
 | `CAMP-004` | Memberships | target | missing |  | No memberships. |
 | `CAMP-005` | Auction results as gifts | target | missing |  | No events or auction import. |
-| `PAY-001` | Live Stripe connection | target | partial | `src/coffer/imports/snapshots.ts`, `src/coffer/imports/service.ts` | Only saved Stripe customer and charge pages can be moved in; there is no connection, webhook, backfill or sweep. |
-| `PAY-002` | Payouts with their gifts | target | missing |  | No payouts. |
-| `PAY-003` | Refunds and disputes | target | partial | `src/coffer/gifts.ts`, `src/coffer/imports/snapshots.ts` | Reversal lines exist, and move-in nets partial refunds and skips full refunds; no live refunds, disputes or receipt corrections. |
-| `PAY-004` | Processing fees and fee cover | target | missing |  | No fees recorded. |
+| `PAY-001` | Live Stripe connection | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Signed live charge, refund, dispute, failure and payout events, external donor matching and replay-safe money entries ship alongside saved-page move-in. OAuth/automatic endpoint registration, scheduled backfill/sweep and an ambiguous-match review queue remain outstanding. |
+| `PAY-002` | Payouts with their gifts | target | done | `src/coffer/payments/`, `tests/payments.test.mjs` | Payout detail retains every processor entry, gross, fees and fund split and flags differences; automatic membership comes from paginated Stripe balance APIs, manual membership is explicitly selected and validated. Posting requires a completed exact-cent match. |
+| `PAY-003` | Refunds and disputes | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Processor refunds and disputes append immutable contribution reversals and a dispute win reinstates the contribution. No receipt correction, staff-initiated refund, relationship-manager notice or evidence due-date workflow yet. |
+| `PAY-004` | Processing fees and fee cover | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Immutable balance transactions record processor gross, fees and net, shown by fund in each payout. Donor fee-cover checkout and form/campaign fee reports remain outstanding. |
 | `PAY-005` | Other giving platforms | target | missing |  | No other platform connections. |
 | `PAY-006` | Shop orders record only the contribution | target | missing |  | No shop connection. |
-| `FIN-001` | QuickBooks Online sync | target | missing |  | No accounting connection. |
-| `FIN-002` | Pantry sync | target | missing |  | No Pantry connection. |
-| `FIN-003` | Restricted funds | target | partial | `src/coffer/gifts.ts` | Every gift has a free-text fund (default Unrestricted); no restriction type, mapping or release report. |
-| `FIN-004` | Journal export for other ledgers | target | missing |  | No journal export. |
-| `FIN-005` | Reconciliation report | target | missing |  | No reconciliation report. |
+| `FIN-001` | QuickBooks Online sync | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Mapped fund, bank and fee accounts export as a balanced QBO journal CSV with fund classes; Desktop IIF is separate. No QBO OAuth/API connection or check-batch posting yet. |
+| `FIN-002` | Pantry sync | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Paid matched USD payouts become evidence-backed Pantry journal proposals; human Pantry approval posts the deposit, and Coffer refresh records its journal ID. Saved submission claims prevent duplicate or uncertain resends. Check batches remain outstanding; live Stripe-to-Pantry acceptance needs a USD-settling Stripe test account. |
+| `FIN-003` | Restricted funds | target | partial | `src/coffer/gifts.ts`, `src/coffer/payments/pantry.ts` | Every gift has a free-text fund (default Unrestricted); payout fund names map to accounting accounts through installation settings. Restriction types and release reports remain outstanding. |
+| `FIN-004` | Journal export for other ledgers | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Each reconciled payout exports a mapped journal CSV or Desktop IIF. A combined per-period download remains outstanding. |
+| `FIN-005` | Reconciliation report | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Per-payout gifts, refunds, fees, net, match difference and Pantry destination/journal ID are visible. Period-wide ledger/processor/deposit reconciliation including pending ACH and check batches remains outstanding. |
 | `RCPT-001` | Immediate email receipts | target | partial | `src/coffer/receipt-mail.ts`, `tests/receipts.test.mjs` | Approved per-gift receipts are sent from install SendGrid; automatic online-gift triggers within a minute, domain verification and attached PDFs remain unbuilt. Managed integrations are not available yet. |
 | `RCPT-002` | Acknowledgements delivered by email | target | done | `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs` | Approved frozen batches send once per letter through self-hosted SendGrid, route donors without current email consent/address to print, and show submitted versus signed provider delivery results. RER Managed sending is not available yet. |
 | `RCPT-003` | Print-ready letters, labels and envelopes | target | partial | `src/coffer/ui/print-letters.ts`, `tests/receipts.test.mjs` | Single and batch print-styled US Letter documents support window-envelope placement and browser Save as PDF alongside CSV. Labels, envelope-only layouts, Word files, household grouping and Lob remain unbuilt. |
