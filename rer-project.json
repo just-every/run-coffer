@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "projectId": "just-every/run-coffer",
+  "name": "coffer",
+  "sourceRepository": "https://github.com/just-every/run-coffer",
+  "license": "MIT"
+}
