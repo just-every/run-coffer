@@ -109,6 +109,8 @@ export const donors: DonorSeed[] = [
   gifts: [[43, 250, { method: 'online', fund: H }], [2, 300, { method: 'card', fund: H, ref: 'ch_3QfP9xSingh1014', note: 'Fall food drive', stripe: true }]] },
  { key: 'murray', name: 'Joan Murray', email: 'joan.murray@example.com', street: '250 Dayton St', city: 'Yellow Springs', zip: '45387', since: 365, email_consent: 'yes', mail_consent: 'yes',
   monthly: { dollars: 40, day: 10, months: 12, customer: 'cus_Qd71JoanMu' } },
+ { key: 'pruitt', name: 'Walter Pruitt', email: 'walter.pruitt@example.com', phone: '(937) 555-0148', street: '27 Galloway St', city: 'Xenia', zip: '45385', since: 430, mail_consent: 'yes',
+  gifts: [[425, 500, check('2107', H)]] },
  { key: 'novak', name: 'Petra Novak', email: 'petra.novak@example.org', since: 20, mail_consent: 'yes', street: '16 Center St', city: 'Cedarville', zip: '45314',
   gifts: [[18, 50, check('118', H)]] },
 ]

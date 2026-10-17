@@ -2,7 +2,8 @@
 // the owner exists): Copper Hollow Food Pantry, a lived-in US nonprofit with a
 // small team, donors and households, a year of one-off, monthly and in-kind
 // gifts, pledges, reversals, consent history, acknowledgement letters and
-// appeals at every stage, and the audit trail those leave. Rows go through
+// appeals at every stage, online giving on its Holiday Meals campaign page with
+// monthly plans and one recovered card, and the audit trail those leave. Rows go through
 // Coffer's own write path (commit) and are shaped by its domain code
 // (renderLetter, letterHash, audience, hashOf, the Stripe move-in ids). Fixed ids
 // with ON CONFLICT DO NOTHING keep it idempotent; nothing is fetched or sent.
@@ -10,6 +11,7 @@ import type { Bindings } from './auth.server'
 import { commit, sha256, sql, today, type Context, type Row, type Stmt } from './coffer/db'
 import { settings } from './coffer/settings'
 import { appealPlan, appeals, letterPlan, letters } from './coffer/demo/outreach'
+import { onlineGiving } from './coffer/demo/giving'
 import { ledger, teamRows, timeOf, type AuditEvent, type Clock, type Person } from './coffer/demo/ledger'
 import { agentKeys, donors, organization, ownerName, team } from './coffer/demo/people'
 
@@ -56,14 +58,28 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
  const ack = await letters(clock, s, book.gifts, byId, letterPlan(staff, agents))
  const since = new Map(book.donors.map((d, i) => [d.id, donors[i].since]))
  const out = await appeals(clock, db, appealPlan(staff, agents), since)
+ const online = await onlineGiving(clock, s, byId)
  const audit: AuditEvent[] = [
   { at: reviewedAt, actor: owner, action: 'settings.update', subject_kind: 'settings', subject_id: '1', donor_id: null, detail: { version: 2, thresholdCents: s.threshold_cents } },
   ...agentKeys.map(k => ({ at: timeOf(clock, k.created, 10), actor: owner, action: 'agent.create', subject_kind: 'agent', subject_id: k.id, donor_id: null, detail: { expiresAt: Date.parse(timeOf(clock, k.created, 10)) + 30 * 86400000 } })),
-  ...book.events, ...ack.events, ...out.events,
+  ...book.events, ...ack.events, ...out.events, ...online.events,
  ].sort((a, b) => a.at.localeCompare(b.at))
  await commit(c, [
+  ...rows('cf_campaigns', [online.campaign]),
+  ...rows('cf_giving_customers', online.customers),
+  ...rows('cf_giving_intents', online.intents),
+  ...rows('cf_subscriptions', online.plans),
+  ...rows('cf_gifts', online.gifts),
+  ...rows('cf_campaign_gifts', online.campaignGifts),
+  ...rows('cf_subscription_gifts', online.planGifts),
+  ...rows('cf_agent_recovery', online.recovery ? [online.recovery] : []),
+  ...rows('cf_agent_activity', online.activity),
+  sql('UPDATE cf_agent_recovery_settings SET last_run_at=? WHERE id=1 AND last_run_at IS NULL', online.recoveredAt),
   ...rows('cf_ack_batches', ack.batches),
+  ...rows('cf_ack_batches', online.batches),
   ...rows('cf_acks', ack.acks),
+  ...rows('cf_acks', online.acks),
+  ...rows('cf_approvals', online.approvals),
   ...rows('cf_appeals', out.appeals),
   ...rows('cf_appeal_recipients', out.recipients),
   ...rows('cf_approvals', [...ack.approvals, ...out.approvals]),

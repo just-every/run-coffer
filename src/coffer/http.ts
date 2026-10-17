@@ -35,6 +35,7 @@ import { receiptEvents } from './letter-delivery'
 import { printLetters } from './ui/print-letters'
 import { home } from './ui/home'
 import { donorsPage, donorPage } from './ui/donors'
+import { giftsPage } from './ui/gifts'
 import { lettersPage, batchPage } from './ui/letters'
 import { appealsPage, appealPage } from './ui/appeals'
 import { connectPage } from './communications/connect-ui'
@@ -98,6 +99,7 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
   const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
+  if (!isApi && person(actor)) actor.org = (await settings(c)).organisation || undefined
   const agent = await agentResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
   if (agent) return agent
   const crmMoveIn = await crmMoveInResponse(request, c, { jsonBody, formBody })
@@ -287,6 +289,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app') return show('Today', await home(c))
  if (path === '/app/giving') return show('Online giving', await givingManagePage(c))
  if (path === '/app/giving/setup') return show('Connect Stripe', await givingSetupPage(c))
+ if (path === '/app/gifts') return page('Gifts', await giftsPage(c, url), actor, 200, path, { hideTitle: true })
  if (path === '/app/donors') return show('Donors', await donorsPage(c, url))
  let m = path.match(/^\/app\/donors\/([^/]+)$/)
  if (m) { const view = await donorPage(c, m[1]); return show(view.title, view.body) }

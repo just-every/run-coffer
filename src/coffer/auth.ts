@@ -1,7 +1,8 @@
 import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
 import { CofferError } from './db'
 export type Role = 'owner' | 'admin' | 'member' | 'agent'
-export type Actor = { id: string; name: string; role: Role }
+/** `org` is display-only: the organization name the app shell shows in its top bar. */
+export type Actor = { id: string; name: string; role: Role; org?: string }
 export type Authority = { sql: string; params: any[] }
 export const digest = async (value: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), x => x.toString(16).padStart(2, '0')).join('')
 /** Owners and admins manage; members do data entry; agents only prepare. */

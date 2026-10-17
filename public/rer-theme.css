@@ -1,23 +1,24 @@
 /* This edition's declared theme. The installer, sign-in, confirmation, /setup,
    the Lobby and the app read these --rer-* tokens; the app serves this file and
-   its fonts. Coffer's look (design desk, 16 Oct 2026): the purse mark's violet
-   as the accent, deep indigo ink, Figtree throughout. The run site's own tokens
-   are in /site/theme.css. */
+   its fonts. Coffer's app look (owner's pick, 17 Oct 2026): a cool-white work
+   surface, deep indigo ink, the purse mark's violet as the one accent, quiet
+   hairline fields, Figtree throughout. The run site's own tokens are in
+   /site/theme.css; the app's extra tokens are in /coffer.css. */
 @import url('/fonts/fonts.css');
 
 :root {
   --rer-font-body: 'Figtree', 'Figtree Fallback', Arial, sans-serif;
   --rer-font-heading: 'Figtree', 'Figtree Fallback', Arial, sans-serif;
   --rer-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --rer-page: #f6f5fc;
+  --rer-page: #f7f8fc;
   --rer-surface: #ffffff;
-  --rer-text: #14173d;
-  --rer-muted: #545a80;
-  --rer-border: #8a8fb0;
-  --rer-focus: #6a3ff0;
-  --rer-link: #5b35e0;
-  --rer-radius: 14px;
-  --rer-accent: #7c4dff;
+  --rer-text: #14194a;
+  --rer-muted: #4f5680;
+  --rer-border: #b9bdd6;
+  --rer-focus: #6d4df5;
+  --rer-link: #5730e0;
+  --rer-radius: 10px;
+  --rer-accent: #6d4df5;
   --rer-accent-text: #ffffff;
   --rer-wordmark-weight: 700;
   --rer-wordmark-tracking: -.02em;
