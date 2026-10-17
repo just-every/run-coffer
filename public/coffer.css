@@ -58,3 +58,4 @@
 
 .coffer .stewardship-text{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
 .coffer .stewardship-sources{display:block;overflow-wrap:anywhere}.coffer .stewardship-sources dt{margin-top:20px}.coffer .stewardship-sources dd{margin:8px 0 20px}.coffer .stewardship-sources p{margin:6px 0}
+.coffer pre.copy{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}

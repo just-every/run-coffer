@@ -3,9 +3,8 @@
 Open **Appeals** to prepare an audience by fund, giving date and amount. Email
 messages accept `{{donor_name}}`, `{{total_given}}`, `{{gift_count}}` and
 `{{last_gift}}`. Preparation freezes the message, recipient names and giving
-figures in the approval hash. Approve that exact version, then send up to eight
-remaining recipients at a time. Each recipient gets a separate provider
-campaign so both the merged content and the frozen audience stay exact.
+figures in the approval hash. Approve that exact version, then send it through
+the connected provider (see below). Repeated presses never send twice.
 
 A saved submission is never sent twice automatically. A campaign accepted for
 scheduling is **submitted**, not delivered. Refresh results to read the
@@ -15,40 +14,39 @@ contacting the donor again. CSV export remains available for postal appeals.
 
 ## Connect the sender
 
-RER Managed has no integration egress relay yet. Provider actions say
-“Email marketing is not available yet on RER Managed.” and make no provider
-request. Self-hosted installs configure private environment values, then deploy:
+The owner connects Mango or Mailchimp on **Appeals → Connect Mango or Mailchimp**
+(`/app/appeals/connect`). The connection is stored in Coffer's D1 table
+`cf_email_connection` and read at request time; backups leave it out. There are
+no deploy settings for it. RER Managed has no integration egress relay yet:
+provider actions say “Email marketing is not available yet on RER Managed.” and
+make no provider request.
 
-| Setting | Purpose |
-| --- | --- |
-| `COMMUNICATIONS_PROVIDER` | `mango` (default), or `mailchimp` |
-| `MANGO_ORIGIN` | Bare HTTPS Mango origin; HTTP is allowed only on loopback |
-| `MANGO_SESSION_COOKIE` | Active native Mango operator session cookie; a secret |
-| `MANGO_DEV_KEY` | Optional local Mango gate key; never used outside loopback |
-| `COFFER_REPLY_ADDRESS` | Address routed by Cloudflare Email Routing to this Coffer Worker |
-| `MAILCHIMP_API_KEY` | Mailchimp key, including its datacenter suffix |
-| `MAILCHIMP_LIST_ID` | Mailchimp audience |
-| `MAILCHIMP_FROM_NAME` | Mailchimp sender name |
-| `MAILCHIMP_FROM_EMAIL` | Mailchimp sender address, equal to the reply address |
+Mango uses its scoped integration API (`/api/integrations/v1`, Mango
+`docs/integrations.md`) with a credential the Mango owner creates under
+**Settings → Integration credentials** with `contacts:read`, `contacts:write`,
+`events:read` and `campaigns:send`. **Connect Mango** checks every scope without
+changing anything (`GET /segments`, `GET /events`, and an empty `PUT /contacts`
+and campaign send that a granted scope answers with 400) and refuses a credential
+that lacks one. A scoped credential cannot create or approve a campaign, so an
+approved appeal's recipients are upserted with Coffer's consent evidence into a
+Mango integration list named after the appeal (`segmentName`), one request per
+donor, 40 per press. Coffer then shows the subject and message (with
+`{{donor_name}}` rewritten as Mango's `{{displayName | fallback: "Friend"}}`) and
+the list name; a Mango operator approves the campaign for that list and Mango
+sends it and reports each send. Coffer withdrawals go to Mango's suppression API.
+The welcome series lists each step's donors on `Coffer welcome · …` lists the same
+way.
+
+Mailchimp uses its Marketing API: the key's `-usN` suffix picks the API host, the
+owner picks an audience from `GET /lists`, and each recipient gets a one-recipient
+static segment and regular campaign, checked before its single send action. Its
+fixtures are documentation-derived; no Mailchimp account or live send is claimed.
+See `tests/fixtures/mailchimp/README.md`.
+
+`COFFER_REPLY_ADDRESS` remains the address Cloudflare Email Routing delivers to
+this Worker for replies.
 
 The Worker includes Cloudflare’s [`global_fetch_strictly_public` flag](https://developers.cloudflare.com/workers/runtime-apis/fetch/) so self-hosted Workers can call a sibling Worker through its public HTTPS origin.
-
-Mango currently exposes native authenticated product routes, not a scoped
-integration credential. Its operator sessions expire (normally after seven
-days), and removing that operator revokes the connection. Renew the secret when
-it expires. Coffer never signs in as a person automatically or bypasses Mango's
-sender checks. The reply address must exactly match Mango's saved sender
-identity. Mango's normal local runtime disables real mail; a hosted Mango with
-verified provider, DNS and receiving-inbox evidence is needed to send.
-
-Coffer uses Mango's existing contact search, consent capture, reviewed opt-out
-CSV import, campaign creation/composition/approval and recipient report routes.
-A new subscriber must complete Mango's confirmation flow. Coffer never invents
-confirmation evidence or turns an existing opt-out back into a subscription.
-Mailchimp uses its Marketing API with the same restriction, a one-recipient
-static segment, and its managed unsubscribe/footer fields. Its fixtures are
-explicitly documentation-derived; no Mailchimp account or live send is claimed.
-See `tests/fixtures/mailchimp/README.md`.
 
 ## Preferences and receipts
 

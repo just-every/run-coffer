@@ -8,7 +8,8 @@ const MAX_LETTERS = 500
 // reversed, is in no live letter and its donor has not been erased.
 const DUE = `g.kind='gift' AND g.amount_cents>=? AND d.erased_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
- AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1)`
+ AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1)
+ AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)`
 
 export async function dueGifts(c: { db: D1Database }) {
  const s = await settings(c), day = today(s.timezone)

@@ -1,6 +1,7 @@
 import { canonicalDonor } from '../donor-merge'
 import { fail, newId, one, type Row } from '../db'
 import { stripe, type GivingEnv } from './stripe'
+import { sendOnlineReceipt } from './online-receipt'
 
 export const stripeId = (value: any): string => typeof value === 'string' ? value : value?.id ?? ''
 
@@ -58,5 +59,6 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'stripe','Stripe','agent','giving.paid','gift',?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_events WHERE action='giving.paid' AND subject_id=?)`).bind(now, id, intent.donor_id, JSON.stringify({ amountCents: cents, campaignId: intent.campaign_id }), id),
  ])
+ await sendOnlineReceipt(env, id)
  return id
 }

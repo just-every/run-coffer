@@ -1,74 +1,65 @@
-import type { Bindings } from '../../auth.server'
 import { fail, type Row } from '../db'
-import { csv } from '../csv'
+import type { Connection } from './connection'
 
-export function communicationsUnavailable(env?: Bindings): string | null {
- if (env?.RER_INSTALLATION_ID || env?.RER_MANAGEMENT_ORIGIN) return 'Email marketing is not available yet on RER Managed.'
- if (!env?.MANGO_ORIGIN || !env.MANGO_SESSION_COOKIE) return 'Connect Mango with its origin and an active operator session.'
- return null
+/** Mango's scoped integration API (Mango → Settings → Integration credentials).
+ * A credential can sync contacts, lists and opt-outs; only a person in Mango approves a campaign. */
+const SCOPES: Record<string, string> = {
+ 'contacts:read': 'Read contacts', 'contacts:write': 'Update contacts', 'events:read': 'Read opt-outs', 'campaigns:send': 'Send approved campaigns',
 }
-export function mangoConnection(env?: Bindings) {
- const unavailable = communicationsUnavailable(env)
- if (unavailable) fail('MANGO_UNAVAILABLE', unavailable, 503)
- let url: URL
- try { url = new URL(env!.MANGO_ORIGIN!) } catch { return fail('MANGO_CONFIG', 'Mango needs a valid origin.', 400) }
- const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
- if (url.pathname !== '/' || url.search || url.hash || url.username || url.password || !(url.protocol === 'https:' || local && url.protocol === 'http:')) fail('MANGO_CONFIG', 'Use Mango’s HTTPS origin, or HTTP on loopback.', 400)
- if (/[\r\n]/.test(env!.MANGO_SESSION_COOKIE!)) fail('MANGO_CONFIG', 'Mango session is invalid.', 400)
- return { origin: url.origin, cookie: env!.MANGO_SESSION_COOKIE!, devKey: local ? env!.MANGO_DEV_KEY : undefined }
-}
-export async function mangoRequest(env: Bindings | undefined, path: string, method = 'GET', body?: unknown): Promise<Row> {
- const conn = mangoConnection(env)
- let response: Response
+async function call(conn: Connection, path: string, method = 'GET', body?: unknown): Promise<Response> {
  try {
-  response = await fetch(conn.origin + path, { method, redirect: 'manual', signal: AbortSignal.timeout(20_000),
-   headers: { cookie: conn.cookie, origin: conn.origin, ...(conn.devKey ? { 'x-rer-dev-key': conn.devKey } : {}), ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+  return await fetch(`${conn.origin}/api/integrations/v1${path}`, { method, redirect: 'manual', signal: AbortSignal.timeout(20_000),
+   headers: { authorization: `Bearer ${conn.credential}`, accept: 'application/json', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
    ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
- } catch { return fail('MANGO_UNREACHABLE', 'Mango could not be reached. Check the saved campaign before submitting again.', 502) }
- if (!response.ok) fail('MANGO_REFUSED', response.status === 401 ? 'The Mango operator session expired. Reconnect Mango.' : `Mango refused this request (HTTP ${response.status}). Review it in Mango.`, 502, {providerStatus:response.status})
+ } catch { return fail('MANGO_UNREACHABLE', `Coffer could not reach Mango at ${conn.origin}. Check that Mango is running and the address is right.`, 502) }
+}
+async function refusal(response: Response): Promise<never> {
+ const data = await response.json().catch(() => ({})) as Row
+ if (response.status === 401) fail('MANGO_CREDENTIAL', 'Mango no longer accepts this credential. Create a new one in Mango (Settings → Integration credentials) and save it on the Connect Mango page.', 502, { providerStatus: 401 })
+ if (response.status === 403) fail('MANGO_SCOPE', `This Mango credential is missing “${SCOPES[data.requiredScope] ?? data.requiredScope ?? 'a permission'}”. Create a credential with all four boxes ticked and save it again.`, 502, { providerStatus: 403 })
+ if (response.status === 429) fail('MANGO_BUSY', 'Mango asked Coffer to slow down. Wait a minute, then continue.', 503, { providerStatus: 429 })
+ return fail('MANGO_REFUSED', `Mango refused this request (${data.error ?? `HTTP ${response.status}`}).`, 502, { providerStatus: response.status })
+}
+async function request(conn: Connection, path: string, method = 'GET', body?: unknown): Promise<Row> {
+ const response = await call(conn, path, method, body)
+ if (!response.ok) return refusal(response)
  try { return await response.json() as Row } catch { return fail('MANGO_RESPONSE', 'Mango returned an unreadable response.', 502) }
 }
-export async function mangoContact(env: Bindings | undefined, address: string): Promise<Row | null> {
- const data = await mangoRequest(env, `/api/contacts/search?address=${encodeURIComponent(address)}`)
+
+/** Every scope is checked without changing anything: a granted write scope answers 400 to an empty body. */
+export async function checkMango(conn: Connection): Promise<{ ok: boolean; note: string; lists: string[] }> {
+ const segments = await request(conn, '/segments')
+ await request(conn, '/events?cursor=0&limit=1')
+ const missing: string[] = []
+ for (const [path, scope] of [['/contacts', 'contacts:write'], ['/campaigns/coffer-connection-check/send', 'campaigns:send']] as const) {
+  const response = await call(conn, path, path === '/contacts' ? 'PUT' : 'POST', {})
+  if (response.status === 403) missing.push(SCOPES[scope])
+  else if (response.status !== 400) await refusal(response)
+ }
+ const lists = Array.isArray(segments.segments) ? segments.segments.map((s: Row) => String(s.name ?? s.id)) : []
+ return missing.length ? { ok: false, note: `Connected, but the credential is missing: ${missing.join(', ')}. Create a new credential with all four boxes ticked.`, lists }
+  : { ok: true, note: `Connected. Mango accepted the credential with all four permissions${lists.length ? ` and has ${lists.length} Coffer list${lists.length === 1 ? '' : 's'}` : ''}.`, lists }
+}
+
+export async function mangoContact(conn: Connection, address: string): Promise<Row | null> {
+ const data = await request(conn, `/contacts?email=${encodeURIComponent(address)}&limit=1`)
  if (!Array.isArray(data.contacts)) fail('MANGO_RESPONSE', 'Mango did not return contact state.', 502)
  return data.contacts.find((d: Row) => d.email?.toLowerCase() === address.toLowerCase()) ?? null
 }
-export const restricted = (contact: Row) => ['unsubscribed', 'suppressed', 'cleaned'].includes(contact.emailStatus ?? contact.email_status)
-export const subscribed = (contact: Row | null) => contact && (contact.emailStatus ?? contact.email_status) === 'subscribed'
+export const restricted = (contact: Row) => ['unsubscribed', 'suppressed', 'cleaned'].includes(contact.emailStatus)
+export const subscribed = (contact: Row | null) => contact?.emailStatus === 'subscribed'
 
-/** Mango's existing reviewed import is the supported way to record an opt-out.
- * Restrictive imports never restore subscription or invent consent evidence. */
-export async function suppressMango(env: Bindings | undefined, address: string): Promise<void> {
- const input = { files: [{ name: 'coffer-opt-out.csv', csv: csv(['email', 'status'], [[address, 'unsubscribed']]), preset: 'csv-unsubscribed' }] }
- const preview = await mangoRequest(env, '/api/audience/import-preview', 'POST', input)
- if (typeof preview.fingerprint !== 'string') fail('MANGO_RESPONSE', 'Mango did not return an opt-out review fingerprint.', 502)
- let { job } = await mangoRequest(env, '/api/audience/imports', 'POST', { fingerprint: preview.fingerprint })
- for (let chunk = 0; chunk < 12 && job && !['completed', 'failed', 'conflicted', 'abandoned'].includes(job.state); chunk++) {
-  const next = await mangoRequest(env, `/api/audience/imports/${encodeURIComponent(job.id)}/resume`, 'POST', {})
-  job = next.job
- }
- if (job?.state !== 'completed') fail('MANGO_IMPORT', 'Mango’s opt-out import is not complete. Refresh preferences before sending.', 502)
- const saved = await mangoContact(env, address)
- if (!saved || !restricted(saved)) fail('MANGO_IMPORT', 'Mango has not confirmed this opt-out. Refresh preferences before sending.', 502)
+export async function suppressMango(conn: Connection, address: string, key: string): Promise<void> {
+ await request(conn, '/suppressions', 'POST', { email: address, reason: 'Email consent withdrawn in Coffer', idempotencyKey: `coffer:${key}`.slice(0, 200) })
+ const saved = await mangoContact(conn, address)
+ if (saved && !restricted(saved)) fail('MANGO_PREFERENCE', 'Mango has not confirmed this opt-out. Sync email preferences again before sending.', 502)
 }
-const escape = (s: string) => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
-export async function createMangoCampaign(env: Bindings | undefined, row: Row) {
- const defaults = await mangoRequest(env, '/api/campaign-authoring')
- const replyTo = env?.COFFER_REPLY_ADDRESS?.trim().toLowerCase()
- if (!replyTo || defaults.sender?.replyToEmail?.toLowerCase() !== replyTo) fail('MANGO_REPLY', 'Set Coffer’s reply address to the reply-to address saved in Mango, and route it to this Worker.', 409)
- const created = await mangoRequest(env, '/api/campaigns', 'POST', { mode: 'blank' })
- if (typeof created.campaignId !== 'string' || typeof created.revisionId !== 'string') fail('MANGO_RESPONSE', 'Mango did not return campaign identifiers.', 502)
- return { campaignId:created.campaignId as string,revisionId:created.revisionId as string, sender: defaults.sender, timezone: defaults.timezone || 'UTC' }
-}
-export async function composeMangoCampaign(env: Bindings | undefined, row: Row, draft: Row) {
- const start = new Date(Date.now() + 60_000).toISOString(), end = new Date(Date.now() + 12 * 3600_000).toISOString()
- const html = row.body.split(/\n\s*\n/).map((p: string) => `<p>${escape(p).replaceAll('\n', '<br>')}</p>`).join('')
- await mangoRequest(env, `/api/campaign-revisions/${encodeURIComponent(draft.revisionId)}`, 'PATCH', {
-  ...draft.sender, name: `Coffer ${row.id}`, emailSubject: row.subject, emailBody: html, emailText: row.body,
-  messageCategory: 'newsletter', preheader: row.subject.slice(0, 250), trackingEnabled: false,
-  inclusionRuleJson: JSON.stringify({version:1,operator:'all',predicates:[{sourceType:'contact',field:'email',comparator:'eq',value:row.email}]}),
-  exclusionRulesJson: '[]', sourceTypesJson: '[]', links: [],
-  steps: [{channel:'email',timezone:draft.timezone,scheduledAt:start,sendByAt:end,whyThisTime:'Approved Coffer outreach'}],
- })
- await mangoRequest(env, `/api/campaigns/${encodeURIComponent(draft.campaignId)}/approve`, 'POST', { revisionId: draft.revisionId, idempotencyKey: `coffer:${row.id}` })
+
+const consent = (donor: Row, organisation: string) => ({ source: 'Coffer consent record', evidence: donor.evidence, brandOrLegalSender: organisation, messageCategory: 'fundraising',
+ frequencyDisclosure: 'Occasional appeals and welcome emails', destinationJurisdiction: 'US', consentVersion: `coffer-consent-${donor.consent_id}`, occurredAt: `${donor.captured_on}T00:00:00.000Z` })
+/** Puts one consenting donor on a Coffer list in Mango, carrying Coffer's consent evidence. */
+export async function listInMango(conn: Connection, donor: Row, organisation: string, listName: string, fields: Row = {}): Promise<Row> {
+ const data = await request(conn, '/contacts', 'PUT', { email: donor.email, displayName: donor.name, segmentName: listName.slice(0, 160), fields: { cofferDonorId: donor.id, ...fields }, tags: ['coffer'], subscribe: true, consent: consent(donor, organisation) })
+ if (!data.contact || typeof data.contact.emailStatus !== 'string') fail('MANGO_RESPONSE', 'Mango did not confirm the contact.', 502)
+ return data.contact
 }

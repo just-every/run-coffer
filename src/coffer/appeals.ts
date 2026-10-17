@@ -40,7 +40,10 @@ export async function appealCommand(c: Context, command: string, p: Row): Promis
   const minTotalCents = givenSince && (p.minTotal || p.minTotalCents) ? amount(p, 'minTotal', 'Minimum given') : 0
   if (givenSince && givenSince > today((await settings(c)).timezone)) fail('INPUT', 'Gave since cannot be in the future.', 400)
   const fund = p.fund ? text(p.fund,'Fund',100) : null
-  const message = p.subject || p.body ? {subject:text(p.subject,'Email subject',250),body:longText(p.body,'Email message',12000)} : null
+  const written = channel === 'email' && Boolean(String(p.subject ?? '').trim() || String(p.body ?? '').trim())
+ if (written && !String(p.subject ?? '').trim()) fail('INPUT', 'Add an email subject. Donors see it in their inbox before they open the appeal.', 400)
+ if (written && !String(p.body ?? '').trim()) fail('INPUT', 'Write the email message donors will receive, or clear the subject to export the list instead.', 400)
+ const message = written ? {subject:text(p.subject,'Email subject',250),body:longText(p.body,'Email message',12000)} : null
   if(message){ const {mergeMessage}=await import('./communications/outbound'); mergeMessage(message.subject,{name:'Donor'});mergeMessage(message.body,{name:'Donor'}) }
   const { recipients, excluded } = await audience(c, channel, { givenSince, minTotalCents, fund })
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)

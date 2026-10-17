@@ -42,8 +42,9 @@ export class SourceRow {
  error(code: string, message: string, column?: string) { this.result.diagnostics.push({ ...this.location, severity: 'error', code, message, column }) }
  unmap(column: string, value: string, reason: string) { this.result.unmapped.push({ ...this.location, column, value, reason }) }
  finish() {
-  for (let i = 0; i < this.cells.length; i++) if (valueText(this.cells[i]) && !this.used.has(i)) this.unmap(this.headers[i] || `Column ${i + 1}`, valueText(this.cells[i]), 'This field is not mapped for this record. Export a supported layout or resolve it before importing.')
+  for (let i = 0; i < this.cells.length; i++) if (valueText(this.cells[i]) && !this.used.has(i)) this.unmap(this.headers[i] || `Column ${i + 1}`, valueText(this.cells[i]), `Coffer has no place for “${this.headers[i] || `column ${i + 1}`}” on a ${this.kindLabel()} row, so it would be left out. Delete that column from the file and upload again, or keep it and say below that it can be left out.`)
  }
+ kindLabel() { return ({ donor: 'constituent', gift: 'gift', pledge: 'pledge', softCredit: 'soft credit', installment: 'pledge installment', relationship: 'relationship', note: 'note', control: 'totals', unsupported: 'unrecognized' } as Record<RowKind, string>)[this.kind()] }
  kind(): RowKind {
   if (this.peek('controlCount') || this.peek('controlAmount')) return 'control'
   if (this.peek('relationshipType') && this.peek('relatedDonor') && !this.peek('giftId')) return 'relationship'

@@ -11,7 +11,13 @@ changed after approval. Email goes through the installation's
 `MAIL_PROVIDER=sendgrid`, `MAIL_API_KEY` and `MAIL_FROM` settings, the same
 provider and sender used for sign-in mail (see [Host it on Cloudflare](/docs/hosting#mail)).
 RER Managed provider calls are not available yet. Coffer on your own computer
-sends no email, so letters there go to print and never count as sent.
+sends no email: **Send approved letters** marks each letter that would have
+been emailed “Not emailed · email is off on this computer” and moves the rest
+to print, so you can try the whole flow without a mailbox.
+
+Online gifts do not wait for a batch: each paid online gift's receipt is
+emailed as soon as the gift is recorded, at any amount. Choose **Hold online
+receipts for me to approve in Letters** in Letter settings to review them first.
 
 Submitted means SendGrid accepted the email; it does not mean delivered. To
 have delivery and bounces show up on their own, turn on SendGrid's Event

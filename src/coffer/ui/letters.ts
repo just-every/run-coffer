@@ -20,7 +20,7 @@ export async function lettersPage(c: Context) {
 
 export function deliveryLabel(l: Record<string, any>) {
  if (l.printed_at) return `${l.delivery_status === 'bounced' ? 'Bounced · ' : ''}Printed ${when(l.printed_at)}`
- const labels: Record<string, string> = { pending: 'Ready to route', sending: 'Sending · awaiting confirmation', submitted: 'Email submitted · awaiting delivery', delivered: `Email delivered ${when(l.delivered_at)}`, bounced: 'Email bounced · print instead', complained: 'Email complaint · print instead', print: 'Print batch', rejected: 'Email not accepted · print batch', uncertain: 'Email submission uncertain · check provider' }
+ const labels: Record<string, string> = { pending: 'Ready to route', sending: 'Sending · awaiting confirmation', submitted: 'Email submitted · awaiting delivery', delivered: `Email delivered ${when(l.delivered_at)}`, bounced: 'Email bounced · print instead', complained: 'Email complaint · print instead', print: 'Print batch', rejected: 'Email not accepted · print batch', uncertain: 'Email submission uncertain · check provider', suppressed: 'Not emailed · email is off on this computer' }
  return labels[l.delivery_status] ?? l.delivery_status
 }
 

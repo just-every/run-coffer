@@ -7,10 +7,13 @@ import { CofferError, fail, id, type Row } from './db'
 
 const MAX_EVENT_BYTES = 1024 * 1024
 
+/** Local and demo installations switch email off; senders record that instead of claiming acceptance. */
+export const mailSuppressed = (env: Bindings) => env.AUTH_LOCAL === 'true' || env.RER_DEMO === '1' || env.MAIL_PROVIDER === 'development'
+
 /** Receipt sending must never report development mail suppression as acceptance. */
 export function assertReceiptMailAvailable(env: Bindings): void {
  if (env.RER_INSTALLATION_ID || env.RER_MANAGEMENT_ORIGIN) fail('mail_unavailable', 'Email sending is not available yet on RER Managed.', 503)
- if (env.AUTH_LOCAL === 'true' || env.RER_DEMO === '1' || env.MAIL_PROVIDER === 'development') fail('mail_unavailable', 'Receipt email is not available in local or demo mode.', 503)
+ if (mailSuppressed(env)) fail('mail_unavailable', 'Receipt email is not available in local or demo mode.', 503)
  if (env.MAIL_PROVIDER && env.MAIL_PROVIDER !== 'sendgrid') fail('mail_unavailable', 'Receipt email is not available with this installation’s mail provider.', 503)
  if (env.MAIL_PROVIDER !== 'sendgrid' || !env.MAIL_API_KEY?.trim() || !env.MAIL_FROM?.trim()) fail('mail_unavailable', 'Configure SendGrid and a sender address to send receipt email.', 503)
 }

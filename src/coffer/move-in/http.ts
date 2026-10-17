@@ -20,25 +20,28 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
   if(action==='journal') {const result=await service.journal(c,url.searchParams.get('id')||'');return api?json(result):page('CRM import journal',crmJournalPage(result),c.actor,200,'/app/more')}
  }
  if(request.method!=='POST')fail('post_required','Use the move-in forms.',405)
- const data=api?await readers.jsonBody(request,12*1024*1024):await readers.formBody(request,12*1024*1024)
- const get=(key:string)=>api?data[key]:data.get(key)
- if(action==='undo') {const result=await service.undo(c,String(get('id')||''));return api?json(result):redirect(result.id)}
+ const data=api?await readers.jsonBody(request,24*1024*1024):await readers.formBody(request,24*1024*1024)
+ const get=(key:string)=>api?data[key]:data.get(key), id=String(get('id')||'')
+ if(action==='undo') {const result=await service.undo(c,id);return api?json(result):redirect(result.id)}
+ if(action==='continue') {const result=await service.continueApply(c,id);return api?json(result):redirect(result.id)}
+ if(action==='check') {const result=await service.recheck(c,id);return api?json(result):redirect(result.id)}
+ if(action==='apply') {
+  if(!api && get('confirm')!=='yes')fail('confirmation_required','Tick the box to approve the reviewed move-in first.',400)
+  const result=await service.apply(c,{id,fingerprint:String(get('fingerprint')||''),acceptedReason:get('acceptedReason')||undefined,acknowledged:get('acknowledged')||undefined,acknowledgedBefore:get('acknowledgedBefore')||undefined})
+  return api?json(result):redirect(result.id)
+ }
  let input:ParseInput
  if(api)input=data
- else if(action==='apply') {try{input=JSON.parse(String(get('payload')))}catch{fail('MOVE_IN_INPUT','Upload the exports and preview them again.',400)}}
  else {
   const files=[]
+  let total=0
   for(const f of (data as FormData).getAll('exports'))if(typeof f!=='string'&&f.size) {
-   if(f.size>4*1024*1024)fail('MOVE_IN_LIMIT','Files must total 4 MB or less.',413)
+   total+=f.size
+   if(total>16*1024*1024)fail('MOVE_IN_LIMIT','All files together must be 16 MB or less. Split the gift export by year and upload constituents.csv again with each year’s file.',413)
    files.push({name:f.name,base64:Buffer.from(await f.arrayBuffer()).toString('base64')})
   }
   input={source:get('source'),files,noGoodsOrServices:get('noGoodsOrServices')==='yes'}
  }
- if(action==='preview') {const result=await service.preview(c,input);return api?json(result):page('Review CRM move-in',crmPreviewPage(input,result),c.actor,200,'/app/more')}
- if(action==='apply') {
-  if(!api && get('confirm')!=='yes')fail('confirmation_required','Approve the reviewed move-in first.',400)
-  const result=await service.apply(c,{...input,fingerprint:get('fingerprint'),acceptedReason:get('acceptedReason')||undefined})
-  return api?json(result):redirect(result.id)
- }
+ if(action==='preview') {const result=await service.preview(c,input);return api?json(result):page('Review CRM move-in',crmPreviewPage(result,c.now.slice(0,10)),c.actor,200,'/app/more')}
  return fail('not_found','That move-in action does not exist.',404)
 }

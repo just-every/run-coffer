@@ -1,4 +1,4 @@
-import { communicationsUnavailable } from './provider'
+import { emailConnection } from './connection'
 import type { Bindings } from '../../auth.server'
 import { requireRole } from '../auth'
 import { all, commit, event, fail, guard, integer, longText, newId, one, sql, text, type Context, type Row } from '../db'
@@ -85,7 +85,7 @@ async function stop(c: Context) {
 }
 
 async function run(c: Context): Promise<Row> {
- const unavailable=communicationsUnavailable(c.env); if(unavailable) return {unavailable,submitted:0}
+ const {unavailable}=await emailConnection(c); if(unavailable) return {unavailable,submitted:0}
  if (!await one(c, "SELECT id FROM cf_welcome WHERE id='welcome'")) return { published: false, submitted: 0, uncertain: 0, cancelled: 0 }
  await enroll(c)
  await stop(c)
@@ -113,8 +113,8 @@ async function run(c: Context): Promise<Row> {
   }
   let state = 'uncertain', note = 'Submission could not be confirmed. Check the message history before contacting this donor. No automatic resend.'
   try {
-   const result = await submitMessage(c, { key: step.message_key, donorId: step.donor_id, subject: step[`${step.step}_subject`], body: step[`${step.step}_body`], sourceKind: 'welcome', sourceId: step.id })
-   state = result.status === 'submitted' ? 'submitted' : result.status === 'suppressed' ? 'cancelled' : 'uncertain'
+   const result = await submitMessage(c, { key: step.message_key, donorId: step.donor_id, subject: step[`${step.step}_subject`], body: step[`${step.step}_body`], sourceKind: 'welcome', sourceId: step.id, listName: `Coffer welcome · ${step.step === 'thank' ? '1 Thank you' : step.step === 'impact' ? '2 Impact' : '3 Next gift'}` })
+   state = ['submitted', 'listed'].includes(result.status) ? 'submitted' : result.status === 'suppressed' ? 'cancelled' : 'uncertain'
    note = state === 'submitted' ? 'Submitted; delivery is not confirmed.' : state === 'cancelled' ? 'Message suppressed; no email was sent.' : note
   } catch (error) {
    const message=await one(c,'SELECT id FROM cf_communications WHERE message_key=?',step.message_key)

@@ -90,43 +90,8 @@
       "optional": true
     },
     {
-      "binding": "MANGO_ORIGIN",
-      "environment": "MANGO_ORIGIN",
-      "optional": true
-    },
-    {
-      "binding": "MANGO_SESSION_COOKIE",
-      "environment": "MANGO_SESSION_COOKIE",
-      "optional": true
-    },
-    {
       "binding": "COFFER_REPLY_ADDRESS",
       "environment": "COFFER_REPLY_ADDRESS",
-      "optional": true
-    },
-    {
-      "binding": "COMMUNICATIONS_PROVIDER",
-      "environment": "COMMUNICATIONS_PROVIDER",
-      "optional": true
-    },
-    {
-      "binding": "MAILCHIMP_API_KEY",
-      "environment": "MAILCHIMP_API_KEY",
-      "optional": true
-    },
-    {
-      "binding": "MAILCHIMP_LIST_ID",
-      "environment": "MAILCHIMP_LIST_ID",
-      "optional": true
-    },
-    {
-      "binding": "MAILCHIMP_FROM_NAME",
-      "environment": "MAILCHIMP_FROM_NAME",
-      "optional": true
-    },
-    {
-      "binding": "MAILCHIMP_FROM_EMAIL",
-      "environment": "MAILCHIMP_FROM_EMAIL",
       "optional": true
     }
   ],

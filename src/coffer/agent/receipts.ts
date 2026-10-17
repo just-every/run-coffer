@@ -8,7 +8,8 @@ import { box, e, empty, money } from '../ui/common'
 const ELIGIBLE=`g.kind='gift' AND d.erased_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
  AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1
-  AND (a.delivery_status NOT IN ('bounced','rejected','complained') OR a.printed_at IS NOT NULL))`
+  AND (a.delivery_status NOT IN ('bounced','rejected','complained') OR a.printed_at IS NOT NULL))
+ AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)`
 export async function missingReceipts(c:Context) {
  return all(c,`SELECT g.*,d.name AS donor_name,
  (SELECT a.delivery_status FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1 LIMIT 1) AS previous_status

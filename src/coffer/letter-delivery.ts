@@ -2,7 +2,7 @@ import { readReceiptDelivery } from './receipt-activity'
 import type { Bindings } from '../auth.server'
 import { batchLetters, letterHash, currentLetterGifts } from './acknowledgements'
 import { all, commit, event, fail, guard, id, integer, newId, one, sql, type Context, type Row } from './db'
-import { assertReceiptMailAvailable, sendReceipt, verifySendgridEvents } from './receipt-mail'
+import { assertReceiptMailAvailable, mailSuppressed, sendReceipt, verifySendgridEvents } from './receipt-mail'
 
 const eligible = `d.erased_at IS NULL AND d.email IS NOT NULL AND d.email=a.recipient_email
  AND NOT EXISTS(SELECT 1 FROM cf_acks bad WHERE bad.donor_id=d.id AND bad.recipient_email=d.email AND bad.delivery_status IN ('bounced','complained'))`
@@ -35,11 +35,20 @@ export async function deliveryCommand(c: Context, command: string, p: Row): Prom
  if (await letterHash(b.settings_version, letters) !== b.content_hash) fail('CONTENT_CHANGED', 'These letters changed. Discard and prepare them again.')
  // Read availability before making any change; Managed never pretends to send.
  if (!c.env) fail('MAIL_UNAVAILABLE', 'Email sending is not available yet.', 503)
- if ((await one(c, `SELECT count(*) AS n FROM cf_acks a JOIN cf_donors d ON d.id=a.donor_id WHERE a.batch_id=? AND a.route='pending' AND ${eligible}`, batchId))!.n) assertReceiptMailAvailable(c.env)
+ // Local and demo mode switch email off (README): emailed letters are marked, never claimed as sent.
+ const suppressed = mailSuppressed(c.env)
+ if (!suppressed && (await one(c, `SELECT count(*) AS n FROM cf_acks a JOIN cf_donors d ON d.id=a.donor_id WHERE a.batch_id=? AND a.route='pending' AND ${eligible}`, batchId))!.n) assertReceiptMailAvailable(c.env)
  // Reserve this batch version, so simultaneous send clicks cannot duplicate mail.
  await commit(c, [at(), currentLetterGifts(batchId),
   guard('NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_donors d ON d.id=a.donor_id WHERE a.batch_id=? AND (d.erased_at IS NOT NULL OR EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=a.gift_id)))', 'GIFT_CHANGED', 'A gift was reversed or its donor erased. Prepare a fresh batch.', batchId),
   sql('UPDATE cf_ack_batches SET version=version+1 WHERE id=?', batchId), event(c, 'ack.send', 'acknowledgements', batchId, null)])
+ if (suppressed) {
+  await commit(c, [sql(`UPDATE cf_acks AS a SET route=CASE WHEN EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=a.donor_id AND ${eligible}) THEN 'email' ELSE 'print' END,
+   delivery_status=CASE WHEN EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=a.donor_id AND ${eligible}) THEN 'suppressed' ELSE 'print' END,
+   delivery_note=CASE WHEN EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=a.donor_id AND ${eligible}) THEN 'Not emailed: email is switched off on this computer (local mode). Print this letter, or send it from your hosted Coffer.' ELSE NULL END
+   WHERE batch_id=? AND route='pending'`, batchId)])
+  return { id: batchId, version: version + 1, suppressedInLocal: true, ...await deliverySummary(c, batchId) }
+ }
  const pending = await all(c, "SELECT id FROM cf_acks WHERE batch_id=? AND route='pending' ORDER BY position LIMIT 8", batchId)
  for (const l of pending) {
   const attempt = newId()

@@ -53,7 +53,7 @@ Without the signing secret, webhook requests are refused. Coffer verifies each m
 
 An owner or admin opens **Giving**, publishes a campaign with its own page address, story, fund and goal, and shares `/give/<address>`. Donors choose one-time or monthly and continue to Stripe Checkout for card or Link. Apple Pay appears in Stripe Checkout on eligible devices once you register your Coffer's domain under Stripe's payment method domains. US bank giving is coming soon.
 
-The giving page asks separately whether the donor wants news and appeals by email. That box is optional and unticked; when a donor ticks it, Coffer records email consent with the checkout as evidence once the gift is paid. Gift receipts are transactional and go to the donor's email either way.
+The giving page asks separately whether the donor wants news and appeals by email. That box is optional and unticked; when a donor ticks it, Coffer records email consent with the checkout as evidence once the gift is paid. Gift receipts are transactional and go to the donor's email either way: each paid online gift's receipt is emailed as soon as Coffer records the gift, whatever the amount, using your letter wording. To approve each one first, choose **Hold online receipts for me to approve in Letters** in **Letter settings**. On this computer (local mode) email is switched off, so the receipt is marked “Not emailed” instead.
 
 ## Monthly gifts
 

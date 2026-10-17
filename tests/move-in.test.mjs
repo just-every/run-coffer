@@ -10,6 +10,12 @@ export async function exportInput(source,format='csv') {
 }
 const endpoint='/api/coffer/move-in'
 const post=(h,action,input,options)=>h.api(`${endpoint}/${action}`,input,options)
+// Applies a reviewed move-in through its last part, as the Continue button does.
+async function moveIn(h,preview,extra={}){
+ let job=await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint,...extra})
+ while(job.state==='applying')job=await post(h,'continue',{id:preview.id})
+ return job
+}
 
 for(const source of ['lgl','bloomerang','re-nxt'])test(`${source}: exports preview, reconcile, apply atomically, repeat without duplicates, and undo in one step`,()=>run(async h=>{
  for(const format of ['csv','xlsx']) {
@@ -24,9 +30,10 @@ for(const source of ['lgl','bloomerang','re-nxt'])test(`${source}: exports previ
   assert.ok(preview.reconciliation.length>=13)
   assert.ok(preview.reconciliation.every(r=>r.matches),JSON.stringify(preview.reconciliation))
   assert.equal((await h.get('/api/coffer/donors')).total,0)
-  const applied=await post(h,'apply',{...input,fingerprint:preview.fingerprint})
+  const applied=await moveIn(h,preview)
   assert.equal(applied.state,'completed')
-  assert.equal((await post(h,'apply',{...input,fingerprint:preview.fingerprint})).unchanged,true)
+  assert.equal((await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint})).unchanged,true)
+  assert.ok((await h.get(`${endpoint}/journal?id=${applied.id}`)).job.check_report.matches)
   const donors=(await h.get('/api/coffer/donors')).donors
   assert.equal(donors.length,3)
   assert.equal(donors.reduce((sum,d)=>sum+d.total_cents,0),90000)
@@ -47,13 +54,13 @@ for(const source of ['lgl','bloomerang','re-nxt'])test(`${source}: exports previ
   assert.equal(daniel.gifts[0].goods_cents,6000)
   assert.equal(daniel.gifts[0].appeal,'Community breakfast')
   const repeatPreview=await post(h,'preview',input)
-  assert.ok(repeatPreview.reconciliation.every(r=>r.matches))
-  const repeated=await post(h,'apply',{...input,fingerprint:repeatPreview.fingerprint})
+  assert.equal(repeatPreview.prior.state,'completed')
+  const repeated=await post(h,'apply',{id:repeatPreview.id,fingerprint:repeatPreview.fingerprint})
   assert.equal(repeated.id,applied.id)
   assert.equal(repeated.unchanged,true)
   const renamed={...input,files:input.files.map(f=>({...f,name:`copy-${f.name}`}))}
   const renamedPreview=await post(h,'preview',renamed)
-  assert.equal((await post(h,'apply',{...renamed,fingerprint:renamedPreview.fingerprint})).unchanged,true)
+  assert.equal((await post(h,'apply',{id:renamedPreview.id,fingerprint:renamedPreview.fingerprint})).unchanged,true)
   assert.equal((await h.get('/api/coffer/donors')).donors.reduce((s,d)=>s+d.total_cents,0),90000)
   await post(h,'undo',{id:applied.id})
   assert.equal((await h.get('/api/coffer/donors')).total,0)
@@ -66,9 +73,9 @@ for(const source of ['lgl','bloomerang','re-nxt'])test(`${source}: exports previ
   const p=await post(h,'preview',different)
   assert.ok(p.reconciliation.some(r=>!r.matches))
   assert.ok(p.unmapped.some(r=>r.file==='unmapped.csv'&&r.column==='Favorite Color'&&r.row===2))
-  await post(h,'apply',{...different,fingerprint:p.fingerprint},{status:409})
+  await post(h,'apply',{id:p.id,fingerprint:p.fingerprint},{status:409})
   assert.equal((await h.get('/api/coffer/donors')).total,0)
-  const accepted=await post(h,'apply',{...different,fingerprint:p.fingerprint,acceptedReason:'Source summary includes a $1 adjustment outside the received gifts. Color is intentionally omitted.'})
+  const accepted=await moveIn(h,p,{acceptedReason:'Source summary includes a $1 adjustment outside the received gifts. Color is intentionally omitted.'})
   assert.match((await h.get(`${endpoint}/journal?id=${accepted.id}`)).job.accepted_reason,/Source summary/)
   const importedDonor=(await h.get('/api/coffer/donors')).donors[0]
   const owner=(await h.get('/auth/session')).operator
@@ -80,4 +87,27 @@ for(const source of ['lgl','bloomerang','re-nxt'])test(`${source}: exports previ
   assert.equal((await h.get('/api/coffer/donors')).total,4)
   assert.equal((await h.get('/api/coffer/donors')).donors.reduce((s,d)=>s+d.total_cents,0),91000)
  }
+}))
+
+// A synthetic Little Green Light export in LGL's own layout, large enough to go in several parts.
+test('lgl: a large export moves in part by part, with pledges, soft credits, spouse households and already-thanked history',()=>run(async h=>{
+ const {syntheticLgl}=await import('../scripts/synthetic-lgl.mjs')
+ const input={source:'lgl',files:Object.entries(syntheticLgl(1000,2500)).map(([name,text])=>({name,base64:Buffer.from(text).toString('base64')}))}
+ const preview=await post(h,'preview',input)
+ assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics.slice(0,3)))
+ assert.equal(preview.unmapped.length,0,JSON.stringify(preview.unmapped.slice(0,3)))
+ assert.ok(preview.parts>4,`parts ${preview.parts}`)
+ assert.deepEqual([preview.counts.donors,preview.counts.gifts,preview.counts.pledges,preview.counts.households],[1000,2500,25,100])
+ assert.ok(preview.counts.softCredits>0)
+ const first=await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint,acknowledged:'yes',acknowledgedBefore:'2026-10-01'})
+ let job=first
+ while(job.state==='applying')job=await post(h,'continue',{id:preview.id})
+ const journal=(await h.get(`${endpoint}/journal?id=${preview.id}`)).job
+ assert.equal(journal.state,'completed')
+ assert.equal(journal.applied_parts,journal.parts)
+ assert.ok(journal.check_report.matches,JSON.stringify(journal.check_report.rows.filter(r=>!r.matches).slice(0,3)))
+ assert.equal((await h.get('/api/coffer/donors')).total,1000)
+ assert.equal((await h.get('/api/coffer/letters')).due.length,0,'History thanked in LGL is not listed as letters due')
+ await post(h,'undo',{id:preview.id})
+ assert.equal((await h.get('/api/coffer/donors')).total,0)
 }))

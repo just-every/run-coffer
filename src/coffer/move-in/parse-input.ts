@@ -2,8 +2,8 @@ import readWorkbook from 'read-excel-file/universal'
 import { inflateSync, unzipSync, zipSync } from 'fflate'
 import type { Cell, ExportFile, ParsedImport, Table } from './types'
 
-export const MAX_SOURCE_BYTES = 4 * 1024 * 1024
-const MAX_ROWS = 1000
+export const MAX_SOURCE_BYTES = 16 * 1024 * 1024
+const MAX_ROWS = 100_000
 const MAX_COLUMNS = 256
 
 /** RFC 4180 quoting, escaped quotes, embedded CR/LF, BOM and empty cells. */
@@ -11,7 +11,7 @@ export function parseCsv(text: string): Cell[][] {
  const rows: string[][] = []; let row: string[] = [], value = '', quoted = false, closed = false
  text = text.replace(/^\uFEFF/, '')
  const cell = () => { row.push(value); value = ''; closed = false; if (row.length > MAX_COLUMNS) throw new Error('At most 256 columns are supported.') }
- const line = () => { cell(); rows.push(row); row = []; if (rows.length > MAX_ROWS + 1) throw new Error('At most 1000 source rows are supported across all files.') }
+ const line = () => { cell(); rows.push(row); row = []; if (rows.length > MAX_ROWS + 1) throw new Error('At most 100,000 rows fit in one move-in. Split the gift export by year and upload constituents.csv again with each year’s file; donors already moved in are matched, not copied.') }
  for (let i = 0; i < text.length; i++) {
   const ch = text[i]
   if (quoted) {
@@ -45,7 +45,7 @@ function checkWorkbookZip(bytes: Uint8Array) {
   const name = new TextDecoder().decode(bytes.subarray(cursor + 46, cursor + 46 + length))
   if (names.has(name) || /(^|\/)\.\.\//.test(name)) throw new Error('Duplicate or invalid XLSX entry name.')
   names.add(name); expanded += raw
-  if (expanded > 16 * 1024 * 1024) throw new Error('XLSX expands beyond the 16 MB safety limit.')
+  if (expanded > 64 * 1024 * 1024) throw new Error('This workbook is too large to open safely. Save each sheet as CSV and upload those instead.')
   if (view.getUint32(local, true) !== 0x04034b50 || local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true) + compressed > offset) throw new Error('Invalid XLSX compressed data bounds.')
   const dataOffset = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true)
   const compression = view.getUint16(cursor + 10, true), compressedData = bytes.subarray(dataOffset, dataOffset + compressed)
@@ -56,7 +56,7 @@ function checkWorkbookZip(bytes: Uint8Array) {
    const xml = new TextDecoder().decode(unpacked)
    for (const match of xml.matchAll(/\br="([A-Z]*)([0-9]+)"/g)) {
     const column = [...match[1]].reduce((sum, ch) => sum * 26 + ch.charCodeAt(0) - 64, 0)
-    if (Number(match[2]) > MAX_ROWS + 1 || column > MAX_COLUMNS) throw new Error('Spreadsheet dimensions exceed 1000 data rows or 256 columns.')
+    if (Number(match[2]) > MAX_ROWS + 1 || column > MAX_COLUMNS) throw new Error('A sheet has more than 100,000 rows or 256 columns. Save it as CSV files split by year.')
    }
   }
   cursor = next
@@ -77,7 +77,7 @@ export async function readExports(files: ExportFile[], result: ParsedImport): Pr
    names.add(file.name)
    if (file.base64.length > Math.ceil(MAX_SOURCE_BYTES / 3) * 4 || file.base64.length % 4 !== 0 || /[^A-Za-z0-9+/=]/.test(file.base64) || /=/.test(file.base64.slice(0, -2))) throw new Error('Invalid or oversized base64 file.')
    const binary = atob(file.base64), bytes = Uint8Array.from(binary, c => c.charCodeAt(0)); bytesTotal += bytes.length
-   if (bytesTotal > MAX_SOURCE_BYTES) throw new Error('All source files together must be at most 4 MB.')
+   if (bytesTotal > MAX_SOURCE_BYTES) throw new Error('All files together must be 16 MB or less. Split the gift export by year and upload constituents.csv again with each year’s file; donors already moved in are matched, not copied.')
    let loaded: Table[]
    if (/\.csv$/i.test(file.name)) loaded = [{ file: file.name, sheet: 'CSV', rows: parseCsv(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) }]
    else if (/\.xlsx$/i.test(file.name)) {
@@ -97,7 +97,7 @@ export async function readExports(files: ExportFile[], result: ParsedImport): Pr
     fileRows += Math.max(0, table.rows.length - 1)
    }
    rowTotal += fileRows
-   if (rowTotal > MAX_ROWS) throw new Error('At most 1000 source rows are supported across all files and sheets.')
+   if (rowTotal > MAX_ROWS) throw new Error('At most 100,000 rows fit in one move-in. Split the gift export by year and upload constituents.csv again with each year’s file; donors already moved in are matched, not copied.')
    result.files.push({ name: file.name, bytes: bytes.length, sheets: loaded.map(s => s.sheet), rows: fileRows })
    tables.push(...loaded)
   } catch (error) {

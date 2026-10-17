@@ -37,6 +37,7 @@ import { home } from './ui/home'
 import { donorsPage, donorPage } from './ui/donors'
 import { lettersPage, batchPage } from './ui/letters'
 import { appealsPage, appealPage } from './ui/appeals'
+import { connectPage } from './communications/connect-ui'
 import { morePage, settingsPage, dataPage } from './ui/more'
 import { moveInPage, previewPage, journalPage } from './ui/move-in'
 
@@ -126,7 +127,14 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
   if (path.startsWith('/api/coffer/imports/') || path.startsWith('/app/move-in/')) return await moveIn(request, c, auth.authority, path, isApi)
   if ((path === '/api/coffer/commands' || path === '/app/actions') && request.method === 'POST') {
    const data = path === '/app/actions' ? formInput(await formBody(request)) : await jsonBody(request), command = String(data.command), input = data.input ?? data
-   const result = command === 'donor.erase' ? await eraseDonor(c, auth.authority, input) : await execute(c, command, input)
+   let result
+   try { result = command === 'donor.erase' ? await eraseDonor(c, auth.authority, input) : await execute(c, command, input) }
+   catch (error: any) {
+    // A rejected appeal form comes back on its own page with the answers kept.
+    if (!isApi && command === 'appeal.prepare' && error instanceof CofferError && error.status === 400) return page('Appeals', await appealsPage(c, { error: error.message, values: input }), actor, 400, '/app/appeals')
+    if (!isApi && CONNECT.has(command) && error instanceof CofferError) return page('Connect email marketing', await connectPage(c, error.message), actor, error.status ?? 409, '/app/appeals')
+    throw error
+   }
    if (isApi) return json(result)
    return actionPage(command, input, result, actor)
   }
@@ -189,7 +197,9 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  return { erased: donorId, donorId: placeholder, receiptId: result.receiptId ?? result.id }
 }
 
+const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor) {
+ if (CONNECT.has(command)) return redirect('/app/appeals/connect')
  if (command.startsWith('welcome.') || command.startsWith('marketing.') || command.startsWith('reply.')) return redirect('/app/appeals')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command === 'prospect.save') return redirect('/app/pipeline')
@@ -292,6 +302,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  }
  if ((m = path.match(/^\/app\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
  if (path === '/app/appeals') return show('Appeals', await appealsPage(c))
+ if (path === '/app/appeals/connect') return show('Connect email marketing', await connectPage(c))
  if ((m = path.match(/^\/app\/appeals\/([^/]+)$/))) return show('Appeal', await appealPage(c, m[1]))
  if ((m = path.match(/^\/app\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
  if (path === '/app/more') return show('More', morePage(actor))

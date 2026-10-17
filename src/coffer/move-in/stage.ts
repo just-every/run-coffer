@@ -1,0 +1,44 @@
+import { emptyTotals } from './source-totals'
+import type { ParsedImport } from './types'
+
+export const PART_RECORDS = 800
+
+/** Splits one reviewed export into parts that each apply in a single transaction.
+ * A part repeats the donors (and pledges, gifts) it refers to; those resolve to the
+ * records an earlier part already imported, so links survive across parts. */
+export function stageParts(parsed: ParsedImport): ParsedImport[] {
+ const donors = new Map(parsed.donors.map(d => [d.externalId, d])), households = new Map(parsed.households.map(h => [h.externalId, h]))
+ const pledges = new Map(parsed.pledges.map(p => [p.externalId, p])), gifts = new Map(parsed.gifts.map(g => [g.externalId, g]))
+ const parts: ParsedImport[] = []
+ const part = (fill: Partial<ParsedImport>, donorIds: Iterable<string>) => {
+  const ds = [...new Set(donorIds)].map(id => donors.get(id)).filter(d => d !== undefined)
+  parts.push({ source: parsed.source, donors: ds, households: [...new Set(ds.map(d => d.householdKey).filter(Boolean))].map(k => households.get(k)!).filter(Boolean),
+   gifts: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [], ...fill })
+ }
+ const chunks = <T>(rows: T[], size = PART_RECORDS) => Array.from({ length: Math.ceil(rows.length / size) }, (_, i) => rows.slice(i * size, (i + 1) * size))
+ for (const chunk of chunks(parsed.donors)) part({}, chunk.map(d => d.externalId))
+ for (const chunk of chunks(parsed.relationships)) part({ relationships: chunk }, chunk.flatMap(r => [r.donorExternalId, r.relatedDonorExternalId]))
+ const installmentsOf = (ids: Set<string>) => parsed.installments.filter(i => ids.has(i.pledgeExternalId))
+ for (const chunk of chunks(parsed.pledges, PART_RECORDS / 2)) part({ pledges: chunk, installments: installmentsOf(new Set(chunk.map(p => p.externalId))) }, chunk.map(p => p.donorExternalId))
+ // A pledge's payments stay in one part, so installments are paid in date order.
+ const groups = new Map<string, typeof parsed.gifts>()
+ for (const g of parsed.gifts) { const key = g.pledgeExternalId ? `pledge:${g.pledgeExternalId}` : `gift:${g.externalId}`; groups.set(key, [...(groups.get(key) ?? []), g]) }
+ let batch: typeof parsed.gifts = []
+ const flushGifts = () => {
+  if (!batch.length) return
+  const ids = new Set(batch.map(g => g.pledgeExternalId).filter(Boolean)), used = [...ids].map(id => pledges.get(id)!).filter(Boolean)
+  part({ gifts: batch, pledges: used, installments: installmentsOf(ids) }, [...batch.map(g => g.donorExternalId), ...used.map(p => p.donorExternalId)])
+  batch = []
+ }
+ for (const group of groups.values()) { if (batch.length + group.length > PART_RECORDS) flushGifts(); batch.push(...group) }
+ flushGifts()
+ for (const chunk of chunks(parsed.softCredits)) {
+  // A credited pledge payment brings its whole pledge, so the payment split matches the earlier part.
+  const credited = new Map<string, (typeof parsed.gifts)[number]>()
+  for (const s of chunk) { const g = gifts.get(s.giftExternalId); if (!g) continue; for (const x of g.pledgeExternalId ? groups.get(`pledge:${g.pledgeExternalId}`)! : [g]) credited.set(x.externalId, x) }
+  const ids = new Set([...credited.values()].map(g => g.pledgeExternalId).filter(Boolean)), used = [...ids].map(id => pledges.get(id)!).filter(Boolean)
+  part({ softCredits: chunk, gifts: [...credited.values()], pledges: used, installments: installmentsOf(ids) }, [...chunk.map(s => s.donorExternalId), ...[...credited.values()].map(g => g.donorExternalId), ...used.map(p => p.donorExternalId)])
+ }
+ for (const chunk of chunks(parsed.notes)) part({ notes: chunk }, chunk.map(n => n.donorExternalId))
+ return parts
+}

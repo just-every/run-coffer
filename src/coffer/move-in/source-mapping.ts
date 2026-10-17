@@ -42,6 +42,8 @@ function relationship(r: SourceRow, out: ParsedImport) {
 function softCredit(r: SourceRow, out: ParsedImport, inline = false) {
  const donorExternalId = r.get('softDonor') || (!inline ? r.required('donorId') : '')
  const giftExternalId = r.get('softGift') || (inline ? r.required('giftId') : r.get('parentId'))
+ // A soft credit row repeats the original gift's date, fund, campaign and payment; the original gift keeps them.
+ if (!inline) for (const field of ['date', 'fund', 'campaign', 'method', 'type', 'giftNote']) r.get(field)
  const amountCents = r.cents(r.peek('softAmount') ? 'softAmount' : 'amount')
  const externalId = r.get('softId') || (!inline ? r.get('giftId') : '') || provenanceId(r, 'credit'), pledgeExternalId = r.get('pledgeId')
  if (!giftExternalId) r.error('SOFT_GIFT', 'A soft credit needs the original received gift ID. A credited donor name cannot identify the gift.')
@@ -76,7 +78,9 @@ function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
  if (r.peek('softDonor')) softCredit(r, out, true)
 }
 function pledge(r: SourceRow, out: ParsedImport) {
- const externalId = r.get('giftId') || r.get('pledgeId'), donorExternalId = r.required('donorId'), amountCents = r.cents('amount'), pledgedOn = r.date('date'), fund = r.get('fund'), note = r.get('giftNote') || r.get('note')
+ const externalId = r.get('giftId') || r.get('pledgeId'), donorExternalId = r.required('donorId'), amountCents = r.cents('amount'), pledgedOn = r.date('date'), fund = r.get('fund'), campaign = r.get('campaign'), method = r.get('method')
+ // A pledge keeps its campaign and stated payment method as part of its note.
+ const note = [r.get('giftNote') || r.get('note'), campaign && `Campaign: ${campaign}`, method && `Payment method: ${method}`].filter(Boolean).join('\n')
  if (!externalId) r.error('PLEDGE_ID', 'A pledge needs its source gift/pledge ID.')
  if (externalId && donorExternalId && amountCents !== null && pledgedOn) out.pledges.push({ location: r.location, externalId, donorExternalId, amountCents, pledgedOn, fund, note })
 }
