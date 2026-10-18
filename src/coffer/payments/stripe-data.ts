@@ -1,4 +1,4 @@
-import { fail } from '../db'
+import { fail, today } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
 export { stripeId } from '../giving/recording'
 
@@ -6,10 +6,14 @@ export function cents(value: unknown): number {
  if (!Number.isSafeInteger(value)) fail('invalid_payment', 'Stripe returned an invalid amount.', 409)
  return value as number
 }
-export function day(seconds: number): string {
+function stamp(seconds: number) {
  if (!Number.isSafeInteger(seconds) || seconds <= 0) fail('invalid_payment', 'Stripe returned an invalid date.', 409)
- return new Date(seconds * 1000).toISOString().slice(0, 10)
+ return new Date(seconds * 1000)
 }
+/** A Stripe moment (charge or balance transaction) on the organization's calendar, as the Stripe move-in dates it. */
+export const day = (seconds: number, timezone: string): string => today(timezone, stamp(seconds))
+/** A Stripe calendar date (a payout's arrival date), which Stripe sends as midnight UTC. */
+export const utcDay = (seconds: number): string => stamp(seconds).toISOString().slice(0, 10)
 export async function* stripePages(env: GivingEnv, path: string): AsyncGenerator<any> {
  let after = ''
  for (;;) {

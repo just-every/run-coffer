@@ -2,7 +2,7 @@ import { paymentFundLines } from '../gift-splits'
 import { all, fail, guard, one, sql, text, type Context } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { syncEntry } from './entries'
-import { cents, day, stripePages } from './stripe-data'
+import { cents, stripePages, utcDay } from './stripe-data'
 import { paymentWrite } from './write'
 
 export async function payoutDetail(c: { db: D1Database }, id: string) {
@@ -56,7 +56,7 @@ export async function syncPayout(env: GivingEnv, id: string, authority?: Context
  const existing = await one({ db: env.DB }, 'SELECT * FROM cf_payouts WHERE id=?', id)
  if (existing && existing.amount_cents !== payout.amount) fail('payout_changed', 'The payout amount changed at Stripe. No deposit was changed.', 409)
  await paymentWrite(env, [sql(`INSERT INTO cf_payouts(id,status,arrival_on,amount_cents,currency,automatic,updated_at) VALUES(?,?,?,?,?,?,?)
-  ON CONFLICT(id) DO UPDATE SET status=excluded.status,updated_at=excluded.updated_at`, id, payout.status, day(payout.arrival_date), cents(payout.amount), payout.currency, payout.automatic ? 1 : 0, new Date().toISOString())], authority)
+  ON CONFLICT(id) DO UPDATE SET status=excluded.status,updated_at=excluded.updated_at`, id, payout.status, utcDay(payout.arrival_date), cents(payout.amount), payout.currency, payout.automatic ? 1 : 0, new Date().toISOString())], authority)
  // Stripe only provides exact payout membership for automatic payouts.
  // Manual payouts remain unmatched instead of guessing by date or amount.
  if (!payout.automatic || payout.reconciliation_status === 'in_progress') return payoutDetail({ db: env.DB }, id)
