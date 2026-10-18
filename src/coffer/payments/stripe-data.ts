@@ -1,4 +1,4 @@
-import { fail } from '../db'
+import { fail, today } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
 export { stripeId } from '../giving/recording'
 
@@ -6,9 +6,9 @@ export function cents(value: unknown): number {
  if (!Number.isSafeInteger(value)) fail('invalid_payment', 'Stripe returned an invalid amount.', 409)
  return value as number
 }
-export function day(seconds: number): string {
+export function day(seconds: number, timezone = 'UTC'): string {
  if (!Number.isSafeInteger(seconds) || seconds <= 0) fail('invalid_payment', 'Stripe returned an invalid date.', 409)
- return new Date(seconds * 1000).toISOString().slice(0, 10)
+ return today(timezone,new Date(seconds * 1000))
 }
 export async function* stripePages(env: GivingEnv, path: string): AsyncGenerator<any> {
  let after = ''
