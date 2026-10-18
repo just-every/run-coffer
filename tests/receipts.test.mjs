@@ -39,6 +39,8 @@ test('approved receipts survive marketing opt-outs, send once, track delivery an
   const delivered=await h.get(`/api/coffer/letters/${b.id}`)
   assert.equal(delivered.letters.find(l=>l.id===letter.id).delivery_status,'delivered')
   assert.equal(delivered.deliveryEvents.length,2)
+  const audit=await h.get(`/api/coffer/audit?record=${ana.id}&action=mail.delivered`)
+  assert.ok(audit.rows.some(r=>r.subject_id===letter.id),'Provider delivery is retained in the organization audit log')
   assert.equal((await h.get(`/api/coffer/donors/${ana.id}`)).letters[0].delivery_status,'delivered')
   await h.command('ack.send',{batchId:b.id,version:sent.version})
   assert.equal(messages.length,2)
