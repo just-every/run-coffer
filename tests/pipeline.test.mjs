@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {run,donor} from './harness.mjs'
+import {run,donor,archive,restore} from './harness.mjs'
 
 const year=new Date().getUTCFullYear(), day=new Date().toISOString().slice(0,10)
 const gift=(h,d,amount,receivedOn)=>h.command('gift.record',{donorId:d.id,amount,receivedOn,method:'check',goods:'none',fund:'Library'})
@@ -79,3 +79,52 @@ test('retention counts and amounts drill to the exact donors, including recaptur
  await h.get('/api/coffer/retention?year=not-a-year',{status:400})
  await h.get('/api/coffer/retention',{as:'',status:401})
 }))
+
+
+test('STEW-002: quarterly completion and overdue monthly Cron create exactly one next task, including month ends and custody',()=>run(async h=>{
+ const owner=(await h.get('/auth/session')).operator
+ const board=await donor(h,'Avery Board Member'),other=await donor(h,'Avery Separate Record')
+ const input={title:'Quarterly board-member check-in',ownerId:owner.id,dueOn:'2030-01-31',intervalMonths:3,donorId:board.id}
+ await h.command('task.repeatCreate',input,{as:'',status:401})
+ await h.command('task.repeatCreate',{...input,ownerId:'not-an-operator'},{status:409})
+ await h.command('task.repeatCreate',{...input,intervalMonths:2},{status:400})
+ const quarter=await h.command('task.repeatCreate',input)
+ await h.get('/api/coffer/recurring-tasks',{as:'',status:401})
+ assert.equal((await h.get('/api/coffer/recurring-tasks?owner=another-person')).length,0)
+ await h.command('task.repeatComplete',{taskId:quarter.id,version:quarter.version,notes:''},{status:400})
+ await h.command('task.repeatComplete',{taskId:quarter.id,version:quarter.version,notes:'Reviewed the library plan and next board meeting.'})
+ await h.command('task.repeatComplete',{taskId:quarter.id,version:quarter.version,notes:'Duplicate click'},{status:409})
+ let tasks=await h.get('/api/coffer/recurring-tasks'),next=tasks.find(t=>t.previous_id===quarter.id)
+ assert.equal(next.due_on,'2030-04-30')
+ assert.equal(next.owner_id,owner.id)
+ assert.equal(next.donor_id,board.id)
+ assert.equal(tasks.find(t=>t.id===quarter.id).status,'done')
+ const monthly=await h.command('task.repeatCreate',{title:'Monthly donor-retention review',ownerId:owner.id,dueOn:'2030-01-31',intervalMonths:1})
+ const tick=()=>h.mf.dispatchFetch(h.origin+'/cdn-cgi/local/scheduled?time='+Date.parse('2030-02-01T12:00:00Z')+'&format=json')
+ for(const response of await Promise.all([tick(),tick()]))assert.equal(response.status,200,await response.text())
+ tasks=await h.get('/api/coffer/recurring-tasks')
+ const february=tasks.find(t=>t.previous_id===monthly.id)
+ assert.equal(february.due_on,'2030-02-28')
+ assert.equal(february.donor_id,null)
+ assert.equal(tasks.filter(t=>t.previous_id===monthly.id).length,1)
+ await h.command('task.repeatComplete',{taskId:monthly.id,version:monthly.version,notes:'Completed the overdue retention review.'})
+ await h.command('task.repeatComplete',{taskId:february.id,version:february.version,notes:'Reviewed the February donor cohorts.'})
+ tasks=await h.get('/api/coffer/recurring-tasks')
+ assert.equal(tasks.find(t=>t.previous_id===february.id).due_on,'2030-03-31')
+ assert.equal(tasks.filter(t=>t.previous_id===monthly.id).length,1)
+ const page=await h.request('/app/calls?owner=&status=all');assert.equal(page.status,200)
+ assert.ok((await page.text()).includes(next.due_on.slice(0,4)))
+ const saved=await archive(h)
+ await run(async fresh=>{await restore(fresh,saved);const copied=await fresh.get('/api/coffer/recurring-tasks');assert.deepEqual(copied.map(t=>[t.id,t.due_on,t.status,t.notes]),tasks.map(t=>[t.id,t.due_on,t.status,t.notes]))})
+ const comparison=await h.get(`/api/coffer/duplicates/compare?source=${board.id}&target=${other.id}`)
+ const merged=await h.command('donor.merge',{sourceDonorId:board.id,donorId:other.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
+ assert.ok((await h.get('/api/coffer/recurring-tasks')).filter(t=>t.series_id===quarter.series_id).every(t=>t.donor_id===other.id))
+ await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'})
+ assert.ok((await h.get('/api/coffer/recurring-tasks')).filter(t=>t.series_id===quarter.series_id).every(t=>t.donor_id===board.id))
+ if(process.env.COFFER_STEW_BROWSER){const {recurringBrowser}=await import('./recurring-browser.mjs');await recurringBrowser(h,board.id,process.env.COFFER_STEW_BROWSER)}
+ await h.command('donor.erase',{donorId:board.id,confirm:'ERASE'})
+ const remaining=await h.get('/api/coffer/recurring-tasks')
+ assert.ok(!remaining.some(t=>t.series_id===quarter.series_id))
+ assert.ok(remaining.some(t=>t.series_id===monthly.series_id))
+ const erasedBackup=JSON.stringify(await archive(h));assert.ok(!erasedBackup.includes('Reviewed the library plan and next board meeting.'))
+},{triggerHandlers:true}))

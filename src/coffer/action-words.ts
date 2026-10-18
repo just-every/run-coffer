@@ -20,6 +20,7 @@ const ACTIONS: Record<string, string> = {
  'pledge.create': 'Pledge recorded', 'pledge.match': 'Gift applied to a pledge', 'pledge.remind': 'Pledge reminder sent', 'pledge.reminder': 'Pledge reminder sent',
  'prospect.save': 'Prospect saved', 'relationship.create': 'Relationship added', 'relationship.remove': 'Relationship removed',
  'settings.update': 'Letter settings saved', 'softCredit.record': 'Soft credit recorded', 'softCredit.remove': 'Soft credit removed',
+ 'task.repeatCreate': 'Repeating task created', 'task.repeatComplete': 'Repeating task completed', 'task.repeatNext': 'Next repeating task created',
  'task.generate': 'Call task created', 'task.assign': 'Call task assigned', 'task.snooze': 'Call task snoozed', 'task.complete': 'Call logged',
  'stewardship.draft': 'Thank-you drafted', 'stewardship.save': 'Thank-you saved', 'stewardship.send': 'Thank-you emailed',
  'stewardship.discard': 'Thank-you draft discarded', 'stewardship.restore': 'Thank-you draft restored', 'stewardship.key': 'AI key changed',

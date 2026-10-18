@@ -1,3 +1,4 @@
+import { recurringTaskCommand } from './recurring-tasks'
 import { marketingCommand } from './communications/commands'
 import { syncPreferences } from './communications/preferences'
 import { welcomeCommand } from './communications/welcome'
@@ -22,7 +23,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // Who may run each command. Agents prepare letters and appeal audiences; a
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
- 'task.generate': STAFF, 'task.assign': STAFF, 'task.snooze': STAFF, 'task.complete': STAFF, 'prospect.save': STAFF,
+ 'task.repeatCreate': STAFF, 'task.repeatComplete': STAFF, 'task.generate': STAFF, 'task.assign': STAFF, 'task.snooze': STAFF, 'task.complete': STAFF, 'prospect.save': STAFF,
  'donor.create': STAFF, 'donor.update': STAFF, 'gift.record': STAFF, 'consent.record': STAFF, 'pledge.create': STAFF,
  'donor.merge': MANAGERS, 'donor.unmerge': MANAGERS, 'relationship.create': STAFF, 'relationship.remove': STAFF, 'interaction.record': STAFF,
  'softCredit.record': STAFF, 'softCredit.remove': STAFF, 'tribute.record': STAFF, 'match.record': STAFF, 'match.receive': STAFF,
@@ -45,7 +46,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'donor.unmerge') return undoMerge(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) {
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }

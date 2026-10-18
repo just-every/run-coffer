@@ -1,3 +1,4 @@
+import { advanceRecurringTasks } from './coffer/recurring-tasks'
 import { runWelcome } from './coffer/communications/welcome'
 import { receiveReply } from './coffer/communications/replies'
 import { runMarketingSync } from './coffer/communications/scheduler'
@@ -35,6 +36,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     execution.waitUntil(runMarketingSync(runtimeBindings(env),new Date(controller.scheduledTime)))
     execution.waitUntil(runWelcome(runtimeBindings(env),new Date(controller.scheduledTime)))
     const tick=new Date(controller.scheduledTime)
+    execution.waitUntil(advanceRecurringTasks(runtimeBindings(env),tick))
     if(tick.getUTCHours()===13 && tick.getUTCMinutes()===0) {
       execution.waitUntil(runPledgeReminders(runtimeBindings(env),tick))
       execution.waitUntil(runAgentJobs(runtimeBindings(env),tick))

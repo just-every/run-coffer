@@ -1055,8 +1055,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 7 | 2 | 0 | 9 |
-| Target and push further | 9 | 64 | 53 | 126 |
-| All | 16 | 66 | 53 | 135 |
+| Target and push further | 10 | 64 | 52 | 126 |
+| All | 17 | 66 | 52 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1138,7 +1138,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `COMM-007` | Direct mail appeals | target | partial | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` | Mail-channel audiences with postal addresses export as CSV; no ask amounts, response codes or mailing history. |
 | `COMM-008` | Appeal results | target | missing |  | No appeal results. |
 | `STEW-001` | Tasks with owners and reminders | target | partial | `src/coffer/call-tasks.ts`, `src/coffer/ui/call-tasks.ts`, `tests/pipeline.test.mjs` | Owned, dated call tasks from lapses and unpaid due pledge installments support assignment, reassignment, snooze and atomic donor-timeline call completion. Recurring tasks, reminders, escalation and other task kinds remain. |
-| `STEW-002` | Recurring tasks | target | missing |  | No tasks. |
+| `STEW-002` | Recurring tasks | target | done | `src/coffer/recurring-tasks.ts`, `src/coffer/ui/recurring-tasks.ts`, `migrations/core/0044_coffer_recurring_tasks.sql`, `tests/pipeline.test.mjs`, `tests/recurring-browser.mjs` | Staff create monthly or quarterly donor-linked or general team tasks. Completion atomically creates the next dated occurrence; the installed minute Cron also advances a task whose due date passed. Unique predecessors prevent duplicate occurrences on concurrent ticks or later completion. Month-end cadence retains the original day. HTTP/Cron proof includes backup/restore, merge/undo and erasure; create and complete journeys run at 1440 and 390. |
 | `STEW-003` | Stewardship journeys | target | partial | `docs/COMMUNICATIONS.md` | A person publishes the first-gift thank-you, impact and second-ask series. Durable due steps run through the provider on the minute Worker scheduler; another gift, unavailable email consent, merge or erasure stops pending work. Other triggers, branches, frequency caps, inactive/deceased statuses and solicitation restrictions remain. |
 | `STEW-004` | Pledge reminders and invoices | target | partial | `src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs` | Self-hosted SendGrid reminders run daily or by staff before each unpaid installment using current email permission, with durable single-attempt submission states. Managed email is not available yet. Unpaid due installments now feed the owned call list. Pay links, printable invoices and automatic overdue follow-up remain. |
 | `STEW-005` | Gift-triggered rules | target | missing |  | No rules. |

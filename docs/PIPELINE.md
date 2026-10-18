@@ -13,3 +13,11 @@ Private read APIs: `/api/coffer/lapses`, `/api/coffer/tasks`, `/api/coffer/prosp
 The broader contract still includes work outside these claims: automatic weekly ranking, team capacity and outcome attribution, recurring tasks, reminders/escalations, full portfolio analytics, configurable score weights, fiscal-year/fund/campaign retention and closed-won gift linkage. The contract marks those clauses partial.
 
 Checks: `tests/pipeline.test.mjs` exercises an owned lapse call through reassignment, snooze and donor-timeline completion, an overdue pledge, pipeline movement and score inputs, plus donor-level retention reconciliation. `tests/giving.test.mjs` exercises stopped monthly status, linked paid history and recovery through signed Stripe webhooks with only network edges faked.
+
+## Repeating tasks (STEW-002)
+
+In **Calls → Repeating tasks**, create a monthly or quarterly team task with a title, owner and first due date. For a board-member check-in, open the donor first and choose **Create a repeating task**; the task stays linked to that donor. General retention reviews need no donor record.
+
+Complete an occurrence with notes to create its successor in the same transaction. If its due date passes first, the minute scheduler creates the next occurrence and keeps the overdue one open for follow-up. Completing that overdue task later never duplicates its successor. Each interval is measured from the prior due date, keeping the original day after shorter months (January 31 → February 28 → March 31). Open and completed occurrences follow the Calls owner/status filters. Backups include the series and completion history; donor merges move linked tasks, undo restores them, and donor erasure removes them.
+
+Staff HTTP doors are `task.repeatCreate`, `task.repeatComplete` and `GET /api/coffer/recurring-tasks` (optional `owner` query). These commands do not grant agent-key access.

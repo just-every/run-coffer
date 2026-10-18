@@ -17,6 +17,8 @@ const descriptions = [
  owned('cf_soft_credits',`n.donor_id IN ${pair} OR n.gift_id IN (${gifts})`),
  owned('cf_gift_tributes',`n.donor_id IN ${pair} OR n.gift_id IN (${gifts})`,['gift_id']),
  owned('cf_giving_customers',undefined,['customer_id']), owned('cf_giving_intents'),
+ owned('cf_recurring_task_series'),
+ owned('cf_recurring_tasks',`n.series_id IN (SELECT id FROM cf_recurring_task_series WHERE donor_id IN ${pair})`),
  owned('cf_subscriptions'), owned('cf_communications'), owned('cf_reply_tasks'), owned('cf_call_tasks'),
  owned('cf_employer_matches',`n.employer_donor_id IN ${pair} OR n.gift_id IN (${gifts}) OR n.received_gift_id IN (${gifts})`),
  owned('cf_relationships',`n.donor_id IN ${pair} OR n.related_donor_id IN ${pair}`),

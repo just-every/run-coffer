@@ -1,3 +1,4 @@
+import { recurringTasks } from './recurring-tasks'
 import { reassignmentReason } from './reassignment-reasons'
 import { fundEntries, fundLedgerCsv, fundReport } from './fund-report'
 import { auditCsv, auditLog, recordRequest } from './audit'
@@ -83,7 +84,7 @@ async function formBody(request: Request, limit = LIMIT): Promise<FormData> {
 }
 function formInput(data: FormData) {
  const input: Record<string, any> = Object.fromEntries(data)
- for (const name of ['version', 'sourceVersion', 'targetDays', 'reminderDays']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
+ for (const name of ['version', 'sourceVersion', 'targetDays', 'reminderDays', 'intervalMonths']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
  if (input.command === 'gift.record' && data.has('splitAmount')) {
   const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
@@ -280,6 +281,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if (url.pathname === '/api/coffer/recurring-tasks') return json(await recurringTasks(c,url.searchParams.get('owner')))
  if (url.pathname === '/api/coffer/duplicates') return json(await likelyDuplicates(c,{donorId:url.searchParams.get('donorId'),page:Number(url.searchParams.get('page'))||0}))
  if (url.pathname === '/api/coffer/duplicates/compare') return json(await compareDonors(c,url.searchParams.get('source')??'',url.searchParams.get('target')??''))
  if (url.pathname === '/api/coffer/audit') return json(await auditLog(c,url))
