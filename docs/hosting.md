@@ -61,17 +61,28 @@ rer deploy --environment production
 
 ## Back up a hosted Coffer
 
-Sign in as the owner, open **More → Data & access** and choose **Download backup**. The file holds the hosted Coffer's donors, gifts, consent history, letters, appeals and approvals, and restores into a fresh Coffer on any computer ([Back up, restore and erase](/docs/backup)). For a raw copy of the whole hosted database as well:
+Pause donor and staff writes while a backup runs. From the Coffer folder that deployed the environment, create an authenticated portability archive:
 
 ```sh
-npx wrangler d1 export coffer-production-db --remote --output exports/coffer-production-db.sql
+rer run backup:hosted -- --environment production --output exports/coffer.rer --session-file owner-session.txt
 ```
 
-`rer export` saves only the copy on your computer, never a hosted one.
+Sign in as the owner at the hosted origin first. In browser Developer Tools, open **Application** (or **Storage**) → **Cookies**, choose that origin, and copy the `__Host-operator_session` cookie name and value. Save the single `NAME=VALUE` cookie to `owner-session.txt` using a hidden terminal prompt, then restrict the file to your account:
+
+```sh
+read -rsp 'Paste the owner cookie NAME=VALUE: ' OWNER_COOKIE
+printf '\n'
+umask 077
+printf '%s' "$OWNER_COOKIE" > owner-session.txt
+unset OWNER_COOKIE
+chmod 600 owner-session.txt
+```
+
+The command reads the hosted origin from `.rer/deploy/production.json` and authenticates with the owner cookie; it does not need Cloudflare credentials. If you run from another Coffer clone without that deploy receipt, pass the address with `--origin https://your-coffer.example.org`. Keep the session file and `.rer` archive private. The archive excludes accounts, sessions and secrets. `rer export` saves only the local installation and cannot back up a hosted Coffer. See [Back up, restore and erase](/docs/backup) for the full restore steps.
 
 ## Take it down
 
-Taking a hosted Coffer down deletes its Worker and its database, with every record in it, and cannot be undone. Download a backup first (above) and check that it opens: restore it into a fresh local Coffer with `rer import`. Then, in the same terminal setup as for deploying:
+Taking a hosted Coffer down deletes its Worker and its database, with every record in it, and cannot be undone. Capture a hosted backup first (above), then restore it into a newly deployed empty environment and check the restored records before removal. Then, in the same terminal setup as for deploying:
 
 ```sh
 rer deploy --environment production --remove --yes

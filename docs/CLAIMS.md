@@ -4,7 +4,7 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 
 `CONTRACT.md` defines the full fundraising CRM target. Its Status table keeps broader unfinished features explicit; the giving rows here describe the self-hosted donation, subscription and donor portal implementation.
 
-**Totals: 61 claims · 56 in code · 5 partly · 0 contract, not yet in code.**
+**Totals: 61 claims · 55 in code · 6 partly · 0 contract, not yet in code.**
 
 | # | Section | Claim | Status | Backed by |
 |---|---|---|---|---|
@@ -62,7 +62,7 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/st
 | 52 | Ownership | keep every donor record / Your donors, your database | in code | The installation's own D1 database (`wrangler.jsonc`, `migrations/`). |
 | 53 | Ownership | Export everything, any time | in code | `/app/backup` and `rer export` through Base portability (`src/coffer/http.ts`, `archive-policy.mjs`). |
 | 54 | Quiet details | Soft credits | in code | Separate recognition credits and reversal-aware totals; received money is counted once (`src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs`). |
-| 55 | Quiet details | Tribute gifts | in code | Honor/memory gifts with honoree, notification contact and tribute text on receipts (`src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`). |
+| 55 | Quiet details | Tribute gifts | partly | Honor/memory gifts record the honoree, notification contact and tribute text on receipts; Coffer does not send a note to the family (`src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`). |
 | 56 | Quiet details | Matching gifts | in code | Expected, overdue and received employer matches link the donor and employer ledger gifts (`src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs`). |
 | 57 | Quiet details | Pledges: schedules, reminders and balances kept current | in code | Dated installment schedules, per-installment payment allocations and current balances; daily or staff-triggered SendGrid reminders before due dates on self-hosted installs, with durable single-attempt state. Managed email integrations are not available yet (`src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs`). |
 | 58 | Quiet details | Consent: email and mail preferences honored everywhere | in code | `donors.ts` consent history per channel; enforced in `appeals.ts`. |

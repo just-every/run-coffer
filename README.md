@@ -82,6 +82,8 @@ rer dev
 
 Restore only goes into an empty installation; a populated one is refused.
 
+For hosted Coffer, use the authenticated hosted backup and restore commands in [Back up, restore and erase](/docs/backup). `rer export` reads only the local installation; it does not back up hosted data.
+
 To honor an erasure request, the owner opens the donor, types `ERASE` and presses **Erase donor**. Their name, contact details, consent evidence, letter text, gift notes and the Stripe pages that mention them are removed, and a later move-in will not bring them back. Their gift amounts and dates stay as anonymous ledger lines because they are the charity's financial record. Afterwards save a fresh backup; when restoring an older backup, pass it as the later journal so the erased person does not come back: `rer import --input exports/older.rer --journal exports/after-erasure.rer --yes`.
 
 ## Deploy in your own Cloudflare account
@@ -102,7 +104,7 @@ rer deploy --environment production
 
 Each `read` waits for you to paste a value and press Enter, without showing it. The dry run builds and validates locally without contacting Cloudflare. The real deploy creates the Worker `coffer-production` and its D1 database, applies the migrations, checks the hosted `/health`, claims the owner for `OWNER_EMAIL` and prints the address; rer generates the session and setup secrets. Keep the private `.rer/deploy/` folder it writes out of Git and back it up: later deploys use it to recognize the resources as yours. Change a secret later with `rer deploy --environment production --set-secret NAME`. Then connect Stripe in **Giving → Connect Stripe**.
 
-To take a hosted Coffer down, first sign in as the owner and **Download backup** from **More → Data & access** (or copy the whole database with `npx wrangler d1 export coffer-production-db --remote --output exports/coffer-production-db.sql`), then run `rer deploy --environment production --remove --yes`. It deletes the Worker and database it created, with every record in them, reads back that both are gone and touches nothing else. [Host it on Cloudflare](https://run-coffer.com/docs/hosting) covers each step; the [Base owner-account deploy kit](https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/modules/deploy-kit/README.md) and [OPERATIONS.md](OPERATIONS.md) describe recovery and flags. Local checks and a dry run do not prove hosted health or mail delivery.
+To take a hosted Coffer down, stop writes and create a hosted backup with the command in [Back up, restore and erase](/docs/backup), then run `rer deploy --environment production --remove --yes`. It deletes the Worker and database it created, with every record in them, reads back that both are gone and touches nothing else. [Host it on Cloudflare](https://run-coffer.com/docs/hosting) covers each step; the [Base owner-account deploy kit](https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/modules/deploy-kit/README.md) and [OPERATIONS.md](OPERATIONS.md) describe recovery and flags. Local checks and a dry run do not prove hosted health or mail delivery.
 
 ## What the first release covers
 

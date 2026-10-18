@@ -1,6 +1,6 @@
-Your donor records live in your own installation. Back them up regularly and keep the file private.
+Your donor records live in your own installation. Back them up regularly and keep each archive private.
 
-## Download a backup
+## Download a local backup
 
 The owner opens **More → Data & access** and presses **Download backup**. Or, from the command line with Coffer stopped:
 
@@ -9,12 +9,14 @@ rer dev --stop
 rer export --output exports/coffer.rer
 ```
 
-A backup holds donors, gifts, consent history, letters, appeals, approvals and the Stripe pages kept from each move-in. Sign-in accounts, sessions, agent keys, mail settings and installation access activity are left out. Donor-history audit events travel with the records. The current installation keeps its own sign-in and download history when records are restored; export that history separately from **More → Audit log → Download filtered CSV**.
+`rer export` reads the installation on this computer only. It does not connect to or back up a hosted Coffer.
 
-## Restore on another computer
+A backup holds donors, gifts, consent history, letters, appeals, approvals and the Stripe pages kept from each move-in. Sign-in accounts, sessions, agent keys, mail settings and installation access activity are left out. Donor-history audit events travel with the records. The destination keeps its own sign-in and access history; export that separately from **More → Audit log → Download filtered CSV**.
 
-1. Get Coffer and start it once so it sets up a fresh owner ([Getting started](/docs/getting-started)).
-2. In a terminal in that Coffer folder, stop it, move the downloaded backup in, make it private and restore it:
+## Restore a local backup
+
+1. Get the same Coffer version and start it once so it sets up a fresh owner ([Getting started](/docs/getting-started)).
+2. In that Coffer folder, stop it, move the archive in, make it private and restore it:
 
 ```sh
 rer dev --stop
@@ -25,13 +27,43 @@ rer import --input exports/coffer.rer --yes
 rer dev
 ```
 
-Browsers save downloads so other accounts on the computer can read them. `chmod 600` makes the file yours alone, which `rer import` requires before it reads a backup. Change `~/Downloads` if your browser saves somewhere else. A backup made with `rer export` is already private.
+Browsers save downloads so other accounts on the computer can read them. `chmod 600` makes the file yours alone, which `rer import` requires before it reads a backup. Change `~/Downloads` if your browser saves somewhere else. An archive made with `rer export` is already private.
 
 A restore only goes into an empty installation; Coffer refuses to restore over records you already have.
 
-## Back up a hosted Coffer
+## Back up and restore a hosted Coffer
 
-**Download backup** works the same on a hosted Coffer and saves its records. [Host it on Cloudflare](/docs/hosting#back-up-a-hosted-coffer) also shows how to copy the whole hosted database, and how to take a hosted Coffer down once you have a backup.
+Pause donor and staff writes while the backup runs so the archive captures a consistent point in time. Run this from the Coffer folder that deployed the hosted environment. The command reads the hosted origin from `.rer/deploy/production.json` and authenticates with the owner cookie; it does not need Cloudflare credentials:
+
+```sh
+rer run backup:hosted -- --environment production --output exports/coffer.rer --session-file owner-session.txt
+```
+
+If you are running from another Coffer clone without that deploy receipt, provide the hosted address explicitly with `--origin https://your-coffer.example.org`.
+
+The owner session file contains one cookie header value, `__Host-operator_session=VALUE`. To create it, first sign in as the owner at the hosted Coffer origin. In your browser's Developer Tools, open **Application** (or **Storage**) → **Cookies**, select that origin, and copy the `__Host-operator_session` cookie name and value. In a terminal, enter it into a hidden prompt and save the file privately:
+
+```sh
+read -rsp 'Paste the owner cookie NAME=VALUE: ' OWNER_COOKIE
+printf '\n'
+umask 077
+printf '%s' "$OWNER_COOKIE" > owner-session.txt
+unset OWNER_COOKIE
+chmod 600 owner-session.txt
+```
+
+Keep the session file private and remove it when the backup is complete. The backup archive excludes accounts, sessions and secrets. It contains Coffer's donor and fundraising records; it does not contain the owner's login or mail and Stripe credentials.
+
+To restore, deploy an empty environment using the same Coffer version and the same Cloudflare account credentials. Sign in as the owner at the new environment's origin, create a new session file for that origin using the steps above, then restore:
+
+```sh
+rer deploy --environment restored --env-file .env.coffer
+rer run backup:hosted -- --environment restored --restore exports/coffer.rer --session-file restored-owner-session.txt --yes
+```
+
+The destination must be a newly deployed, empty environment. The restore uses the destination owner's session, not the source environment's session. Re-enter the destination's mail and Stripe secrets through `rer deploy` before resuming mail or online giving. Review records and settings at the restored origin before directing people there.
+
+Hosted backup and restore operate on the authenticated Coffer portability archive. They do not promise a raw SQL database restore. Keep the archive in a private location, and retain it until you have checked the restored records.
 
 ## Erase a donor
 

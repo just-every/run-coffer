@@ -14,3 +14,6 @@ dist/
 .rer/demo-host/
 
 .rer/deploy/
+
+exports/
+*owner-session.txt
