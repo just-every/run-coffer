@@ -70,20 +70,34 @@ function exportLines(view: any, env: PaymentsEnv) {
 const accountingReference = async (id: string) => 'CF-' + (await sha256(id)).slice(0, 17)
 
 export async function qboCsv(view: any, env: PaymentsEnv): Promise<string> {
- const j = exportLines(view, env), reference = await accountingReference(view.payout.id)
- return csv([['Journal No', 'Journal Date', 'Account Name', 'Debits', 'Credits', 'Description', 'Name', 'Class', 'Location'],
-  ...j.lines.map(l => [reference, j.date, l.name, l.debit === '0.00' ? '' : l.debit, l.credit === '0.00' ? '' : l.credit, l.memo, '', l.fund, ''])], [3, 4])
+ return journalsCsv([view], env)
+}
+
+export async function journalsCsv(views: any[], env: PaymentsEnv): Promise<string> {
+ const rows: unknown[][] = [['Journal No', 'Journal Date', 'Account Name', 'Debits', 'Credits', 'Description', 'Name', 'Class', 'Location']]
+ for (const view of views) {
+  const j = exportLines(view, env), reference = await accountingReference(view.payout.id)
+  rows.push(...j.lines.map(l => [reference, j.date, l.name, l.debit === '0.00' ? '' : l.debit, l.credit === '0.00' ? '' : l.credit, l.memo, '', l.fund, '']))
+ }
+ return csv(rows, [3, 4])
 }
 
 export async function journalIif(view: any, env: PaymentsEnv): Promise<string> {
- const j = exportLines(view, env), day = `${j.date.slice(5, 7)}/${j.date.slice(8, 10)}/${j.date.slice(0, 4)}`, reference = await accountingReference(view.payout.id)
+ return journalsIif([view], env)
+}
+
+export async function journalsIif(views: any[], env: PaymentsEnv): Promise<string> {
  const cell = (v: unknown) => {
   const s = safeText(v)
   if (/[\t\r\n]/.test(s)) fail('PAYMENT_EXPORT', 'IIF fields cannot contain tabs or line breaks.', 400)
   return s
  }
+ let sequence = 0
  const rows = ['!TRNS\tTRNSID\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tDOCNUM\tMEMO\tCLASS', '!SPL\tSPLID\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tDOCNUM\tMEMO\tCLASS', '!ENDTRNS']
- j.lines.forEach((l, i) => rows.push([i ? 'SPL' : 'TRNS', i + 1, 'GENERAL JOURNAL', day, cell(l.name), '', l.debit !== '0.00' ? l.debit : `-${l.credit}`, reference, cell(l.memo), cell(l.fund)].join('\t')))
- rows.push('ENDTRNS')
+ for (const view of views) {
+  const j = exportLines(view, env), day = `${j.date.slice(5, 7)}/${j.date.slice(8, 10)}/${j.date.slice(0, 4)}`, reference = await accountingReference(view.payout.id)
+  j.lines.forEach((l, i) => rows.push([i ? 'SPL' : 'TRNS', ++sequence, 'GENERAL JOURNAL', day, cell(l.name), '', l.debit !== '0.00' ? l.debit : `-${l.credit}`, reference, cell(l.memo), cell(l.fund)].join('\t')))
+  rows.push('ENDTRNS')
+ }
  return rows.join('\r\n') + '\r\n'
 }

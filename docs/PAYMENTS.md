@@ -35,3 +35,9 @@ Set `QBO_ACCOUNT_NAMES` to JSON mapping the same mapped account IDs to exact Qui
 [QuickBooks document-number limits](https://static.developer.intuit.com/sdkdocs/qbv3doc/ippdotnetdevkitv3/html/0b5f8961-f32e-e396-3a39-7b3e241434e8.htm), [QuickBooks journal CSV instructions](https://quickbooks.intuit.com/learn-support/en-us/help-article/import-export-data-files/import-journal-entries-quickbooks-online/L4tQBwbs7_US_en_US), [Stripe payout membership](https://docs.stripe.com/api/balance_transactions/list).
 
 On RER Managed, provider calls show one plain line: **Stripe and Pantry are not available yet on RER Managed.** No Stripe or Pantry request is sent. Existing records and local file exports remain available. Self-hosted installations use their own provider connections.
+
+## Period journals (FIN-004)
+
+In **Payouts → Journal for a period**, choose inclusive From and To arrival dates and CSV or QuickBooks Desktop IIF. The file includes every recorded payout in that period, independently of the latest 100 shown in the list. Each payout keeps its own balanced journal and deterministic reference, with the same account and fund-class mapping as its individual export. A payout that is not paid, fully matched or correctly mapped refuses the download; resolve it before closing the period. An empty period downloads headers only.
+
+The authenticated HTTP door is `/api/coffer/payments/journal?from=2026-10-01&to=2026-10-31&format=csv` (or `format=iif`). These journal files can be mapped into other ledgers such as Xero, Aplos and Sage Intacct; confirm that ledger’s import-column mapping before importing. Check batches are not implemented yet (GIFT-002/FIN-001).

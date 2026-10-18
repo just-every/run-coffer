@@ -21,7 +21,7 @@ async function deliver(h,id,type,objectId,{bad=false}={}) {
  return h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'stripe-signature':`t=${timestamp},v1=${sig}`},body:raw})
 }
 
-test('signed Stripe gifts, fees, refunds and payout reconcile by fund and post once to Pantry after approval',async()=>{
+test('FIN-004: signed Stripe gifts, fees, refunds and payout reconcile by fund and post once to Pantry after approval',async()=>{
  let proposal=null,submissions=0,evidenceHash='',approved=false,providerCalls=0
  const outbound=async request=>{
   providerCalls++
@@ -117,12 +117,42 @@ test('signed Stripe gifts, fees, refunds and payout reconcile by fund and post o
   assert.equal((await h.request('/api/coffer/payments/'+payout.id+'/journal.iif')).status,200)
   await h.api('/api/coffer/payments/sync',{payoutId:manualPayout.id})
   assert.equal((await h.get('/api/coffer/payments/'+manualPayout.id)).payout.complete,0)
+  const month=new Date(at*1000).toISOString().slice(0,7),from=month+'-01',to=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10)
+  const period=`/api/coffer/payments/journal?from=${from}&to=${to}`
+  await h.get(period,{status:409}) // An unmatched deposit cannot disappear from the month's books.
+  await h.get(period,{as:member.cookie,status:403})
+  await h.get(period,{as:'',status:401})
+  await h.get('/api/coffer/payments/journal?from=2026-99-01&to=2026-09-30',{status:400})
+  await h.get('/api/coffer/payments/journal?from=2026-09-30&to=2026-09-01',{status:400})
+  await h.get(period+'&format=pdf',{status:400})
   await h.api('/api/coffer/payments/'+manualPayout.id+'/match',{entryIds:manualEntry.id,confirm:'no'},{status:400})
   const manual=await h.api('/api/coffer/payments/'+manualPayout.id+'/match',{entryIds:manualEntry.id,confirm:'yes'})
   assert.equal(manual.payout.complete,1)
   assert.equal(manual.payout.matched_cents,5790)
   const sameManual=await h.api('/api/coffer/payments/'+manualPayout.id+'/match',{entryIds:manualEntry.id,confirm:'yes'})
   assert.equal(sameManual.lines.length,1)
+  const download=await h.request(period+'&format=csv')
+  assert.equal(download.status,200)
+  assert.match(download.headers.get('content-disposition'),/attachment/)
+  const rows=(await download.text()).trim().split('\r\n').slice(1).map(line=>line.slice(1,-1).split('","').map(cell=>cell.replaceAll('""','"')))
+  const totals={}
+  for(const row of rows)totals[row[2]]=(totals[row[2]]??0)+Math.round(Number(row[3]||0)*100)-Math.round(Number(row[4]||0)*100)
+  assert.deepEqual(totals,{'Checking':17795,'Stripe fees':705,'Reading donations':-13500,'Meals donations':-5000})
+  assert.equal(new Set(rows.map(row=>row[0])).size,2,'Each deposit keeps its own journal reference')
+  assert.ok(rows.filter(row=>row[2]==='Reading donations').every(row=>row[7]==='Reading'))
+  const ledger=(await h.get('/api/coffer/donors')).donors
+  let ledgerCents=0
+  for(const donor of ledger)ledgerCents+=(await h.get('/api/coffer/donors/'+donor.id)).totals.lifetimeCents
+  assert.equal(-totals['Reading donations']-totals['Meals donations'],ledgerCents)
+  const iif=(await (await h.request(period+'&format=iif')).text()).trim().split('\r\n')
+  assert.equal(iif.filter(line=>line==='ENDTRNS').length,2)
+  if(process.env.COFFER_FIN_BROWSER){const {paymentsBrowser}=await import('./payments-browser.mjs');await paymentsBrowser(h,{from,to,directory:process.env.COFFER_FIN_BROWSER})}
+  const iifTotals={}
+  for(const line of iif.filter(line=>/^(TRNS|SPL)\t/.test(line))){const row=line.split('\t');iifTotals[row[4]]=(iifTotals[row[4]]??0)+Math.round(Number(row[6])*100)}
+  assert.deepEqual(iifTotals,totals)
+  assert.equal((await h.request(`/api/coffer/payments/journal?from=${from}&to=${from}&format=csv`)).status,200)
+  const empty=await h.request('/api/coffer/payments/journal?from=2000-01-01&to=2000-01-31')
+  assert.equal((await empty.text()).trim().split('\r\n').length,1,'An empty period has a readable header and no deposits')
   // A dispute and its win are new financial lines, even after an older payout.
   assert.equal((await deliver(h,'evt_disputed','charge.dispute.created',dispute.id)).status,200)
   dispute.balance_transactions.push({id:'txn_dispute_won',type:'adjustment',source:'dp_reading',amount:5000,fee:-1500,net:6500,currency:'usd',created:at})

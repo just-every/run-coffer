@@ -1,3 +1,4 @@
+import { periodJournal } from './period-journal'
 import { manager, person } from '../auth'
 import { fail, id, type Context } from '../db'
 import { available, managed } from '../giving/stripe'
@@ -22,6 +23,10 @@ export async function paymentsResponse(request: Request, c: Context, env: Paymen
   const data = await input(), payoutId = data.payoutId ? id(data.payoutId, 'Stripe payout ID') : undefined
   const result = await syncPayouts(env, payoutId, c)
   return api ? json(result) : redirect(payoutId ? '/app/payouts/' + encodeURIComponent(payoutId) : '/app/payouts')
+ }
+ if (suffix === '/journal') {
+  if (!['GET', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'Use GET to download a journal.', 405)
+  return periodJournal(c, env, new URL(request.url))
  }
  const match = suffix.match(/^\/([^/]+)(?:\/(post|match|evidence\.csv|qbo\.csv|journal\.iif))?$/)
  if (match) {

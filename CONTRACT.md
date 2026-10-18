@@ -1055,8 +1055,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 7 | 2 | 0 | 9 |
-| Target and push further | 8 | 65 | 53 | 126 |
-| All | 15 | 67 | 53 | 135 |
+| Target and push further | 9 | 64 | 53 | 126 |
+| All | 16 | 66 | 53 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1116,7 +1116,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `FIN-001` | QuickBooks Online sync | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Mapped fund, bank and fee accounts export as a balanced QBO journal CSV with fund classes; Desktop IIF is separate. No QBO OAuth/API connection or check-batch posting yet. |
 | `FIN-002` | Pantry sync | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Paid matched USD payouts become evidence-backed Pantry journal proposals; human Pantry approval posts the deposit, and Coffer refresh records its journal ID. Saved submission claims prevent duplicate or uncertain resends. Check batches remain outstanding; live Stripe-to-Pantry acceptance needs a USD-settling Stripe test account. |
 | `FIN-003` | Restricted funds | target | partial | `src/coffer/gifts.ts`, `src/coffer/payments/pantry.ts` | Every gift has a free-text fund (default Unrestricted); payout fund names map to accounting accounts through installation settings. Restriction types and release reports remain outstanding. |
-| `FIN-004` | Journal export for other ledgers | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Each reconciled payout exports a mapped journal CSV or Desktop IIF. A combined per-period download remains outstanding. |
+| `FIN-004` | Journal export for other ledgers | target | done | `src/coffer/payments/exports.ts`, `src/coffer/payments/period-journal.ts`, `tests/payments.test.mjs`, `tests/payments-browser.mjs` | Every recorded payout deposit in an inclusive arrival-date period exports in a combined mapped CSV or IIF, with separate balanced journal references and fund classes. Incomplete, unmatched or unconfigured deposits refuse the whole download. Clause-tagged HTTP proof checks account totals against gifts including refunds; browser downloads at 1440 and 390 exercise both formats. Check-batch creation/posting remains in GIFT-002/FIN-001; FIN-004 uses the currently recorded deposits (interpretation sent to ct, 19 October). |
 | `FIN-005` | Reconciliation report | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Per-payout gifts, refunds, fees, net, match difference and Pantry destination/journal ID are visible. Period-wide ledger/processor/deposit reconciliation including pending ACH and check batches remains outstanding. |
 | `RCPT-001` | Immediate email receipts | target | partial | `src/coffer/receipt-mail.ts`, `tests/receipts.test.mjs` | Approved per-gift receipts are sent from install SendGrid; automatic online-gift triggers within a minute, domain verification and attached PDFs remain unbuilt. Managed integrations are not available yet. |
 | `RCPT-002` | Acknowledgments delivered by email | target | done | `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs` | Approved frozen batches send once per letter through self-hosted SendGrid, route donors without an address or with a known receipt bounce/complaint to print; marketing withdrawals still receive receipts, and show submitted versus signed provider delivery results. RER Managed sending is not available yet. |
