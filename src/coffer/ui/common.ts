@@ -3,10 +3,12 @@ import { themeFrame } from '../../base/theme-frame'
 import branding from '../../branding.json'
 import { usd } from '../money'
 import { longDate } from '../settings'
+import { today } from '../db'
 
 export const e = (v: unknown): string => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 export const money = usd
-export const when = (day: string | null | undefined) => day ? longDate(day.slice(0, 10)) : ''
+// Calendar dates are already local; timestamps need the organisation's zone.
+export const when = (value: string | null | undefined, timezone = 'UTC') => value ? longDate(value.length === 10 ? value : today(timezone, new Date(value))) : ''
 export const hidden = (name: string, value: unknown) => `<input type="hidden" name="${e(name)}" value="${e(value)}">`
 export const field = (label: string, name: string, type = 'text', value: unknown = '', extra = '') =>
  `<label>${e(label)}<input name="${e(name)}" type="${type}" value="${e(value)}" ${extra}></label>`

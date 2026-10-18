@@ -10,7 +10,7 @@ function prospectFields(owners: Row[], p: Row = {}): string {
  <div class="fields">${select('Stage', 'stage', stages, p.stage ?? 'identify', 'required')}
  ${select('Prospect owner', 'ownerId', [['', 'Choose an active team member'], ...owners.map(o => [o.id, o.display_name] as [string, string])], p.owner_id ?? '', 'required')}
  ${field('Ask amount (USD)', 'askAmount', 'number', p.ask_amount_cents === undefined ? '' : (p.ask_amount_cents / 100).toFixed(2), 'required min="0" max="100000000" step="0.01" inputmode="decimal"')}
- ${field('Expected close date', 'expectedCloseOn', 'date', p.expected_close_on ?? '', 'required')}</div>
+ ${field('Expected close date (required)', 'expectedCloseOn', 'date', p.expected_close_on ?? '', 'required')}</div>
  ${area('Next step', 'nextStep', p.next_step ?? '', 'required maxlength="2000" rows="3"')}
  <p class="muted">An ask can be zero while identifying a prospect. This pipeline does not record a gift or a pledge.</p>`
 }

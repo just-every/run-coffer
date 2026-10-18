@@ -14,10 +14,11 @@ const relationshipIds=h=>h.depth.relationships.map(r=>r.id).sort()
 
 // The queue is computed from real records, including shared household contacts.
 // Neither application queries nor merge behavior are replaced by test fakes.
-test('duplicates queue finds exact contacts and near names, pages every pair, and excludes a shared household',()=>run(async h=>{
+test('duplicates queue requires contact evidence, pages every pair, and excludes a shared household',()=>run(async h=>{
  const original=await donor(h,'Marisol Alvarez',{phone:'202-555-0191'})
  const copy=await donor(h,'Marisol Alvarez',{email:'marisol.second@example.org',phone:'2025550191'})
  const near=await donor(h,'Marisoll Alvarez',{email:'marisol.third@example.org',addressLine1:'8 River Road'})
+ const sameName=await donor(h,'Marisol Alvarez',{email:'marisol.fourth@example.org',addressLine1:'99 Park Avenue'})
  const samePhone=await donor(h,'Cedar Readers Foundation',{phone:'+1 202 555 0191',addressLine1:'77 Cedar Lane'})
  const alex=await donor(h,'Alex Voss',{email:'voss.household@example.org',phone:'202-555-0132',household:'Voss family'})
  const sam=await donor(h,'Sam Voss',{email:'voss.household@example.org',phone:'2025550132',household:'Voss family'})
@@ -26,8 +27,13 @@ test('duplicates queue finds exact contacts and near names, pages every pair, an
  const matches=(a,b)=>response.pairs.find(p=>[p.source.id,p.target.id].includes(a.id)&&[p.source.id,p.target.id].includes(b.id))
  assert.ok(matches(original,copy).reasons.some(r=>r.code==='name_address'))
  assert.ok(matches(original,copy).reasons.some(r=>r.code==='phone'))
- assert.ok(matches(original,near).reasons.some(r=>r.code==='near_name'))
+ assert.equal(matches(original,near),undefined)
+ assert.equal(matches(original,sameName),undefined)
  assert.ok(matches(original,samePhone).reasons.some(r=>r.code==='phone'))
+ const phoneReason=matches(original,samePhone).reasons.find(r=>r.code==='phone')
+ assert.ok(phoneReason.label.includes('2025550191'))
+ const pageHtml=await (await h.request('/app/duplicates')).text()
+ assert.ok(pageHtml.includes(phoneReason.label))
  assert.equal(matches(alex,sam),undefined)
  const comparison=await h.get(`/api/coffer/duplicates/compare?source=${copy.id}&target=${original.id}`)
  const email=comparison.fields.find(f=>f.key==='email')

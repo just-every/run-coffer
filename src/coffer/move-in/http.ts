@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { manager } from '../auth'
-import { fail, type Context } from '../db'
+import { fail, today, type Context } from '../db'
+import { settings } from '../settings'
 import { page } from '../ui/common'
 import { csv } from '../csv'
 import { crmMoveInPage, crmReviewPage, crmJournalPage, reasonName } from '../ui/crm-move-in'
@@ -18,18 +19,18 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)
  const action=url.pathname.slice(base.length+1)
  if(request.method==='GET') {
-  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c)),c.actor,200,'/app/more')
+  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone),c.actor,200,'/app/more')
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
   if(action==='review' && !api) {
    const job=await reviewed(c,url.searchParams.get('id')||''), list=await issues(c,job.id,{...q,severity:q.severity??(job.report.canApply?undefined:'error')})
-   return page('Review CRM move-in',crmReviewPage(job,{...list,query:{...list.query,show:q.severity??(job.report.canApply?'all':'error')}},c.now.slice(0,10)),c.actor,200,'/app/more')
+   return page('Review CRM move-in',crmReviewPage(job,{...list,query:{...list.query,show:q.severity??(job.report.canApply?'all':'error')}},today((await settings(c)).timezone,new Date(c.now))),c.actor,200,'/app/more')
   }
   if(action==='issues')return json(await issues(c,(await reviewed(c,url.searchParams.get('id')||'')).id,q))
   if(action==='issues.csv') {
    const job=await reviewed(c,url.searchParams.get('id')||''), rows=await allIssues(c,job.id,q)
    return new Response(csv(['File','Sheet','Row','Column','Must fix or check','Reason','What to do'],rows.map(d=>[d.file,d.sheet==='CSV'?'':d.sheet,d.row,d.column,d.severity==='error'?'Must fix':'Check',reasonName(d.code),d.message])),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="move-in-${q.severity==='error'?'rows-to-fix':'rows'}-${job.id.slice(0,8)}.csv"`}})
   }
-  if(action==='journal') {const result=await service.journal(c,url.searchParams.get('id')||'');return api?json(result):page('CRM import journal',crmJournalPage(result),c.actor,200,'/app/more')}
+  if(action==='journal') {const result=await service.journal(c,url.searchParams.get('id')||'');return api?json(result):page('CRM import journal',crmJournalPage(result,(await settings(c)).timezone),c.actor,200,'/app/more')}
  }
  if(request.method!=='POST')fail('post_required','Use the move-in forms.',405)
  const data=api?await readers.jsonBody(request,24*1024*1024):await readers.formBody(request,24*1024*1024)

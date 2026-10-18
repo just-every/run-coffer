@@ -41,7 +41,7 @@ function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: 
 
 /** Freeze one annual letter per donor in the normal human approval workflow. */
 export async function prepareStatements(c: Context, p: Row): Promise<Row> {
- const s = await settings(c), day = today(s.timezone)
+ const s = await settings(c), day = today(s.timezone, new Date(c.now))
  const year = integer(typeof p.year === 'string' ? Number(p.year) : p.year, 'Statement year', 1900, Number(day.slice(0, 4)))
  const donorId = p.donorId === undefined || p.donorId === null || p.donorId === '' ? null : id(p.donorId, 'Donor')
  if (!s.reviewed_at || !s.organisation) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')

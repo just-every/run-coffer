@@ -29,6 +29,6 @@ export function interactionForm(donorId: string, actorName: string, day: string)
 }
 
 /** A complete list item, also suitable for a mixed gift/conversation list. */
-export function interactionItem(i: DonorInteraction) {
- return `<li>${e(i.kind[0].toUpperCase() + i.kind.slice(1))} · ${when(i.occurred_on)}<p><strong>Who:</strong> ${e(i.who)}</p><p>${e(i.notes).replace(/\n/g, '<br>')}</p>${i.next_step ? `<p><strong>Next step:</strong> ${e(i.next_step).replace(/\n/g, '<br>')}</p>` : ''}<span class="muted">Recorded by ${e(i.recorded_by)} · ${when(i.recorded_at)}</span></li>`
+export function interactionItem(i: DonorInteraction, timezone: string) {
+ return `<li>${e(i.kind[0].toUpperCase() + i.kind.slice(1))} · ${when(i.occurred_on)}<p><strong>Who:</strong> ${e(i.who)}</p><p>${e(i.notes).replace(/\n/g, '<br>')}</p>${i.next_step ? `<p><strong>Next step:</strong> ${e(i.next_step).replace(/\n/g, '<br>')}</p>` : ''}<span class="muted">Recorded by ${e(i.recorded_by)} · ${when(i.recorded_at, timezone)}</span></li>`
 }

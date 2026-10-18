@@ -46,11 +46,11 @@ export function validateImport(out: ParsedImport) {
   out.diagnostics.push({ severity: 'warning', code: 'RECONCILIATION', message: 'Raw received gift totals and mapped gift totals do not reconcile by count, cents, year, fund, and constituent.' })
  }
  const donors = new Set(out.donors.map(d => d.externalId)), gifts = new Map(out.gifts.map(g => [g.externalId, g])), pledges = new Map(out.pledges.map(p => [p.externalId, p]))
- const missing = (row: { location: object }, kind: string, id: string) => out.diagnostics.push({ ...row.location, severity: 'error', code: 'MISSING_REFERENCE', message: `${kind} ${id || '(empty)'} is missing from the supplied exports.${out.source === 'lgl' && /constituent/i.test(kind) ? ' Include this ID in the constituents report with its name; names in other reports are only labels.' : ''}` })
+ const missing = (row: { location: object }, kind: string, id: string) => out.diagnostics.push({ ...row.location, severity: 'error', code: 'MISSING_REFERENCE', column: `${kind} ID`, message: `${kind} ${id || '(empty)'} is missing from the supplied exports. Include the ${kind.toLowerCase()} row with this ID in its export, or correct this row's linked ID.${out.source === 'lgl' && /constituent/i.test(kind) ? ' The constituents report must include its name; names in other reports are only labels.' : ''}` })
  for (const collection of [out.gifts, out.relationships, out.softCredits, out.pledges, out.installments, out.notes]) {
   const ids = new Set<string>()
   for (const row of collection) {
-   if (ids.has(row.externalId)) out.diagnostics.push({ ...row.location, severity: 'error', code: 'DUPLICATE_ID', message: `Duplicate source record ID ${row.externalId}; joined or split reports require distinct source IDs.` })
+   if (ids.has(row.externalId)) out.diagnostics.push({ ...row.location, severity: 'error', code: 'DUPLICATE_ID', column: 'Record ID', message: `Duplicate source record ID ${row.externalId}. Delete the repeated row if it is the same record. For separate joined or split records, export a distinct source record ID for each.` })
    ids.add(row.externalId)
    if ('donorExternalId' in row && !donors.has(row.donorExternalId)) missing(row, 'Constituent', row.donorExternalId)
    if ('relatedDonorExternalId' in row && !donors.has(row.relatedDonorExternalId)) missing(row, 'Related constituent', row.relatedDonorExternalId)
@@ -61,12 +61,13 @@ export function validateImport(out: ParsedImport) {
  for (const credit of out.softCredits) {
   const gift = gifts.get(credit.giftExternalId)
   if (!gift) missing(credit, 'Received gift', credit.giftExternalId)
-  else if (credit.amountCents > gift.amountCents) out.diagnostics.push({ ...credit.location, severity: 'error', code: 'SOFT_AMOUNT', message: 'A soft credit exceeds its received gift amount.' })
+  else if (credit.amountCents > gift.amountCents) out.diagnostics.push({ ...credit.location, severity: 'error', code: 'SOFT_AMOUNT', column: 'Amount', message: `Soft credit ${credit.externalId} exceeds gift ${gift.externalId}. Set the credit Amount to no more than the gift amount, or correct its Related Gift ID if it recognizes a different gift.` })
  }
  for (const pledge of out.pledges) {
   const installments = out.installments.filter(i => i.pledgeExternalId === pledge.externalId)
-  if (installments.length && installments.reduce((sum, i) => sum + i.amountCents, 0) !== pledge.amountCents) out.diagnostics.push({ ...pledge.location, severity: 'error', code: 'INSTALLMENT_TOTAL', message: `Installments for pledge ${pledge.externalId} do not equal its pledged amount.` })
-  for (const i of installments) if (i.dueOn < pledge.pledgedOn) out.diagnostics.push({ ...i.location, severity: 'error', code: 'INSTALLMENT_DATE', message: 'Installment date precedes the pledge date.' })
+  for (const i of installments) if (i.dueOn < pledge.pledgedOn) out.diagnostics.push({ ...i.location, severity: 'error', code: 'INSTALLMENT_DATE', column: 'Due Date', message: `Installment date precedes pledge ${pledge.externalId}'s date. Set Due Date on or after ${pledge.pledgedOn}, or correct the pledge date if it is wrong.` })
  }
+ for (const r of out.relationships) if (r.donorExternalId === r.relatedDonorExternalId || !['spouse','employer','board_member','foundation_officer','introduced_by'].includes(r.type))
+  out.diagnostics.push({ ...r.location, severity: 'error', code: 'RELATIONSHIP', column: 'Relationship Type / Related Constituent ID', message: `Relationship ${r.externalId} needs two different constituents and a supported type. Correct Related Constituent ID and use Spouse, Employer, Board member, Foundation officer or Introduced by; otherwise remove this relationship row.` })
  if (out.unmapped.length) out.diagnostics.push({ severity: 'warning', code: 'UNMAPPED', message: `${out.unmapped.length} source field(s) remain unmapped. Review each field before importing.` })
 }

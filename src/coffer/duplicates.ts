@@ -13,38 +13,6 @@ const nameKey = (value: unknown) => normalized(value).split(' ').sort().join(' '
 const phoneKey = (value: unknown) => { const digits = String(value ?? '').replace(/\D/g, ''); return digits.length === 11 && digits[0] === '1' ? digits.slice(1) : digits.length >= 7 ? digits : '' }
 const postalKey = (d: Row) => d.address_line1 && (d.postal_code || d.city) ? [d.address_line1,d.address_line2,d.city,d.region,d.postal_code,d.country].map(normalized).join('|') : ''
 
-/** Levenshtein is a metric, so the name index can prune whole branches without
- * silently dropping records behind a donor-count or comparison-count limit. */
-function distance(a: string, b: string) {
- let previous = Array.from({length:b.length + 1}, (_, i) => i)
- for (let i = 1; i <= a.length; i++) {
-  const row = [i]
-  for (let j = 1; j <= b.length; j++) row.push(Math.min(row[j-1] + 1, previous[j] + 1, previous[j-1] + Number(a[i-1] !== b[j-1])))
-  previous = row
- }
- return previous[b.length]
-}
-type NameNode = { name: string; donors: Row[]; children: Map<number, NameNode> }
-function nearby(node: NameNode | undefined, name: string, visit: (d: Row, gap: number) => void) {
- if (!node) return
- const pending = [node]
- while (pending.length) {
-  const item = pending.pop()!, gap = distance(item.name,name)
-  if (gap <= 2) for (const donor of item.donors) visit(donor,gap)
-  for (const [edge,child] of item.children) if (edge >= gap-2 && edge <= gap+2) pending.push(child)
- }
-}
-function insertName(root: NameNode, name: string, donor: Row) {
- let node = root
- for (;;) {
-  const edge = distance(node.name, name)
-  if (!edge) { node.donors.push(donor); return }
-  const child = node.children.get(edge)
-  if (child) node = child
-  else { node.children.set(edge, {name, donors:[donor], children:new Map()}); return }
- }
-}
-
 export async function likelyDuplicates(c: {db:D1Database}, options:{donorId?:string|null;page?:number} = {}) {
  const [donors,aliases] = await Promise.all([
   all(c, `SELECT d.*,h.name AS household FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id WHERE ${current} ORDER BY d.created_at,d.id`),
@@ -57,13 +25,12 @@ export async function likelyDuplicates(c: {db:D1Database}, options:{donorId?:str
   const addresses = emails.get(alias.donor_id) ?? new Set<string>()
   addresses.add(String(alias.email).trim().toLowerCase()); emails.set(alias.donor_id,addresses)
  }
- const buckets = new Map<string, Row[]>(), pairs = new Map<string, Row>(), names = new Map<string,string>()
+ const buckets = new Map<string, Row[]>(), pairs = new Map<string, Row>()
  const donorId = options.donorId ? id(options.donorId,'Donor') : null
  // A donor page compares only that person with the index. It need not build
  // every pair in the organization just to display one person's warning.
  const anchor = donorId ? donors.find(d=>d.id===donorId) : undefined
  const ordered = donorId ? [...donors.filter(d=>d.id!==donorId),...(anchor?[anchor]:[])] : donors
- let nameIndex: NameNode | undefined
  const add = (a: Row, b: Row, code: string, label: string, score: number) => {
   if (a.id === b.id || a.household_id && a.household_id === b.household_id) return
   const key = [a.id,b.id].sort().join('\0'), existing = pairs.get(key)
@@ -71,24 +38,18 @@ export async function likelyDuplicates(c: {db:D1Database}, options:{donorId?:str
   else pairs.set(key, {source:b,target:a,reasons:[{code,label}],score})
  }
  for (const d of ordered) {
-  const name = nameKey(d.name); names.set(d.id,name)
+  const name = nameKey(d.name), phone = phoneKey(d.phone), postal = postalKey(d)
+  const address = [d.address_line1,d.address_line2,d.city,d.region,d.postal_code,d.country].filter(Boolean).join(', ')
+  // Names alone are not enough evidence that two records describe one person.
   const keys: [string,string,string,number][] = [
-   ...[...(emails.get(d.id) ?? [])].map(address=>[`email:${address}`,'email','Same email',100] as [string,string,string,number]),
-   [phoneKey(d.phone) ? `phone:${phoneKey(d.phone)}` : '', 'phone', 'Same phone', 90],
-   [name && postalKey(d) ? `postal:${name}:${postalKey(d)}` : '', 'name_address', 'Same name and postal address', 95],
+   ...[...(emails.get(d.id) ?? [])].map(address=>[`email:${address}`,'email',`Same email: ${address}`,100] as [string,string,string,number]),
+   [phone ? `phone:${phone}` : '', 'phone', `Same phone: ${phone}`, 90],
+   [name && postal ? `postal:${name}:${postal}` : '', 'name_address', `Same name and postal address: ${d.name} · ${address}`, 95],
   ]
   for (const [key,code,label,score] of keys) if (key) {
    const prior = buckets.get(key) ?? []
    if (!donorId || d.id===donorId) for (const other of prior) add(other,d,code,label,score)
    prior.push(d); buckets.set(key,prior)
-  }
-  if (name.length >= 5) {
-   if (!donorId || d.id===donorId) nearby(nameIndex,name,(other,gap) => {
-    const length = Math.min(name.length,names.get(other.id)!.length)
-    if (gap <= (length >= 8 ? 2 : 1) && gap / length <= .25) add(other,d,'near_name',gap ? 'Similar names' : 'Same name',60)
-   })
-   if (nameIndex) insertName(nameIndex,name,d)
-   else nameIndex = {name,donors:[d],children:new Map()}
   }
  }
  const result = [...pairs.values()].filter(p=>!donorId || p.source.id===donorId || p.target.id===donorId)
