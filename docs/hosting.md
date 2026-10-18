@@ -70,7 +70,8 @@ rer run backup:hosted -- --environment production --output exports/coffer.rer --
 Sign in as the owner at the hosted origin first. In browser Developer Tools, open **Application** (or **Storage**) → **Cookies**, choose that origin, and copy the `__Host-operator_session` cookie name and value. Save the single `NAME=VALUE` cookie to `owner-session.txt` using a hidden terminal prompt, then restrict the file to your account:
 
 ```sh
-read -rsp 'Paste the owner cookie NAME=VALUE: ' OWNER_COOKIE
+printf 'Paste the owner cookie NAME=VALUE: '
+read -rs OWNER_COOKIE
 printf '\n'
 umask 077
 printf '%s' "$OWNER_COOKIE" > owner-session.txt

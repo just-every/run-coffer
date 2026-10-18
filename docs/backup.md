@@ -44,7 +44,8 @@ If you are running from another Coffer clone without that deploy receipt, provid
 The owner session file contains one cookie header value, `__Host-operator_session=VALUE`. To create it, first sign in as the owner at the hosted Coffer origin. In your browser's Developer Tools, open **Application** (or **Storage**) → **Cookies**, select that origin, and copy the `__Host-operator_session` cookie name and value. In a terminal, enter it into a hidden prompt and save the file privately:
 
 ```sh
-read -rsp 'Paste the owner cookie NAME=VALUE: ' OWNER_COOKIE
+printf 'Paste the owner cookie NAME=VALUE: '
+read -rs OWNER_COOKIE
 printf '\n'
 umask 077
 printf '%s' "$OWNER_COOKIE" > owner-session.txt
