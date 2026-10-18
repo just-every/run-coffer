@@ -1301,7 +1301,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `09f821748012a3534a4e0446e1ec02a5e88cf5a0` (18 October 2026).
+Judged from the code and tests at commit `ea110873b5a1a83af505428066a13bb2368b4a33` (18 October 2026).
 
 The audit log was exercised on a hosted installation at 1440 and 390 pixels on 18 October 2026, including real email sign-in, filtering, an empty result and CSV download.
 
@@ -1428,7 +1428,7 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | `MOVE-011` | Switching guide for each incumbent | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | The CRM export guide gives vendor report/menu guidance, official source links, required IDs, supported fields and source control interpretation for LGL, Bloomerang and NXT, alongside the Stripe guide. PCI transfer and an installation cutover checklist remain unbuilt. |
 | `TEAM-001` | Roles and record-level access | target | partial | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs` | Owner, admin, member and agent roles guard every command; no fundraiser, finance, volunteer or read-only roles, portfolio scoping, confidential fields, managers or call capacity. |
 | `TEAM-002` | Single sign-on and two-step sign-in | target | partial | `src/modules/operator-auth/identity/oidc` | Base sign-in supports an OIDC provider; requiring SSO and a second factor are not offered in Coffer. |
-| `TEAM-003` | Audit log | target | done | `src/coffer/audit.ts`, `src/coffer/ui/audit.ts`, `migrations/core/0041_coffer_audit.sql`, `tests/audit.test.mjs` |  |
+| `TEAM-003` | Audit log | target | done | `src/coffer/audit.ts`, `src/coffer/ui/audit.ts`, `migrations/core/0041_coffer_audit.sql`, `migrations/core/0043_coffer_access_audit.sql`, `tests/audit.test.mjs` |  |
 | `API-001` | Public REST API | target | partial | `src/coffer/http.ts`, `src/coffer/commands.ts`, `tests/coffer.test.mjs` | Authenticated donor reads and a command API exist; no versioned public API, OpenAPI document, scoped keys or idempotency keys. |
 | `API-002` | Webhooks | target | missing |  | No webhooks. |
 | `API-003` | Zapier and Crank | target | missing |  | No Zapier app or Crank connector. |
