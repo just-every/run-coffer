@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {run,donor,archive} from './harness.mjs'
+import {run,donor,archive,reviewed} from './harness.mjs'
 
 const day='2026-09-01'
 const history=(h,id)=>h.get(`/api/coffer/donors/${id}`)
@@ -53,10 +53,11 @@ test('duplicates queue finds exact contacts and near names, pages every pair, an
 }))
 
 test('field choices combine histories without changing cash and undo restores removed credits, links and original contact values',()=>run(async h=>{
+ await reviewed(h)
  const source=await donor(h,'Elena Mercer',{email:'elena.new@example.org',phone:'202-555-0110',addressLine1:'19 South Road',household:'Mercer new household'})
  const target=await donor(h,'Elena M Mercer',{email:'elena.old@example.org',phone:'202-555-0140',addressLine1:'2 Old Road'})
  const other=await donor(h,'Readers Trust')
- const a=await gift(h,source,'42.15'),b=await gift(h,target,'58.25'),outside=await gift(h,other,'50')
+ const a=await gift(h,source,'342.15'),b=await gift(h,target,'58.25'),outside=await gift(h,other,'50')
  await consent(h,source,'granted');await consent(h,target,'withdrawn')
  await h.command('interaction.record',{donorId:source.id,kind:'meeting',occurredOn:day,who:'Elena and Morgan',notes:'Asked about the mobile library.',nextStep:'Send the project summary.'})
  await h.command('relationship.create',{donorId:source.id,relatedDonorId:other.id,type:'employer'})
@@ -69,7 +70,11 @@ test('field choices combine histories without changing cash and undo restores re
  const pledge=await h.command('pledge.create',{donorId:source.id,amount:'90',pledgedOn:day,fund:'Library',installments:[{dueOn:'2026-12-01',amount:'90'}]})
  const owner=(await h.get('/auth/session')).operator
  const prospect=await h.command('prospect.save',{donorId:source.id,ownerId:owner.id,stage:'cultivate',askAmount:'500',expectedCloseOn:'2026-12-01',nextStep:'Discuss book deliveries.'})
+ const batch=await h.command('ack.prepare')
+ await h.command('ack.approve',{batchId:batch.id,version:batch.version})
+ await h.command('ack.send',{batchId:batch.id,version:batch.version+1})
  const beforeSource=await history(h,source.id),beforeTarget=await history(h,target.id)
+ assert.equal(beforeSource.letters[0].delivery_status,'submitted')
  const result=await merge(h,source,target,{name:'source',email:'source',phone:'target',addressLine1:'source',householdId:'source'})
  const combined=await history(h,target.id)
  assert.equal(combined.donor.name,beforeSource.donor.name)
@@ -103,8 +108,9 @@ test('field choices combine histories without changing cash and undo restores re
  assert.ok(restoredTarget.giftDepth.creditedGifts.some(c=>c.id===selfCredit.id))
  assert.ok(restoredTarget.giftDepth.creditedGifts.some(c=>c.id===targetCredit.id))
  assert.ok((await h.get('/api/coffer/prospects')).some(p=>p.id===prospect.id&&p.donor_id===source.id))
+ assert.equal(restoredSource.letters[0].delivery_status,'submitted')
  await h.command('donor.unmerge',{mergeId:result.mergeId},{status:409})
-}))
+},{bindings:{MAIL_PROVIDER:'sendgrid'},outbound:async request=>{assert.equal(new URL(request.url).pathname,'/v3/mail/send');return new Response(null,{status:202,headers:{'x-message-id':'merge-receipt'}})}}))
 
 test('merge is manager-only and refuses stale fields; undo refuses new uses without moving later gifts',()=>run(async h=>{
  const source=await donor(h,'Quinn Avery',{email:'quinn.source@example.org'}),target=await donor(h,'Quinn A Avery',{email:'quinn.target@example.org'})

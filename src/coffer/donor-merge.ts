@@ -25,7 +25,9 @@ export async function lookupEmailDonor(c:{db:D1Database}, email:string, name?:st
 
 function quietCommunications(source:string,target:string):Stmt[] {
  return [
-  guard(`NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.donor_id IN (?,?) AND b.status IN ('prepared','approved'))`, 'IN_ACKNOWLEDGEMENT', 'Discard prepared or approved letters for these donors before merging.', source,target),
+  guard(`NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.donor_id IN (?,?)
+   AND (b.status='prepared' OR (b.status='approved' AND a.printed_at IS NULL AND a.delivery_status NOT IN ('submitted','delivered','bounced','complained'))))`,
+   'IN_ACKNOWLEDGEMENT', 'Discard unsent prepared or approved letters for these donors before merging.', source,target),
   guard(`NOT EXISTS(SELECT 1 FROM cf_appeal_recipients r JOIN cf_appeals a ON a.id=r.appeal_id WHERE r.donor_id IN (?,?) AND a.status IN ('prepared','approved'))`, 'IN_APPEAL', 'Discard prepared or approved appeals for these donors before merging.',source,target),
   guard(`NOT EXISTS(SELECT 1 FROM cf_communications WHERE donor_id IN (?,?) AND status='preparing')
    AND NOT EXISTS(SELECT 1 FROM cf_welcome_steps WHERE donor_id IN (?,?) AND status='sending')
