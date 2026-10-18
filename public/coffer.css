@@ -241,7 +241,6 @@
 .coffer .cf-ledger-table .chip { gap: 5px; min-height: 26px; padding: 4px 8px; font-size: 12px; font-weight: 400; }
 .coffer .cf-ledger-table .chip::before { width: 14px; height: 14px; font-size: 10px; }
 .cf-ledger-table .cf-who-cell { max-width: 150px; }
-.cf-ledger-table .cf-fund { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
 .cf-ledger-table .cf-who-cell strong, .cf-ledger-table .cf-who-cell small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cf-ledger-table small.cf-none { font-style: italic; }
 .cf-ledger-table.cf-wrap .cf-fund { white-space: normal; }
@@ -253,7 +252,7 @@
 .coffer .cf-undo button { min-height: 30px; padding: 4px 12px; font-size: 13px; }
 .coffer .cf-figures { display: flex; flex-wrap: wrap; gap: 6px 26px; color: var(--cf-body); }
 .cf-figures b { color: var(--cf-violet-ink); font-size: 17px; font-variant-numeric: tabular-nums; }
-.coffer .cf-ledger-table th:first-child, .coffer .cf-ledger-table td:first-child { padding-left: 14px; }
+.coffer .cf-ledger-table th:first-child, .coffer .cf-ledger-table td:first-child { padding-left: 12px; }
 .coffer .cf-ledger-table tbody tr:last-child td { border-bottom: 0; }
 .cf-ledger-table td strong { display: block; color: var(--rer-text); font-weight: 600; }
 .cf-ledger-table td small { display: block; margin-top: 1px; color: var(--cf-soft); font-size: 12.5px; }
