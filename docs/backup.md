@@ -9,7 +9,7 @@ rer dev --stop
 rer export --output exports/coffer.rer
 ```
 
-A backup holds donors, gifts, consent history, letters, appeals, approvals and the Stripe pages kept from each move-in. Sign-in accounts, sessions, agent keys and mail settings are left out.
+A backup holds donors, gifts, consent history, letters, appeals, approvals and the Stripe pages kept from each move-in. Sign-in accounts, sessions, agent keys, mail settings and installation access activity are left out. Donor-history audit events travel with the records. The current installation keeps its own sign-in and download history when records are restored; export that history separately from **More → Audit log → Download filtered CSV**.
 
 ## Restore on another computer
 

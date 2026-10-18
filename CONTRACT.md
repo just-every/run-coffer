@@ -168,7 +168,7 @@ Coffer flags likely duplicates (same email, same name and postal address, same p
 
 *Acceptance:* An HTTP and browser journey creates two records for one person through a form gift and a manual entry, finds them in the duplicates queue, merges them, reads one combined history with unchanged ledger totals, then undoes the merge; two spouses in one household who share an email never appear in the queue.
 
-*Status:* partial. Reviewed manual merges combine gifts, pledges, conversations, relationships and provider links, preserve financial facts and retain source import aliases. Duplicate suggestions, field comparison and undo remain. Evidence: `src/coffer/donor-merge.ts`, `src/coffer/imports/service.ts`, `docs/donor-depth.md`.
+*Status:* done. Exact contact and near-name matches appear in a paged queue, with shared-household records excluded. People compare every contact field; manager-approved merges retain financial facts and source aliases, and guarded audit-log undo restores precise ownership and contact values. Erasure removes private undo data. Evidence: `src/coffer/duplicates.ts`, `src/coffer/donor-merge.ts`, `src/coffer/merge-journal.ts`, `tests/duplicates.test.mjs`.
 
 #### DONOR-007 — Saved searches and lists.
 
@@ -994,7 +994,7 @@ Every change, approval, export, sign-in and agent action is in an audit log the 
 
 *Acceptance:* An HTTP journey makes changes as two people and an agent and reads them in the audit log filtered by person and exported as CSV.
 
-*Status:* partial. Every command writes an event shown per donor and per batch; no organization-wide log, filters or export. Evidence: `src/coffer/db.ts`, `src/coffer/ui/donors.ts`.
+*Status:* done. The installation audit log retains domain changes, approvals, downloads, sign-ins, identity changes and agent actions, filters by person, record, action and date, and exports the filtered rows as CSV. Evidence: `src/coffer/audit.ts`, `src/coffer/ui/audit.ts`, `tests/audit.test.mjs`.
 
 ### Integrations and API
 
@@ -1301,7 +1301,11 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `231694e67ba4b595574afe99f554ebf16d01fe5b` (18 October 2026).
+Judged from the code and tests at commit `f439d14a6125b06cb958d0dcee4c7bcf1227903b` (18 October 2026).
+
+Duplicate review, field selection, merge and audit-log undo were exercised on a hosted installation at 1440 and 390 pixels on 18 October 2026. A Stripe test-card form gift and a manual check retained their exact $75 combined total, then returned to their separate histories; the gift receipt reached the QA mailbox, and spouses sharing an email stayed out of the queue.
+
+The audit log was exercised on a hosted installation at 1440 and 390 pixels on 18 October 2026, including real email sign-in, filtering, an empty result and CSV download.
 
 The giving summary and split-gift clauses were also exercised through the product at 1440 and 390 pixels on 18 October 2026.
 
@@ -1310,8 +1314,8 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 6 | 67 | 53 | 126 |
-| All | 15 | 67 | 53 | 135 |
+| Target and push further | 8 | 65 | 53 | 126 |
+| All | 17 | 65 | 53 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1328,7 +1332,7 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | `DONOR-003` | Relationships | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-depth.ts`, `docs/donor-depth.md` | Reciprocal spouse, employer, board member, foundation officer and introduced-by links show on both records and filter donor lists. Household salutations, head and combined totals remain. |
 | `DONOR-004` | Interaction timeline | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-timeline.ts`, `docs/donor-depth.md` | Calls, meetings and emails record date, participants, notes, next step and author beside gifts, pledges and receipt events in one timeline. Confidential notes, timeline filters and the broader task/event integrations remain. |
 | `DONOR-005` | Custom fields and tags | target | missing |  | No custom fields, tags or categories. |
-| `DONOR-006` | Duplicate detection and merge | target | partial | `src/coffer/donor-merge.ts`, `src/coffer/imports/service.ts`, `docs/donor-depth.md` | Reviewed manual merges combine gifts, pledges, conversations, relationships and provider links, preserve financial facts and retain source import aliases. Duplicate suggestions, field comparison and undo remain. |
+| `DONOR-006` | Duplicate detection and merge | target | done | `src/coffer/duplicates.ts`, `src/coffer/donor-merge.ts`, `src/coffer/merge-journal.ts`, `migrations/core/0042_coffer_duplicates.sql`, `tests/duplicates.test.mjs` |  |
 | `DONOR-007` | Saved searches and lists | target | partial | `src/coffer/donors.ts`, `src/coffer/ui/donors.ts` | Donor search includes reciprocal relationship-type and connected-donor filters. General saved lists and undoable bulk actions remain. |
 | `DONOR-008` | Documents on records | target | missing |  | No attachments. |
 | `DONOR-009` | Address verification and NCOA | target | missing |  | No address verification or NCOA. |
@@ -1426,7 +1430,7 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | `MOVE-011` | Switching guide for each incumbent | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | The CRM export guide gives vendor report/menu guidance, official source links, required IDs, supported fields and source control interpretation for LGL, Bloomerang and NXT, alongside the Stripe guide. PCI transfer and an installation cutover checklist remain unbuilt. |
 | `TEAM-001` | Roles and record-level access | target | partial | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs` | Owner, admin, member and agent roles guard every command; no fundraiser, finance, volunteer or read-only roles, portfolio scoping, confidential fields, managers or call capacity. |
 | `TEAM-002` | Single sign-on and two-step sign-in | target | partial | `src/modules/operator-auth/identity/oidc` | Base sign-in supports an OIDC provider; requiring SSO and a second factor are not offered in Coffer. |
-| `TEAM-003` | Audit log | target | partial | `src/coffer/db.ts`, `src/coffer/ui/donors.ts` | Every command writes an event shown per donor and per batch; no organization-wide log, filters or export. |
+| `TEAM-003` | Audit log | target | done | `src/coffer/audit.ts`, `src/coffer/ui/audit.ts`, `migrations/core/0041_coffer_audit.sql`, `migrations/core/0043_coffer_access_audit.sql`, `tests/audit.test.mjs` |  |
 | `API-001` | Public REST API | target | partial | `src/coffer/http.ts`, `src/coffer/commands.ts`, `tests/coffer.test.mjs` | Authenticated donor reads and a command API exist; no versioned public API, OpenAPI document, scoped keys or idempotency keys. |
 | `API-002` | Webhooks | target | missing |  | No webhooks. |
 | `API-003` | Zapier and Crank | target | missing |  | No Zapier app or Crank connector. |

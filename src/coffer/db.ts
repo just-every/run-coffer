@@ -24,8 +24,8 @@ export async function all<T = Row>(c: { db: D1Database }, text: string, ...param
 }
 
 /** The audit row for a change: identifiers and amounts only, never donor personal data. */
-export function event(c: Context, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}): Stmt {
- return sql('INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,?,?,?,?,?)',
+export function event(c: Context, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}, table: 'cf_events' | 'cf_access_events' = 'cf_events'): Stmt {
+ return sql(`INSERT INTO ${table}(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,?,?,?,?,?)`,
   c.now, c.actor.id, c.actor.name, c.actor.role, action, subjectKind, subjectId, donorId, JSON.stringify(detail))
 }
 
@@ -44,6 +44,7 @@ export async function commit(c: Context, statements: Stmt[]) {
    fail('CONCURRENT_CHANGE', 'Records changed while saving. Refresh and try again.')
   }
   if (/UNIQUE constraint failed: cf_donors\.email/i.test(text)) fail('DUPLICATE_EMAIL', 'Another donor already uses that email address.')
+  if (/COFFER_DUPLICATE_EMAIL/.test(text)) fail('DUPLICATE_EMAIL', 'Another donor outside this household already uses that email. Review possible duplicates before adding another record.')
   if (/UNIQUE constraint failed: cf_gifts\.source, cf_gifts\.reference|cf_gift_reference/i.test(text)) fail('DUPLICATE_REFERENCE', 'A gift with that reference is already recorded.')
   if (/UNIQUE constraint failed: cf_households/i.test(text)) fail('DUPLICATE_HOUSEHOLD', 'A household with that name already exists.')
   if (/UNIQUE constraint failed: cf_acks\.gift_id|cf_ack_live_gift/i.test(text)) fail('ALREADY_ACKNOWLEDGED', 'A gift is already in another acknowledgement batch.')

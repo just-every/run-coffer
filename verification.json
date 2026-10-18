@@ -30,7 +30,8 @@
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm run test:coffer"
+        "pnpm run test:coffer",
+        "node --test tests/audit.test.mjs"
       ]
     },
     {
@@ -72,7 +73,8 @@
       "commands": [
         "pnpm run test:donor-depth",
         "node --test tests/giving-summary.test.mjs",
-        "node --test tests/split-gifts.test.mjs"
+        "node --test tests/split-gifts.test.mjs",
+        "node --test tests/duplicates.test.mjs"
       ]
     },
     {
