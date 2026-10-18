@@ -4,8 +4,9 @@ import { readFile, lstat, mkdir, open, link, unlink } from 'node:fs/promises'
 import { createReadStream } from 'node:fs'
 import { Readable } from 'node:stream'
 import { resolve, dirname } from 'node:path'
-import { readArchive, canonicalJson } from '@runeditrun/rer/modules/portability'
+import { readArchive, canonicalJson, sha256 } from '@runeditrun/rer/modules/portability'
 import { cookieFile, absent } from '@runeditrun/rer/modules/portability/cli-options'
+import { HostedTransferError, restoreTransport } from './hosted-transfer.mjs'
 import { transferClient, transferDiagnostic } from '@runeditrun/rer/internal/modules/portability/http-client.mjs'
 
 const usage = `Usage:
@@ -50,17 +51,26 @@ async function main() {
   const input = resolve(o.restore); await privateInput(input)
   // Verify the complete archive before opening a remote staging job.
   for await (const ignored of records(input)) { /* checksums and closing record */ }
-  let id = o.resume, closing
+  const remote = restoreTransport({ origin: url.origin, cookie })
+  let id = o.resume, closing, received = new Set()
   for await (const record of records(input)) {
    if (record.kind === 'manifest') {
-    id = client.jobId(id ?? (await get('imports', 'POST', { confirmed: true, manifest: record })).id, 'imports')
+    id = client.jobId(id ?? (await remote.get('imports', 'POST', { confirmed: true, manifest: record })).id, 'imports')
+    if (o.resume) {
+     const state = await remote.get(`imports/${id}`)
+     if (state.manifestHash !== await sha256(canonicalJson(record))) throw new InputError('This job belongs to a different archive. Use its original backup or start a new restore.')
+     if (!Array.isArray(state.received) || state.received.some(index => !Number.isSafeInteger(index) || index < 0 || index >= record.partCount)) throw new InputError('The server did not return a valid list of saved parts.')
+     received = new Set(state.received)
+     console.log(`Resuming with ${received.size} of ${record.partCount} parts already saved; uploading only missing parts.`)
+    }
     console.log(`Restoring to ${url.origin}; job ${id}. Resume with --resume ${id}.`)
    } else if (record.kind === 'part') {
-    await get(`imports/${id}/parts/${record.index}`, 'PUT', record)
+    if (received.has(record.index)) continue
+    await remote.upload(id, record)
     if ((record.index + 1) % 25 === 0) console.log(`Uploaded ${record.index + 1} parts.`)
    } else closing = record
   }
-  const state = await get(`imports/${id}/finalize`, 'POST', { contentHash: closing.contentHash, archiveHash: closing.archiveHash })
+  const state = await remote.get(`imports/${id}/finalize`, 'POST', { contentHash: closing.contentHash, archiveHash: closing.archiveHash })
   if (state.phase !== 'complete') throw client.failedJob(`imports/${id}/finalize`, state)
   console.log(`Restored ${state.completed} parts into ${url.origin}. Sign in by email; private configuration stays with the destination.`)
  } else {
@@ -83,6 +93,6 @@ async function main() {
  }
 }
 main().catch(error => {
- console.error(transferDiagnostic(error) ?? (error instanceof InputError ? error.message : 'Backup or restore failed. Check the paths, permissions and deployment; see docs/backup.md.'))
+ console.error(transferDiagnostic(error) ?? (error instanceof InputError || error instanceof HostedTransferError ? error.message : 'Backup or restore failed. Check the paths, permissions and deployment; see docs/backup.md.'))
  process.exitCode = 1
 })

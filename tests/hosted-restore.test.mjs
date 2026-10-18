@@ -8,15 +8,22 @@ import { join } from 'node:path'
 import { installation, donor, stripe } from './harness.mjs'
 
 // TLS is the network edge; requests run through the actual Coffer Worker and D1.
-async function serve(h, tls) {
+async function serve(h, tls, edge = {}) {
  const server = createServer(tls, async (req, res) => {
   try {
    const chunks = []; for await (const chunk of req) chunks.push(chunk)
+   const body = Buffer.concat(chunks), part = req.url.match(/\/parts\/(\d+)$/)
+   if (part) {
+    edge.uploads?.push(Number(part[1]))
+    if (edge.failIndex === Number(part[1])) { res.writeHead(503, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'temporarily_unavailable', message: 'Staging is temporarily unavailable. Resume this job.' })); return }
+    if (body.length > (edge.limit ?? Infinity)) { res.writeHead(413, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'body_too_large', message: 'This part exceeds the upload limit.' })); return }
+   }
    const response = await h.mf.dispatchFetch(h.origin + req.url, {
     method: req.method, redirect: 'manual',
     headers: { ...req.headers, host: new URL(h.origin).host, origin: h.origin },
-    ...(['GET', 'HEAD'].includes(req.method) ? {} : { body: Buffer.concat(chunks) }),
+    ...(['GET', 'HEAD'].includes(req.method) ? {} : { body }),
    })
+   if (part && response.ok && edge.loseAcknowledgement) { edge.loseAcknowledgement = false; await response.arrayBuffer(); req.socket.destroy(); return }
    res.writeHead(response.status, Object.fromEntries(response.headers))
    if (response.body) for await (const chunk of response.body) res.write(chunk)
    res.end()
@@ -58,10 +65,20 @@ test('hosted command restores records and large retained originals, preserves de
   assert.ok(!saved.includes(Buffer.from(source.owner)))
   const repeat = await command(['--origin', a.origin, '--session-file', session, '--output', archive], cert)
   assert.notEqual(repeat.status, 0); assert.deepEqual(await readFile(archive), saved)
-  fresh = await installation(); b = await serve(fresh, tls)
+  fresh = await installation(); const edge = { uploads: [], failIndex: 1, limit: 384 * 1024, loseAcknowledgement: true }; b = await serve(fresh, tls, edge)
   await writeFile(session, fresh.owner)
-  const restore = await command(['--origin', b.origin, '--session-file', session, '--restore', archive, '--yes'], cert)
+  const interrupted = await command(['--origin', b.origin, '--session-file', session, '--restore', archive, '--yes'], cert)
+  assert.notEqual(interrupted.status, 0, interrupted.output)
+  assert.match(interrupted.output, /Staging is temporarily unavailable/)
+  const id = interrupted.output.match(/job ([a-zA-Z0-9-]+)\./)?.[1]
+  assert.ok(id, interrupted.output)
+  const staged = await fresh.get(`/api/portability/imports/${id}`)
+  assert.deepEqual(staged.received, [0])
+  edge.failIndex = undefined; edge.uploads.length = 0
+  const restore = await command(['--origin', b.origin, '--session-file', session, '--restore', archive, '--yes', '--resume', id], cert)
   assert.equal(restore.status, 0, restore.output)
+  assert.ok(edge.uploads.length > 0)
+  assert.ok(edge.uploads.every(index => index !== 0), 'Resume never sends an already saved part')
   assert.deepEqual(await fresh.get('/api/coffer/donors'), await source.get('/api/coffer/donors'))
   assert.deepEqual((await fresh.get('/api/coffer/imports/journal?id=' + job.id)).originals, (await source.get('/api/coffer/imports/journal?id=' + job.id)).originals)
   assert.equal((await fresh.get('/auth/session')).operator.role, 'owner')

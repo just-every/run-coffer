@@ -1,0 +1,23 @@
+const reasons={
+  part_conflict:'A different part is already saved at this index.',
+  fragment_conflict:'Different bytes are already saved at this fragment offset.',
+  part_checksum:'The uploaded part does not match its checksum.',
+  part_order:'The part index or part structure is invalid.',
+  part_byte_limit:'This archive part exceeds the supported part size.',
+  body_too_large:'This request is too large. Upload the part in bounded fragments.',
+  fragment_byte_limit:'This fragment is too large. Send at most 256 KiB of decoded bytes.',
+  fragment_shape:'The fragment must include a valid offset, total, data and part checksum.',
+  fragment_size:'The fragment bytes do not fit the declared part size.',
+  fragment_gap:'Some fragment bytes have not arrived yet.',
+  parts_missing:'Some archive parts have not arrived yet. Resume the upload before finalizing.',
+  archive_checksum:'The complete archive does not match its checksum.',
+  content_checksum:'The restored content does not match its checksum.',
+  import_phase:'This import is no longer accepting parts.',
+  invalid_json:'The request is not valid UTF-8 JSON.',
+  unauthorized:'Sign in as the owner before restoring.',
+  origin_refused:'This request came from an untrusted origin.',
+  job_not_found:'This restore job was not found for the current owner.',
+  route_not_found:'This portability endpoint was not found.',
+  operation_failed:'The server could not complete this restore request. Resume with the same job to retry.',
+};
+export const reasonFor=code=>reasons[code]??`The archive was refused: ${code.replaceAll('_',' ')}.`;

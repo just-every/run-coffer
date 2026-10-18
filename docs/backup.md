@@ -62,6 +62,16 @@ rer deploy --environment restored --env-file .env.coffer
 rer run backup:hosted -- --environment restored --restore exports/coffer.rer --session-file restored-owner-session.txt --yes
 ```
 
+The command retries temporary server or connection failures for each part, up to four times with increasing waits. If an upload is too large, it sends that part in smaller pieces without changing the archive.
+
+If the command stops or you interrupt it, keep the archive and the job ID printed by the command. Run the same restore again with `--resume JOB_ID`:
+
+```sh
+rer run backup:hosted -- --environment restored --restore exports/coffer.rer --session-file restored-owner-session.txt --yes --resume JOB_ID
+```
+
+Resume asks the server which parts are saved and uploads only the missing ones. It refuses a job from a different archive. Finalize verifies every part and the archive checksums before applying the records. A refused upload prints the server's reason; correct that cause before resuming.
+
 The destination must be a newly deployed, empty environment. The restore uses the destination owner's session, not the source environment's session. Re-enter the destination's mail and Stripe secrets through `rer deploy` before resuming mail or online giving. Review records and settings at the restored origin before directing people there.
 
 Hosted backup and restore operate on the authenticated Coffer portability archive. They do not promise a raw SQL database restore. Keep the archive in a private location, and retain it until you have checked the restored records.
