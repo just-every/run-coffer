@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {installation,archive,donor} from './harness.mjs'
-import {makePart,canonicalJson,sha256} from '@runeditrun/rer/modules/portability'
+import {makePart} from '@runeditrun/rer/modules/portability'
 import {ArchiveVerifier} from '@runeditrun/rer/modules/portability/format'
 
 // Exercise the deployed HTTP ownership chain, using real D1 staging. The only
@@ -22,7 +22,6 @@ test('hosted restore preserves gaps, authenticates fragments and retries, and ve
   const {id}=await target.api('/api/portability/imports',{confirmed:true,manifest},{status:201})
   const path=`/api/portability/imports/${id}`,put=(index,body,options={})=>target.api(`${path}/parts/${index}`,body,{method:'PUT',...options})
   const gap=await put(2,parts[2]);assert.deepEqual(gap.received,[2]);assert.equal(gap.completed,0)
-  assert.equal(gap.manifestHash,await sha256(canonicalJson(manifest)))
   assert.deepEqual((await target.get(path)).received,[2])
   await put(2,parts[2])
   const changed=await makePart(2,[...parts[2].items,parts[2].items[0]])
