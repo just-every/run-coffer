@@ -8,7 +8,7 @@ const summary = `SELECT c.*,
  (SELECT COUNT(DISTINCT donor_id) FROM cf_subscriptions s WHERE s.campaign_id=c.id AND s.status IN ('active','trialing','past_due') AND s.cancel_at_period_end=0) AS recurring_donors
  FROM cf_campaigns c`
 
-export const campaigns = (c: { db: D1Database }) => all(c, summary + ' ORDER BY c.created_at DESC')
+export const campaigns = (c: { db: D1Database }) => all(c, summary + ' WHERE c.active=1 ORDER BY c.created_at DESC')
 export async function campaign(c: { db: D1Database }, slug: string) {
  const row = await one(c, summary + ' WHERE c.slug=? AND c.active=1', slug)
  if (!row) fail('not_found', 'That campaign is not available.', 404)

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- LGL move-in uses constituent names as authoritative and accepts gift/relationship display labels without name blockers; export guidance states the confirmed LGL fields and remaining format limits.
+- Stripe move-in reads the connected account or a temporary restricted read key, follows pages automatically, previews gifts and supported monthly plans, checks applied count and cents, and supports undo. Saved JSON is an advanced option.
+- Pin the package runner to rer 0.2.51.
+
 - **Every row that blocks a CRM move-in is on the page.** The review lists all “Must fix” and “Check” rows with file, row, column and what to change, 50 to a page, filtered by kind, reason or file, and downloads them as CSV; uploading the corrected files on the same page checks them again. Left-out values are named per column with counts.
 - **Preview and apply agree.** The review plans every part against Coffer before anything moves, so repeated soft credits and conflicts with earlier records are named there; a part that still fails names its part, rows and reason.
 - **Real households.** Spouses and people at one mailing address become a household named after its people; a household never merges into another by surname or name, and organizations stay out. Spouses sharing one email both move in.

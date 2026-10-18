@@ -145,6 +145,51 @@ test('undo stops at an imported donor a person has since built on',()=>run(async
  assert.equal(history.consents.length,1);assert.equal(history.totals.lifetimeCents,60000)
 }))
 
+test('connected Stripe move-in follows pages, previews monthly plans, checks actual totals and undoes without writing Stripe', async()=>{
+ const created=Date.UTC(2026,0,2)/1000, calls=[]
+ const customer={id:'cus_direct',name:'Ada Rivera',email:'ada@example.org',created}
+ const charges=Array.from({length:101},(_,i)=>({id:`ch_direct${i}`,customer:customer.id,status:'succeeded',paid:true,currency:'usd',amount:2500,created,amount_refunded:i===0?500:0}))
+ const sub={id:'sub_direct',customer:customer.id,created,status:'active',currency:'usd',cancel_at_period_end:false,items:{data:[{quantity:1,price:{type:'recurring',currency:'usd',unit_amount:2500,billing_scheme:'per_unit',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}}}]}}
+ const h=await installation({bindings:{STRIPE_SECRET_KEY:'sk_test_network_edge'},outbound:async request=>{
+  const u=new URL(request.url);assert.equal(u.hostname,'api.stripe.com');assert.equal(request.method,'GET');calls.push(u)
+  assert.equal(request.headers.get('authorization'),'Bearer sk_test_network_edge')
+  let data=[]
+  if(u.pathname==='/v1/customers/cus_direct')return Response.json(customer)
+  if(u.pathname==='/v1/charges'){
+   const after=u.searchParams.get('starting_after');data=after?charges.slice(100):charges.slice(0,100)
+   return Response.json({object:'list',data,has_more:!after})
+  }
+  if(u.pathname==='/v1/invoice_payments')data=[]
+  else if(u.pathname==='/v1/subscriptions')data=[sub]
+  else if(u.pathname==='/v1/payment_intents')data=[{id:'pi_direct',created,status:'succeeded',latest_charge:'ch_direct0',amount:2500,currency:'usd',customer:customer.id,client_secret:'must-not-reach-review'}]
+  else if(u.pathname==='/v1/invoices')data=[{id:'in_direct',created,status:'paid',amount_paid:2500,currency:'usd',customer:customer.id,parent:{subscription_details:{subscription:sub.id}}}]
+  else assert.fail('Unexpected Stripe endpoint '+u.pathname)
+  return Response.json({object:'list',data,has_more:false})
+ }})
+ try{
+  await h.api('/api/coffer/imports/read-stripe',{start:'2026-01-01',end:'2026-01-31'},{as:'',status:401})
+  const review=await h.api('/api/coffer/imports/read-stripe',{start:'2026-01-01',end:'2026-01-31',noGoodsOrServices:true})
+  assert.equal(review.donors.length,1);assert.equal(review.gifts.length,101);assert.equal(review.subscriptions.length,1)
+  assert.equal(review.gifts.reduce((n,g)=>n+g.amountCents,0),252000)
+  assert.ok(calls.some(u=>u.searchParams.has('starting_after')))
+  assert.ok(!JSON.stringify(review).includes('must-not-reach-review'))
+  assert.equal((await h.get('/api/coffer/donors')).total,0)
+  let job=await h.api('/api/coffer/imports/apply',{...review.input,fingerprint:review.fingerprint})
+  while(job.state!=='completed')job=await h.api('/api/coffer/imports/resume',{id:job.id})
+  const journal=await h.get('/api/coffer/imports/journal?id='+job.id)
+  assert.deepEqual(journal.totals,{expectedCount:101,expectedCents:252000,actualCount:101,actualCents:252000,matches:true})
+  const d=(await h.get('/api/coffer/donors')).donors[0]
+  const detail=await h.get('/api/coffer/donors/'+d.id)
+  assert.deepEqual(detail.subscriptions.map(s=>[s.id,s.amount_cents,s.status]),[['sub_direct',2500,'active']])
+  let undo=await h.api('/api/coffer/imports/undo',{id:job.id})
+  while(undo.state!=='undone')undo=await h.api('/api/coffer/imports/undo',{id:job.id})
+  assert.equal((await h.get('/api/coffer/donors')).total,0)
+  const db=await h.mf.getD1Database('DB')
+  assert.equal((await db.prepare('SELECT COUNT(*) n FROM cf_subscriptions').first()).n,0)
+  assert.equal((await db.prepare('SELECT COUNT(*) n FROM cf_campaigns').first()).n,0)
+ }finally{await h.close()}
+})
+
 test('backup restores donors, gifts, consent, approvals and import custody into an empty installation only',()=>run(async h=>{
  const {job}=await imported(h);await reviewed(h)
  const maya=(await h.get('/api/coffer/donors?q=maya')).donors[0];await consent(h,[maya.id])
