@@ -33,7 +33,17 @@ export const form = (command: string, content: string, button: string, values: R
  `<form method="post" action="/app/actions"${cls ? ` class="${cls}"` : ''}>${hidden('command', command)}${Object.entries(values).map(([k, v]) => hidden(k, v)).join('')}${content}<button>${e(button)}</button></form>`
 export const box = (title: string, content: string, id = '') => `<section class="card"${id ? ` id="${e(id)}"` : ''}><h2>${e(title)}</h2>${content}</section>`
 export const chip = (value: unknown, tone = '') => `<span class="chip${tone ? ` ${tone}` : ''}">${e(value)}</span>`
-export const details = (facts: Record<string, unknown>) => `<details class="facts"><summary>Details</summary><dl>${Object.entries(facts).map(([k, v]) => `<dt>${e(k)}</dt><dd><code>${e(typeof v === 'string' ? v : JSON.stringify(v))}</code></dd>`).join('')}</dl></details>`
+/** A recorded fact as a person reads it: "amountCents" 25000 → "Amount" $250.00, "receivedOn" → "October 15, 2026",
+ * a moment → "Oct 16, 2026 · 12:04 PM UTC"; identifiers and hashes stay as code. */
+function fact(key: string, value: unknown): [string, string] {
+ const label = /^[a-z]+[A-Z]/.test(key) ? key.replace(/Cents$/, '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/^./, c => c.toUpperCase()) : key
+ if (/Cents$/.test(key) && typeof value === 'number') return [label, e(money(value))]
+ if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return [label, e(longDay(value))]
+ if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(value)) return [label, `${e(moment(value, 'UTC'))} UTC`]
+ if (value && typeof value === 'object' && !Array.isArray(value)) return [label, `<dl>${Object.entries(value).map(([k, v]) => { const [l, shown] = fact(k, v); return `<dt>${e(l)}</dt><dd>${shown}</dd>` }).join('')}</dl>`]
+ return [label, `<code>${e(typeof value === 'string' ? value : JSON.stringify(value))}</code>`]
+}
+export const details = (facts: Record<string, unknown>) => `<details class="facts"><summary>Details</summary><dl>${Object.entries(facts).map(([k, v]) => { const [label, shown] = fact(k, v); return `<dt>${e(label)}</dt><dd>${shown}</dd>` }).join('')}</dl></details>`
 /** Guides live on the run site, which every installation can link. */
 export const guide = (slug: string) => `https://run-coffer.com/docs/${slug}`
 export const empty = (text: string) => `<p class="empty">${e(text)}</p>`

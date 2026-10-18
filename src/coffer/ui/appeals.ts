@@ -8,7 +8,7 @@ import { manager } from '../auth'
 import { today, type Context, type Row } from '../db'
 import { appealDetail, appeals } from '../appeals'
 import { settings } from '../settings'
-import { area, box, chip, details, e, empty, field, form, longDay, select, status, when } from './common'
+import { area, box, chip, details, e, empty, field, form, longDay, money, select, status, when } from './common'
 import { ledgerCard } from './ledger'
 
 export async function appealsPage(c: Context, draft: { error: string; values: Record<string, any> } | null = null) {
@@ -20,6 +20,10 @@ export async function appealsPage(c: Context, draft: { error: string; values: Re
  const prepare = boss ? box('Prepare an appeal', `${draft ? `<p class="alert" role="alert">${e(draft.error)}</p>` : ''}${form('appeal.prepare', `${field('Appeal name', 'name', 'text', v('name'), 'required placeholder="Spring 2026 appeal"')}<div class="fields">${select('Channel', 'channel', [['email', 'Email'], ['mail', 'Postal mail']], v('channel'))}${field('Fund donors (optional)', 'fund', 'text', v('fund'), 'placeholder="Unrestricted"')}${field('Gave since (optional)', 'givenSince', 'date', v('givenSince'))}${field('At least this much since then (USD, optional)', 'minTotal', 'text', v('minTotal'), 'inputmode="decimal"')}</div><fieldset class="edit"><legend>Email message</legend><p class="muted">To send by email, fill in both the subject and the message. Leave both blank to download the list for another mailing tool, or for postal mail.</p>${field('Email subject (required to send by email)', 'subject', 'text', v('subject'), 'maxlength="250"')}${area('Email message (required to send by email)', 'body', v('body'), 'maxlength="12000" rows="6"')}<p class="muted">Merge fields: {{donor_name}}, {{total_given}}, {{last_gift}}, {{gift_count}}. The reviewed message and giving figures are frozen with the audience.</p></fieldset><p class="muted">Only donors whose latest answer for this channel is yes are included. Everyone else is counted and left out.</p>`, 'Prepare audience')}`) : ''
  return `<div class="grid wide"><div>${box('Appeals', list.length ? `<ul class="list">${list.map(a => `<li><a href="/app/appeals/${e(a.id)}">${e(a.name)}</a> · ${a.channel === 'email' ? 'email' : 'mail'} · ${a.recipients} recipients ${a.status==='approved'?chip('Approved','info'):status(a.status)}<br><span class="muted">Prepared ${when(a.prepared_at, tz)} by ${e(a.prepared_by_name)}${a.prepared_by_role === 'agent' ? ' (agent)' : ''}${a.sent_on ? ` · sent ${longDay(a.sent_on)}` : ''}</span></li>`).join('')}</ul>` : empty('No appeals yet. Record donor consent, then prepare an audience.'))}</div><div>${prepare}${connection}</div></div><div class="grid wide"><div>${await welcomePanel(c)}</div><div>${await repliesPanel(c)}</div></div>`
 }
+
+/** "Gave since October 18, 2025 · at least $100.00 in that time · any fund": the saved audience rule in words. */
+const audienceRule = (segment: { givenSince?: string | null; minTotalCents?: number; fund?: string | null }) =>
+ [segment.givenSince ? `Gave since ${longDay(segment.givenSince)}` : 'Any giving date', segment.minTotalCents ? `at least ${money(segment.minTotalCents)} in that time` : '', segment.fund ? `to ${segment.fund}` : 'any fund'].filter(Boolean).join(' · ')
 
 export async function appealPage(c: Context, appealId: string) {
  const {connection:conn}=await emailConnection(c), label=conn?providerTitle(conn.provider):''
@@ -44,7 +48,7 @@ export async function appealPage(c: Context, appealId: string) {
   : a.status === 'sent' ? `<p>Sent on ${longDay(a.sent_on)}, recorded by ${e(a.sent_recorded_by)}. Each recipient’s history shows this appeal.</p><p><a href="/app/appeals/${e(a.id)}/recipients.csv">Download audience (CSV)</a></p>` : '<p>This appeal was discarded.</p>'
  const decided = approval ? `<p>Prepared by ${e(approval.prepared_by_name)} (${e(approval.prepared_by_role)}) · approved by ${e(approval.approved_by_name)} (${e(approval.approved_by_role)}) on ${when(approval.approved_at, tz)}.</p>` : `<p>Prepared by ${e(a.prepared_by_name)} (${e(a.prepared_by_role)}) on ${when(a.prepared_at, tz)}.</p>`
  return `<p><strong>${e(a.name)}</strong> · ${a.channel === 'email' ? 'Email' : 'Postal mail'} · ${a.recipients} recipients ${a.status==='approved'?chip('Approved','info'):status(a.status)}</p>${warning}<div class="grid wide"><div>${ledgerCard(`Recipients (${recipients.length})`, recipientTable(a, recipients, messages))}</div>
- <div>${box('Decision', decided + send + actions)}${finish}${preview}${progress}${box('Left out', excluded.length ? `<ul class="list">${excluded.map(([reason, n]) => `<li>${chip(n)} ${e(reason)}</li>`).join('')}</ul>` : empty('Nobody in the segment was left out.'))}${details({ 'Appeal ID': a.id, Segment: JSON.parse(a.segment), 'Content hash': a.content_hash, 'Export hash': a.export_hash ?? '' })}</div></div>`
+ <div>${box('Decision', decided + send + actions)}${finish}${preview}${progress}${box('Left out', excluded.length ? `<ul class="list">${excluded.map(([reason, n]) => `<li>${chip(n)} ${e(reason)}</li>`).join('')}</ul>` : empty('Nobody in the segment was left out.'))}${details({ 'Appeal ID': a.id, Audience: audienceRule(JSON.parse(a.segment)), 'Content hash': a.content_hash, 'Export hash': a.export_hash ?? '' })}</div></div>`
 }
 
 /** One dense row per recipient: who and where, the frozen address the appeal goes to, and how far it got. */

@@ -182,6 +182,7 @@
 .coffer details.edit > *:not(summary) { margin-top: 12px; }
 .coffer .facts dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; }
 .coffer .facts dd { margin: 0; }
+.coffer .facts dd dl { margin: 0; }
 .coffer code { font: 13px/1.4 var(--rer-font-mono); overflow-wrap: anywhere; }
 .coffer pre { margin: 0 0 12px; padding: 12px 14px; background: var(--cf-head); border: 1px solid var(--cf-line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.5 var(--rer-font-mono); }
 .coffer .notice, .coffer .alert { margin: 0 0 12px; padding: 12px 14px; border: 1px solid var(--cf-violet-line); border-radius: 10px; background: var(--cf-violet-tint); color: var(--rer-text); }
