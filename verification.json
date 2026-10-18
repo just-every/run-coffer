@@ -30,7 +30,8 @@
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm run test:coffer"
+        "pnpm run test:coffer",
+        "node --test tests/audit.test.mjs"
       ]
     },
     {
