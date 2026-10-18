@@ -116,11 +116,11 @@ Saved Stripe customer and charge list pages go through Base's import kit. Previe
 
 #### DATA-001 — Custody and erasure.
 
-Base portability backs up product records, approvals and import custody, excluding identity and credentials, and restores only into an empty installation. The owner erases a donor with explicit `ERASE`: personal data, consent, letter text, gift notes and affected Stripe originals go; gifts move to an anonymous placeholder; hashed suppression stops re-import; a later journal fences older archives. Every record the target adds (interactions, tasks, opportunities, receipts, provider events) joins the same backup and the same erasure.
+Base portability backs up product records, approvals and import custody, excluding identity and credentials, and restores only into an empty installation. A hosted Coffer backs up and restores the same archive with `rer run backup:hosted`, authenticated by the owner's session; its restore goes only into a newly deployed, empty environment and keeps that environment's own owner. The owner erases a donor with explicit `ERASE`: personal data, consent, letter text, gift notes and affected Stripe originals go; gifts move to an anonymous placeholder; hashed suppression stops re-import; a later journal fences older archives. Every record the target adds (interactions, tasks, opportunities, receipts, provider events) joins the same backup and the same erasure.
 
-*Acceptance:* The backup test restores into a fresh installation and compares donor histories and approvals; the erasure tests remove personal data, keep anonymous gifts, refuse re-import and fence an older archive.
+*Acceptance:* The backup test restores into a fresh installation and compares donor histories and approvals; the hosted-restore test backs up through the command, restores into a fresh installation with large retained originals, keeps the destination owner and refuses a second restore; the erasure tests remove personal data, keep anonymous gifts, refuse re-import and fence an older archive.
 
-*Status:* done. Evidence: `src/coffer/archive-policy.mjs`, `src/coffer/imports/erasure.ts`, `tests/coffer.test.mjs`.
+*Status:* done. Evidence: `src/coffer/archive-policy.mjs`, `src/coffer/imports/erasure.ts`, `scripts/backup-hosted.mjs`, `tests/coffer.test.mjs`, `tests/hosted-restore.test.mjs`.
 
 ## Target clauses
 
@@ -1301,7 +1301,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `03f96b5` (18 October 2026). A fresh local run of the stranger’s 5,000-constituent, 40,002-row LGL export moved 38,551 received gifts in 63 parts, matching $20,200,908.23 and all 4,013 giving-donor totals. Independent shared-email and material pledge blockers appeared together in the first review; the three rounded pledges each retained $5,000 promised and $5,000.04 paid. The changed CRM, donor, duplicate, letter, appeal, call and pipeline pages were exercised at 1440 and 390 pixels. Header/preparation dates and an automatic online receipt were checked across the UTC/organisation-day boundary.
+Judged from the code and tests at commit `4ba9d72` (18 October 2026). The v0.1.0 release gate on that commit ran the published clauses through the product at 1440 and 390 pixels on a fresh local install and once on a hosted installation with real email and Stripe test cards; it backed the hosted installation up with `rer run backup:hosted`, removed it, redeployed it empty and restored the archive, after which every archived table's row count and every year and fund total matched and the destination owner signed in by email. A fresh local run of the stranger’s 5,000-constituent, 40,002-row LGL export moved 38,551 received gifts in 63 parts, matching $20,200,908.23 and all 4,013 giving-donor totals. Independent shared-email and material pledge blockers appeared together in the first review; the three rounded pledges each retained $5,000 promised and $5,000.04 paid. The changed CRM, donor, duplicate, letter, appeal, call and pipeline pages were exercised at 1440 and 390 pixels. Header/preparation dates and an automatic online receipt were checked across the UTC/organisation-day boundary.
 
 Duplicate review, field selection, merge and audit-log undo were exercised on a hosted installation at 1440 and 390 pixels on 18 October 2026. A Stripe test-card form gift and a manual check retained their exact $75 combined total, then returned to their separate histories; the gift receipt reached the QA mailbox, and spouses sharing an email stayed out of the queue.
 
@@ -1327,7 +1327,7 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | `APPEAL-001` | Consent-checked appeals | published | done | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` |  |
 | `AGENT-001` | Prepare, then a person decides | published | done | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs` |  |
 | `IMPORT-001` | Reviewed Stripe move-in | published | done | `src/coffer/imports/service.ts`, `src/coffer/imports/snapshots.ts`, `tests/coffer.test.mjs` |  |
-| `DATA-001` | Custody and erasure | published | done | `src/coffer/archive-policy.mjs`, `src/coffer/imports/erasure.ts`, `tests/coffer.test.mjs` |  |
+| `DATA-001` | Custody and erasure | published | done | `src/coffer/archive-policy.mjs`, `src/coffer/imports/erasure.ts`, `scripts/backup-hosted.mjs`, `tests/coffer.test.mjs`, `tests/hosted-restore.test.mjs` |  |
 | `DONOR-002` | Organization records | target | partial | `src/coffer/donors.ts` | Every constituent is a person-shaped donor record; there is no organization type, EIN, website or contact role. |
 | `DONOR-003` | Relationships | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-depth.ts`, `docs/donor-depth.md` | Reciprocal spouse, employer, board member, foundation officer and introduced-by links show on both records and filter donor lists. Household salutations, head and combined totals remain. |
 | `DONOR-004` | Interaction timeline | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-timeline.ts`, `docs/donor-depth.md` | Calls, meetings and emails record date, participants, notes, next step and author beside gifts, pledges and receipt events in one timeline. Confidential notes, timeline filters and the broader task/event integrations remain. |

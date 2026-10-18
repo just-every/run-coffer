@@ -2,13 +2,13 @@
   "id": "coffer",
   "name": "coffer",
   "version": "0.1.0",
-  "maturity": "first-release-candidate; independent stranger and hosted acceptance pending",
+  "maturity": "first release; independently gated on a computer and a hosted Cloudflare Worker on 18 October 2026",
   "category": "status",
   "spine": {
     "id": "foundation",
     "record": "No domain record selected"
   },
-  "description": "Owner-run donor records for a US nonprofit: Stripe move-in, immutable gift ledger, consent history, $250 acknowledgement letters and consent-checked appeals.",
+  "description": "Owner-run donor records and giving for a US nonprofit: donors and households, an immutable gift ledger with pledges and soft credits, Stripe card and monthly gifts, emailed receipts, letters and year-end statements, and a checked Little Green Light move-in.",
   "capabilities": [
     {
       "id": "http-dispatch",
@@ -30,12 +30,12 @@
     }
   ],
   "nonGoals": [
-    "Payment processing or online donation forms",
-    "Sending email or mail (letters and appeals are exported)",
-    "Grant management or wealth screening",
-    "Tax advice or non-cash gift valuation",
-    "A live Stripe connection (saved API pages only)",
-    "Brand site, custom domain or additional provider integrations"
+    "US bank (ACH) checkout, PayPal, Venmo and text-to-give",
+    "Sending notes to the family for tribute gifts",
+    "A live QuickBooks Online connection",
+    "Native phone apps",
+    "Prospect research, grants and planned giving",
+    "Tax advice or non-cash gift valuation"
   ],
   "externals": [
     {
