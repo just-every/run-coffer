@@ -22,6 +22,8 @@
 .coffer .scroll{overflow-x:auto}
 .coffer .fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .coffer textarea,.coffer select{box-sizing:border-box;width:100%;padding:10px 14px;border:1px solid var(--rer-border);border-radius:calc(var(--rer-radius) / 2);background:var(--rer-surface);color:var(--rer-text);font:inherit}
+/* every single-choice select draws its chevron 14px in from the right border (two gradient strokes in the theme's muted ink: the theme CSP allows no data: images); multiple and size>1 lists keep their native look */
+.coffer select:not([multiple]):not([size]), .coffer select[size="1"]:not([multiple]) { -webkit-appearance: none; appearance: none; padding-inline-end: 40px; background-image: linear-gradient(to top right, transparent calc(50% - 1.1px), var(--rer-muted) calc(50% - .55px), var(--rer-muted) calc(50% + .55px), transparent calc(50% + 1.1px)), linear-gradient(to top left, transparent calc(50% - 1.1px), var(--rer-muted) calc(50% - .55px), var(--rer-muted) calc(50% + .55px), transparent calc(50% + 1.1px)); background-repeat: no-repeat; background-position: right 20px center, right 14px center; background-size: 6px 6px; text-overflow: ellipsis; line-height: normal; }
 .coffer textarea{min-height:96px;resize:vertical}.coffer select{min-height:46px}
 .rer-themed main.coffer input[type=radio]{flex:none;width:18px;height:18px;min-height:0;padding:0;margin:3px 0 0;accent-color:var(--rer-accent,var(--rer-brand-accent))}
 .coffer label:has(input[type=radio]){display:flex;gap:10px;align-items:flex-start;font-weight:400}
