@@ -1,3 +1,4 @@
+import { reassignmentReason } from './reassignment-reasons'
 import { requireRole } from './auth'
 import { majorGiftMergeStatements } from './major-gifts'
 import { donorDepthMergeStatements } from './donor-depth'
@@ -50,6 +51,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
  const picks = p.fields === undefined ? {} : object(p.fields,'Surviving fields')
  for (const [key,value] of Object.entries(picks)) if (!MERGE_FIELDS.some(([field])=>field===key) || !['source','target'].includes(String(value))) fail('INPUT','Choose the source or survivor for each contact field.',400)
  const selected = MERGE_FIELDS.map(([key,,column])=>(picks[key]==='source'?from:into)[column] ?? null)
+ const reason = reassignmentReason('merge', p.reason)
  const mergeId = newId(), tables = await journalTables(c)
  const statements: Stmt[] = [
   guard(`(SELECT count(*) FROM cf_donors d WHERE (id=? AND version=? OR id=? AND version=?) AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))=2`, 'VERSION', 'A donor changed or was merged. Review both records again.', source,sourceVersion,target,version),
@@ -80,7 +82,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   ...donorDepthMergeStatements(source,target),...majorGiftMergeStatements(source,target),
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',source,target),
   ...captureMerge(tables,mergeId,'after'),
-  event(c,'donor.merge','donor',source,target,{mergeId,sourceDonorId:source,targetDonorId:target}),
+  event(c,'donor.merge','donor',source,target,{mergeId,sourceDonorId:source,targetDonorId:target,reason}),
  )
  await commit(c,statements)
  return {id:target,donorId:target,merged:source,mergeId}
@@ -90,6 +92,7 @@ export async function undoMerge(c:Context,p:Row):Promise<Row> {
  requireRole(c.actor,['owner','admin'],'undo donor merges')
  const mergeId = id(p.mergeId,'Merge'), merge = await one(c,'SELECT * FROM cf_donor_merge_journal WHERE id=?',mergeId)
  if (!merge || merge.status!=='active') fail('UNDO_UNAVAILABLE','This merge is already undone or its records were erased.')
+ const reason = reassignmentReason('undo', p.reason)
  const tables = await journalTables(c)
  await commit(c,[
   guard("EXISTS(SELECT 1 FROM cf_donor_merge_journal WHERE id=? AND status='active')",'UNDO_UNAVAILABLE','This merge can no longer be undone.',mergeId),
@@ -102,7 +105,7 @@ export async function undoMerge(c:Context,p:Row):Promise<Row> {
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',merge.source_id,merge.target_id),
   sql('DELETE FROM cf_preference_sync WHERE donor_id IN (?,?)',merge.source_id,merge.target_id),
   sql("UPDATE cf_donor_merge_journal SET status='undone',undone_at=?,undone_by=? WHERE id=?",c.now,c.actor.name,mergeId),
-  event(c,'donor.unmerge','donor',merge.source_id,merge.target_id,{mergeId,sourceDonorId:merge.source_id,targetDonorId:merge.target_id}),
+  event(c,'donor.unmerge','donor',merge.source_id,merge.target_id,{mergeId,sourceDonorId:merge.source_id,targetDonorId:merge.target_id,reason}),
  ])
  return {id:merge.target_id,donorId:merge.target_id,restored:merge.source_id,mergeId,undone:true}
 }

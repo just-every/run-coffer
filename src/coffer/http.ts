@@ -1,3 +1,4 @@
+import { reassignmentReason } from './reassignment-reasons'
 import { fundEntries, fundLedgerCsv, fundReport } from './fund-report'
 import { auditCsv, auditLog, recordRequest } from './audit'
 import { auditPage } from './ui/audit'
@@ -197,12 +198,13 @@ function kitMessage(code: string) {
 async function eraseDonor(c: Context, authority: Authority, input: any) {
  if (c.actor.role !== 'owner') fail('owner_required', 'Only the owner can erase a donor.', 403)
  if (input?.confirm !== 'ERASE') fail('confirmation_required', 'Type ERASE to confirm.', 400)
+ const reason = reassignmentReason('erase', input.reason ?? 'donor_request')
  const donorId = await canonicalDonor(c, String(input.donorId ?? ''))
  const aliases = await c.db.prepare('SELECT donor_id FROM cf_donor_merges WHERE into_id=?').bind(donorId).all<{donor_id:string}>()
- for (const alias of aliases.results) await eraseSingleDonor(c, authority, alias.donor_id)
- return eraseSingleDonor(c, authority, donorId)
+ for (const alias of aliases.results) await eraseSingleDonor(c, authority, alias.donor_id, reason)
+ return eraseSingleDonor(c, authority, donorId, reason)
 }
-async function eraseSingleDonor(c: Context, authority: Authority, donorId: string) {
+async function eraseSingleDonor(c: Context, authority: Authority, donorId: string, reason: string) {
  const placeholder = `erased-${crypto.randomUUID()}`
  const donor = await c.db.prepare('SELECT id,email FROM cf_donors WHERE id=? AND erased_at IS NULL').bind(donorId).first<{ id: string; email: string | null }>()
  if (!donor) fail('NOT_FOUND', 'That donor does not exist or was already erased.', 404)
@@ -220,7 +222,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   { sql: "UPDATE cf_subscriptions SET donor_id=?,customer_id='' WHERE donor_id=?", params: [placeholder, donorId] },
  ]
  // The placeholder must exist before its references move; delete the old donor last.
- const nativeStatements = [...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,'{}')", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder] }]
+ const nativeStatements = [...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,?)", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder, JSON.stringify({reason})] }]
  const result: any = await imports.erase(c.db, c.actor, donorId, authority, { nativeStatements, checkpoint })
  return { erased: donorId, donorId: placeholder, receiptId: result.receiptId ?? result.id }
 }

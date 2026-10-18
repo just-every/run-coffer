@@ -27,7 +27,7 @@ test('sign-in, origin checks and every role boundary hold in the server handlers
  await h.get('/api/coffer/donors',{...m,status:401})
 }))
 
-test('gifts are exact integer-cent ledger lines; corrections are reversals',()=>run(async h=>{
+test('GIFT-001: gifts are exact integer-cent ledger lines; corrections are reversals',()=>run(async h=>{
  const ana=await donor(h,'Ana Diaz')
  const big=await h.command('gift.record',{donorId:ana.id,amount:'$1,250.50',receivedOn:'2026-09-01',method:'check',reference:'4471',goods:'none'})
  assert.equal(big.amountCents,125050)

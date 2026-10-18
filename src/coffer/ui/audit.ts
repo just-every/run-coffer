@@ -1,3 +1,4 @@
+import { reassignmentReasons } from '../reassignment-reasons'
 import { auditChoices, auditLog } from '../audit'
 import { actionWords, recordWords, roleWords } from '../action-words'
 import { all, type Context } from '../db'
@@ -11,7 +12,7 @@ export async function auditPage(c: Context, url: URL) {
  const undo = (row: typeof log.rows[number]) => {
   if(row.action!=='donor.merge')return ''
   const mergeId=JSON.parse(row.detail).mergeId,state=merges.find(m=>m.id===mergeId)?.status
-  return state==='active' ? form('donor.unmerge','<p class="muted">Undo restores the two histories only while their records remain unchanged.</p>','Undo merge',{mergeId}) : state ? `<p class="muted">${state==='undone'?'Merge undone.':'Undo unavailable after erasure.'}</p>` : ''
+  return state==='active' ? form('donor.unmerge',select('Reason for undo','reason',reassignmentReasons.undo,'incorrect_match','required')+'<p class="muted">Undo restores the two histories only while their records remain unchanged.</p>','Undo merge',{mergeId}) : state ? `<p class="muted">${state==='undone'?'Merge undone.':'Undo unavailable after erasure.'}</p>` : ''
  }
  const query = new URLSearchParams(url.searchParams); query.delete('page')
  const pagination = (page: number) => { const q = new URLSearchParams(query); q.set('page',String(page)); return '/app/audit?'+e(q.toString()) }

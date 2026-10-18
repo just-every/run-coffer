@@ -991,7 +991,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 15 | a portal where donors update their own card | `GIVE-005` | partial |
 | 16 | Households | `DONOR-001` | done |
 | 17 | relationships | `DONOR-003` | partial |
-| 18 | every gift | `GIFT-001` | partial |
+| 18 | every gift | `GIFT-001` | done |
 | 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` partial · `COMM-004` missing · `COMM-005` partial |
 | 20 | soft credits | `GIFT-006` | partial |
 | 21 | tributes | `GIFT-008` | partial |
@@ -1032,7 +1032,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 56 | Matching gifts | `GIFT-007` | partial |
 | 57 | Pledges: schedules, reminders and balances kept current | `GIFT-005`, `STEW-004` | `GIFT-005` partial · `STEW-004` partial |
 | 58 | Consent: email and mail preferences honored everywhere | `CONSENT-001`, `APPEAL-001` | done |
-| 59 | Gift ledger: every change recorded; no gift is silently edited | `GIFT-001` | partial |
+| 59 | Gift ledger: every change recorded; no gift is silently edited | `GIFT-001` | done |
 | 60 | Open source donor management for every nonprofit | `OWN-001` | done |
 | 61 | Free and open source, MIT licensed | `OWN-001` | done |
 
@@ -1048,19 +1048,21 @@ The audit log was exercised on a hosted installation at 1440 and 390 pixels on 1
 
 The giving summary and split-gift clauses were also exercised through the product at 1440 and 390 pixels on 18 October 2026.
 
+On 19 October 2026, the GIFT-001 HTTP journeys exercised audited merge, undo and erasure with preserved monetary facts and receipt IDs; the comparison, audit and erasure screens were exercised at 1440 and 390 pixels. Reasons use closed choices so the retained financial audit contains no new donor personal data.
+
 The rows distinguish implemented behavior and named tests from the remaining acceptance requirements, including the widened released guarantees.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 6 | 3 | 0 | 9 |
+| Published | 7 | 2 | 0 | 9 |
 | Target and push further | 8 | 65 | 53 | 126 |
-| All | 14 | 68 | 53 | 135 |
+| All | 15 | 67 | 53 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
 | `HTTP-001` | Private app boundary | published | done | `tests/coffer.test.mjs`, `src/coffer/auth.ts` |  |
 | `DONOR-001` | Donors and households | published | done | `src/coffer/donors.ts`, `tests/coffer.test.mjs`, `tests/browser-journey.mjs` |  |
-| `GIFT-001` | Immutable ledger | published | partial | `src/coffer/gifts.ts`, `src/coffer/donor-merge.ts`, `src/coffer/http.ts`, `migrations/core/0042_coffer_duplicates.sql`, `tests/coffer.test.mjs`, `tests/duplicates.test.mjs` | Exact-cent immutable monetary facts, reversal corrections and guarded merge/undo/erasure reassignment ship. Events and merge journals record the actor and operation, but no explicit reason is captured for those reassignment exceptions. |
+| `GIFT-001` | Immutable ledger | published | done | `src/coffer/gifts.ts`, `src/coffer/donor-merge.ts`, `src/coffer/http.ts`, `migrations/core/0042_coffer_duplicates.sql`, `tests/coffer.test.mjs`, `tests/duplicates.test.mjs`  | Exact-cent immutable gifts and reversal corrections are protected by database triggers. Merge and undo require a structured reason; erasure records its selected reason, defaulting to the donor request. The HTTP tests compare amount, date, fund and receipt IDs through merge, undo and erasure, read actor and reason, refuse direct reassignment and fence undo after erasure. |
 | `CONSENT-001` | Consent history | published | done | `src/coffer/donors.ts`, `tests/coffer.test.mjs` |  |
 | `ACK-001` | Acknowledgment letters | published | partial | `src/coffer/acknowledgements.ts`, `src/coffer/settings.ts`, `tests/coffer.test.mjs` | Reviewed settings, frozen hash approval, CSV export and sent-date recording ship; imported acknowledged/do-not-acknowledge statuses, source goods-value handling and a stored per-gift acknowledged-by-letter method/batch link remain incomplete (`RCPT-011`). The move-in acknowledge-from cutoff is implemented through prior-acknowledgment exclusions. |
 | `APPEAL-001` | Consent-checked appeals | published | done | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` |  |
