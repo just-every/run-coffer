@@ -1301,7 +1301,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `96eefb0` (18 October 2026).
+Judged from the code and tests at commit `09f821748012a3534a4e0446e1ec02a5e88cf5a0` (18 October 2026).
 
 The audit log was exercised on a hosted installation at 1440 and 390 pixels on 18 October 2026, including real email sign-in, filtering, an empty result and CSV download.
 
