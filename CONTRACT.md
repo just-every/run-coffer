@@ -994,7 +994,7 @@ Every change, approval, export, sign-in and agent action is in an audit log the 
 
 *Acceptance:* An HTTP journey makes changes as two people and an agent and reads them in the audit log filtered by person and exported as CSV.
 
-*Status:* partial. Every command writes an event shown per donor and per batch; no organization-wide log, filters or export. Evidence: `src/coffer/db.ts`, `src/coffer/ui/donors.ts`.
+*Status:* done. The installation audit log retains domain changes, approvals, downloads, sign-ins, identity changes and agent actions, filters by person, record, action and date, and exports the filtered rows as CSV. Evidence: `src/coffer/audit.ts`, `src/coffer/ui/audit.ts`, `tests/audit.test.mjs`.
 
 ### Integrations and API
 
@@ -1301,7 +1301,9 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `231694e67ba4b595574afe99f554ebf16d01fe5b` (18 October 2026).
+Judged from the code and tests at commit `96eefb0` (18 October 2026).
+
+The audit log was exercised on a hosted installation at 1440 and 390 pixels on 18 October 2026, including real email sign-in, filtering, an empty result and CSV download.
 
 The giving summary and split-gift clauses were also exercised through the product at 1440 and 390 pixels on 18 October 2026.
 
@@ -1310,8 +1312,8 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 6 | 67 | 53 | 126 |
-| All | 15 | 67 | 53 | 135 |
+| Target and push further | 7 | 66 | 53 | 126 |
+| All | 16 | 66 | 53 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1426,7 +1428,7 @@ The giving, receipt, payments, donor-depth, development-agent and CRM export mov
 | `MOVE-011` | Switching guide for each incumbent | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | The CRM export guide gives vendor report/menu guidance, official source links, required IDs, supported fields and source control interpretation for LGL, Bloomerang and NXT, alongside the Stripe guide. PCI transfer and an installation cutover checklist remain unbuilt. |
 | `TEAM-001` | Roles and record-level access | target | partial | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs` | Owner, admin, member and agent roles guard every command; no fundraiser, finance, volunteer or read-only roles, portfolio scoping, confidential fields, managers or call capacity. |
 | `TEAM-002` | Single sign-on and two-step sign-in | target | partial | `src/modules/operator-auth/identity/oidc` | Base sign-in supports an OIDC provider; requiring SSO and a second factor are not offered in Coffer. |
-| `TEAM-003` | Audit log | target | partial | `src/coffer/db.ts`, `src/coffer/ui/donors.ts` | Every command writes an event shown per donor and per batch; no organization-wide log, filters or export. |
+| `TEAM-003` | Audit log | target | done | `src/coffer/audit.ts`, `src/coffer/ui/audit.ts`, `migrations/core/0041_coffer_audit.sql`, `tests/audit.test.mjs` |  |
 | `API-001` | Public REST API | target | partial | `src/coffer/http.ts`, `src/coffer/commands.ts`, `tests/coffer.test.mjs` | Authenticated donor reads and a command API exist; no versioned public API, OpenAPI document, scoped keys or idempotency keys. |
 | `API-002` | Webhooks | target | missing |  | No webhooks. |
 | `API-003` | Zapier and Crank | target | missing |  | No Zapier app or Crank connector. |

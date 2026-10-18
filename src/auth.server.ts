@@ -6,6 +6,7 @@ import { fontDocumentResponse } from './base/font-response'
 import { createOperatorAuth, createAuthHandler, createSignInHandler, type AuthConfig } from './modules/operator-auth/index.mjs'
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
+import { event } from './coffer/db'
 
 // The edition's declared theme (public/rer-theme.css), as Base frames link it.
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
@@ -87,6 +88,14 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
 }
 
 export async function authResponse(request: Request, original: Bindings): Promise<Response | null> {
+ const env = runtimeBindings(original)
+ const before = request.method === 'POST' && new URL(request.url).pathname.startsWith('/auth/') ? await operatorAuth(env).getSession(request) : null
  const response = await handleAuthResponse(request, original)
+ if (before && response && response.status < 400) {
+  const o = before.operator
+  const row = event({db:env.DB,actor:{id:o.id,name:o.displayName,role:o.role},authority:{sql:'1',params:[]},now:new Date().toISOString()},
+   'auth.'+new URL(request.url).pathname.slice(6).replaceAll('/','.'),'operator',o.id,null)
+  await env.DB.prepare(row.sql).bind(...row.params).run()
+ }
  return response ? rejectedResponse(request, response) : null
 }

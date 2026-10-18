@@ -1,4 +1,6 @@
 import { fundEntries, fundLedgerCsv, fundReport } from './fund-report'
+import { auditCsv, auditLog, recordRequest } from './audit'
+import { auditPage } from './ui/audit'
 import { fundReportPage } from './ui/fund-report'
 import { welcomeState } from './communications/welcome'
 import { preferenceState } from './communications/preferences'
@@ -96,6 +98,17 @@ async function pages(data: FormData, name: string) {
 
 const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
+ const response = await cofferHandler(request, original)
+ const path = new URL(request.url).pathname
+ const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events'
+ if (response && response.status < 400 && !provider && !response.headers.get('location')?.startsWith('/signin') && ROUTES.test(path)) {
+  const env = runtimeBindings(original), auth = await identity(request,env)
+  try { await recordRequest({ db:env.DB,actor:auth.actor,authority:auth.authority,now:new Date().toISOString(),env },request,response) }
+  catch (error) { if (error instanceof CofferError) return json({error:error.code,message:error.message},error.status); throw error }
+ }
+ return response
+}
+async function cofferHandler(request: Request, original: Bindings): Promise<Response | null> {
  if (new URL(request.url).pathname === '/api/coffer/mail/events') return receiptEvents(request, original)
  const publicGiving = await givingResponse(request, original); if (publicGiving) return publicGiving
  const url = new URL(request.url), path = url.pathname
@@ -257,6 +270,8 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if (url.pathname === '/api/coffer/audit') return json(await auditLog(c,url))
+ if (url.pathname === '/api/coffer/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
  const path = url.pathname, match = (re: RegExp) => path.match(re)
  if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo') }))
  let m = match(/^\/api\/coffer\/donors\/([^/]+)$/)
@@ -295,6 +310,8 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if (path === '/app/audit') return show('Audit log',await auditPage(c,url))
+ if (path === '/app/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
  if (path === '/app/funds') return show('Giving by fund',await fundReportPage(c,url))
  if (path === '/app/funds/ledger.csv') {
   if (!manager(actor)) fail('manager_required','Only the owner or an admin exports accounting entries.',403)
