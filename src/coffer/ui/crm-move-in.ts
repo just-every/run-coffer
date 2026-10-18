@@ -1,12 +1,12 @@
 import type { Row } from '../db'
-import { area, box, chip, e, empty, field, guide, hidden, money, select, when } from './common'
+import { area, box, chip, e, empty, field, guide, hidden, longDay, money, select, when } from './common'
 import { exportSteps } from './crm-export-steps'
 
 export const sources: [string,string][]=[['lgl','Little Green Light'],['bloomerang','Bloomerang'],['re-nxt',"Raiser's Edge NXT"]]
 const name=(source:string)=>sources.find(([key])=>key===source)?.[1]||source
 const sourceGuide=guide('move-in-crm')
 
-export function crmMoveInPage(jobs:Row[]) {
+export function crmMoveInPage(jobs:Row[],tz:string) {
  return `<p>Bring your donor records and gift history into Coffer. Preview every file and compare totals before you switch.</p><div class="grid"><div>
  ${box('1. Choose your exports',`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${select('Moving from','source',sources)}
  <label>Export files (CSV or XLSX)<input type="file" name="exports" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required></label>
@@ -15,7 +15,7 @@ export function crmMoveInPage(jobs:Row[]) {
  <p class="muted">Leave this unticked if you are unsure. Those gifts wait for a goods answer before a receipt.</p><button>Preview exports</button></form>`)}
  </div><div>${box('Export from your CRM',`<p>Open your CRM’s steps below. Each export needs the record IDs, so gifts find their donors.</p>${exportSteps()}<p><a href="${sourceGuide}">CRM move-in guide</a> covers pledges, soft credits, households and total checks in more detail.</p>`)}
  ${box('Prepare the switch',`<ol class="steps"><li>Export the files above, keeping the record ID columns.</li><li>Check the counts and the gift totals by year, fund and donor against your CRM.</li><li>Fix every row the review marks “Must fix” (it lists them all and downloads them as a spreadsheet), or say why a difference is fine.</li><li>Move it in. Large exports go in parts of about 800 records; Coffer checks the totals again at the end. Undo removes everything this move-in added while nobody has used it yet.</li></ol><p>Exports move history. They do not move stored cards or start or stop recurring charges. Keep the old system until your cutover is complete.</p><p><a href="/app/move-in">Move in from Stripe</a></p>`)}
- ${box('Recent CRM imports',jobs.length?`<ul class="list">${jobs.map(j=>`<li><a href="/app/move-in/crm/${j.state==='reviewed'?'review':'journal'}?id=${e(j.id)}">${e(name(j.source))} · ${j.state==='completed'?'Moved in':j.state==='applying'?`Part ${j.applied_parts} of ${j.parts}`:j.state==='reviewed'?(j.can_apply===0?'Rows to fix':'Reviewed'):'Undone'}</a> · ${when(j.created_at)}</li>`).join('')}</ul>`:empty('No CRM exports imported yet.'))}</div></div>`
+ ${box('Recent CRM imports',jobs.length?`<ul class="list">${jobs.map(j=>`<li><a href="/app/move-in/crm/${j.state==='reviewed'?'review':'journal'}?id=${e(j.id)}">${e(name(j.source))} · ${j.state==='completed'?'Moved in':j.state==='applying'?`Part ${j.applied_parts} of ${j.parts}`:j.state==='reviewed'?(j.can_apply===0?'Rows to fix':'Reviewed'):'Undone'}</a> · ${when(j.created_at,tz)}</li>`).join('')}</ul>`:empty('No CRM exports imported yet.'))}</div></div>`
 }
 
 /** Every difference is listed; matching per-donor rows are stored as a count so large move-ins stay readable. */
@@ -75,11 +75,11 @@ export function crmReviewPage(job:Row,list:Row,today:string) {
  ${box('Columns left out',leftOutColumns(r.leftOut),'left-out')}
  ${records('Donors',r.counts.donors,s.donors,d=>`<strong>${e(d.name)}</strong> · ${e(d.externalId)}${d.householdName?` · ${e(d.householdName)}`:''}`)}
  ${records('Households',r.counts.households,s.households,h=>`${e(h.name)} · ${e(h.externalId.startsWith('members:')?`linked as spouses or at one address`:h.externalId)}`)}
- ${records('Gifts',r.counts.gifts,s.gifts,g=>`${e(g.externalId)} · donor ${e(g.donorExternalId)} · ${when(g.receivedOn)} · ${money(g.amountCents)} · ${e(g.fund)}${g.campaign?` · ${e(g.campaign)}`:''}`)}
+ ${records('Gifts',r.counts.gifts,s.gifts,g=>`${e(g.externalId)} · donor ${e(g.donorExternalId)} · ${longDay(g.receivedOn)} · ${money(g.amountCents)} · ${e(g.fund)}${g.campaign?` · ${e(g.campaign)}`:''}`)}
  ${records('Relationships',r.counts.relationships,s.relationships,x=>`${e(x.donorExternalId)} → ${e(x.relatedDonorExternalId)} · ${e(x.type)}`)}
  ${records('Soft credits',r.counts.softCredits,s.softCredits,x=>`${money(x.amountCents)} · donor ${e(x.donorExternalId)} · original gift ${e(x.giftExternalId)}`)}
  ${records('Pledges',r.counts.pledges,s.pledges,v=>`${e(v.externalId)} · donor ${e(v.donorExternalId)} · ${money(v.amountCents)} · ${e(v.fund)}${v.note?`<p>${e(v.note)}</p>`:''}`)}
- ${records('Installments',r.counts.installments,s.installments,i=>`${e(i.pledgeExternalId)} · ${when(i.dueOn)} · ${money(i.amountCents)}`)}
+ ${records('Installments',r.counts.installments,s.installments,i=>`${e(i.pledgeExternalId)} · ${longDay(i.dueOn)} · ${money(i.amountCents)}`)}
  ${records('Notes and conversations',r.counts.notes,s.notes,n=>`Donor ${e(n.donorExternalId)} · ${e(n.type)} · ${e(n.text)}`)}
  </div><div>${box('What moves in',`${counts(r.counts)}${r.parts>1?`<p>This goes in ${r.parts} parts of about 800 records. You can leave and come back between parts.</p>`:''}`)}
  ${box('3. Move it in',blocked?`<p>Fix the ${plural(errors,'row')} marked “Must fix”, then upload the corrected files below.</p>`:done?'<p>Open the journal above.</p>':`<form method="post" action="/app/move-in/crm/apply">${hidden('id',job.id)}${hidden('fingerprint',job.fingerprint)}
@@ -90,13 +90,13 @@ export function crmReviewPage(job:Row,list:Row,today:string) {
  <p><a href="/app/move-in/crm">Start over</a> · <a href="${sourceGuide}">CRM move-in guide</a></p></div></div>`
 }
 
-export function crmJournalPage(result:Row) {
+export function crmJournalPage(result:Row,tz:string) {
  const j=result.job,r=j.report,check=j.check_report
  const state=j.state==='completed'?chip('Moved in','ok'):j.state==='applying'?chip(`Part ${j.applied_parts} of ${j.parts}`,'info'):j.state==='reviewed'?chip('Reviewed, not moved in','warn'):chip('Undone','')
  const progress=j.state==='applying'?box('Moving in',`<p><progress max="${j.parts}" value="${j.applied_parts}">${j.applied_parts} of ${j.parts}</progress></p><p>${j.applied_parts} of ${j.parts} parts are in Coffer. Each press of Continue moves in as many parts as fit in about 20 seconds. It is safe to leave and come back: nothing is applied twice.</p><form method="post" action="/app/move-in/crm/continue">${hidden('id',j.id)}<button>Continue</button></form>`):''
- const checked=check?box('Totals check',`<p>${check.matches?chip('All totals match','ok'):chip('Totals differ','warn')} Checked ${when(j.checked_at)}: the gifts now in Coffer from this move-in, against your files.</p>${check.donors?totals(check):totals_(check.rows)}<form method="post" action="/app/move-in/crm/check">${hidden('id',j.id)}<button class="secondary">Check totals again</button></form>`):''
- return `<p>${state} ${e(name(j.source))} · ${when(j.created_at)} · ${e(j.created_by)}</p>
- ${j.state==='reviewed'?`<p><a href="/app/move-in/crm/review?id=${e(j.id)}">Open the review</a></p>`:''}<p>${j.state==='completed'?'Everything in this move-in is in Coffer. Moving the same files in again changes nothing.':j.state==='applying'?'This move-in is under way.':j.state==='undone'?'Everything this move-in added was removed. Records that already existed were kept.':'Nothing from this review has been moved in yet.'}${j.acknowledged_before?` Gifts before ${when(j.acknowledged_before)} count as already thanked.`:''}</p>
+ const checked=check?box('Totals check',`<p>${check.matches?chip('All totals match','ok'):chip('Totals differ','warn')} Checked ${when(j.checked_at,tz)}: the gifts now in Coffer from this move-in, against your files.</p>${check.donors?totals(check):totals_(check.rows)}<form method="post" action="/app/move-in/crm/check">${hidden('id',j.id)}<button class="secondary">Check totals again</button></form>`):''
+ return `<p>${state} ${e(name(j.source))} · ${when(j.created_at,tz)} · ${e(j.created_by)}</p>
+ ${j.state==='reviewed'?`<p><a href="/app/move-in/crm/review?id=${e(j.id)}">Open the review</a></p>`:''}<p>${j.state==='completed'?'Everything in this move-in is in Coffer. Moving the same files in again changes nothing.':j.state==='applying'?'This move-in is under way.':j.state==='undone'?'Everything this move-in added was removed. Records that already existed were kept.':'Nothing from this review has been moved in yet.'}${j.acknowledged_before?` Gifts before ${longDay(j.acknowledged_before)} count as already thanked.`:''}</p>
  <div class="grid wide"><div>${progress}${checked}${!check&&r.reconciliation?.rows?box('Totals in your files',totals(r.reconciliation)):''}${r.counts?box('Imported history',counts(r.counts)):''}
  ${r.files?box('Source files',`<ul class="list">${r.files.map((f:Row)=>`<li>${e(f.name)} · ${f.rows} rows</li>`).join('')}</ul><p class="muted">Coffer does not keep the uploaded files. Keep your exports somewhere safe.</p>`):''}</div><div>
  ${j.accepted_reason?box('Accepted differences',`<p>${e(j.accepted_reason)}</p>`):''}

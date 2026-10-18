@@ -1,12 +1,12 @@
 import type { Row } from '../db'
-import { box, chip, details, e, empty, guide, money, when } from './common'
+import { box, chip, details, e, empty, guide, longDay, money } from './common'
 
 const JOB: Record<string, string> = { queued: 'Approved, not started', applying: 'Partly applied', completed: 'Applied', failed: 'Stopped', undoing: 'Partly undone', undone: 'Undone', rolling_back: 'Rolling back', rolled_back: 'Rolled back' }
 
 const donationAnswer = `<label><input type="checkbox" name="noGoodsOrServices" value="yes"> These payments were donations: no goods or services were given in return</label><p class="muted">Leave it unticked for tickets, dinners or merchandise. Those gifts wait for a person to answer before a receipt states it.</p>`
 
-export function moveInPage(jobs: Row[], connected = false) {
- const today = new Date().toISOString().slice(0, 10), start = today.slice(0, 4) + '-01-01'
+export function moveInPage(jobs: Row[], today: string, connected = false) {
+ const start = today.slice(0, 4) + '-01-01'
  return `<p>Bring donors, gifts and monthly plans from your Stripe account. Choose the gift dates; Coffer reads every page for you. Preview first, check the totals, then approve. Nothing is changed in Stripe.</p>
  <div class="grid"><div>${box('1. Read from Stripe', `<p>${connected ? 'Use the Stripe account already connected under Giving, or enter a restricted key below to read a different account.' : 'Connect Stripe under <a href="/app/giving/setup">Giving → Connect Stripe</a>, or use a restricted read key below.'}</p>
  <form method="post" action="/app/move-in/read-stripe"><div class="fields"><label>First gift date<input type="date" name="start" value="${start}" required></label><label>Last gift date<input type="date" name="end" value="${today}" required></label></div><p class="muted">Dates include the whole day in UTC. Monthly plans for those donors, and plans created in this period, are included.</p>
@@ -28,7 +28,7 @@ export function previewPage(input: Row, result: Row) {
  const contexts = (key: string) => (input[key] ?? []).flatMap((p: Row) => p.data ?? [])
  return `<p>${result.donors.length} new donors and ${result.gifts.length} gifts totalling ${money(total)}. ${result.subscriptions?.length ?? 0} monthly plans. ${result.skipped.length} Stripe objects are skipped. Nothing has changed yet.</p>
  ${box('Check the totals', `<p>Gifts to add: <strong>${result.gifts.length} · ${money(total)}</strong>, after refunds and the skips listed below. Compare this with your Stripe payments for these dates before approving. Only charges count as money received.</p><p>${contexts('paymentIntents').length} Payment Intents and ${contexts('invoices').length} invoices read for context. ${contexts('invoices').filter((i: Row) => i.paid_out_of_band).length} invoices were marked paid outside Stripe; these do not become gifts. After applying, Coffer checks the actual gift count and cents against this approved plan.</p>`)}
- <div class="grid wide"><div>${box('Gifts to add', reviewRecords(result.gifts.length, 'gifts', `<div class="scroll"><table><thead><tr><th>Received</th><th>Amount</th><th>Fund</th></tr></thead><tbody>${result.gifts.map((g: Row) => `<tr><td>${when(g.receivedOn)}</td><td>${money(g.amountCents)}</td><td>${e(g.fund)}</td></tr>`).join('')}</tbody></table></div>`))}
+ <div class="grid wide"><div>${box('Gifts to add', reviewRecords(result.gifts.length, 'gifts', `<div class="scroll"><table><thead><tr><th>Received</th><th>Amount</th><th>Fund</th></tr></thead><tbody>${result.gifts.map((g: Row) => `<tr><td>${longDay(g.receivedOn)}</td><td>${money(g.amountCents)}</td><td>${e(g.fund)}</td></tr>`).join('')}</tbody></table></div>`))}
  ${box('Donors to add', result.donors.length ? reviewRecords(result.donors.length, 'donors', `<ul class="list">${result.donors.map((d: Row) => `<li><strong>${e(d.name)}</strong>${d.email ? ` · ${e(d.email)}` : ''}${d.city ? ` · ${e(d.city)}` : ''}</li>`).join('')}</ul>`) : empty('No new donors; gifts attach to donors already in Coffer.'))}</div>
  <div>${box('Approve this exact plan', `<form method="post" action="/app/move-in/apply">
   ${['customers','charges','subscriptions','paymentIntents','invoices'].map(key => `<input type="hidden" name="${key}" value="${e(JSON.stringify(input[key] ?? []))}">`).join('')}

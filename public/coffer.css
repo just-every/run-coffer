@@ -145,6 +145,14 @@
 .coffer .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
 .rer-themed .coffer input:not([type=checkbox]):not([type=hidden]):not([type=radio]), .coffer select, .coffer textarea { width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid var(--cf-field); border-radius: 8px; background: var(--rer-surface); color: var(--rer-text); font: 400 15px/1.4 var(--rer-font-body); }
 .coffer textarea { min-height: 96px; resize: vertical; }
+/* Every single-line select draws Base's chevron (runtime/select-style.ts): two gradient
+   strokes 14px in from the border, with 40px of end padding so a long value ends in an
+   ellipsis before it. Coffer's CSP (img-src 'self') blocks data: images; gradients need none. */
+.coffer select:not([multiple], [size]:not([size="1"])) { --rer-select-ink: var(--cf-soft); appearance: none; -webkit-appearance: none; padding-inline-end: 40px; background-image: linear-gradient(to top right, transparent calc(50% - 1.1px), var(--rer-select-ink) calc(50% - .55px), var(--rer-select-ink) calc(50% + .55px), transparent calc(50% + 1.1px)), linear-gradient(to top left, transparent calc(50% - 1.1px), var(--rer-select-ink) calc(50% - .55px), var(--rer-select-ink) calc(50% + .55px), transparent calc(50% + 1.1px)); background-repeat: no-repeat; background-position: right 20px center, right 14px center; background-size: 6px 6px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+.coffer select:not([multiple], [size]:not([size="1"])):dir(rtl) { background-position: left 14px center, left 20px center; }
+.coffer select:not([multiple], [size]:not([size="1"])):focus-visible { --rer-select-ink: var(--rer-text); }
+.coffer select:not([multiple], [size]:not([size="1"])):disabled { --rer-select-ink: color-mix(in srgb, var(--cf-soft) 55%, transparent); color: var(--cf-soft); cursor: not-allowed; }
+@media (forced-colors: active) { .coffer select:not([multiple], [size]:not([size="1"])) { --rer-select-ink: ButtonText; } }
 .rer-themed .coffer input:not([type=checkbox]):not([type=hidden]):not([type=radio]):focus, .coffer select:focus, .coffer textarea:focus { border-color: var(--cf-violet); outline: 2px solid color-mix(in srgb, var(--cf-violet) 30%, transparent); outline-offset: 1px; }
 .rer-themed .coffer input[type=file] { min-height: 0; padding: 7px 10px; }
 .rer-themed main.coffer input[type=checkbox]:not([type=hidden]), .rer-themed main.coffer input[type=radio]:not([type=hidden]) { flex: none; width: 17px; height: 17px; min-height: 0; margin: 2px 0 0; padding: 0; accent-color: var(--cf-violet); }
@@ -153,6 +161,7 @@
 .coffer legend { padding: 0 6px; color: var(--rer-text); font-weight: 500; }
 .cf-app button, .coffer a.button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: auto; min-height: 40px; padding: 9px 18px; border: 0; border-radius: 9px; background: var(--cf-violet); color: #fff; font: 600 14.5px/1.2 var(--rer-font-body); text-align: center; text-decoration: none; cursor: pointer; }
 .cf-app button:hover, .coffer a.button:hover { background: var(--cf-violet-ink); }
+.cf-app button:disabled, .cf-app button:disabled:hover { background: var(--cf-plain-tint); color: var(--cf-soft); cursor: not-allowed; }
 .coffer form > button { justify-self: start; }
 .coffer button.secondary, .coffer form.secondary button, .coffer a.button.secondary { border: 1px solid var(--cf-line-strong); background: var(--rer-surface); color: var(--rer-text); }
 .coffer button.secondary:hover, .coffer form.secondary button:hover, .coffer a.button.secondary:hover { border-color: var(--cf-violet); background: var(--cf-violet-tint); }
@@ -184,10 +193,13 @@
 .coffer .engagement-inputs dt { font-weight: 600; }
 .coffer .engagement-inputs dd { margin: 0; }
 .coffer .stewardship-text { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.coffer .stewardship-sources { display: block; overflow-wrap: anywhere; }
-.coffer .stewardship-sources dt { margin-top: 20px; }
-.coffer .stewardship-sources dd { margin: 8px 0 20px; }
-.coffer .stewardship-sources p { margin: 6px 0; }
+.cf-source-facts > summary { margin-bottom: 8px; }
+.coffer .cf-sources { width: 100%; margin: 6px 0 10px; border: 1px solid var(--cf-line); border-radius: 10px; border-collapse: separate; border-spacing: 0; }
+.coffer .cf-sources td { height: 44px; }
+.coffer .cf-sources td, .coffer .cf-sources th { border-bottom: 1px solid var(--cf-row); }
+.coffer .cf-fund-totals { color: var(--cf-body); }
+.cf-fund-totals b { color: var(--rer-text); font-variant-numeric: tabular-nums; }
+.coffer .cf-send-off { margin: 0; }
 .coffer pre.copy { max-width: 100%; }
 .coffer p.copy { white-space: pre-wrap; }
 
@@ -380,6 +392,14 @@
   .coffer .cf-strip .cf-raised, .coffer .cf-strip .cf-metric { flex: none; padding: 0; border: 0; font-size: 14px; white-space: nowrap; }
   .coffer .cf-strip .cf-raised strong { font-size: 15px; }
   .coffer .cf-strip .cf-raised { margin-left: auto; }
+  /* The second short line names what the figure counts, as the 1440 strip does. */
+  .cf-strip { flex-wrap: wrap; row-gap: 4px; padding-bottom: 12px; }
+  .coffer .cf-strip h2 { order: 1; }
+  .coffer .cf-strip .cf-raised { order: 2; }
+  .cf-strip meter, .cf-strip meter::-webkit-meter-bar { position: static; order: 3; flex: 1 0 100%; margin: 6px 0 4px; }
+  .coffer .cf-strip .cf-metric { order: 4; }
+  .coffer .cf-strip .cf-count-line { font-size: 13px; }
+  .coffer .cf-strip .cf-count-line ~ .cf-count-line { margin-left: auto; }
   /* Four short tabs on one line, and the pager under the list. */
   .cf-ledger > .cf-tabs, .cf-ledger > .cf-pager { grid-column: 1 / -1; }
   .cf-ledger > .cf-pager { order: 5; justify-content: flex-end; padding: 10px 14px; border: 0; }

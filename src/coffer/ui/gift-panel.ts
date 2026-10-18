@@ -1,6 +1,7 @@
 // The Gifts screen's right-hand donor panel: who they are, their recent gifts or
 // card retries, the development agent's place, and contact and consent.
 import type { Row, Context } from '../db'
+import { AGENT } from '../agent/activity'
 import { donorPanelData } from '../gift-list'
 import { STATUS, chip, e, moment, money, shortDate } from './common'
 import { icon, type IconName } from './icons'
@@ -35,7 +36,7 @@ export async function donorPanel(c: Context, donorId: string, timezone: string) 
  const retried = r?.state === 'recovered' ? `${e(first)}’s monthly card was declined ${e(shortDate(r.created_at))} and Stripe’s retry cleared ${e(shortDate(r.last_checked_at))}. ` : ''
  const review = p.draft ? `/app/agent/stewardship?donorId=${encodeURIComponent(d.id)}#draft-${e(p.draft.id)}` : ''
  const agent = !p.agent ? '' : `<section class="cf-agent" aria-label="Development agent"><h3>${icon('spark')}Development agent</h3>${p.draft
-  ? `<p>${retried}I drafted a ${p.draft.kind === 'impact' ? 'impact note' : 'thank-you'} from ${e(first)}’s recorded gifts, “${e(p.draft.subject)}”, for you to review and send.</p><div class="cf-agent-actions"><a class="button" href="${review}">Review and send</a><a class="button secondary" href="${review}">Edit</a></div>`
+  ? `<p>${retried}${p.draft.created_by === AGENT.id ? 'I wrote' : 'I drafted, with AI,'} a ${p.draft.kind === 'impact' ? 'impact note' : 'thank-you'} from ${e(first)}’s recorded gifts, “${e(p.draft.subject)}”, for you to review and send.</p><div class="cf-agent-actions"><a class="button" href="${review}">Review and send</a><a class="button secondary" href="${review}">Edit</a></div>`
   : `<p>${retried}I can draft a thank-you from ${e(first)}’s gifts, funds and conversations for you to review.</p><div class="cf-agent-actions">${draftButton}</div>`}</section>`
 
  const mail = [d.address_line1, d.address_line2, [[d.city, d.region].filter(Boolean).join(', '), d.postal_code].filter(Boolean).join(' ')].filter(Boolean)

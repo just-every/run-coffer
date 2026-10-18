@@ -84,7 +84,7 @@ export async function donorPanelData(c: Context, donorId: string) {
   all(c, 'SELECT channel,status FROM cf_consents k WHERE donor_id=? AND id=(SELECT MAX(id) FROM cf_consents WHERE donor_id=k.donor_id AND channel=k.channel)', donorId),
   one(c, 'SELECT count(*) AS members FROM cf_donors WHERE household_id=(SELECT household_id FROM cf_donors WHERE id=?) AND erased_at IS NULL', donorId),
   one(c, 'SELECT r.*,s.amount_cents FROM cf_agent_recovery r JOIN cf_subscriptions s ON s.id=r.subscription_id WHERE s.donor_id=? ORDER BY r.created_at DESC LIMIT 1', donorId),
-  manager(c.actor) ? one(c, "SELECT id,kind,subject,created_at FROM cf_stewardship_drafts WHERE donor_id=? AND status='draft' ORDER BY created_at DESC LIMIT 1", donorId) : null,
+  manager(c.actor) ? one(c, "SELECT id,kind,subject,created_at,created_by FROM cf_stewardship_drafts WHERE donor_id=? AND status='draft' ORDER BY created_at DESC LIMIT 1", donorId) : null,
   manager(c.actor) ? one(c, 'SELECT encrypted_key IS NOT NULL AS configured FROM cf_stewardship_setup WHERE id=1') : null,
  ])
  const retries = recovery ? await all(c, "SELECT kind,at,summary FROM cf_agent_activity WHERE subject_id=? AND kind LIKE 'recovery.%' ORDER BY at", recovery.invoice_id) : []

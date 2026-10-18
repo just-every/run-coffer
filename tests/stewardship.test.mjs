@@ -49,7 +49,10 @@ test('stewardship uses real cited records, protects the key, and only sends an e
   const first = (await state()).drafts.find(row => row.id === draft.id)
   assert.ok(JSON.parse(first.citations).every(c => prompt.sources.some(s => s.id === c.sourceId)))
   const page = await h.request('/app/agent/stewardship?donorId=' + d.id)
-  assert.match(await page.text(), new RegExp('gift:' + gift.id))
+  // the recorded gift is shown as a ledger row (fund, amount), never as its raw source key
+  const pageText = await page.text()
+  assert.match(pageText, /<strong>Reading fund<\/strong>[^]*\$125\.00/)
+  assert.doesNotMatch(pageText, new RegExp('gift:' + gift.id))
   await h.api(route('send'), { ...draft, confirm:'SEND' }, { status:409 })
   unsupported = true
   await h.api(route('save'), { ...draft, subject:first.subject, body:'Your gift taught 500 children to read.' }, { status:409 })

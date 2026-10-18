@@ -1,6 +1,7 @@
 import { manager, person } from '../auth'
 import { fail, id, type Context } from '../db'
 import { available, managed } from '../giving/stripe'
+import { settings } from '../settings'
 import { page } from '../ui/common'
 import { evidenceCsv, journalIif, qboCsv } from './exports'
 import { postToPantry, type PaymentsEnv } from './pantry'
@@ -40,11 +41,11 @@ export async function paymentsResponse(request: Request, c: Context, env: Paymen
    return new Response(body, { headers: { 'content-type': action.endsWith('.iif') ? 'text/plain; charset=utf-8' : 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${filename}"`, 'cache-control': 'no-store' } })
   }
   if (action) fail('method_not_allowed', 'Use POST.', 405)
-  return api ? json(view) : page('Payout details', payoutDetailPage({ ...view, ...flags }), c.actor, 200, '/app/payouts')
+  return api ? json(view) : page('Payout details', payoutDetailPage({ ...view, ...flags, timezone: (await settings(c)).timezone }), c.actor, 200, '/app/payouts')
  }
  if (suffix === '' && ['GET', 'HEAD'].includes(request.method)) {
   const view = await payoutList(c)
-  return api ? json(view) : page('Payouts', payoutListPage({ ...view, ...flags }), c.actor, 200, '/app/payouts')
+  return api ? json(view) : page('Payouts', payoutListPage({ ...view, ...flags, timezone: (await settings(c)).timezone }), c.actor, 200, '/app/payouts')
  }
  fail('not_found', 'That payout page is not available.', 404)
 }

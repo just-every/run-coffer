@@ -24,7 +24,7 @@ test('the demo opens on a lived-in pantry whose waiting work a person can finish
  assert.match(gifts,/class="is-selected"[^]*Terrence Jackson[^]*Card failed · retried/)
  assert.match(gifts,/Card declined[^]*Retry cleared/)
  // The development agent's saved thank-you waits for review, through drafting's own store.
- assert.match(gifts,/class="cf-agent"[^]*I drafted a thank-you[^]*Review and send/)
+ assert.match(gifts,/class="cf-agent"[^]*I wrote a thank-you[^]*Review and send/)
  assert.equal((await h.get('/api/coffer/agent/stewardship')).drafts.filter(d=>d.status==='draft').length,1)
  // Base's invitation email completes as a simulated send: the mail edge sees nothing.
  assert.deepEqual(await h.api('/auth/invite',{email:'sam.ortiz@copperhollowpantry.example',role:'member',displayName:'Sam Ortiz',returnTo:'/app'},{status:202}),{status:'accepted'})

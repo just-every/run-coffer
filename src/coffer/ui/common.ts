@@ -7,15 +7,19 @@ import { icon, sprite, type IconName } from './icons'
 
 export const e = (v: unknown): string => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 export const money = usd
-export const when = (day: string | null | undefined) => day ? longDate(day.slice(0, 10)) : ''
+/** "October 17, 2026": a calendar day (a gift's received date, a due date) as recorded. */
+export const longDay = (day: string | null | undefined) => day ? longDate(day.slice(0, 10)) : ''
+/** "October 17, 2026": a recorded moment on the organization's calendar, or a calendar day as recorded. */
+export const when = (at: string | null | undefined, timeZone: string) => at ? longDate(at.length <= 10 ? at : orgDay(at, timeZone)) : ''
+/** The organization's calendar day ("2026-10-17") of a recorded moment. */
+const orgDay = (at: string, timeZone: string) => new Date(at).toLocaleDateString('en-CA', { timeZone })
 /** "Oct 16, 2026": the dense tables' date. */
 export const shortDate = (day: string | null | undefined) => day ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${day.slice(0, 10)}T00:00:00Z`)) : ''
 /** "Oct 15, 2026 · 8:04 AM" in the organization's time zone: every recorded moment on screen. */
 export const moment = (at: string | null | undefined, timeZone: string) => {
  if (!at) return ''
  if (at.length <= 10) return shortDate(at)
- const t = new Date(at)
- return `${shortDate(t.toLocaleDateString('en-CA', { timeZone }))} · ${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone }).format(t)}`
+ return `${shortDate(orgDay(at, timeZone))} · ${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone }).format(new Date(at))}`
 }
 /** "Check · 4471", "Card", "Bank transfer": how a gift was paid, as every ledger shows it. */
 export const paidBy = (g: Record<string, any>) => `${g.method.charAt(0).toUpperCase()}${g.method.slice(1)}${g.method === 'check' && g.reference ? ` · ${g.reference}` : ''}`

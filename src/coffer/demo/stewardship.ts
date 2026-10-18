@@ -1,14 +1,17 @@
 // The development agent's saved thank-you for the demo's recovered monthly donor.
 // Drafting asks Anthropic for a note grounded in the donor's recorded facts; the demo
 // has no AI key and makes no external calls, so it writes the note from those same
-// facts and stores it through drafting's own store (agent/stewardship.ts storeDraft):
-// the same citations, source snapshot, saved version, audit event and activity line.
+// facts, as the development agent itself, and stores it through drafting's own store
+// (agent/stewardship.ts storeDraft): the same citations, source snapshot, saved
+// version, audit event and activity line.
+import { AGENT } from '../agent/activity'
 import { sourceData, storeDraft } from '../agent/stewardship'
 import { one, type Context, type Row } from '../db'
 import { usd } from '../money'
 import { longDate } from '../settings'
 
-export async function demoThankYou(c: Context, donorId: string, signer: string) {
+export async function demoThankYou(owner: Context, donorId: string, signer: string) {
+ const c: Context = { ...owner, actor: { ...AGENT } } // the agent wrote it; a person reviews and sends it
  if (await one(c, 'SELECT 1 FROM cf_stewardship_drafts WHERE donor_id=?', donorId)) return null // the seed may run again
  const source = await sourceData(c, donorId)
  const donor = source.sources.find(s => s.kind === 'donor')!, organisation = source.sources.find(s => s.kind === 'organisation')!

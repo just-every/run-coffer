@@ -4,7 +4,6 @@ import { stripe, type GivingEnv } from '../giving/stripe'
 import { syncCharge } from './charges'
 import { cents, day, stripeId } from './stripe-data'
 import { paymentWrite } from './write'
-import { settings } from '../settings'
 
 /** The balance transaction ID is the financial idempotency key, independent of
  * webhook IDs, replay order, payout refreshes and Stripe's event versions. */

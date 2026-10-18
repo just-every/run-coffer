@@ -1,5 +1,6 @@
 import { manager } from '../auth'
 import type { Context } from '../db'
+import { settings } from '../settings'
 import { box, chip, e, field, form, guide, select, when } from '../ui/common'
 import { emailConnection, savedConnection } from './connection'
 import { mailchimpLists } from './mailchimp'
@@ -18,10 +19,10 @@ const mailchimpSteps = `<ol class="steps">
 
 /** Connect Mango or Mailchimp from the page alone; the credential is saved in Coffer's database. */
 export async function connectPage(c: Context, error = '') {
- const boss = manager(c.actor), conn = await savedConnection(c), state = await emailConnection(c)
+ const boss = manager(c.actor), conn = await savedConnection(c), state = await emailConnection(c), tz = (await settings(c)).timezone
  if (c.env?.RER_INSTALLATION_ID || c.env?.RER_MANAGEMENT_ORIGIN) return box('Not available yet on RER Managed', '<p>Email marketing is not available yet on RER Managed. Use <strong>Export audience</strong> on an approved appeal to send it from another tool.</p>')
  const alert = error ? `<p class="alert" role="alert">${e(error)}</p>` : ''
- const status = box('Connection', `${conn ? `<p>${chip(state.connection ? 'Connected' : 'Unfinished', state.connection ? 'ok' : 'warn')} ${conn.provider === 'mango' ? `Mango at <a href="${e(conn.origin)}">${e(conn.origin)}</a>` : `Mailchimp${conn.listName ? ` · audience “${e(conn.listName)}”` : ''}`}</p>${conn.checkNote ? `<p role="status">${e(conn.checkNote)}</p>` : ''}${conn.checkedAt ? `<p class="muted">Checked ${when(conn.checkedAt)}. The credential is saved in Coffer’s database and never shown again.</p>` : ''}${boss ? `<div class="actions">${form('marketing.check', '', 'Check the connection again', {}, 'secondary')}${form('marketing.disconnect', '', 'Disconnect', {}, 'secondary')}</div>` : ''}` : `<p>${chip('Not connected', 'warn')} Appeals can still be exported as a list for any mailing tool.</p>`}<p><a href="/app/appeals">Back to Appeals</a></p>`)
+ const status = box('Connection', `${conn ? `<p>${chip(state.connection ? 'Connected' : 'Unfinished', state.connection ? 'ok' : 'warn')} ${conn.provider === 'mango' ? `Mango at <a href="${e(conn.origin)}">${e(conn.origin)}</a>` : `Mailchimp${conn.listName ? ` · audience “${e(conn.listName)}”` : ''}`}</p>${conn.checkNote ? `<p role="status">${e(conn.checkNote)}</p>` : ''}${conn.checkedAt ? `<p class="muted">Checked ${when(conn.checkedAt, tz)}. The credential is saved in Coffer’s database and never shown again.</p>` : ''}${boss ? `<div class="actions">${form('marketing.check', '', 'Check the connection again', {}, 'secondary')}${form('marketing.disconnect', '', 'Disconnect', {}, 'secondary')}</div>` : ''}` : `<p>${chip('Not connected', 'warn')} Appeals can still be exported as a list for any mailing tool.</p>`}<p><a href="/app/appeals">Back to Appeals</a></p>`)
  if (!boss) return alert + status + '<p>An owner or admin connects email marketing.</p>'
  const mango = box('Connect Mango', `<p>Coffer puts the donors of each approved email appeal on a list in Mango, with the consent each donor gave. You then approve the email in Mango, and Mango sends it and shows every send. Opt-outs flow both ways.</p>${mangoSteps}${form('marketing.connectMango', `${field('Mango’s address', 'origin', 'url', conn?.provider === 'mango' ? conn.origin : '', 'required placeholder="https://mango.example.org"')}${field('Coffer credential from Mango', 'credential', 'password', '', 'required autocomplete="off"')}`, 'Connect Mango')}`, 'mango')
  const lists = conn?.provider === 'mailchimp' ? await mailchimpLists(conn.credential).catch((err: Error) => { error ||= err.message; return [] }) : []

@@ -52,9 +52,9 @@ export async function giftsPage(c: Context, url: URL) {
  const strip = campaign
   ? `<section class="cf-strip" aria-label="Campaign progress"><h2>${e(campaign.name)}</h2><meter min="0" max="${campaign.goal_cents}" value="${Math.min(campaign.raised_cents, campaign.goal_cents)}">${e(money(campaign.raised_cents))}</meter>
    <p class="cf-raised"><strong>${money(campaign.raised_cents)}</strong> of ${money(campaign.goal_cents)}</p>
-   <p class="cf-metric cf-full"><a href="${ledgerOf({ campaign: campaign.id })}"><b>${campaign.gift_count}</b> campaign ${campaign.gift_count === 1 ? 'gift' : 'gifts'}</a></p>
+   <p class="cf-metric cf-count-line"><a href="${ledgerOf({ campaign: campaign.id })}"><b>${campaign.gift_count}</b> campaign ${campaign.gift_count === 1 ? 'gift' : 'gifts'}</a></p>
    <p class="cf-metric cf-full"><b>${campaign.recurring_donors}</b> recurring ${campaign.recurring_donors === 1 ? 'donor' : 'donors'}</p>
-   ${fund ? `<p class="cf-metric cf-full"><a href="${ledgerOf({ fund: fund.fund, year })}">${e(fund.fund)} fund in ${e(year)} <b>${money(fund.amount_cents)}</b></a></p>` : ''}${payoutLine}</section>`
+   ${fund ? `<p class="cf-metric cf-count-line"><a href="${ledgerOf({ fund: fund.fund, year })}">${e(fund.fund)} fund in ${e(year)} <b>${money(fund.amount_cents)}</b></a></p>` : ''}${payoutLine}</section>`
   : `<section class="cf-strip" aria-label="Giving this year"><h2>Given in ${e(year)}</h2><p class="cf-raised"><strong>${money(totals.year_cents)}</strong></p><p class="cf-metric"><b>${totals.year_gifts}</b> ${totals.year_gifts === 1 ? 'gift' : 'gifts'}</p><p class="cf-metric cf-full"><b>${totals.plans}</b> monthly ${totals.plans === 1 ? 'plan' : 'plans'}</p>${boss ? '<p class="cf-metric cf-full"><a href="/app/giving">Publish a campaign</a></p>' : ''}${payoutLine}</section>`
 
  const counts: Partial<Record<GiftTab, number>> = { attention: list.counts.attention, letters: list.counts.letters }

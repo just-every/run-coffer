@@ -9,4 +9,6 @@ export async function action(c:Context,a:Action) {
  return row.id
 }
 export const activity=(c:Context)=>all(c,'SELECT * FROM cf_agent_activity ORDER BY at DESC,id DESC LIMIT 100')
-export const systemContext=(db:D1Database,env:Context['env'],at=new Date().toISOString()):Context=>({db,env,now:at,actor:{id:'coffer-agent',name:'Coffer development agent',role:'agent'},authority:{sql:'1',params:[]}})
+/** The development agent as the actor of its own work: one label on the Gifts card, the draft page and Agent activity. */
+export const AGENT={id:'coffer-agent',name:'Development agent',role:'agent'} as const
+export const systemContext=(db:D1Database,env:Context['env'],at=new Date().toISOString()):Context=>({db,env,now:at,actor:{...AGENT},authority:{sql:'1',params:[]}})

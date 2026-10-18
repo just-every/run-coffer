@@ -20,7 +20,7 @@ import { runtimeBindings } from '../auth.server'
 import { createPortability, createPortabilityHandler } from '@runeditrun/rer/modules/portability'
 import policy from './archive-policy.mjs'
 import { identity, manager, originGuard, person, type Actor, type Authority } from './auth'
-import { CofferError, fail, type Context } from './db'
+import { CofferError, fail, today, type Context } from './db'
 import { canonicalDonor } from './donor-merge'
 import { execute } from './commands'
 import { listDonors, donorHistory } from './donors'
@@ -30,7 +30,7 @@ import { settings } from './settings'
 import * as imports from './imports/index'
 import { readStripe } from './imports/live-stripe'
 import { available as stripeAvailable } from './giving/stripe'
-import { page } from './ui/common'
+import { page, when } from './ui/common'
 import { givingResponse } from './giving/http'
 import { paymentsResponse } from './payments/http'
 import { agentResponse } from './agent/http'
@@ -162,7 +162,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
     throw error
    }
    if (isApi) return json(result)
-   return actionPage(command, input, result, actor)
+   return actionPage(command, input, result, actor, (await settings(c)).timezone)
   }
   if (path === '/app/backup' && request.method === 'POST') {
    if (actor.role !== 'owner') fail('owner_required', 'Only the owner can download a backup.', 403)
@@ -225,13 +225,13 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 }
 
 const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
-function actionPage(command: string, input: any, result: any, actor: Actor) {
+function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
  if (command === 'donor.merge' || command === 'donor.unmerge') return redirect('/app/audit?record='+encodeURIComponent(result.donorId))
  if (CONNECT.has(command)) return redirect('/app/appeals/connect')
  if (command.startsWith('welcome.') || command.startsWith('marketing.') || command.startsWith('reply.')) return redirect('/app/appeals')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command === 'prospect.save') return redirect('/app/pipeline')
- if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(new Date(result.expiresAt).toISOString().slice(0, 10))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
+ if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
  if (command === 'agent.revoke') return redirect('/app/data')
  if (command === 'settings.update') return redirect('/app/settings?saved=1')
  if (command === 'donor.create') return redirect(`/app/donors/${result.id}`)
@@ -358,9 +358,9 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved')))
  if (path === '/app/data') {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
-  return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited') }))
+  return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited'), now: Date.parse(c.now), timeZone: (await settings(c)).timezone }))
  }
- if (path === '/app/move-in') { if (!manager(actor)) fail('manager_required', 'Only the owner or an admin moves records in.', 403); return show('Move in from Stripe', moveInPage(await imports.jobs(c.db as any), stripeAvailable(c.env!))) }
+ if (path === '/app/move-in') { if (!manager(actor)) fail('manager_required', 'Only the owner or an admin moves records in.', 403); return show('Move in from Stripe', moveInPage(await imports.jobs(c.db as any), today((await settings(c)).timezone, new Date(c.now)), stripeAvailable(c.env!))) }
  if (path === '/app/backup') fail('post_required', 'Use the backup button.', 405)
  return page('Page not found', '<p>There is nothing at this address.</p><p><a href="/app">Back to today</a></p>', actor, 404, path)
 }

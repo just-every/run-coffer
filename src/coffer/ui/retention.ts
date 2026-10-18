@@ -1,6 +1,6 @@
 import type { Context } from '../db'
 import { retention, type RetentionKind, type RetentionRow } from '../retention'
-import { box, e, empty, field, money, when } from './common'
+import { box, e, empty, field, longDay, money } from './common'
 
 const LABELS: Record<RetentionKind, string> = { retained: 'Retained', new: 'New', lapsed: 'Lapsed', recaptured: 'Recaptured' }
 const EXPLANATIONS: Record<RetentionKind, string> = {
@@ -15,7 +15,7 @@ function donorTable(rows: RetentionRow[], priorYear: number, year: number): stri
  if (!rows.length) return empty('No donors in this group.')
  return `<table class="stack"><thead><tr><th scope="col">Donor</th><th scope="col">${priorYear} net received</th><th scope="col">${year} net received</th><th scope="col">Last gift with a positive balance</th></tr></thead><tbody>${rows.map(row => {
   const href = `/app/donors/${encodeURIComponent(row.donorId)}`
-  return `<tr><td class="lead"><a href="${href}">${e(row.name)}</a></td><td data-label="${priorYear} net received"><a href="${href}">${money(row.priorCents)}</a></td><td data-label="${year} net received"><a href="${href}">${money(row.currentCents)}</a></td><td data-label="Last gift">${row.lastGift ? when(row.lastGift) : 'None with a positive balance'}</td></tr>`
+  return `<tr><td class="lead"><a href="${href}">${e(row.name)}</a></td><td data-label="${priorYear} net received"><a href="${href}">${money(row.priorCents)}</a></td><td data-label="${year} net received"><a href="${href}">${money(row.currentCents)}</a></td><td data-label="Last gift">${row.lastGift ? longDay(row.lastGift) : 'None with a positive balance'}</td></tr>`
  }).join('')}</tbody></table>`
 }
 

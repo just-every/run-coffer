@@ -1,7 +1,7 @@
 import { manager } from '../auth'
 import { all, choice, commit, event, fail, guard, id, integer, longText, newId, one, sql, text, type Context, type Row, type Stmt } from '../db'
 import { assertReceiptMailAvailable, sendReceipt } from '../receipt-mail'
-import { action } from './activity'
+import { action, AGENT } from './activity'
 
 const MODEL = 'claude-haiku-4-5-20251001'
 export const managedStewardshipMessage = 'Stewardship AI calls are not available yet on RER Managed.'
@@ -173,7 +173,7 @@ export async function storeDraft(c: Context, donorId: string, kind: 'thank_you' 
  await commit(c, [fresh({ donor_id: donorId, source_snapshot: source.snapshot }), ...guards,
   sql("INSERT INTO cf_stewardship_drafts(id,donor_id,version,kind,status,subject,body,sources,source_snapshot,citations,created_at,updated_at,created_by) VALUES(?,?,1,?,'draft',?,?,?,?,?,?,?,?)", draftId, donorId, kind, subject, body, JSON.stringify(source.sources), source.snapshot, JSON.stringify(citations), c.now, c.now, c.actor.id),
   saveVersion(c, draftId), event(c, 'stewardship.draft', 'stewardship', draftId, donorId)])
- await action(c, { kind: 'stewardship.draft', subjectId: draftId, summary: 'Drafted a stewardship note from recorded sources for review', why: 'A person must review and explicitly send every note.', undoKind: 'stewardship.discard', undoData: { id: draftId, version: 1 } })
+ await action(c, { kind: 'stewardship.draft', subjectId: draftId, summary: c.actor.id === AGENT.id ? 'Wrote a thank-you from recorded gifts, without AI, for review' : 'Drafted a stewardship note with AI from recorded sources for review', why: 'A person must review and explicitly send every note.', undoKind: 'stewardship.discard', undoData: { id: draftId, version: 1 } })
  return { id: draftId, version: 1 }
 }
 
@@ -184,7 +184,7 @@ export async function stewardshipState(c: Context, donorId?: string) {
   setup: { version: saved.version, configured: !!saved.encrypted_key, workspaceId: saved.workspace_id, testedAt: saved.tested_at,
    managed: !!(c.env?.RER_INSTALLATION_ID || c.env?.RER_MANAGEMENT_ORIGIN || String(c.env?.MAIL_PROVIDER) === 'rer'), model: MODEL },
   donors: await all(c, 'SELECT id,name FROM cf_donors WHERE erased_at IS NULL ORDER BY name LIMIT 500'),
-  drafts: await all(c, `SELECT s.*,d.name AS donor_name,d.email AS current_email FROM cf_stewardship_drafts s JOIN cf_donors d ON d.id=s.donor_id ${donorId ? 'WHERE s.donor_id=?' : ''} ORDER BY s.created_at DESC LIMIT 30`, ...(donorId ? [donorId] : [])),
+  drafts: await all(c, `SELECT s.*,d.name AS donor_name,d.email AS current_email,(SELECT a.actor_name FROM cf_agent_activity a WHERE a.kind='stewardship.draft' AND a.subject_id=s.id LIMIT 1) AS drafted_by FROM cf_stewardship_drafts s JOIN cf_donors d ON d.id=s.donor_id ${donorId ? 'WHERE s.donor_id=?' : ''} ORDER BY s.created_at DESC LIMIT 30`, ...(donorId ? [donorId] : [])),
   ...(donorId ? { sources: (await sourceData(c, donorId)).sources } : {}),
  }
 }

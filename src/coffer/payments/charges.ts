@@ -4,7 +4,6 @@ import { settings } from '../settings'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { cents, day, stripeId, stripePages } from './stripe-data'
 import { paymentWrite } from './write'
-import { settings } from '../settings'
 
 /** Resolve the processor's charge to the existing move-in or giving reference.
  * Never infer consent or restore a record after erasure. */

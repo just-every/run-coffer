@@ -1,7 +1,7 @@
 import { person } from '../auth'
 import { all, type Context, type Row } from '../db'
 import { PROSPECT_STAGES, PROSPECT_STAGE_LABELS, prospects } from '../major-gifts'
-import { area, box, chip, e, empty, field, form, money, select, when } from './common'
+import { area, box, chip, e, empty, field, form, longDay, money, select } from './common'
 
 const stages: [string, string][] = PROSPECT_STAGES.map(stage => [stage, PROSPECT_STAGE_LABELS[stage]])
 
@@ -18,7 +18,7 @@ function prospectFields(owners: Row[], p: Row = {}): string {
 function scoreDetails(p: Row): string {
  const s = p.engagement
  return `<details><summary>Engagement ${s.score}/100 · see inputs and points</summary>
- <dl class="engagement-inputs"><dt>Recency</dt><dd>${s.recency.lastOn ? `${e(when(s.recency.lastOn))} · ${s.recency.days} days ago` : 'No eligible gifts or conversations'} → ${s.recency.points}/25 points</dd>
+ <dl class="engagement-inputs"><dt>Recency</dt><dd>${s.recency.lastOn ? `${e(longDay(s.recency.lastOn))} · ${s.recency.days} days ago` : 'No eligible gifts or conversations'} → ${s.recency.points}/25 points</dd>
  <dt>Giving frequency, last 365 days</dt><dd>${s.frequency.gifts} gifts → ${s.frequency.points}/25 points</dd>
  <dt>Giving amount, last 365 days</dt><dd>${e(money(s.amount.cents))} → ${s.amount.points}/25 points</dd>
  <dt>Conversations, last 365 days</dt><dd>${s.conversations.count} recorded calls, meetings or emails → ${s.conversations.points}/25 points</dd></dl></details>`
@@ -43,7 +43,7 @@ export async function majorGiftsPage(c: Context, url: URL): Promise<string> {
  }).join('')}</div>`
  const pipeline = filtered.length ? `<ul class="list">${filtered.map(p => `<li>
   <a href="/app/donors/${e(p.donor_id)}"><strong>${e(p.donor_name)}</strong></a> · ${e(p.label)} ${chip(PROSPECT_STAGE_LABELS[p.stage as typeof PROSPECT_STAGES[number]])}
-  <p>${e(money(p.ask_amount_cents))} ask · expected ${e(when(p.expected_close_on))}<br>Owner: ${e(p.owner_name)} ${p.owner_status !== 'active' ? chip('Reassign owner', 'warn') : ''}</p>
+  <p>${e(money(p.ask_amount_cents))} ask · expected ${e(longDay(p.expected_close_on))}<br>Owner: ${e(p.owner_name)} ${p.owner_status !== 'active' ? chip('Reassign owner', 'warn') : ''}</p>
   <p><strong>Next step:</strong> ${e(p.next_step)}</p>${scoreDetails(p)}
   ${staff ? `<details class="edit"><summary>Update opportunity</summary>${form('prospect.save', prospectFields(owners, p), 'Save opportunity', { id: p.id, donorId: p.donor_id, version: p.version })}</details>` : ''}
   </li>`).join('')}</ul>` : empty(list.length ? 'No opportunities match these filters.' : 'No major-gift prospects yet. Choose a donor and record the next step.')
