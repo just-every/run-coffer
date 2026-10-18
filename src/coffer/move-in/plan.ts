@@ -32,7 +32,13 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
  const existing = new Map(mappings.map(m=>[`${m.kind}:${m.source_key}`,m]))
+ const merges = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'into_id',into_id) AS snapshot FROM cf_donor_merges ORDER BY donor_id`)
+ const merged = new Map(merges.map(m=>[m.donor_id as string,m.into_id as string]))
+ const canonical = (id: string): string => merged.get(id)??id
+ const emailAliases = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'email',email) AS snapshot FROM cf_donor_aliases WHERE email IN (SELECT value FROM json_each(?)) ORDER BY donor_id,email`,[JSON.stringify(parsed.donors.map(d=>d.email).filter(Boolean))])
  const donorRows = await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) OR n.email IN (SELECT value FROM json_each(?)) OR n.source_ref IN (SELECT value FROM json_each(?)) ORDER BY n.id`, [JSON.stringify(mappings.filter(m=>m.kind==='donor').map(m=>m.native_id)),JSON.stringify(parsed.donors.map(d=>d.email).filter(Boolean)),JSON.stringify(parsed.donors.map(d=>`${source}:${d.externalId}`))])
+ const survivors = [...new Set([...donorRows.map(d=>canonical(d.id)),...emailAliases.map(d=>canonical(d.donor_id))])].filter(id=>!donorRows.some(d=>d.id===id))
+ if(survivors.length)donorRows.push(...await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) ORDER BY n.id`,[JSON.stringify(survivors)]))
  // Household names are unique in Coffer. An imported household never joins an existing one by name: it takes the next free name.
  const nameChoices=(name:string)=>[name,...Array.from({length:8},(_,i)=>`${name} (${i+2})`)]
  const householdRows = await readSet(c,plan,`SELECT json_object('name',lower(n.name)) AS snapshot FROM cf_households n WHERE lower(n.name) IN (SELECT lower(value) FROM json_each(?)) ORDER BY n.id`,[JSON.stringify(parsed.households.flatMap(h=>nameChoices(h.name)))])
@@ -53,7 +59,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
    if (previous.snapshot === null) diagnostic(`${label[kind]} ${entity.externalId} was erased from Coffer after an earlier move-in; it cannot be imported again.`,entity.location)
    else if (previous.content_hash !== hash && (kind==='donor'||kind==='household')) diagnostic(`${label[kind]} ${entity.externalId} is already in Coffer from an earlier move-in. Coffer keeps that record as it is; this file’s details for it differ and are not applied.`,entity.location,'warning','ALREADY_MOVED_IN')
    else if (previous.content_hash !== hash) diagnostic(`${label[kind]} ${entity.externalId} is already in Coffer from an earlier move-in with different details. Export it as it was, or undo the earlier move-in first.`,entity.location)
-   plan.already++;return previous.native_id as string
+   plan.already++;return kind==='donor'?canonical(previous.native_id):previous.native_id as string
   }
   const id = match || row[tables[kind].key] || await nativeId(source,kind,entity.externalId)
   row[tables[kind].key] = id
@@ -74,7 +80,8 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   const prior = existing.get(`donor:${await sourceKey(d.externalId)}`)
   if (prior) { plan.donorIds.set(d.externalId,await add('donor',d,{})); continue }
   if (suppressed.has(erasureHash(d.email)) || suppressed.has(erasureHash(`${source}:${d.externalId}`)) || suppressed.has(erasureHash(await nativeId(source,'donor',d.externalId)))) diagnostic(`Donor ${d.externalId} was erased from Coffer; it cannot be imported again.`,d.location)
-  const matches = donorRows.filter(r=>r.source_ref===`${source}:${d.externalId}` || (d.email && r.email===d.email))
+  const matching = donorRows.filter(r=>r.source_ref===`${source}:${d.externalId}` || (d.email && r.email===d.email) || emailAliases.some(a=>a.email===d.email&&canonical(a.donor_id)===r.id))
+  const matches = [...new Map(matching.map(r=>{const id=canonical(r.id);return [id,donorRows.find(d=>d.id===id)??r]})).values()]
   if (matches.some(r=>r.erased_at) || new Set(matches.map(r=>r.id)).size>1) diagnostic(`Donor ${d.externalId} has conflicting existing matches. Resolve the donor records first.`,d.location)
   if(d.email && ownEmails.has(d.email) && ownEmails.get(d.email)!==d.externalId) diagnostic(`Donors ${ownEmails.get(d.email)} and ${d.externalId} share ${d.email}. Coffer keeps one email per donor: clear it on one of them and upload again.`,d.location)
   if(d.email)ownEmails.set(d.email,d.externalId)

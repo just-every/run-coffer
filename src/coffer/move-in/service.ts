@@ -86,7 +86,8 @@ export async function continueApply(c: Context,id:string) {
   const writes:Stmt[]=[...plan.checks,guard('EXISTS(SELECT 1 FROM cf_move_in_parts WHERE job_id=? AND position=? AND applied_at IS NULL)','MOVE_IN_CHANGED','This part was applied in another window. Refresh the journal.',id,next.position)]
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
   if(job.acknowledged_before)writes.push(sql(`INSERT OR IGNORE INTO cf_prior_acknowledgements(gift_id,job_id,acknowledged_before) SELECT json_extract(value,'$.id'),?,? FROM json_each(?) WHERE json_extract(value,'$.received_on')<?`,id,job.acknowledged_before,JSON.stringify(plan.effects.filter(e=>e.kind==='gift'&&e.owned).map(e=>({id:e.nativeId,received_on:e.row.received_on}))),job.acknowledged_before))
-  writes.push(sql('INSERT OR IGNORE INTO cf_move_in_job_gifts(job_id,gift_id) SELECT ?,value FROM json_each(?)',id,JSON.stringify([...plan.giftIds.values()])))
+  const jobGifts=await Promise.all(part.gifts.map(async g=>({giftId:plan.giftIds.get(g.externalId),donorKey:await sha256(g.donorExternalId)})))
+  writes.push(sql("INSERT OR IGNORE INTO cf_move_in_job_gifts(job_id,gift_id,donor_source_key) SELECT ?,json_extract(value,'$.giftId'),json_extract(value,'$.donorKey') FROM json_each(?)",id,JSON.stringify(jobGifts)))
   writes.push(sql('UPDATE cf_move_in_parts SET applied_at=? WHERE job_id=? AND position=?',c.now,id,next.position),sql('UPDATE cf_move_in_jobs SET applied_parts=applied_parts+1 WHERE id=?',id))
   try {await commit(c,writes)} catch(error) {
    if(error instanceof CofferError && !UNIQUE_CODES[error.code])throw error
@@ -109,8 +110,8 @@ async function totalsCheck(c: Context,job: Row) {
  const byNative=new Map(donorKeys.map(r=>[r.native_id,r.source_key])), external=new Map<string,string>()
  for(const id of Object.keys(report.sourceTotals.byDonor))external.set(await sha256(id),id)
  const destination=emptyTotals()
- for(const g of await all(c,"SELECT g.received_on,g.fund,g.donor_id,b.net_cents FROM cf_move_in_job_gifts r JOIN cf_gifts g ON g.id=r.gift_id JOIN cf_gift_balances b ON b.id=g.id WHERE r.job_id=?",job.id))
-  if(g.net_cents>0)accumulate(destination,g.net_cents,g.received_on,g.fund??'',external.get(byNative.get(g.donor_id)??'')??g.donor_id)
+ for(const g of await all(c,"SELECT g.received_on,g.fund,g.donor_id,r.donor_source_key,b.net_cents FROM cf_move_in_job_gifts r JOIN cf_gifts g ON g.id=r.gift_id JOIN cf_gift_balances b ON b.id=g.id WHERE r.job_id=?",job.id))
+  if(g.net_cents>0)accumulate(destination,g.net_cents,g.received_on,g.fund??'',external.get(g.donor_source_key??byNative.get(g.donor_id)??'')??g.donor_id)
  const rows=compare({sourceTotals:report.sourceTotals,controlTotals:report.controlTotals??[]} as ParsedImport,destination)
  return {matches:rows.every(r=>r.matches),...compact(rows)}
 }

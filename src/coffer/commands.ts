@@ -6,7 +6,7 @@ import { callTaskCommand } from './call-tasks'
 import { majorGiftCommand } from './major-gifts'
 import { digest, requireRole, type Role } from './auth'
 import { commit, event, fail, newId, object, sql, text, type Context, type Row } from './db'
-import { mergeDonor, canonicalDonor } from './donor-merge'
+import { mergeDonor, undoMerge, canonicalDonor } from './donor-merge'
 import { donorDepthCommand } from './donor-depth'
 import { giftDepthCommand } from './gift-depth'
 import { pledgeCommand } from './pledges'
@@ -24,7 +24,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 export const ACCESS: Record<string, Role[]> = {
  'task.generate': STAFF, 'task.assign': STAFF, 'task.snooze': STAFF, 'task.complete': STAFF, 'prospect.save': STAFF,
  'donor.create': STAFF, 'donor.update': STAFF, 'gift.record': STAFF, 'consent.record': STAFF, 'pledge.create': STAFF,
- 'donor.merge': MANAGERS, 'relationship.create': STAFF, 'relationship.remove': STAFF, 'interaction.record': STAFF,
+ 'donor.merge': MANAGERS, 'donor.unmerge': MANAGERS, 'relationship.create': STAFF, 'relationship.remove': STAFF, 'interaction.record': STAFF,
  'softCredit.record': STAFF, 'softCredit.remove': STAFF, 'tribute.record': STAFF, 'match.record': STAFF, 'match.receive': STAFF,
  'pledge.remind': STAFF, 'pledge.match': STAFF,
  'gift.reverse': MANAGERS, 'gift.classify': MANAGERS, 'settings.update': MANAGERS,
@@ -42,6 +42,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  for (const key of ['donorId','employerDonorId','relatedDonorId']) if (typeof p[key] === 'string' && p[key] && await canonicalDonor(c,p[key]) !== p[key]) fail('MERGED_DONOR', 'This record was merged. Open the surviving donor record before saving.')
  if (command === 'ack.prepareStatements') return prepareStatements(c, p)
  if (command === 'donor.merge') return mergeDonor(c, p)
+ if (command === 'donor.unmerge') return undoMerge(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
  for (const handler of [marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {

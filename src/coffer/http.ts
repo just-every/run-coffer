@@ -1,6 +1,8 @@
 import { fundEntries, fundLedgerCsv, fundReport } from './fund-report'
 import { auditCsv, auditLog, recordRequest } from './audit'
 import { auditPage } from './ui/audit'
+import { compareDonors, likelyDuplicates } from './duplicates'
+import { comparePage, duplicatesPage } from './ui/duplicates'
 import { fundReportPage } from './ui/fund-report'
 import { welcomeState } from './communications/welcome'
 import { preferenceState } from './communications/preferences'
@@ -84,6 +86,7 @@ function formInput(data: FormData) {
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
  }
  if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
+ if (input.command === 'donor.merge') input.fields = Object.fromEntries([...data].filter(([key])=>key.startsWith('field:')).map(([key,value])=>[key.slice(6),value]))
  if (input.command === 'ack.prepare' && data.has('giftIds')) input.giftIds = data.getAll('giftIds')
  return input
 }
@@ -201,7 +204,8 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const donor = await c.db.prepare('SELECT id,email FROM cf_donors WHERE id=? AND erased_at IS NULL').bind(donorId).first<{ id: string; email: string | null }>()
  if (!donor) fail('NOT_FOUND', 'That donor does not exist or was already erased.', 404)
  const checkpoint = await imports.portabilityCheckpoint(c.db)
- const nativeErasure = imports.donorErasureStatements(donor, placeholder, c.now)
+ const aliases = await c.db.prepare('SELECT email FROM cf_donor_aliases WHERE donor_id=?').bind(donorId).all<{email:string}>()
+ const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now)
  const givingErasure = [
   { sql: 'INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_giving_customers WHERE donor_id=?', params: [placeholder, donorId] },
   { sql: "INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT source_ref,? FROM cf_donors WHERE id=? AND source='stripe' AND source_ref IS NOT NULL", params: [placeholder, donorId] },
@@ -220,6 +224,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor) {
+ if (command === 'donor.merge' || command === 'donor.unmerge') return redirect('/app/audit?record='+encodeURIComponent(result.donorId))
  if (CONNECT.has(command)) return redirect('/app/appeals/connect')
  if (command.startsWith('welcome.') || command.startsWith('marketing.') || command.startsWith('reply.')) return redirect('/app/appeals')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
@@ -270,6 +275,8 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if (url.pathname === '/api/coffer/duplicates') return json(await likelyDuplicates(c,{donorId:url.searchParams.get('donorId'),page:Number(url.searchParams.get('page'))||0}))
+ if (url.pathname === '/api/coffer/duplicates/compare') return json(await compareDonors(c,url.searchParams.get('source')??'',url.searchParams.get('target')??''))
  if (url.pathname === '/api/coffer/audit') return json(await auditLog(c,url))
  if (url.pathname === '/api/coffer/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
  const path = url.pathname, match = (re: RegExp) => path.match(re)
@@ -310,6 +317,8 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if (path === '/app/duplicates') return show('Possible duplicates',await duplicatesPage(c,url))
+ if (path === '/app/duplicates/compare') return show('Compare donor records',await comparePage(c,url))
  if (path === '/app/audit') return show('Audit log',await auditPage(c,url))
  if (path === '/app/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
  if (path === '/app/funds') return show('Giving by fund',await fundReportPage(c,url))

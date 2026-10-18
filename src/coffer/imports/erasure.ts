@@ -12,10 +12,10 @@ export const ERASED = 'Erased donor'
  * the charity's ledger keeps its amounts and dates. Contact details, consent
  * evidence, letter text, appeal addresses and gift notes are removed. One-way
  * hashes of the email and donor ID stop a later move-in reviving the person. */
-export function donorErasureStatements(donor: { id: string; email: string | null }, placeholderId: string, now: string): D1Sql[] {
+export function donorErasureStatements(donor: { id: string; email: string | null; emails?: string[] }, placeholderId: string, now: string): D1Sql[] {
   const donorId = donor.id
   return [
-    ...[donorId, donor.email].filter(Boolean).map(value => sql('INSERT OR IGNORE INTO cf_erasures(hash,erased_at) VALUES(?,?)', erasureHash(value!), now)),
+    ...[donorId, donor.email,...(donor.emails??[])].filter(Boolean).map(value => sql('INSERT OR IGNORE INTO cf_erasures(hash,erased_at) VALUES(?,?)', erasureHash(value!), now)),
     sql('INSERT INTO cf_donors(id,version,name,source,source_ref,created_at,erased_at) SELECT ?,1,?,source,NULL,?,? FROM cf_donors WHERE id=?', placeholderId, ERASED, now, now, donorId),
     sql("UPDATE cf_donors SET version=version+1,name=?,email=NULL,phone=NULL,address_line1=NULL,address_line2=NULL,city=NULL,region=NULL,postal_code=NULL,country=NULL,household_id=NULL,source_ref=NULL,erased_at=? WHERE id=?", ERASED, now, donorId),
     sql('DELETE FROM cf_consents WHERE donor_id=?', donorId),
@@ -64,10 +64,11 @@ export async function erase(db: D1Database, actor: ImportActor, donorId: string,
   // Stripe objects name a donor by customer id or email: the customer record
   // itself, and every charge that points at the customer or carries the email.
   const linked = await db.prepare('SELECT customer_id FROM cf_subscriptions WHERE donor_id=? UNION SELECT customer_id FROM cf_giving_customers WHERE donor_id=?').bind(donorId, donorId).all<{customer_id:string}>()
-  const ids = new Set([donor.source_ref, ...linked.results.map(r => r.customer_id)].filter(Boolean) as string[]), email = donor.email?.toLowerCase() ?? ''
+  const aliases = await db.prepare('SELECT email FROM cf_donor_aliases WHERE donor_id=?').bind(donorId).all<{email:string}>()
+  const ids = new Set([donor.source_ref, ...linked.results.map(r => r.customer_id)].filter(Boolean) as string[]), emails = new Set([donor.email,...aliases.results.map(a=>a.email)].filter(Boolean).map(e=>e!.toLowerCase()))
   const names = (p: SnapshotObject) => {
     const billing = (p.billing_details ?? {}) as SnapshotObject
-    return ids.has(String(p.id)) || ids.has(String(p.customer)) || (!!email && [p.email, billing.email, p.receipt_email].some(x => typeof x === 'string' && x.trim().toLowerCase() === email))
+    return ids.has(String(p.id)) || ids.has(String(p.customer)) || [p.email, billing.email, p.receipt_email].some(x => typeof x === 'string' && emails.has(x.trim().toLowerCase()))
   }
   const text = new TextDecoder()
   context.originalErasurePolicy = 'withdraw-affected-artifacts'
@@ -75,7 +76,7 @@ export async function erase(db: D1Database, actor: ImportActor, donorId: string,
     target: { kind: 'donor', id: donorId },
     related: {
       source: record => names(record.payload as SnapshotObject),
-      original: bytes => { const raw = text.decode(bytes).toLowerCase(); return [...ids].some(id => raw.includes(id.toLowerCase())) || (!!email && raw.includes(email)) },
+      original: bytes => { const raw = text.decode(bytes).toLowerCase(); return [...ids].some(id => raw.includes(id.toLowerCase())) || [...emails].some(email=>raw.includes(email)) },
     },
   }, [fence, ...integration.nativeStatements], context, integration.checkpoint)
 }

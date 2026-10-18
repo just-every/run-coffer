@@ -20,10 +20,12 @@ async function nativeIndex(db: D1Database, input: SnapshotInput): Promise<Native
   const [byId, erased, byEmail, gifts, settings] = await db.batch([
     db.prepare('SELECT id,COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=cf_donors.id),id) AS effective_id FROM cf_donors WHERE erased_at IS NULL AND id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(ids)),
     db.prepare('SELECT hash FROM cf_erasures WHERE hash IN (SELECT value FROM json_each(?))').bind(JSON.stringify(hashes)),
-    db.prepare('SELECT COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=cf_donors.id),id) AS id,email FROM cf_donors WHERE erased_at IS NULL AND email IN (SELECT value FROM json_each(?))').bind(JSON.stringify(emails)),
+    db.prepare(`SELECT DISTINCT COALESCE(m.into_id,d.id) AS id,e.email FROM (SELECT id AS donor_id,email FROM cf_donors UNION SELECT donor_id,email FROM cf_donor_aliases) e JOIN cf_donors d ON d.id=e.donor_id LEFT JOIN cf_donor_merges m ON m.donor_id=d.id WHERE d.erased_at IS NULL AND e.email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)),
     db.prepare("SELECT reference,amount_cents FROM cf_gifts WHERE source='stripe' AND kind='gift' AND reference IN (SELECT value FROM json_each(?))").bind(JSON.stringify(refs)),
     db.prepare('SELECT timezone FROM cf_settings WHERE id=1'),
   ]) as any[]
+  for (const mail of emails) if (new Set(byEmail.results.filter((r:any)=>r.email===mail).map((r:any)=>r.id)).size>1)
+    reject('IMPORT_DONOR_AMBIGUOUS','A shared household email matches several donors. Match the Stripe customer to a donor before importing this history.',409)
   return {
     donorIds: new Set(byId.results.map((r: any) => r.id)), aliases: new Map(byId.results.map((r:any) => [r.id,r.effective_id])), erased: new Set(erased.results.map((r: any) => r.hash)),
     emails: new Map(byEmail.results.map((r: any) => [r.email, r.id])), charges: new Map(charges.flatMap((c: any) => { const prior = gifts.results.find((g: any) => [c.id,c.payment_intent,c.invoice].includes(g.reference)); return prior ? [[c.id,prior.amount_cents] as [string,number]] : [] })),

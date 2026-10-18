@@ -44,6 +44,7 @@ export async function commit(c: Context, statements: Stmt[]) {
    fail('CONCURRENT_CHANGE', 'Records changed while saving. Refresh and try again.')
   }
   if (/UNIQUE constraint failed: cf_donors\.email/i.test(text)) fail('DUPLICATE_EMAIL', 'Another donor already uses that email address.')
+  if (/COFFER_DUPLICATE_EMAIL/.test(text)) fail('DUPLICATE_EMAIL', 'Another donor outside this household already uses that email. Review possible duplicates before adding another record.')
   if (/UNIQUE constraint failed: cf_gifts\.source, cf_gifts\.reference|cf_gift_reference/i.test(text)) fail('DUPLICATE_REFERENCE', 'A gift with that reference is already recorded.')
   if (/UNIQUE constraint failed: cf_households/i.test(text)) fail('DUPLICATE_HOUSEHOLD', 'A household with that name already exists.')
   if (/UNIQUE constraint failed: cf_acks\.gift_id|cf_ack_live_gift/i.test(text)) fail('ALREADY_ACKNOWLEDGED', 'A gift is already in another acknowledgement batch.')

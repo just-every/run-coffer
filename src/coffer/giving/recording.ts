@@ -1,4 +1,4 @@
-import { canonicalDonor } from '../donor-merge'
+import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
 import { fail, newId, one, today, type Row } from '../db'
 import { settings } from '../settings'
 import { stripe, type GivingEnv } from './stripe'
@@ -12,9 +12,10 @@ export async function identify(env: GivingEnv, intentId: string, customer: strin
  if (!intent || !customer || intent.customer_id !== customer) return null
  let donor = intent.donor_id ? await one(c, 'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL', intent.donor_id) : null
  if (intent.donor_id && !donor) return null // Erasure must never restore personal data.
+ if (!donor) donor = await lookupEmailDonor(c,intent.email,intent.name)
  if (!donor) {
   await env.DB.prepare("INSERT OR IGNORE INTO cf_donors(id,version,name,email,source,source_ref,created_at) VALUES(?,1,?,?,'stripe',?,?)").bind(newId(), intent.name, intent.email, customer, new Date().toISOString()).run()
-  donor = await one(c, 'SELECT * FROM cf_donors WHERE email=? AND erased_at IS NULL', intent.email)
+  donor = await lookupEmailDonor(c,intent.email,intent.name)
  }
  if (donor) donor = await one(c, 'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL', await canonicalDonor(c,donor.id))
  if (!donor) fail('donor_unavailable', 'The donor record is not available.', 409)
