@@ -6,7 +6,12 @@ const donorFields = ['email', 'phone', 'addressLine1', 'addressLine2', 'city', '
 const provenanceId = (r: SourceRow, kind: string) => `row:${kind}:${r.location.file}:${r.location.sheet}:${r.location.row}`
 function addDonor(r: SourceRow, out: ParsedImport) {
  const names = ['name', 'organization', 'firstName', 'middleName', 'lastName'].map(key => r.get(key))
- const name = names[0] || names[1] || names.slice(2).filter(Boolean).join(' ')
+ const prefix = r.get('prefix'), suffix = r.get('suffix')
+ let name = names[0] || names[1] || names.slice(2).filter(Boolean).join(' ')
+ if (!names[1]) {
+  if (prefix && !name.toLowerCase().startsWith(prefix.toLowerCase()+' ')) name = `${prefix} ${name}`
+  if (suffix && !name.toLowerCase().endsWith(' '+suffix.toLowerCase())) name = `${name} ${suffix}`
+ }
  if (!name) return
  const externalId = r.required('donorId'); if (!externalId) return
  // An organization keeps no household: LGL's Is Org, a Bloomerang Organization type, or an organization name alone.
@@ -14,8 +19,8 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], lastName: names[4], organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
  donor.email = donor.email.toLowerCase()
  if (donor.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donor.email)) r.error('EMAIL', 'Export a single valid primary email address.', 'email')
- if (donor.householdName && !donor.householdKey) r.error('HOUSEHOLD_ID', 'Household name needs its source household ID; names are not reliable identity keys.', 'householdKey')
- if (donor.householdKey && !donor.householdName) r.error('HOUSEHOLD_NAME', 'Household ID needs a household name.', 'householdName')
+ if (donor.householdName && !donor.householdKey) r.error('HOUSEHOLD_ID', 'Fill Household ID with this household’s source ID, or clear Household Name if this constituent has no household.', 'householdKey')
+ if (donor.householdKey && !donor.householdName) r.error('HOUSEHOLD_NAME', 'Fill Household Name for this Household ID, or clear Household ID if this constituent has no household.', 'householdName')
  const existing = out.donors.find(d => d.externalId === externalId)
  if (!existing) out.donors.push(donor)
  else {
@@ -28,11 +33,11 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  if (donor.householdKey && donor.householdName) {
   const household = out.households.find(h => h.externalId === donor.householdKey)
   if (!household) out.households.push({ externalId: donor.householdKey, name: donor.householdName, location: r.location })
-  else if (household.name !== donor.householdName) r.error('HOUSEHOLD_CONFLICT', `Conflicting names for household ${household.externalId}.`)
+  else if (household.name !== donor.householdName) r.error('HOUSEHOLD_CONFLICT', `Household ${household.externalId} has conflicting names. Use the same Household Name on every constituent with this Household ID.`, 'householdName')
  }
 }
 function note(r: SourceRow, out: ParsedImport, standalone = false) {
- const text = r.get('note'); if (!text) { if (standalone) r.error('NOTE', 'Missing note text.'); return }
+ const text = r.get('note'); if (!text) { if (standalone) r.error('NOTE', 'Fill Note with the note text, or remove this empty note row.', 'note'); return }
  const donorExternalId = r.required('donorId'), date = r.peek('noteDate') ? r.date('noteDate') : standalone && r.peek('date') ? r.date('date') : ''
  const externalId = r.get('noteId') || provenanceId(r, 'note'), type = r.get('noteType').toLowerCase()
  if (donorExternalId) out.notes.push({ location: r.location, externalId, donorExternalId, text, date, type })
@@ -49,8 +54,8 @@ function softCredit(r: SourceRow, out: ParsedImport, inline = false) {
  if (!inline) for (const field of ['date', 'fund', 'campaign', 'method', 'type', 'giftNote']) r.get(field)
  const amountCents = r.cents(r.peek('softAmount') ? 'softAmount' : 'amount')
  const externalId = r.get('softId') || (!inline ? r.get('giftId') : '') || provenanceId(r, 'credit'), pledgeExternalId = r.get('pledgeId')
- if (!giftExternalId) r.error('SOFT_GIFT', 'A soft credit needs the original received gift ID. A credited donor name cannot identify the gift.')
- if (!donorExternalId) r.error('SOFT_DONOR', 'A soft credit needs the credited constituent ID.')
+ if (!giftExternalId) r.error('SOFT_GIFT', 'Fill Related Gift ID with the original received gift’s ID. A credited donor name cannot identify the gift.')
+ if (!donorExternalId) r.error('SOFT_DONOR', 'Fill Constituent ID with the person being recognized.')
  if (giftExternalId && donorExternalId && amountCents !== null) out.softCredits.push({ location: r.location, externalId, donorExternalId, giftExternalId, amountCents, pledgeExternalId })
 }
 function method(r: SourceRow) {
@@ -61,8 +66,8 @@ function method(r: SourceRow) {
 }
 function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
  const externalId = r.required('giftId'), donorExternalId = r.required('donorId'), amountCents = r.cents('amount'), receivedOn = r.date('date')
- const fund = r.get('fund'), campaign = r.get('campaign'), payment = method(r), pledgeExternalId = r.get('parentId') || r.get('pledgeId')
- const note = r.get('giftNote') || r.get('note')
+ const fund = r.get('fund'), campaign = r.get('campaign'), appeal = r.has('appeal') ? r.get('appeal') : undefined, checkReference = r.get('checkReference') || undefined, payment = method(r), pledgeExternalId = r.get('parentId') || r.get('pledgeId')
+ const note = [r.get('giftNote') || r.get('note'), r.has('appeal') && campaign ? `Campaign: ${campaign}` : ''].filter(Boolean).join('\n')
  let goodsCents: number | null = null
  const goodsDescription = r.get('goodsDescription')
  if (r.peek('goodsAmount')) goodsCents = r.cents('goodsAmount', true)
@@ -77,20 +82,21 @@ function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
  if (goodsCents !== null && amountCents !== null && goodsCents >= amountCents && goodsCents !== 0) r.error('GOODS_VALUE', r.peek('deductible') ? `Deductible Amount ${r.peek('deductible')} means the donor received goods or services worth the whole ${r.peek('amount')}, so no part of it was a gift. Coffer records gifts worth more than what the donor received: set Deductible Amount to the part that was a gift, or delete the row if it was a purchase.` : 'Benefit amount must be less than the received gift amount.', r.peek('deductible') ? 'Deductible Amount' : 'goodsAmount')
  if (goodsCents === null && input.noGoodsOrServices === true) goodsCents = 0
  if (fund.includes(';') || campaign.includes(';')) r.error('SPLIT_GIFT', 'Export one designation per row with a unique gift/designation ID and amount; grouped split funds or campaigns cannot be allocated safely.')
- if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription })
+ if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, appeal, checkReference, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription })
  if (r.peek('softDonor')) softCredit(r, out, true)
 }
 function pledge(r: SourceRow, out: ParsedImport) {
  const externalId = r.get('giftId') || r.get('pledgeId'), donorExternalId = r.required('donorId'), amountCents = r.cents('amount'), pledgedOn = r.date('date'), fund = r.get('fund'), campaign = r.get('campaign'), method = r.get('method')
  // A pledge keeps its campaign and stated payment method as part of its note.
- const note = [r.get('giftNote') || r.get('note'), campaign && `Campaign: ${campaign}`, method && `Payment method: ${method}`].filter(Boolean).join('\n')
- if (!externalId) r.error('PLEDGE_ID', 'A pledge needs its source gift/pledge ID.')
+ const appeal = r.get('appeal'), checkReference = r.get('checkReference')
+ const note = [r.get('giftNote') || r.get('note'), campaign && `Campaign: ${campaign}`, appeal && `Appeal: ${appeal}`, checkReference && `Check/reference: ${checkReference}`, method && `Payment method: ${method}`].filter(Boolean).join('\n')
+ if (!externalId) r.error('PLEDGE_ID', 'Fill Gift ID or Pledge ID with this pledge’s source record ID.')
  if (externalId && donorExternalId && amountCents !== null && pledgedOn) out.pledges.push({ location: r.location, externalId, donorExternalId, amountCents, pledgedOn, fund, note })
 }
 function installment(r: SourceRow, out: ParsedImport) {
  const externalId = r.get('installmentId') || r.get('giftId'), pledgeExternalId = r.get('pledgeId') || r.get('parentId'), dueOn = r.date(r.peek('dueOn') ? 'dueOn' : 'date'), amountCents = r.cents(r.peek('installmentAmount') ? 'installmentAmount' : 'amount')
- if (!externalId) r.error('INSTALLMENT_ID', 'An installment needs a source installment ID.')
- if (!pledgeExternalId) r.error('INSTALLMENT_PLEDGE', 'An installment needs its parent pledge ID.')
+ if (!externalId) r.error('INSTALLMENT_ID', 'Fill Installment ID with this installment’s source record ID.')
+ if (!pledgeExternalId) r.error('INSTALLMENT_PLEDGE', 'Fill Pledge ID or Parent Gift ID with this installment’s parent pledge ID.')
  if (externalId && pledgeExternalId && dueOn && amountCents !== null) out.installments.push({ location: r.location, externalId, pledgeExternalId, dueOn, amountCents })
 }
 export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {

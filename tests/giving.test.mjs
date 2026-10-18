@@ -2,6 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {createHmac,randomUUID} from 'node:crypto'
 import {run,donor} from './harness.mjs'
+import {fixedNow} from './fixed-clock.mjs'
 
 const webhookSecret='whsec_giving_test_edge'
 const form=(values,as='')=>({method:'POST',as,headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(values).toString()})
@@ -59,7 +60,8 @@ async function deliver(h,id,type,{invalid=false}={}) {
  return h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'content-type':'application/json','stripe-signature':`t=${timestamp},v1=${signature}`},body:raw})
 }
 
-test('a failed monthly donation recovers on its second retry without duplicate gifts, with a private card and cancellation portal',async()=>{
+test('a failed monthly donation recovers on its second retry without duplicate gifts, with a private card and cancellation portal',async t=>{
+ t.mock.timers.enable({apis:['Date'],now:Date.parse(fixedNow)})
  const edge=stripeEdge()
  await run(async h=>{
   const known=await donor(h,'Ana Diaz')
@@ -183,5 +185,5 @@ test('a failed monthly donation recovers on its second retry without duplicate g
   assert.equal(expiredPortal.status,200)
   assert.doesNotMatch(await expiredPortal.text(),/name="subscription" value="sub_monthly"/)
   assert.equal((await summary()).raised_cents,2500,'Erasure keeps anonymous financial history')
- },{bindings:{STRIPE_SECRET_KEY:'sk_test_network_edge',STRIPE_WEBHOOK_SECRET:webhookSecret},outbound:edge.outbound})
+ },{entry:'tests/fixed-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'sk_test_network_edge',STRIPE_WEBHOOK_SECRET:webhookSecret},outbound:edge.outbound})
 })

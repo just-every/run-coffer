@@ -60,17 +60,20 @@ export async function donorCommand(c: Context, command: string, p: Row): Promise
 const CURRENT = (channel: string) => `(SELECT status FROM cf_consents k WHERE k.donor_id=d.id AND k.channel='${channel}' ORDER BY k.id DESC LIMIT 1)`
 export const PAGE = 50
 export async function listDonors(c: { db: D1Database }, query: { q?: string | null; page?: number; relationship?: string | null; relatedTo?: string | null } = {}) {
- const q = (query.q ?? '').trim().toLowerCase().slice(0, 100), page = Math.max(0, Math.min(query.page ?? 0, 10000)), like = `%${q.replace(/[%_\\]/g, x => `\\${x}`)}%`
+ const q = (query.q ?? '').trim().toLowerCase().slice(0, 100), page = Math.max(0, Math.min(query.page ?? 0, 10000))
+ const pattern = (value: string) => `%${value.replace(/[%_\\]/g, x => `\\${x}`)}%`
+ const like = pattern(q), nameTerms = q.split(/\s+/).map(pattern)
+ const nameSearch = nameTerms.map(() => "lower(d.name) LIKE ? ESCAPE '\\'").join(' AND ')
  const relationship = query.relationship ?? '', relatedTo = query.relatedTo ?? ''
  const rows = await all(c, `SELECT d.id,d.version,d.name,d.email,d.city,d.region,d.source,d.erased_at,h.name AS household,
    (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger g WHERE g.donor_id=d.id) AS total_cents,
    (SELECT MAX(received_on) FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
    ${CURRENT('email')} AS email_consent, ${CURRENT('mail')} AS mail_consent
   FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id
-  WHERE NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR lower(d.name) LIKE ? ESCAPE '\\' OR d.email LIKE ? ESCAPE '\\' OR lower(h.name) LIKE ? ESCAPE '\\')
+  WHERE NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR lower(h.name) LIKE ? ESCAPE '\\')
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id OR r.related_donor_id=d.id) AND r.type=?))
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id AND r.related_donor_id=?) OR (r.related_donor_id=d.id AND r.donor_id=?)))
-  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, q, like, like, like, relationship, relationship, relatedTo, relatedTo, relatedTo, PAGE + 1, page * PAGE)
+  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, q, ...nameTerms, like, like, relationship, relationship, relatedTo, relatedTo, relatedTo, PAGE + 1, page * PAGE)
  const count = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_donors WHERE ${LIVE} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=cf_donors.id)`)
  return { donors: rows.slice(0, PAGE), more: rows.length > PAGE, page, q, total: count?.n ?? 0 }
 }

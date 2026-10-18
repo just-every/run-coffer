@@ -15,11 +15,11 @@ export async function sendOnlineReceipt(env: GivingEnv, giftId: string): Promise
  const gift = await one(c, `SELECT g.*,d.name AS donor_name,d.email AS donor_email FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id
   WHERE g.id=? AND g.kind='gift' AND d.erased_at IS NULL AND d.email IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1)`, giftId)
  if (!gift) return
- const day = today(s.timezone), batchId = `receipt-${giftId}`, letterId = `receipt-${giftId}`
+ const now = new Date().toISOString(), day = today(s.timezone, new Date(now)), batchId = `receipt-${giftId}`, letterId = `receipt-${giftId}`
  const donor = await one(c, 'SELECT * FROM cf_donors WHERE id=?', gift.donor_id)
  const rendered = renderLetter(s, gift, gift.donor_name, day)
  const letter = { id: letterId, batch_id: batchId, position: 0, gift_id: gift.id, donor_id: gift.donor_id, recipient_name: gift.donor_name, recipient_email: gift.donor_email, address: address(donor!), subject: rendered.subject, body: rendered.body, amount_cents: gift.amount_cents, received_on: gift.received_on }
- const hash = await letterHash(s.version, [letter]), now = new Date().toISOString()
+ const hash = await letterHash(s.version, [letter])
  // The owner's setting is the standing approval for this exact letter.
  await env.DB.batch([
   env.DB.prepare("INSERT OR IGNORE INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,'approved',?,1,?,?,?,?,?,?)").bind(batchId, hash, gift.amount_cents, s.version, ...SYSTEM, now),

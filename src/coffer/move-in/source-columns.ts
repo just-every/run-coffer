@@ -2,7 +2,7 @@ import type { ImportSource } from './types'
 
 /** Exact report labels plus documented, user-configurable export label variants. */
 const common: Record<string, string[]> = {
- name: ['Name', 'Full Name', 'Constituent Name', 'Donor Name'], firstName: ['First Name'], middleName: ['Middle Name'], lastName: ['Last Name'],
+ name: ['Name', 'Full Name', 'Constituent Name', 'Donor Name'], prefix: ['Prefix', 'Name Title'], firstName: ['First Name'], middleName: ['Middle Name'], lastName: ['Last Name'], suffix: ['Suffix', 'Name Suffix'],
  organization: ['Organization Name', 'Organisation Name', 'Org Name'], isOrg: ['Is Org', 'Is Organization', 'Is Organisation'], email: ['Email', 'Email Address', 'Primary Email', 'Primary Email Address', 'Preferred Email'],
  phone: ['Phone', 'Phone Number', 'Primary Phone', 'Primary Phone Number', 'Preferred Phone'],
  addressLine1: ['Address', 'Address Line 1', 'Address 1', 'Street Address', 'Street', 'Primary Street', 'Primary Street Address', 'Preferred Address'],
@@ -10,7 +10,8 @@ const common: Record<string, string[]> = {
  region: ['State', 'Province', 'State/Province', 'Region', 'Primary State'], postalCode: ['ZIP', 'ZIP Code', 'Postal Code', 'Postcode', 'Primary Postal Code'], country: ['Country', 'Primary Country'],
  householdKey: ['Household ID', 'Household Account Number'], householdName: ['Household Name'],
  amount: ['Amount', 'Gift Amount', 'Transaction Amount', 'Pledge Amount'], date: ['Date', 'Gift Date', 'Transaction Date', 'Pledge Date'],
- type: ['Type', 'Gift Type', 'Transaction Type'], fund: ['Fund', 'Fund Name', 'Fund Description'], campaign: ['Campaign', 'Campaign Name'],
+ type: ['Type', 'Gift Type', 'Transaction Type'], fund: ['Fund', 'Fund Name', 'Fund Description'], campaign: ['Campaign', 'Campaign Name'], appeal: ['Appeal', 'Appeal Name'],
+ checkReference: ['Check No.', 'Check Number', 'Check/Reference No.', 'Check/Reference Number'],
  method: ['Method', 'Payment Type', 'Payment Method', 'Transaction Method', 'Pay Method'], giftNote: ['Gift Note', 'Gift Notes', 'Transaction Note', 'Gift Reference', 'Reference'],
  note: ['Note', 'Notes', 'Note Text', 'Description'], noteId: ['Note ID', 'Note Number'], noteDate: ['Note Date'], noteType: ['Note Type', 'Note Category'],
  relationshipId: ['Relationship ID'], relatedDonor: ['Related Constituent ID', 'Related Account Number', 'Relationship Constituent ID'], relationshipType: ['Relationship Type', 'Relationship'],

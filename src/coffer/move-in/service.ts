@@ -1,5 +1,6 @@
 import { manager } from '../auth'
-import { all, commit, CofferError, date, event, fail, guard, one, optional, sha256, sql, type Context, type Row, type Stmt } from '../db'
+import { all, commit, CofferError, date, event, fail, guard, one, optional, sha256, sql, today, type Context, type Row, type Stmt } from '../db'
+import { settings } from '../settings'
 import { parseExports } from './parse'
 import { contentHash, planImport, type Plan } from './plan'
 import { compare } from './reconcile'
@@ -24,11 +25,12 @@ export async function preview(c: Context,input: ParseInput) {
  const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true})
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
- const readable=!parsed.diagnostics.some(d=>d.severity==='error'), parts=readable?stageParts(parsed):[]
- if(readable && (!prior || ['reviewed','undone'].includes(prior.state))) {
-  const seen=new Set(parsed.diagnostics.map(d=>`${d.code}|${d.file}|${d.row}|${d.message}`))
+ const parts=stageParts(parsed)
+ // A bad source row must not hide independent conflicts elsewhere in the files.
+ if(!prior || ['reviewed','undone'].includes(prior.state)) {
+  const seen=new Set(parsed.diagnostics.map(d=>`${d.code}|${d.file}|${d.sheet}|${d.row}|${d.column}|${d.message}`))
   for(const part of parts) for(const d of (await planImport(c,part,{preview:true})).diagnostics) {
-   const key=`${d.code}|${d.file}|${d.row}|${d.message}`
+   const key=`${d.code}|${d.file}|${d.sheet}|${d.row}|${d.column}|${d.message}`
    if(!seen.has(key)){seen.add(key);parsed.diagnostics.push(d as Diagnostic)}
   }
  }
@@ -63,7 +65,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  if(report.canApply===false || !job.parts)fail('MOVE_IN_ERRORS','This review has rows that must be fixed first. Fix them in your files and upload them again.',409)
  const acceptedReason=optional(input.acceptedReason,'Reason for accepting differences',2000)
  if(report.needsAcceptance && !acceptedReason)fail('MOVE_IN_TOTALS','Say why the differences or unused columns are acceptable before moving in, or fix the files and upload again.')
- const acknowledgedBefore=input.acknowledged==='no'?null:date(input.acknowledgedBefore||c.now.slice(0,10),'Thanked before')
+ const acknowledgedBefore=input.acknowledged==='no'?null:date(input.acknowledgedBefore||today((await settings(c)).timezone,new Date(c.now)),'Thanked before')
  await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='reviewed' AND fingerprint=?)",'MOVE_IN_CHANGED','This move-in changed. Review it again.',job.id,job.fingerprint),
   sql("UPDATE cf_move_in_jobs SET state='applying',accepted_reason=?,acknowledged_before=?,created_at=?,created_by=? WHERE id=?",acceptedReason,acknowledgedBefore,c.now,c.actor.name,job.id),
   event(c,'move-in.apply','move-in',job.id,null,{source:job.source,counts:report.counts,parts:job.parts,acceptedDifferences:!!acceptedReason,acknowledgedBefore})])

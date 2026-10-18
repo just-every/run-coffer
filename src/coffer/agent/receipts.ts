@@ -1,5 +1,5 @@
 import { ackCommand, address, letterHash } from '../acknowledgements'
-import { all, commit, event, fail, guard, newId, one, sql, type Context, type Row } from '../db'
+import { all, commit, event, fail, guard, newId, one, sql, today, type Context, type Row } from '../db'
 import { settings, renderLetter } from '../settings'
 import { tributeReceiptText } from '../gift-depth'
 import { activityStatement } from './activity'
@@ -24,7 +24,7 @@ export async function queueMissingReceipts(c:Context) {
  const donors=new Map((await all(c,'SELECT * FROM cf_donors WHERE id IN (SELECT value FROM json_each(?))',JSON.stringify([...new Set(chosen.map(g=>g.donor_id))]))).map(d=>[d.id,d]))
  const tributes=new Map((await all(c,'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))',ids)).map(t=>[t.gift_id,t]))
  const letters=chosen.map((g,position)=>{
-  const d=donors.get(g.donor_id)!,rendered=renderLetter(s,g,d.name,c.now.slice(0,10))
+  const d=donors.get(g.donor_id)!,rendered=renderLetter(s,g,d.name,today(s.timezone,new Date(c.now)))
   return {id:newId(),batch_id:batchId,position,gift_id:g.id,donor_id:d.id,recipient_name:d.name,recipient_email:d.email,address:address(d),subject:rendered.subject,body:[rendered.body,tributeReceiptText(tributes.get(g.id))].filter(Boolean).join('\n\n'),amount_cents:g.amount_cents,received_on:g.received_on}
  })
  const hash=await letterHash(s.version,letters),total=chosen.reduce((n,g)=>n+g.amount_cents,0)

@@ -82,8 +82,9 @@ export async function giftInstallmentStatements(c: Context, p: Row, giftId: stri
 
 export async function pledgeHistory(c: { db: D1Database }, donorId: string): Promise<Row[]> {
  const [pledges, installments] = await Promise.all([
-  all(c, `SELECT p.*,COALESCE((SELECT SUM(g.amount_cents) FROM cf_contribution_ledger g WHERE g.pledge_id=p.id
-   AND NOT EXISTS(SELECT 1 FROM cf_pledge_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id))),0) AS legacy_paid_cents FROM cf_pledges p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
+  all(c, `SELECT p.*,COALESCE((SELECT SUM(g.amount_cents - CASE WHEN g.kind='reversal' THEN -1 ELSE 1 END *
+   COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0))
+   FROM cf_contribution_ledger g WHERE g.pledge_id=p.id),0) AS legacy_paid_cents FROM cf_pledges p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
   all(c, 'SELECT i.* FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=? ORDER BY i.position', donorId),
  ])
  return pledges.map(p => {

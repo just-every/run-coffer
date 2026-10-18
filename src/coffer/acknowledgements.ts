@@ -31,7 +31,7 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
   const s = await settings(c)
   if (!s.reviewed_at || !s.organisation) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')
   const wanted = Array.isArray(p.giftIds) ? new Set(p.giftIds.map((x: unknown) => id(x, 'Gift'))) : null
-  const { gifts, today: day } = await dueGifts(c)
+  const { gifts } = await dueGifts(c), day = today(s.timezone, new Date(c.now))
   const chosen = gifts.filter(g => g.goods !== 'unknown' && (!wanted || wanted.has(g.id))).slice(0, MAX_LETTERS)
   if (wanted && chosen.length !== wanted.size) fail('NOT_DUE', 'A selected gift is not waiting for a letter, or still needs its goods or services answer.')
   if (!chosen.length) fail('NOTHING_DUE', 'No gifts are waiting for an acknowledgement letter.')

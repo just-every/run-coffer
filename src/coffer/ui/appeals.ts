@@ -27,7 +27,7 @@ const audienceRule = (segment: { givenSince?: string | null; minTotalCents?: num
 
 export async function appealPage(c: Context, appealId: string) {
  const {connection:conn}=await emailConnection(c), label=conn?providerTitle(conn.provider):''
- const { appeal: a, recipients, approval, consentChanged, message, messages } = await appealDetail(c, appealId), boss = manager(c.actor), tz = (await settings(c)).timezone, day = today(tz)
+ const { appeal: a, recipients, approval, consentChanged, message, messages } = await appealDetail(c, appealId), boss = manager(c.actor), tz = (await settings(c)).timezone, day = today(tz, new Date(c.now))
  const v = { appealId: a.id, version: a.version }, excluded = Object.entries(JSON.parse(a.excluded) as Record<string, number>).filter(([, n]) => n > 0)
  const complete=Boolean(message)&&recipients.every(r=>r.communication_id)
  const warning = complete && consentChanged ? '<p class="notice">Preferences changed after these submissions. Future appeals use the current answers.</p>' : consentChanged && ['prepared', 'approved'].includes(a.status) ? `<p class="alert" role="alert">${consentChanged} recipients’ consent changed since this audience was prepared. Discard it and prepare it again.</p>` : ''

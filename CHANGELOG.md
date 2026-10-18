@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- CRM reviews run every check even when other rows are invalid, with a file, row, column and concrete correction for blocking rows. Pledge rounding within one cent per payment is accepted; promises and actual paid cents are preserved, including partly allocated gifts.
+- LGL Prefix/Suffix stay in donor names; Check No. stays in the gift reference alongside the source ID; Appeal fills the appeal field and Campaign stays in the note.
+- Letter headers, preparation dates, logged calls and the CRM thanked-before date use the organisation’s time zone. The monthly-giving test has a fixed clock and retains its assertions.
+- First/last-name search finds names with middle initials. Duplicate suggestions require shared contact evidence or matching name and address, and say which values matched. Pipeline close dates are visibly required.
+
 - LGL move-in uses constituent names as authoritative and accepts gift/relationship display labels without name blockers; export guidance states the confirmed LGL fields and remaining format limits.
 - Stripe move-in reads the connected account or a temporary restricted read key, follows pages automatically, previews gifts and supported monthly plans, checks applied count and cents, and supports undo. Saved JSON is an advanced option.
 - Pin the package runner to rer 0.2.51.

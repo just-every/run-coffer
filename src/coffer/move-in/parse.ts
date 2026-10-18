@@ -1,5 +1,6 @@
 import { creditChecks, sharedEmails } from './checks'
 import { inferHouseholds } from './households'
+import { pledgeChecks } from './pledge-checks'
 import { readExports } from './parse-input'
 import { columnFields, normalizeLabel } from './source-columns'
 import { mapRow } from './source-mapping'
@@ -32,6 +33,7 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  sharedEmails(out)
  creditChecks(out)
  validateImport(out)
+ pledgeChecks(out)
  if (!rows.length) out.diagnostics.push({ severity: 'error', code: 'EMPTY', message: 'No source records were found.' })
  return out
 }
