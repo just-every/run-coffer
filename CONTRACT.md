@@ -1301,7 +1301,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `ea110873b5a1a83af505428066a13bb2368b4a33` (18 October 2026).
+Judged from the code and tests at commit `f439d14a6125b06cb958d0dcee4c7bcf1227903b` (18 October 2026).
 
 Duplicate review, field selection, merge and audit-log undo were exercised on a hosted installation at 1440 and 390 pixels on 18 October 2026. A Stripe test-card form gift and a manual check retained their exact $75 combined total, then returned to their separate histories; the gift receipt reached the QA mailbox, and spouses sharing an email stayed out of the queue.
 
