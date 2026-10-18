@@ -5,7 +5,7 @@ import { createReadStream } from 'node:fs'
 import { Readable } from 'node:stream'
 import { resolve, dirname } from 'node:path'
 import { readArchive, canonicalJson } from '@runeditrun/rer/modules/portability'
-import { cookieFile } from '@runeditrun/rer/modules/portability/cli-options'
+import { cookieFile, absent } from '@runeditrun/rer/modules/portability/cli-options'
 import { transferClient, transferDiagnostic } from '@runeditrun/rer/internal/modules/portability/http-client.mjs'
 
 const usage = `Usage:
@@ -13,10 +13,11 @@ const usage = `Usage:
   rer run backup:hosted -- --environment restored --session-file owner-session.txt --restore exports/coffer.rer --yes
 Optional: --origin https://YOUR-COFFER (instead of a saved deployment), --resume JOB_ID.
 Sign in as owner first; the private session file holds one NAME=VALUE cookie. See docs/backup.md.`
+class InputError extends Error {}
 
 async function privateInput(path) {
  const info = await lstat(path)
- if (!info.isFile() || (info.mode & 0o077)) throw Error(`Make ${path} a private regular file (chmod 600).`)
+ if (!info.isFile() || (info.mode & 0o077)) throw new InputError(`Make ${path} a private regular file (chmod 600).`)
 }
 function options(argv) {
  const out = { environment: 'production' }
@@ -27,11 +28,11 @@ function options(argv) {
   if (flag === '--help' || flag === '-h') { console.log(usage); return }
   if (flag === '--yes') { out.yes = true; continue }
   const key = names[flag], value = argv[++i]
-  if (!key || !value || value.startsWith('--') || (key !== 'environment' && out[key])) throw Error(usage)
+  if (!key || !value || value.startsWith('--') || (key !== 'environment' && out[key])) throw new InputError(usage)
   out[key] = value
  }
- if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(out.environment) || !out.session || (out.restore && out.output)) throw Error(usage)
- if (out.restore && !out.yes) throw Error('Restore goes into an empty hosted Coffer. Add --yes to confirm.')
+ if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(out.environment) || !out.session || (out.restore && out.output)) throw new InputError(usage)
+ if (out.restore && !out.yes) throw new InputError('Restore goes into an empty hosted Coffer. Add --yes to confirm.')
  return out
 }
 const records = path => readArchive(Readable.toWeb(createReadStream(path)))
@@ -40,8 +41,8 @@ async function main() {
  const o = options(process.argv.slice(2)); if (!o) return
  const root = new URL('../', import.meta.url)
  const origin = o.origin ?? JSON.parse(await readFile(new URL(`.rer/deploy/${o.environment}.json`, root), 'utf8')).receipt?.origin
- let url; try { url = new URL(origin) } catch { throw Error('No completed hosted deployment. Deploy first, or supply --origin https://YOUR-COFFER.') }
- if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw Error('Use a hosted HTTPS origin without a path or credentials.')
+ let url; try { url = new URL(origin) } catch { throw new InputError('No completed hosted deployment. Deploy first, or supply --origin https://YOUR-COFFER.') }
+ if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new InputError('Use a hosted HTTPS origin without a path or credentials.')
  await privateInput(o.session)
  const cookie = await cookieFile(resolve(o.session))
  const client = transferClient({ endpoint: url.origin + '/api/portability', origin: url.origin, cookie }), { get } = client
@@ -64,15 +65,16 @@ async function main() {
   console.log(`Restored ${state.completed} parts into ${url.origin}. Sign in by email; private configuration stays with the destination.`)
  } else {
   const output = resolve(o.output ?? `exports/coffer-${o.environment}-${new Date().toISOString().replace(/[:.]/g, '-')}.rer`)
+  await absent(output)
   await mkdir(dirname(output), { recursive: true, mode: 0o700 })
   const file = await open(output + '.partial', 'wx', 0o600)
   try {
    const id = client.jobId(o.resume ?? (await get('exports', 'POST', {})).id, 'exports')
    console.log(`Backing up ${url.origin}; job ${id}. Resume with --resume ${id} and a new --output.`)
    let state = await get(`exports/${id}`)
-   while (state.phase === 'building') state = await get(`exports/${id}/advance`, 'POST', { expectedPart: state.completed, maxParts: 1 })
+   while (state.phase === 'building') state = await get(`exports/${id}/advance`, 'POST', { expectedPart: state.completed, maxParts: 8 })
    if (state.phase !== 'complete') throw client.failedJob(`exports/${id}`, state)
-   for await (const record of client.download(id)) await file.writeFile(canonicalJson(record) + '\n')
+   for await (const record of await client.download(id)) await file.writeFile(canonicalJson(record) + '\n')
    await file.sync()
    // link refuses to overwrite an existing backup, including a symlink.
    await link(output + '.partial', output)
@@ -81,6 +83,6 @@ async function main() {
  }
 }
 main().catch(error => {
- console.error(transferDiagnostic(error) ?? (error?.code ? 'Backup or restore failed. Check the paths, permissions and deployment; see docs/backup.md.' : error.message))
+ console.error(transferDiagnostic(error) ?? (error instanceof InputError ? error.message : 'Backup or restore failed. Check the paths, permissions and deployment; see docs/backup.md.'))
  process.exitCode = 1
 })

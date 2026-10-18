@@ -31,7 +31,8 @@
       "hosted": false,
       "commands": [
         "pnpm run test:coffer",
-        "node --test tests/audit.test.mjs"
+        "node --test tests/audit.test.mjs",
+        "node --test tests/hosted-restore.test.mjs"
       ]
     },
     {
