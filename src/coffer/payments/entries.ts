@@ -3,6 +3,7 @@ import { stripe, type GivingEnv } from '../giving/stripe'
 import { syncCharge } from './charges'
 import { cents, day, stripeId } from './stripe-data'
 import { paymentWrite } from './write'
+import { settings } from '../settings'
 
 /** The balance transaction ID is the financial idempotency key, independent of
  * webhook IDs, replay order, payout refreshes and Stripe's event versions. */
@@ -46,7 +47,7 @@ export async function syncEntry(env: GivingEnv, input: any, authority?: Context)
   FROM (SELECT COALESCE((SELECT refund_baseline FROM cf_stripe_charges WHERE id=?),0) AS baseline,
    COALESCE((SELECT SUM(amount_cents) FROM cf_payment_entries WHERE charge_id=? AND kind IN ('refund','refund_reversal')),0) AS prior)` ,
    txn.id, sourceId, chargeId || null, kind, amount, fee, net, fund, gift?.id ?? null,
-   kind, amount, kind, amount, day(txn.created), now, chargeId, chargeId),
+   kind, amount, kind, amount, day(txn.created,(await settings({db:env.DB})).timezone), now, chargeId, chargeId),
   sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'stripe','Stripe','agent','payments.entry','payment',p.id,g.donor_id,? FROM cf_payment_entries p LEFT JOIN cf_gifts g ON g.id=p.gift_id
    WHERE p.id=? AND NOT EXISTS(SELECT 1 FROM cf_events WHERE action='payments.entry' AND subject_id=p.id)`, now, JSON.stringify({ amountCents: amount, feeCents: fee, kind }), txn.id)], authority)

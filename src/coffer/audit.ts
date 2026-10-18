@@ -6,6 +6,7 @@ const PAGE_SIZE = 50
 // Auth policy changes retain their native audit source. Session triggers retain
 // sign-ins after the credential/session has expired or been removed.
 const SOURCE = `SELECT 'event:'||id AS id,at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail FROM cf_events
+ UNION ALL SELECT 'access:'||id,at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail FROM cf_access_events
  UNION ALL SELECT 'auth:'||a.id,strftime('%Y-%m-%dT%H:%M:%fZ',a.created_at/1000.0,'unixepoch'),a.actor_id,
  COALESCE(o.display_name,'Former operator'),COALESCE(o.role,'staff'),'auth.'||a.action,'identity','policy',NULL,'{}'
  FROM oa_auth_audit a LEFT JOIN oa_operators o ON o.id=a.actor_id
@@ -65,5 +66,5 @@ export async function recordRequest(c: Context, request: Request, response: Resp
  const exported = response.headers.has('content-disposition')
  if (!exported && request.method === 'GET' && c.actor.role !== 'agent') return
  await commit(c,[event(c,exported ? 'export.download' : c.actor.role === 'agent' && request.method === 'GET' ? 'agent.read' : 'request.change',
-  'route',path,null,{method:request.method,status:response.status})])
+  'route',path,null,{method:request.method,status:response.status},'cf_access_events')])
 }

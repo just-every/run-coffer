@@ -3,6 +3,7 @@ import { email, fail, newId, one, sql, type Context } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { cents, day, stripeId, stripePages } from './stripe-data'
 import { paymentWrite } from './write'
+import { settings } from '../settings'
 
 /** Resolve the processor's charge to the existing move-in or giving reference.
  * Never infer consent or restore a record after erasure. */
@@ -52,7 +53,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
   const reference = intent ? (refs.find(ref => ref.startsWith('in_')) ?? (pi || charge.id)) : charge.id
   await paymentWrite(env, [
    sql(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,source,created_at,created_by)
-    VALUES(?,1,?,'gift',?,?,'card',?,?,?,0,'stripe',?,'Stripe')`, giftId, donor.id, day(charge.created), gross, reference, fund, intent ? 'none' : 'unknown', now),
+    VALUES(?,1,?,'gift',?,?,'card',?,?,?,0,'stripe',?,'Stripe')`, giftId, donor.id, day(charge.created,(await settings(c)).timezone), gross, reference, fund, intent ? 'none' : 'unknown', now),
    ...(intent ? [sql('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=?', intent.campaign_id, reference)] : []),
    sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
     SELECT ?,'stripe','Stripe','agent','payments.gift','gift',id,donor_id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'

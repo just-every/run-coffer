@@ -1,5 +1,6 @@
 import { canonicalDonor } from '../donor-merge'
-import { fail, newId, one, type Row } from '../db'
+import { fail, newId, one, today, type Row } from '../db'
+import { settings } from '../settings'
 import { stripe, type GivingEnv } from './stripe'
 import { sendOnlineReceipt } from './online-receipt'
 
@@ -46,7 +47,7 @@ const consentEvidence = (intent: Row) => `Ticked “Email me news and appeals”
 /** The reference and deterministic ID make return-page/webhook races harmless. */
 export async function recordGift(env: GivingEnv, intent: Row, reference: string, cents: number, paidAt: number, subscriptionId?: string) {
  if (!Number.isSafeInteger(cents) || cents <= 0 || !reference || !Number.isSafeInteger(paidAt)) fail('invalid_payment', 'Stripe returned an invalid gift.', 409)
- const id = 'giving-' + reference, now = new Date().toISOString(), day = new Date(paidAt * 1000).toISOString().slice(0, 10)
+ const id = 'giving-' + reference, now = new Date().toISOString(), day = today((await settings({db:env.DB})).timezone,new Date(paidAt * 1000))
  await env.DB.batch([
   env.DB.prepare(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,source,created_at,created_by)
    VALUES(?,1,?,'gift',?,?,'card',?,?,'none',0,'stripe',?,'Stripe')`).bind(id, intent.donor_id, day, cents, reference, intent.fund, now),
