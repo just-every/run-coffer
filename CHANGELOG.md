@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The app wears Coffer's own look: the indigo rail with its lit windows, a top bar with search and Record gift, dense gift ledgers and the donor panel with the development agent's card. At phone width the rail and top bar keep their height on short pages. Recorded actions read as words in the audit log, a donor's activity and a letter batch ("Gift recorded by June Albright", "Paid online via Stripe"); the API and the audit CSV keep their codes.
 - CRM reviews run every check even when other rows are invalid, with a file, row, column and concrete correction for blocking rows. Pledge rounding within one cent per payment is accepted; promises and actual paid cents are preserved, including partly allocated gifts.
 - LGL Prefix/Suffix stay in donor names; Check No. stays in the gift reference alongside the source ID; Appeal fills the appeal field and Campaign stays in the note.
 - Letter headers, preparation dates, logged calls and the CRM thanked-before date use the organisation’s time zone. The monthly-giving test has a fixed clock and retains its assertions.

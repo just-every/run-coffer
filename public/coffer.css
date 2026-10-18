@@ -348,8 +348,9 @@
   .cf-donor { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 }
 @media (max-width: 900px) {
-  .cf-shell { grid-template-columns: minmax(0, 1fr); }
-  .cf-rail { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  /* Rail band and top bar keep their own height; a short page's spare height goes below its content. */
+  .cf-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .cf-rail { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; align-content: flex-start; }
   .rer-themed .cf-brand { padding: 12px 16px; font-size: 24px; }
   .cf-brand img { width: 34px; height: 34px; }
   .rer-themed .cf-menu-button { display: inline-flex; align-items: center; gap: 8px; margin: 0 16px 0 auto; padding: 8px 14px; border: 1px solid var(--cf-night-line); border-radius: 10px; color: #fff; font-size: 15px; font-weight: 500; cursor: pointer; }

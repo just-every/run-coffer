@@ -36,11 +36,12 @@ export const chip = (value: unknown, tone = '') => `<span class="chip${tone ? ` 
 /** A recorded fact as a person reads it: "amountCents" 25000 → "Amount" $250.00, "receivedOn" → "October 15, 2026",
  * a moment → "Oct 16, 2026 · 12:04 PM UTC"; identifiers and hashes stay as code. */
 function fact(key: string, value: unknown): [string, string] {
- const label = /^[a-z]+[A-Z]/.test(key) ? key.replace(/Cents$/, '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/^./, c => c.toUpperCase()) : key
+ const label = (/^[a-z]+[A-Z]/.test(key) ? key.replace(/Cents$/, '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase() : key).replace(/^./, c => c.toUpperCase())
  if (/Cents$/.test(key) && typeof value === 'number') return [label, e(money(value))]
  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return [label, e(longDay(value))]
  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(value)) return [label, `${e(moment(value, 'UTC'))} UTC`]
- if (value && typeof value === 'object' && !Array.isArray(value)) return [label, `<dl>${Object.entries(value).map(([k, v]) => { const [l, shown] = fact(k, v); return `<dt>${e(l)}</dt><dd>${shown}</dd>` }).join('')}</dl>`]
+ if (Array.isArray(value)) return [label, value.length ? `<ul class="list">${value.map(v => `<li>${v && typeof v === 'object' ? fact('', v)[1] : e(v)}</li>`).join('')}</ul>` : '<span class="muted">None</span>']
+ if (value && typeof value === 'object') return [label, `<dl>${Object.entries(value).map(([k, v]) => { const [l, shown] = fact(k, v); return `<dt>${e(l)}</dt><dd>${shown}</dd>` }).join('')}</dl>`]
  return [label, `<code>${e(typeof value === 'string' ? value : JSON.stringify(value))}</code>`]
 }
 export const details = (facts: Record<string, unknown>) => `<details class="facts"><summary>Details</summary><dl>${Object.entries(facts).map(([k, v]) => { const [label, shown] = fact(k, v); return `<dt>${e(label)}</dt><dd>${shown}</dd>` }).join('')}</dl></details>`

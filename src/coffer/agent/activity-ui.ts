@@ -1,5 +1,6 @@
 // The agent's activity, drawn as a dense ledger: when, what happened and why,
 // who did it, the record it touched, and whether a person can still undo it.
+import { actionWords } from '../action-words'
 import type { Context, Row } from '../db'
 import { settings } from '../settings'
 import { chip, e, empty, hidden, moment } from '../ui/common'
@@ -16,7 +17,7 @@ function subject(a: Row) {
  if (a.kind.startsWith('receipts.')) return `<a href="/app/letters/${id}">Letter batch</a>`
  if (a.kind.startsWith('reconciliation.')) return '<a href="/app/agent/reconcile">Reconciliation</a>'
  if (a.kind === 'agent.undo') return 'Earlier action'
- return e(a.kind)
+ return e(actionWords(a.kind))
 }
 
 export async function activityTable(c: Context, url: URL) {
