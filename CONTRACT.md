@@ -1301,7 +1301,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Status updated on 18 October 2026 from the code and named tests. A fresh local run of the stranger’s 5,000-constituent, 40,002-row LGL export moved 38,551 received gifts in 63 parts, matching $20,200,908.23 and all 4,013 giving-donor totals. Independent shared-email and material pledge blockers appeared together in the first review; the three rounded pledges each retained $5,000 promised and $5,000.04 paid. The changed CRM, donor, duplicate, letter, appeal, call and pipeline pages were exercised at 1440 and 390 pixels. Header/preparation dates and an automatic online receipt were checked across the UTC/organisation-day boundary.
+Judged from the code and tests at commit `03f96b5` (18 October 2026). A fresh local run of the stranger’s 5,000-constituent, 40,002-row LGL export moved 38,551 received gifts in 63 parts, matching $20,200,908.23 and all 4,013 giving-donor totals. Independent shared-email and material pledge blockers appeared together in the first review; the three rounded pledges each retained $5,000 promised and $5,000.04 paid. The changed CRM, donor, duplicate, letter, appeal, call and pipeline pages were exercised at 1440 and 390 pixels. Header/preparation dates and an automatic online receipt were checked across the UTC/organisation-day boundary.
 
 Duplicate review, field selection, merge and audit-log undo were exercised on a hosted installation at 1440 and 390 pixels on 18 October 2026. A Stripe test-card form gift and a manual check retained their exact $75 combined total, then returned to their separate histories; the gift receipt reached the QA mailbox, and spouses sharing an email stayed out of the queue.
 
