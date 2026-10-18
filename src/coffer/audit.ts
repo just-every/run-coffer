@@ -8,7 +8,10 @@ const PAGE_SIZE = 50
 const SOURCE = `SELECT 'event:'||id AS id,at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail FROM cf_events
  UNION ALL SELECT 'auth:'||a.id,strftime('%Y-%m-%dT%H:%M:%fZ',a.created_at/1000.0,'unixepoch'),a.actor_id,
  COALESCE(o.display_name,'Former operator'),COALESCE(o.role,'staff'),'auth.'||a.action,'identity','policy',NULL,'{}'
- FROM oa_auth_audit a LEFT JOIN oa_operators o ON o.id=a.actor_id`
+ FROM oa_auth_audit a LEFT JOIN oa_operators o ON o.id=a.actor_id
+ UNION ALL SELECT 'mail:'||e.id,e.recorded_at,'mail-provider','Mail provider','agent','mail.'||e.event,'letter',e.letter_id,a.donor_id,'{}'
+ FROM cf_letter_events e JOIN cf_acks a ON a.id=e.letter_id
+ UNION ALL SELECT 'stripe:'||id,processed_at,'stripe','Stripe','agent','stripe.'||type,'provider-event',id,NULL,'{}' FROM cf_giving_events`
 
 export function auditAccess(c: Context) {
  if (!manager(c.actor)) fail('manager_required', 'Only the owner or an admin reads the audit log.', 403)
