@@ -228,7 +228,9 @@ A pledge has a total, a schedule (one date, or monthly, quarterly or annual inst
 
 A gift can soft-credit other constituents (a spouse, the board member who solicited it, the donor-advised fund advisor, a peer-to-peer fundraiser) for a full or partial amount. Soft credits appear on the credited record, in its giving summary and in reports as soft credit, never in hard-credit totals or on a tax receipt. Each soft credit has its own acknowledgment status (`RCPT-011`), so a spouse or a soliciting board member can be thanked and recorded separately from the hard-credit donor.
 
-*Acceptance:* An HTTP journey records a DAF grant hard-credited to the sponsor and soft-credited to the advisor, and reads the advisor's soft-credit total separately from hard credit in the donor API and a retention report.
+Recognition is the lesser of the recorded soft credit and the gift's current remaining balance; reversed gifts are excluded. Reports attribute that current recognition to the original gift's year and display it separately from cash retention cohorts and ledger totals. Staff record a separate thank-you already given, with its date, method and linked conversation or saved thank-you note; this records the completed action without sending a message or creating a tax receipt. A credit starts not acknowledged, can be reset with an audited change, and an owner or admin can mark it do not acknowledge with a reason. The broader automatic acknowledgment queue and importer behavior remain obligations of `RCPT-011`.
+
+*Acceptance:* An HTTP journey records a DAF grant hard-credited to the sponsor and soft-credited to the advisor, and reads the advisor's soft-credit total separately from hard credit in the donor API and a retention report. The journey records a separate handwritten thank-you and a linked thank-you call, checks role and stale-version refusals, proves hard-only tax statements and exercises backup/restore, merge/undo, reversals and erasure. The donor status forms and separate report run at 1440 and 390 pixels.
 
 #### GIFT-007 — Matching gifts.
 
@@ -995,7 +997,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 17 | relationships | `DONOR-003` | partial |
 | 18 | every gift | `GIFT-001` | done |
 | 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` partial · `COMM-004` missing · `COMM-005` partial |
-| 20 | soft credits | `GIFT-006` | partial |
+| 20 | soft credits | `GIFT-006` | done |
 | 21 | tributes | `GIFT-008` | partial |
 | 22 | employer matches | `GIFT-007` | partial |
 | 23 | Lifetime giving and first gift | `DONOR-011` | done |
@@ -1029,7 +1031,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 51 | Run Coffer on your own computer | `OWN-002` | done |
 | 52 | keep every donor record / Your donors, your database | `OWN-001`, `DATA-001` | done |
 | 53 | Export everything, any time | `DATA-001`, `DATA-002` | `DATA-001` done · `DATA-002` partial |
-| 54 | Soft credits | `GIFT-006` | partial |
+| 54 | Soft credits | `GIFT-006` | done |
 | 55 | Tribute gifts | `GIFT-008` | partial |
 | 56 | Matching gifts | `GIFT-007` | partial |
 | 57 | Pledges: schedules, reminders and balances kept current | `GIFT-005`, `STEW-004` | `GIFT-005` partial · `STEW-004` partial |
@@ -1040,7 +1042,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `6329f70` (19 October 2026). The historical v0.1.0 release gate at commit `4ba9d72` (18 October 2026) ran the published clauses through the product at 1440 and 390 pixels on a fresh local install and once on a hosted installation with real email and Stripe test cards; it backed the hosted installation up with `rer run backup:hosted`, removed it, redeployed it empty and restored the archive, after which every archived table's row count and every year and fund total matched and the destination owner signed in by email. A fresh local run of the stranger’s 5,000-constituent, 40,002-row LGL export moved 38,551 received gifts in 63 parts, matching $20,200,908.23 and all 4,013 giving-donor totals. Independent shared-email and material pledge blockers appeared together in the first review; the three rounded pledges each retained $5,000 promised and $5,000.04 paid. The changed CRM, donor, duplicate, letter, appeal, call and pipeline pages were exercised at 1440 and 390 pixels. Header/preparation dates and an automatic online receipt were checked across the UTC/organization-day boundary.
+Judged from the code and named clause journeys on 19 October 2026. The historical v0.1.0 release gate at commit `4ba9d72` (18 October 2026) ran the published clauses through the product at 1440 and 390 pixels on a fresh local install and once on a hosted installation with real email and Stripe test cards; it backed the hosted installation up with `rer run backup:hosted`, removed it, redeployed it empty and restored the archive, after which every archived table's row count and every year and fund total matched and the destination owner signed in by email. A fresh local run of the stranger’s 5,000-constituent, 40,002-row LGL export moved 38,551 received gifts in 63 parts, matching $20,200,908.23 and all 4,013 giving-donor totals. Independent shared-email and material pledge blockers appeared together in the first review; the three rounded pledges each retained $5,000 promised and $5,000.04 paid. The changed CRM, donor, duplicate, letter, appeal, call and pipeline pages were exercised at 1440 and 390 pixels. Header/preparation dates and an automatic online receipt were checked across the UTC/organization-day boundary.
 
 This table is the sole authority for every clause’s status. ACK-001, IMPORT-001 and GIFT-001 were re-judged from the current code and cited tests on 19 October 2026; the earlier release evidence above does not prove their widened requirements.
 
@@ -1057,8 +1059,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 14 | 62 | 50 | 126 |
-| All | 22 | 63 | 50 | 135 |
+| Target and push further | 15 | 61 | 50 | 126 |
+| All | 23 | 62 | 50 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1089,7 +1091,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `GIFT-003` | Campaign, appeal, fund and channel attribution | target | partial | `src/coffer/gifts.ts` | Each gift has one free-text fund; no campaigns, appeals or source as structured references. |
 | `GIFT-004` | Split gifts | target | done | `src/coffer/gift-splits.ts`, `migrations/core/0039_coffer_gift_splits.sql`, `src/coffer/fund-report.ts`, `tests/split-gifts.test.mjs` |  |
 | `GIFT-005` | Pledges, installments and balances | target | partial | `src/coffer/pledges.ts`, `src/coffer/ui/pledges.ts`, `tests/pledges.test.mjs` | Dated installments total the pledge, allocations match gifts by donor/fund without overpayment, and reversals reopen balances. Write-offs, reductions, campaign attribution and recurring-plan payment remain. |
-| `GIFT-006` | Soft credits | target | partial | `src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs` | Full or partial recognition links another donor to a gift and appears in a separate reversal-aware total without increasing received totals or tax receipts. Separate acknowledgment status and report integration remain. |
+| `GIFT-006` | Soft credits | target | done | `src/coffer/gift-depth.ts`, `src/coffer/soft-credit-ack.ts`, `src/coffer/retention.ts`, `tests/soft-credits.test.mjs`, `tests/soft-credit-journey.mjs` | Full and partial recognition appears separately on donor records, giving summaries and retention reports, without increasing cash totals or tax statements. Each credit has its own versioned, audited acknowledgment, date, method and linked conversation or recorded thank-you note; native forms run at 1440 and 390. |
 | `GIFT-007` | Matching gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/ui/gift-depth.ts`, `tests/soft-credits.test.mjs` | Expected employer amount/deadline links the original gift to a received employer ledger gift, with overdue and reversal-aware states. Program lookup, submission workflow, automatic employee recognition and submission reminders remain. |
 | `GIFT-008` | Tribute gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/year-end.ts`, `tests/soft-credits.test.mjs` | Honor/memory, honoree and notification contact are recorded on gifts and included in approved gift/year-end receipt text. Tribute grouping, notification sending and incumbent tribute imports remain. |
 | `GIFT-009` | In-kind gifts | target | missing |  | Gifts are monetary only. |
@@ -1130,7 +1132,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `RCPT-008` | Corrected and voided receipts | target | missing |  | No receipt numbering, voiding or reissue. |
 | `RCPT-009` | One piece per household | target | missing |  | Letters and appeal exports are one row per gift or per donor; no household grouping, addressee or combined totals. |
 | `RCPT-010` | Merge fields in every template | target | partial | `src/coffer/settings.ts`, `tests/coffer.test.mjs` | Letter templates merge a fixed list of nine fields (date, donor name, amount, gift date, fund, goods statement, organization, EIN, deductible amount) and are refused for unknown, missing required or unclosed fields; no name parts, salutations, household, contact-point, giving-summary or custom fields, no fallbacks, field list API or blank check. |
-| `RCPT-011` | Acknowledgment status on every gift and soft credit | target | partial | `src/coffer/donors.ts`, `src/coffer/ui/donors.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | A gift is due until it sits in a live letter batch, and the donor page shows each gift's letter state (prepared, approved, exported, sent) or "Letter due"; there is no stored acknowledgment status, method or link, no way to mark a gift acknowledged outside a batch or do not acknowledge, no status on soft credits, and no imported status. |
+| `RCPT-011` | Acknowledgment status on every gift and soft credit | target | partial | `src/coffer/soft-credit-ack.ts`, `src/coffer/acknowledgements.ts`, `tests/soft-credits.test.mjs`, `tests/receipts.test.mjs` | Soft credits have independent status, date, method, linked conversation or recorded thank-you note, exclusion reason and audited changes under GIFT-006. Hard gifts still lack stored per-gift acknowledgment status, method or an outside-batch setter; automatic message updates, soft-credit queue settings, importer status and saved-list/report filters remain. |
 | `COMM-001` | Preferences and unsubscribes everywhere | target | partial | `docs/COMMUNICATIONS.md` | Email provider opt-outs append withdrawals and Coffer email withdrawals synchronize to Mango or Mailchimp; each marketing submission checks both sides. Receipts remain transactional. SMS/phone, topics, frequency preferences and other providers remain. |
 | `COMM-002` | Appeals sent through Mango or Mailchimp | target | partial | `docs/COMMUNICATIONS.md` | Frozen, hash-approved appeals merge donor names and giving figures into exact-recipient Mango or Mailchimp campaigns, with per-donor submission and provider results. Real local Mango draft/sync paths and hosted appeal/welcome delivery, a real unsubscribe click, reverse withdrawal and a transactional receipt after opt-out are proven. Mailchimp remains fixture-only. Name-part/custom-field merges, tags, engagement/attribution, scheduled appeals and solicitation restrictions remain. |
 | `COMM-003` | Constant Contact | target | missing |  | No Constant Contact connection. |

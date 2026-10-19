@@ -1,3 +1,4 @@
+import { softCreditAckCommand } from './soft-credit-ack'
 import { portfolioCommand } from './portfolios'
 import { plannedGivingCommand } from './planned-giving'
 import { restrictedFundCommand } from './restricted-funds'
@@ -32,6 +33,7 @@ export const ACCESS: Record<string, Role[]> = {
  'task.repeatCreate': STAFF, 'task.repeatComplete': STAFF, 'task.generate': STAFF, 'task.assign': STAFF, 'task.snooze': STAFF, 'task.complete': STAFF, 'prospect.save': STAFF,
  'donor.create': STAFF, 'donor.update': STAFF, 'gift.record': STAFF, 'consent.record': STAFF, 'pledge.create': STAFF,
  'donor.merge': MANAGERS, 'donor.unmerge': MANAGERS, 'relationship.create': STAFF, 'relationship.remove': STAFF, 'interaction.record': STAFF,
+ 'softCredit.acknowledge': STAFF, 'softCredit.resetAcknowledgment': STAFF, 'softCredit.doNotAcknowledge': MANAGERS,
  'softCredit.record': STAFF, 'softCredit.remove': STAFF, 'tribute.record': STAFF, 'match.record': STAFF, 'match.receive': STAFF,
  'pledge.remind': STAFF, 'pledge.match': STAFF,
  'gift.reverse': MANAGERS, 'gift.classify': MANAGERS, 'settings.update': MANAGERS,
@@ -52,7 +54,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'donor.unmerge') return undoMerge(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [portfolioCommand, plannedGivingCommand, restrictedFundCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) {
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }

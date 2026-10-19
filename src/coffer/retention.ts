@@ -8,7 +8,8 @@ export type RetentionRow = {
 export type RetentionGroup = {
  kind: RetentionKind; rows: RetentionRow[]; count: number; priorCents: number; currentCents: number
 }
-const summarize = (rows: RetentionRow[]) => ({
+export type SoftCreditRetentionRow = { donorId: string; name: string; priorCents: number; currentCents: number; creditCount: number }
+const summarize = (rows: Pick<RetentionRow, 'priorCents' | 'currentCents'>[]) => ({
  count: rows.length,
  priorCents: rows.reduce((sum, row) => sum + row.priorCents, 0),
  currentCents: rows.reduce((sum, row) => sum + row.currentCents, 0),
@@ -22,7 +23,7 @@ export async function retention(c: Context, selectedYear?: number | string) {
  const year = integer(selectedYear === undefined ? currentYear : Number(selectedYear), 'Calendar year', 1000, currentYear)
  const priorYear = year - 1, priorStart = `${priorYear}-01-01`, start = `${year}-01-01`
  const end = year === currentYear ? asOf : `${year}-12-31`
- const [donors, excluded] = await Promise.all([
+ const [donors, excluded, softCreditRows] = await Promise.all([
   all<RetentionRow & { earlierCents: number }>(c, `WITH annual AS (
    SELECT donor_id,substr(received_on,1,4) AS year,SUM(amount_cents) AS cents
    FROM cf_contribution_ledger WHERE received_on<? GROUP BY donor_id,substr(received_on,1,4)
@@ -43,6 +44,16 @@ export async function retention(c: Context, selectedYear?: number | string) {
    FROM cf_contribution_ledger l JOIN cf_donors d ON d.id=l.donor_id
    WHERE l.received_on>=? AND l.received_on<=? AND (d.erased_at IS NOT NULL
     OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))`, start, start, priorStart, end),
+  all<SoftCreditRetentionRow>(c, `SELECT credited.id AS donorId,credited.name,COUNT(*) AS creditCount,
+   SUM(CASE WHEN g.received_on<? THEN MIN(s.amount_cents,g.net_cents) ELSE 0 END) AS priorCents,
+   SUM(CASE WHEN g.received_on>=? THEN MIN(s.amount_cents,g.net_cents) ELSE 0 END) AS currentCents
+   FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id
+   JOIN cf_donors credited ON credited.id=s.donor_id JOIN cf_donors hard ON hard.id=g.donor_id
+   WHERE g.received_on>=? AND g.received_on<=? AND g.kind='gift' AND g.net_cents>0
+    AND hard.erased_at IS NULL AND credited.erased_at IS NULL
+    AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id IN (hard.id,credited.id))
+    AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
+   GROUP BY credited.id,credited.name ORDER BY lower(credited.name),credited.id`, start, start, priorStart, end),
  ])
  const groups: Record<RetentionKind, RetentionGroup> = {
   retained: { kind: 'retained', rows: [], count: 0, priorCents: 0, currentCents: 0 },
@@ -68,6 +79,7 @@ export async function retention(c: Context, selectedYear?: number | string) {
   prior: { from: priorStart, through: `${priorYear}-12-31`, label: `${priorYear} complete calendar year` },
   current: { from: start, through: end, label: year === currentYear ? `${year} year to date through ${longDate(end)}` : `${year} complete calendar year` },
   groups, adjustments: { rows: adjustmentRows, ...summarize(adjustmentRows) },
+  softCredits: { rows: softCreditRows, ...summarize(softCreditRows) },
   totals: { ...totals, priorDonors, currentDonors, retentionRate: priorDonors ? groups.retained.count / priorDonors : null },
   excluded: excludedTotals,
   ledgerTotals: { priorCents: totals.priorCents + excludedTotals.priorCents, currentCents: totals.currentCents + excludedTotals.currentCents },
