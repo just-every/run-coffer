@@ -146,7 +146,9 @@ Coffer flags likely duplicates (same email, same name and postal address, same p
 
 A person filters constituents on any field, tag, giving range, date of last gift, fund, campaign, relationship manager, consent, engagement score and lapsed status, and saves the filter as a named list that stays current. Lists drive appeals, journeys, reports, tasks and exports. From a list, an admin applies a bulk action to every record in it (add or remove a tag, assign a relationship manager, set a custom field, change status, or set or clear a solicitation restriction) as one audited change that can be undone. A list can filter on the solicitation restriction (`DONOR-015`); a list used for an ask leaves restricted constituents out unless a person includes them for that run, recorded on the run as `DONOR-015` sets out.
 
-*Acceptance:* An HTTP journey saves a list of donors who gave $500 or more last year with email consent, adds a qualifying gift, and sees the list grow without editing it; the list feeds an appeal audience; a bulk action adds a tag and assigns a relationship manager to every record in the list, and undoing it restores each record; a second bulk action sets "do not solicit" on every record of a list, a list filtered on the restriction returns exactly those records, and the audit log names who set it.
+Before a saved or new list kind ships, it supplies its live donor membership to REPORT-001 retention reports for fiscal/calendar years, fund/campaign scopes and all cohort/movement drilldowns.
+
+*Acceptance:* An HTTP journey saves a list of donors who gave $500 or more last year with email consent, adds a qualifying gift, and sees the list grow without editing it; the list feeds an appeal audience; a bulk action adds a tag and assigns a relationship manager to every record in the list, and undoing it restores each record; a second bulk action sets "do not solicit" on every record of a list, a list filtered on the restriction returns exactly those records, and the audit log names who set it. Its saved live membership must also produce REPORT-001 fiscal/calendar cohorts and scoped totals matching the same donors, including upgraded/downgraded drilldowns.
 
 #### DONOR-008 — Documents on records.
 
@@ -660,7 +662,9 @@ The numbers boards and development committees ask for, reconciled with the ledge
 
 Retention, new, retained, recaptured, upgraded, downgraded and lapsed donors and dollars per year, following the Fundraising Effectiveness Project's definitions, by fiscal or calendar year, for any list, fund or campaign; each figure opens to its donors.
 
-*Acceptance:* An HTTP journey builds three years of giving and reads retention figures that match a hand calculation, then opens the lapsed figure to its donors.
+Years are labelled by their start year; fiscal periods use the configured fiscal-year start. The prior year is complete; the current year ends today in the organization’s time zone and its lapses are provisional. Signed ledger entries, including refunds and reversals on their own dates, determine period giving; fund and campaign filters use exact-cent allocations. Cohorts are evaluated within that giving scope. Positive net giving in both periods is retained; retained donors giving more, less or the same are upgraded, downgraded or unchanged. Positive current giving without positive prior giving is new if no earlier reporting year has positive net giving, otherwise recaptured. Positive prior giving without positive current giving is lapsed. Refund-only/zero-net records reconcile separately; erased identities remain in ledger reconciliation but never donor counts or drilldowns. Current donor-search, relationship and live LYBUNT/SYBUNT lists filter membership independently of the reporting period. This obligation is complete for every current list door; before saved or new list kinds ship under `DONOR-007`, that clause must feed their live membership into REPORT-001 fiscal/calendar, fund/campaign and cohort drilldowns. Soft credits remain separate recognition, never received dollars or retention counts.
+
+*Acceptance:* A clause-named HTTP journey builds three years of giving and reads retained, new, recaptured, lapsed and upgraded/downgraded/unchanged counts and dollars matching a hand calculation, then opens the lapsed figure to its donors. It checks fiscal-year boundary dates, signed split-gift fund/campaign totals, current search/relationship and LYBUNT/SYBUNT membership, empty results, erased-ledger reconciliation and backup/restore. The filters, movement and lapsed drilldowns and empty end state run at 1440 and 390 pixels. New saved-list membership is asserted under `DONOR-007` before that door ships.
 
 #### REPORT-002 — LYBUNT and SYBUNT lists.
 
@@ -1075,8 +1079,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 20 | 58 | 48 | 126 |
-| All | 28 | 59 | 48 | 135 |
+| Target and push further | 21 | 57 | 48 | 126 |
+| All | 29 | 58 | 48 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1170,7 +1174,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MAJOR-005` | Prospect research | target | missing |  | No prospect research. |
 | `MAJOR-006` | Grants from foundations and corporations | target | done | `src/coffer/grants.ts`, `src/coffer/ui/grants.ts`, `migrations/core/0053_coffer_grants.sql`, `tests/grants-journey.mjs`, `tests/pipeline.test.mjs` | Clause-named public-door journey records inquiry/proposal progress, documents, a restricted award pledge, installments, payment/reversal and owned report completion. Roles, stale writes, refused atomic awards, backup/restore, merge/undo and erasure are asserted. Native create/upload/progress/award/payment/report flows run at 1440 and 390 pixels. Later grants fence Stripe and CRM import undo. |
 | `MAJOR-007` | Planned giving | target | done | `src/coffer/planned-giving.ts`, `src/coffer/ui/planned-giving.ts`, `tests/pipeline.test.mjs` | Versioned bequest and other intentions retain vehicle, optional estimated value and documentation status; dated legacy-society enrollment is separate from received gifts. Multiple estate distributions link once each to their intention and show reversal-aware net receipts. MAJOR-007 HTTP proof covers create/enroll/link, authorization, stale edits, backup/restore, merge/undo and erasure; donor forms run at 1440 and 390. |
-| `REPORT-001` | Donor retention | target | partial | `src/coffer/retention.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs` | Calendar-year retained, new, lapsed and recaptured counts and net amounts drill to every underlying donor; signed adjustments and erased identities reconcile to the contribution ledger. Fiscal years, list/fund/campaign filters and upgraded/downgraded cohorts remain. |
+| `REPORT-001` | Donor retention | target | done | `src/coffer/retention.ts`, `src/coffer/retention-scope.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs`, `tests/retention-journey.mjs` | Fiscal/calendar signed-net cohorts and retained-donor movements, current-list and exact split-aware fund/campaign scopes, donor drilldowns, erased-ledger reconciliation and backup/restore are clause-named HTTP proof; populated/filter/empty screens run at 1440/390. DONOR-007 inherits future saved-list parity in text and acceptance. |
 | `REPORT-002` | LYBUNT and SYBUNT lists | target | done | `src/coffer/annual-lapses.ts`, `src/coffer/ui/annual-lapses.ts`, `src/coffer/appeals.ts`, `tests/pipeline.test.mjs`, `tests/annual-lapses-journey.mjs` | Independent calendar-year signed-net lists include last-gift date/balance and reference-year totals, feed frozen consent-checked appeals and owned calls, and preserve custody. STEW-003 explicitly inherits direct cohort enrollment before list-triggered journeys ship. |
 | `REPORT-003` | Fundraising dashboards | target | partial | `src/coffer/ui/home.ts` | Today shows the current calendar year's total and acknowledgment backlog; no breakdowns, goals, comparisons or drill-down. |
 | `REPORT-004` | Report builder | target | missing |  | No report builder. |

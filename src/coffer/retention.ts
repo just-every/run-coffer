@@ -1,5 +1,6 @@
-import { all, fail, integer, today, type Context } from './db'
-import { longDate, settings } from './settings'
+import { all, type Context } from './db'
+import { retentionScope } from './retention-scope'
+import { longDate } from './settings'
 
 export type RetentionKind = 'retained' | 'new' | 'lapsed' | 'recaptured'
 export type RetentionRow = {
@@ -17,43 +18,46 @@ const summarize = (rows: Pick<RetentionRow, 'priorCents' | 'currentCents'>[]) =>
 
 /** Net contributions are attributed to their ledger dates, including refunds
  * and reversals. Fees and soft credits are not donor contributions. */
-export async function retention(c: Context, selectedYear?: number | string) {
- const s = await settings(c), asOf = today(s.timezone, new Date(c.now)), currentYear = Number(asOf.slice(0, 4))
- if (typeof selectedYear === 'string' && !/^\d{4}$/.test(selectedYear)) fail('INPUT', 'Choose a calendar year.', 400)
- const year = integer(selectedYear === undefined ? currentYear : Number(selectedYear), 'Calendar year', 1000, currentYear)
- const priorYear = year - 1, priorStart = `${priorYear}-01-01`, start = `${year}-01-01`
- const end = year === currentYear ? asOf : `${year}-12-31`
+export async function retention(c: Context, url: URL) {
+ const scope = await retentionScope(c,url)
+ const {year,priorYear,asOf,start,priorStart,end,donorSql,donorParams,fund,campaignId} = scope
+ // The same split-aware signed ledger scopes history, cohorts and reconciliation.
+ const ledgerSql = `(? IS NULL OR fund=?) AND (? IS NULL OR campaign_id=?)`
+ const ledgerParams = [fund,fund,campaignId,campaignId]
  const [donors, excluded, softCreditRows] = await Promise.all([
-  all<RetentionRow & { earlierCents: number }>(c, `WITH annual AS (
-   SELECT donor_id,substr(received_on,1,4) AS year,SUM(amount_cents) AS cents
-   FROM cf_contribution_ledger WHERE received_on<? GROUP BY donor_id,substr(received_on,1,4)
+  all<RetentionRow & { earlierCents: number }>(c, `WITH ledger AS (SELECT * FROM cf_fund_ledger WHERE ${ledgerSql}), annual AS (
+   SELECT donor_id,CAST(substr(received_on,1,4) AS INTEGER)-CASE WHEN substr(received_on,6)<'${scope.monthDay}' THEN 1 ELSE 0 END AS year,SUM(amount_cents) AS cents
+   FROM ledger WHERE received_on<? GROUP BY donor_id,year
   ), periods AS (
    SELECT donor_id,SUM(CASE WHEN received_on>=? AND received_on<? THEN amount_cents ELSE 0 END) AS priorCents,
     SUM(CASE WHEN received_on>=? THEN amount_cents ELSE 0 END) AS currentCents
-   FROM cf_contribution_ledger WHERE received_on>=? AND received_on<=? GROUP BY donor_id
+   FROM ledger WHERE received_on>=? AND received_on<=? GROUP BY donor_id
   ), last_gifts AS (
    SELECT donor_id,MAX(received_on) AS lastGift FROM cf_gift_balances WHERE net_cents>0 AND received_on<=? GROUP BY donor_id
   ) SELECT d.id AS donorId,d.name,p.priorCents,p.currentCents,g.lastGift,
    COALESCE((SELECT MAX(cents) FROM annual a WHERE a.donor_id=d.id),0) AS earlierCents
-  FROM periods p JOIN cf_donors d ON d.id=p.donor_id LEFT JOIN last_gifts g ON g.donor_id=d.id
-  WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
-  ORDER BY lower(d.name),d.id`, priorStart, priorStart, start, start, priorStart, end, end),
+  FROM periods p JOIN cf_donors d ON d.id=p.donor_id LEFT JOIN cf_households h ON h.id=d.household_id LEFT JOIN last_gifts g ON g.donor_id=d.id
+  WHERE ${donorSql} AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
+  ORDER BY lower(d.name),d.id`, ...ledgerParams,priorStart, priorStart, start, start, priorStart, end, end,...donorParams),
   all<{ priorCents: number; currentCents: number }>(c, `SELECT
    COALESCE(SUM(CASE WHEN l.received_on<? THEN l.amount_cents ELSE 0 END),0) AS priorCents,
    COALESCE(SUM(CASE WHEN l.received_on>=? THEN l.amount_cents ELSE 0 END),0) AS currentCents
-   FROM cf_contribution_ledger l JOIN cf_donors d ON d.id=l.donor_id
-   WHERE l.received_on>=? AND l.received_on<=? AND (d.erased_at IS NOT NULL
-    OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))`, start, start, priorStart, end),
+   FROM (SELECT * FROM cf_fund_ledger WHERE ${ledgerSql}) l JOIN cf_donors d ON d.id=l.donor_id LEFT JOIN cf_households h ON h.id=d.household_id
+   WHERE l.received_on>=? AND l.received_on<=? AND ${donorSql} AND (d.erased_at IS NOT NULL
+    OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))`, start, start,...ledgerParams,priorStart,end,...donorParams),
   all<SoftCreditRetentionRow>(c, `SELECT credited.id AS donorId,credited.name,COUNT(*) AS creditCount,
    SUM(CASE WHEN g.received_on<? THEN MIN(s.amount_cents,g.net_cents) ELSE 0 END) AS priorCents,
    SUM(CASE WHEN g.received_on>=? THEN MIN(s.amount_cents,g.net_cents) ELSE 0 END) AS currentCents
    FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id
    JOIN cf_donors credited ON credited.id=s.donor_id JOIN cf_donors hard ON hard.id=g.donor_id
+   JOIN cf_donors d ON d.id=credited.id LEFT JOIN cf_households h ON h.id=d.household_id
    WHERE g.received_on>=? AND g.received_on<=? AND g.kind='gift' AND g.net_cents>0
-    AND hard.erased_at IS NULL AND credited.erased_at IS NULL
+    AND ${donorSql} AND hard.erased_at IS NULL AND credited.erased_at IS NULL
+    AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_fund_ledger l WHERE l.gift_id=g.id AND l.fund=?))
+    AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_fund_ledger l WHERE l.gift_id=g.id AND l.campaign_id=?))
     AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id IN (hard.id,credited.id))
     AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
-   GROUP BY credited.id,credited.name ORDER BY lower(credited.name),credited.id`, start, start, priorStart, end),
+   GROUP BY credited.id,credited.name ORDER BY lower(credited.name),credited.id`, start,start,priorStart,end,...donorParams,...ledgerParams),
  ])
  const groups: Record<RetentionKind, RetentionGroup> = {
   retained: { kind: 'retained', rows: [], count: 0, priorCents: 0, currentCents: 0 },
@@ -71,14 +75,19 @@ export async function retention(c: Context, selectedYear?: number | string) {
   else adjustmentRows.push(row)
  }
  for (const group of Object.values(groups)) Object.assign(group, summarize(group.rows))
+ const movements = Object.fromEntries((['upgraded','downgraded','unchanged'] as const).map(kind=>{
+  const rows = groups.retained.rows.filter(r=>kind==='upgraded' ? r.currentCents>r.priorCents : kind==='downgraded' ? r.currentCents<r.priorCents : r.currentCents===r.priorCents)
+  return [kind,{kind,rows,...summarize(rows),changeCents:rows.reduce((n,r)=>n+r.currentCents-r.priorCents,0)}]
+ }))
  const totals = summarize(donors), excludedTotals = excluded[0]
  const priorDonors = groups.retained.count + groups.lapsed.count
  const currentDonors = groups.retained.count + groups.new.count + groups.recaptured.count
  return {
-  year, priorYear, asOf, timezone: s.timezone,
-  prior: { from: priorStart, through: `${priorYear}-12-31`, label: `${priorYear} complete calendar year` },
-  current: { from: start, through: end, label: year === currentYear ? `${year} year to date through ${longDate(end)}` : `${year} complete calendar year` },
-  groups, adjustments: { rows: adjustmentRows, ...summarize(adjustmentRows) },
+  year, priorYear, asOf, timezone:scope.timezone,basis:scope.basis,
+  filters:{fund,campaignId,list:scope.list,listYear:scope.listYear,q:scope.q,relationship:scope.relationship,relatedTo:scope.relatedTo},
+  prior: { from: priorStart, through: scope.priorEnd, label: `${priorYear} complete ${scope.basis} year` },
+  current: { from: start, through: end, provisional: year===scope.currentYear, label: year === scope.currentYear ? `${year} year to date through ${longDate(end)}` : `${year} complete ${scope.basis} year` },
+  groups, movements, adjustments: { rows: adjustmentRows, ...summarize(adjustmentRows) },
   softCredits: { rows: softCreditRows, ...summarize(softCreditRows) },
   totals: { ...totals, priorDonors, currentDonors, retentionRate: priorDonors ? groups.retained.count / priorDonors : null },
   excluded: excludedTotals,

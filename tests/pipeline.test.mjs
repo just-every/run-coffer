@@ -1,3 +1,4 @@
+import {retentionJourney} from './retention-journey.mjs'
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {run,donor,archive,restore} from './harness.mjs'
@@ -52,34 +53,7 @@ test('a lapsed donor becomes an owned call, reassignment and snooze preserve it,
  assert.notEqual(pledgeTask.id,task.id)
 }))
 
-test('retention counts and amounts drill to the exact donors, including recapture and corrected gifts',()=>run(async h=>{
- const retained=await donor(h,'Retained Ada'),fresh=await donor(h,'New Ben'),lapsed=await donor(h,'Lapsed Chen'),recaptured=await donor(h,'Recaptured Dee'),reversed=await donor(h,'Corrected Eli')
- await gift(h,retained,'100',`${year-1}-01-03`);await gift(h,retained,'125',`${year}-01-03`)
- await gift(h,fresh,'80',`${year}-01-03`)
- await gift(h,lapsed,'210',`${year-1}-01-03`)
- await gift(h,recaptured,'90',`${year-2}-01-03`);await gift(h,recaptured,'95',`${year}-01-03`)
- const correction=await gift(h,reversed,'35',`${year}-01-03`)
- await h.command('gift.reverse',{giftId:correction.id,reason:'Synthetic duplicate entry'})
- const report=await h.get(`/api/coffer/retention?year=${year}`)
- const expected={retained:[retained.id,10000,12500],new:[fresh.id,0,8000],lapsed:[lapsed.id,21000,0],recaptured:[recaptured.id,0,9500]}
- for(const [kind,[donorId,prior,current]] of Object.entries(expected)){
-  const group=report.groups[kind]
-  assert.equal(group.count,1)
-  assert.deepEqual(group.rows.map(d=>d.donorId),[donorId])
-  assert.equal(group.priorCents,prior)
-  assert.equal(group.currentCents,current)
-  assert.equal(group.priorCents,group.rows.reduce((n,d)=>n+d.priorCents,0))
-  assert.equal(group.currentCents,group.rows.reduce((n,d)=>n+d.currentCents,0))
-  const page=await h.request(`/app/retention?year=${year}&group=${kind}`)
-  assert.equal(page.status,200)
-  assert.match(await page.text(),new RegExp(`/app/donors/${donorId}`))
- }
- assert.equal(report.totals.priorCents,31000)
- assert.equal(report.totals.currentCents,30000)
- await h.get('/api/coffer/retention?year=not-a-year',{status:400})
- await h.get('/api/coffer/retention',{as:'',status:401})
-}))
-
+test('REPORT-001: three-year cohorts, fiscal boundaries, movements and scoped ledger drilldowns',retentionJourney)
 
 test('STEW-002: quarterly completion and overdue monthly Cron create exactly one next task, including month ends and custody',()=>run(async h=>{
  const owner=(await h.get('/auth/session')).operator
