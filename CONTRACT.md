@@ -1056,9 +1056,9 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 7 | 2 | 0 | 9 |
+| Published | 8 | 1 | 0 | 9 |
 | Target and push further | 14 | 62 | 50 | 126 |
-| All | 21 | 64 | 50 | 135 |
+| All | 22 | 63 | 50 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1069,7 +1069,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `ACK-001` | Acknowledgment letters | published | partial | `src/coffer/acknowledgements.ts`, `src/coffer/settings.ts`, `tests/coffer.test.mjs` | Reviewed settings, frozen hash approval, CSV export and sent-date recording ship; imported acknowledged/do-not-acknowledge statuses, source goods-value handling and a stored per-gift acknowledged-by-letter method/batch link remain incomplete (`RCPT-011`). The move-in acknowledge-from cutoff is implemented through prior-acknowledgment exclusions. |
 | `APPEAL-001` | Consent-checked appeals | published | done | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` |  |
 | `AGENT-001` | Prepare, then a person decides | published | done | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `tests/coffer.test.mjs` |  |
-| `IMPORT-001` | Reviewed Stripe move-in | published | partial | `src/coffer/imports/service.ts`, `src/coffer/imports/snapshots.ts`, `tests/coffer.test.mjs` | Partial refunds import at net cents and original Stripe pages retain gross/refunded fields. Fully refunded charges are skipped; already-imported records are skipped rather than rejecting the upload; within-upload repeats reject only the first duplicate without row locations. Explicit gross/refunded/net review, retained zero-net refunded records and all-duplicate ID/row diagnostics remain. |
+| `IMPORT-001` | Reviewed Stripe move-in | published | done | `src/coffer/imports/`, `src/coffer/ui/move-in.ts`, `tests/coffer.test.mjs`, `tests/import-refunds-journey.mjs` | Saved-page reviews retain gross, refunded and net cents, including zero-net fully refunded charges as an original with its compensating reversal. Every duplicate ID and file row is rejected before planning, including already imported records. Clause-tagged HTTP and 1440/390 native-upload journeys exercise exact approval, originals, totals, replay, guarded undo and erasure. |
 | `DATA-001` | Custody and erasure | published | done | `src/coffer/archive-policy.mjs`, `src/coffer/imports/erasure.ts`, `scripts/backup-hosted.mjs`, `tests/coffer.test.mjs`, `tests/hosted-restore.test.mjs` |  |
 | `DONOR-002` | Organization records | target | partial | `src/coffer/donors.ts` | Every constituent is a person-shaped donor record; there is no organization type, EIN, website or contact role. |
 | `DONOR-003` | Relationships | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-depth.ts`, `docs/donor-depth.md` | Reciprocal spouse, employer, board member, foundation officer and introduced-by links show on both records and filter donor lists. Household salutations, head and combined totals remain. |

@@ -2,7 +2,7 @@ import type { D1Sql, ImportJob, ImportPlan, Json, RetainedOriginal } from '../..
 
 export type ImportActor = { id: string; name: string; role: string }
 /** Supplied by the authenticated handler; must consult the current session. */
-export type ImportAuthority = { sql: string; params: any[] }
+export type ImportAuthority = { sql: string; params: any[]; liveStripe?: boolean }
 /** Saved Stripe API list responses: GET /v1/customers and GET /v1/charges pages. */
 export type SnapshotInput = { customers?: object[]; charges: object[]; subscriptions?: object[]; paymentIntents?: object[]; invoices?: object[]; noGoodsOrServices?: boolean }
 export type ApplyInput = SnapshotInput & { fingerprint: string }

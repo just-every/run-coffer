@@ -271,7 +271,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
  }
  if (action === 'read-stripe') {
   const input = await readStripe(c.env!, Object.fromEntries(['start', 'end', 'readKey', 'noGoodsOrServices'].map(name => [name, get(name)])))
-  const result = await imports.preview(c.db, c.actor, input, authority)
+  const result = await imports.preview(c.db, c.actor, input, { ...authority, liveStripe: await imports.isLiveStripeInput(input, c.env!.SESSION_SECRET) })
   return isApi ? json({ input, ...result }) : page('Review the move-in', previewPage(input, result), c.actor, 200, '/app/more')
  }
  const input = isApi ? data : {
@@ -279,10 +279,10 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
   subscriptions: await pages(data as FormData, 'subscriptions'), paymentIntents: await pages(data as FormData, 'paymentIntents'), invoices: await pages(data as FormData, 'invoices'),
   noGoodsOrServices: get('noGoodsOrServices') === 'yes', fingerprint: get('fingerprint') ?? undefined,
  }
- if (action === 'preview') { const result = await imports.preview(c.db, c.actor, input, authority); return isApi ? json(result) : page('Review the move-in', previewPage(input, result), c.actor, 200, '/app/more') }
+ if (action === 'preview') { const result = await imports.preview(c.db, c.actor, input, { ...authority, liveStripe: await imports.isLiveStripeInput(input, c.env!.SESSION_SECRET) }); return isApi ? json(result) : page('Review the move-in', previewPage(input, result), c.actor, 200, '/app/more') }
  if (action === 'apply') {
   if (!isApi && get('confirm') !== 'yes') fail('confirmation_required', 'Tick the box to approve this exact plan.', 400)
-  const result = await imports.apply(c.db, c.actor, input, authority)
+  const result = await imports.apply(c.db, c.actor, input, { ...authority, liveStripe: await imports.isLiveStripeInput(input, c.env!.SESSION_SECRET) })
   return isApi ? json(result) : redirect(`/app/move-in/journal?id=${encodeURIComponent(result.id)}`)
  }
  return fail('not_found', 'Not found.', 404)

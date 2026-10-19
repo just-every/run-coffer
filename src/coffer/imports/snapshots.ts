@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { canonicalJson, sha256, type ImportMapping, type Json, type SourceArtifact, type SourceBundle, type SourceRecord, type TargetEffect } from '../../modules/import-kit/src/d1/index.ts'
 import { mappingVersion, namespace } from './context.ts'
+import { rejectDuplicateIds } from './duplicates.ts'
 import { planSubscriptions, type SubscriptionIndex } from './subscriptions.ts'
 import { reject, type Skipped, type SnapshotInput, type SnapshotObject } from './types.ts'
 
@@ -12,7 +13,7 @@ export const giftId = (charge: string) => `stripe-${sha256(canonicalJson([namesp
 export const erasureHash = (value: string) => sha256(canonicalJson(['coffer-erasure', value.trim().toLowerCase()]))
 
 /** What Coffer already holds, read before planning so the mapping stays pure. */
-export type NativeIndex = { donorIds: Set<string>; aliases?: Map<string,string>; erased: Set<string>; emails: Map<string, string>; charges: Map<string, number>; timezone: string; subscriptions: SubscriptionIndex }
+export type NativeIndex = { liveRead?: boolean; donorIds: Set<string>; aliases?: Map<string,string>; erased: Set<string>; emails: Map<string, string>; charges: Map<string, number>; timezone: string; subscriptions: SubscriptionIndex }
 const ERASED = 'Belongs to a donor erased from Coffer; not imported again.'
 
 const object = (value: unknown, label: string): SnapshotObject => {
@@ -67,13 +68,13 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
   if (!records.some(r => r.kind === 'charge' || r.kind === 'subscription')) reject('IMPORT_EMPTY', 'Add Stripe charges or subscriptions to preview.', 400)
   if (all.length > snapshotLimits.pages || records.length > snapshotLimits.records || bytes > snapshotLimits.bytes)
     reject('IMPORT_LIMIT', `One review holds at most ${snapshotLimits.records} Stripe objects in ${snapshotLimits.pages} pages (${snapshotLimits.bytes / 1024 / 1024} MB). Import a year in several reviews, for example by quarter.`, 400)
-  const seen = new Set<string>()
-  for (const r of records) { if (seen.has(`${r.kind}:${r.sourceId}`)) reject('IMPORT_DUPLICATE_ID', `Stripe ${r.kind} ${r.sourceId} appears twice.`, 400); seen.add(`${r.kind}:${r.sourceId}`) }
+  const liveRead = native.liveRead === true
+  rejectDuplicateIds(records, native, liveRead)
 
   // Decide every object before planning. Only objects that create a donor or a
   // gift enter the plan; the rest are listed for review and change nothing, so
   // a later review of the same Stripe objects never conflicts with this one.
-  const effects = new Map<string, TargetEffect>(), skipped: Skipped[] = []
+  const effects = new Map<string, TargetEffect>(), refunds = new Map<string, TargetEffect>(), skipped: Skipped[] = []
   const skip = (r: SourceRecord, reason: string) => skipped.push({ kind: r.kind as 'customer' | 'charge', sourceId: r.sourceId, reason })
   // Stripe allows several customers with one email; Coffer keeps one donor per
   // email. The earliest customer wins and later ones point at it.
@@ -106,10 +107,10 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
     if (p.status !== 'succeeded' || p.paid !== true) { skip(r, 'Not a successful payment.'); continue }
     if (p.currency !== 'usd') { skip(r, 'Not in US dollars.'); continue }
     const amount = p.amount, refunded = typeof p.amount_refunded === 'number' ? p.amount_refunded : 0
-    if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 1 || !Number.isSafeInteger(refunded) || refunded < 0) reject('IMPORT_FIELD', `Charge ${r.sourceId} needs integer cent amounts.`, 400)
+    if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 1 || !Number.isSafeInteger(refunded) || refunded < 0 || refunded > amount) reject('IMPORT_FIELD', `Charge ${r.sourceId} needs integer cent amounts.`, 400)
     const net = amount - refunded, prior = native.charges.get(r.sourceId)
     if (prior !== undefined) { skip(r, prior === net ? 'Already imported.' : `Already imported; Stripe now shows ${(net / 100).toFixed(2)} USD. Record the refund as a reversal in Coffer.`); continue }
-    if (net <= 0) { skip(r, 'Fully refunded.'); continue }
+    if (net === 0 && liveRead) { skip(r, 'Fully refunded.'); continue }
     const billing = (p.billing_details && typeof p.billing_details === 'object' ? p.billing_details : {}) as SnapshotObject
     const customer = typeof p.customer === 'string' ? p.customer : '', email = mail(billing.email) || mail(p.receipt_email)
     const donor = (customer && donorFor.get(customer)) || (email && byEmail.get(email)) || ''
@@ -118,12 +119,18 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
     const meta = (p.metadata && typeof p.metadata === 'object' ? p.metadata : {}) as SnapshotObject
     const created = unix(p.created, 'charge.created'), type = (p.payment_method_details as SnapshotObject | null)?.type, id = giftId(r.sourceId)
     effects.set(`charge:${r.sourceId}`, { targetKind: 'gift', targetId: id, value: {
-      id, version: 1, donorId: donor, ...((meta.appeal || meta.campaign) ? {appeal: str(meta.appeal, 'metadata.appeal', 200) || str(meta.campaign, 'metadata.campaign', 200)} : {}), kind: 'gift', reverses: null, receivedOn: day(created, native.timezone), amountCents: net,
+      id, version: 1, donorId: donor, ...((meta.appeal || meta.campaign) ? {appeal: str(meta.appeal, 'metadata.appeal', 200) || str(meta.campaign, 'metadata.campaign', 200)} : {}), kind: 'gift', reverses: null, receivedOn: day(created, native.timezone), amountCents: net || amount,
+      grossCents: amount, refundedCents: refunded, netCents: net, status: net === 0 ? 'refunded' : refunded ? 'partially_refunded' : 'paid',
       method: type === 'us_bank_account' || type === 'ach_debit' ? 'bank transfer' : 'card', reference: r.sourceId,
       fund: str(meta.fund, 'metadata.fund', 100) || str(meta.campaign, 'metadata.campaign', 100) || 'Unrestricted', pledgeId: null,
       goods: noGoods ? 'none' : 'unknown', goodsCents: 0, goodsDescription: null, note: str(p.description, 'description', 1000) || null,
       source: 'stripe', createdAt: new Date(created * 1000).toISOString(), createdBy: 'Stripe move-in',
     } })
+    if (net === 0) {
+      const original = effects.get(`charge:${r.sourceId}`)!.value as SnapshotObject
+      const { grossCents, refundedCents, netCents, status, appeal, ...gift } = original
+      refunds.set(r.sourceId, { targetKind: 'gift', targetId: `${id}-refund`, value: { ...gift, id: `${id}-refund`, kind: 'reversal', reverses: id, amountCents: -amount, reference: null, goods: 'none', note: 'Fully refunded before Stripe move-in.' } })
+    }
   }
   const subscriptionPlan = planSubscriptions(records.filter(r => r.kind === 'subscription'), donorFor, native.subscriptions)
   skipped.push(...subscriptionPlan.skipped)
@@ -133,7 +140,7 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
   const mapping: ImportMapping = {
     version: mappingVersion,
     map(record) {
-      const planned = subscriptionPlan.effects.get(`subscription:${record.sourceId}`) ?? [effects.get(`${record.kind}:${record.sourceId}`)!]
+      const planned = subscriptionPlan.effects.get(`subscription:${record.sourceId}`) ?? [effects.get(`${record.kind}:${record.sourceId}`)!, ...(refunds.has(record.sourceId) ? [refunds.get(record.sourceId)!] : [])]
       return { effects: planned, unmapped: record.kind === 'customer' ? [{ reason: 'Stripe metadata and payment settings stay in the retained original.' }] : [] }
     },
   }

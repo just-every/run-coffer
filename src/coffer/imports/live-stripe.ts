@@ -1,5 +1,6 @@
 import { fail } from '../db'
 import { managed, stripe, type GivingEnv } from '../giving/stripe'
+import { signLiveStripeInput } from './live-review'
 import { snapshotLimits } from './snapshots'
 import type { SnapshotInput } from './types'
 
@@ -87,10 +88,10 @@ export async function readStripe(env: GivingEnv, input: Record<string, any>): Pr
  if (!charges.length && !plans.length) fail('stripe_import_empty', 'Stripe has no charges or subscriptions in this period. Choose another date range.', 400)
  // Context objects contain no client secrets or payment details. They are
  // retained with the approved review, but never become additional gifts.
- return {
+ return signLiveStripeInput({
   customers: [list(customers)], charges: [list(charges)], subscriptions: [list(plans)],
   paymentIntents: [list(intents.map(p => ({ id: p.id, created: p.created, status: p.status, amount: p.amount, currency: p.currency, customer: id(p.customer), latest_charge: id(p.latest_charge) })))],
   invoices: [list(invoices.map(i => ({ id: i.id, created: i.created, status: i.status, amount_paid: i.amount_paid, currency: i.currency, customer: id(i.customer), subscription: id(i.parent?.subscription_details?.subscription ?? i.subscription), paid_out_of_band: i.paid_out_of_band === true })))],
   noGoodsOrServices: input.noGoodsOrServices === true || input.noGoodsOrServices === 'yes',
- }
+ }, env.SESSION_SECRET)
 }

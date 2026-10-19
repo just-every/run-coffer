@@ -20,7 +20,7 @@ const revision = (kind: Kind) => kind === 'donor' || kind === 'gift'
   ? `CASE WHEN m.native_revision=t.version THEN m.import_revision ELSE 'native:'||t.version END`
   : `CASE WHEN m.native_revision=1 THEN m.import_revision ELSE 'native:unowned' END`
 const from = (kind: Kind) => `${TABLE[kind]} t LEFT JOIN cf_import_revisions m ON m.kind='${kind}' AND m.id=t.id`
-const select = (kind: Kind) => `SELECT ${COLUMNS[kind].map(([c]) => `t.${c}`).join(',')},${revision(kind)} AS kit_revision${kind === 'gift' ? ',(SELECT appeal FROM cf_gift_appeals WHERE gift_id=t.id) AS appeal' : ''} FROM ${from(kind)}`
+const select = (kind: Kind) => `SELECT ${COLUMNS[kind].map(([c]) => `t.${c}`).join(',')},${revision(kind)} AS kit_revision${kind === 'gift' ? `,(SELECT appeal FROM cf_gift_appeals WHERE gift_id=t.id) AS appeal,(SELECT json_object('grossCents',gross_cents,'refundedCents',refunded_cents,'netCents',net_cents,'status',status) FROM cf_import_refunds WHERE gift_id=t.id) AS refund_facts` : ''} FROM ${from(kind)}`
 
 function scope(target: string, kind?: string): Kind {
   if (target !== destination || (kind !== undefined && !Object.hasOwn(TABLE, kind))) reject('IMPORT_SCOPE', 'Unsupported import destination or record kind.')
@@ -29,6 +29,7 @@ function scope(target: string, kind?: string): Kind {
 function decode(kind: Kind, row: Record<string, any>): TargetRow {
   const value: Record<string, Json> = {}
   for (const [column, key] of COLUMNS[kind]) value[key] = row[column] ?? null
+  if (kind === 'gift' && row.refund_facts) Object.assign(value, JSON.parse(row.refund_facts))
   if (kind === 'gift' && row.appeal) value.appeal = row.appeal
   return { destination, targetKind: kind, targetId: row.id, revision: row.kit_revision, value }
 }
@@ -51,7 +52,9 @@ export const ledgerTargets: D1TargetAdapter = {
     const k = scope(target, kind)
     if (!row) return sql(`NOT EXISTS(SELECT 1 FROM ${TABLE[k]} WHERE id=?) AND NOT EXISTS(SELECT 1 FROM cf_import_revisions WHERE kind='${k}' AND id=?)`, id, id)
     // Every native column, null-safe, plus the translated revision.
-    return sql(`EXISTS(SELECT 1 FROM ${from(k)} WHERE t.id=? AND ${revision(k)}=? AND ${COLUMNS[k].map(([c]) => `t.${c} IS ?`).join(' AND ')})`, id, row.revision, ...values(k, row))
+    const facts = row.value as Record<string, Json>
+    const refundMatch = k !== 'gift' ? '' : facts.grossCents === undefined ? ' AND NOT EXISTS(SELECT 1 FROM cf_import_refunds WHERE gift_id=t.id)' : ' AND EXISTS(SELECT 1 FROM cf_import_refunds WHERE gift_id=t.id AND gross_cents IS ? AND refunded_cents IS ? AND net_cents IS ? AND status IS ?)'
+    return sql(`EXISTS(SELECT 1 FROM ${from(k)} WHERE t.id=? AND ${revision(k)}=? AND ${COLUMNS[k].map(([c]) => `t.${c} IS ?`).join(' AND ')}${refundMatch})`, id, row.revision, ...values(k, row), ...(k === 'gift' && facts.grossCents !== undefined ? [facts.grossCents, facts.refundedCents, facts.netCents, facts.status] : []))
   },
   write(row) {
     const k = scope(row.destination, row.targetKind), v = values(k, row), columns = COLUMNS[k].map(([c]) => c)
@@ -65,6 +68,10 @@ export const ledgerTargets: D1TargetAdapter = {
     statements.push(
       sql(`INSERT INTO ${TABLE[k]}(${columns.join(',')}) VALUES(${columns.map(() => '?').join(',')}) ON CONFLICT(id) DO UPDATE SET ${columns.slice(1).map(c => `${c}=excluded.${c}`).join(',')}`, ...v),
       sql(`INSERT INTO cf_import_revisions(kind,id,import_revision,native_revision) VALUES('${k}',?,?,?) ON CONFLICT(kind,id) DO UPDATE SET import_revision=excluded.import_revision,native_revision=excluded.native_revision`, row.targetId, row.revision, k === 'donor' || k === 'gift' ? v[1] : 1))
+    if (k === 'gift' && (row.value as Record<string, Json>).grossCents !== undefined) {
+      const facts = row.value as Record<string, Json>
+      statements.push(sql('INSERT INTO cf_import_refunds(gift_id,gross_cents,refunded_cents,net_cents,status) VALUES(?,?,?,?,?)', row.targetId, facts.grossCents, facts.refundedCents, facts.netCents, facts.status))
+    }
     if (k === 'subscription') {
       const source = row.value as Record<string, Json>
       statements.push(sql('UPDATE cf_subscription_lifetimes SET started_at=?,start_known=1 WHERE subscription_id=?',source.updatedAt,row.targetId),

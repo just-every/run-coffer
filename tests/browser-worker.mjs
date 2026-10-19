@@ -16,8 +16,10 @@ export async function withBrowserWorker(h,journey) {
    headers.set('host',new URL(h.origin).host)
    if(headers.has('origin'))headers.set('origin',h.origin)
    const chunks=[];for await(const chunk of req)chunks.push(chunk)
-   const response=await h.mf.dispatchFetch(h.origin+req.url,{method:req.method,headers,...(chunks.length?{body:Buffer.concat(chunks)}:{})})
-   res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()))
+   const response=await h.mf.dispatchFetch(h.origin+req.url,{method:req.method,headers,redirect:'manual',...(chunks.length?{body:Buffer.concat(chunks)}:{})})
+   const outgoing=new Headers(response.headers),location=outgoing.get('location')
+   if(location){const target=new URL(location,h.origin);if(target.origin===new URL(h.origin).origin)outgoing.set('location',target.pathname+target.search+target.hash)}
+   res.writeHead(response.status,Object.fromEntries(outgoing));res.end(Buffer.from(await response.arrayBuffer()))
   }catch(error){res.writeHead(500);res.end(String(error))}
  })
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
@@ -25,7 +27,8 @@ export async function withBrowserWorker(h,journey) {
  const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
  try {
   const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true})
-  await context.setExtraHTTPHeaders({cookie:h.owner})
+  // Use the actual native session cookie so authentication survives redirects.
+  await context.addCookies(h.owner.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',httpOnly:true,secure:true,sameSite:'Lax'}}))
   return await journey(context,origin)
  }finally{await browser.close();await new Promise(resolve=>server.close(resolve))}
 }

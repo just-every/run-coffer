@@ -108,15 +108,33 @@ test('an appeal reaches only donors with current consent, and a withdrawal stops
  const mail=await h.command('appeal.prepare',{name:'Postcard',channel:'mail'});assert.equal(mail.recipients,1)
 }))
 
-test('Stripe move-in: dry run, reviewed fingerprint, journal and complete undo',()=>run(async h=>{
+test('IMPORT-001: saved Stripe refunds, every duplicate row, dry run, exact review, journal and undo',()=>run(async h=>{
  const input={...await stripe(),noGoodsOrServices:false}
+ const charges=input.charges.flatMap(page=>page.data)
+ Object.assign(charges.find(charge=>charge.amount_refunded===10000),{amount:10000,amount_refunded:2500})
+ Object.assign(charges.find(charge=>charge.amount_refunded===20000),{amount:10000,amount_refunded:10000})
+ const repeated=structuredClone(input)
+ repeated.customers[0].data.push(structuredClone(input.customers[0].data[0]))
+ repeated.charges[1].data.push(structuredClone(charges[0]),structuredClone(charges[1]))
+ const duplicates=await h.api('/api/coffer/imports/preview',repeated,{status:409})
+ assert.equal(duplicates.error,'IMPORT_DUPLICATE_ID')
+ const repeatedIds=[input.customers[0].data[0].id,charges[0].id,charges[1].id]
+ assert.deepEqual([...new Set(duplicates.details.map(d=>d.sourceId))].sort(),repeatedIds.sort())
+ assert.equal(duplicates.details.length,6)
+ for(const row of duplicates.details){assert.ok(row.artifact&&row.row>0);assert.ok(duplicates.message.includes(row.sourceId)&&duplicates.message.includes('row '+row.row))}
+ assert.equal((await h.get('/api/coffer/donors')).total,0)
+ assert.match(await (await h.request('/app/move-in')).text(),/Nothing imported yet/)
  const plan=await h.api('/api/coffer/imports/preview',input)
  assert.equal((await h.get('/api/coffer/donors')).total,0)
- assert.equal(plan.donors.length,7);assert.equal(plan.gifts.length,15)
- assert.deepEqual(plan.skipped.map(s=>s.reason).sort(),['Fully refunded.','Matches a donor already using this email; gifts attach to that donor.','No matching donor. Include its Stripe customer, or add the donor with this email in Coffer first.','Not a successful payment.','Not in US dollars.'])
+ assert.equal(plan.donors.length,7);assert.equal(plan.gifts.length,16)
+ assert.deepEqual(plan.skipped.map(s=>s.reason).sort(),['Matches a donor already using this email; gifts attach to that donor.','No matching donor. Include its Stripe customer, or add the donor with this email in Coffer first.','Not a successful payment.','Not in US dollars.'])
  const byRef=Object.fromEntries(plan.gifts.map(g=>[g.reference,g]))
- assert.equal(plan.gifts.reduce((n,g)=>n+g.amountCents,0),1387500)
- assert.equal(plan.gifts.find(g=>g.amountCents===50000&&g.note==='Summer reading sponsor').amountCents,50000)
+ assert.equal(plan.gifts.reduce((n,g)=>n+g.netCents,0),1345000)
+ const partial=plan.gifts.find(g=>g.note==='Summer reading sponsor'),full=plan.gifts.find(g=>g.status==='refunded')
+ assert.deepEqual([partial.amountCents,partial.grossCents,partial.refundedCents,partial.netCents,partial.status],[7500,10000,2500,7500,'partially_refunded'])
+ assert.deepEqual([full.grossCents,full.refundedCents,full.netCents,full.status],[10000,10000,0,'refunded'])
+ const page=await h.request('/app/move-in/preview',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({customers:JSON.stringify(input.customers),charges:JSON.stringify(input.charges)}).toString()})
+ assert.equal(page.status,200);assert.match(await page.text(),/Gross[\s\S]*Refunded[\s\S]*Net[\s\S]*Partially refunded/)
  assert.equal(Object.values(byRef).find(g=>g.amountCents===100000).receivedOn,'2025-12-31')
  assert.equal(new Set(plan.gifts.filter(g=>g.note==='Monthly gift'||g.note==='Gift in memory of Ruth Okafor').map(g=>g.donorId)).size,1)
  await h.api('/api/coffer/imports/apply',{...input,fingerprint:'0'.repeat(64)},{status:409})
@@ -125,16 +143,39 @@ test('Stripe move-in: dry run, reviewed fingerprint, journal and complete undo',
  assert.equal((await h.api('/api/coffer/imports/apply',{...input,fingerprint:plan.fingerprint})).id,job.id)
  const journal=await h.api('/api/coffer/imports/journal?id='+job.id)
  assert.equal(journal.originals.length,3);assert.ok(journal.batches.length)
+ assert.deepEqual(journal.totals,{expectedCount:16,expectedCents:1345000,actualCount:16,actualCents:1345000,matches:true})
+ const retained=journal.plan.entries.flatMap(entry=>entry.effects).map(effect=>effect.value)
+ for(const gift of [partial,full])assert.deepEqual(retained.find(value=>value.id===gift.id),gift)
+ for(const original of journal.originals){assert.equal(original.original.status,'retained');assert.deepEqual(JSON.parse(Buffer.from(original.original.base64,'base64')),original.name.includes('customers')?input.customers[0]:input.charges[Number(original.name.match(/(\d+)\.json/)[1])-1])}
+ const fullHistory=await h.get('/api/coffer/donors/'+full.donorId)
+ assert.equal(fullHistory.gifts.find(g=>g.reverses===full.id).amount_cents,-10000)
  const donors=await h.get('/api/coffer/donors');assert.equal(donors.total,7)
  const priya=donors.donors.find(d=>d.name==='Priya Shah');assert.equal(priya.total_cents,60000)
- assert.equal((await h.get('/api/coffer/letters')).due.filter(g=>g.goods==='unknown').length,10)
- assert.equal((await h.api('/api/coffer/imports/preview',input,{status:409})).error,'IMPORT_NOTHING_NEW')
+ assert.equal((await h.get('/api/coffer/letters')).due.filter(g=>g.goods==='unknown').length,9)
+ const already=await h.api('/api/coffer/imports/preview',input,{status:409})
+ assert.equal(already.error,'IMPORT_DUPLICATE_ID')
+ const importedIds=[...plan.donors.map(d=>d.sourceRef),...plan.gifts.map(g=>g.reference)].sort()
+ assert.deepEqual(already.details.map(d=>d.sourceId).sort(),importedIds)
+ for(const row of already.details)assert.ok(already.message.includes(row.sourceId)&&already.message.includes('row '+row.row))
+ assert.equal((await h.get('/api/coffer/donors')).total,7)
+ const invalidRefund=structuredClone(input);invalidRefund.charges[0].data[0].id='ch_invalidRefund';invalidRefund.charges[0].data[0].amount_refunded=invalidRefund.charges[0].data[0].amount+1
+ invalidRefund.customers=[];invalidRefund.charges=[{object:'list',data:[invalidRefund.charges[0].data[0]]}]
+ await h.api('/api/coffer/imports/preview',invalidRefund,{status:400})
  let undone=await h.api('/api/coffer/imports/undo',{id:job.id})
  while(undone.state!=='undone')undone=await h.api('/api/coffer/imports/undo',{id:job.id})
  assert.equal((await h.get('/api/coffer/donors')).total,0)
+ const freshPlan=await h.api('/api/coffer/imports/preview',input)
+ let freshJob=await h.api('/api/coffer/imports/apply',{...input,fingerprint:freshPlan.fingerprint})
+ while(freshJob.state!=='completed')freshJob=await h.api('/api/coffer/imports/resume',{id:freshJob.id})
+ assert.notEqual(freshJob.id,job.id)
+ assert.equal((await h.api('/api/coffer/imports/apply',{...input,fingerprint:freshPlan.fingerprint})).id,freshJob.id)
+ let freshUndo=await h.api('/api/coffer/imports/undo',{id:freshJob.id})
+ while(freshUndo.state!=='undone')freshUndo=await h.api('/api/coffer/imports/undo',{id:freshJob.id})
+ assert.equal((await h.get('/api/coffer/donors')).total,0)
+ if(process.env.COFFER_IMPORT_BROWSER){const {importRefundsBrowser}=await import('./import-refunds-journey.mjs');await importRefundsBrowser(h,input,process.env.COFFER_IMPORT_BROWSER)}
 }))
 
-test('undo stops at an imported donor a person has since built on',()=>run(async h=>{
+test('IMPORT-001: undo stops at an imported donor a person has since built on',()=>run(async h=>{
  const {job}=await imported(h)
  const maya=(await h.get('/api/coffer/donors?q=maya')).donors[0]
  await consent(h,[maya.id])
@@ -186,6 +227,17 @@ test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans
   assert.equal(health.rows.at(-1).activeDonors,1)
   assert.equal(health.rows.at(-1).mrrCents,2500)
   assert.equal(health.rows[0].unknownStatePlans,1,'Import does not invent earlier monthly state')
+  charges.push({...charges[1],id:'ch_direct101'})
+  const next=await h.api('/api/coffer/imports/read-stripe',{start:'2026-01-01',end:'2026-01-31'})
+  assert.equal(next.gifts.length,1);assert.equal(next.donors.length,0)
+  assert.equal(next.skipped.filter(row=>row.kind==='charge').length,101)
+  const tampered=structuredClone(next.input);tampered.charges[0].data.at(-1).amount=3000
+  assert.equal((await h.api('/api/coffer/imports/preview',tampered,{status:409})).error,'IMPORT_DUPLICATE_ID')
+  const malformed=structuredClone(next.input);malformed.invoices={object:'list',data:[]}
+  assert.equal((await h.api('/api/coffer/imports/preview',malformed,{status:409})).error,'IMPORT_DUPLICATE_ID')
+  const saved=structuredClone(next.input)
+  for(const pages of Object.values(saved))if(Array.isArray(pages))for(const page of pages)delete page.cofferLiveReview
+  assert.equal((await h.api('/api/coffer/imports/preview',saved,{status:409})).error,'IMPORT_DUPLICATE_ID')
   let undo=await h.api('/api/coffer/imports/undo',{id:job.id})
   while(undo.state!=='undone')undo=await h.api('/api/coffer/imports/undo',{id:job.id})
   assert.ok((await h.get('/api/coffer/reports/recurring?from=2026-01')).rows.every(r=>r.newPlans===0&&r.activeDonors===0))
@@ -229,8 +281,11 @@ test('erasing a donor removes their personal data and Stripe originals but keeps
  const journal=await h.api('/api/coffer/imports/journal?id='+job.id)
  assert.ok(journal.originals.length===3&&journal.originals.every(o=>o.original.status==='unavailable'))
  assert.ok(!JSON.stringify(journal).toLowerCase().includes('okafor'))
- const again=await h.api('/api/coffer/imports/preview',input,{status:409})
- assert.deepEqual(again.details.filter(s=>s.reason.startsWith('Belongs to a donor erased')).map(s=>s.sourceId).sort(),['cus_RbLp0001','cus_RbLp0007'])
+ const erasedOnly=structuredClone(input)
+ erasedOnly.customers[0].data=erasedOnly.customers[0].data.filter(c=>['cus_RbLp0001','cus_RbLp0007'].includes(c.id))
+ erasedOnly.charges=[{object:'list',data:[{...input.charges[0].data[0],id:'ch_afterErasure',customer:'cus_RbLp0001',billing_details:{email:'maya.okafor@example.org'}}]}]
+ const again=await h.api('/api/coffer/imports/preview',erasedOnly,{status:409})
+ assert.deepEqual(again.details.filter(s=>s.reason.startsWith('Belongs to a donor erased')).map(s=>s.sourceId).sort(),['ch_afterErasure','cus_RbLp0001','cus_RbLp0007'])
  const later=await archive(h),fresh=await installation()
  try { assert.ok((await restore(fresh,old,{status:400,laterJournal:{sourceIdentity:later[0].sourceIdentity,epoch:later[0].epoch,journal:later[0].journal}})).error) } finally { await fresh.close() }
 }))
