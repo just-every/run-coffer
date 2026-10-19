@@ -1,0 +1,88 @@
+/* Mar 10, 7:01 and 7:02 PM: the campaign page Maria gives on, with her donor portal tucked under its corner (below
+   the Give button, never over it); then the thank-you email with its receipt and the delivered note. */
+.gives .story-row { --art: 690fr; --copy: 557fr; --art-min: 540px; --gap: 25px; }
+.gives { padding: 64px 0 84px; }
+.gives-art .drawing-inner { padding: 0 0 50px 34px; }
+.browser { position: relative; max-width: 590px; overflow: visible; }
+.browser .chrome { border-radius: 18px 18px 0 0; }
+.give { padding: 24px 44px 30px; }
+.give-title { font: 800 29px/1.15 var(--font-head); letter-spacing: -.025em; }
+.give-story { margin-top: 3px; font-size: 17.5px; color: var(--card-body); }
+.give-meter { margin-top: 16px; height: 15px; border-radius: 8px; background: #dedcf4; overflow: hidden; }
+.give-meter span { display: block; width: .58%; min-width: 30px; height: 100%; border-radius: 8px; background: linear-gradient(90deg, #8c62ff, #6a3cf0); }
+.give-raised { margin-top: 8px; font-size: 16.5px; color: var(--card-body); }
+.give-raised b { font-weight: 700; color: var(--card-ink); }
+.give-amounts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+.give-amounts span { display: grid; place-items: center; height: 46px; border: 1px solid #d6d5e8; border-radius: 8px; font-size: 17.5px; font-weight: 600; }
+.give-amounts .on { border-color: transparent; background: linear-gradient(180deg, #8a5fff, var(--violet)); color: #fff; box-shadow: 0 10px 20px -12px rgba(124, 77, 255, .9); }
+.give-monthly { display: flex; align-items: center; gap: 12px; margin-top: 16px; font-size: 16px; color: #2b3058; }
+.toggle { flex: none; display: block; width: 46px; height: 25px; padding: 3px; border-radius: 999px; background: #e1e0ef; }
+.toggle span { display: block; width: 19px; height: 19px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(20, 23, 61, .3); }
+.give-methods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; border: 1px solid #d6d5e8; border-radius: 8px; overflow: hidden; }
+.give-methods span { display: grid; place-items: center; min-height: 44px; padding: 4px 6px; font-size: 15.5px; color: #2b3058; text-align: center; }
+.give-methods span + span { border-left: 1px solid #d6d5e8; }
+.give-methods .on { background: #e6deff; font-weight: 600; color: var(--card-ink); }
+.give-go { display: grid; place-items: center; height: 50px; margin-top: 16px; border-radius: 8px; background: linear-gradient(180deg, #8a5fff, var(--violet)); color: #fff; font-size: 19px; font-weight: 600; }
+.portal { position: absolute; z-index: 2; right: -73px; bottom: 0; display: flex; align-items: center; gap: 14px; padding: 13px 22px 13px 16px; border-radius: 12px; white-space: nowrap; }
+.portal-face { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(160deg, #a083ff, #7c4dff); color: #fff; font-size: 17px; font-weight: 600; }
+.portal-title { font-size: 16.5px; font-weight: 700; }
+.portal-title .dot { color: var(--card-ink); }
+.portal-links { margin-top: 2px; font-size: 15px; color: var(--card-soft); }
+
+.thanks .story-row { --copy: 624fr; --art: 594fr; --art-min: 500px; --gap: 40px; }
+.thanks { padding: 70px 0 96px; }
+.thanks-art .drawing-inner { padding-bottom: 14px; }
+.thank { padding: 30px 26px 26px; }
+.thank-title { margin-top: 6px; font: 800 27px/1.2 var(--font-head); letter-spacing: -.02em; }
+.thank-text { margin-top: 10px; font-size: 18.5px; line-height: 1.5; color: #2b3058; }
+.receipt { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 18px; margin-top: 18px; padding: 18px 22px; border-radius: 12px; background: #f4f2fe; }
+.receipt-mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 12px; background: #e4dcff; color: var(--violet-ink); }
+.receipt-mark .icon { width: 28px; height: 28px; stroke-width: 1.6; }
+.receipt-line { font-size: 17px; line-height: 1.4; color: #2b3058; }
+.receipt-line b { font-weight: 700; color: var(--card-ink); }
+.receipt-line b .dot { color: var(--card-ink); }
+.receipt-irs { margin-top: 6px; font-size: 15px; font-style: italic; line-height: 1.4; color: var(--card-soft); }
+.receipt-link { margin-top: 12px; font-size: 17.5px; font-weight: 600; color: var(--violet-ink); }
+.delivered { position: absolute; z-index: 2; right: -26px; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-radius: 12px; font-size: 15px; white-space: nowrap; }
+.delivered .check { width: 26px; height: 26px; }
+
+@media (max-width: 1299px) {
+  .portal { right: -24px; }
+}
+@media (max-width: 1100px) {
+  .gives .story-row { --art-max: 620px; }
+  .gives-art .drawing-inner { padding: 0 0 50px; }
+  .thanks .story-row { --art-max: 594px; }
+  .delivered { right: 0; }
+}
+@media (max-width: 760px) {
+  .gives { padding: 52px 0 56px; }
+  .gives-art .drawing-inner { padding: 0; }
+  .give { padding: 18px 16px 20px; }
+  .give-title { font-size: 22px; }
+  .give-story { font-size: 15.5px; }
+  .give-raised { font-size: 15px; }
+  .give-amounts { gap: 6px; margin-top: 14px; }
+  .give-amounts span { height: 42px; font-size: 16px; }
+  .give-monthly { font-size: 15px; }
+  .give-methods span { min-height: 42px; font-size: 14px; }
+  .give-go { height: 46px; font-size: 17px; }
+  .portal { position: static; margin-top: 12px; padding: 12px 14px; white-space: normal; }
+  .portal-face { width: 40px; height: 40px; font-size: 15px; }
+  .portal-title { font-size: 15.5px; }
+  .portal-links { font-size: 14px; }
+  .thanks { padding: 52px 0 60px; }
+  .thanks-art .drawing-inner { padding: 0; }
+  .thank { padding: 20px 18px 18px; }
+  .thank-title { font-size: 22px; }
+  .thank-text { font-size: 16px; }
+  .receipt { grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .receipt-mark { width: 44px; height: 44px; }
+  .receipt-mark .icon { width: 22px; height: 22px; }
+  .receipt-line { font-size: 15px; }
+  .receipt-line b { display: block; }
+  .receipt-line b + .dot { display: none; }
+  .receipt-irs { font-size: 13.5px; }
+  .receipt-link { font-size: 15.5px; }
+  .delivered { position: static; margin-top: 12px; padding: 12px 14px; font-size: 14.5px; white-space: normal; }
+}

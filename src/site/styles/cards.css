@@ -1,9 +1,11 @@
-/* The drawn product cards: crisp white cards with soft shadows on the night, tinted round icon chips,
-   real text throughout. Positions and sizes follow the desk at 1440 wide. */
+/* The drawn product cards' shared pieces: crisp white cards with soft shadows on the night, round icon
+   chips, initials, tags and checks, real text throughout; and the hero's five cards. Each step's own
+   drawing is in sections/. Positions and sizes follow the desk at 1440 wide. */
 
 .card { background: var(--card); color: var(--card-ink); border-radius: var(--card-radius); box-shadow: var(--card-shadow); }
-.card-title { font: 700 25px/1.2 var(--font-head); letter-spacing: -.02em; color: var(--card-ink); }
 .dot { margin: 0 .5em; color: var(--card-soft); }
+/* Card text avoids a last line of one short word. */
+.card :is(p, li, span), .paper :is(p, li), .sheet :is(p, li) { text-wrap: pretty; }
 .icon { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Tinted round icon chips */
@@ -16,14 +18,25 @@
 .chip-icon.solid.green { background: radial-gradient(circle at 40% 30%, #c9f0da, #a8e3c3); color: #0f8a4c; }
 .chip-icon.solid.coral { background: radial-gradient(circle at 40% 30%, #ffd2d0, #f8b4b3); color: #c42a32; }
 .chip-icon.solid.amber { background: radial-gradient(circle at 40% 30%, #ffc45a, #f6a524); color: #fff; }
-.chip-icon.big { width: 84px; height: 84px; }
-.chip-icon.big .icon { width: 36px; height: 36px; stroke-width: 1.6; }
+.chip-icon.fill { color: #fff; }
+.chip-icon.fill.violet { background: linear-gradient(160deg, #9273ff, #6c48f2); }
+.chip-icon.fill.coral { background: linear-gradient(160deg, #ff8a86, #ea5a5c); }
+.chip-icon.fill.amber { background: linear-gradient(160deg, #ffc95e, #f5a524); }
+.chip-icon.fill.grey { background: #8a8fab; }
 
 .initials { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; font: 600 17px/1 var(--font-body); letter-spacing: .01em; }
 .initials.green { background: var(--green-tint); color: var(--green-ink); }
 .initials.violet { background: var(--violet-tint); color: var(--violet-ink); }
 .initials.coral { background: var(--coral-tint); color: var(--coral-ink); }
 .initials.amber { background: var(--amber-tint); color: var(--amber-ink); }
+
+/* Tags: the small rounded states and routes on a card. */
+.tag { flex: none; display: inline-flex; align-items: center; min-height: 30px; padding: 4px 12px; border-radius: 8px; font: 500 14.5px/1.2 var(--font-body); white-space: nowrap; }
+.tag.green { background: #dcf4e5; color: #11804a; }
+.tag.violet { background: #ebe5ff; color: #5b32e6; }
+.tag.coral { background: #fde0e1; color: #c22d36; }
+.tag.amber { background: #fdecc8; color: #93560a; }
+.tag.grey { background: #e9e9f0; color: #676c8a; }
 
 .pill { flex: none; display: inline-flex; align-items: center; height: 31px; padding: 0 14px; border-radius: 999px; font: 500 15.5px/1 var(--font-body); white-space: nowrap; }
 .pill.green { background: var(--green-tint); color: var(--green-ink); }
@@ -64,155 +77,6 @@
 .hc-call .hc-line { margin-top: 5px !important; }
 .hc-call .hc-soft { margin-top: 3px !important; color: #575d82; }
 
-/* ---------- Online giving: the donation form ---------- */
-.give-wrap { position: relative; width: 520px; padding-bottom: 34px; }
-.give { padding: 30px 28px 38px; }
-.give-title { font: 700 22.5px/1.2 var(--font-head); letter-spacing: -.02em; }
-.give-amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 18px; }
-.give-amounts span { display: grid; place-items: center; height: 53px; border: 1px solid #dad9ea; border-radius: 10px; font-size: 19.5px; font-weight: 500; }
-.give-amounts .on { background: var(--violet); border-color: var(--violet); color: #fff; box-shadow: 0 10px 20px -12px rgba(124, 77, 255, .9); }
-.give-monthly { display: flex; align-items: center; gap: 16px; margin-top: 16px; padding-bottom: 18px; border-bottom: 1px solid var(--card-line); font-size: 18px; }
-.toggle { display: block; width: 61px; height: 32px; padding: 3px; border-radius: 999px; background: var(--violet); }
-.toggle span { display: block; width: 26px; height: 26px; margin-left: auto; border-radius: 50%; background: #fff; }
-.give-methods { display: grid; grid-template-columns: 1fr 1.2fr 1.05fr; gap: 10px; margin-top: 16px; }
-.give-methods > span { display: flex; align-items: center; justify-content: center; gap: 11px; height: 53px; border: 1px solid #dad9ea; border-radius: 10px; font-size: 17px; color: #2b3058; }
-.give-methods .on { background: #ecebfb; border-color: #c9c3f4; font-weight: 600; color: var(--card-ink); }
-.give-methods .icon { width: 22px; height: 22px; color: #3a3f68; }
-.card-glyph { position: relative; width: 28px; height: 20px; border-radius: 4px; background: linear-gradient(160deg, #3d4ad8, #1f2a8e); }
-.card-glyph::after { content: ''; position: absolute; left: 0; right: 0; top: 5px; height: 3px; background: rgba(255, 255, 255, .55); }
-.give-go { display: grid; place-items: center; height: 52px; margin-top: 18px; border-radius: 999px; background: linear-gradient(180deg, #8a5fff, var(--violet)); color: #fff; font-size: 19.5px; font-weight: 600; }
-.give-portal { position: absolute; right: -58px; bottom: 0; display: flex; align-items: center; gap: 14px; padding: 12px 22px 12px 16px; border-radius: 12px; font-size: 16.5px; white-space: nowrap; }
-.portal-face { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--violet-tint); color: var(--violet-ink); }
-.portal-face .icon { width: 21px; height: 21px; fill: currentColor; stroke: none; }
-
-/* ---------- Donors: the household ---------- */
-.household { width: 551px; padding: 20px 26px 8px; }
-.hh-head { display: flex; align-items: center; gap: 28px; }
-.hh-head .initials { width: 70px; height: 70px; font-size: 25px; font-weight: 600; }
-.hh-name { font: 700 23px/1.2 var(--font-head); letter-spacing: -.02em; }
-.hh-sub { margin-top: 4px; font-size: 17px; color: #61668c; }
-.hh-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-.hh-stats p { padding: 13px 22px 12px; border: 1px solid #e3e2ee; border-radius: 10px; }
-.hh-stats span { display: block; font-size: 15px; color: #61668c; }
-.hh-stats strong { display: block; margin-top: 2px; font-size: 19.5px; font-weight: 600; }
-.hh-lines { margin-top: 16px; border-top: 1px solid var(--card-line); }
-.hh-lines li { display: flex; align-items: center; min-height: 47px; border-bottom: 1px solid var(--card-line); font-size: 16.5px; color: #2b3058; white-space: nowrap; }
-.hh-lines li:last-child { border-bottom: 0; }
-.hh-lines .day { width: 98px; color: #61668c; }
-.hh-lines strong { font-weight: 600; color: var(--card-ink); }
-
-/* ---------- Payments: the payout ---------- */
-.payout { width: 569px; overflow: hidden; }
-.payout-head { display: flex; justify-content: space-between; align-items: baseline; padding: 26px 28px 0; }
-.payout-head strong { font: 700 21px/1.2 var(--font-head); letter-spacing: -.02em; }
-.payout-head b { font: 700 30px/1 var(--font-head); letter-spacing: -.02em; }
-.payout-lines { margin: 12px 28px 0; padding-bottom: 14px; border-bottom: 1px solid var(--card-line); }
-.payout-lines div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 19px; color: #474d75; }
-.payout-lines dd { margin: 0; }
-.funds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 18px 24px 20px; }
-.fund { display: flex; align-items: center; gap: 13px; padding: 12px 14px; border-radius: 10px; }
-.fund.green { background: #eef8f1; } .fund.violet { background: #f1edfe; } .fund.coral { background: #fdf0ee; }
-.fund-letter { flex: none; display: grid; place-items: center; width: 35px; height: 35px; border-radius: 50%; font-size: 18px; font-weight: 600; }
-.fund.green .fund-letter { background: #c9ecd5; color: var(--green-ink); } .fund.violet .fund-letter { background: #9b7bff; color: #fff; } .fund.coral .fund-letter { background: #f9c6bd; color: #c8323a; }
-.fund small { display: block; font-size: 13.5px; color: #545a80; }
-.fund strong { display: block; font-size: 17px; font-weight: 600; }
-.payout-match { display: flex; align-items: center; gap: 16px; padding: 18px 30px; background: #e9f6ee; font-size: 17px; color: #1d2246; }
-.payout-match .check { width: 31px; height: 31px; }
-
-/* ---------- Receipts: the statement ---------- */
-.receipt-wrap { width: 612px; }
-.statement { padding: 24px 28px 22px; }
-.st-head { display: flex; align-items: center; gap: 22px; }
-.st-doc { display: grid; place-items: center; width: 76px; height: 76px; border-radius: 50%; background: var(--violet-tint); color: var(--violet-ink); }
-.st-doc .icon { width: 36px; height: 36px; stroke-width: 1.6; }
-.st-title { font: 700 25px/1.2 var(--font-head); letter-spacing: -.025em; }
-.st-sub { margin-top: 5px; font-size: 19.5px; color: #545a80; }
-.st-irs { margin-top: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--card-line); font-size: 18px; font-style: italic; color: #545a80; }
-.st-sent { display: flex; align-items: center; gap: 16px; margin-top: 18px; font-size: 17.5px; }
-.st-sent .check { width: 36px; height: 36px; }
-.bounce { display: flex; align-items: center; gap: 18px; margin-top: 18px; padding: 14px 26px; border-radius: 12px; background: #fdf3e2; font-size: 18px; }
-.bounce-mark { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #f6b324; color: #2a2112; }
-.bounce-mark .icon { width: 22px; height: 22px; stroke-width: 2.6; }
-
-/* ---------- Appeals: the welcome journey ---------- */
-.journey { width: 587px; padding: 26px 26px 22px; }
-.journey-steps { position: relative; margin-top: 14px; }
-.journey-steps::before { content: ''; position: absolute; left: 22px; top: 30px; bottom: 30px; width: 2px; background: #e6e3f4; }
-.journey-steps li { position: relative; display: flex; align-items: center; gap: 26px; min-height: 66px; }
-.journey-dot { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; }
-.journey-dot .icon { width: 21px; height: 21px; }
-.journey-dot.green { background: var(--green-tint); color: var(--green-ink); }
-.journey-dot.green .icon { fill: var(--green-ink); stroke: #fff; }
-.journey-dot.violet { background: var(--violet-tint); color: var(--violet-ink); }
-.journey-dot.amber { background: #fde8c3; color: #c86d00; }
-.journey-what { flex: 1; font-size: 17.5px; color: #2b3058; }
-.journey-what b { font-weight: 700; color: var(--card-ink); }
-.journey-steps .pill { min-width: 68px; justify-content: center; height: 34px; font-size: 16px; }
-.journey-steps .pill.violet { font-size: 14.5px; }
-.journey-foot { margin-top: 10px; padding-top: 16px; border-top: 1px solid var(--card-line); font-size: 14.5px; color: #545a80; }
-
-/* ---------- Major gifts: the pipeline ---------- */
-.pipeline { width: 631px; padding: 24px 24px 6px; }
-.pipe-stages { margin-top: 8px; padding-bottom: 16px; border-bottom: 1px solid var(--card-line); font-size: 17px; color: #545a80; }
-.pipe-rows li { display: grid; grid-template-columns: 52px 176px 98px minmax(0, 1fr) 44px; align-items: center; gap: 14px; min-height: 77px; border-bottom: 1px solid var(--card-line); }
-.pipe-rows li:last-child { border-bottom: 0; }
-.pipe-rows .initials { width: 52px; height: 52px; font-size: 18px; font-weight: 500; }
-.pipe-name { font-size: 17.5px; font-weight: 500; }
-.pipe-rows .pill { justify-self: start; height: 33px; font-size: 15px; }
-.pipe-ask { font-size: 18px; }
-.pipe-ask strong { font-weight: 600; }
-.pipe-ask small { display: block; margin-top: 2px; font-size: 14.5px; color: #545a80; }
-.pipe-score { display: flex; align-items: center; gap: 9px; justify-self: end; font-size: 17px; font-weight: 500; }
-.pipe-score::before { content: ''; width: 12px; height: 12px; border-radius: 50%; }
-.pipe-score.green::before { background: #1f9f75; } .pipe-score.violet::before { background: #6d4cf5; } .pipe-score.amber::before { background: #f4be3c; }
-
-/* ---------- The development agent: this morning ---------- */
-.morning { width: 595px; padding: 22px 24px 26px; }
-.morning-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 1px solid var(--card-line); }
-.morning-title { display: flex; align-items: center; gap: 12px; font: 700 27px/1 var(--font-head); letter-spacing: -.025em; }
-.spark { width: 34px; height: 34px; fill: #8a5cff; }
-.retention { display: flex; align-items: baseline; gap: 8px; font-size: 16px; color: #545a80; }
-.retention b { font-size: 23px; font-weight: 700; color: var(--card-ink); }
-.retention em { font-style: normal; font-size: 17px; font-weight: 600; color: var(--green-ink); }
-.morning-rows li { display: flex; align-items: flex-start; gap: 26px; padding: 13px 0; border-bottom: 1px solid var(--card-line); font-size: 16.5px; line-height: 1.45; color: var(--card-ink); }
-.morning-rows li:last-child { border-bottom: 0; padding-bottom: 0; }
-.morning-rows li > p, .morning-rows li > div { padding-top: 11px; }
-.morning-rows .chip-icon { width: 50px; height: 50px; }
-.morning-rows b { font-weight: 600; }
-.morning-rows .soft { color: #474d75; }
-.morning-actions { display: flex; gap: 12px; margin-top: 12px; }
-.btn-solid, .btn-line { display: inline-grid; place-items: center; height: 42px; padding: 0 22px; border-radius: 8px; font-size: 16.5px; font-weight: 500; }
-.btn-solid { background: var(--violet); color: #fff; }
-.btn-line { border: 1px solid #d5d3e6; }
-
-/* ---------- Move in: the import ---------- */
-.import-wrap { width: 560px; }
-.import { padding: 24px 26px 20px; }
-.import .card-title { font-size: 27px; padding-bottom: 14px; border-bottom: 1px solid var(--card-line); }
-.import-rows li { display: flex; align-items: center; gap: 28px; min-height: 49px; border-bottom: 1px solid var(--card-line); font-size: 17.5px; }
-.import-rows b { font-weight: 600; }
-.import-rows .check { width: 28px; height: 28px; margin-left: 4px; }
-.import-rows li span { margin-left: -10px; }
-.import-ok { display: flex; align-items: center; gap: 18px; margin-top: 14px; padding: 13px 18px; border-radius: 10px; background: #e9f6ee; color: var(--green-ink); font-size: 17.5px; font-weight: 600; }
-.import-ok .check { width: 28px; height: 28px; }
-.sources { display: flex; gap: 12px; margin-top: 16px; }
-.sources span { display: inline-grid; place-items: center; height: 40px; padding: 0 22px; border-radius: 999px; background: #2a3166; color: #dfe0f7; font-size: 16px; }
-
-/* ---------- Ownership: the terminal ---------- */
-.terminal { justify-self: end; width: 628px; padding: 28px 0 46px; border: 1.5px solid var(--terminal-line); border-radius: 18px; background: linear-gradient(180deg, #171933, var(--terminal)); box-shadow: 0 30px 60px -30px rgba(0, 0, 0, .7); }
-.terminal-bar { display: flex; gap: 12px; padding: 0 26px; }
-.terminal-bar span { width: 13px; height: 13px; border-radius: 50%; background: #ff5f57; }
-.terminal-bar span:nth-child(2) { background: #febc2e; } .terminal-bar span:nth-child(3) { background: #28c840; }
-.terminal pre { margin-top: 28px; padding: 0 24px; overflow-x: auto; font: 400 15px/48px var(--font-mono); color: #eceaff; }
-.terminal-line { display: block; white-space: pre; }
-.prompt { color: #9c7bff; font-weight: 600; margin-right: 10px; }
-
-/* ---------- The quiet details ---------- */
-.detail { min-height: 277px; padding: 28px 30px 30px; }
-.detail h3 { margin-top: 18px; font: 700 37px/1.1 var(--font-head); letter-spacing: -.03em; color: var(--card-ink); }
-.detail p { margin-top: 12px; font-size: 24px; line-height: 1.45; color: #6a6f93; }
-
-/* ---------- Narrow screens ---------- */
 @media (max-width: 1100px) {
   .hero-cards > div { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .hc { position: relative; inset: auto; width: auto; height: auto; }
@@ -225,88 +89,13 @@
   .hc-row { font-size: 16.5px; }
   .meter { margin-top: 14px; height: 14px; }
   .hc-people { flex-wrap: wrap; gap: 8px 12px; margin-top: 14px; font-size: 14px; }
-  .faces .initials, .faces .more { width: 28px; height: 28px; font-size: 10.5px; }
+  .faces .initials, .faces .more { width: 28px; height: 28px; font-size: 11px; }
+  .faces .initials { margin-right: -3px; }
+  .faces .more { width: auto; min-width: 28px; padding: 0 5px; border-radius: 14px; }
   .hc-small { gap: 14px; padding: 16px 16px 16px; }
   .hc-failed, .hc-call { padding-top: 16px; }
   .hc-small .chip-icon { width: 40px; height: 40px; }
   .hc-title { font-size: 17.5px; }
   .hc-line { font-size: 15.5px; }
   .hc-soft { font-size: 14px; }
-  .give-wrap, .household, .payout, .receipt-wrap, .journey, .pipeline, .morning, .import-wrap { width: 100%; }
-  .give { padding: 20px 16px 22px; }
-  .give-title { font-size: 18px; }
-  .give-amounts { gap: 6px; margin-top: 14px; }
-  .give-amounts span { height: 46px; font-size: 16.5px; }
-  .give-monthly { font-size: 16px; gap: 12px; }
-  .toggle { width: 52px; height: 28px; } .toggle span { width: 22px; height: 22px; }
-  .give-methods { grid-template-columns: 1fr; gap: 8px; }
-  .give-methods > span { height: 44px; justify-content: flex-start; padding: 0 16px; font-size: 16px; }
-  .give-go { height: 48px; font-size: 17px; }
-  .give-wrap { padding-bottom: 0; }
-  .give-portal { position: static; margin-top: 12px; white-space: normal; font-size: 15px; padding: 10px 14px; }
-  .household { padding: 18px 16px 6px; }
-  .hh-head { gap: 16px; }
-  .hh-head .initials { width: 54px; height: 54px; font-size: 20px; }
-  .hh-name { font-size: 20px; } .hh-sub { font-size: 15px; }
-  .hh-stats p { padding: 10px 14px; } .hh-stats strong { font-size: 17px; }
-  .hh-lines li { flex-wrap: wrap; min-height: 0; padding: 10px 0; font-size: 15px; white-space: normal; }
-  .hh-lines .day { width: 100%; font-size: 13.5px; }
-  .hh-lines .day + .dot { display: none; }
-  .payout-head { padding: 18px 16px 0; }
-  .payout-head strong { font-size: 17px; } .payout-head b { font-size: 23px; }
-  .payout-lines { margin: 8px 16px 0; } .payout-lines div { font-size: 16px; padding: 4px 0; }
-  .funds { grid-template-columns: 1fr; gap: 8px; padding: 14px 16px; }
-  .fund { padding: 9px 12px; }
-  .payout-match { padding: 14px 16px; font-size: 15px; gap: 12px; }
-  .statement { padding: 18px 16px; }
-  .st-head { gap: 14px; }
-  .st-doc { width: 56px; height: 56px; } .st-doc .icon { width: 28px; height: 28px; }
-  .st-title { font-size: 20px; } .st-sub { font-size: 15.5px; }
-  .st-irs { font-size: 15.5px; margin-top: 16px; }
-  .st-sent { font-size: 15.5px; gap: 12px; }
-  .bounce { padding: 12px 16px; font-size: 15px; gap: 12px; }
-  .journey { padding: 18px 16px 16px; }
-  .card-title { font-size: 20px; }
-  .journey-steps li { gap: 14px; min-height: 58px; }
-  .journey-steps::before { left: 19px; }
-  .journey-dot { width: 40px; height: 40px; }
-  .journey-what { font-size: 15px; }
-  .journey-what .dot { display: none; }
-  .journey-what b { display: block; }
-  .journey-steps .pill { height: 30px; font-size: 13.5px; padding: 0 10px; min-width: 0; }
-  .journey-steps .pill.violet { font-size: 12.5px; }
-  .journey-foot { font-size: 13px; }
-  .pipeline { padding: 18px 16px 4px; }
-  .pipe-stages { font-size: 14.5px; }
-  .pipe-rows li { grid-template-columns: 42px minmax(0, 1fr) auto; grid-template-areas: 'who name score' 'who stage ask'; gap: 6px 12px; padding: 12px 0; }
-  .pipe-rows .initials { grid-area: who; width: 42px; height: 42px; font-size: 15px; align-self: start; }
-  .pipe-name { grid-area: name; font-size: 16px; }
-  .pipe-rows .pill { grid-area: stage; height: 28px; font-size: 13.5px; }
-  .pipe-ask { grid-area: ask; text-align: right; font-size: 15.5px; }
-  .pipe-ask small { font-size: 12.5px; }
-  .pipe-score { grid-area: score; font-size: 15px; }
-  .morning { padding: 16px 16px 18px; }
-  .morning-head { flex-wrap: wrap; gap: 10px; }
-  .morning-title { font-size: 21px; }
-  .spark { width: 26px; height: 26px; }
-  .morning-rows li { gap: 12px; font-size: 15px; }
-  .morning-rows .chip-icon { width: 40px; height: 40px; }
-  .morning-rows li > p, .morning-rows li > div { padding-top: 8px; }
-  .morning-actions { flex-wrap: wrap; }
-  .btn-solid, .btn-line { height: 38px; padding: 0 14px; font-size: 14.5px; }
-  .import { padding: 18px 16px 16px; }
-  .import .card-title { font-size: 20px; }
-  .import-rows li { gap: 14px; font-size: 15px; flex-wrap: wrap; padding: 8px 0; min-height: 0; }
-  .import-rows li span { margin-left: 0; }
-  .import-ok { font-size: 15px; gap: 12px; }
-  .sources span { height: 36px; padding: 0 16px; font-size: 14px; }
-  .terminal { width: 100%; justify-self: stretch; padding: 18px 0 22px; }
-  .terminal-bar { padding: 0 16px; }
-  .terminal pre { margin-top: 16px; padding: 0 16px; font-size: 13px; line-height: 30px; }
-  .terminal-line { white-space: pre-wrap; overflow-wrap: anywhere; }
-  .detail { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 4px 16px; min-height: 0; padding: 18px; }
-  .detail .chip-icon.big { grid-row: span 2; width: 56px; height: 56px; }
-  .detail .chip-icon.big .icon { width: 26px; height: 26px; }
-  .detail h3 { margin-top: 2px; font-size: 22px; }
-  .detail p { margin-top: 0; font-size: 16px; }
 }

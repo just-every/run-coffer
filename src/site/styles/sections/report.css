@@ -1,0 +1,92 @@
+/* Apr 30, the board report: a printed report on Wrenfield's letterhead with a second sheet under it, the painted
+   delivery van perched on its top-right corner with its headlights on; the copy on the right. */
+.report .story-row { --art: 692fr; --copy: 520fr; --art-min: 560px; --gap: 60px; }
+.report { padding: 150px 0 110px; }
+.report-art .drawing-inner { padding-bottom: 36px; }
+.report-art .drawing-inner::before { content: ''; position: absolute; z-index: 0; left: -28px; right: 8px; top: 34px; bottom: 10px; border-radius: 4px; background: linear-gradient(180deg, #f2f2f8, #e4e4ee); box-shadow: 0 30px 50px -26px rgba(4, 6, 30, .7); transform: rotate(-1deg); }
+.report-paper { position: relative; z-index: 1; padding: 50px 48px 42px; }
+/* The van rides on the paper's top edge, its wheels a little over the paper and clear of the letterhead. */
+.van { position: absolute; z-index: 2; top: -92px; right: 34px; display: block; width: 214px; }
+.van img { display: block; width: 100%; height: auto; filter: drop-shadow(0 6px 6px rgba(6, 8, 30, .35)); }
+.van::before { content: ''; position: absolute; z-index: -1; right: 90%; top: 46%; width: 92px; height: 40px; background: radial-gradient(ellipse at 100% 50%, rgba(255, 222, 140, .85), rgba(255, 196, 92, .35) 40%, transparent 72%); }
+
+.leaf { flex: none; width: 46px; height: 46px; fill: #8a63ff; }
+.rp-letterhead { display: flex; align-items: center; gap: 18px; padding-bottom: 18px; border-bottom: 2px solid #9a7cff; }
+.rp-letterhead p { font-size: 18.5px; line-height: 1.35; color: #50557a; }
+.rp-letterhead b { display: block; font-size: 30px; line-height: 1.3; color: #14173d; }
+.rp-title { margin-top: 30px; font-size: 35px; font-weight: 700; line-height: 1.3; letter-spacing: -.01em; }
+.rp-title .dot { color: inherit; margin: 0 .3em; }
+.rp-closed { margin-top: 4px; font-size: 19px; color: #6a6f93; }
+.rp-raised { margin-top: 26px; font-size: 25px; font-weight: 600; }
+.rp-raised b { font-size: 28px; font-weight: 700; }
+.rp-meter { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.rp-meter span { flex: 1; height: 20px; border-radius: 10px; background: linear-gradient(90deg, #9473ff, #7c4dff); }
+.rp-meter small { font-size: 15px; color: #50557a; }
+.rp-line { margin-top: 16px; font-size: 16.5px; line-height: 1.5; color: #2b3058; }
+.rp-line b { color: #14173d; }
+.rp-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-top: 30px; }
+.rp-funds { width: 100%; border-collapse: collapse; font-size: 18px; }
+.rp-funds caption { padding-bottom: 12px; font-size: 22px; font-weight: 700; text-align: left; }
+.rp-funds th, .rp-funds td { padding: 9px 6px; border-top: 1px solid #d9d9e6; font-weight: 400; text-align: left; }
+.rp-funds td { text-align: right; border-left: 1px solid #d9d9e6; }
+.rp-funds tfoot th, .rp-funds tfoot td { border-top: 2px solid #7d8199; font-weight: 700; }
+.rp-lapsed { margin-left: 28px; padding-left: 28px; border-left: 1.5px solid #d6d6e4; }
+.rp-lapsed-head { font-size: 22px; font-weight: 700; }
+.rp-lapsed-head .dot { color: inherit; margin: 0 .3em; }
+.rp-lapsed ul { margin-top: 10px; }
+.rp-lapsed li { padding: 7px 0; font-size: 18px; line-height: 1.35; }
+.rp-lapsed li .dot { margin: 0 .35em; color: #6a6f93; }
+.rp-lapsed .more { color: #6a6f93; }
+.rp-lapsed .tag { margin-top: 12px; min-height: 40px; padding: 6px 18px; border-radius: 999px; font-size: 18px; font-family: inherit; font-weight: 500; white-space: normal; }
+.rp-books { display: flex; align-items: center; gap: 16px; margin-top: 34px; font-size: 18.5px; text-wrap: balance; }
+.rp-books .check { flex: none; width: 36px; height: 36px; }
+
+@media (max-width: 1439px) {
+  .rp-title span { display: block; }
+  .rp-title .dot { display: none; }
+  /* The funds table, then the donors who didn't renew, one under the other. */
+  .rp-cols { grid-template-columns: minmax(0, 1fr); }
+  .rp-lapsed { margin: 26px 0 0; padding: 0; border-left: 0; }
+  .rp-lapsed-head { padding-bottom: 8px; border-bottom: 1px solid #d9d9e6; }
+  .rp-lapsed ul { margin-top: 0; }
+  .rp-lapsed li { padding: 8px 6px; border-bottom: 1px solid #d9d9e6; }
+}
+@media (max-width: 1299px) {
+  .report-paper { padding: 40px 40px 34px; }
+  .rp-title { font-size: 30px; }
+}
+@media (max-width: 1100px) {
+  .report .story-row { --art-max: 692px; }
+  .report { padding: 96px 0 80px; }
+  /* Under the copy, the van gets its own room above the paper. */
+  .report-art .drawing-inner { padding-top: 70px; }
+  .van { top: -18px; }
+}
+@media (max-width: 760px) {
+  .report { padding: 56px 0 60px; }
+  .report-art .drawing-inner { padding: 66px 0 0; }
+  .report-art .drawing-inner::before { display: none; }
+  .report-paper { padding: 24px 18px 22px; }
+  .van { top: 0; right: 10px; width: 150px; }
+  .van::before { width: 64px; height: 28px; }
+  .leaf { width: 36px; height: 36px; }
+  .rp-letterhead { gap: 12px; padding-bottom: 14px; }
+  .rp-letterhead p { font-size: 14.5px; }
+  .rp-letterhead b { font-size: 20px; }
+  .rp-title { margin-top: 20px; font-size: 23px; }
+  .rp-closed { font-size: 15.5px; }
+  .rp-raised { margin-top: 18px; font-size: 18px; }
+  .rp-raised b { font-size: 19px; }
+  .rp-meter span { height: 14px; }
+  .rp-meter small { font-size: 13px; }
+  .rp-line { margin-top: 12px; font-size: 15px; }
+  .rp-cols { margin-top: 22px; }
+  .rp-funds { font-size: 15.5px; }
+  .rp-funds caption { font-size: 18px; padding-bottom: 8px; }
+  .rp-funds tfoot th, .rp-funds tfoot td { background: #eeedf8; }
+  .rp-lapsed-head { font-size: 18px; }
+  .rp-lapsed li { font-size: 15.5px; }
+  .rp-lapsed .tag { min-height: 32px; font-size: 15.5px; }
+  .rp-books { margin-top: 20px; gap: 12px; font-size: 15px; }
+  .rp-books .check { width: 30px; height: 30px; }
+}

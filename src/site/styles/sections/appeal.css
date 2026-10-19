@@ -1,0 +1,47 @@
+/* The spring appeal's calendar: seven dated stops on one violet line, each a link to its step, then the low strip of
+   the town's rooftops that fades into the night. */
+.appeal { position: relative; padding-top: 70px; text-align: center; }
+.appeal .eyebrow { justify-content: center; }
+.appeal h2 { margin-top: 22px; padding-block: .1em; margin-bottom: -.1em; font: 800 min(75px, 5.2vw)/1.05 var(--font-head); letter-spacing: -.035em; color: #fff; }
+.appeal-sub { margin: 14px auto 0; max-width: 1000px; font-size: clamp(18px, 1.6vw, 23px); line-height: 1.4; color: var(--on-night-body); text-wrap: balance; }
+
+.calendar { width: min(1386px, 100% - 2 * var(--gutter)); margin: 56px auto 0; }
+.calendar ol { position: relative; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding-bottom: 50px; }
+.calendar ol::before { content: ''; position: absolute; top: 15px; left: calc(100% / 14); right: calc(100% / 14); height: 2px; background: linear-gradient(90deg, #8c62ff, #6f5ae8); opacity: .85; }
+.calendar a { display: flex; flex-direction: column; align-items: center; padding: 0 6px; text-decoration: none; color: inherit; }
+.cal-dot { display: block; width: 22px; height: 22px; margin: 4px 0 14px; border: 2px solid #8f70ff; border-radius: 50%; background: var(--night); }
+.start .cal-dot { border: 0; background: linear-gradient(160deg, #a083ff, #7c4dff); box-shadow: 0 0 14px rgba(140, 98, 255, .6); }
+.night .cal-dot { width: 32px; height: 32px; margin: -1px 0 9px; border-width: 2px; background: radial-gradient(circle, #9473ff 0 9px, var(--night) 10px); box-shadow: 0 0 18px rgba(140, 98, 255, .7); }
+.cal-date { font-size: 18px; font-weight: 700; line-height: 1.3; color: #fff; }
+.cal-what { margin-top: 2px; font-size: 17px; line-height: 1.3; color: var(--on-night-body); }
+.calendar a:hover .cal-date { text-decoration: underline; text-underline-offset: 4px; }
+/* The night's three minutes hang under its stop, centred on its column of the list (--i), so they never widen it. */
+.cal-ticks { position: absolute; bottom: 0; left: calc((var(--i) + .5) * 100% / 7); display: flex; flex-direction: column; align-items: center; gap: 8px; transform: translateX(-50%); font-size: 13px; line-height: 1.3; color: #b6b4e6; white-space: nowrap; }
+.cal-pips { display: flex; gap: 6px; }
+.cal-pips i { width: 8px; height: 8px; border-radius: 50%; background: #8f70ff; }
+
+.rooftops { display: block; width: 100%; margin-top: 4px; aspect-ratio: 1536 / 106; min-height: 48px; max-height: 150px; overflow: hidden; }
+.rooftops img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; -webkit-mask-image: linear-gradient(transparent, #000 22%, #000 70%, transparent); mask-image: linear-gradient(transparent, #000 22%, #000 70%, transparent); }
+
+@media (max-width: 1100px) {
+  .appeal h2 { font-size: min(64px, 7.4vw); }
+  .cal-date { font-size: 16.5px; }
+  .cal-what { font-size: 15px; }
+}
+@media (max-width: 760px) {
+  .appeal { padding-top: 56px; text-align: left; }
+  .appeal .eyebrow { justify-content: flex-start; }
+  .appeal h2 { font-size: min(44px, 11.6vw); line-height: 1.04; }
+  .appeal h2 .tint { display: inline-block; padding-block: .1em; margin-block: -.1em; }
+  .appeal-sub { margin-left: 0; font-size: 18px; text-wrap: pretty; }
+  /* The calendar becomes a list down a vertical line. */
+  .calendar { margin-top: 32px; }
+  .calendar ol { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .calendar ol::before { top: 16px; bottom: 16px; left: 15px; right: auto; width: 2px; height: auto; background: linear-gradient(180deg, #8c62ff, #6f5ae8); }
+  .calendar a { display: grid; grid-template-columns: 32px auto minmax(0, 1fr); align-items: center; column-gap: 14px; min-height: 44px; padding: 4px 0; text-align: left; }
+  .cal-dot, .night .cal-dot { justify-self: center; margin: 0; }
+  .cal-what { margin-top: 0; font-size: 16px; }
+  .calendar ol { padding-bottom: 0; }
+  .cal-ticks { position: static; grid-column: 2 / -1; align-items: flex-start; flex-direction: row; gap: 10px; margin: 2px 0 6px; padding: 0; transform: none; white-space: normal; }
+  .cal-pips { padding-top: 5px; }
+}

@@ -1,0 +1,104 @@
+/* Apr 2, making calls: three cards overlapping as the desk drew them (the overnight log, the Okafor household and,
+   in front, the call list), with a lit cottage window peeking from behind the household's top-right corner.
+   Narrower than 1300 the copy goes above the drawing; narrower than 900 the cards stack, call list first. */
+.calls .story-row { grid-template-columns: minmax(0, 1fr) 757px; column-gap: 30px; }
+.calls { padding: 120px 0 100px; }
+/* Column lines at the cards' edges (0, 43, 365, 392, 480, 757), so the cards overlap in the grid and its height
+   follows them. */
+.calls-art .drawing-inner { display: grid; grid-template-columns: 43px 322px 27px 88px 277px; grid-template-rows: auto auto; align-items: start; }
+.overnight { grid-column: 1 / 3; grid-row: 1; z-index: 1; padding: 20px 22px 14px; }
+.household { grid-column: 4 / 6; grid-row: 1 / 3; z-index: 1; margin-top: 32px; padding: 22px 22px 16px; }
+.call-list { grid-column: 2 / 5; grid-row: 2; z-index: 3; margin-top: 78px; overflow: hidden; }
+
+.cottage-window { position: absolute; left: 623px; top: -61px; z-index: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 7px; width: 178px; height: 175px; padding: 12px 13px 14px; border-radius: 2px; background: linear-gradient(180deg, #2a2e66, #1d2150); box-shadow: inset 0 0 0 3px #343877, 0 0 80px 12px rgba(255, 176, 74, .2); }
+.cottage-window::before { content: ''; position: absolute; left: -10px; right: -10px; top: -12px; height: 13px; border-radius: 2px; background: linear-gradient(180deg, #3a3e80, #2a2e66); }
+.cottage-window::after { content: ''; position: absolute; left: -13px; right: -13px; bottom: -12px; height: 13px; border-radius: 2px; background: linear-gradient(180deg, #474b8f, #30346e); box-shadow: 0 8px 14px -6px rgba(0, 0, 0, .5); }
+.cottage-window i { border-radius: 1px; background: radial-gradient(120% 90% at 45% 70%, #ffe7a8 0%, #ffc55c 45%, #ec962f 100%); box-shadow: inset 0 0 0 1px rgba(120, 60, 10, .35), inset 0 -10px 18px -10px rgba(140, 70, 10, .5); }
+
+.overnight-head { display: flex; align-items: center; gap: 12px; font: 700 19px/1.2 var(--font-head); letter-spacing: -.01em; }
+.overnight-head .dot { color: var(--card-ink); }
+.spark { width: 26px; height: 26px; fill: #8a5cff; }
+.overnight ul { margin-top: 8px; }
+.overnight li { display: flex; align-items: flex-start; gap: 16px; padding: 8px 0; font-size: 16px; line-height: 1.4; color: #1d2246; }
+.overnight .check { flex: none; width: 26px; height: 26px; margin-top: -1px; }
+
+.hh-head { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--card-line); }
+.hh-head .initials { width: 54px; height: 54px; font-size: 19px; }
+.hh-name { font: 800 21px/1.2 var(--font-head); letter-spacing: -.02em; }
+.hh-sub { margin-top: 3px; font-size: 15px; color: var(--card-soft); }
+.hh-sub .dot, .cl-sub .dot, .cl-head span .dot { margin: 0 .4em; }
+.hh-stats { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--card-line); }
+.hh-stats span { padding: 12px 10px 12px 8px; font-size: 14.5px; color: var(--card-soft); }
+.hh-stats span + span { padding-left: 20px; border-left: 1px solid var(--card-line); }
+.hh-stats b { display: block; margin-top: 2px; font-size: 21px; font-weight: 700; color: var(--card-ink); }
+.hh-story { margin-top: 8px; }
+.hh-story li { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 7px 0; font-size: 14.5px; line-height: 1.45; color: #2b3058; }
+.hh-story li::before { content: ''; justify-self: center; width: 11px; height: 11px; margin-top: 5px; border-radius: 50%; background: var(--c, #8a8fab); }
+.hh-story li.violet { --c: #7c5cf5; } .hh-story li.green { --c: #2bb673; } .hh-story li.grey { --c: #a2a6bf; }
+.hh-story li.call::before { display: none; }
+/* The call list covers the household's lower-left corner, so the rows beside it start to its right. */
+.hh-story li:nth-child(n + 3) { margin-left: 86px; }
+.nowrap { white-space: nowrap; }
+.hh-what { display: block; }
+.hh-story li.call .chip-icon { width: 26px; height: 26px; }
+.hh-story li.call .chip-icon .icon { width: 14px; height: 14px; }
+.hh-story .tag { min-height: 24px; margin-left: 4px; padding: 2px 9px; font-size: 13px; vertical-align: 1px; }
+
+.cl-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; padding: 18px 24px 12px; border-bottom: 1px solid var(--card-line); }
+.cl-head b { font: 800 23px/1.2 var(--font-head); letter-spacing: -.02em; }
+.cl-head b .dot { color: var(--card-ink); }
+.cl-head > span { font-size: 15px; color: var(--card-soft); }
+.cl-tom { padding: 14px 24px 16px; border-bottom: 1px solid var(--card-line); }
+.cl-row { display: flex; align-items: center; gap: 12px; }
+.cl-row > div { flex: 1; min-width: 0; }
+.cl-row .chip-icon { width: 34px; height: 34px; }
+.cl-row .chip-icon .icon { width: 17px; height: 17px; }
+.cl-row .initials { width: 44px; height: 44px; font-size: 16px; }
+.cl-name { font-size: 17px; font-weight: 700; }
+.cl-sub { margin-top: 1px; font-size: 14px; color: var(--card-soft); text-wrap: pretty; }
+.cl-chevron { flex: none; width: 22px; height: 22px; color: #3a3f68; stroke-width: 2; }
+.cl-notes { margin-top: 10px; }
+.cl-notes li { position: relative; padding: 3px 0 3px 22px; font-size: 15px; line-height: 1.4; color: #2b3058; }
+.cl-notes li::before { content: ''; position: absolute; left: 4px; top: 10px; width: 9px; height: 9px; border-radius: 50%; background: #7c5cf5; }
+.cl-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.cl-actions span { min-width: 120px; height: 44px; }
+.cl-other { padding: 14px 24px; border-bottom: 1px solid var(--card-line); }
+.cl-other .cl-sub { font-size: 13.5px; }
+.cl-other .tag { min-height: 26px; padding: 3px 10px; font-size: 13px; border-radius: 999px; }
+.cl-foot { display: flex; align-items: center; gap: 14px; padding: 16px 24px; background: #e6f6ec; font-size: 15.5px; color: #18442c; }
+.cl-foot .dot { color: inherit; }
+.cl-foot .check { flex: none; width: 26px; height: 26px; }
+
+@media (max-width: 1299px) {
+  .calls .story-row { grid-template-columns: minmax(0, 1fr); row-gap: 48px; }
+  .calls .step-copy { max-width: 760px; }
+  .calls .drawing { justify-self: center; width: 757px; max-width: none; }
+  .calls .wide-only { display: none; }
+}
+@media (max-width: 899px) {
+  .calls { padding: 72px 0; }
+  .calls .drawing { width: 100%; max-width: 560px; }
+  .calls-art .drawing-inner { display: flex; flex-direction: column; gap: 14px; }
+  .overnight, .household, .call-list { margin: 0; }
+  .hh-story li:nth-child(n + 3) { margin-left: 0; }
+  .call-list { order: 1; } .household { order: 2; } .overnight { order: 3; }
+  .cottage-window { display: none; }
+}
+@media (max-width: 760px) {
+  .calls { padding: 56px 0; }
+  .overnight { padding: 16px 16px 10px; }
+  .overnight li { gap: 12px; font-size: 15px; }
+  .household { padding: 18px 16px 12px; }
+  .hh-name { font-size: 19px; }
+  .hh-stats b { font-size: 19px; }
+  .hh-story li { font-size: 14px; }
+  .cl-head { padding: 16px 16px 10px; }
+  .cl-head b { font-size: 20px; }
+  .cl-tom, .cl-other { padding: 14px 16px; }
+  .cl-row { gap: 10px; }
+  .cl-tom .chip-icon { display: none; }
+  .cl-other { flex-wrap: wrap; }
+  .cl-other > div { flex-basis: calc(100% - 56px); }
+  .cl-other .tag { margin-left: 54px; }
+  .cl-foot { padding: 14px 16px; font-size: 14.5px; }
+}

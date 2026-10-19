@@ -1018,7 +1018,7 @@ Each item the owner-approved scope (16 October 2026) names, and the clauses that
 
 ## Homepage claims
 
-Every capability claim on the run site's homepage (the desk's owner-accepted copy, `src/site/landing/`) and the clauses that deliver it. A claim's status is its clauses' statuses.
+Every capability claim on the run site's homepage (the desk's owner-accepted copy on the page-s1 structure, `src/site/landing/`) and the clauses that deliver it. A claim's status is its clauses' statuses.
 
 | # | Claim | Clauses | Status |
 | ---: | --- | --- | --- |
@@ -1033,56 +1033,43 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 9 | Failed card · Retried successfully | `GIVE-006` | partial |
 | 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` done |
 | 11 | Call Tom Okafor · lapsed 14 months | `DEV-005`, `STEW-001` | partial (core claim implemented; broader clauses remain) |
-| 12 | Donation forms and campaign pages | `GIVE-001`, `GIVE-002` | partial |
-| 13 | monthly giving | `GIVE-003` | partial |
-| 14 | card, bank and Apple Pay checkout | `GIVE-004` | partial |
-| 15 | a portal where donors update their own card | `GIVE-005` | partial |
-| 16 | Households | `DONOR-001` | done |
-| 17 | relationships | `DONOR-003` | partial |
-| 18 | every gift | `GIFT-001` | done |
-| 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` partial · `COMM-004` missing · `COMM-005` done |
-| 20 | soft credits | `GIFT-006` | done |
-| 21 | tributes | `GIFT-008` | partial |
-| 22 | employer matches | `GIFT-007` | partial |
-| 23 | Lifetime giving and first gift | `DONOR-011` | done |
-| 24 | Gifts sync from Stripe as they happen | `PAY-001` | partial |
-| 25 | fees, refunds | `PAY-003`, `PAY-004` | partial |
-| 26 | failed monthly payments | `GIVE-006` | partial |
-| 27 | each payout matches its deposit in QuickBooks Online or Pantry | `PAY-002`, `FIN-001`, `FIN-002` | `PAY-002` done · `FIN-001` / `FIN-002` partial |
-| 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` done · `FIN-003` done |
-| 29 | Thank-you letters | `ACK-001`, `RCPT-002` | `ACK-001` partial · `RCPT-002` done |
-| 30 | year-end tax receipts | `RCPT-004` | partial |
-| 31 | by email | `RCPT-001`, `RCPT-002` | `RCPT-001` partial · `RCPT-002` done |
-| 32 | print-ready for mail | `RCPT-003` | partial |
-| 33 | with the right IRS language | `ACK-001`, `RCPT-005` | `ACK-001` partial · `RCPT-005` done |
-| 34 | proof of delivery | `RCPT-006` | partial |
-| 35 | Thank-yous sent · 48 donors tonight | `RCPT-002` | done |
-| 36 | Appeals and welcome journeys go out through Mango or Mailchimp | `COMM-002`, `STEW-003` | `COMM-002` partial · `STEW-003` partial |
-| 37 | welcome journeys | `STEW-003` | partial |
-| 38 | Unsubscribes are honored everywhere | `CONSENT-001`, `APPEAL-001`, `COMM-001` | `CONSENT-001` done · `APPEAL-001` done · `COMM-001` partial |
-| 39 | replies land with the right person | `COMM-005` | done |
-| 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | `MAJOR-001` done · `MAJOR-002` done · `MAJOR-004` done |
-| 41 | reconciles every gift | `DEV-001` | partial (core claim implemented; broader clauses remain) |
-| 42 | rescues failed monthly gifts | `DEV-002` | partial (core claim implemented; broader clauses remain) |
-| 43 | sends missing receipts | `DEV-003` | partial (core claim implemented; broader clauses remain) |
-| 44 | drafts stewardship from your own history | `DEV-004` | partial (core claim implemented; broader clauses remain) |
-| 45 | tracks retention donor by donor | `DEV-005`, `REPORT-001` | partial (core claim implemented; broader clauses remain) |
-| 46 | Move from Little Green Light | `MOVE-001` | `MOVE-001` partial (CSV/XLSX exports implemented) |
-| 47 | Bloomerang | `MOVE-002` | `MOVE-002` partial (CSV/XLSX exports implemented) |
-| 48 | Raiser's Edge NXT | `MOVE-003` | `MOVE-003` partial (CSV/XLSX exports implemented) |
-| 49 | with every donor, household and gift | `MOVE-001`, `MOVE-002`, `MOVE-003`, `IMPORT-001` | `MOVE-001` partial · `MOVE-002` partial · `MOVE-003` partial · `IMPORT-001` partial |
-| 50 | check the totals before you switch | `IMPORT-001`, `MOVE-007` | `IMPORT-001` partial · `MOVE-007` partial (gift reconciliation implemented) |
-| 51 | Run Coffer on your own computer | `OWN-002` | done |
-| 52 | keep every donor record / Your donors, your database | `OWN-001`, `DATA-001` | done |
-| 53 | Export everything, any time | `DATA-001`, `DATA-002` | `DATA-001` done · `DATA-002` partial |
-| 54 | Soft credits | `GIFT-006` | done |
-| 55 | Tribute gifts | `GIFT-008` | partial |
-| 56 | Matching gifts | `GIFT-007` | partial |
-| 57 | Pledges: schedules, reminders and balances kept current | `GIFT-005`, `STEW-004` | `GIFT-005` partial · `STEW-004` partial |
-| 58 | Consent: email and mail preferences honored everywhere | `CONSENT-001`, `APPEAL-001` | done |
-| 59 | Gift ledger: every change recorded; no gift is silently edited | `GIFT-001` | done |
-| 60 | Open source donor management for every nonprofit | `OWN-001` | done |
-| 61 | Free and open source, MIT licensed | `OWN-001` | done |
+| 12 | Import from Little Green Light | `MOVE-001` | partial |
+| 13 | Bloomerang or Raiser's Edge NXT | `MOVE-002`, `MOVE-003` | partial |
+| 14 | Coffer checks the totals before you switch · Gift totals match to the cent | `IMPORT-001`, `MOVE-007` | `IMPORT-001` done · `MOVE-007` partial |
+| 15 | Import card: constituents, households, gifts, pledges, duplicates merged | `MOVE-001`, `MOVE-002`, `MOVE-003`, `IMPORT-001` | `MOVE-001` partial · `MOVE-002` partial · `MOVE-003` partial · `IMPORT-001` done |
+| 16 | 2 gifts had no fund · Assigned to General · fixed | `MOVE-001` | partial |
+| 17 | Install and start from the terminal | `OWN-002` | done |
+| 18 | Coffer builds the audience from giving history and consent | `APPEAL-001`, `CONSENT-001` | done |
+| 19 | routes each donor to an email, a letter or a call | `COMM-002`, `COMM-007`, `DEV-005` | partial |
+| 20 | Appeal emails through Mango or Mailchimp | `COMM-002` | partial |
+| 21 | print-ready letters for everyone who prefers paper · 114 letters ready to print | `COMM-007`, `RCPT-003` | partial |
+| 22 | Maria, 180 meals last year (merged appeal email) | `COMM-002` | partial |
+| 23 | The button opens your campaign page | `GIVE-002` | partial |
+| 24 | Card, bank or Apple Pay through your own Stripe account, once or monthly | `GIVE-004`, `GIVE-003` | partial |
+| 25 | Donor portal · Monthly $25 · Receipts · Update card | `GIVE-005` | partial |
+| 26 | The thank-you carries the tax receipt with the IRS wording | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` done |
+| 27 | a link to manage her monthly gift | `GIVE-005` | partial |
+| 28 | Delivered 7:02 PM · Opened 7:40 PM | `RCPT-006`, `DONOR-004` | partial |
+| 29 | Each gift lands on the donor's record, in the right fund, with its receipt | `GIFT-001`, `GIFT-004`, `RCPT-001` | `GIFT-001` done · `GIFT-004` done · `RCPT-001` partial |
+| 30 | Declined → Retried 7:16 PM | `GIVE-006` | partial |
+| 31 | Bank (ACH) · Pending · clears Mar 13 | `GIVE-004` | partial |
+| 32 | In memory of Grace Okafor · Card to family queued | `GIFT-008` | partial |
+| 33 | Employer match requested | `GIFT-007` | partial |
+| 34 | Check · Logged by Ana R. | `GIFT-001` | done |
+| 35 | Stripe payouts, fees and refunds sync on their own | `PAY-001`, `PAY-003`, `PAY-004` | partial |
+| 36 | match each QuickBooks Online deposit, fund by fund · the $20.00 gap and the refund found | `PAY-002`, `FIN-001` | `PAY-002` done · `FIN-001` partial |
+| 37 | the development agent reconciles gifts, rescues failed monthly gifts, sends missed receipts | `DEV-001`, `DEV-002`, `DEV-003` | partial |
+| 38 | and ranks who needs a call | `DEV-005`, `STEW-001` | partial |
+| 39 | Retention rescored for 1,132 donors | `REPORT-001` | done |
+| 40 | Okafor household: lifetime, first gift, tribute, call, gift and DAF soft credit, newest first | `DONOR-004`, `DONOR-011`, `GIFT-006`, `GIFT-008`, `GIFT-009` | `DONOR-004` partial · `DONOR-011` done · `GIFT-006` done · `GIFT-008` partial · `GIFT-009` done |
+| 41 | Close the appeal knowing who gave again, donor by donor | `REPORT-001` | done |
+| 42 | matched to the books · Matches QuickBooks Online to the cent | `FIN-001`, `FIN-003` | `FIN-001` partial · `FIN-003` done |
+| 43 | The appeal's report to the board, didn't renew added to the fall call list | `COMM-008`, `REPORT-002` | `COMM-008` missing · `REPORT-002` done |
+| 44 | Each donor gets one statement of the year's gifts, by email or on paper | `RCPT-004` | partial |
+| 45 | 1,486 emailed · 1,452 delivered · 34 bounced · print batch | `RCPT-006` | partial |
+| 46 | Open source donor management for nonprofits | `OWN-001` | done |
+| 47 | Free and open source, MIT licensed | `OWN-001` | done |
+| 48 | What Coffer doesn't do: no auction bidding, volunteer shift scheduling, wealth screening or receipts outside the US | Honest boundaries | boundary |
 
 ## Status
 

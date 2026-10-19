@@ -1,0 +1,82 @@
+/* Mar 10 and Mar 16: tonight's gifts as they land, beside the copy; then the Stripe payout that is $20.00 short
+   until the refund is found, with its funds. */
+.first-night .story-row { --copy: 640fr; --art: 587fr; --art-min: 520px; --gap: 46px; }
+.first-night { padding: 64px 0 70px; }
+.feed { overflow: hidden; }
+.feed-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px 12px; border-bottom: 1px solid var(--card-line); font: 800 23px/1.2 var(--font-head); letter-spacing: -.02em; }
+.live { display: inline-flex; align-items: center; gap: 8px; font: 500 15px/1 var(--font-body); letter-spacing: 0; color: var(--card-soft); }
+.live::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px #dcf4e7; }
+.feed-rows { padding: 2px 12px 4px; }
+.feed-rows li { display: grid; grid-template-columns: 56px 40px minmax(0, 1fr); align-items: center; gap: 12px; min-height: 57px; padding: 6px 8px; border-bottom: 1px solid var(--card-line); }
+.feed-rows li:last-child { border-bottom: 0; }
+.feed-rows li.failed { margin: 3px 0; border-bottom: 0; border-radius: 10px; background: #fdeaec; }
+.feed-time { font-size: 13.5px; color: #868ba9; white-space: nowrap; }
+.feed-rows .initials { width: 40px; height: 40px; font-size: 15px; }
+.feed-body { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 0; }
+.feed-who { flex: 1 1 140px; min-width: 0; font-size: 14.5px; line-height: 1.3; color: var(--card-soft); }
+.feed-who b { display: block; font-size: 16.5px; font-weight: 600; color: var(--card-ink); }
+.feed-at { display: none; }
+.feed-what { display: block; }
+.feed-status { display: flex; align-items: center; margin-left: auto; }
+.feed-status > span { display: inline-flex; align-items: center; }
+.feed-status .tag { font-size: 14px; }
+.feed-arrow { margin: 0 9px; font-size: 16px; color: #8a8fab; }
+.feed-foot { padding: 14px 22px 15px; background: #ece9fb; font-size: 17px; font-weight: 600; color: var(--violet-ink); }
+.feed-foot .dot { color: inherit; }
+
+.reconcile .story-row { --art: 628fr; --copy: 600fr; --art-min: 520px; --gap: 58px; }
+.reconcile { padding: 70px 0 92px; }
+.payout { padding: 20px 20px 22px; }
+.payout-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; padding-bottom: 12px; border-bottom: 1px solid var(--card-line); font: 700 19.5px/1.25 var(--font-head); letter-spacing: -.01em; }
+.payout-head .dot { color: var(--card-ink); }
+.payout-head b { font-size: 23px; font-weight: 800; }
+.payout-lines div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--card-line); font-size: 17px; color: #2b3058; }
+.payout-lines dd { margin: 0; }
+.payout-gap { margin-top: 12px; padding: 11px 20px; border-radius: 8px; background: #fde8ea; font-size: 16px; line-height: 1.35; color: #b5232d; }
+.payout-gap .dot, .payout-found .dot { color: inherit; }
+.payout-found { display: flex; align-items: center; gap: 12px; margin-top: 8px; padding: 11px 16px; border-radius: 8px; background: #e5f5eb; font-size: 15px; line-height: 1.35; color: #18442c; }
+.payout-found .check { flex: none; width: 24px; height: 24px; }
+.payout-funds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.fund { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 12px 12px; border-radius: 10px; font-size: 14px; color: #2b3058; white-space: nowrap; }
+.fund > span::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 7px; border-radius: 50%; vertical-align: 0; }
+.fund b { margin-left: auto; font-weight: 500; }
+.fund.violet { background: #efebfe; } .fund.violet > span::before { background: #7c5cf5; }
+.fund.green { background: #e7f6ed; } .fund.green > span::before { background: #2bb673; }
+.fund.amber { background: #fdf2dc; } .fund.amber > span::before { background: #f4b13c; }
+
+@media (max-width: 1439px) {
+  /* Narrower, each fund shows its name over its amount. */
+  .fund { display: grid; gap: 2px; }
+  .fund b { margin-left: 18px; }
+}
+@media (max-width: 1100px) {
+  .first-night .story-row { --art-max: 600px; }
+  .reconcile .story-row { --art-max: 628px; }
+}
+@media (max-width: 760px) {
+  .first-night { padding: 52px 0 56px; }
+  .feed-head { padding: 16px 16px 12px; font-size: 20px; }
+  .feed-rows { padding: 2px 6px 4px; }
+  .feed-rows li { grid-template-columns: 40px minmax(0, 1fr); gap: 12px; min-height: 64px; padding: 10px; }
+  .feed-time { display: none; }
+  .feed-who { flex-basis: 100%; font-size: 14px; }
+  .feed-who b { display: inline; font-size: 15.5px; }
+  .feed-at { display: inline; color: var(--card-soft); }
+  .feed-at .dot { margin: 0 .35em; }
+  .feed-status { margin-left: 0; flex-wrap: wrap; row-gap: 6px; }
+  .feed-status .tag { font-size: 13.5px; min-height: 28px; padding: 4px 10px; }
+  .feed-arrow { margin: 0 7px; }
+  .feed-foot { padding: 13px 16px; font-size: 15.5px; text-align: center; }
+  .reconcile { padding: 52px 0 60px; }
+  .payout { padding: 16px 16px 18px; }
+  .payout-head { font-size: 17px; }
+  .payout-head b { font-size: 20px; }
+  .payout-lines div { font-size: 15.5px; }
+  /* Each figure on its own line, so none splits and no separator hangs at a line's end. */
+  .payout-gap, .payout-found > span { display: grid; }
+  .payout-gap .dot, .payout-found > span > .dot { display: none; }
+  .payout-gap { padding: 10px 14px; font-size: 14.5px; }
+  .payout-found { gap: 10px; padding: 10px 14px; font-size: 14.5px; }
+  .payout-funds { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fund { padding: 10px 12px; font-size: 14px; }
+}

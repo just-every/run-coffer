@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **The run site's homepage follows one spring appeal.** It is rebuilt on the owner-approved page structure (17 October 2026): after the hero, a calendar of the appeal's seven dates leads through moving in, choosing who to ask, sending, a gift, the thank-you, the first night, reconciling, the morning calls, the board report and year-end statements, each drawn as real product cards, then the closing. The old twelve-section layout is gone. `docs/CLAIMS.md` tracks every claim the new page makes.
+
 ## 0.1.0 — 2026-10-18
 
 The first release. Commit `4ba9d72` was gated independently on 18 October 2026 on a fresh install, on a computer at 1440 and 390 pixels and on a hosted Cloudflare Worker with real SendGrid mail and Stripe test cards. The gate backed up a hosted Coffer holding the full 5,000-constituent Little Green Light move-in (245 parts, about 105 MB), removed it, redeployed the environment empty and restored it with the documented command on the first attempt; every archived table's row count, every year and fund total and owner sign-in by email were the same afterwards.

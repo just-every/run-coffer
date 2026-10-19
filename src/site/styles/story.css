@@ -1,0 +1,56 @@
+/* The appeal's dated steps: each one an eyebrow with its date, a two-line heading (white, then the violet tint) and a
+   short paragraph beside its drawing, alternating sides as the desk drew them. Sizes are set at 1440 wide. */
+
+.eyebrow { display: flex; align-items: center; gap: 15px; font: 600 14.5px/1.2 var(--font-body); letter-spacing: .3em; text-transform: uppercase; color: var(--eyebrow); }
+.eyebrow-dot { flex: none; width: 15px; height: 15px; border-radius: 50%; background: linear-gradient(160deg, #a083ff, #7c4dff); box-shadow: 0 0 12px rgba(140, 98, 255, .55); }
+
+.story { position: relative; padding: 92px 0; scroll-margin-top: 24px; }
+.story-row { display: grid; grid-template-columns: minmax(0, var(--copy, 1fr)) minmax(min(var(--art-min, 0px), 100%), var(--art, 1fr)); align-items: center; column-gap: var(--gap, 56px); }
+.story.flip .story-row { grid-template-columns: minmax(min(var(--art-min, 0px), 100%), var(--art, 1fr)) minmax(0, var(--copy, 1fr)); }
+.story.flip .step-copy { order: 2; }
+.story.flip .drawing { order: 1; }
+/* Two steps drawn on one screen share it, split by a hairline. */
+.chapter > .story + .story::before { content: ''; position: absolute; top: 0; left: 50%; width: min(var(--wrap), 100% - 2 * var(--gutter)); height: 1px; transform: translateX(-50%); background: var(--night-line); }
+
+.step-copy { container-type: inline-size; min-width: 0; }
+/* Each heading at the desk's size at 1440 (--h), shrinking with the window below 1440 and never wider than its
+   column: --wl is its widest line's width at --h. */
+.step-copy h2 { margin-top: 24px; font: 900 min(calc(var(--h) * min(1px, 100vw / 1440)), calc(var(--h) * 100cqi / var(--wl)))/1 var(--font-head); letter-spacing: -.045em; color: #fff; }
+.step-copy h2 .lead, .step-copy h2 .tint { display: block; white-space: nowrap; padding-block: .12em; margin-block: -.12em; }
+.step-body { max-width: 580px; margin-top: 22px; font-size: clamp(20px, 1.875vw, 27px); line-height: 1.42; color: var(--on-night-body); letter-spacing: -.003em; text-wrap: pretty; }
+
+.drawing { position: relative; min-width: 0; }
+.drawing-inner { position: relative; }
+
+/* Paper and window chrome shared by several drawings */
+.paper { background: linear-gradient(180deg, #fdfdff, #f4f4f9); color: #1c2045; border-radius: 4px; box-shadow: 0 1px 2px rgba(8, 10, 40, .2), 0 30px 50px -26px rgba(4, 6, 30, .7); font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif; }
+.chrome { display: flex; align-items: center; gap: 8px; padding: 0 20px; height: 40px; background: #f1f0f8; border-bottom: 1px solid var(--card-line); border-radius: 16px 16px 0 0; }
+.chrome > span:not(.chrome-url) { flex: none; width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.chrome > span:nth-child(2) { background: #febc2e; } .chrome > span:nth-child(3) { background: #28c840; }
+.chrome-url { flex: 1; min-width: 0; margin-left: 12px; padding: 6px 16px; border-radius: 8px; background: #e2e1f0; font-size: 14.5px; line-height: 1.2; color: #3a3f68; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-solid, .btn-line { display: inline-grid; place-items: center; height: 42px; padding: 0 24px; border-radius: 8px; font-size: 16px; font-weight: 600; }
+.btn-solid { background: linear-gradient(180deg, #8a5fff, var(--violet)); color: #fff; }
+.btn-line { border: 1.5px solid #8f70ff; color: #5b32e6; }
+
+@media (max-width: 1100px) {
+  .story { padding: 72px 0; }
+  .story-row, .story.flip .story-row { grid-template-columns: minmax(0, 1fr); row-gap: 40px; }
+  .story.flip .step-copy { order: 1; }
+  .story.flip .drawing { order: 2; }
+  .step-copy h2 { font-size: min(76px, calc(var(--h) * 100cqi / var(--wl))); }
+  .step-body { max-width: 640px; font-size: 21px; }
+  .drawing { justify-self: center; width: 100%; max-width: var(--art-max, 640px); }
+}
+@media (max-width: 760px) {
+  .story { padding: 56px 0; }
+  .story-row { row-gap: 28px; }
+  .eyebrow { gap: 11px; font-size: 12.5px; letter-spacing: .24em; }
+  .eyebrow-dot { width: 12px; height: 12px; }
+  .step-copy h2 { margin-top: 16px; font-size: min(48px, calc(var(--h) * 100cqi / var(--wl))); }
+  .step-body { margin-top: 16px; font-size: 18px; line-height: 1.45; }
+  .drawing { max-width: none; }
+  .chrome { height: 34px; padding: 0 14px; gap: 6px; border-radius: 14px 14px 0 0; }
+  .chrome > span:not(.chrome-url) { width: 10px; height: 10px; }
+  .chrome-url { margin-left: 8px; padding: 5px 10px; font-size: 13px; }
+  .btn-solid, .btn-line { height: 38px; padding: 0 16px; font-size: 15px; }
+}

@@ -14,7 +14,7 @@ img { max-width: 100%; }
 /* Header: the lockup (mark and wordmark in the heading face) and two links over a hairline. */
 .site-header { position: relative; z-index: 3; }
 .site-header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 80px; border-bottom: 1px solid var(--night-line); }
-.site-brand { display: inline-flex; align-items: center; gap: 10px; font: 700 24px/1 var(--font-head); letter-spacing: -.02em; text-decoration: none; color: var(--on-night); }
+.site-brand { display: inline-flex; align-items: center; gap: 10px; font: 700 24px/1.25 var(--font-head); letter-spacing: -.02em; text-decoration: none; color: var(--on-night); }
 .site-brand img { width: 34px; height: 34px; margin: -4px 0 -2px; }
 .site-header nav { display: flex; gap: 46px; font-size: 18px; font-weight: 500; color: rgba(255, 255, 255, .9); }
 .site-header nav a { text-decoration: none; padding: 6px 0; }
