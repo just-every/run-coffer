@@ -1,3 +1,4 @@
+import { cultivationCommand } from './cultivation'
 import { softCreditAckCommand } from './soft-credit-ack'
 import { portfolioCommand } from './portfolios'
 import { plannedGivingCommand } from './planned-giving'
@@ -27,6 +28,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // Who may run each command. Agents prepare letters and appeal audiences; a
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
+ 'cultivation.template': STAFF, 'cultivation.apply': STAFF, 'cultivation.complete': STAFF, 'proposal.save': STAFF, 'proposal.attach': STAFF, 'proposal.sent': STAFF, 'proposal.response': STAFF,
  'portfolio.save': STAFF, 'portfolio.assign': STAFF,
  'planned.save': STAFF, 'planned.realize': STAFF, 'planned.unlink': STAFF, 'legacy.set': STAFF,
  'fund.define': MANAGERS, 'fund.spend': MANAGERS,
@@ -54,7 +56,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'donor.unmerge') return undoMerge(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) {
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }

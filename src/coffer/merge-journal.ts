@@ -27,6 +27,8 @@ const descriptions = [
  owned('cf_interactions'), owned('cf_donor_notes'),
  owned('cf_soft_credit_acknowledgments',`n.soft_credit_id IN (SELECT id FROM cf_soft_credits WHERE donor_id IN ${pair} OR gift_id IN (${gifts}))`,['soft_credit_id']),
  owned('cf_prospects'),
+ owned('cf_cultivation_tasks',`n.prospect_id IN (SELECT id FROM cf_prospects WHERE donor_id IN ${pair})`),
+ owned('cf_proposals',`n.prospect_id IN (SELECT id FROM cf_prospects WHERE donor_id IN ${pair})`),
  owned('cf_appeal_recipients',undefined,['appeal_id','donor_id']), owned('cf_stewardship_drafts'),
  owned('cf_welcome_steps',undefined,['id'],false), owned('cf_welcome_enrollments',undefined,['donor_id'],false),
  owned('cf_preference_sync',undefined,['donor_id'],false),

@@ -138,3 +138,8 @@ test('MAJOR-002: portfolios count manager moves, current pipeline, signed giving
  const {portfoliosJourney}=await import('./portfolios-journey.mjs')
  await portfoliosJourney()
 })
+
+test('MAJOR-003: dated cultivation tasks and attached proposals retain sending, responses and custody',async()=>{
+ const {cultivationJourney}=await import('./cultivation-journey.mjs')
+ await cultivationJourney()
+})

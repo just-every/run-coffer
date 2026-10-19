@@ -612,6 +612,8 @@ The report uses current portfolio membership and relationship managers; opportun
 
 A cultivation plan is a template of steps (tour, lunch with the board chair, proposal, ask) applied to an opportunity as dated tasks; proposals are drafted and attached, sent, and their response recorded.
 
+Applying a template snapshots its name and steps as separately owned tasks, with due dates equal to the chosen organization-calendar start date plus each whole-day offset; later template edits do not rewrite those tasks. Staff complete steps with notes. Proposals keep an editable draft and an attached PDF or plain-text document (up to 256,000 bytes). Staff record the date, method and evidence of sending performed outside Coffer, then the dated response. Coffer labels this as recorded sending, without claiming a provider send or delivery verification; a sent draft and attachment are retained unchanged. Version checks refuse stale changes, and backup/restore, donor merge/undo and erasure preserve custody.
+
 *Acceptance:* An HTTP journey applies a four-step plan to an opportunity, completes two steps, attaches a proposal and records it as sent.
 
 #### MAJOR-004 — Engagement and retention scores.
@@ -1059,8 +1061,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 15 | 61 | 50 | 126 |
-| All | 23 | 62 | 50 | 135 |
+| Target and push further | 16 | 61 | 49 | 126 |
+| All | 24 | 62 | 49 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1149,7 +1151,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `STEW-006` | Meetings and calendars | target | missing |  | No calendar connection. |
 | `MAJOR-001` | Opportunity pipeline | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Identify, qualify, cultivate, ask and stewardship opportunities carry ask amount, expected close, owner and next step; lists filter by owner and stage. Configurable stages, probability, campaign/fund forecasts and closed-won gift linkage remain. |
 | `MAJOR-002` | Portfolios and moves | target | done | `src/coffer/portfolios.ts`, `src/coffer/ui/portfolios.ts`, `tests/pipeline.test.mjs`, `tests/portfolios-journey.mjs` | Named, versioned portfolios assign one relationship manager per prospect; inclusive-period moves, untouched flags, current pipeline and signed ledger giving aggregate per portfolio and manager. Clause-tagged HTTP and 1440/390 browser journeys exercise the public report, forms and custody. |
-| `MAJOR-003` | Action plans and proposals | target | missing |  | No plans or proposals. |
+| `MAJOR-003` | Action plans and proposals | target | done | `src/coffer/cultivation.ts`, `src/coffer/ui/cultivation.ts`, `migrations/core/0051_coffer_cultivation.sql`, `tests/pipeline.test.mjs`, `tests/cultivation-journey.mjs` | Clause-named public-door proof applies four dated steps, completes two, drafts and attaches a proposal, downloads the exact document, records sending and a response, rejects stale changes, and exercises backup/restore, merge/undo and erasure. Native proposal forms run at 1440 and 390 pixels. |
 | `MAJOR-004` | Engagement and retention scores | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Prospect scores expose recency, frequency, amount and conversation inputs with their points and the full fixed formula. Configurable weights, broader engagement sources and scores on every constituent remain. |
 | `MAJOR-005` | Prospect research | target | missing |  | No prospect research. |
 | `MAJOR-006` | Grants from foundations and corporations | target | missing |  | No grant tracking. |

@@ -44,7 +44,7 @@ export async function majorGiftsPage(c: Context, url: URL): Promise<string> {
  const pipeline = filtered.length ? `<ul class="list">${filtered.map(p => `<li>
   <a href="/app/donors/${e(p.donor_id)}"><strong>${e(p.donor_name)}</strong></a> · ${e(p.label)} ${chip(PROSPECT_STAGE_LABELS[p.stage as typeof PROSPECT_STAGES[number]])}
   <p>${e(money(p.ask_amount_cents))} ask · expected ${e(longDay(p.expected_close_on))}<br>Owner: ${e(p.owner_name)} ${p.owner_status !== 'active' ? chip('Reassign owner', 'warn') : ''}</p>
-  <p><strong>Next step:</strong> ${e(p.next_step)}</p>${scoreDetails(p)}
+  <p><a href="/app/opportunities/${e(p.id)}">Action plan and proposals</a></p><p><strong>Next step:</strong> ${e(p.next_step)}</p>${scoreDetails(p)}
   ${staff ? `<details class="edit"><summary>Update opportunity</summary>${form('prospect.save', prospectFields(owners, p), 'Save opportunity', { id: p.id, donorId: p.donor_id, version: p.version })}</details>` : ''}
   </li>`).join('')}</ul>` : empty(list.length ? 'No opportunities match these filters.' : 'No major-gift prospects yet. Choose a donor and record the next step.')
  const create = staff ? box('Add an opportunity', donors.length && owners.length
