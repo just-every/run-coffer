@@ -470,7 +470,9 @@ In January Coffer prepares one statement per donor, or per household as `RCPT-00
 
 Receipt templates must state the organization's name and EIN, the amount or a description of non-cash property, the date, and whether goods or services were provided with their good-faith value. Coffer applies the $250 written-acknowledgment rule, the quid pro quo disclosure for any payment over $75 that is partly a contribution, the token-benefit exception at the IRS's current inflation-adjusted figures (a setting), and intangible religious benefit wording for religious organizations.
 
-*Acceptance:* An HTTP journey receipts a $250 gift, an $80 ticket with $50 of dinner (disclosure required though under $250), a gift with a token mug, and a non-cash gift, and checks each statement against the rule it exercises; with the organization set as religious, a $300 gift whose donor received only an intangible religious benefit is receipted with the statement that the benefit was solely intangible religious benefit and no value.
+The receipt queue uses the lower of the configured threshold and $250 per individual payment, and also includes every partly deductible payment strictly over $75 with a positive goods value. A saved monetary template must include the organization’s EIN as well as its other required facts; goods wording always includes the limitation to the payment’s excess over the good-faith benefit value. Token exceptions require reviewed limits for the gift’s own calendar year, confirmation that these are the only benefits, and either fundraising-campaign fair value no more than both 2% of the gift and the reviewed dollar cap, or name/logo items whose aggregate charity cost and minimum gift meet the reviewed limits. The 2026 limits are $139, $13.90 and $69.50 respectively ([IRS Revenue Procedure 2025-32 §4.33](https://www.irs.gov/pub/irs-drop/rp-25-32.pdf)); missing or different-year limits refuse the exception. Intangible religious benefits require the reviewed exclusively religious organization setting and state no benefit value. Each exception freezes its actual benefit facts, rule and settings version beside the gift; the monetary ledger’s goods cents remain the deductible reduction (zero for an allowed exception). Individual, agent-prepared and annual receipts use that frozen basis. Backup/restore, merge/undo and erasure retain the same financial custody; erasure removes benefit descriptions and receipt text. A property acknowledgment uses the property description rather than its donor-stated dollar value.
+
+*Acceptance:* An HTTP journey receipts a $250 gift, an $80 ticket with $50 of dinner (disclosure required though under $250), a gift with a token mug, and a non-cash gift, and checks each statement against the rule it exercises; with the organization set as religious, a $300 gift whose donor received only an intangible religious benefit is receipted with the statement that the benefit was solely intangible religious benefit and no value. The clause-named journey asserts the strict payment boundary, year/limit/role/template refusals, frozen exceptions through settings changes, backup/restore, merge/undo and erasure. Native settings save, entry, issued receipts, printing and the empty queue run at 1440/390.
 
 #### RCPT-006 — Delivery tracking.
 
@@ -1015,7 +1017,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` partial · `REPORT-003` partial |
 | 8 | Monthly $25 · Active | `GIVE-003` | partial |
 | 9 | Failed card · Retried successfully | `GIVE-006` | partial |
-| 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` partial |
+| 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` done |
 | 11 | Call Tom Okafor · lapsed 14 months | `DEV-005`, `STEW-001` | partial (core claim implemented; broader clauses remain) |
 | 12 | Donation forms and campaign pages | `GIVE-001`, `GIVE-002` | partial |
 | 13 | monthly giving | `GIVE-003` | partial |
@@ -1038,7 +1040,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 30 | year-end tax receipts | `RCPT-004` | partial |
 | 31 | by email | `RCPT-001`, `RCPT-002` | `RCPT-001` partial · `RCPT-002` done |
 | 32 | print-ready for mail | `RCPT-003` | partial |
-| 33 | with the right IRS language | `ACK-001`, `RCPT-005` | `ACK-001` partial · `RCPT-005` partial |
+| 33 | with the right IRS language | `ACK-001`, `RCPT-005` | `ACK-001` partial · `RCPT-005` done |
 | 34 | proof of delivery | `RCPT-006` | partial |
 | 35 | Thank-yous sent · 48 donors tonight | `RCPT-002` | done |
 | 36 | Appeals and welcome journeys go out through Mango or Mailchimp | `COMM-002`, `STEW-003` | `COMM-002` partial · `STEW-003` partial |
@@ -1087,8 +1089,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 23 | 57 | 46 | 126 |
-| All | 31 | 58 | 46 | 135 |
+| Target and push further | 24 | 56 | 46 | 126 |
+| All | 32 | 57 | 46 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1154,7 +1156,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `RCPT-002` | Acknowledgments delivered by email | target | done | `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs` | Approved frozen batches send once per letter through self-hosted SendGrid, route donors without an address or with a known receipt bounce/complaint to print; marketing withdrawals still receive receipts, and show submitted versus signed provider delivery results. RER Managed sending is not available yet. |
 | `RCPT-003` | Print-ready letters, labels and envelopes | target | partial | `src/coffer/ui/print-letters.ts`, `tests/receipts.test.mjs` | Single and batch print-styled US Letter documents support window-envelope placement and browser Save as PDF alongside CSV. Labels, envelope-only layouts, Word files, household grouping and Lob remain unbuilt. |
 | `RCPT-004` | Year-end giving statements | target | partial | `src/coffer/year-end.ts`, `tests/receipts.test.mjs` | Per-donor calendar-year statements itemize all unreversed gifts including imported gifts, goods values and deductible totals, then use approved email or print delivery. Unknown goods answers require review. Portal requests, automatic January scheduling, household grouping, deceased-recipient rules and corrected reissues remain unbuilt. |
-| `RCPT-005` | US receipt rules | target | partial | `src/coffer/settings.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | Templates must carry donor, amount, date, organization and the goods-or-services statement, and the $250 threshold works; no quid pro quo rule for payments over $75, token-benefit or religious-benefit wording. |
+| `RCPT-005` | US receipt rules | target | done | `src/coffer/receipt-rules.ts`, `src/coffer/settings.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/in-kind.ts`, `migrations/core/0057_coffer_receipt_rules.sql`, `tests/receipts.test.mjs`, `tests/receipt-rules-journey.mjs`, `tests/receipt-rules-browser.mjs` |  |
 | `RCPT-006` | Delivery tracking | target | partial | `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs` | Signed SendGrid delivered, bounce, dropped and complaint events are recorded per letter, deduplicated and shown on donor and batch; negative results route the donor to print. Configure the signed provider webhook and verification key, or explicitly fetch events with SendGrid Email Logs access. Open tracking, address-fix tasks and print-vendor events remain unbuilt. |
 | `RCPT-007` | Thank-you templates | target | partial | `src/coffer/settings.ts`, `tests/coffer.test.mjs` | One reviewed letter template with required facts exists; no templates per form, campaign or gift type. |
 | `RCPT-008` | Corrected and voided receipts | target | missing |  | No receipt numbering, voiding or reissue. |

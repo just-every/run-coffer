@@ -1,3 +1,4 @@
+import { withReceiptBenefits } from './receipt-rules'
 import { receiptFundLabels } from './gift-splits'
 import { all, commit, event, fail, guard, id, integer, newId, sql, today, type Context, type Row } from './db'
 import { address, letterHash } from './acknowledgements'
@@ -14,9 +15,9 @@ const ELIGIBLE = `g.kind='gift' AND g.received_on>=? AND g.received_on<=?
 function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: string) {
  const total = gifts.reduce((n, g) => n + g.amount_cents, 0)
  const goods = gifts.reduce((n, g) => n + g.goods_cents, 0)
- const provided = gifts.filter(g => g.goods === 'provided')
+ const provided = gifts.filter(g => g.goods === 'provided' || g.receipt_statement)
  const items = gifts.map((g, i) => [
-  `${i + 1}. ${longDate(g.received_on)} · ${g.receipt_fund ?? g.fund} · ${usd(g.amount_cents)} · goods or services: ${g.goods === 'provided' ? `${g.goods_description} (${usd(g.goods_cents)})` : 'none'} · deductible ${usd(g.amount_cents - g.goods_cents)}`,
+  `${i + 1}. ${longDate(g.received_on)} · ${g.receipt_fund ?? g.fund} · ${usd(g.amount_cents)} · goods or services: ${g.receipt_statement ? g.receipt_statement : g.goods === 'provided' ? `${g.goods_description} (${usd(g.goods_cents)})` : 'none'} · deductible ${usd(g.amount_cents - g.goods_cents)}`,
   ...(g.tribute ? [`   ${tributeReceiptText(g.tribute)}`] : []),
  ].join('\n'))
  // A mixed year states each gift's own wording; it never inherits the no-goods sentence.
@@ -30,7 +31,7 @@ function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: 
    `Thank you for supporting ${s.organisation} in ${year}. For your tax records, this statement lists each gift you made from January 1 through December 31, ${year}.`, '',
    ...items, '',
    `Total gifts: ${usd(total)}`,
-   `Total goods or services value: ${usd(goods)}`,
+   `Total non-exempt goods or services value: ${usd(goods)}`,
    `Total deductible portion: ${usd(total - goods)}`, '',
    ...wording, '',
    'With thanks,', s.organisation, ...(s.ein ? [`EIN ${s.ein}`] : []),
@@ -44,7 +45,7 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  const s = await settings(c), day = today(s.timezone, new Date(c.now))
  const year = integer(typeof p.year === 'string' ? Number(p.year) : p.year, 'Statement year', 1900, Number(day.slice(0, 4)))
  const donorId = p.donorId === undefined || p.donorId === null || p.donorId === '' ? null : id(p.donorId, 'Donor')
- if (!s.reviewed_at || !s.organisation) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')
+ if (!s.reviewed_at || !s.organisation || !s.ein) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')
  const scope = [`${year}-01-01`, `${year}-12-31`, donorId, donorId]
  const donors = await all(c, `SELECT d.* FROM cf_donors d WHERE EXISTS(
   SELECT 1 FROM cf_gifts g WHERE g.donor_id=d.id AND ${ELIGIBLE})
@@ -57,6 +58,7 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
   WHERE ${ELIGIBLE} AND d.id IN (SELECT value FROM json_each(?)) ORDER BY g.received_on,g.id`, ...scope, donorIds)
  if (gifts.some(g => g.goods === 'unknown')) fail('GOODS_UNKNOWN', 'A gift in this year still needs its goods or services answer. Open the donor’s gift history, record that answer, then prepare the statement again.')
  const tributes = new Map((await all(c, 'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))', JSON.stringify(gifts.map(g=>g.id)))).map(t=>[t.gift_id,t]))
+ await withReceiptBenefits(c, gifts)
  await receiptFundLabels(c,gifts)
  for (const gift of gifts) gift.tribute = tributes.get(gift.id) ?? null
  const batchId = newId()

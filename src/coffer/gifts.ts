@@ -1,3 +1,4 @@
+import { benefitStatements, receiptBenefit } from './receipt-rules'
 import { choice, commit, date, event, fail, guard, id, integer, newId, one, optional, sql, text, today, type Context, type Row } from './db'
 import { giftInstallmentStatements } from './pledges'
 import { amount } from './money'
@@ -18,14 +19,16 @@ function goods(p: Row, giftCents: number) {
 export async function giftCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
  if (command === 'gift.record') {
   const donorId = id(p.donorId, 'Donor'), giftId = newId(), cents = amount(p, 'amount', 'Gift amount'), received = date(p.receivedOn, 'Received on')
-  if (received > today((await settings(c)).timezone)) fail('INPUT', 'A gift records money already received; its date cannot be in the future.', 400)
+  const s = await settings(c), benefit = receiptBenefit(p, cents, received, s)
+  if (received > today(s.timezone)) fail('INPUT', 'A gift records money already received; its date cannot be in the future.', 400)
   const allocations = await prepareGiftAllocations(c, p, cents)
   const method = choice(p.method, METHODS, 'how the gift was paid'), reference = optional(p.reference, 'Reference', 100), fund = allocations.length ? allocations[0].fund : optional(p.fund, 'Fund', 100) ?? 'Unrestricted'
-  const pledgeId = optional(p.pledgeId, 'Pledge', 100), g = goods(p, cents), note = optional(p.note, 'Note', 1000), appeal = optional(p.appeal, 'Appeal', 200)
+  const pledgeId = optional(p.pledgeId, 'Pledge', 100), g = benefit ? { kind: 'none', cents: 0, description: null } : goods(p, cents), note = optional(p.note, 'Note', 1000), appeal = optional(p.appeal, 'Appeal', 200)
   await commit(c, [
    guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL)", 'NOT_FOUND', 'That donor does not exist.', donorId),
    ...(pledgeId ? [guard('EXISTS(SELECT 1 FROM cf_pledges WHERE id=? AND donor_id=?)', 'PLEDGE', 'That pledge belongs to another donor.', pledgeId, donorId)] : []),
    sql("INSERT INTO cf_gifts VALUES(?,1,?,'gift',NULL,?,?,?,?,?,?,?,?,?,?,'manual',?,?)", giftId, donorId, received, cents, method, reference, fund, pledgeId, g.kind, g.cents, g.description, note, c.now, c.actor.name),
+   ...benefitStatements(giftId, benefit, s),
    ...giftAllocationStatements(giftId, allocations),
    ...(appeal ? [sql('INSERT INTO cf_gift_appeals VALUES(?,?)', giftId, appeal)] : []),
    ...await giftInstallmentStatements(c, p, giftId, donorId, cents, pledgeId),
@@ -51,9 +54,11 @@ export async function giftCommand(c: Context, command: string, p: Row): Promise<
   const gift = await one(c, "SELECT * FROM cf_gifts WHERE id=? AND kind='gift'", giftId)
   if (!gift) fail('NOT_FOUND', 'That gift does not exist.', 404)
   if (gift.goods !== 'unknown') fail('ALREADY_CLASSIFIED', 'This gift already records whether goods or services were provided.')
-  const g = goods(p, gift.amount_cents)
+  const s = await settings(c), benefit = receiptBenefit(p, gift.amount_cents, gift.received_on, s)
+  const g = benefit ? { kind: 'none', cents: 0, description: null } : goods(p, gift.amount_cents)
   await commit(c, [guard("EXISTS(SELECT 1 FROM cf_gifts WHERE id=? AND version=? AND goods='unknown')", 'VERSION', 'This gift changed. Refresh before saving.', giftId, version),
    sql('UPDATE cf_gifts SET version=version+1,goods=?,goods_cents=?,goods_description=? WHERE id=?', g.kind, g.cents, g.description, giftId),
+   ...benefitStatements(giftId, benefit, s),
    event(c, 'gift.classify', 'gift', giftId, gift.donor_id, { goods: g.kind, goodsCents: g.cents })])
   return { id: giftId, version: version + 1 }
  }

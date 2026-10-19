@@ -66,6 +66,7 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
   const originalOn = p.originalReceivedOn ? date(p.originalReceivedOn, 'Original donee received on') : existing?.original_received_on??receivedOn
   if (receivedOn > day || originalOn > receivedOn) fail('INPUT', 'Receipt dates must be in the past or today; original receipt must be on or before this organization received the property.', 400)
   const goods = choice(p.goods, IN_KIND_GOODS, 'Goods or services'), goodsDescription = goods === 'provided' ? longText(p.goodsDescription, 'Goods or services description', 1000) : null
+  if (goods === 'intangible religious benefits' && !s.religious_organization) fail('RELIGIOUS_ORGANIZATION', 'Review the exclusively religious organization setting before recording intangible religious benefits.', 409)
   const goodsCents = goods === 'provided' ? amount(p, 'goodsValue', 'Good faith value of goods or services', { allowZero: true }) : 0
   if(existing&&(receivedOn!==existing.received_on||originalOn!==existing.original_received_on||fund!==existing.fund))fail('PROPERTY_IMMUTABLE','Receipt dates and fund are immutable; a property correction keeps the original ledger facts.')
   const correctionReason=version?longText(p.correctionReason,'Reason for property correction',2000):null

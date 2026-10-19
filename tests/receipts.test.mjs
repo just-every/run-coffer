@@ -1,3 +1,4 @@
+import {receiptRulesJourney} from './receipt-rules-journey.mjs'
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {generateKeyPairSync,sign} from 'node:crypto'
@@ -97,3 +98,6 @@ test('a calendar-year statement itemizes every unreversed gift and totals deduct
  await gift(h,ana.id,'10','2025-11-01')
  const changed=await h.request(`/app/letters/${b.id}/print`);assert.equal(changed.status,409)
 }))
+
+
+test('RCPT-005: written acknowledgments, quid pro quo, frozen token exceptions, religious and property receipts',receiptRulesJourney)

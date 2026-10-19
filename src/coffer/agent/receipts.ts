@@ -1,3 +1,4 @@
+import { withReceiptBenefits } from '../receipt-rules'
 import { ackCommand, address, letterHash } from '../acknowledgements'
 import { all, commit, event, fail, guard, newId, one, sql, today, type Context, type Row } from '../db'
 import { settings, renderLetter } from '../settings'
@@ -20,6 +21,7 @@ export async function queueMissingReceipts(c:Context) {
  if (!s.reviewed_at || !s.organisation) fail('SETTINGS_UNREVIEWED','Review Letter settings before preparing receipts.')
  const found=await missingReceipts(c),chosen=found.filter(g=>g.goods!=='unknown')
  if (!chosen.length) return {queued:0,held:found.length,id:null}
+ await withReceiptBenefits(c, chosen)
  const ids=JSON.stringify(chosen.map(g=>g.id)),batchId=newId()
  const donors=new Map((await all(c,'SELECT * FROM cf_donors WHERE id IN (SELECT value FROM json_each(?))',JSON.stringify([...new Set(chosen.map(g=>g.donor_id))]))).map(d=>[d.id,d]))
  const tributes=new Map((await all(c,'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))',ids)).map(t=>[t.gift_id,t]))

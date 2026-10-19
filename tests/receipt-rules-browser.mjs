@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict'
+import {mkdir} from 'node:fs/promises'
+import {withBrowserWorker} from './browser-worker.mjs'
+export async function receiptRulesBrowser(h,donorId,batchId,directory){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(`${origin}/app/settings`)
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.locator('input[name=tokenReviewed]').check()
+   await page.getByRole('button',{name:'Save settings',exact:true}).click()
+   assert.match(await page.locator('body').innerText(),/Settings saved/)
+   await page.getByRole('group',{name:'US receipt rules',exact:true}).screenshot({path:`${directory}/RCPT-005-settings-${width}.png`})
+   await page.goto(`${origin}/app`)
+   await page.screenshot({path:`${directory}/RCPT-005-home-${width}.png`})
+   await page.goto(`${origin}/app/donors/${donorId}`)
+   await page.locator('section').filter({has:page.getByRole('heading',{name:'Gifts',exact:true})}).screenshot({path:`${directory}/RCPT-005-ledger-${width}.png`})
+   const record=page.locator('#record'),label=`Logo reading mug ${width}`
+   await record.getByLabel('Amount (USD)',{exact:true}).fill('300')
+   await record.getByLabel('Received on',{exact:true}).fill('2026-03-13')
+   await record.getByRole('radio',{name:'Only an insubstantial token benefit',exact:true}).check()
+   await record.getByLabel('Their value (USD)',{exact:true}).fill('18')
+   await record.getByLabel('What they received',{exact:true}).fill(label)
+   await record.getByText('Token or intangible religious benefits',{exact:true}).click()
+   await record.locator('select[name=tokenBasis]').selectOption('logo_cost')
+   await record.locator('input[name=tokenCost]').fill('7')
+   await record.getByLabel('These were the only benefits received',{exact:true}).check()
+   await record.getByLabel('All items bear the charity’s name or logo',{exact:true}).check()
+   await record.screenshot({path:`${directory}/RCPT-005-entry-${width}.png`})
+   await record.getByRole('button',{name:'Record gift',exact:true}).click()
+   assert.ok((await h.get(`/api/coffer/donors/${donorId}`)).gifts.some(g=>g.receipt_benefit?.description===label))
+   await page.goto(`${origin}/app/letters`)
+   await page.getByRole('button',{name:/^Prepare \d+ letters$/}).click()
+   assert.match(await page.locator('article.letter').innerText(),/insubstantial.*2026/s)
+   await page.getByRole('button',{name:'Approve these letters',exact:true}).click()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.locator('article.letter').screenshot({path:`${directory}/RCPT-005-issued-${width}.png`})
+   await page.goto(`${origin}/app/letters`)
+   assert.match(await page.locator('body').innerText(),/No gifts are waiting/)
+   await page.screenshot({path:`${directory}/RCPT-005-empty-${width}.png`})
+   // Resolve the approved batch before the second entry so it is not picked twice.
+   await page.goto(`${origin}/app/letters/${batchId}`)
+   assert.match(await page.locator('body').innerText(),/intangible religious benefits/)
+   await page.screenshot({path:`${directory}/RCPT-005-batch-${width}.png`})
+   await page.goto(`${origin}/app/letters/${batchId}/print`)
+   await page.screenshot({path:`${directory}/RCPT-005-print-${width}.png`})
+   await page.goto(`${origin}/app/letters`)
+   await page.getByRole('link',{name:/^2026 statements/}).click()
+   assert.match(await page.locator('article.letter').innerText(),/Charity logo mug/)
+   await page.screenshot({path:`${directory}/RCPT-005-annual-${width}.png`})
+  }
+ })
+}

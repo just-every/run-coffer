@@ -1,3 +1,4 @@
+import { withReceiptBenefits } from './receipt-rules'
 import { inKindState } from './in-kind'
 import { donorEngagement } from './engagement'
 import { plannedGiving } from './planned-giving'
@@ -98,6 +99,7 @@ export async function donorHistory(c: Context, donorId: string) {
   all(c, 'SELECT p.id,p.name,p.channel,p.status,p.sent_on,p.prepared_at FROM cf_appeal_recipients r JOIN cf_appeals p ON p.id=r.appeal_id WHERE r.donor_id=? AND p.status<>\'discarded\' ORDER BY p.prepared_at DESC', donorId),
   all(c, 'SELECT * FROM cf_events WHERE donor_id=? ORDER BY id DESC LIMIT 100', donorId),
  ])
+ await withReceiptBenefits(c, gifts)
  const byYear = new Map<string, number>()
  const monetaryGifts=gifts.filter(g=>g.kind==='gift'||g.kind==='reversal')
  for (const g of monetaryGifts) byYear.set(g.received_on.slice(0, 4), (byYear.get(g.received_on.slice(0, 4)) ?? 0) + g.amount_cents)
