@@ -5,6 +5,7 @@ export const tables = {
  pledge: { table: 'cf_pledges', key: 'id', columns: ['id','donor_id','amount_cents','pledged_on','due_by','fund','created_at','created_by'] },
  installment: { table: 'cf_pledge_installments', key: 'id', columns: ['id','pledge_id','position','due_on','amount_cents','remind_on','reminder_status'] },
  gift: { table: 'cf_gifts', key: 'id', columns: ['id','version','donor_id','kind','reverses','received_on','amount_cents','method','reference','fund','pledge_id','goods','goods_cents','goods_description','note','source','created_at','created_by'] },
+ acknowledgment: { table: 'cf_gift_acknowledgments', key: 'gift_id', columns: ['gift_id','status','acknowledged_on','method','batch_id','letter_id','reason','source','updated_at','updated_by'] },
  campaign: { table: 'cf_gift_appeals', key: 'gift_id', columns: ['gift_id','appeal'] },
  channel: { table: 'cf_gift_channels', key: 'gift_id', columns: ['gift_id','channel'] },
  allocation: { table: 'cf_pledge_allocations', key: 'id', columns: ['id','installment_id','gift_id','amount_cents','created_at','created_by'] },

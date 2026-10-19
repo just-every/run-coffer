@@ -12,7 +12,11 @@ export type ParsedDonor = Located & {
 }
 export type ParsedGift = Located & {
  externalId: string; donorExternalId: string; receivedOn: string; amountCents: number; fund: string
- campaign: string; appeal?: string; channel?: string; checkReference?: string; method: string; note: string; pledgeExternalId: string; noGoodsOrServices: boolean; goodsCents: number | null; goodsDescription: string
+ campaign: string; appeal?: string; channel?: string; checkReference?: string; method: string; note: string; pledgeExternalId: string; noGoodsOrServices: boolean; goodsCents: number | null; goodsDescription: string; acknowledgment?: ParsedAcknowledgment
+}
+export type ParsedAcknowledgment = {
+ status: 'acknowledged' | 'not acknowledged' | 'do not acknowledge'
+ acknowledgedOn: string | null; method: string | null; reason: string | null
 }
 export type ParsedHousehold = Located & { externalId: string; name: string }
 export type ParsedRelationship = Located & { externalId: string; donorExternalId: string; relatedDonorExternalId: string; type: string }

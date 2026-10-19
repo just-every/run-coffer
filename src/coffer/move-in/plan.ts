@@ -21,7 +21,7 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
+const label: Record<Kind,string> = {household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',acknowledgment:'Gift acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
@@ -111,6 +111,10 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(held && held!==existing.get(`gift:${await sourceKey(g.externalId)}`)?.native_id)diagnostic(`Gift ${g.externalId}: Coffer already holds a gift with the reference ${reference(g)} that did not come from a move-in. Delete this exported row if it is the same gift. If it is a different gift, correct its source Gift ID to a distinct ID and upload again.`,g.location,'error','MOVE_IN_MAPPING','Gift ID')
   const id=await add('gift',g,{version:1,donor_id:donorId,kind:'gift',reverses:null,received_on:g.receivedOn,amount_cents:g.amountCents,method:g.method||'imported',reference:reference(g),fund:g.fund,pledge_id:pledges.get(g.pledgeExternalId)||null,goods:g.goodsCents===null?'unknown':g.goodsCents>0?'provided':'none',goods_cents:g.goodsCents||0,goods_description:g.goodsCents?g.goodsDescription||'Goods or services recorded in source export':null,note:g.note||null,source:'manual',created_at:c.now,created_by:c.actor.name},undefined,donorId)
   plan.giftIds.set(g.externalId,id)
+  if(g.acknowledgment) {
+   const a=g.acknowledgment
+   await add('acknowledgment',{externalId:g.externalId,location:g.location,...a},{gift_id:id,status:a.status,acknowledged_on:a.acknowledgedOn,method:a.method,batch_id:null,letter_id:null,reason:a.reason,source:({'lgl':'Little Green Light','bloomerang':'Bloomerang','re-nxt':"Raiser's Edge NXT"})[source],updated_at:c.now,updated_by:c.actor.name},undefined,donorId)
+  }
   const prior=mappings.find(m=>m.kind==='gift' && m.native_id===id)
   const cents=prior?(giftBalances.find(b=>b.id===id)?.net_cents??0):g.amountCents
   if(cents>0)accumulate(plan.totals,cents,g.receivedOn,g.fund,g.donorExternalId)

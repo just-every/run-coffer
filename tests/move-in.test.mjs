@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFile,readdir} from 'node:fs/promises'
-import {run} from './harness.mjs'
+import {run,archive,restore} from './harness.mjs'
 
 export async function exportInput(source,format='csv') {
  const dir=`tests/fixtures/move-in/${source}`
@@ -17,7 +17,66 @@ async function moveIn(h,preview,extra={}){
  return job
 }
 
-for(const source of ['lgl','bloomerang','re-nxt'])test(`${source}: exports preview, reconcile, apply atomically, repeat without duplicates, and undo in one step`,()=>run(async h=>{
+// ACK-001 / MOVE-001..003 / MOVE-007: configured source columns preserve facts,
+// reject unknown states and keep both per-gift exclusions and the reviewed cutoff.
+async function sourceAcknowledgments(h,source) {
+ const [donorId,giftId,type,status,date,method,reason,label]=({
+  lgl:['LGL Constituent ID','LGL Gift ID','Gift','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Little Green Light'],
+  bloomerang:['Account Number','Transaction Number','Donation','Acknowledgement Status','Acknowledgement Date','Acknowledgement Method','Acknowledgement Reason','Bloomerang'],
+  're-nxt':['Constituent ID','Gift ID','Cash','Acknowledgement','Acknowledged Date','Acknowledgement Method','Acknowledgement Reason',"Raiser's Edge NXT"],
+ })[source]
+ const rows=[
+  ['ACK_FULL','2026-09-01','500','0','acknowledged','2026-09-02','personal email','Source thank-you'],
+  ['ACK_NO_DETAILS','2026-09-03','300','0','acknowledged','','',''],
+  ['ACK_SKIP','2026-09-04','250','0','do not acknowledge','','','Donor requested no letter'],
+  ['ACK_DUE','2026-09-05','250','60','not acknowledged','','',''],
+  ['ACK_OLD','2024-09-01','250','0','not acknowledged','','',''],
+  ['ACK_UNKNOWN','2026-09-06','250','','not acknowledged','','',''],
+  ['ACK_ABSENT','2026-09-07','250','0','','','',''],
+ ]
+ const file=(name,values)=>({name,base64:Buffer.from(values.map(r=>r.join(',')).join('\r\n')+'\r\n').toString('base64')})
+ const input=(giftRows=rows)=>({source,files:[file('constituents.csv',[[donorId,'Name'],['ACK_PERSON','Imported acknowledgment donor']]),file('gifts.csv',[
+  [giftId,donorId,'Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount','Goods Description',status,date,method,reason],
+  ...giftRows.map(([id,on,amount,goods,...ack])=>[id,'ACK_PERSON',type,on,amount,'Check',goods,goods==='60'?'Dinner':'',...ack]),
+ ])]})
+ for(const broken of [rows.map((r,i)=>i===0?r.map((v,j)=>j===4?'queued':v):r),rows.map((r,i)=>i===0?r.map((v,j)=>j===5?'2026-02-30':v):r),rows.map((r,i)=>i===0?r.map((v,j)=>j===4?'':v):r)]) {
+  const review=await post(h,'preview',input(broken))
+  assert.equal(review.canApply,false,'Unknown status, invalid source date and metadata without a status require review')
+  assert.ok(review.diagnostics.some(d=>d.severity==='error'&&['ACKNOWLEDGMENT_STATUS','DATE'].includes(d.code)&&d.file==='gifts.csv'&&d.row===2))
+  await post(h,'apply',{id:review.id,fingerprint:review.fingerprint,acceptedReason:'Do not silently accept unknown acknowledgment facts'},{status:409})
+ }
+ const checked=await post(h,'preview',{...input(),noGoodsOrServices:true})
+ assert.equal(checked.gifts.find(g=>g.externalId==='ACK_DUE').goodsCents,6000,'Source goods value survives the upload checkbox')
+ assert.equal(checked.gifts.find(g=>g.externalId==='ACK_UNKNOWN').goodsCents,0,'The checkbox fills only an absent source answer')
+ const preview=await post(h,'preview',input())
+ assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics))
+ assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped))
+ await moveIn(h,preview,{acknowledged:'yes',acknowledgedBefore:'2025-01-01'})
+ const person=(await h.get('/api/coffer/donors')).donors[0]
+ const history=await h.get(`/api/coffer/donors/${person.id}`),gifts=Object.fromEntries(history.gifts.map(g=>[g.reference.split(':')[1],g]))
+ assert.equal(history.totals.lifetimeCents,205000)
+ assert.deepEqual(['ACK_FULL','ACK_NO_DETAILS','ACK_SKIP','ACK_DUE'].map(k=>gifts[k].acknowledgment.status),['acknowledged','acknowledged','do not acknowledge','not acknowledged'])
+ assert.deepEqual(['acknowledged_on','method','reason','source','batch_id','letter_id'].map(k=>gifts.ACK_FULL.acknowledgment[k]),['2026-09-02','personal email','Source thank-you',label,null,null])
+ assert.deepEqual(['acknowledged_on','method','reason'].map(k=>gifts.ACK_NO_DETAILS.acknowledgment[k]),[null,null,null],'An acknowledged source gift never invents missing details')
+ assert.equal(gifts.ACK_SKIP.acknowledgment.reason,'Donor requested no letter')
+ assert.deepEqual(['goods','goods_cents','goods_description'].map(k=>gifts.ACK_DUE[k]),['provided',6000,'Dinner'])
+ assert.equal(gifts.ACK_NO_DETAILS.goods,'none')
+ assert.equal(gifts.ACK_UNKNOWN.goods,'unknown')
+ assert.deepEqual((await h.get('/api/coffer/letters')).due.map(g=>g.reference).sort(),['ACK_DUE','ACK_UNKNOWN','ACK_ABSENT'].map(k=>`${source}:${k}`).sort(),'Only eligible gifts after the cutoff remain due')
+ const saved=await archive(h)
+ await run(async fresh=>{
+  await restore(fresh,saved)
+  assert.deepEqual((await fresh.get(`/api/coffer/donors/${person.id}`)).gifts,history.gifts,'Export and restore retain exact source statuses, dates, methods, reasons and goods')
+  await post(fresh,'undo',{id:preview.id})
+  assert.equal((await fresh.get('/api/coffer/donors')).total,0,'Restored imports undo their acknowledgment rows before their gifts')
+ })
+ await post(h,'undo',{id:preview.id})
+ assert.equal((await h.get('/api/coffer/donors')).total,0)
+ assert.equal((await h.get('/api/coffer/letters')).due.length,0)
+ assert.ok((await h.get(`${endpoint}/journal?id=${preview.id}`)).records.every(r=>r.n===0),'Undo removes every owned source acknowledgment record')
+}
+
+for(const source of ['lgl','bloomerang','re-nxt'])test(`ACK-001 / MOVE-001..003 / MOVE-007 — ${source}: exports reconcile, source acknowledgment facts govern due gifts, export exactly and undo`,()=>run(async h=>{
  for(const format of ['csv','xlsx']) {
   const input=await exportInput(source,format)
   await post(h,'preview',input,{as:'',status:401})
@@ -66,6 +125,7 @@ for(const source of ['lgl','bloomerang','re-nxt'])test(`${source}: exports previ
   assert.equal((await h.get('/api/coffer/donors')).total,0)
   assert.equal((await h.get(`${endpoint}/journal?id=${applied.id}`)).job.state,'undone')
  }
+ await sourceAcknowledgments(h,source)
  if(source==='lgl') {
   const input=await exportInput(source)
   const extra={name:'unmapped.csv',base64:Buffer.from('LGL Constituent ID,Name,Favorite Color\r\n104,Jordan Kim,Green\r\n').toString('base64')}

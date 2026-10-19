@@ -1,5 +1,6 @@
 import { normalizeLabel } from './source-columns'
 import { SourceRow } from './source-rows'
+import { acknowledgment } from './acknowledgments'
 import type { ParsedDonor, ParsedImport, ParseInput } from './types'
 
 const donorFields = ['email', 'phone', 'addressLine1', 'addressLine2', 'city', 'region', 'postalCode', 'country', 'householdKey', 'householdName'] as const
@@ -90,9 +91,9 @@ function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
  }
  if (goodsCents !== null && amountCents !== null && goodsCents >= amountCents && goodsCents !== 0) r.error('GOODS_VALUE', r.peek('deductible') ? `Deductible Amount ${r.peek('deductible')} means the donor received goods or services worth the whole ${r.peek('amount')}, so no part of it was a gift. Coffer records gifts worth more than what the donor received: set Deductible Amount to the part that was a gift, or delete the row if it was a purchase.` : 'Benefit amount must be less than the received gift amount.', r.peek('deductible') ? 'Deductible Amount' : 'goodsAmount')
  if (goodsCents === null && input.noGoodsOrServices === true) goodsCents = 0
- const giftChannel = channel(r)
+ const giftChannel = channel(r), giftAcknowledgment = acknowledgment(r)
  if (fund.includes(';') || campaign.includes(';')) r.error('SPLIT_GIFT', 'Export one designation per row with a unique gift/designation ID and amount; grouped split funds or campaigns cannot be allocated safely.')
- if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, appeal, channel: giftChannel, checkReference, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription })
+ if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, appeal, channel: giftChannel, checkReference, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription, ...(giftAcknowledgment ? { acknowledgment: giftAcknowledgment } : {}) })
  if (r.peek('softDonor')) softCredit(r, out, true)
 }
 function pledge(r: SourceRow, out: ParsedImport) {

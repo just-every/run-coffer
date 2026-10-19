@@ -160,6 +160,7 @@ export async function undo(c: Context,id:string) {
  const dependencies:[string,string,Kind,Kind|null,string][]=[
   ['cf_gifts','donor_id','donor','gift','id'],['cf_pledges','donor_id','donor','pledge','id'],['cf_relationships','donor_id','donor','relationship','id'],['cf_relationships','related_donor_id','donor','relationship','id'],
   ['cf_soft_credits','donor_id','donor','softCredit','id'],['cf_soft_credits','gift_id','gift','softCredit','id'],['cf_donor_notes','donor_id','donor','note','id'],['cf_interactions','donor_id','donor','interaction','id'],
+  ['cf_gift_acknowledgments','gift_id','gift','acknowledgment','gift_id'],
   ['cf_donors','household_id','household','donor','id'],['cf_pledge_installments','pledge_id','pledge','installment','id'],['cf_pledge_allocations','installment_id','installment','allocation','id'],['cf_pledge_allocations','gift_id','gift','allocation','id'],
   ['cf_consents','donor_id','donor',null,'id'],['cf_acks','gift_id','gift',null,'id'],['cf_appeal_recipients','donor_id','donor',null,'donor_id'],['cf_gift_tributes','gift_id','gift',null,'gift_id'],['cf_employer_matches','gift_id','gift',null,'id'],['cf_gifts','reverses','gift',null,'id'],['cf_gift_allocations','gift_id','gift',null,'id'],
   ['cf_planned_gifts','donor_id','donor',null,'id'],['cf_legacy_memberships','donor_id','donor',null,'id'],['cf_planned_distributions','gift_id','gift',null,'gift_id'],
@@ -190,7 +191,7 @@ function contents(part: ParsedImport) {
  const rows=part[main].map(x=>x.location), files=[...new Set(rows.map(l=>l.file))]
  return `${part[main].length} ${kindName[main]} from ${files.map(f=>{const r=rows.filter(l=>l.file===f).map(l=>l.row);return `${f} rows ${Math.min(...r)}–${Math.max(...r)}`}).join(', ')}`
 }
-const label=(kind: Kind)=>({softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
+const label=(kind: Kind)=>({softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',acknowledgment:'gift acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
 /** Unique indexes that commit() reports by name. */
 const UNIQUE_CODES: Record<string,[string,string[]]> = {DUPLICATE_EMAIL:['cf_donors',['email']],DUPLICATE_REFERENCE:['cf_gifts',['source','reference']],DUPLICATE_HOUSEHOLD:['cf_households',['name']]}
 /** A database refusal names its part, the rows behind it and the reason, never only "the operation failed". */
