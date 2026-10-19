@@ -1,3 +1,4 @@
+import { inKindPanel } from './in-kind'
 import { engagementDetails } from './engagement'
 import { plannedGivingPanel } from './planned-giving'
 import { reassignmentReasons } from '../reassignment-reasons'
@@ -58,7 +59,7 @@ export async function donorPage(c: Context, donorId: string, url?: URL) {
  const warning = possible.count ? `<p class="notice"><a href="/app/duplicates?donorId=${e(d.id)}">${possible.count} possible duplicate${possible.count===1?'':'s'} for this donor. Compare the records before combining them.</a></p>` : ''
  const merge = boss && candidates.length > 1 ? box('Compare a duplicate', `<p>Review both records side by side and choose which contact details to keep. A merge can be undone from the audit log while its records remain unchanged.</p><form method="get" action="/app/duplicates/compare"><input type="hidden" name="target" value="${e(d.id)}">${select('Compare with','source',[['','Choose a donor'],...candidates.filter(x=>x.id!==d.id).map(x=>[x.id,x.name] as [string,string])],'','required')}<button>Compare records</button></form>`) : ''
  const activity = `<details class="facts"><summary>Activity (${h.events.length})</summary><ul class="list">${h.events.map(ev => `<li>${e(activityWords(ev))} · ${e(moment(ev.at, s.timezone))}</li>`).join('')}</ul></details>`
- return { title: d.name, body: `${warning}${summary}<div class="grid wide"><div>${donorTimeline(h, s.timezone)}${panels.conversations}${box('Gifts', giftsTable(h.gifts, boss, s, h.giftDepth))}${record}${staff ? splitGiftForm(d.id,day,await campaigns(c),url?.searchParams.get('splitParts')) : ''}${pledgeBox}${giftDepthForms(d.id,h.gifts,candidates,h.giftDepth,staff,boss)}</div><div>${contact}${engagementDetails(h.engagement)}${plannedGivingPanel(d.id,h.plannedGiving,day,staff)}${panels.relationships}${await donorGiving(c, d.id)}${consentBox}${outreach}${merge}${erase}${activity}</div></div>` }
+ return { title: d.name, body: `${warning}${summary}<div class="grid wide"><div>${donorTimeline(h, s.timezone)}${panels.conversations}${box('Gifts', giftsTable(h.gifts, boss, s, h.giftDepth))}${record}${staff ? splitGiftForm(d.id,day,await campaigns(c),url?.searchParams.get('splitParts')) : ''}${pledgeBox}${giftDepthForms(d.id,h.gifts,candidates,h.giftDepth,staff,boss)}</div><div>${contact}${engagementDetails(h.engagement)}${plannedGivingPanel(d.id,h.plannedGiving,day,staff)}${inKindPanel(d.id,h.inKind,day,staff,boss)}${panels.relationships}${await donorGiving(c, d.id)}${consentBox}${outreach}${merge}${erase}${activity}</div></div>` }
 }
 
 function giftsTable(gifts: Row[], boss: boolean, s: { threshold_cents: number }, depth?: Parameters<typeof giftAttribution>[1]) {

@@ -1,0 +1,147 @@
+import assert from 'node:assert/strict'
+import { mkdir, readFile, readdir } from 'node:fs/promises'
+import { run, donor, reviewed, archive, restore, installation, imported } from './harness.mjs'
+import { withBrowserWorker } from './browser-worker.mjs'
+
+export async function inKindJourney() {
+ await run(async h => {
+  const headers = { 'x-test-now': '2026-10-15T16:00:00Z' }
+  const get = (path, options = {}) => h.get(path, { ...options, headers })
+  const command = (name, input, options = {}) => h.command(name, input, { ...options, headers })
+  await reviewed(h)
+  const person = await donor(h, 'Maya Rivera'), other = await donor(h, 'Riley Chen'), member = await h.person('property-member@example.test')
+  const input = { donorId: person.id, description: 'Donated laptop, serial LT-482', quantity: '1', statedValue: '850', receivedOn: '2025-10-01', goods: 'none' }
+  await command('inKind.save', input, { as: '', status: 401 })
+  const agent = await command('agent.create', { label: 'Property reader' })
+  await h.command('inKind.save', input, { as: '', headers: { ...headers, authorization: 'Bearer ' + agent.token }, status: 403 })
+  await get('/api/coffer/in-kind', { as: '', status: 401 })
+  const laptop = await command('inKind.save', input, { as: member.cookie })
+  const readOnly=await h.get('/api/coffer/in-kind?donorId='+person.id,{as:'',headers:{...headers,authorization:'Bearer '+agent.token}})
+  assert.ok(readOnly.gifts.some(g=>g.id===laptop.id),'Agents retain donor-read access without property write authority')
+  await command('inKind.save', { ...input, quantity: '0' }, { status: 400 })
+  await command('inKind.save', { ...input, receivedOn: '2027-01-01' }, { status: 400 })
+  let artwork = await command('inKind.save', { ...input, description: 'Original landscape artwork by Rivera', statedValue: '6000', form8283: 'section_b' })
+  const state = () => get('/api/coffer/in-kind?donorId=' + person.id)
+  const find = async gift => (await state()).gifts.find(g => g.id === gift.id)
+  assert.equal((await state()).totalStatedValueCents, 685000)
+  assert.equal((await find(laptop)).reminders.form8283, null)
+  assert.equal((await find(artwork)).reminders.form8283.form, '8283')
+  const ledgerBefore = await get('/api/coffer/donors/' + person.id)
+  assert.equal(ledgerBefore.gifts.length, 0, 'GIFT-009 property values do not enter monetary gifts')
+  await command('inKind.acknowledge', { donorId: person.id, inKindId: laptop.id, version: laptop.version, acknowledgedOn: '2025-10-02' }, { as: member.cookie, status: 403 })
+  for (const gift of [laptop, artwork]) {
+   const ack = await command('inKind.acknowledge', { donorId: person.id, inKindId: gift.id, version: gift.version, acknowledgedOn: '2025-10-02' })
+   const row = await find(gift), letter = row.acknowledgments[0]
+   assert.match(letter.body, /Riverbend Literacy Project/); assert.match(letter.body, /12-3456789/)
+   assert.match(letter.body, /October 1, 2025/); assert.match(letter.body, new RegExp(row.description))
+   assert.match(letter.body, /No goods or services/); assert.doesNotMatch(letter.body, /\$|850|6,000|6000|deductible/i)
+   const url = `/api/coffer/in-kind-acknowledgments/${ack.acknowledgmentId}/download`
+   const download = await h.request(url, { headers }); assert.equal(download.status, 200); assert.match(await download.text(), /Quantity: 1/)
+   assert.equal((await h.request(url, { as: '', headers })).status, 401)
+   await command('inKind.acknowledge', { donorId: person.id, inKindId: gift.id, version: row.version, acknowledgedOn: '2025-10-03' }, { status: 409 })
+   if (gift.id === artwork.id) artwork = ack
+  }
+  const unknown = await command('inKind.save', { ...input, description: 'Property awaiting goods confirmation', goods: 'unknown', statedValue: '10' })
+  await command('inKind.acknowledge', { donorId: person.id, inKindId: unknown.id, version: unknown.version, acknowledgedOn: '2025-10-02' }, { status: 409 })
+  await command('inKind.save', { ...input, inKindId: laptop.id, version: (await find(laptop)).version, description: 'Donated laptop, corrected serial LT-483' })
+  assert.equal((await find(laptop)).acknowledgments[0].current, false, 'An edited description requires a new acknowledgment; the original remains intact')
+  await command('inKind.save', { ...input, inKindId: laptop.id, version: laptop.version }, { status: 409 })
+  const exchanged = await command('inKind.save', { ...input, description: 'Donated sculpture with a thank-you benefit', statedValue: '7000', goods: 'provided', goodsDescription: 'two event tickets', goodsValue: '50' })
+  await command('inKind.acknowledge', { donorId: person.id, inKindId: exchanged.id, version: exchanged.version, acknowledgedOn: '2025-10-02' })
+  const benefitLetter = (await find(exchanged)).acknowledgments[0].body
+  assert.match(benefitLetter, /two event tickets/); assert.match(benefitLetter, /\$50\.00/); assert.doesNotMatch(benefitLetter, /7,000|7000|deductible/)
+  const disposition = { donorId: person.id, inKindId: artwork.id, version: artwork.version, disposedOn: '2026-10-01', disposalMethod: 'sold', disposalEvidence: 'Sold to the local gallery one year after receipt.' }
+  await command('inKind.dispose', { ...disposition, disposedOn: '2025-09-30' }, { status: 400 })
+  await command('inKind.dispose', { ...disposition, disposalException: 'charitable-use' }, { status: 400 })
+  await command('inKind.dispose', disposition, { as: member.cookie })
+  const sold = await find(artwork)
+  assert.equal(sold.reminders.form8282.form, '8282'); assert.equal(sold.reminders.form8282.dueOn, '2027-02-03')
+  assert.equal(sold.reminders.form8282.copyToDonor, true)
+  await command('inKind.dispose', disposition, { status: 409 })
+  assert.equal((await get('/api/coffer/donors/' + person.id)).gifts.length, 0)
+  // Calendar-year boundary, late-awareness exception, and exempt distribution use real HTTP commands.
+  const boundary = await command('inKind.save', { ...input, description: 'Anniversary property', receivedOn: '2023-10-01', statedValue: '6001' })
+  await command('inKind.dispose', { ...disposition, inKindId: boundary.id, version: boundary.version, becameAwareOn: '2026-10-10', noReasonToKnow: 'yes' })
+  assert.equal((await find(boundary)).reminders.form8282.dueOn, '2026-12-09')
+  const outside = await command('inKind.save', { ...input, description: 'Older property', receivedOn: '2023-09-30', statedValue: '6001' })
+  await command('inKind.dispose', { ...disposition, inKindId: outside.id, version: outside.version })
+  assert.equal((await find(outside)).reminders.form8282, null)
+  const exempt = await command('inKind.save', { ...input, description: 'Program supplies', statedValue: '6001' })
+  await command('inKind.dispose', { ...disposition, inKindId: exempt.id, version: exempt.version, disposalMethod: 'distributed', disposalException: 'charitable-use', disposalEvidence: 'Supplies distributed without consideration to fulfill the exempt reading program purpose.' })
+  assert.equal((await find(exempt)).reminders.form8282.status, 'exception recorded')
+  if (process.env.COFFER_IN_KIND_BROWSER) await inKindBrowser(h, { donorId: person.id, headers, directory: process.env.COFFER_IN_KIND_BROWSER })
+  const saved = await archive(h), fresh = await installation({ entry: 'tests/advancing-clock-worker.ts' })
+  try {
+   await restore(fresh, saved)
+   const copied = await fresh.get('/api/coffer/in-kind?donorId=' + person.id, { headers })
+   assert.equal(copied.gifts.find(g => g.id === artwork.id).reminders.form8282.dueOn, '2027-02-03')
+   assert.equal(copied.gifts.find(g => g.id === laptop.id).acknowledgments[0].body, (await find(laptop)).acknowledgments[0].body)
+  } finally { await fresh.close() }
+  const source = await get('/api/coffer/donors/' + person.id), target = await get('/api/coffer/donors/' + other.id)
+  const merge = await command('donor.merge', { sourceDonorId: person.id, sourceVersion: source.donor.version, donorId: other.id, version: target.donor.version, reason: 'duplicate_record' })
+  assert.equal((await get('/api/coffer/in-kind?donorId=' + other.id)).gifts.find(g => g.id === artwork.id).donor_id, other.id)
+  await command('donor.unmerge', { mergeId: merge.mergeId, reason: 'incorrect_match' })
+  assert.equal((await find(artwork)).donor_id, person.id)
+  const beforeErasure=await state()
+  await command('donor.erase', { donorId: person.id, confirm: 'ERASE' })
+  assert.equal((await state()).gifts.length, 0)
+  const erasedArchive=await archive(h)
+  assert.doesNotMatch(JSON.stringify(erasedArchive), /Maya Rivera|Original landscape artwork by Rivera|LT-483|two event tickets|Sold to the local gallery/)
+  const retainedProperties=erasedArchive.filter(x=>x.kind==='part').flatMap(x=>x.items).filter(x=>x.kind==='row'&&x.table==='cf_in_kind_gifts').map(x=>x.row)
+  const propertyFacts=g=>[g.id,g.quantity,g.stated_value_cents,g.received_on,g.original_received_on,g.disposed_on].join('|')
+  assert.deepEqual(retainedProperties.map(propertyFacts).sort(),beforeErasure.gifts.map(propertyFacts).sort(),'GIFT-009 erasure retains anonymous noncash numeric/date facts')
+  const { job } = await imported(h)
+  const importedDonor = (await get('/api/coffer/donors?q=maya')).donors[0]
+  const laterProperty = await command('inKind.save', { ...input, donorId: importedDonor.id, description: 'Property recorded after Stripe move-in' })
+  let refused = await h.api('/api/coffer/imports/undo', { id: job.id }, { status: 409 })
+  for (let i = 0; i < 5 && refused.state; i++) refused = await h.api('/api/coffer/imports/undo', { id: job.id }, { status: 409 })
+  assert.ok(refused.error)
+  assert.ok((await get('/api/coffer/in-kind?donorId=' + importedDonor.id)).gifts.some(g => g.id === laterProperty.id), 'Import undo retains later property custody')
+  const crm=await installation()
+  try{
+   const directory='tests/fixtures/move-in/lgl',files=await Promise.all((await readdir(directory)).filter(n=>n.endsWith('.csv')).map(async name=>({name,base64:(await readFile(`${directory}/${name}`)).toString('base64')})))
+   const preview=await crm.api('/api/coffer/move-in/preview',{source:'lgl',files})
+   let moved=await crm.api('/api/coffer/move-in/apply',{id:preview.id,fingerprint:preview.fingerprint})
+   while(moved.state==='applying')moved=await crm.api('/api/coffer/move-in/continue',{id:preview.id})
+   assert.equal(moved.state,'completed')
+   const constituent=(await crm.get('/api/coffer/donors')).donors.find(d=>d.name==='Maya Rivera')
+   const later=await crm.command('inKind.save',{...input,donorId:constituent.id,description:'Laptop received after CRM cutover'})
+   await crm.api('/api/coffer/move-in/undo',{id:moved.id},{status:409})
+   assert.ok((await crm.get('/api/coffer/in-kind?donorId='+constituent.id)).gifts.some(g=>g.id===later.id),'CRM undo also retains later property')
+  }finally{await crm.close()}
+
+ }, { entry: 'tests/advancing-clock-worker.ts' })
+}
+
+export async function inKindBrowser(h, { donorId, headers = {}, directory }) {
+ await mkdir(directory, { recursive: true })
+ await withBrowserWorker(h, async (context, origin) => {
+  await context.setExtraHTTPHeaders(headers)
+  const page = await context.newPage()
+  for (const width of [1440, 390]) {
+   await page.setViewportSize({ width, height: 1000 }); await page.goto(`${origin}/app/donors/${donorId}`)
+   const panel = page.locator('#in-kind'), description=width===1440?'Reading-room laptop':'Archive-room scanner'
+   await panel.getByText('Record donated property', { exact: true }).click()
+   const create = panel.locator('form').filter({ has: page.getByRole('button', { name: 'Record in-kind gift', exact: true }) })
+   await create.getByLabel('Property description', { exact: true }).fill(description)
+   await create.getByLabel('Donor-stated total value (USD, internal only)', { exact: true }).fill('900')
+   await create.locator('select[name="goods"]').selectOption('none')
+   await create.screenshot({path:`${directory}/GIFT-009-entry-${width}.png`})
+   await create.getByRole('button', { name: 'Record in-kind gift', exact: true }).click()
+   const created = panel.locator('li').filter({ has: page.getByRole('heading', { name: description, exact: true }) })
+   await created.locator('summary').filter({ hasText: /^Approve property acknowledgment$/ }).click()
+   await created.getByRole('button', { name: 'Approve property acknowledgment', exact: true }).click()
+   await created.getByText('Read property acknowledgment', { exact: true }).click()
+   assert.match(await created.innerText(), /No goods or services/)
+   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+   await created.screenshot({ path: `${directory}/GIFT-009-property-acknowledgment-${width}.png` }); await page.screenshot({ path: `${directory}/GIFT-009-donor-${width}.png` })
+   await created.locator('summary').filter({hasText:/^Record property disposition$/}).click()
+   await created.getByLabel('Disposition evidence', { exact: true }).fill('Sold to a community buyer after the device replacement.')
+   await created.locator('form').filter({has:page.getByRole('button',{name:'Record property disposition',exact:true})}).screenshot({path:`${directory}/GIFT-009-disposal-entry-${width}.png`})
+   await created.getByRole('button', { name: 'Record property disposition', exact: true }).click()
+   assert.match(await created.innerText(), /Form 8282/)
+   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+   await created.screenshot({ path: `${directory}/GIFT-009-disposal-reminders-${width}.png` })
+  }
+ })
+}

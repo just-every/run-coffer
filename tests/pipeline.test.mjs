@@ -1,3 +1,4 @@
+import {inKindJourney} from './in-kind-journey.mjs'
 import {retentionJourney} from './retention-journey.mjs'
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
@@ -140,3 +141,5 @@ test('MAJOR-001: configurable opportunity boards and lists link wins once and re
  const {opportunityJourney}=await import('./opportunity-journey.mjs')
  await opportunityJourney()
 })
+
+test('GIFT-009: property acknowledgments omit internal values, disposal reminders and custody stay separate from cash',inKindJourney)

@@ -252,7 +252,9 @@ A gift can be made in honor or in memory of someone, with an optional person to 
 
 A non-cash gift records a description, quantity and the donor's stated value for internal reporting. Its acknowledgment describes the property and states no dollar value, as IRS guidance expects; gifts over $5,000 raise a reminder that the donor may need the organization's Form 8283 signature, and selling donated property within three years raises a Form 8282 reminder.
 
-*Acceptance:* An HTTP journey records a donated laptop and a $6,000 artwork, reads acknowledgments that describe each without a value, sees the Form 8283 reminder on the artwork, and a Form 8282 reminder when the artwork is marked sold a year later.
+Property is separate from monetary gifts, cash receipts and deductible totals. Quantity is positive with up to six decimal places; stated total value is exact USD cents. An owner/admin/member records and disposes of property; only an owner/admin approves a frozen property acknowledgment, and agents only read. An acknowledgment never assigns a dollar value to the donated property; if goods or services were exchanged it separately states their actual good-faith value, or the recorded intangible-religious-benefit statement. Unknown goods hold approval. Approval records the actor and snapshots the organization/EIN, donor, receipt date, description, quantity and goods statement for download and printing; it claims no send. Edits leave prior acknowledgments intact and require a new approval for the new property version. Disposal facts are dated, evidenced and frozen; stale changes refuse. The three-calendar-year window includes the third anniversary of the original donee's receipt (February 29 maps to February 28), not a transfer between charities; the reminder includes the usual 125-day filing deadline or, with a recorded no-reason-to-know confirmation, 60 days after learning the requirements apply, and flags recorded IRS filing exceptions for review. These are reminders, never an appraisal, signature or filed form. Backup/restore and merge/undo keep custody; later property blocks import undo. Erasure keeps anonymous quantity/value/date facts while removing property, disposition and acknowledgment personal text and merge snapshots.
+
+*Acceptance:* The GIFT-009 HTTP journey records a donated laptop and $6,000 artwork, reads frozen acknowledgments describing each without property value, sees the artwork’s Form 8283 reminder and its Form 8282 reminder when sold a year later. It asserts goods holds/benefit wording, approval roles and stale versions, exact disposal-window/deadline semantics, backup/restore, merge/undo, import-undo refusal and anonymous numeric/date custody after erasure. Native recording, approval/download and disposal/reminder screens run at 1440 and 390 pixels.
 
 #### GIFT-010 — Stock, DAF grants and IRA distributions.
 
@@ -1079,8 +1081,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 21 | 57 | 48 | 126 |
-| All | 29 | 58 | 48 | 135 |
+| Target and push further | 22 | 57 | 47 | 126 |
+| All | 30 | 58 | 47 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1114,7 +1116,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `GIFT-006` | Soft credits | target | done | `src/coffer/gift-depth.ts`, `src/coffer/soft-credit-ack.ts`, `src/coffer/retention.ts`, `tests/soft-credits.test.mjs`, `tests/soft-credit-journey.mjs` | Full and partial recognition appears separately on donor records, giving summaries and retention reports, without increasing cash totals or tax statements. Each credit has its own versioned, audited acknowledgment, date, method and linked conversation or recorded thank-you note; native forms run at 1440 and 390. |
 | `GIFT-007` | Matching gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/ui/gift-depth.ts`, `tests/soft-credits.test.mjs` | Expected employer amount/deadline links the original gift to a received employer ledger gift, with overdue and reversal-aware states. Program lookup, submission workflow, automatic employee recognition and submission reminders remain. |
 | `GIFT-008` | Tribute gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/year-end.ts`, `tests/soft-credits.test.mjs` | Honor/memory, honoree and notification contact are recorded on gifts and included in approved gift/year-end receipt text. Tribute grouping, notification sending and incumbent tribute imports remain. |
-| `GIFT-009` | In-kind gifts | target | missing |  | Gifts are monetary only. |
+| `GIFT-009` | In-kind gifts | target | done | `src/coffer/in-kind.ts`, `src/coffer/ui/in-kind.ts`, `migrations/core/0055_coffer_in_kind.sql`, `tests/pipeline.test.mjs`, `tests/in-kind-journey.mjs` | Separate property register, internal stated values, frozen value-free property acknowledgments and exact dated disposal reminders; clause-named public-door proof includes custody and 1440/390 native use. |
 | `GIFT-010` | Stock, DAF grants and IRA distributions | target | missing |  | No stock, DAF or QCD gift types. |
 | `GIFT-011` | Anonymous gifts and recognition names | target | missing |  | No anonymity flag or recognition name. |
 | `GIVE-001` | Donation forms | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Hosted campaign forms collect once/monthly card and Link gifts and retain fund/campaign attribution. Advanced fields, embedding and the specified performance/accessibility acceptance remain outstanding. |

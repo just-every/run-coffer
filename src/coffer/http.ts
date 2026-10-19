@@ -1,3 +1,4 @@
+import { inKindState, inKindAcknowledgment } from './in-kind'
 import { grantsState, grantDownload } from './grants'
 import { grantsPage } from './ui/grants'
 import { engagementPolicy, engagementScores } from './engagement'
@@ -235,6 +236,8 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const aliases = await c.db.prepare('SELECT email FROM cf_donor_aliases WHERE donor_id=?').bind(donorId).all<{email:string}>()
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now)
  const givingErasure = [
+  { sql: "UPDATE cf_in_kind_acknowledgments SET subject='[erased]',body='[erased]' WHERE in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id=?)", params: [donorId] },
+  { sql: "UPDATE cf_in_kind_gifts SET donor_id=?,description='Erased property contribution',goods_description=NULL,disposal_evidence=NULL,version=version+1 WHERE donor_id=?", params: [placeholder,donorId] },
   { sql: 'INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_giving_customers WHERE donor_id=?', params: [placeholder, donorId] },
   { sql: "INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT source_ref,? FROM cf_donors WHERE id=? AND source='stripe' AND source_ref IS NOT NULL", params: [placeholder, donorId] },
   { sql: 'DELETE FROM cf_donor_merges WHERE donor_id=?', params: [donorId] },
@@ -335,6 +338,9 @@ async function api(c: Context, url: URL): Promise<Response> {
  if(cultivation) return json(await cultivationState(c,cultivation[1]))
  const attachment=path.match(/^\/api\/coffer\/proposals\/([^/]+)\/download$/)
  if(attachment) return proposalDownload(c,attachment[1])
+ if (path === '/api/coffer/in-kind') return json(await inKindState(c,url.searchParams.get('donorId')??undefined))
+ const propertyAck=path.match(/^\/api\/coffer\/in-kind-acknowledgments\/([^/]+)\/download$/)
+ if(propertyAck) return inKindAcknowledgment(c,propertyAck[1])
  if (path === '/api/coffer/grants') return json(await grantsState(c,url.searchParams.get('donorId')??undefined))
  const grantDocument=path.match(/^\/api\/coffer\/grant-documents\/([^/]+)\/download$/)
  if(grantDocument) return grantDownload(c,grantDocument[1])
