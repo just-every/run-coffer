@@ -1,3 +1,5 @@
+import { taxReport } from './tax-reports'
+import { taxReportsPage } from './ui/tax-reports'
 import { inKindState, inKindAcknowledgment } from './in-kind'
 import { grantsState, grantDownload } from './grants'
 import { grantsPage } from './ui/grants'
@@ -263,6 +265,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command.startsWith('portfolio.')) return redirect('/app/portfolios')
  if (command.startsWith('grant.')) return redirect('/app/grants')
+ if (command === 'taxReports.settings') return redirect('/app/reports/tax?'+new URLSearchParams({year:String(input.reportYear??''),basis:String(input.reportBasis??'calendar')}))
  if (command === 'engagement.settings') return redirect('/app/engagement')
  if (command.startsWith('cultivation.') || command.startsWith('proposal.')) return redirect('/app/opportunities/' + encodeURIComponent(result.prospectId ?? input.prospectId))
  if (command.startsWith('prospect.')) return redirect('/app/pipeline')
@@ -339,6 +342,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if(cultivation) return json(await cultivationState(c,cultivation[1]))
  const attachment=path.match(/^\/api\/coffer\/proposals\/([^/]+)\/download$/)
  if(attachment) return proposalDownload(c,attachment[1])
+ if (path === '/api/coffer/reports/tax') return json(await taxReport(c,url))
  if (path === '/api/coffer/in-kind') return json(await inKindState(c,url.searchParams.get('donorId')??undefined))
  const propertyAck=path.match(/^\/api\/coffer\/in-kind-acknowledgments\/([^/]+)\/download$/)
  if(propertyAck) return inKindAcknowledgment(c,propertyAck[1])
@@ -386,6 +390,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  }
  if (path === '/app/calls') return show('Call list', await callTasksPage(c,url))
  if (path === '/app/lapses') return url.searchParams.has('annual') ? show('LYBUNT and SYBUNT',await annualLapsesPage(c,url)) : show('Donors who need a call', await lapsesPage(c,url))
+ if (path === '/app/reports/tax') return show('Form 990 support',await taxReportsPage(c,url))
  if (path === '/app/retention') return show('Donor retention', await retentionPage(c,url))
  if (path === '/app/portfolios') return show('Portfolios and moves',await portfoliosPage(c,url))
  const cultivation = path.match(/^\/app\/opportunities\/([^/]+)$/)

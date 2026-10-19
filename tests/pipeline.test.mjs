@@ -1,3 +1,4 @@
+import {taxReportsJourney} from './tax-reports-journey.mjs'
 import {inKindJourney} from './in-kind-journey.mjs'
 import {retentionJourney} from './retention-journey.mjs'
 import {test} from 'node:test'
@@ -143,3 +144,5 @@ test('MAJOR-001: configurable opportunity boards and lists link wins once and re
 })
 
 test('GIFT-001/GIFT-009: property acknowledgments omit internal values, disposal reminders and custody stay separate from cash',inKindJourney)
+
+test('REPORT-007: Schedule B rules and five-year donor giving reconcile to monetary and noncash records',taxReportsJourney)
