@@ -422,9 +422,9 @@ The same mapping and deposit posting as `FIN-001` into Pantry, Run Edit Run's ac
 
 #### FIN-003 — Restricted funds.
 
-Funds are marked restricted (purpose or time) or unrestricted; restricted gifts carry the restriction to accounting, and a release-of-restriction report shows what was given, spent (entered or synced from accounting) and still held per restricted fund.
+Funds are marked restricted (purpose or time) or unrestricted; restricted gifts carry the restriction to accounting, and a release-of-restriction report shows what was given, spent (entered or synced from accounting) and still held per restricted fund. A time-restricted fund's remaining balance releases on its stored release date; a purpose-restricted fund releases as dated qualifying spending is recorded against it. The report is cumulative through the selected date and shows, per restricted fund, given (net of refunds), spent, released and still held. A fund's definition is permanent once classified, and a fund already submitted to accounting cannot be reclassified. Restrictions travel in the accounting journal memos and in the fund-ledger CSV.
 
-*Acceptance:* An HTTP journey records restricted and unrestricted gifts, enters a spend against a restricted fund, and reads the release report.
+*Acceptance:* An HTTP journey records restricted and unrestricted gifts, enters a spend against a restricted fund, and reads the release report. It reads given net of a refund, spent, released and held through a selected date for a purpose-restricted fund (released by the dated spend) and a time-restricted fund (its remainder released on the stored release date, held the day before); it is refused reclassifying a fund already submitted to accounting; and it reads the restriction in the accounting journal memo and the fund-ledger CSV.
 
 #### FIN-004 — Journal export for other ledgers.
 
@@ -698,9 +698,9 @@ Any saved report or dashboard is emailed to chosen people on a schedule (weekly 
 
 #### REPORT-006 — Recurring giving health.
 
-Active recurring donors, monthly recurring revenue, new and canceled plans, failed and recovered payments, and average plan length, by month.
+Active recurring donors, monthly recurring revenue, new and canceled plans, failed and recovered payments, and average plan length, by month. Figures are as of month-end, or month-to-date for the current month, in the organization's time zone. A past-due plan stays active and in monthly recurring revenue until Stripe marks it unpaid or canceled. Active donors are counted distinctly; monthly recurring revenue is the committed monthly value in USD. A failed invoice counts once and a recovered invoice counts once, however many retries it took. A plan counts as canceled when it actually ends, not when a cancel-at-period-end request is made. Average plan length is the mean in days across plans running or ended in that month. Legacy plans whose start or state history is unknown are disclosed and excluded from these figures, never inferred.
 
-*Acceptance:* An HTTP journey runs plans through starts, failures, recoveries and cancellations on a test clock and reads matching monthly figures.
+*Acceptance:* An HTTP journey runs plans through starts, failures, recoveries and cancellations on a test clock and reads matching monthly figures. It checks that a past-due plan stays active until Stripe marks it unpaid, that a donor with two plans counts once, that an invoice retried before recovering counts one failure and one recovery, that a cancel-at-period-end request counts as canceled only in the month the plan ends, that average length covers running and ended plans in days, and that a legacy plan with unknown history is listed as excluded.
 
 #### REPORT-007 — IRS Form 990 support.
 
