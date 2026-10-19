@@ -17,7 +17,7 @@ export function installmentFields(pledges: Row[]): string {
 }
 
 const reminderLabel = (i: Row, day: string): string => {
- if (i.remaining_cents === 0) return chip('Paid', 'ok')
+ if (i.remaining_cents === 0) return chip(i.paid_cents ? 'Paid' : 'Reduced / written off', 'ok')
  if (i.reminder_status === 'submitted') return chip('Reminder submitted', 'info')
  if (i.reminder_status === 'sending') return chip('Submission in progress or unconfirmed', 'warn')
  if (i.reminder_status === 'uncertain') return chip('Submission uncertain · check SendGrid', 'warn')
@@ -31,7 +31,8 @@ export async function pledgePanel(c: Context, history: Row, day: string, staff: 
  const pledges: Row[] = history.pledges, donorId: string = history.donor.id
  const unavailable = pledgeMailUnavailable(c.env)
  const list = pledges.length ? `<ul class="list">${pledges.map(p => `<li><strong>${money(p.amount_cents)} pledged ${longDay(p.pledged_on)} to ${e(p.fund)}</strong><br>${money(p.paid_cents)} paid · ${money(p.remaining_cents)} still to come
-  ${p.installments?.length ? `<ul>${p.installments.map((i: Row) => `<li>${longDay(i.due_on)} · ${money(i.amount_cents)} scheduled · ${money(i.remaining_cents)} remaining ${i.due_on < day && i.remaining_cents > 0 ? chip('Overdue', 'alarm') : ''} ${reminderLabel(i, day)}${i.reminder_note ? `<p class="muted">${e(i.reminder_note)}</p>` : ''}</li>`).join('')}</ul>` : '<p class="muted">This older pledge has no installment schedule.</p>'}
+  ${p.installments?.length ? `<ul>${p.installments.map((i: Row) => `<li>${longDay(i.due_on)} · ${money(i.amount_cents)} scheduled · ${money(i.paid_cents)} paid · ${money(i.remaining_cents)} remaining · ${money(i.due_cents)} due · ${money(i.overdue_cents)} overdue ${i.due_on < day && i.remaining_cents > 0 ? chip('Overdue', 'alarm') : ''} ${reminderLabel(i, day)}${i.reminder_note ? `<p class="muted">${e(i.reminder_note)}</p>` : ''}</li>`).join('')}</ul>` : '<p class="muted">This older pledge has no installment schedule.</p>'}
+  ${pledgeChanges(p,donorId,history.subscriptions??[],staff)}
   ${staff && !unavailable && p.installments?.some((i: Row) => i.reminder_status === 'pending' && i.remind_on <= day && i.remaining_cents > 0) ? form('pledge.remind', '<p>Send only unpaid installments whose reminder date has arrived and whose donor has email permission.</p>', 'Send due reminders', { donorId, pledgeId: p.id }) : ''}</li>`).join('')}</ul>` : empty('No pledges.')
  const installments = installmentFields(pledges)
  // Explicit matching also supports gifts imported or recorded before the schedule.
@@ -39,4 +40,17 @@ export async function pledgePanel(c: Context, history: Row, day: string, staff: 
  const match = staff && installments && gifts.length ? `<details class="edit"><summary>Match a recorded gift to an installment</summary>${form('pledge.match', `${select('Recorded gift', 'giftId', gifts.map((g: Row) => [g.id, `${longDay(g.received_on)} · ${money(g.amount_cents)} · ${g.fund}`] as [string, string]))}${installments}${field('Amount to match (USD; blank uses unmatched balance)', 'allocationAmount', 'text', '', 'inputmode="decimal"')}`, 'Match gift', { donorId })}</details>` : ''
  const create = staff ? `<details class="edit"><summary>Record a pledge</summary>${form('pledge.create', pledgeFields(day) + select('Pledge campaign (optional)', 'campaignId', [['', 'No campaign'], ...(await campaigns(c)).map(r => [r.id, r.name + ' · ' + r.fund] as [string, string])]), 'Record pledge', { donorId })}</details>` : ''
  return box('Pledges', `${list}${unavailable ? `<p class="muted">${e(unavailable)}</p>` : '<p class="muted">Due reminders send once through SendGrid. Submitted means accepted by the provider; delivery is not confirmed.</p>'}${match}${create}`, 'pledges')
+}
+
+function pledgeChanges(p:Row,donorId:string,plans:Row[],staff:boolean):string {
+ const values={donorId,pledgeId:p.id,version:p.version}
+ const history=p.adjustments?.length?`<details><summary>Reduction history</summary><ul>${p.adjustments.map((a:Row)=>`<li>${e(a.kind==='write_off'?'Write-off':'Reduction')} · ${money(a.amount_cents)} · ${e(a.reason??'[erased]')} · ${e(a.created_by)} · ${e(a.created_at)}</li>`).join('')}</ul></details>`:''
+ const reduced=p.reduced_cents?`<p>${money(p.reduced_cents)} reduced / written off; original commitment preserved.</p>`:''
+ const allocations=p.allocations?.length?`<details><summary>Payment history</summary><ul>${p.allocations.map((a:Row)=>`<li>${money(a.amount_cents)} matched · ${e(a.created_at)} · ${e(a.created_by)} · gift ${e(a.gift_id)}</li>`).join('')}</ul></details>`:''
+ const linked=p.plan?`<p>Recurring plan ${e(p.plan.subscription_id)} pays future gifts toward this pledge. Excess stays unmatched; linking does not change billing.</p>`:''
+ if(!staff)return reduced+history+allocations+linked
+ const adjust=p.remaining_cents>0?`<details class="edit"><summary>Reduce or write off this pledge</summary><p>Latest unpaid installments are reduced first. Cash gifts and the original commitment stay unchanged.</p>${form('pledge.reduce',field('Reduction (USD)','amount','text','','required inputmode="decimal"')+area('Reason for reduction','reason','','required'),'Reduce pledge',values)}${form('pledge.writeOff',area('Reason for write-off','reason','','required'),'Write off unpaid balance',values)}</details>`:''
+ const available=plans.filter(s=>s.status==='active'||s.status==='trialing'||s.status==='past_due')
+ const link=!p.plan&&p.installments?.length&&available.length?`<details class="edit"><summary>Pay this pledge from a recurring plan</summary><p>Only a current plan for this donor and fund can be linked. Future successful gifts fill the earliest unpaid installments. This does not initiate or change a payment.</p>${form('pledge.linkPlan',select('Recurring plan','subscriptionId',available.map(s=>[s.id,`${s.campaign} · ${money(s.amount_cents)} · ${s.id}`])),'Link recurring plan',values)}</details>`:''
+ return reduced+history+allocations+linked+adjust+link
 }

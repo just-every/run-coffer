@@ -70,3 +70,8 @@ test('dated pledges remind once, match real gifts by fund and donor, and reopen 
   return new Response(null,{status:202,headers:{'x-message-id':`pledge-message-${messages.length}`}})
  }})
 })
+
+test('GIFT-005: quarterly pledge payments, overdue balances, reasoned reductions, write-offs and recurring allocation retain history',async()=>{
+ const {pledgeBalancesJourney}=await import('./pledge-balances-journey.mjs')
+ await pledgeBalancesJourney()
+})

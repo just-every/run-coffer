@@ -20,6 +20,8 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     sql("UPDATE cf_donors SET version=version+1,name=?,email=NULL,phone=NULL,address_line1=NULL,address_line2=NULL,city=NULL,region=NULL,postal_code=NULL,country=NULL,household_id=NULL,source_ref=NULL,erased_at=? WHERE id=?", ERASED, now, donorId),
     sql('DELETE FROM cf_consents WHERE donor_id=?', donorId),
     sql('UPDATE cf_gifts SET version=version+1,note=NULL,donor_id=? WHERE donor_id=?', placeholderId, donorId),
+    sql('UPDATE cf_pledge_adjustments SET reason=NULL WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', donorId),
+    sql('DELETE FROM cf_pledge_plans WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', donorId),
     sql('UPDATE cf_pledges SET donor_id=? WHERE donor_id=?', placeholderId, donorId),
     sql("UPDATE cf_acks SET donor_id=?,recipient_name=?,recipient_email=NULL,address=NULL,statement_gifts=NULL,delivery_note=NULL,subject='[erased]',body='[erased]' WHERE donor_id=?", placeholderId, ERASED, donorId),
     sql('UPDATE cf_appeal_recipients SET donor_id=?,name=?,email=NULL,address=NULL WHERE donor_id=?', placeholderId, ERASED, donorId),

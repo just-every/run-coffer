@@ -1,3 +1,4 @@
+import { adjustPledge, linkPledgePlan } from './pledge-adjustments'
 import type { Bindings } from '../auth.server'
 import { sendSendGrid, SendGridSendError } from '../modules/mail/src/sendgrid-email/index.mjs'
 import { requireRole } from './auth'
@@ -32,8 +33,14 @@ export function schedule(p: Row, pledgedOn: string) {
 }
 
 export async function pledgeCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
- if (!['pledge.create', 'pledge.remind', 'pledge.match'].includes(command)) return undefined
+ if (!['pledge.create', 'pledge.remind', 'pledge.match', 'pledge.reduce', 'pledge.writeOff', 'pledge.linkPlan'].includes(command)) return undefined
  requireRole(c.actor, ['owner', 'admin', 'member'], 'manage pledges')
+ if (command === 'pledge.linkPlan') return linkPledgePlan(c,p)
+ if (command === 'pledge.reduce' || command === 'pledge.writeOff') {
+  const pledge=await one(c,'SELECT donor_id FROM cf_pledges WHERE id=?',id(p.pledgeId,'Pledge'))
+  if(!pledge) fail('NOT_FOUND','That pledge does not exist.',404)
+  return adjustPledge(c,command,p,await pledgeHistory(c,pledge.donor_id))
+ }
  if (command === 'pledge.create') {
   const donorId = id(p.donorId, 'Donor'), pledgeId = newId(), cents = amount(p, 'amount', 'Pledge amount')
   const pledgedOn = date(p.pledgedOn, 'Pledged on'), fund = optional(p.fund, 'Fund', 100) ?? 'Unrestricted'
@@ -82,16 +89,20 @@ export async function giftInstallmentStatements(c: Context, p: Row, giftId: stri
 }
 
 export async function pledgeHistory(c: { db: D1Database }, donorId: string): Promise<Row[]> {
- const [pledges, installments] = await Promise.all([
+ const day=today((await settings(c)).timezone)
+ const [pledges, installments, adjustments, plans, allocations] = await Promise.all([
   all(c, `SELECT p.*,COALESCE((SELECT SUM(g.amount_cents - CASE WHEN g.kind='reversal' THEN -1 ELSE 1 END *
    COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0))
-   FROM cf_monetary_contributions g WHERE g.pledge_id=p.id),0) AS legacy_paid_cents FROM cf_pledges p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
+   FROM cf_monetary_contributions g WHERE g.pledge_id=p.id),0) AS legacy_paid_cents FROM cf_pledge_totals p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
   all(c, 'SELECT i.* FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=? ORDER BY i.position', donorId),
+  all(c,'SELECT a.* FROM cf_pledge_adjustments a JOIN cf_pledges p ON p.id=a.pledge_id WHERE p.donor_id=? ORDER BY a.created_at,a.id',donorId),
+  all(c,'SELECT l.* FROM cf_pledge_plans l JOIN cf_pledges p ON p.id=l.pledge_id WHERE p.donor_id=?',donorId),
+  all(c,'SELECT a.*,i.pledge_id FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=? ORDER BY a.created_at,a.id',donorId),
  ])
  return pledges.map(p => {
-  const rows: Row[] = installments.filter(i => i.pledge_id === p.id).map(i => ({ ...i, remaining_cents: i.amount_cents - i.paid_cents }))
+  const rows: Row[] = installments.filter(i => i.pledge_id === p.id).map(i => ({ ...i, remaining_cents: Math.max(0,i.amount_cents-i.paid_cents), due_cents: i.due_on<=day?Math.max(0,i.amount_cents-i.paid_cents):0, overdue_cents:i.due_on<day?Math.max(0,i.amount_cents-i.paid_cents):0 }))
   const paid = p.legacy_paid_cents + rows.reduce((n, i) => n + i.paid_cents, 0)
-  return { ...p, paid_cents: paid, remaining_cents: Math.max(0, p.amount_cents - paid), installments: rows }
+  return { ...p, paid_cents: paid, remaining_cents: Math.max(0, p.amount_cents - p.reduced_cents - paid), installments: rows, adjustments: adjustments.filter(a=>a.pledge_id===p.id), plan: plans.find(l=>l.pledge_id===p.id)??null, allocations: allocations.filter(a=>a.pledge_id===p.id) }
  })
 }
 

@@ -230,7 +230,9 @@ One payment can be split across several funds or campaigns in exact cents that s
 
 A pledge has a total, a schedule (one date, or monthly, quarterly or annual installments), a fund and campaign, and links to the gifts that pay it. Coffer shows paid, due and overdue amounts per installment, writes pledges off or reduces them with a reason (never by deleting), and lets a pledge be paid by a recurring plan (`GIVE-003`). Reminders are `STEW-004`.
 
-*Acceptance:* An HTTP journey creates a $12,000 pledge in four quarterly installments, pays two, sees the third overdue on the pledge and the donor page, reduces the balance with a reason, and reads the full history.
+Dated schedules explicitly record each single, monthly, quarterly or annual due date and exact integer cents. The original commitment and installments are retained. A reasoned reduction consumes the latest unpaid installments first; a write-off consumes the whole current unpaid balance. Neither changes gifts, issued gift receipts, payment allocations or the original commitment. Due amounts include an unpaid installment on its due day, overdue amounts start the following organization-calendar day. A reversed/refunded payment reopens its paid portion without undoing reductions. All donor, campaign, reminder and call-source balances use the effective installment amounts. A versioned link to one existing current Stripe plan for the same donor and fund applies only future successful payments, earliest unpaid installment first, once per gift; excess stays unmatched and billing is unchanged. History exposes original commitments, adjustments with actor/date/reason, linked plan and gift allocations. Archive/restore and merge/undo retain them; erasure removes reasons and plan links while retaining anonymous amounts. Current pledge-managing staff use these commands; agents do not.
+
+*Acceptance:* An HTTP journey creates a $12,000 pledge in four quarterly installments, pays two, sees the third overdue on the pledge and the donor page, reduces the balance with a reason, and reads the full history. The GIFT-005 journey also asserts explicit single/monthly/annual schedules, exact due and overdue amounts, latest-first reductions and whole-balance write-offs, stale/role/donor refusals, original cash and commitment preservation, donor/campaign/call-source totals, recurring-payment allocation/replay/excess and reversal, archive/restore, merge/undo and erasure. Native create/reduce/write-off forms run at 1440 and 390 pixels.
 
 #### GIFT-006 — Soft credits.
 
@@ -1124,8 +1126,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 35 | 52 | 39 | 126 |
-| All | 43 | 53 | 39 | 135 |
+| Target and push further | 36 | 51 | 39 | 126 |
+| All | 44 | 52 | 39 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1155,7 +1157,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `GIFT-002` | Batch gift entry and deposits | target | missing |  | Gifts are entered one at a time; no batches or deposit totals. |
 | `GIFT-003` | Campaign, appeal, fund and channel attribution | target | done | `src/coffer/attribution.ts`, `src/coffer/gifts.ts`, `src/coffer/giving/tracked-link.ts`, `src/coffer/move-in/source-mapping.ts`, `migrations/core/0064_coffer_gift_attribution.sql`, `src/coffer/ui/attribution.ts`, `tests/attribution-journey.mjs` | Clause-named HTTP journey: defined appeals, campaign/appeal/channel on entry, tracked-link form gift, CRM appeal/channel mapping, refusals, and totals by fund, campaign, appeal and channel that each sum to the ledger. |
 | `GIFT-004` | Split gifts | target | done | `src/coffer/gift-splits.ts`, `migrations/core/0039_coffer_gift_splits.sql`, `src/coffer/fund-report.ts`, `tests/split-gifts.test.mjs` |  |
-| `GIFT-005` | Pledges, installments and balances | target | partial | `src/coffer/pledges.ts`, `src/coffer/ui/pledges.ts`, `tests/pledges.test.mjs` | Dated installments total the pledge, allocations match gifts by donor/fund without overpayment, and reversals reopen balances. Write-offs, reductions, campaign attribution and recurring-plan payment remain. |
+| `GIFT-005` | Pledges, installments and balances | target | done | `src/coffer/pledges.ts`, `src/coffer/pledge-adjustments.ts`, `src/coffer/ui/pledges.ts`, `migrations/core/0067_coffer_pledge_adjustments.sql`, `tests/pledges.test.mjs`, `tests/pledge-balances-journey.mjs`, `tests/pledge-balances-browser.mjs` | Clause-named public-door proof asserts dated schedules, cash-preserving reductions/write-offs, exact due/overdue and report balances, unchanged issued receipts, recurring allocation/replay/excess, refusals and custody; native forms run at 1440/390. |
 | `GIFT-006` | Soft credits | target | done | `src/coffer/gift-depth.ts`, `src/coffer/soft-credit-ack.ts`, `src/coffer/retention.ts`, `tests/soft-credits.test.mjs`, `tests/soft-credit-journey.mjs` | Full and partial recognition appears separately on donor records, giving summaries and retention reports, without increasing cash totals or tax statements. Each credit has its own versioned, audited acknowledgment, date, method and linked conversation or recorded thank-you note; native forms run at 1440 and 390. |
 | `GIFT-007` | Matching gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/ui/gift-depth.ts`, `tests/soft-credits.test.mjs` | Expected employer amount/deadline links the original gift to a received employer ledger gift, with overdue and reversal-aware states. Program lookup, submission workflow, automatic employee recognition and submission reminders remain. |
 | `GIFT-008` | Tribute gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/year-end.ts`, `tests/soft-credits.test.mjs` | Honor/memory, honoree and notification contact are recorded on gifts and included in approved gift/year-end receipt text. Tribute grouping, notification sending and incumbent tribute imports remain. |

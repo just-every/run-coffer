@@ -12,9 +12,9 @@ export async function campaignProgress(c: { db: D1Database }, campaignId: string
  const ids = JSON.stringify(scope.map(r => r.id)), within = 'IN (SELECT value FROM json_each(?))'
  const [entries, pledges, credits, recurring, appeals] = await Promise.all([
   all(c, `SELECT l.*,d.name AS donor_name FROM cf_fund_ledger l JOIN cf_donors d ON d.id=l.donor_id WHERE l.campaign_id ${within} ORDER BY l.received_on,l.id,l.position`, ids),
-  all(c, `SELECT p.*,p.amount_cents-COALESCE((SELECT SUM(i.paid_cents) FROM cf_pledge_balances i WHERE i.pledge_id=p.id),0)
+  all(c, `SELECT p.*,p.amount_cents-p.reduced_cents-COALESCE((SELECT SUM(i.paid_cents) FROM cf_pledge_balances i WHERE i.pledge_id=p.id),0)
    -COALESCE((SELECT SUM(g.amount_cents-CASE WHEN g.kind='reversal' THEN -1 ELSE 1 END*COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0)) FROM cf_monetary_contributions g WHERE g.pledge_id=p.id),0) AS outstanding_cents
-   FROM cf_pledges p WHERE p.campaign_id ${within}`, ids),
+   FROM cf_pledge_totals p WHERE p.campaign_id ${within}`, ids),
   all(c, `SELECT s.*,MIN(s.amount_cents,g.net_cents) AS recognized_cents FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id
    JOIN cf_donors hard ON hard.id=g.donor_id JOIN cf_donors soft ON soft.id=s.donor_id
    WHERE g.net_cents>0 AND hard.erased_at IS NULL AND soft.erased_at IS NULL
