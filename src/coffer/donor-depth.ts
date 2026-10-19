@@ -1,10 +1,10 @@
-import { requireRole } from './auth'
+import { manager, requireRole } from './auth'
 import { all, choice, commit, date, event, fail, guard, id, longText, newId, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { settings } from './settings'
 
 export const RELATIONSHIP_TYPES = ['spouse', 'employer', 'board_member', 'foundation_officer', 'introduced_by'] as const
 export type RelationshipType = typeof RELATIONSHIP_TYPES[number]
-export const INTERACTION_TYPES = ['call', 'meeting', 'email'] as const
+export const INTERACTION_TYPES = ['call', 'meeting', 'email', 'note', 'visit'] as const
 export type InteractionType = typeof INTERACTION_TYPES[number]
 /** Labels describe the OTHER donor, relative to the record being viewed. */
 export const RELATIONSHIP_LABELS: Record<RelationshipType, { outgoing: string; incoming: string; sentence: string }> = {
@@ -54,9 +54,16 @@ export async function donorDepthCommand(c: Context, command: string, p: Row): Pr
    ...[donorId, otherId].map(d => event(c, command, 'relationship', relationshipId, d, { type: relation.type }))])
   return { removed: relationshipId, donorId }
  }
- const interactionId = newId(), kind = choice(p.kind, INTERACTION_TYPES, 'conversation type'), occurred = date(p.occurredOn, 'Conversation date')
- const who = text(p.who, 'Who took part', 500), notes = longText(p.notes, 'Conversation notes'), nextStep = optional(p.nextStep, 'Next step', 2000)
+ const interactionId = newId(), kind = choice(p.kind, INTERACTION_TYPES, 'conversation type'), occurred = date(p.occurredOn ?? today((await settings(c)).timezone), 'Conversation date')
+ const who = text(p.who ?? c.actor.name, 'Who took part', 500), notes = longText(p.notes, 'Conversation notes'), nextStep = optional(p.nextStep, 'Next step', 2000)
  if (occurred > today((await settings(c)).timezone)) fail('INPUT', 'A conversation cannot be recorded in the future.', 400)
+ if(![undefined,false,true,0,1,'0','1'].includes(p.confidential))fail('INPUT','Confidential must be yes or no.',400)
+ const confidential=p.confidential===true || p.confidential===1 || p.confidential==='1'
+ if(confidential && (kind!=='note' || !manager(c.actor)))fail('FORBIDDEN','Only the owner or an admin records confidential notes.',403)
+ if(kind==='note'||kind==='visit'){
+  await commit(c,[liveDonor(donorId),sql('INSERT INTO cf_donor_notes(id,donor_id,occurred_on,body,source,recorded_at,recorded_by,kind,confidential,who,next_step,recorded_by_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',interactionId,donorId,occurred,notes,'Coffer',c.now,c.actor.name,kind,confidential?1:0,who,nextStep,c.actor.id),event(c,command,'note',interactionId,donorId,{kind,occurredOn:occurred,confidential})])
+  return {id:interactionId,donorId,kind,occurredOn:occurred,confidential}
+ }
  await commit(c, [liveDonor(donorId),
   sql('INSERT INTO cf_interactions(id,donor_id,kind,occurred_on,who,notes,next_step,recorded_at,recorded_by,recorded_by_id) VALUES(?,?,?,?,?,?,?,?,?,?)', interactionId, donorId, kind, occurred, who, notes, nextStep, c.now, c.actor.name, c.actor.id),
   event(c, command, 'interaction', interactionId, donorId, { kind, occurredOn: occurred })])

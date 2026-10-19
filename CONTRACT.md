@@ -126,7 +126,7 @@ Any two constituents can be related with a reciprocal type (spouse/spouse, paren
 
 #### DONOR-004 — Interaction timeline.
 
-Each constituent has one timeline of everything that happened: gifts, pledges, receipts sent and delivered, appeal sends, opens and replies, logged calls, meetings, visits, notes, tasks, event attendance and volunteer hours, newest first and filterable. Logging a call, meeting or note takes under ten seconds from the donor page or a phone: at most two taps or clicks plus the note text, with type, date and author defaulting to a call now by the signed-in person, and the entry shows on the timeline as soon as it is saved. Notes marked confidential are visible only to the roles `TEAM-001` allows.
+Each constituent has one timeline of everything that happened: gifts, pledges, receipts sent and delivered, appeal sends, opens and replies, logged calls, meetings, visits, notes, tasks, event attendance and volunteer hours, newest first and filterable. Logging a call, meeting or note takes under ten seconds from the donor page or a phone: at most two taps or clicks plus the note text, with type, date and author defaulting to a call now by the signed-in person, and the entry shows on the timeline as soon as it is saved. Notes marked confidential are visible only to the roles `TEAM-001` allows. Today the owner and admins alone record and read confidential notes; the member role is data entry and is refused those notes through direct HTTP, donor/context reads and exports. The owner’s private archive retains them. Staff record ordinary notes and visits in the existing portable note store, while calls, meetings and email remain conversations; all share organization-calendar dates and default to today and the signed-in author. Call, meeting and note quick actions take two clicks plus typing. Timeline type and inclusive date filters apply to every current gift, pledge, receipt and provider-delivery event, appeal, reply, conversation, task and volunteer source, newest first. This obligation is complete for current sources. Before event attendance (`CAMP-002`), tracked opens (`RCPT-006`) or another activity source ships, its clause adds it to this timeline and its filters; `TEAM-001` must apply its future confidential-note role and portfolio rules to every read/context/export door before those roles ship.
 
 *Acceptance:* A browser journey at 1440 and 390 pixels logs a call and a confidential note on a donor, counting at most two taps or clicks plus typing for each, and a timed run with a 30-character note typed at five characters a second takes under ten seconds from the first tap to the entry on the timeline; it sees both on the timeline with the gift and receipt events, filters the timeline to calls only and then to a date range and sees only the matching entries each time, and a data-entry user is refused the confidential note through HTTP.
 
@@ -346,6 +346,8 @@ An event has ticket types with the fair market value of the benefit, registratio
 
 Recorded event attendance feeds MAJOR-004 engagement scoring and its donor-page factors before event attendance ships.
 
+Before event attendance ships, its actual attendance records join the DONOR-004 timeline and type/date filters.
+
 *Acceptance:* A browser journey sells a $150 gala ticket with a $60 dinner value, checks the guest in at 390 pixels, and reads a receipt stating $90 deductible and the attendance on the guest's timeline. The recorded attendance feeds MAJOR-004 scoring and appears in the donor’s contributing factors under the configured weights.
 
 #### CAMP-003 — Peer-to-peer fundraising.
@@ -479,6 +481,8 @@ The receipt queue uses the lower of the configured threshold and $250 per indivi
 #### RCPT-006 — Delivery tracking.
 
 Every receipt, acknowledgment and statement keeps its delivery result from the provider: delivered, bounced, complained, opened where tracked, and for mail the print vendor's events. A bounce opens a task to fix the address and offers print instead; the donor page shows each document's delivery. Open tracking, when implemented, feeds the constituent’s MAJOR-004 engagement scoring with provider provenance and donor-visible contributing factors before it ships.
+
+Before tracked opens ship, their actual events join the DONOR-004 timeline and type/date filters.
 
 *Acceptance:* An HTTP journey with the mail edge faked sends three receipts, one bounces, and the bounced one shows on the donor page with a task and a print option. A tracked provider open feeds MAJOR-004 scoring and appears in the donor’s contributing factors under the configured weights.
 
@@ -808,6 +812,8 @@ Roles a small development shop and its volunteers need.
 
 Roles cover owner, admin, fundraiser, finance, data entry, volunteer and read-only, plus agents; a fundraiser can be limited to their portfolio, confidential notes and prospect research are restricted, finance can post and reconcile but not export donor lists, and exports of donor data are permitted per role and logged, and only permitted roles charge cards and bank accounts (`GIVE-009`). An admin sets each team member's manager (the person they report to) and weekly call capacity; task escalation (`STEW-001`) and the call list (`DEV-005`) use them.
 
+Before its wider roles and portfolio scopes ship, every DONOR-004 confidential-note read, agent context and export applies those roles and scopes.
+
 *Acceptance:* An HTTP journey signs in as each role and is allowed or refused each listed action, including a portfolio-limited fundraiser opening another portfolio's prospect; an admin sets a member's manager and call capacity and reads them back, and a member is refused setting them.
 
 #### TEAM-002 — Single sign-on and two-step sign-in.
@@ -1023,7 +1029,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | # | Claim | Clauses | Status |
 | ---: | --- | --- | --- |
 | 1 | Coffer takes donations | `GIVE-001`, `GIVE-003`, `GIVE-004` | partial |
-| 2 | keeps every donor's story | `DONOR-001`, `DONOR-004` | `DONOR-001` done · `DONOR-004` partial |
+| 2 | keeps every donor's story | `DONOR-001`, `DONOR-004` | `DONOR-001` done · `DONOR-004` done |
 | 3 | sends the receipts | `ACK-001`, `RCPT-001`, `RCPT-002` | `ACK-001` partial · `RCPT-001` partial · `RCPT-002` done |
 | 4 | and thank-yous | `RCPT-002`, `RCPT-007` | `RCPT-002` done · `RCPT-007` partial |
 | 5 | shows who needs a call | `DEV-005`, `REPORT-002` | partial (core claim implemented; broader clauses remain) |
@@ -1040,7 +1046,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 16 | Households | `DONOR-001` | done |
 | 17 | relationships | `DONOR-003` | partial |
 | 18 | every gift | `GIFT-001` | done |
-| 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` partial · `COMM-004` missing · `COMM-005` done |
+| 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` done · `COMM-004` partial · `COMM-005` done |
 | 20 | soft credits | `GIFT-006` | done |
 | 21 | tributes | `GIFT-008` | partial |
 | 22 | employer matches | `GIFT-007` | partial |
@@ -1103,8 +1109,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 28 | 55 | 43 | 126 |
-| All | 36 | 56 | 43 | 135 |
+| Target and push further | 29 | 54 | 43 | 126 |
+| All | 37 | 55 | 43 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1119,7 +1125,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `DATA-001` | Custody and erasure | published | done | `src/coffer/archive-policy.mjs`, `src/coffer/imports/erasure.ts`, `scripts/backup-hosted.mjs`, `tests/coffer.test.mjs`, `tests/hosted-restore.test.mjs` |  |
 | `DONOR-002` | Organization records | target | partial | `src/coffer/donors.ts` | Every constituent is a person-shaped donor record; there is no organization type, EIN, website or contact role. |
 | `DONOR-003` | Relationships | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-depth.ts`, `docs/donor-depth.md` | Reciprocal spouse, employer, board member, foundation officer and introduced-by links show on both records and filter donor lists. Household salutations, head and combined totals remain. |
-| `DONOR-004` | Interaction timeline | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-timeline.ts`, `docs/donor-depth.md` | Calls, meetings and emails record date, participants, notes, next step and author beside gifts, pledges and receipt events in one timeline. Confidential notes, timeline filters and the broader task/event integrations remain. |
+| `DONOR-004` | Interaction timeline | target | done | `src/coffer/donor-depth.ts`, `src/coffer/timeline.ts`, `src/coffer/ui/donor-timeline.ts`, `tests/timeline-journey.mjs`, `tests/coffer.test.mjs` | Clause-named HTTP and native 1440/390 journeys assert two-click timed call/confidential-note entry, every current source, inclusive type/date filters, role refusals and custody. |
 | `DONOR-005` | Custom fields and tags | target | missing |  | No custom fields, tags or categories. |
 | `DONOR-006` | Duplicate detection and merge | target | done | `src/coffer/duplicates.ts`, `src/coffer/donor-merge.ts`, `src/coffer/merge-journal.ts`, `migrations/core/0042_coffer_duplicates.sql`, `tests/duplicates.test.mjs` |  |
 | `DONOR-007` | Saved searches and lists | target | partial | `src/coffer/donors.ts`, `src/coffer/ui/donors.ts` | Donor search includes reciprocal relationship-type and connected-donor filters. General saved lists and undoable bulk actions remain. |

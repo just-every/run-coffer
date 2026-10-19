@@ -110,6 +110,14 @@
       "commands": [
         "pnpm run test:agent"
       ]
+    },
+    {
+      "name": "timeline",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_TIMELINE_BROWSER=.cache/timeline node --test --test-name-pattern='DONOR-004' tests/coffer.test.mjs"
+      ]
     }
   ],
   "nightly": [

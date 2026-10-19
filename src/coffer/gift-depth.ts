@@ -1,3 +1,4 @@
+import { manager, type Actor } from './auth'
 import { all, choice, commit, date, email, event, fail, guard, id, newId, one, optional, sql, text, today, type Context, type Row } from './db'
 import { amount } from './money'
 import { settings } from './settings'
@@ -61,18 +62,18 @@ export function tributeReceiptText(tribute: Row | null | undefined): string {
  return tribute ? `This gift was made in ${tribute.kind === 'memory' ? 'memory' : 'honor'} of ${tribute.honoree}.` : ''
 }
 
-export async function donorGiftDepth(c: { db: D1Database }, donorId: string) {
+export async function donorGiftDepth(c: { db: D1Database; actor?:Actor }, donorId: string) {
  const day = today((await settings(c)).timezone)
  const [credits, tributes, matches] = await Promise.all([
   all(c, `SELECT s.*,g.donor_id AS gift_donor_id,g.received_on,g.amount_cents AS gift_amount_cents,d.name AS gift_donor_name,credited.name AS credited_donor_name,
     COALESCE(a.status,'not acknowledged') AS acknowledgment_status,COALESCE(a.version,0) AS acknowledgment_version,
     a.acknowledged_on,a.method AS acknowledgment_method,a.reason AS acknowledgment_reason,a.interaction_id,a.note_id,
-    COALESCE(i.notes,n.body) AS acknowledgment_content,
+    CASE WHEN COALESCE(n.confidential,0)=0 OR ?=1 THEN COALESCE(i.notes,n.body) ELSE NULL END AS acknowledgment_content,
     MIN(s.amount_cents,g.net_cents) AS recognized_cents,CASE WHEN ${ACTIVE} AND credited.erased_at IS NULL THEN 1 ELSE 0 END AS active
    FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id JOIN cf_donors d ON d.id=g.donor_id JOIN cf_donors credited ON credited.id=s.donor_id
    LEFT JOIN cf_soft_credit_acknowledgments a ON a.soft_credit_id=s.id
    LEFT JOIN cf_interactions i ON i.id=a.interaction_id LEFT JOIN cf_donor_notes n ON n.id=a.note_id
-   WHERE s.donor_id=? OR g.donor_id=? ORDER BY g.received_on DESC`, donorId, donorId),
+   WHERE s.donor_id=? OR g.donor_id=? ORDER BY g.received_on DESC`, c.actor&&manager(c.actor)?1:0, donorId, donorId),
   all(c, `SELECT t.*,g.donor_id AS gift_donor_id,g.received_on,g.amount_cents AS gift_amount_cents,CASE WHEN ${ACTIVE} THEN 1 ELSE 0 END AS active
    FROM cf_gift_tributes t JOIN cf_gift_balances g ON g.id=t.gift_id JOIN cf_donors d ON d.id=g.donor_id WHERE g.donor_id=? OR t.donor_id=? ORDER BY g.received_on DESC`, donorId, donorId),
   all(c, `SELECT m.*,g.donor_id AS gift_donor_id,d.name AS gift_donor_name,employer.name AS employer_name,g.received_on,

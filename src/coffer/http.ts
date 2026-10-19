@@ -335,6 +335,13 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (url.pathname === '/api/coffer/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
  const path = url.pathname, match = (re: RegExp) => path.match(re)
  if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo'), volunteer:url.searchParams.get('volunteer') }))
+ const noteMatch=match(/^\/api\/coffer\/notes\/([^/]+)$/)
+ if(noteMatch){
+  const note=await c.db.prepare('SELECT * FROM cf_donor_notes WHERE id=?').bind(noteMatch[1]).first<any>()
+  if(!note)fail('NOT_FOUND','That note does not exist.',404)
+  if(note.confidential && !manager(c.actor))fail('FORBIDDEN','Only the owner or an admin reads confidential notes.',403)
+  return json(note)
+ }
  let m = match(/^\/api\/coffer\/donors\/([^/]+)$/)
  if (m) return json(await donorHistory(c, m[1]))
  if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, batches: await batches(c) }) }

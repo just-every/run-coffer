@@ -1,3 +1,4 @@
+import { manager } from '../auth'
 import { all, type Context } from '../db'
 import { donorDepth, INTERACTION_TYPES, RELATIONSHIP_LABELS, RELATIONSHIP_TYPES, type DonorDepth, type DonorInteraction } from '../donor-depth'
 import { area, box, e, empty, field, form, longDay, select, when } from './common'
@@ -17,7 +18,7 @@ export async function donorDepthPanels(c: Context, h: History, day: string, staf
  ])
  const links = depth.relationships.length ? `<ul class="list">${depth.relationships.map(r => `<li>${e(r.label)} · <a href="/app/donors/${e(r.other_donor_id)}">${e(r.other_name)}</a>${staff ? `<details class="edit"><summary>Remove relationship</summary>${form('relationship.remove', `<p>Remove this link from both donor records?</p>`, 'Remove relationship', { donorId: d.id, relationshipId: r.id })}</details>` : ''}</li>`).join('')}</ul>` : empty('No relationships recorded.')
  const create = staff && candidates.length ? `<details class="edit"><summary>Add relationship</summary>${form('relationship.create', `<p>${e(d.name)}…</p><div class="fields">${select('Relationship', 'type', RELATIONSHIP_TYPES.map(t => [t, RELATIONSHIP_LABELS[t].sentence] as [string, string]))}${select('Related donor', 'relatedDonorId', [['', 'Choose a donor'], ...candidates.map(x => [x.id, `${x.name}${x.email ? ` · ${x.email}` : ''}`] as [string, string])], '', 'required')}</div>`, 'Add relationship', { donorId: d.id })}</details>` : staff ? '<p class="muted">Add another donor record to link a relationship.</p>' : ''
- const record = staff ? `<details class="edit"><summary>Record a conversation</summary>${interactionForm(d.id, c.actor.name, day)}</details>` : ''
+ const record = staff ? `<div class="quick-log">${quickLog(d.id,c.actor.name,day,'call')}${quickLog(d.id,c.actor.name,day,'note')}${manager(c.actor)?quickLog(d.id,c.actor.name,day,'note',true):''}${quickLog(d.id,c.actor.name,day,'meeting')}</div><details class="edit"><summary>Record a conversation</summary>${interactionForm(d.id, c.actor.name, day)}</details>` : ''
  return {
   relationships: box('Relationships', links + create, 'relationships'),
   conversations: box('Conversations', `${record}<p class="muted">Calls, meetings and emails appear alongside gifts in the timeline.</p>`, 'conversations'),
@@ -31,4 +32,9 @@ export function interactionForm(donorId: string, actorName: string, day: string)
 /** A complete list item, also suitable for a mixed gift/conversation list. */
 export function interactionItem(i: DonorInteraction, tz: string) {
  return `<li>${e(i.kind[0].toUpperCase() + i.kind.slice(1))} · ${longDay(i.occurred_on)}<p><strong>Who:</strong> ${e(i.who)}</p><p>${e(i.notes).replace(/\n/g, '<br>')}</p>${i.next_step ? `<p><strong>Next step:</strong> ${e(i.next_step).replace(/\n/g, '<br>')}</p>` : ''}<span class="muted">Recorded by ${e(i.recorded_by)} · ${when(i.recorded_at, tz)}</span></li>`
+}
+
+function quickLog(donorId:string,actorName:string,day:string,kind:string,confidential=false){
+ const label=confidential?'Add confidential note':kind==='note'?'Add note':kind==='meeting'?'Log a meeting':'Log a call'
+ return `<details class="edit"><summary>${label}</summary>${form('interaction.record',area(confidential?'Confidential note':kind==='note'?'Note':'Call or meeting notes','notes','','required maxlength="8000"'), 'Save '+(confidential?'confidential note':kind),{donorId,kind,occurredOn:day,who:actorName,confidential:confidential?'1':'0',returnTo:'donor'})}</details>`
 }
