@@ -189,7 +189,7 @@ function contents(part: ParsedImport) {
  const rows=part[main].map(x=>x.location), files=[...new Set(rows.map(l=>l.file))]
  return `${part[main].length} ${kindName[main]} from ${files.map(f=>{const r=rows.filter(l=>l.file===f).map(l=>l.row);return `${f} rows ${Math.min(...r)}–${Math.max(...r)}`}).join(', ')}`
 }
-const label=(kind: Kind)=>({softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',pledge:'pledge',installment:'installment',campaign:'gift appeal',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
+const label=(kind: Kind)=>({softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
 /** Unique indexes that commit() reports by name. */
 const UNIQUE_CODES: Record<string,[string,string[]]> = {DUPLICATE_EMAIL:['cf_donors',['email']],DUPLICATE_REFERENCE:['cf_gifts',['source','reference']],DUPLICATE_HOUSEHOLD:['cf_households',['name']]}
 /** A database refusal names its part, the rows behind it and the reason, never only "the operation failed". */

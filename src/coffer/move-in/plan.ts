@@ -21,7 +21,7 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',campaign:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
+const label: Record<Kind,string> = {household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
@@ -115,6 +115,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   const cents=prior?(giftBalances.find(b=>b.id===id)?.net_cents??0):g.amountCents
   if(cents>0)accumulate(plan.totals,cents,g.receivedOn,g.fund,g.donorExternalId)
   if(g.appeal??g.campaign)await add('campaign',g,{gift_id:id,appeal:g.appeal??g.campaign},undefined,donorId)
+  if(g.channel)await add('channel',g,{gift_id:id,channel:g.channel},undefined,donorId)
  }
  // Source pledge-payment links pay the dated installments in date order.
  for(const p of parsed.pledges) {

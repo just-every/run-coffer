@@ -2,6 +2,7 @@ import { intentRecognition } from '../recognition'
 import { choice, email, fail, one, sha256, text } from '../db'
 import { amount } from '../money'
 import { campaign } from './campaigns'
+import { trackedAppeal } from './tracked-link'
 import { requireStripe, stripe, type GivingEnv } from './stripe'
 
 export async function limit(env: GivingEnv, key: string, max = 10) {
@@ -19,11 +20,11 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const cents = amount(p, 'amount', 'Gift amount'), frequency = choice(p.frequency, ['once', 'monthly'] as const, 'gift frequency')
  if (cents < 100 || cents > 10000000) fail('INPUT', 'Give between $1 and $100,000.', 400)
  const recognition=intentRecognition(p)
- const consent = p.emailConsent === 'yes' ? 1 : 0, id = text(p.requestId, 'Checkout request', 100)
+ const appeal = await trackedAppeal({ db: env.DB }, p.appeal), consent = p.emailConsent === 'yes' ? 1 : 0, id = text(p.requestId, 'Checkout request', 100)
  if (!/^[0-9a-f-]{36}$/.test(id)) fail('INPUT', 'Reload the donation page and try again.', 400)
- await env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at,anonymous,wall_opt_in,recognition_name) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, frequency, consent, new Date().toISOString(),recognition.anonymous,recognition.wallOptIn,recognition.recognitionName).run()
+ await env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at,anonymous,wall_opt_in,recognition_name,appeal) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, frequency, consent, new Date().toISOString(),recognition.anonymous,recognition.wallOptIn,recognition.recognitionName,appeal).run()
  const intent = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
- if (!intent || intent.campaign_id !== c.id || intent.name !== name || intent.email !== mail || intent.amount_cents !== cents || intent.frequency !== frequency || intent.email_consent !== consent || intent.anonymous!==recognition.anonymous || intent.wall_opt_in!==recognition.wallOptIn || intent.recognition_name!==recognition.recognitionName) fail('checkout_changed', 'Reload the donation page before changing this gift.', 409)
+ if (!intent || intent.campaign_id !== c.id || intent.name !== name || intent.email !== mail || intent.amount_cents !== cents || intent.frequency !== frequency || intent.email_consent !== consent || intent.anonymous!==recognition.anonymous || intent.wall_opt_in!==recognition.wallOptIn || intent.recognition_name!==recognition.recognitionName || intent.appeal!==appeal) fail('checkout_changed', 'Reload the donation page before changing this gift.', 409)
  if (intent.session_id) return stripe(env, '/checkout/sessions/' + encodeURIComponent(intent.session_id))
  // An unverified public email must not reveal an existing Stripe customer's saved details.
  const customer = (await stripe(env, '/customers', { name, email: mail, 'metadata[coffer_install]': env.AUTH_ORIGIN }, 'customer-' + id)).id
@@ -36,7 +37,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   'line_items[0][price_data][product_data][name]': c.name,
   'line_items[0][quantity]': '1', 'metadata[coffer_intent]': id,
   success_url: env.AUTH_ORIGIN + '/giving/thanks?session_id={CHECKOUT_SESSION_ID}',
-  cancel_url: env.AUTH_ORIGIN + '/give/' + slug + '?cancelled=1',
+  cancel_url: env.AUTH_ORIGIN + '/give/' + slug + '?cancelled=1' + (appeal ? '&appeal=' + encodeURIComponent(appeal) : ''),
  }
  if (frequency === 'monthly') {
   params['line_items[0][price_data][recurring][interval]'] = 'month'

@@ -4,6 +4,7 @@ import { giftInstallmentStatements } from './pledges'
 import { amount } from './money'
 import { settings } from './settings'
 import { giftAllocationStatements, prepareGiftAllocations } from './gift-splits'
+import { entryAttribution } from './attribution'
 
 export const METHODS = ['check', 'card', 'online', 'cash', 'bank transfer', 'other'] as const
 
@@ -23,17 +24,18 @@ export async function giftCommand(c: Context, command: string, p: Row): Promise<
   if (received > today(s.timezone)) fail('INPUT', 'A gift records money already received; its date cannot be in the future.', 400)
   const allocations = await prepareGiftAllocations(c, p, cents)
   const method = choice(p.method, METHODS, 'how the gift was paid'), reference = optional(p.reference, 'Reference', 100), fund = allocations.length ? allocations[0].fund : optional(p.fund, 'Fund', 100) ?? 'Unrestricted'
-  const pledgeId = optional(p.pledgeId, 'Pledge', 100), g = benefit ? { kind: 'none', cents: 0, description: null } : goods(p, cents), note = optional(p.note, 'Note', 1000), appeal = optional(p.appeal, 'Appeal', 200)
+  const pledgeId = optional(p.pledgeId, 'Pledge', 100), g = benefit ? { kind: 'none', cents: 0, description: null } : goods(p, cents), note = optional(p.note, 'Note', 1000)
+  const attribution = await entryAttribution(c, p, fund, allocations.length > 0)
   await commit(c, [
    guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL)", 'NOT_FOUND', 'That donor does not exist.', donorId),
    ...(pledgeId ? [guard('EXISTS(SELECT 1 FROM cf_pledges WHERE id=? AND donor_id=?)', 'PLEDGE', 'That pledge belongs to another donor.', pledgeId, donorId)] : []),
    sql("INSERT INTO cf_gifts VALUES(?,1,?,'gift',NULL,?,?,?,?,?,?,?,?,?,?,'manual',?,?)", giftId, donorId, received, cents, method, reference, fund, pledgeId, g.kind, g.cents, g.description, note, c.now, c.actor.name),
    ...benefitStatements(giftId, benefit, s),
    ...giftAllocationStatements(giftId, allocations),
-   ...(appeal ? [sql('INSERT INTO cf_gift_appeals VALUES(?,?)', giftId, appeal)] : []),
+   ...attribution.statements(giftId),
    ...await giftInstallmentStatements(c, p, giftId, donorId, cents, pledgeId),
-   event(c, 'gift.record', 'gift', giftId, donorId, { amountCents: cents, receivedOn: received, ...(allocations.length ? { allocations } : {}) })])
-  return { id: giftId, amountCents: cents, ...(allocations.length ? { allocations } : {}) }
+   event(c, 'gift.record', 'gift', giftId, donorId, { amountCents: cents, receivedOn: received, campaignId: attribution.campaignId, appeal: attribution.appeal, channel: attribution.channel, ...(allocations.length ? { allocations } : {}) })])
+  return { id: giftId, amountCents: cents, campaignId: attribution.campaignId, appeal: attribution.appeal, channel: attribution.channel, ...(allocations.length ? { allocations } : {}) }
  }
  if (command === 'gift.reverse') {
   const giftId = id(p.giftId, 'Gift'), reason = text(p.reason, 'Reason', 300), reversalId = newId()

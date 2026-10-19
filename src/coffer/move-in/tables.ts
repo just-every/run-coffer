@@ -6,6 +6,7 @@ export const tables = {
  installment: { table: 'cf_pledge_installments', key: 'id', columns: ['id','pledge_id','position','due_on','amount_cents','remind_on','reminder_status'] },
  gift: { table: 'cf_gifts', key: 'id', columns: ['id','version','donor_id','kind','reverses','received_on','amount_cents','method','reference','fund','pledge_id','goods','goods_cents','goods_description','note','source','created_at','created_by'] },
  campaign: { table: 'cf_gift_appeals', key: 'gift_id', columns: ['gift_id','appeal'] },
+ channel: { table: 'cf_gift_channels', key: 'gift_id', columns: ['gift_id','channel'] },
  allocation: { table: 'cf_pledge_allocations', key: 'id', columns: ['id','installment_id','gift_id','amount_cents','created_at','created_by'] },
  relationship: { table: 'cf_relationships', key: 'id', columns: ['id','donor_id','related_donor_id','type','created_at','created_by'] },
  softCredit: { table: 'cf_soft_credits', key: 'id', columns: ['id','gift_id','donor_id','amount_cents','created_at','created_by'] },

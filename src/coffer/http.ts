@@ -27,6 +27,8 @@ import { auditCsv, auditLog, recordRequest } from './audit'
 import { donorFile } from './donor-file'
 import { stateReport, stateReportCsv } from './state-report'
 import { stateReportPage } from './ui/state-report'
+import { attributionReport } from './attribution'
+import { attributionPage } from './ui/attribution'
 import { auditPage } from './ui/audit'
 import { compareDonors, likelyDuplicates } from './duplicates'
 import { comparePage, duplicatesPage } from './ui/duplicates'
@@ -393,6 +395,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/reports/restrictions') return json(await restrictionReport(c,url))
  if (path === '/api/coffer/reports/funds') return json(await fundReport(c,url))
  if (path === '/api/coffer/reports/states') return json(await stateReport(c,url))
+ if (path === '/api/coffer/reports/attribution') return json(await attributionReport(c,url))
  if (path === '/api/coffer/reports/states.csv') return download(stateReportCsv(await stateReport(c,url)),'coffer-giving-by-state')
  if (path === '/api/coffer/settings') return json(await settings(c))
  return fail('not_found', 'Not found.', 404)
@@ -422,6 +425,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/funds/restrictions') return show('Restricted funds',await restrictedFundsPage(c,url))
  if (path === '/app/funds') return show('Giving by fund',await fundReportPage(c,url))
  if (path === '/app/reports/states') return show('Giving by state',await stateReportPage(c,url))
+ if (path === '/app/gifts/attribution') return show('Gift attribution',await attributionPage(c,url))
  if (path === '/app/reports/states.csv') return download(stateReportCsv(await stateReport(c,url)),'coffer-giving-by-state')
  if (path === '/app/funds/ledger.csv') {
   if (!manager(actor)) fail('manager_required','Only the owner or an admin exports accounting entries.',403)

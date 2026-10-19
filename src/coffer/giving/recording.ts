@@ -4,6 +4,7 @@ import { fail, newId, one, today, type Row } from '../db'
 import { settings } from '../settings'
 import { stripe, type GivingEnv } from './stripe'
 import { sendOnlineReceipt } from './online-receipt'
+import { onlineAttribution } from '../attribution'
 
 export const stripeId = (value: any): string => typeof value === 'string' ? value : value?.id ?? ''
 
@@ -61,6 +62,7 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
   env.DB.prepare(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,source,created_at,created_by)
    VALUES(?,1,?,'gift',?,?,'card',?,?,'none',0,'stripe',?,'Stripe')`).bind(id, intent.donor_id, day, cents, reference, intent.fund, now),
   env.DB.prepare('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=? AND kind=\'gift\'').bind(intent.campaign_id, reference),
+  ...onlineAttribution(intent, reference).map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...(subscriptionId ? [env.DB.prepare('INSERT OR IGNORE INTO cf_subscription_gifts(subscription_id,gift_id) VALUES(?,?)').bind(subscriptionId,id)] : []),
   ...[giftRecognitionStatement(id,intent)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   // The donor ticked the separate appeal box at checkout; receipts never depend on it.

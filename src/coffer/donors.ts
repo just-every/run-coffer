@@ -98,7 +98,7 @@ export async function donorHistory(c: Context, donorId: string) {
  if (!donor) fail('NOT_FOUND', 'That donor does not exist.', 404)
  const [household, gifts, pledges, consents, letters, appeals, events] = await Promise.all([
   donor.household_id ? all(c, 'SELECT id,name,erased_at FROM cf_donors WHERE household_id=? AND id<>? ORDER BY lower(name)', donor.household_id, donorId) : Promise.resolve([]),
-  all(c, `SELECT g.*,COALESCE((SELECT appeal FROM cf_gift_appeals WHERE gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal,(SELECT r.id FROM cf_gifts r WHERE r.reverses=g.id) AS reversed_by,
+  all(c, `SELECT g.*,COALESCE((SELECT a.name FROM cf_gift_appeals ga JOIN cf_appeal_codes a ON a.code=ga.appeal WHERE ga.gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal,(SELECT r.id FROM cf_gifts r WHERE r.reverses=g.id) AS reversed_by,
     (SELECT CASE WHEN a.printed_at IS NOT NULL THEN 'printed' ELSE COALESCE(NULLIF(a.delivery_status,'pending'),b.status) END FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_status,
     (SELECT b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_sent_on,
     (SELECT a.batch_id FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1) AS ack_batch
@@ -125,7 +125,7 @@ export async function donorHistory(c: Context, donorId: string) {
   recognition:await donorRecognition(c,donorId), timelineSources:await timelineSources(c,donorId), engagement: await donorEngagement(c,donorId), donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: plans, summary,
   volunteering:await volunteering(c,donorId), inKind:await inKindState(c,donorId), depth, giftDepth, plannedGiving:await plannedGiving(c,donorId),
   notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? AND (confidential=0 OR ?=1) ORDER BY occurred_on DESC,recorded_at DESC', donorId,manager(c.actor)?1:0),
-  firstGift: await one(c, `SELECT g.*,COALESCE((SELECT appeal FROM cf_gift_appeals WHERE gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal FROM cf_gift_balances g WHERE g.donor_id=? AND g.net_cents>0 ORDER BY g.received_on,g.created_at,g.id LIMIT 1`,donorId),
+  firstGift: await one(c, `SELECT g.*,COALESCE((SELECT a.name FROM cf_gift_appeals ga JOIN cf_appeal_codes a ON a.code=ga.appeal WHERE ga.gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal FROM cf_gift_balances g WHERE g.donor_id=? AND g.net_cents>0 ORDER BY g.received_on,g.created_at,g.id LIMIT 1`,donorId),
   totals: { lifetimeCents: monetaryGifts.reduce((s, g) => s + g.amount_cents, 0), byYear: [...byYear].sort((a, b) => b[0].localeCompare(a[0])).map(([year, cents]) => ({ year, cents })) },
   current: { email: consent('email'), mail: consent('mail') },
  }

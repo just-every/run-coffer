@@ -10,7 +10,7 @@ const common: Record<string, string[]> = {
  region: ['State', 'Province', 'State/Province', 'Region', 'Primary State'], postalCode: ['ZIP', 'ZIP Code', 'Postal Code', 'Postcode', 'Primary Postal Code'], country: ['Country', 'Primary Country'],
  householdKey: ['Household ID', 'Household Account Number'], householdName: ['Household Name'],
  amount: ['Amount', 'Gift Amount', 'Transaction Amount', 'Pledge Amount'], date: ['Date', 'Gift Date', 'Transaction Date', 'Pledge Date'],
- type: ['Type', 'Gift Type', 'Transaction Type'], fund: ['Fund', 'Fund Name', 'Fund Description'], campaign: ['Campaign', 'Campaign Name'], appeal: ['Appeal', 'Appeal Name'],
+ type: ['Type', 'Gift Type', 'Transaction Type'], fund: ['Fund', 'Fund Name', 'Fund Description'], campaign: ['Campaign', 'Campaign Name'], appeal: ['Appeal', 'Appeal Name'], channel: ['Channel', 'Gift Channel', 'Solicitation Channel'],
  checkReference: ['Check No.', 'Check Number', 'Check/Reference No.', 'Check/Reference Number'],
  method: ['Method', 'Payment Type', 'Payment Method', 'Transaction Method', 'Pay Method'], giftNote: ['Gift Note', 'Gift Notes', 'Transaction Note', 'Gift Reference', 'Reference'],
  note: ['Note', 'Notes', 'Note Text', 'Description'], noteId: ['Note ID', 'Note Number'], noteDate: ['Note Date'], noteType: ['Note Type', 'Note Category'],

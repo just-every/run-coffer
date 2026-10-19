@@ -64,6 +64,15 @@ function method(r: SourceRow) {
  if (!methods[key]) r.result.diagnostics.push({ ...r.location, severity: 'warning', code: 'PAYMENT_METHOD', message: raw ? `Source payment method preserved as ${raw}.` : 'No source payment method; marked imported.' })
  return methods[key] || raw || 'imported'
 }
+// GIFT-003: a mapped channel column names one of Coffer's five channels; anything else stops the row.
+const CHANNEL_VALUES: Record<string, string> = { form: 'form', onlineform: 'form', givingform: 'form', donationform: 'form', website: 'form', event: 'event', mail: 'mail', directmail: 'mail', mailpiece: 'mail', letter: 'mail', email: 'email', text: 'text', sms: 'text', texttogive: 'text' }
+function channel(r: SourceRow) {
+ const raw = r.has('channel') ? r.get('channel') : ''
+ if (!raw) return undefined
+ const value = CHANNEL_VALUES[normalizeLabel(raw)]
+ if (!value) r.error('CHANNEL', `Channel ${raw} is not one of Form, Event, Mail, Email or Text; correct it in the export or leave it blank.`, 'channel')
+ return value
+}
 function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
  const externalId = r.required('giftId'), donorExternalId = r.required('donorId'), amountCents = r.cents('amount'), receivedOn = r.date('date')
  const fund = r.get('fund'), campaign = r.get('campaign'), appeal = r.has('appeal') ? r.get('appeal') : undefined, checkReference = r.get('checkReference') || undefined, payment = method(r), pledgeExternalId = r.get('parentId') || r.get('pledgeId')
@@ -81,8 +90,9 @@ function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
  }
  if (goodsCents !== null && amountCents !== null && goodsCents >= amountCents && goodsCents !== 0) r.error('GOODS_VALUE', r.peek('deductible') ? `Deductible Amount ${r.peek('deductible')} means the donor received goods or services worth the whole ${r.peek('amount')}, so no part of it was a gift. Coffer records gifts worth more than what the donor received: set Deductible Amount to the part that was a gift, or delete the row if it was a purchase.` : 'Benefit amount must be less than the received gift amount.', r.peek('deductible') ? 'Deductible Amount' : 'goodsAmount')
  if (goodsCents === null && input.noGoodsOrServices === true) goodsCents = 0
+ const giftChannel = channel(r)
  if (fund.includes(';') || campaign.includes(';')) r.error('SPLIT_GIFT', 'Export one designation per row with a unique gift/designation ID and amount; grouped split funds or campaigns cannot be allocated safely.')
- if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, appeal, checkReference, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription })
+ if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, appeal, channel: giftChannel, checkReference, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription })
  if (r.peek('softDonor')) softCredit(r, out, true)
 }
 function pledge(r: SourceRow, out: ParsedImport) {

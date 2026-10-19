@@ -216,7 +216,9 @@ Staff enter a stack of checks or cash as a batch: shared defaults (date, fund, c
 
 Every gift carries a fund (designation), a campaign, an appeal and its source (form, event, mail piece, email, text-to-give) as structured references, not free text. Funds are restricted or unrestricted with an accounting mapping (`FIN-003`). Online gifts take these from the form and tracked link; imported gifts from the source mapping.
 
-*Acceptance:* An HTTP journey defines funds, a campaign and two appeals, records gifts against them through entry, a form and an import, and reads totals by each dimension that sum to the ledger.
+The fund is the gift's ledger fund, named as in `FIN-003` (a name without a definition is an unrestricted fund), and each split part (`GIFT-004`) carries its own fund and campaign. The campaign is a Coffer campaign by id and must raise for the gift's own fund. The appeal is a defined appeal referenced by its code (matched without regard to letter case and stored as defined); the owner or an admin defines appeals with a permanent code and a name, and an entry naming an undefined appeal is refused. The source is one of five channels (giving form, event, mail piece, email, text-to-give) or "Channel not recorded". Campaign, appeal and channel are optional on staff entry; a gift without one counts under "No campaign", "No appeal" or "Channel not recorded", never a guessed value. An online gift through a campaign's `/give/<slug>` page takes that campaign and its fund, the giving-form channel, and the defined appeal named by a tracked link ending `?appeal=<code>`; an unknown code attributes no appeal and the gift still proceeds. A CRM move-in maps the export's Appeal column (or, without one, its Campaign column) to the appeal and its Channel column to a channel, refusing a row whose channel is not one of the five; a Stripe import maps `metadata.appeal` (or `metadata.campaign`) the same way. An imported appeal that is not yet defined is defined from the import with its value as code and name, labelled as from an import, and stays defined after an undo. Totals by fund, campaign, appeal and channel cover inclusive organization-calendar days, place every fund-ledger entry (gifts, refunds and reversals) in its own date under its gift's attribution, and each sums to the fund ledger for the same days. Text-to-give (`GIVE-008`), event tickets and registrations (`CAMP-002`), mail-appeal response codes (`COMM-007`) and email-appeal donation links (`COMM-002`) set this channel and a defined appeal on the gifts they record before they ship.
+
+*Acceptance:* An HTTP journey defines funds, a campaign and two appeals, records gifts against them through entry, a form and an import, and reads totals by each dimension that sum to the ledger. The clause-named journey also refuses an undefined appeal, a campaign on another fund, an unknown channel, a duplicate appeal code and a member defining an appeal; reads the tracked-link giving page carrying the defined appeal (and none for an unknown code); maps a CRM move-in's appeal (defining a new one from the import) and channel columns and refuses an unknown channel; counts a reversal under its gift's appeal; and reads the native report page with every dimension.
 
 #### GIFT-004 — Split gifts.
 
@@ -324,9 +326,9 @@ Donation forms resist card testing: Cloudflare Turnstile challenges, per-address
 
 #### GIVE-008 — Text-to-give.
 
-A nonprofit claims a keyword on its Twilio number; a donor who texts it gets a link to a mobile form prefilled with their phone number, and the gift is attributed to the text-to-give source. Replies of STOP end messages at once.
+A nonprofit claims a keyword on its Twilio number; a donor who texts it gets a link to a mobile form prefilled with their phone number, and the gift is attributed to the text-to-give source. Replies of STOP end messages at once. The attribution is `GIFT-003`'s text-to-give channel (and a defined appeal when the keyword names one), counted in its totals.
 
-*Acceptance:* An HTTP journey with the Twilio edge faked texts a keyword, follows the link, gives, and sees the gift attributed to text-to-give; a STOP reply records SMS consent as withdrawn.
+*Acceptance:* An HTTP journey with the Twilio edge faked texts a keyword, follows the link, gives, and sees the gift attributed to text-to-give in `GIFT-003`'s channel totals; a STOP reply records SMS consent as withdrawn.
 
 #### GIVE-009 — Staff-entered card and bank payments.
 
@@ -348,7 +350,7 @@ A campaign has a goal, dates, funds, appeals and forms under it; progress is cou
 
 An event has ticket types with the fair market value of the benefit, registration through a hosted page with attendee names, dietary notes and custom questions mapped to custom fields (`DONOR-005`), sponsorship and table packages, a guest list, and check-in on a phone. A ticket's contribution part (price minus fair market value) is receipted with the quid pro quo disclosure (`RCPT-005`); attendance joins each guest's timeline.
 
-Recorded event attendance feeds MAJOR-004 engagement scoring and its donor-page factors before event attendance ships.
+Recorded event attendance feeds MAJOR-004 engagement scoring and its donor-page factors before event attendance ships. Ticket and registration gifts carry `GIFT-003`'s event channel and the event's defined appeal before tickets ship.
 
 Before event attendance ships, its actual attendance records join the DONOR-004 timeline and type/date filters.
 
@@ -534,7 +536,7 @@ Consent covers email, postal mail, SMS and phone, with frequency preferences (at
 
 #### COMM-002 — Appeals sent through Mango or Mailchimp.
 
-Coffer syncs consenting constituents into Mango (Run Edit Run's email product) or Mailchimp as an audience with merge fields for the name parts, informal and formal salutation and envelope name (`DONOR-014`), giving figures and chosen custom fields (`RCPT-010`), and tags; an approved appeal (`APPEAL-001`) is created there as a campaign to exactly the frozen audience, sent on approval or schedule, and its sends, bounces, opens, clicks and unsubscribes return to each donor's timeline. Donation links carry the appeal's source code so resulting gifts are attributed. An appeal is an ask: constituents with a solicitation restriction are left out of its audience with the reason "do not solicit" unless a person includes one for that run (`DONOR-015`); a newsletter send marked as not an ask includes them.
+Coffer syncs consenting constituents into Mango (Run Edit Run's email product) or Mailchimp as an audience with merge fields for the name parts, informal and formal salutation and envelope name (`DONOR-014`), giving figures and chosen custom fields (`RCPT-010`), and tags; an approved appeal (`APPEAL-001`) is created there as a campaign to exactly the frozen audience, sent on approval or schedule, and its sends, bounces, opens, clicks and unsubscribes return to each donor's timeline. Donation links carry the appeal's source code so resulting gifts are attributed: the link is a `GIFT-003` tracked link naming a defined appeal, and the gift also carries the email channel. An appeal is an ask: constituents with a solicitation restriction are left out of its audience with the reason "do not solicit" unless a person includes one for that run (`DONOR-015`); a newsletter send marked as not an ask includes them.
 
 *Acceptance:* An HTTP journey with the Mango and Mailchimp edges faked syncs an audience whose members carry the informal-salutation, envelope-name and a custom-field merge field, sends an approved appeal to exactly its frozen recipients, receives results and an unsubscribe, and attributes a gift made from the tracked link; a second appeal approved with a send time is created on the edge as a campaign scheduled for that time and sent only when the test clock reaches it; a do-not-solicit donor with email consent is absent from both appeal campaigns and present in a newsletter campaign.
 
@@ -570,7 +572,7 @@ Thank-you and reminder texts through Twilio from a registered 10DLC number, only
 
 #### COMM-007 — Direct mail appeals.
 
-A mail appeal produces a mail-house file (or a Lob send) with one piece per household or per constituent (`RCPT-009`), each with its household or personal addressee and salutation (`DONOR-003`, `DONOR-014`), a verified address (undeliverable, inactive and deceased records excluded with their reason, `DONOR-009`, `DONOR-012`, and constituents with a solicitation restriction excluded under "do not solicit", `DONOR-015`), ask amounts based on last gift, and a response code per piece; returned reply cards and gifts entered with that code attribute to the appeal, and mailing history is kept per donor.
+A mail appeal produces a mail-house file (or a Lob send) with one piece per household or per constituent (`RCPT-009`), each with its household or personal addressee and salutation (`DONOR-003`, `DONOR-014`), a verified address (undeliverable, inactive and deceased records excluded with their reason, `DONOR-009`, `DONOR-012`, and constituents with a solicitation restriction excluded under "do not solicit", `DONOR-015`), ask amounts based on last gift, and a response code per piece; returned reply cards and gifts entered with that code attribute to the appeal, and mailing history is kept per donor. Response codes are `GIFT-003` defined appeal codes, and coded reply gifts carry its mail-piece channel.
 
 *Acceptance:* An HTTP journey prepares a mail appeal with ask amounts and codes, reads each piece's envelope name and salutation, enters two coded reply gifts in a batch, and reads the appeal's response rate and the mailing on each donor; a do-not-solicit donor with mail consent gets no piece and is counted under that reason.
 
@@ -1106,8 +1108,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 32 | 55 | 39 | 126 |
-| All | 40 | 56 | 39 | 135 |
+| Target and push further | 33 | 54 | 39 | 126 |
+| All | 41 | 55 | 39 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1135,7 +1137,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `DONOR-014` | Name parts, salutations and envelope name | target | partial | `src/coffer/donors.ts`, `src/coffer/settings.ts`, `tests/coffer.test.mjs` | A donor has one free-text name and letters merge only `{{donor_name}}`. LGL Prefix, first/middle/last and Suffix are retained in that display name, and first/last-name search finds a middle initial. Separate editable name parts, nickname, computed or overridden salutations/envelope name and admin-set defaults remain unbuilt. |
 | `DONOR-015` | Solicitation restrictions | target | missing |  | No solicitation restriction: consent is per channel (email and postal) only, and appeals exclude only on consent and address. |
 | `GIFT-002` | Batch gift entry and deposits | target | missing |  | Gifts are entered one at a time; no batches or deposit totals. |
-| `GIFT-003` | Campaign, appeal, fund and channel attribution | target | partial | `src/coffer/gifts.ts` | Each gift has one free-text fund; no campaigns, appeals or source as structured references. |
+| `GIFT-003` | Campaign, appeal, fund and channel attribution | target | done | `src/coffer/attribution.ts`, `src/coffer/gifts.ts`, `src/coffer/giving/tracked-link.ts`, `src/coffer/move-in/source-mapping.ts`, `migrations/core/0064_coffer_gift_attribution.sql`, `src/coffer/ui/attribution.ts`, `tests/attribution-journey.mjs` | Clause-named HTTP journey: defined appeals, campaign/appeal/channel on entry, tracked-link form gift, CRM appeal/channel mapping, refusals, and totals by fund, campaign, appeal and channel that each sum to the ledger. |
 | `GIFT-004` | Split gifts | target | done | `src/coffer/gift-splits.ts`, `migrations/core/0039_coffer_gift_splits.sql`, `src/coffer/fund-report.ts`, `tests/split-gifts.test.mjs` |  |
 | `GIFT-005` | Pledges, installments and balances | target | partial | `src/coffer/pledges.ts`, `src/coffer/ui/pledges.ts`, `tests/pledges.test.mjs` | Dated installments total the pledge, allocations match gifts by donor/fund without overpayment, and reversals reopen balances. Write-offs, reductions, campaign attribution and recurring-plan payment remain. |
 | `GIFT-006` | Soft credits | target | done | `src/coffer/gift-depth.ts`, `src/coffer/soft-credit-ack.ts`, `src/coffer/retention.ts`, `tests/soft-credits.test.mjs`, `tests/soft-credit-journey.mjs` | Full and partial recognition appears separately on donor records, giving summaries and retention reports, without increasing cash totals or tax statements. Each credit has its own versioned, audited acknowledgment, date, method and linked conversation or recorded thank-you note; native forms run at 1440 and 390. |
