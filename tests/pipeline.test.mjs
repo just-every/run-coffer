@@ -151,3 +151,8 @@ test('REPORT-007: Schedule B rules and five-year donor giving reconcile to monet
 test('DONOR-010: recorded and imported volunteer roles, yearly hours, never-given segments, scoring and custody',async()=>{
  const {volunteeringJourney}=await import('./volunteering-journey.mjs');await volunteeringJourney()
 })
+
+
+test('MAJOR-005: restricted WealthEngine screening retains estimates with provenance and donor custody',async()=>{
+ const {researchJourney}=await import('./research-journey.mjs');await researchJourney()
+})

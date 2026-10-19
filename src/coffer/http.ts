@@ -1,3 +1,5 @@
+import { researchState } from './research'
+import { researchPage } from './ui/research'
 import { volunteering, volunteerCsv } from './volunteering'
 import { volunteeringPage } from './ui/volunteering'
 import { mcpResponse } from './mcp'
@@ -109,6 +111,7 @@ async function formInput(data: FormData) {
   const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
  }
+ if (input.command === 'research.screen') input.donorIds=data.getAll('donorIds')
  if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
  if (input.command === 'donor.merge') input.fields = Object.fromEntries([...data].filter(([key])=>key.startsWith('field:')).map(([key,value])=>[key.slice(6),value]))
  if (input.command === 'ack.prepare' && data.has('giftIds')) input.giftIds = data.getAll('giftIds')
@@ -272,6 +275,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('fund.')) return redirect('/app/funds/restrictions')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command.startsWith('portfolio.')) return redirect('/app/portfolios')
+ if (command.startsWith('research.')) return redirect('/app/research'+(input.returnDonorId?'?donorId='+encodeURIComponent(input.returnDonorId):''))
  if (command.startsWith('volunteer.')) return redirect(input.returnDonorId?'/app/donors/'+encodeURIComponent(input.returnDonorId)+'#volunteering':'/app/volunteering')
  if (command.startsWith('grant.')) return redirect('/app/grants')
  if (command === 'taxReports.settings') return redirect('/app/reports/tax?'+new URLSearchParams({year:String(input.reportYear??''),basis:String(input.reportBasis??'calendar')}))
@@ -352,6 +356,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  const attachment=path.match(/^\/api\/coffer\/proposals\/([^/]+)\/download$/)
  if(attachment) return proposalDownload(c,attachment[1])
  if (path === '/api/coffer/reports/tax') return json(await taxReport(c,url))
+ if (path === '/api/coffer/research') return json(await researchState(c,url.searchParams.get('donorId')??undefined))
  if (path === '/api/coffer/volunteering') return json(await volunteering(c,url.searchParams.get('donorId')??undefined,url.searchParams.get('year')||undefined))
  if (path === '/api/coffer/volunteering.csv') return download(await volunteerCsv(c,url.searchParams.get('year')||undefined),'coffer-volunteering')
  if (path === '/api/coffer/in-kind') return json(await inKindState(c,url.searchParams.get('donorId')??undefined))
@@ -406,6 +411,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/portfolios') return show('Portfolios and moves',await portfoliosPage(c,url))
  const cultivation = path.match(/^\/app\/opportunities\/([^/]+)$/)
  if(cultivation) return show('Action plan and proposals',await cultivationPage(c,cultivation[1]))
+ if (path === '/app/research') return show('Prospect research',await researchPage(c,url.searchParams.get('donorId')??undefined))
  if (path === '/app/volunteering') return show('Volunteer history',await volunteeringPage(c,url))
  if (path === '/app/grants') return show('Foundation and corporate grants',await grantsPage(c,url.searchParams.get('donorId')??undefined))
  if (path === '/app/engagement') return show('Engagement scores',await engagementPage(c))

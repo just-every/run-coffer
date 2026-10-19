@@ -26,7 +26,7 @@ const descriptions = [
  owned('cf_planned_distributions',`n.intention_id IN (SELECT id FROM cf_planned_gifts WHERE donor_id IN ${pair}) OR n.gift_id IN (${gifts})`,['gift_id']),
  owned('cf_interactions'), owned('cf_donor_notes'),
  owned('cf_soft_credit_acknowledgments',`n.soft_credit_id IN (SELECT id FROM cf_soft_credits WHERE donor_id IN ${pair} OR gift_id IN (${gifts}))`,['soft_credit_id']),
- owned('cf_volunteering'), owned('cf_in_kind_gifts'),
+ owned('cf_research_results'), owned('cf_volunteering'), owned('cf_in_kind_gifts'),
  owned('cf_in_kind_revisions',`n.in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id IN ${pair})`,['id'],false),
  owned('cf_in_kind_acknowledgments',`n.in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id IN ${pair})`),
  owned('cf_grants'),
