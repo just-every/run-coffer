@@ -83,7 +83,7 @@ export async function retention(c: Context, url: URL) {
  const currentDonors = groups.retained.count + groups.new.count + groups.recaptured.count
  return {
   year, priorYear, asOf, timezone:scope.timezone,basis:scope.basis,
-  filters:{fund,campaignId,list:scope.list,listYear:scope.listYear,q:scope.q,relationship:scope.relationship,relatedTo:scope.relatedTo},
+  filters:{volunteer:scope.volunteer,fund,campaignId,list:scope.list,listYear:scope.listYear,q:scope.q,relationship:scope.relationship,relatedTo:scope.relatedTo},
   prior: { from: priorStart, through: scope.priorEnd, label: `${priorYear} complete ${scope.basis} year` },
   current: { from: start, through: end, provisional: year===scope.currentYear, label: year === scope.currentYear ? `${year} year to date through ${longDate(end)}` : `${year} complete ${scope.basis} year` },
   groups, movements, adjustments: { rows: adjustmentRows, ...summarize(adjustmentRows) },

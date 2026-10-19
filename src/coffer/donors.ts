@@ -1,4 +1,5 @@
 import { withReceiptBenefits } from './receipt-rules'
+import { volunteering } from './volunteering'
 import { inKindState } from './in-kind'
 import { donorEngagement } from './engagement'
 import { plannedGiving } from './planned-giving'
@@ -63,12 +64,13 @@ export async function donorCommand(c: Context, command: string, p: Row): Promise
 
 const CURRENT = (channel: string) => `(SELECT status FROM cf_consents k WHERE k.donor_id=d.id AND k.channel='${channel}' ORDER BY k.id DESC LIMIT 1)`
 export const PAGE = 50
-export async function listDonors(c: { db: D1Database }, query: { q?: string | null; page?: number; relationship?: string | null; relatedTo?: string | null } = {}) {
+export async function listDonors(c: { db: D1Database }, query: { q?: string | null; page?: number; relationship?: string | null; relatedTo?: string | null; volunteer?: string | null } = {}) {
  const q = (query.q ?? '').trim().toLowerCase().slice(0, 100), page = Math.max(0, Math.min(query.page ?? 0, 10000))
  const pattern = (value: string) => `%${value.replace(/[%_\\]/g, x => `\\${x}`)}%`
  const like = pattern(q), nameTerms = q.split(/\s+/).map(pattern)
  const nameSearch = nameTerms.map(() => "lower(d.name) LIKE ? ESCAPE '\\'").join(' AND ')
- const relationship = query.relationship ?? '', relatedTo = query.relatedTo ?? ''
+ const relationship = query.relationship ?? '', relatedTo = query.relatedTo ?? '', volunteer=query.volunteer??''
+ if(!['','all','never-given'].includes(volunteer))fail('INPUT','Choose all volunteers or volunteers who have never given.',400)
  const rows = await all(c, `SELECT d.id,d.version,d.name,d.email,d.city,d.region,d.source,d.erased_at,h.name AS household,
    (SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
    (SELECT MAX(received_on) FROM cf_monetary_contributions g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
@@ -77,7 +79,8 @@ export async function listDonors(c: { db: D1Database }, query: { q?: string | nu
   WHERE NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR lower(h.name) LIKE ? ESCAPE '\\')
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id OR r.related_donor_id=d.id) AND r.type=?))
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id AND r.related_donor_id=?) OR (r.related_donor_id=d.id AND r.donor_id=?)))
-  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, q, ...nameTerms, like, like, relationship, relationship, relatedTo, relatedTo, relatedTo, PAGE + 1, page * PAGE)
+  AND (?='' OR (d.erased_at IS NULL AND EXISTS(SELECT 1 FROM cf_volunteering v WHERE v.donor_id=d.id) AND (?<>'never-given' OR NOT EXISTS(SELECT 1 FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind IN ('gift','in_kind')))))
+  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, q, ...nameTerms, like, like, relationship, relationship, relatedTo, relatedTo, relatedTo, volunteer, volunteer, PAGE + 1, page * PAGE)
  const count = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_donors WHERE ${LIVE} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=cf_donors.id)`)
  return { donors: rows.slice(0, PAGE), more: rows.length > PAGE, page, q, total: count?.n ?? 0 }
 }
@@ -110,7 +113,7 @@ export async function donorHistory(c: Context, donorId: string) {
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
   engagement: await donorEngagement(c,donorId), donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: plans, summary,
-  inKind:await inKindState(c,donorId), depth, giftDepth, plannedGiving:await plannedGiving(c,donorId),
+  volunteering:await volunteering(c,donorId), inKind:await inKindState(c,donorId), depth, giftDepth, plannedGiving:await plannedGiving(c,donorId),
   notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? ORDER BY occurred_on DESC,recorded_at DESC', donorId),
   firstGift: await one(c, `SELECT g.*,COALESCE((SELECT appeal FROM cf_gift_appeals WHERE gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal FROM cf_gift_balances g WHERE g.donor_id=? AND g.net_cents>0 ORDER BY g.received_on,g.created_at,g.id LIMIT 1`,donorId),
   totals: { lifetimeCents: monetaryGifts.reduce((s, g) => s + g.amount_cents, 0), byYear: [...byYear].sort((a, b) => b[0].localeCompare(a[0])).map(([year, cents]) => ({ year, cents })) },

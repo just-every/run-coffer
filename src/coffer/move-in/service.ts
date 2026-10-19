@@ -163,6 +163,7 @@ export async function undo(c: Context,id:string) {
   ['cf_donors','household_id','household','donor','id'],['cf_pledge_installments','pledge_id','pledge','installment','id'],['cf_pledge_allocations','installment_id','installment','allocation','id'],['cf_pledge_allocations','gift_id','gift','allocation','id'],
   ['cf_consents','donor_id','donor',null,'id'],['cf_acks','gift_id','gift',null,'id'],['cf_appeal_recipients','donor_id','donor',null,'donor_id'],['cf_gift_tributes','gift_id','gift',null,'gift_id'],['cf_employer_matches','gift_id','gift',null,'id'],['cf_gifts','reverses','gift',null,'id'],['cf_gift_allocations','gift_id','gift',null,'id'],
   ['cf_planned_gifts','donor_id','donor',null,'id'],['cf_legacy_memberships','donor_id','donor',null,'id'],['cf_planned_distributions','gift_id','gift',null,'gift_id'],
+  ['cf_volunteering','donor_id','donor',null,'id'],
   ['cf_in_kind_gifts','donor_id','donor',null,'id'],
   ['cf_grants','donor_id','donor',null,'id'],['cf_grants','pledge_id','pledge',null,'id'],
   ['cf_prospects','donor_id','donor',null,'id'],['cf_prospects','pledge_id','pledge',null,'id'],['cf_prospects','gift_id','gift',null,'id'],['cf_call_tasks','donor_id','donor',null,'id'],['cf_call_tasks','interaction_id','interaction',null,'id'],

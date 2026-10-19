@@ -1,3 +1,5 @@
+import { volunteering, volunteerCsv } from './volunteering'
+import { volunteeringPage } from './ui/volunteering'
 import { mcpResponse } from './mcp'
 import { taxReport } from './tax-reports'
 import { taxReportsPage } from './ui/tax-reports'
@@ -270,6 +272,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('fund.')) return redirect('/app/funds/restrictions')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command.startsWith('portfolio.')) return redirect('/app/portfolios')
+ if (command.startsWith('volunteer.')) return redirect(input.returnDonorId?'/app/donors/'+encodeURIComponent(input.returnDonorId)+'#volunteering':'/app/volunteering')
  if (command.startsWith('grant.')) return redirect('/app/grants')
  if (command === 'taxReports.settings') return redirect('/app/reports/tax?'+new URLSearchParams({year:String(input.reportYear??''),basis:String(input.reportBasis??'calendar')}))
  if (command === 'engagement.settings') return redirect('/app/engagement')
@@ -327,7 +330,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (url.pathname === '/api/coffer/audit') return json(await auditLog(c,url))
  if (url.pathname === '/api/coffer/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
  const path = url.pathname, match = (re: RegExp) => path.match(re)
- if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo') }))
+ if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo'), volunteer:url.searchParams.get('volunteer') }))
  let m = match(/^\/api\/coffer\/donors\/([^/]+)$/)
  if (m) return json(await donorHistory(c, m[1]))
  if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, batches: await batches(c) }) }
@@ -349,6 +352,8 @@ async function api(c: Context, url: URL): Promise<Response> {
  const attachment=path.match(/^\/api\/coffer\/proposals\/([^/]+)\/download$/)
  if(attachment) return proposalDownload(c,attachment[1])
  if (path === '/api/coffer/reports/tax') return json(await taxReport(c,url))
+ if (path === '/api/coffer/volunteering') return json(await volunteering(c,url.searchParams.get('donorId')??undefined,url.searchParams.get('year')||undefined))
+ if (path === '/api/coffer/volunteering.csv') return download(await volunteerCsv(c,url.searchParams.get('year')||undefined),'coffer-volunteering')
  if (path === '/api/coffer/in-kind') return json(await inKindState(c,url.searchParams.get('donorId')??undefined))
  const propertyAck=path.match(/^\/api\/coffer\/in-kind-acknowledgments\/([^/]+)\/download$/)
  if(propertyAck) return inKindAcknowledgment(c,propertyAck[1])
@@ -401,6 +406,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/portfolios') return show('Portfolios and moves',await portfoliosPage(c,url))
  const cultivation = path.match(/^\/app\/opportunities\/([^/]+)$/)
  if(cultivation) return show('Action plan and proposals',await cultivationPage(c,cultivation[1]))
+ if (path === '/app/volunteering') return show('Volunteer history',await volunteeringPage(c,url))
  if (path === '/app/grants') return show('Foundation and corporate grants',await grantsPage(c,url.searchParams.get('donorId')??undefined))
  if (path === '/app/engagement') return show('Engagement scores',await engagementPage(c))
  if (path === '/app/pipeline') return show('Major-gift pipeline', await majorGiftsPage(c,url))

@@ -18,18 +18,19 @@ export async function retentionScope(c: Context, url: URL) {
  const list = choice(url.searchParams.get('list') || 'all', ['all','lybunt','sybunt'] as const, 'donor list')
  const listYear = Number(asOf.slice(0,4))
  const members = list === 'all' ? null : (await annualLapses(c,listYear)).groups.find(g=>g.kind===list)!.rows.map(r=>r.donorId)
+ const volunteer=choice(url.searchParams.get('volunteer')||'',['','all','never-given'] as const,'volunteer segment')
  const q = (url.searchParams.get('q') ?? '').trim().toLowerCase().slice(0,100)
  const relationship = url.searchParams.get('relationship') ?? '', relatedTo = url.searchParams.get('relatedTo') ?? ''
  const pattern = (value: string) => `%${value.replace(/[%_\\]/g,x=>`\\${x}`)}%`
  const terms = q.split(/\s+/).map(pattern)
  const nameSearch = terms.map(()=>"lower(d.name) LIKE ? ESCAPE '\\'").join(' AND ')
- const donorSql = `(? IS NULL OR d.id IN (SELECT value FROM json_each(?)))
+ const donorSql = `(?='' OR (EXISTS(SELECT 1 FROM cf_volunteering v WHERE v.donor_id=d.id) AND (?<>'never-given' OR NOT EXISTS(SELECT 1 FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind IN ('gift','in_kind'))))) AND (? IS NULL OR d.id IN (SELECT value FROM json_each(?)))
   AND (?='' OR (${nameSearch}) OR lower(d.email) LIKE ? ESCAPE '\\' OR lower(h.name) LIKE ? ESCAPE '\\')
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id OR r.related_donor_id=d.id) AND r.type=?))
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id AND r.related_donor_id=?) OR (r.related_donor_id=d.id AND r.donor_id=?)))`
  const memberJson = members === null ? null : JSON.stringify(members)
  return { year,priorYear,asOf,timezone:s.timezone,basis,currentYear,start,priorStart,end,
-  priorEnd:lastDay(start),monthDay,list,listYear,q,relationship,relatedTo,
+  priorEnd:lastDay(start),monthDay,list,listYear,q,relationship,relatedTo,volunteer,
   fund:url.searchParams.get('fund') || null,campaignId:url.searchParams.get('campaignId') || null,
-  donorSql,donorParams:[memberJson,memberJson,q,...terms,pattern(q),pattern(q),relationship,relationship,relatedTo,relatedTo,relatedTo] }
+  donorSql,donorParams:[volunteer,volunteer,memberJson,memberJson,q,...terms,pattern(q),pattern(q),relationship,relationship,relatedTo,relatedTo,relatedTo] }
 }

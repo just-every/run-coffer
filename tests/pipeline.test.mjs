@@ -146,3 +146,8 @@ test('MAJOR-001: configurable opportunity boards and lists link wins once and re
 test('GIFT-001/GIFT-009: property acknowledgments omit internal values, disposal reminders and custody stay separate from cash',inKindJourney)
 
 test('REPORT-007: Schedule B rules and five-year donor giving reconcile to monetary and noncash records',taxReportsJourney)
+
+
+test('DONOR-010: recorded and imported volunteer roles, yearly hours, never-given segments, scoring and custody',async()=>{
+ const {volunteeringJourney}=await import('./volunteering-journey.mjs');await volunteeringJourney()
+})
