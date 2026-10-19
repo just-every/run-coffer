@@ -15,9 +15,9 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 6 | 3 | 0 | 9 |
-| Target and push further | 8 | 65 | 53 | 126 |
-| All | 14 | 68 | 53 | 135 |
+| Published | 7 | 2 | 0 | 9 |
+| Target and push further | 13 | 63 | 50 | 126 |
+| All | 20 | 65 | 50 | 135 |
 
 ## Target
 
@@ -85,7 +85,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 51. **`FIN-001` QuickBooks Online sync** (partial). An HTTP journey with the QuickBooks Online edge faked maps three funds, posts a payout and a check batch, replays the post without a duplicate, and reads deposits whose lines and totals equal Coffer's.
 52. **`FIN-002` Pantry sync** (partial). An HTTP journey with the Pantry edge faked posts a payout and a check batch and reads matching deposits.
 53. **`FIN-003` Restricted funds** (done). An HTTP journey records restricted and unrestricted gifts, enters a spend against a restricted fund, and reads the release report.
-54. **`FIN-004` Journal export for other ledgers** (done). An HTTP journey downloads a month's journal and checks its totals by account against the ledger.
+54. **`FIN-004` Journal export for other ledgers** (done). An HTTP journey downloads a month's journal in CSV and IIF, checks that every recorded deposit in the period is included with its account and class mapping, and checks its totals by account against the ledger. A month containing an incomplete deposit and one containing a mismatched deposit each refuse the whole download with the reason named; neither silently omits the deposit.
 55. **`FIN-005` Reconciliation report** (partial). An HTTP journey builds a month with a pending ACH gift and a refund after payout and reads a report whose listed differences account for every cent.
 
 ### Receipts and acknowledgments

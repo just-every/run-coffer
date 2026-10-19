@@ -416,9 +416,9 @@ Funds are marked restricted (purpose or time) or unrestricted; restricted gifts 
 
 #### FIN-004 — Journal export for other ledgers.
 
-Nonprofits on QuickBooks Desktop, Xero, Aplos or Sage Intacct download the same deposits as a journal file (IIF, CSV) per period with their account and class mapping.
+Nonprofits on QuickBooks Desktop, Xero, Aplos or Sage Intacct download every deposit Coffer records for the selected period as a journal file (IIF, CSV), preserving account and class mapping. An incomplete or mismatched deposit refuses the whole download with the reason named. Check-batch deposits are created and posted under `GIFT-002` / `FIN-001` and, once built, appear in this same export with no separate path.
 
-*Acceptance:* An HTTP journey downloads a month's journal and checks its totals by account against the ledger.
+*Acceptance:* An HTTP journey downloads a month's journal in CSV and IIF, checks that every recorded deposit in the period is included with its account and class mapping, and checks its totals by account against the ledger. A month containing an incomplete deposit and one containing a mismatched deposit each refuse the whole download with the reason named; neither silently omits the deposit.
 
 #### FIN-005 — Reconciliation report.
 
@@ -1001,7 +1001,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 25 | fees, refunds | `PAY-003`, `PAY-004` | partial |
 | 26 | failed monthly payments | `GIVE-006` | partial |
 | 27 | each payout matches its deposit in QuickBooks Online or Pantry | `PAY-002`, `FIN-001`, `FIN-002` | `PAY-002` done · `FIN-001` / `FIN-002` partial |
-| 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` done · `FIN-003` partial |
+| 28 | split by fund | `GIFT-004`, `FIN-003` | `GIFT-004` done · `FIN-003` done |
 | 29 | Thank-you letters | `ACK-001`, `RCPT-002` | `ACK-001` partial · `RCPT-002` done |
 | 30 | year-end tax receipts | `RCPT-004` | partial |
 | 31 | by email | `RCPT-001`, `RCPT-002` | `RCPT-001` partial · `RCPT-002` done |
@@ -1038,7 +1038,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 
 ## Status
 
-Judged from the code and tests at commit `4ba9d72` (18 October 2026). The v0.1.0 release gate on that commit ran the published clauses through the product at 1440 and 390 pixels on a fresh local install and once on a hosted installation with real email and Stripe test cards; it backed the hosted installation up with `rer run backup:hosted`, removed it, redeployed it empty and restored the archive, after which every archived table's row count and every year and fund total matched and the destination owner signed in by email. A fresh local run of the stranger’s 5,000-constituent, 40,002-row LGL export moved 38,551 received gifts in 63 parts, matching $20,200,908.23 and all 4,013 giving-donor totals. Independent shared-email and material pledge blockers appeared together in the first review; the three rounded pledges each retained $5,000 promised and $5,000.04 paid. The changed CRM, donor, duplicate, letter, appeal, call and pipeline pages were exercised at 1440 and 390 pixels. Header/preparation dates and an automatic online receipt were checked across the UTC/organization-day boundary.
+Judged from the code and tests at commit `6329f70` (19 October 2026). The historical v0.1.0 release gate at commit `4ba9d72` (18 October 2026) ran the published clauses through the product at 1440 and 390 pixels on a fresh local install and once on a hosted installation with real email and Stripe test cards; it backed the hosted installation up with `rer run backup:hosted`, removed it, redeployed it empty and restored the archive, after which every archived table's row count and every year and fund total matched and the destination owner signed in by email. A fresh local run of the stranger’s 5,000-constituent, 40,002-row LGL export moved 38,551 received gifts in 63 parts, matching $20,200,908.23 and all 4,013 giving-donor totals. Independent shared-email and material pledge blockers appeared together in the first review; the three rounded pledges each retained $5,000 promised and $5,000.04 paid. The changed CRM, donor, duplicate, letter, appeal, call and pipeline pages were exercised at 1440 and 390 pixels. Header/preparation dates and an automatic online receipt were checked across the UTC/organization-day boundary.
 
 This table is the sole authority for every clause’s status. ACK-001, IMPORT-001 and GIFT-001 were re-judged from the current code and cited tests on 19 October 2026; the earlier release evidence above does not prove their widened requirements.
 
