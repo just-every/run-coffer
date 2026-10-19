@@ -1,0 +1,208 @@
+import assert from 'node:assert/strict'
+import {mkdir} from 'node:fs/promises'
+import {run,donor,reviewed,archive,restore} from './harness.mjs'
+import {withBrowserWorker} from './browser-worker.mjs'
+
+async function inviteStaff(h,sent,email){
+ const invited=await h.request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email,role:'member',displayName:email.split('@')[0]}).toString()})
+ assert.equal(invited.status,303)
+ const mail=sent.findLast(m=>m.personalizations.some(p=>p.to.some(to=>to.email===email)))
+ const link=mail.content.find(c=>c.type==='text/plain').value.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]
+ const confirmed=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:new URL(link).searchParams.get('token')}})
+ assert.equal(confirmed.status,303)
+ const cookie=confirmed.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ')
+ return {cookie,id:(await h.get('/auth/session',{as:cookie})).operator.id}
+}
+
+// Email Routing and SendGrid are the only faked boundaries. Every donor, letter,
+// proposal and consent change goes through the actual HTTP application.
+export async function replyStopJourney(){
+ const sent=[],preferenceChecks=[]
+ await run(async h=>{
+  const headers={'x-test-now':'2026-10-19T16:00:00Z'},command=(name,input,options={})=>h.command(name,input,{...options,headers})
+  const get=(path,options={})=>h.get(path,{...options,headers}),tasks=()=>get('/api/coffer/replies')
+  const staff=await inviteStaff(h,sent,'relationship-manager@example.test'),other=await inviteStaff(h,sent,'other-staff@example.test')
+  await reviewed(h)
+  const ada=await donor(h,'Ada Reply'),owner=(await get('/auth/session')).operator
+  const consent=(status='granted')=>command('consent.record',{donorIds:[ada.id],channel:'email',status,method:'paper form',evidence:'A new explicit preference on the donor form.',capturedOn:'2026-10-01'})
+  await consent()
+  await command('prospect.save',{donorId:ada.id,label:'Reading room renewal',ownerId:owner.id,stage:'cultivate',askAmount:'5000',expectedCloseOn:'2026-12-01',nextStep:'Visit the reading room.'})
+  const portfolio=await command('portfolio.save',{name:'Reading room relationships',managerId:staff.id,untouchedDays:90})
+  const previousPortfolio=(await get('/api/coffer/portfolios')).portfolios.find(p=>p.rows.some(r=>r.donor_id===ada.id))
+  await command('portfolio.assign',{donorId:ada.id,portfolioId:portfolio.id,previousPortfolioId:previousPortfolio.id})
+  await command('gift.record',{donorId:ada.id,amount:'250',receivedOn:'2026-10-01',method:'check',goods:'none'})
+  const batch=await command('ack.prepare');await command('ack.approve',{batchId:batch.id,version:1})
+  assert.equal((await command('ack.send',{batchId:batch.id,version:2})).submitted,1)
+  const letter=(await get(`/api/coffer/letters/${batch.id}`)).letters[0]
+  assert.equal(sent.find(m=>m.custom_args?.coffer_letter_id===letter.id).reply_to.email,'replies@example.test','The delivered acknowledgment advertises its durable inbound destination')
+  let serial=0
+  const receive=async(body,{key=`reply-${++serial}`,automatic=false,from='ada.reply@example.org',raw,to='replies@example.test',extraHeaders={}}={})=>{
+   const response=await h.request('/test-email',{method:'POST',headers,body:{from,to,headers:{subject:`${automatic?'Automatic reply:':'Re:'} ${letter.subject}`,'message-id':`<${key}@example.test>`,...(automatic?{'auto-submitted':'auto-replied'}:{}),...extraHeaders},raw:raw??`Content-Type: text/plain; charset=utf-8\r\n\r\n${body}`}})
+   assert.equal(response.status,200);return response.json()
+  }
+  assert.ok((await receive('An unknown sender',{from:'stranger@example.test'})).rejected)
+  assert.deepEqual((await receive('Thank you for the acknowledgment. I would love to visit.',{key:'thank-you'})).forwarded,['relationship-manager@example.test'])
+  assert.equal((await receive('Thank you for the acknowledgment. I would love to visit.',{key:'thank-you'})).forwarded.length,0)
+  let rows=await tasks(),thankYou=rows.find(t=>t.body.includes('love to visit'))
+  assert.equal(thankYou.owner_id,staff.id,'The portfolio manager takes precedence over the prospect opportunity owner')
+  assert.equal(thankYou.letter_id,letter.id);assert.equal(thankYou.communication_id,null);assert.equal(thankYou.source_kind,'acknowledgment')
+  assert.equal(thankYou.stop_status,null)
+  const timeline=await (await h.request(`/app/donors/${ada.id}`,{headers})).text()
+  assert.match(timeline,/Thank you for the acknowledgment\. I would love to visit\./)
+  assert.equal((await receive('Please remove me from your list.',{automatic:true})).forwarded.length,0)
+  const auto=(await tasks()).find(t=>t.automatic)
+  assert.equal(auto.status,'filed');assert.equal(auto.stop_status,null)
+  await command('reply.proposeStop',{taskId:auto.id,stopVersion:0},{status:409})
+  for(const body of ['Thank you.\n> Please remove me','Thanks.\nOn Monday, Ada wrote:\nPlease remove me','Thank you.\n-- \nUnsubscribe me','Please do not unsubscribe me.','I do not want to unsubscribe.']){
+   await receive(body)
+   assert.equal((await tasks()).find(t=>t.body===body).stop_status,null,'Quoted history, signatures and negations never become automatic stop proposals')
+  }
+  await receive('',{raw:'Content-Type: multipart/mixed; boundary=mail\r\n\r\n--mail\r\nContent-Type: text/plain\r\n\r\nThank you for your work.\r\n--mail\r\nContent-Type: text/plain\r\nContent-Disposition: attachment; filename=old.txt\r\n\r\nPlease remove me\r\n--mail--'})
+  assert.equal((await tasks()).find(t=>t.body==='Thank you for your work.').stop_status,null)
+  const countBefore=(await get(`/api/coffer/donors/${ada.id}`)).consents.length
+  const delivered=await Promise.all([receive('Please remove me from your email list. This is my current preference.',{key:'stop'}),receive('Please remove me from your email list. This is my current preference.',{key:'stop'})])
+  assert.equal(delivered.reduce((n,r)=>n+r.forwarded.length,0),1,'Concurrent delivery forwards once')
+  let stop=(await tasks()).find(t=>t.body.includes('current preference'))
+  assert.equal(stop.stop_status,'automatic');assert.match(stop.stop_evidence,/Please remove me/)
+  let state=await get(`/api/coffer/donors/${ada.id}`)
+  assert.equal(state.current.email.status,'withdrawn','An explicit new request withdraws consent at ingress')
+  assert.equal(state.current.email.id,stop.stop_withdrawal_id);assert.equal(state.consents.length,countBefore+1,'Concurrent delivery appends exactly one withdrawal')
+  assert.equal(state.current.email.recorded_by,'Email routing (automatic)');assert.match(state.current.email.evidence,/Please remove me/)
+  const autoAudit=await get(`/api/coffer/audit?record=${ada.id}&action=consent.record`)
+  assert.ok(autoAudit.rows.some(row=>JSON.parse(row.detail).automatic===true),'Automatic withdrawal is identified in the audit log')
+  await command('reply.reverseStop',{taskId:stop.id,stopVersion:stop.stop_version,reason:'The sender was quoting a sample request.'},{as:'',status:401})
+  const agent=await command('agent.create',{label:'Reply authorization check'})
+  await h.command('reply.reverseStop',{taskId:stop.id,stopVersion:stop.stop_version,reason:'Attempted agent reversal.'},{as:'',headers:{...headers,authorization:`Bearer ${agent.token}`},status:403})
+  await get('/api/coffer/replies',{as:'',status:401})
+  await h.get('/api/coffer/replies',{as:'',headers:{...headers,authorization:`Bearer ${agent.token}`},status:403})
+  await command('reply.complete',{taskId:thankYou.id,notes:'Scheduled a reading room visit.'},{as:other.cookie,status:403})
+  await command('reply.complete',{taskId:thankYou.id,notes:'Scheduled a reading room visit.'},{as:staff.cookie})
+  await command('reply.confirmStop',{taskId:stop.id,stopVersion:stop.stop_version},{status:409})
+  await consent()
+  const newerCount=(await get(`/api/coffer/donors/${ada.id}`)).consents.length
+  await receive('Please remove me from your email list. This is my current preference.',{key:'stop'})
+  state=await get(`/api/coffer/donors/${ada.id}`)
+  assert.equal(state.current.email.status,'granted');assert.equal(state.consents.length,newerCount,'A replay never overwrites a newer preference')
+  await command('reply.reverseStop',{taskId:stop.id,stopVersion:stop.stop_version,reason:'A late correction must not replace newer consent.'},{status:409})
+  await receive('Stop emailing me about this project.',{key:'stale-consent'})
+  const reversible=(await tasks()).find(t=>t.body==='Stop emailing me about this project.')
+  await command('reply.reverseStop',{taskId:reversible.id,stopVersion:reversible.stop_version},{status:400})
+  await command('reply.reverseStop',{taskId:reversible.id,stopVersion:reversible.stop_version-1,reason:'Wrong revision.'},{status:409})
+  const reversed=await command('reply.reverseStop',{taskId:reversible.id,stopVersion:reversible.stop_version,reason:'The donor confirmed this sentence was an example, not their request.'},{as:staff.cookie})
+  assert.equal(reversed.stop_status,'reversed')
+  state=await get(`/api/coffer/donors/${ada.id}`)
+  assert.equal(state.current.email.status,'granted');assert.match(state.current.email.evidence,/sentence was an example/)
+  const reversedCount=state.consents.length
+  await command('reply.reverseStop',{taskId:reversible.id,stopVersion:reversed.stop_version,reason:'Duplicate reversal.'},{status:409})
+  await receive('Stop emailing me about this project.',{key:'stale-consent'})
+  assert.equal((await get(`/api/coffer/donors/${ada.id}`)).consents.length,reversedCount,'Replaying a reversed stop cannot reinstate the withdrawal')
+  await receive('These messages are too frequent.',{key:'stale-proposal'})
+  let stale=(await tasks()).find(t=>t.body==='These messages are too frequent.')
+  stale=await command('reply.proposeStop',{taskId:stale.id,stopVersion:stale.stop_version})
+  await consent()
+  await command('reply.confirmStop',{taskId:stale.id,stopVersion:stale.stop_version},{status:409})
+  assert.equal((await tasks()).find(t=>t.id===stale.id).stale_stop,1)
+  stale=await command('reply.proposeStop',{taskId:stale.id,stopVersion:stale.stop_version},{as:other.cookie})
+  assert.equal(stale.stop_status,'proposed','Any staff member with existing consent authority may review and propose again')
+  await receive('I would prefer fewer updates.',{key:'staff-interpretation'})
+  const manual=(await tasks()).find(t=>t.body==='I would prefer fewer updates.')
+  assert.equal(manual.stop_status,null)
+  const proposed=await command('reply.proposeStop',{taskId:manual.id,stopVersion:manual.stop_version},{as:staff.cookie})
+  assert.equal(proposed.stop_evidence,manual.body,'Staff can interpret a request without replacing the received words')
+  assert.equal((await get(`/api/coffer/donors/${ada.id}`)).current.email.status,'granted','Ambiguous messages wait for staff confirmation')
+  await command('reply.confirmStop',{taskId:proposed.id,stopVersion:proposed.stop_version},{as:'',status:401})
+  await h.command('reply.confirmStop',{taskId:proposed.id,stopVersion:proposed.stop_version},{as:'',headers:{...headers,authorization:`Bearer ${agent.token}`},status:403})
+  const confirmed=await command('reply.confirmStop',{taskId:proposed.id,stopVersion:proposed.stop_version},{as:staff.cookie})
+  assert.equal(confirmed.stop_status,'confirmed')
+  const confirmedState=await get(`/api/coffer/donors/${ada.id}`)
+  assert.equal(confirmedState.current.email.status,'withdrawn');assert.equal(confirmedState.current.email.recorded_by,'relationship-manager')
+  await command('reply.confirmStop',{taskId:proposed.id,stopVersion:proposed.stop_version},{status:409})
+  assert.equal((await get(`/api/coffer/donors/${ada.id}`)).consents.length,confirmedState.consents.length,'Double confirmation appends nothing')
+  await consent()
+  await receive('Could we reduce the updates?',{key:'email-proposal'})
+  const emailManual=(await tasks()).find(t=>t.body==='Could we reduce the updates?')
+  const emailProposal=await command('reply.proposeStop',{taskId:emailManual.id,stopVersion:emailManual.stop_version})
+  const beforeEmail=await get(`/api/coffer/donors/${ada.id}`)
+  await command('donor.update',{donorId:ada.id,version:beforeEmail.donor.version,name:beforeEmail.donor.name,email:'ada.changed@example.org'})
+  await command('reply.confirmStop',{taskId:emailProposal.id,stopVersion:emailProposal.stop_version},{status:409})
+  assert.equal((await get(`/api/coffer/donors/${ada.id}`)).current.email.status,'granted')
+  const changed=(await get(`/api/coffer/donors/${ada.id}`)).donor
+  await command('donor.update',{donorId:ada.id,version:changed.version,name:changed.name,email:'ada.reply@example.org'})
+  if(process.env.COFFER_REPLY_BROWSER)await replyStopBrowser(h,receive,process.env.COFFER_REPLY_BROWSER,headers)
+  await command('marketing.connectMango',{origin:'https://reply-mango.example.test',credential:'synthetic-reply-integration'})
+  await receive('Do not email me again. The provider may be offline.',{key:'pending-provider'})
+  const pendingState=await get(`/api/coffer/donors/${ada.id}`)
+  assert.equal(pendingState.current.email.status,'withdrawn','A provider outage cannot delay the local withdrawal')
+  assert.equal(pendingState.marketingPreference.state,'pending','Failed provider synchronization is shown honestly')
+  const checked=preferenceChecks.length
+  assert.ok(checked>0)
+  await receive('Do not email me again. The provider may be offline.',{key:'pending-provider'})
+  assert.equal(preferenceChecks.length,checked,'Duplicate ingress does not retry provider sync')
+  rows=await tasks()
+  const saved=await archive(h)
+  await run(async fresh=>{
+   await restore(fresh,saved)
+   const restored=await fresh.get('/api/coffer/replies')
+   assert.deepEqual(restored.map(t=>[t.id,t.body,t.owner_id,t.stop_status,t.stop_evidence,t.stop_version]),rows.map(t=>[t.id,t.body,t.owner_id,t.stop_status,t.stop_evidence,t.stop_version]))
+   assert.equal((await fresh.get(`/api/coffer/donors/${ada.id}`)).current.email.status,(await get(`/api/coffer/donors/${ada.id}`)).current.email.status)
+  })
+  const target=await donor(h,'Another Reply Record')
+  const comparison=await get(`/api/coffer/duplicates/compare?source=${ada.id}&target=${target.id}`)
+  const merged=await command('donor.merge',{sourceDonorId:ada.id,donorId:target.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
+  assert.ok((await tasks()).every(t=>t.donor_id===target.id))
+  await command('reply.confirmStop',{taskId:stale.id,stopVersion:stale.stop_version},{status:409})
+  await command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'})
+  assert.ok((await tasks()).every(t=>t.donor_id===ada.id))
+  await command('donor.erase',{donorId:ada.id,confirm:'ERASE'})
+  assert.equal((await tasks()).length,0)
+  await command('reply.confirmStop',{taskId:stale.id,stopVersion:stale.stop_version},{status:404})
+  assert.doesNotMatch(JSON.stringify(await archive(h)),/This is my current preference|I would prefer fewer updates|love to visit/)
+ },{entry:'tests/engagement-worker.ts',bindings:{MAIL_PROVIDER:'sendgrid',COFFER_REPLY_ADDRESS:'replies@example.test'},outbound:async request=>{
+  const url=new URL(request.url)
+  if(url.origin==='https://reply-mango.example.test'){
+   if(url.pathname.endsWith('/segments'))return Response.json({segments:[]})
+   if(url.pathname.endsWith('/events'))return Response.json({events:[],nextCursor:'0'})
+   if(request.method==='PUT'||url.pathname.endsWith('/send'))return Response.json({error:'invalid_request'},{status:400})
+   assert.ok(url.pathname.endsWith('/contacts'));preferenceChecks.push(url.pathname)
+   return Response.json({error:'temporarily_unavailable'},{status:503})
+  }
+  assert.equal(new URL(request.url).origin,'https://api.sendgrid.com')
+  assert.equal(new URL(request.url).pathname,'/v3/mail/send')
+  sent.push(await request.json())
+  return new Response(null,{status:202,headers:{'x-message-id':`reply-journey-${sent.length}`}})
+ }})
+}
+
+async function replyStopBrowser(h,receive,directory,headers){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  await context.setExtraHTTPHeaders({cookie:h.owner,...headers})
+  const page=await context.newPage()
+  for(const width of [1440,390]){
+   const explicit=`Please remove me from the email list. Browser explicit request ${width}.`
+   await receive(explicit)
+   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals')
+   const automatic=page.locator('#donor-replies li').filter({hasText:explicit})
+   await automatic.getByRole('heading',{name:'Email consent withdrawn automatically',exact:true}).waitFor()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await automatic.screenshot({path:`${directory}/COMM-005-automatic-${width}.png`})
+   await automatic.getByLabel('Why the explicit request was misread',{exact:true}).fill('The donor confirmed this sentence was a sample, not a preference change.')
+   await automatic.getByRole('button',{name:'Reverse misread withdrawal',exact:true}).click()
+   await automatic.getByText('Misread withdrawal reversed',{exact:true}).waitFor()
+   await automatic.screenshot({path:`${directory}/COMM-005-reversed-${width}.png`})
+   const body=`I would prefer fewer updates. Browser review ${width}.`
+   await receive(body)
+   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals')
+   const row=page.locator('#donor-replies li').filter({hasText:body})
+   await row.getByRole('button',{name:'Propose email consent withdrawal',exact:true}).click()
+   await row.getByRole('button',{name:'Confirm email consent withdrawal',exact:true}).waitFor()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await row.screenshot({path:`${directory}/COMM-005-proposed-${width}.png`})
+   await row.getByRole('button',{name:'Confirm email consent withdrawal',exact:true}).click()
+   await row.getByText('Email consent withdrawn',{exact:true}).waitFor()
+   assert.equal(await row.getByRole('button',{name:'Confirm email consent withdrawal',exact:true}).count(),0)
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await row.screenshot({path:`${directory}/COMM-005-confirmed-${width}.png`})
+  }
+ })
+}

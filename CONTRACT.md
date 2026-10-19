@@ -530,19 +530,25 @@ Coffer syncs consenting constituents into Mango (Run Edit Run's email product) o
 
 The same audience sync, campaign send and results return as `COMM-002` through Constant Contact's v3 API, for nonprofits already on it, with the same "do not solicit" exclusion from asks (`DONOR-015`).
 
-*Acceptance:* An HTTP journey with the Constant Contact edge faked syncs, sends and receives results, and the appeal audience excludes a do-not-solicit donor with that reason.
+Before this provider or mailbox door ships, eligible incoming known-donor replies must join COMM-005 routing, immediate explicit stop withdrawals, ambiguous-request confirmation and reply custody.
+
+*Acceptance:* An HTTP journey with the Constant Contact edge faked syncs, sends and receives results, and the appeal audience excludes a do-not-solicit donor with that reason. Its incoming-reply journey asserts COMM-005 parity before this new door ships.
 
 #### COMM-004 — One-to-one email and mailbox logging.
 
 Staff connect Gmail or Microsoft 365; messages to and from known constituents are logged on their timelines (subject, excerpt, link), and staff write personal emails from the donor page that send from their own mailbox. A BCC address logs mail from any client.
 
-*Acceptance:* An HTTP journey with the Gmail and Microsoft Graph edges faked logs a received and a sent message on the right donor, sends a personal email from the donor page, and logs one through the BCC address.
+Before this provider or mailbox door ships, eligible incoming known-donor replies must join COMM-005 routing, immediate explicit stop withdrawals, ambiguous-request confirmation and reply custody.
+
+*Acceptance:* An HTTP journey with the Gmail and Microsoft Graph edges faked logs a received and a sent message on the right donor, sends a personal email from the donor page, and logs one through the BCC address. Its incoming-reply journey asserts COMM-005 parity before this new door ships.
 
 #### COMM-005 — Replies reach the right person.
 
-Replies to receipts, acknowledgments and appeals arrive at a Coffer inbound address (Cloudflare Email Routing), are logged on the donor's timeline and assigned to the donor's relationship manager as a task; out-of-office replies are recognized and filed, and a reply that asks to stop is proposed as a consent withdrawal for one click to confirm.
+Replies to receipts, acknowledgments and appeals arrive at a Coffer inbound address (Cloudflare Email Routing), are logged on the donor's timeline and assigned to the donor's relationship manager as a task; out-of-office replies are recognized and filed. An explicit email stop request in new, unquoted plain text from a matched known donor withdraws email consent immediately, appending the reply evidence and an automatic audit entry. It never waits for staff confirmation. Ambiguous wording can be proposed by staff from the saved reply, then confirmed in one click under the existing staff consent-recording permission. A staff member may reverse a misread automatic withdrawal only with a recorded reason, while that withdrawal is still the current consent; it restores the prior recorded answer and never invents a grant where none existed.
 
-*Acceptance:* An HTTP journey with inbound mail faked receives a thank-you reply, an out-of-office and a "please remove me", and sees a task for the manager, a filed auto-reply and a proposed withdrawal.
+Every current appeal, welcome, gift-receipt, acknowledgment and annual-statement email reply uses this same boundary. The sender must match the known donor and the configured, durably advertised inbound address (a fixed address plus matching thread subject, or a per-message opaque alias). Routing uses the active portfolio relationship manager, then an active opportunity owner for legacy/unassigned records, then the installation owner. Automatic mail never creates a stop interpretation or a follow-up send. Forwarding is attempted once and its provider result is labelled separately from the open follow-up; a verified Email Routing destination is required by Cloudflare. Replays never duplicate forwarding, consent or timeline records, and a replay or stale confirmation/reversal cannot replace a newer donor preference, changed email or merged identity. The current provider preference sync propagates withdrawals; provider failures leave the local withdrawal in force and show pending sync. Backup/restore, merge/undo and erasure retain the existing reply custody. Before another email provider (`COMM-003`) or personal mailbox door (`COMM-004`) ships, its eligible incoming replies inherit this same routing, stop handling and custody.
+
+*Acceptance:* The clause-named HTTP journey receives a thank-you reply, out-of-office, clear “please remove me” and ambiguous request through the actual Email Routing handler. It asserts a task for the portfolio manager, a filed automatic reply, immediate exactly-once withdrawal for the clear request and a human-confirmed proposal for the ambiguous one. It asserts required-reason reversal, staff/agent/anonymous and stale refusals, quoted/signature/attachment exclusions, newer-consent preservation under replay, provider-failure pending sync, backup/restore, merge/undo and erasure. Actual public checkout/receipt and approved annual-statement sends advertise opaque reply addresses and their replies reach the same door. Native immediate, reversal, proposal and confirmed states run at 1440/390.
 
 #### COMM-006 — SMS outreach.
 
@@ -1026,7 +1032,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 16 | Households | `DONOR-001` | done |
 | 17 | relationships | `DONOR-003` | partial |
 | 18 | every gift | `GIFT-001` | done |
-| 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` partial · `COMM-004` missing · `COMM-005` partial |
+| 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` partial · `COMM-004` missing · `COMM-005` done |
 | 20 | soft credits | `GIFT-006` | done |
 | 21 | tributes | `GIFT-008` | partial |
 | 22 | employer matches | `GIFT-007` | partial |
@@ -1046,7 +1052,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 36 | Appeals and welcome journeys go out through Mango or Mailchimp | `COMM-002`, `STEW-003` | `COMM-002` partial · `STEW-003` partial |
 | 37 | welcome journeys | `STEW-003` | partial |
 | 38 | Unsubscribes are honored everywhere | `CONSENT-001`, `APPEAL-001`, `COMM-001` | `CONSENT-001` done · `APPEAL-001` done · `COMM-001` partial |
-| 39 | replies land with the right person | `COMM-005` | partial |
+| 39 | replies land with the right person | `COMM-005` | done |
 | 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | `MAJOR-001` done · `MAJOR-002` done · `MAJOR-004` done |
 | 41 | reconciles every gift | `DEV-001` | partial (core claim implemented; broader clauses remain) |
 | 42 | rescues failed monthly gifts | `DEV-002` | partial (core claim implemented; broader clauses remain) |
@@ -1089,8 +1095,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 24 | 56 | 46 | 126 |
-| All | 32 | 57 | 46 | 135 |
+| Target and push further | 25 | 55 | 46 | 126 |
+| All | 33 | 56 | 46 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1167,7 +1173,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `COMM-002` | Appeals sent through Mango or Mailchimp | target | partial | `docs/COMMUNICATIONS.md` | Frozen, hash-approved appeals merge donor names and giving figures into exact-recipient Mango or Mailchimp campaigns, with per-donor submission and provider results. Real local Mango draft/sync paths and hosted appeal/welcome delivery, a real unsubscribe click, reverse withdrawal and a transactional receipt after opt-out are proven. Mailchimp remains fixture-only. Name-part/custom-field merges, tags, engagement/attribution, scheduled appeals and solicitation restrictions remain. |
 | `COMM-003` | Constant Contact | target | missing |  | No Constant Contact connection. |
 | `COMM-004` | One-to-one email and mailbox logging | target | missing |  | No mailbox connection or personal email. |
-| `COMM-005` | Replies reach the right person | target | partial | `docs/COMMUNICATIONS.md` | The actual Email Routing handler logs known-donor replies, assigns and forwards to an active prospect owner (or the installation owner), files automatic replies, and exposes follow-up tasks. Live routing was proven on 17 October 2026 (an Email Routing rule to a hosted Worker turned a donor’s appeal reply into a task for the prospect owner); forwarding a copy needs the assignee verified as an Email Routing destination, and proposed stop-request withdrawals remain. |
+| `COMM-005` | Replies reach the right person | target | done | `src/coffer/communications/replies.ts`, `src/coffer/communications/reply-stop.ts`, `src/coffer/receipt-replies.ts`, `migrations/core/0058_coffer_reply_stops.sql`, `tests/communications.test.mjs`, `tests/reply-stop-journey.mjs`, `tests/transactional-replies-journey.mjs` |  |
 | `COMM-006` | SMS outreach | target | missing |  | No SMS. |
 | `COMM-007` | Direct mail appeals | target | partial | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` | Mail-channel audiences with postal addresses export as CSV; no ask amounts, response codes or mailing history. |
 | `COMM-008` | Appeal results | target | missing |  | No appeal results. |

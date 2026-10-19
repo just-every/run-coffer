@@ -1,6 +1,10 @@
 import type { Bindings } from '../../auth.server'
 import { manager, requireRole } from '../auth'
 import { all, commit, event, fail, guard, id, longText, one, sha256, sql, type Context, type Row } from '../db'
+import { automaticStopIsCurrent, automaticStopStatements, currentConsent, replyStopCommand, stopEvidence, stopIsCurrent, syncAutomaticStop } from './reply-stop'
+
+const sourceNames: Record<string, string> = { welcome: 'Welcome', appeal: 'Appeal', receipt: 'Receipt', acknowledgment: 'Acknowledgment', acknowledgement: 'Acknowledgment', statement: 'Statement' }
+export const replySource = (kind: string) => sourceNames[kind] ?? 'Email'
 
 const MAX_RAW = 1024 * 1024
 const clean = (value: string, limit: number) => value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, limit)
@@ -99,29 +103,39 @@ function authenticatedFrom(raw: Uint8Array): string | null {
  return domain && /^[^@\s]+@[^@\s]+$/.test(sender) && sender.split('@')[1] === domain ? sender : null
 }
 
-const routingOwner = (db: D1Database, donorId: string) => one({ db }, `SELECT id,email,display_name FROM (SELECT o.id,o.email,o.display_name,0 AS priority FROM oa_operators o
+const routingOwner = (db: D1Database, donorId: string) => one({ db }, `SELECT id,email,display_name FROM (
+ SELECT o.id,o.email,o.display_name,0 AS priority FROM cf_portfolio_members m JOIN cf_portfolios p ON p.id=m.portfolio_id
+ JOIN oa_operators o ON o.id=p.manager_id WHERE m.donor_id=? AND o.status='active' AND o.role IN ('owner','admin','member')
+ UNION ALL SELECT o.id,o.email,o.display_name,1 AS priority FROM oa_operators o
  WHERE o.status='active' AND o.role IN ('owner','admin','member') AND o.id=(
   SELECT p.owner_id FROM cf_prospects p JOIN oa_operators staff ON staff.id=p.owner_id
   WHERE p.donor_id=? AND staff.status='active' AND staff.role IN ('owner','admin','member') ORDER BY p.updated_at DESC,p.id DESC LIMIT 1)
- UNION ALL SELECT id,email,display_name,1 AS priority FROM oa_operators WHERE status='active' AND role='owner')
- ORDER BY priority,id LIMIT 1`, donorId)
+ UNION ALL SELECT id,email,display_name,2 AS priority FROM oa_operators WHERE status='active' AND role='owner')
+ ORDER BY priority,id LIMIT 1`, donorId, donorId)
 
 const threadSubject = (value: string) => subject(value).replace(/^(?:(?:re|fw|fwd|automatic reply|out of (?:the )?office|auto(?:matic)?[- ]response)\s*:\s*)+/i, '').trim().toLowerCase()
 
 async function findCommunication(message: ForwardableEmailMessage, env: Bindings, raw: Uint8Array): Promise<Row | null> {
  const config = env as Bindings & { COFFER_REPLY_DOMAIN?: string; COFFER_REPLY_ADDRESS?: string }
  const destination = address(message.to), fixed = address(config.COFFER_REPLY_ADDRESS ?? '')
- const live = `SELECT c.*,d.email AS donor_email FROM cf_communications c JOIN cf_donors d ON d.id=c.donor_id
-  WHERE c.status IN ('submitted','uncertain') AND d.erased_at IS NULL
+ const live = `SELECT c.*,d.email AS donor_email FROM (
+  SELECT id,donor_id,subject,reply_to,source_kind,source_id,created_at,'communication' AS source_type
+  FROM cf_communications WHERE status IN ('submitted','uncertain')
+  UNION ALL
+  SELECT a.id,a.donor_id,a.subject,a.reply_to,
+   CASE WHEN b.kind='statement' THEN 'statement' WHEN a.id LIKE 'receipt-%' THEN 'receipt' ELSE 'acknowledgment' END,
+   a.id,b.prepared_at,'letter' FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id
+  WHERE a.route='email' AND a.attempt_id IS NOT NULL AND a.delivery_status IN ('submitted','delivered','bounced','complained','uncertain','sending')
+ ) c JOIN cf_donors d ON d.id=c.donor_id WHERE d.erased_at IS NULL
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`
  if (fixed && destination === fixed) {
   const senders = [...new Set([address(message.from), authenticatedFrom(raw)].filter(Boolean))]
   const candidates = await all({ db: env.DB }, `${live} AND lower(trim(d.email)) IN (SELECT value FROM json_each(?)) AND lower(trim(c.reply_to))=? ORDER BY c.created_at DESC,c.id DESC`, JSON.stringify(senders), destination)
   return candidates.find(c => threadSubject(c.subject) === threadSubject(message.headers.get('subject') ?? '')) ?? null
  }
- const match = /^coffer\+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@([^@\s]+)$/.exec(destination)
+ const match = /^coffer\+((?:receipt-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@([^@\s]+)$/.exec(destination)
  if (!config.COFFER_REPLY_DOMAIN || !match || match[2] !== address(config.COFFER_REPLY_DOMAIN)) return null
- const communication = await one({ db: env.DB }, `${live} AND c.id=?`, match[1])
+ const communication = await one({ db: env.DB }, `${live} AND lower(trim(c.reply_to))=?`, destination)
  return communication && address(communication.reply_to ?? '') === destination && [address(message.from), authenticatedFrom(raw)].includes(address(communication.donor_email ?? '')) ? communication : null
 }
 
@@ -152,19 +166,26 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
   (message.headers.has('x-autoreply') && !/^\s*no\s*$/i.test(message.headers.get('x-autoreply') ?? '')) ||
   message.headers.has('x-autorespond') || /^\s*(?:automatic reply|out of (?:the )?office|auto(?:matic)?[- ]response)\b/i.test(title)
  const owner = await routingOwner(env.DB, communication.donor_id)
- const note = automatic ? 'Automatic reply filed; no forwarding or follow-up required.' : owner ? 'Waiting to forward to the assigned relationship owner.' : 'Forwarding failed: no active relationship owner or owner account is available.'
+ const evidence = automatic ? null : stopEvidence(body)
+ const note = automatic ? 'Automatic reply filed; no forwarding or follow-up required.' : owner ? 'Waiting to forward to the assigned relationship manager.' : 'Forwarding failed: no active relationship manager or owner account is available.'
  const state = automatic ? 'filed' : owner ? 'pending' : 'failed'
- await env.DB.batch([
-  env.DB.prepare(`INSERT OR IGNORE INTO cf_reply_tasks(id,communication_id,donor_id,owner_id,subject,body,received_at,message_id,status,note)
-   SELECT ?,?,d.id,?,?,?,?,?,?,? FROM cf_donors d WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`)
-   .bind(taskId, communication.id, owner?.id ?? null, title, body, now, messageId, state, note, communication.donor_id),
+ const received = await env.DB.batch([
+  env.DB.prepare(`INSERT OR IGNORE INTO cf_reply_tasks(id,communication_id,letter_id,donor_id,owner_id,subject,body,received_at,message_id,status,note,automatic,
+   stop_status,stop_version,stop_evidence,stop_consent_id,stop_email,stop_donor_id,stop_proposed_at,stop_proposed_by)
+   SELECT ?,?,?,d.id,?,?,?,?,?,?,?,?,?, ?,?,${currentConsent},d.email,d.id,?,? FROM cf_donors d
+   WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`)
+   .bind(taskId, communication.source_type === 'communication' ? communication.id : null, communication.source_type === 'letter' ? communication.id : null,
+    owner?.id ?? null, title, body, now, messageId, state, note, automatic ? 1 : 0,
+    evidence ? 'automatic' : null, evidence ? 1 : 0, evidence, evidence ? now : null, evidence ? 'Email routing' : null, communication.donor_id),
+  ...await automaticStopStatements(env.DB, taskId, now),
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'email-routing','Email routing','system','reply.received','reply',id,donor_id,? FROM cf_reply_tasks WHERE id=? AND NOT EXISTS(SELECT 1 FROM cf_interactions WHERE id=?)`)
    .bind(now, JSON.stringify({ communicationId: communication.id, sourceKind: communication.source_kind, sourceId: communication.source_id, automatic }), taskId, taskId),
   env.DB.prepare(`INSERT OR IGNORE INTO cf_interactions(id,donor_id,kind,occurred_on,who,notes,next_step,recorded_at,recorded_by)
    SELECT id,donor_id,'email',?,'Donor',?,?,?,'Email routing' FROM cf_reply_tasks WHERE id=?`)
-   .bind(now.slice(0, 10), `${communication.source_kind === 'welcome' ? 'Welcome' : 'Appeal'} reply · ${title}\n${body || 'No plain-text excerpt is available.'}`, note, now, taskId),
+   .bind(now.slice(0, 10), `${replySource(communication.source_kind)} reply · ${title}\n${body || 'No plain-text excerpt is available.'}${evidence ? '\nEmail consent withdrawn automatically from this explicit request.' : ''}`, note, now, taskId),
  ])
+ if (received[1].meta.changes) await syncAutomaticStop(env, taskId, now)
  const task = await one({ db: env.DB }, 'SELECT * FROM cf_reply_tasks WHERE id=?', taskId)
  if (!task || !['pending', 'failed'].includes(task.status)) return
  if (task.attempt_key) {
@@ -186,19 +207,26 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
   // A provider exception may happen after acceptance. Never automatically send twice.
   throw new Error('Reply forwarding did not confirm success; review the reply task.')
  }
- await recordState(env.DB, taskId, attempt, 'forwarded', 'Cloudflare confirmed forwarding to the assigned relationship owner. Follow-up is still open.', new Date().toISOString())
+ await recordState(env.DB, taskId, attempt, 'forwarded', 'Cloudflare confirmed forwarding to the assigned relationship manager. Follow-up is still open.', new Date().toISOString())
 }
 
 export function replyTasks(c: Context) {
  requireRole(c.actor, ['owner', 'admin', 'member'], 'read donor replies')
- return all(c, `SELECT r.*,d.name AS donor_name,o.display_name AS owner_name,o.status AS owner_status,c.source_kind,c.source_id,
-  CASE WHEN r.status='pending' AND r.attempt_key IS NOT NULL AND r.forwarding_at<? THEN 1 ELSE 0 END AS stale_forward
+ return all(c, `SELECT r.*,d.name AS donor_name,o.display_name AS owner_name,o.status AS owner_status,
+  COALESCE(c.source_kind,CASE WHEN b.kind='statement' THEN 'statement' WHEN a.id LIKE 'receipt-%' THEN 'receipt' ELSE 'acknowledgment' END) AS source_kind,
+  COALESCE(c.source_id,a.id) AS source_id,
+  CASE WHEN r.status='pending' AND r.attempt_key IS NOT NULL AND r.forwarding_at<? THEN 1 ELSE 0 END AS stale_forward,
+  CASE WHEN r.stop_status='proposed' AND NOT (${stopIsCurrent}) THEN 1 ELSE 0 END AS stale_stop,
+  CASE WHEN r.stop_status='automatic' AND (${automaticStopIsCurrent}) THEN 1 ELSE 0 END AS can_reverse_stop
   FROM cf_reply_tasks r JOIN cf_donors d ON d.id=r.donor_id AND d.erased_at IS NULL
-  JOIN cf_communications c ON c.id=r.communication_id LEFT JOIN oa_operators o ON o.id=r.owner_id
+  LEFT JOIN cf_communications c ON c.id=r.communication_id LEFT JOIN cf_acks a ON a.id=r.letter_id
+  LEFT JOIN cf_ack_batches b ON b.id=a.batch_id LEFT JOIN oa_operators o ON o.id=r.owner_id
   ORDER BY CASE WHEN r.status IN ('filed','done') THEN 1 ELSE 0 END,r.received_at DESC,r.id DESC`, new Date(Date.parse(c.now) - 300000).toISOString())
 }
 
 export async function replyCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
+ const stopped = await replyStopCommand(c, command, p)
+ if (stopped !== undefined) return stopped
  if (command !== 'reply.complete') return undefined
  requireRole(c.actor, ['owner', 'admin', 'member'], 'complete donor replies')
  const taskId = id(p.taskId, 'Reply task'), notes = longText(p.notes, 'Follow-up outcome', 2000)

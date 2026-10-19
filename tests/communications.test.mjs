@@ -6,6 +6,13 @@ const recorded=JSON.parse(await readFile(new URL('./fixtures/mango/audience.json
 const chimp=JSON.parse(await readFile(new URL('./fixtures/mailchimp/responses.json',import.meta.url),'utf8'))
 const form=(h,fields)=>h.request('/app/actions',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(fields).toString()})
 
+test('COMM-005: routed replies reach managers, withdraw explicit stops once and review ambiguous requests with custody',async()=>{
+ const {replyStopJourney}=await import('./reply-stop-journey.mjs')
+ await replyStopJourney()
+ const {transactionalRepliesJourney}=await import('./transactional-replies-journey.mjs')
+ await transactionalRepliesJourney()
+})
+
 async function consenting(h,names){
  const rows=[]
  for(const [i,name] of names.entries()){

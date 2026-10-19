@@ -101,7 +101,7 @@ async function formBody(request: Request, limit = LIMIT): Promise<FormData> {
 }
 async function formInput(data: FormData) {
  const input: Record<string, any> = Object.fromEntries(data)
- for (const name of ['version', 'sourceVersion', 'targetDays', 'reminderDays', 'intervalMonths', 'untouchedDays', 'templateVersion']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
+ for (const name of ['version', 'sourceVersion', 'targetDays', 'reminderDays', 'intervalMonths', 'untouchedDays', 'templateVersion', 'stopVersion']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
  if (input.command === 'gift.record' && data.has('splitAmount')) {
   const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))

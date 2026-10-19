@@ -1,3 +1,4 @@
+import { receiptReplyAddress } from './receipt-replies'
 import type { Bindings } from '../auth.server'
 import { sendSendGrid, SendGridSendError } from '../modules/mail/src/sendgrid-email/index.mjs'
 // The shared verifier has no TypeScript declaration; it owns strict DER-to-P1363 conversion.
@@ -22,13 +23,14 @@ export function assertReceiptMailAvailable(env: Bindings): void {
 export async function sendReceipt(env: Bindings, letter: Row): Promise<{ messageId: string }> {
  assertReceiptMailAvailable(env)
  const letterId = id(letter.id, 'Receipt letter'), attemptId = id(letter.attempt_id, 'Receipt email attempt')
+ const replyTo = await receiptReplyAddress(env, letter)
  let result
  try {
   result = await sendSendGrid({
    apiKey: env.MAIL_API_KEY!,
    message: {
     deliveryId: attemptId, from: env.MAIL_FROM!, to: [letter.recipient_email],
-    subject: letter.subject, text: letter.body,
+    subject: letter.subject, text: letter.body, ...(replyTo ? { replyTo } : {}),
     customArgs: { coffer_letter_id: letterId, coffer_attempt_id: attemptId },
    },
   })
