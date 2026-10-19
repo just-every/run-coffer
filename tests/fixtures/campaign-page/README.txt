@@ -1,0 +1,2 @@
+story.png is an original generated test illustration of an open book. The story-private-metadata images are encodings of that illustration with synthetic EXIF, XMP or PNG text used to prove public copies remove metadata.
+story.mp4 is the small public browser media fixture from https://github.com/web-platform-tests/wpt/blob/master/media/movie_5.mp4 ; WPT license: https://github.com/web-platform-tests/wpt/blob/master/LICENSE.md . No runtime test needs network access to retrieve these files.

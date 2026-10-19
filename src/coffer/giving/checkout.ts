@@ -1,5 +1,6 @@
 import { intentRecognition } from '../recognition'
-import { choice, email, fail, one, sha256, text } from '../db'
+import { choice, email, fail, one, sha256, text, today } from '../db'
+import { settings } from '../settings'
 import { amount } from '../money'
 import { campaign } from './campaigns'
 import { trackedAppeal } from './tracked-link'
@@ -12,10 +13,12 @@ export async function limit(env: GivingEnv, key: string, max = 10) {
 }
 
 export async function checkout(env: GivingEnv, request: Request, slug: string, p: Record<string, any>) {
+ const c = await campaign({ db: env.DB }, slug)
+ if (c.closes_on && today((await settings({ db: env.DB })).timezone) > c.closes_on) fail('campaign_closed', 'This campaign has closed and is no longer accepting new gifts. Thank you for your support.', 409)
  requireStripe(env)
  await limit(env, 'checkout:' + (request.headers.get('CF-Connecting-IP') ?? 'local'))
  if (p.website) fail('INPUT', 'Please leave the website field empty.', 400)
- const c = await campaign({ db: env.DB }, slug), name = text(p.name, 'Your name', 200), mail = email(p.email)
+ const name = text(p.name, 'Your name', 200), mail = email(p.email)
  if (!mail) fail('INPUT', 'Enter your email address.', 400)
  const cents = amount(p, 'amount', 'Gift amount'), frequency = choice(p.frequency, ['once', 'monthly'] as const, 'gift frequency')
  if (cents < 100 || cents > 10000000) fail('INPUT', 'Give between $1 and $100,000.', 400)

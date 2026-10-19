@@ -15,6 +15,12 @@
       "migrations_dir": "migrations/core"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "coffer-files"
+    }
+  ],
   "triggers": {
     "crons": [
       "* * * * *"

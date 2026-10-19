@@ -16,8 +16,8 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 36 | 51 | 39 | 126 |
-| All | 44 | 52 | 39 | 135 |
+| Target and push further | 37 | 50 | 39 | 126 |
+| All | 45 | 51 | 39 | 135 |
 
 ## Target
 
@@ -54,7 +54,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 ### Online giving
 
 31. **`GIVE-001` Donation forms** (partial). A browser journey builds a form with a custom question, embeds it on a test page, and gives $50 at 1440 and 390 pixels with the Stripe edge in test mode; the gift, donor, consent answer, custom-field answer and receipt appear in Coffer, and an axe check of the form passes; a timing run of the hosted form under the stated profile (CDP network emulation and `Emulation.setCPUThrottlingRate` 4) records a median of five cold loads under one second to input-ready and under two seconds to payment-field-ready. Campaign membership and progress must conform to CAMP-001 before this capability ships. Independent forms retain actual REPORT-003 giving-form provenance and reporting before shipping.
-32. **`GIVE-002` Campaign pages** (partial). A browser journey publishes a campaign page with a $60,000 goal, an uploaded image and an embedded video, sees both on the published page at 1440 and 390 pixels, gives twice through it, and sees the thermometer, donor count and opt-in donor wall update; the page is served at the custom path set on the nonprofit's own domain (for example `/give/spring`); after the close date the page refuses new gifts with a message.
+32. **`GIVE-002` Campaign pages** (done). A browser journey publishes a campaign page with a $60,000 goal, an uploaded image and an embedded video, sees both on the published page at 1440 and 390 pixels, gives twice through it, and sees the thermometer, donor count and opt-in donor wall update; the page is served at the custom path set on the nonprofit's own domain (for example `/give/spring`); after the close date the page refuses new gifts with a message. The clause-named HTTP/native journey also asserts stripped PNG/JPEG/WebP metadata with decodable images, authorized confirmed streaming of an 8 MiB MP4 into real R2, actual browser playback, media MIME/nosniff/range/host refusals, donor deduplication and reversal, current-zone inclusive closure before any Stripe call, and exact media bytes after Base archive/restore.
 33. **`GIVE-003` Recurring giving** (partial). An HTTP journey with Stripe in test mode and a test clock starts a $25 monthly plan, advances three months, reads three linked gifts, pauses and resumes the plan, and cancels it.
 34. **`GIVE-004` Card, bank, wallet and PayPal checkout** (partial). A browser journey with provider test modes gives by card, ACH (with a later R01 return that writes a reversal and a task), Apple Pay on a WebKit device profile and PayPal, and an inspection of stored records finds no card or account numbers.
 35. **`GIVE-005` Donor portal** (partial). A browser journey at 390 pixels signs a donor in by link, downloads last year's statement, replaces an expiring card, lowers the monthly amount and withdraws email consent; staff see each change on the timeline and a cancellation task.

@@ -298,7 +298,9 @@ Independent giving forms inherit `REPORT-003` actual form provenance and financi
 
 A campaign page tells the story with images and video, shows a goal thermometer and donor count from the ledger, lists recent donors who chose to be shown, and holds a form. Pages have a custom path on the nonprofit's domain and close on a date.
 
-*Acceptance:* A browser journey publishes a campaign page with a $60,000 goal, an uploaded image and an embedded video, sees both on the published page at 1440 and 390 pixels, gives twice through it, and sees the thermometer, donor count and opt-in donor wall update; the page is served at the custom path set on the nonprofit's own domain (for example `/give/spring`); after the close date the page refuses new gifts with a message.
+Current campaign publishers (owner/admin) upload PNG, JPEG or WebP images up to 1 MiB (1,048,576 bytes), and MP4 video up to 100 MiB (104,857,600 bytes), after explicitly confirming public publication. Embedded image metadata is removed before storage; video content and metadata are public, as the upload form explains. Images use the existing portable D1 document pattern; video streams into the installation's FILES bucket under Base's R2 archive custody. Publication checks the file signature before exposing a key, refuses unauthorized/cross-origin/unconfirmed uploads and never publishes failed bytes. Public media comes only from this installation with exact media types and nosniff. Donors count distinct contributors with a positive remaining campaign balance; gifts and amounts remain separate figures. Wall publication follows GIFT-011 opt-in and anonymity. The optional closesOn date is inclusive in the organization's time zone; the following day refuses new checkout requests before contacting Stripe. CAMP-001 planning dates retain their meaning. Media is included in Base archive/restore, including videos that span multipart restoration.
+
+*Acceptance:* A browser journey publishes a campaign page with a $60,000 goal, an uploaded image and an embedded video, sees both on the published page at 1440 and 390 pixels, gives twice through it, and sees the thermometer, donor count and opt-in donor wall update; the page is served at the custom path set on the nonprofit's own domain (for example `/give/spring`); after the close date the page refuses new gifts with a message. The GIVE-002 HTTP/native journey also asserts stripped PNG/JPEG/WebP metadata with decodable images, authorized confirmed streaming of an 8 MiB MP4 into real R2, actual browser playback, media MIME/nosniff/range/host refusals, donor deduplication and reversal, current-zone inclusive closure before any Stripe call, and exact media bytes after Base archive/restore.
 
 #### GIVE-003 — Recurring giving.
 
@@ -1080,7 +1082,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 20 | Appeal emails through Mango or Mailchimp | `COMM-002` | partial |
 | 21 | print-ready letters for everyone who prefers paper · 114 letters ready to print | `COMM-007`, `RCPT-003` | partial |
 | 22 | Maria, 180 meals last year (merged appeal email) | `COMM-002` | partial |
-| 23 | The button opens your campaign page | `GIVE-002` | partial |
+| 23 | The button opens your campaign page | `GIVE-002` | done |
 | 24 | Card, bank or Apple Pay through your own Stripe account, once or monthly | `GIVE-004`, `GIVE-003` | partial |
 | 25 | Donor portal · Monthly $25 · Receipts · Update card | `GIVE-005` | partial |
 | 26 | The thank-you carries the tax receipt with the IRS wording | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` done |
@@ -1126,8 +1128,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 36 | 51 | 39 | 126 |
-| All | 44 | 52 | 39 | 135 |
+| Target and push further | 37 | 50 | 39 | 126 |
+| All | 45 | 51 | 39 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1165,7 +1167,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `GIFT-010` | Stock, DAF grants and IRA distributions | target | missing |  | No stock, DAF or QCD gift types. |
 | `GIFT-011` | Anonymous gifts and recognition names | target | done | `src/coffer/recognition.ts`, `src/coffer/ui/recognition.ts`, `src/coffer/giving/checkout.ts`, `src/coffer/giving/recording.ts`, `tests/recognition-journey.mjs`, `tests/recognition-browser.mjs`, `tests/giving.test.mjs` | Clause-named HTTP/native proof covers opt-in walls, donor/gift anonymity, actual-identity receipts, exact honor-roll levels and CSV, custody and 1440/390 end states. |
 | `GIVE-001` | Donation forms | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Hosted campaign forms collect once/monthly card and Link gifts and retain fund/campaign attribution. Advanced fields, embedding and the specified performance/accessibility acceptance remain outstanding. |
-| `GIVE-002` | Campaign pages | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Custom-path public campaign stories, goals, ledger totals, gift counts and recurring donor counts ship. Uploaded media, donor walls and closing dates remain outstanding. |
+| `GIVE-002` | Campaign pages | target | done | `src/coffer/giving/`, `migrations/core/0068_coffer_campaign_media.sql`, `tests/giving.test.mjs`, `tests/campaign-page-journey.mjs`, `tests/campaign-page-browser.mjs`, `docs/ONLINE-GIVING.md` | Clause-named HTTP/native journeys publish metadata-stripped images and streaming R2 video, play it at both widths, give twice, reconcile distinct donors and opt-in walls, close new giving inclusively in the current organization zone, refuse unauthorized/unsafe publication, and restore exact multipart video bytes through Base. |
 | `GIVE-003` | Recurring giving | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Monthly Stripe subscriptions record successful installments and show status and recovery; donors cancel at period end. Quarterly/annual plans, staff editing, pause/resume and the three-month test-clock acceptance remain outstanding. |
 | `GIVE-004` | Card, bank, wallet and PayPal checkout | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Stripe-hosted card and Link checkout ships, with Apple Pay offered on supported devices. ACH is coming soon pending a US test account; Apple Pay device payment, PayPal/Venmo, ACH settlement/returns and staff entry remain outstanding. No card numbers enter Coffer. |
 | `GIVE-005` | Donor portal | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Emailed single-use links open a donor-only portal to view monthly plans, update cards at Stripe and cancel. Statements, amounts/frequencies, pause, communication preferences and cancellation tasks remain outstanding. |

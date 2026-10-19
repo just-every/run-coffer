@@ -55,6 +55,16 @@ An owner or admin opens **Giving**, publishes a campaign with its own page addre
 
 The giving page asks separately whether the donor wants news and appeals by email. That box is optional and unticked; when a donor ticks it, Coffer records email consent with the checkout as evidence once the gift is paid. Gift receipts are transactional and go to the donor's email either way: each paid online gift's receipt is emailed as soon as Coffer records the gift, whatever the amount, using your letter wording. To approve each one first, choose **Hold online receipts for me to approve in Letters** in **Letter settings**. On this computer (local mode) email is switched off, so the receipt is marked “Not emailed” instead.
 
+### Campaign media and closing
+
+When publishing under **Giving**, add a PNG, JPEG or WebP image up to 1 MiB and its description. Coffer strips embedded image metadata before keeping the public copy. Check the visible image for private details and confirm it may be public.
+
+After publishing, use **Campaign video** on Giving to choose the campaign and upload an MP4 up to 100 MiB. Video content and embedded metadata are public; review both before confirming. The upload streams into the installation's own file storage. A failure does not publish a video, and the page links to the campaign only after the upload succeeds. A published video cannot be silently overwritten.
+
+Hosted deployment provisions the declared FILES R2 bucket through Base. The Cloudflare account must have R2 enabled and the deployment token must permit bucket creation and access. A missing permission or disabled R2 is an installation error; Coffer does not send files to another provider. Local Coffer uses its own emulated bucket without a Cloudflare account. Base backups and restores include the referenced videos and public image copies.
+
+**Page closes after** accepts the last giving day in the organization's time zone. From the following day, the campaign explains it has closed and refuses new checkout requests. Campaign start/end planning dates do not close a page or hide recorded money. Public totals show received money, distinct giving donors and gifts, and the donor wall includes only explicitly opted-in gifts under their permitted recognition names.
+
 ## Monthly gifts
 
 Monthly plans run as Stripe subscriptions. Set your account's retry schedule in Stripe (Billing revenue recovery). Coffer follows that schedule and records failures, the next attempt and a successful recovery. After a failed attempt it emails the donor a private card-update link; if that email cannot be sent, Coffer leaves the webhook unacknowledged so Stripe delivers it again. Expiry warnings and staff escalation after retries run out are not implemented.
@@ -65,4 +75,4 @@ Donors open **Manage my monthly gift**, request an emailed link and confirm it t
 
 RER Managed does not have the payment connection yet. **Connect Stripe** says so, and any Stripe action on a managed installation says Stripe is not available yet. Use a self-hosted Coffer for giving today.
 
-Advanced form fields, embedding, donor walls, campaign closing dates, other recurring frequencies, ACH and PayPal remain on the roadmap in `CONTRACT.md`.
+Advanced form fields, embedding, other recurring frequencies, ACH and PayPal remain on the roadmap in `CONTRACT.md`.

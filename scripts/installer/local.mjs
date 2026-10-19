@@ -21,7 +21,7 @@ export const adapter = lifecycle;
 export const { install } = lifecycle;
 export const commandAdapter = createCommandAdapter(lifecycle, {
  dev: developmentTarget, preview: previewTarget, verify: ['pnpm', ['run', 'verify:app']], deploy: ownerDeploy('deploy.json', lifecycle),
- portability: localPortability({ database: 'foundation', policyModule: 'src/coffer/archive-policy.mjs', transient: ['local runtime caches and logs'] }),
+ portability: localPortability({ database: 'foundation', buckets: { FILES: 'FILES' }, policyModule: 'src/coffer/archive-policy.mjs', transient: ['local runtime caches and logs'] }),
  setup: { manifestFile: 'rer-setup.json' }, browserModule: 'scripts/installer/ui/seed.mjs',
  // The run site (rer build --site, rer deploy --site, RER_SITE): pages from
  // the desk-approved homepage, Run data and docs/*.md, written to an ignored folder; its domain is in deploy-site.json.

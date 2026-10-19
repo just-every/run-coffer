@@ -27,6 +27,8 @@ import { reassignmentReason } from './reassignment-reasons'
 import { fundEntries, fundLedgerCsv, fundReport } from './fund-report'
 import { auditCsv, auditLog, recordRequest } from './audit'
 import { donorFile } from './donor-file'
+import { campaignInput } from './giving/media'
+import { cleanVideoUploads, uploadCampaignVideo } from './giving/video'
 import { stateReport, stateReportCsv } from './state-report'
 import { stateReportPage } from './ui/state-report'
 import { campaignProgress } from './campaign-progress'
@@ -72,7 +74,7 @@ import { paymentsResponse } from './payments/http'
 import { agentResponse } from './agent/http'
 import { crmMoveInResponse } from './move-in/http'
 import { createCampaign, campaigns } from './giving/campaigns'
-import { givingManagePage } from './giving/manage-ui'
+import { givingManageResponse } from './giving/manage-ui'
 import { checkStripe, givingSetupPage } from './giving/setup'
 import { invitePerson, people } from './people'
 import { receiptEvents } from './letter-delivery'
@@ -182,10 +184,15 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if (payments) return payments
   const progress = path.match(/^\/(api\/coffer|app)\/giving\/campaigns\/([^/]+)$/)
   if (progress && request.method === 'GET') return isApi ? json(await campaignProgress(c, progress[2])) : page('Campaign progress', await campaignProgressPage(c, progress[2]), actor, 200, '/app/giving')
+  const videoUpload = path.match(/^\/api\/coffer\/giving\/campaigns\/([^/]+)\/video$/)
+  if (videoUpload) {
+   if (request.method !== 'POST') fail('method_not_allowed', 'Use the campaign video upload form.', 405)
+   return json(await uploadCampaignVideo(c, request, decodeURIComponent(videoUpload[1])))
+  }
   if (path === '/api/coffer/giving/campaigns' || path === '/app/giving/campaigns') {
    if (request.method === 'GET' && isApi) return json({ campaigns: await campaigns(c) })
    if (request.method !== 'POST') fail('method_not_allowed', 'Use the campaign form.', 405)
-   const input = isApi ? await jsonBody(request) : Object.fromEntries(await formBody(request))
+   const input = await campaignInput(request, isApi)
    const result = await createCampaign(c, input)
    return isApi ? json(result) : redirect('/app/giving')
   }
@@ -199,7 +206,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if (path.startsWith('/api/portability/')) {
    if (actor.role !== 'owner') fail('owner_required', 'Only the owner can back up or restore.', 403)
-   const handler = await createPortabilityHandler({ db: env.DB, policy, appOrigin: env.AUTH_ORIGIN, authorize: async req => { const current = await identity(req, env); originGuard(req, env, current.bearer); return current.actor.role === 'owner' ? current.actor.id : null } })
+   await cleanVideoUploads(c)
+   const handler = await createPortabilityHandler({ db: env.DB, buckets: { FILES: env.FILES }, policy, appOrigin: env.AUTH_ORIGIN, authorize: async req => { const current = await identity(req, env); originGuard(req, env, current.bearer); return current.actor.role === 'owner' ? current.actor.id : null } })
    return await handler(request)
   }
   if (path.startsWith('/api/coffer/imports/') || path.startsWith('/app/move-in/')) return await moveIn(request, c, auth.authority, path, isApi)
@@ -223,7 +231,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if (path === '/app/backup' && request.method === 'POST') {
    if (actor.role !== 'owner') fail('owner_required', 'Only the owner can download a backup.', 403)
-   const service = await createPortability({ db: env.DB, policy }), id = await service.exports.create(actor.id)
+   await cleanVideoUploads(c)
+   const service = await createPortability({ db: env.DB, buckets: { FILES: env.FILES }, policy }), id = await service.exports.create(actor.id)
    let state = await service.exports.advance(id, { maxParts: 1 })
    while (state.phase !== 'complete') state = await service.exports.advance(id, { expectedPart: state.completed, maxParts: 1 })
    return new Response(await service.exports.download(id), { headers: { ...headers, 'content-type': 'application/x-ndjson', 'content-disposition': 'attachment; filename="coffer.rer"' } })
@@ -456,7 +465,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/pipeline') return show('Major-gift pipeline', await majorGiftsPage(c,url))
  if (path === '/app/reports/dashboard') return show('Fundraising dashboard', await dashboardPage(c,url))
  if (path === '/app') return show('Today', await home(c,url))
- if (path === '/app/giving') return show('Online giving', await givingManagePage(c))
+ if (path === '/app/giving') return givingManageResponse(c)
  if (path === '/app/giving/setup') return show('Connect Stripe', await givingSetupPage(c))
  if (path === '/app/gifts') return page('Gifts', await giftsPage(c, url), actor, 200, path, { hideTitle: true })
  if (path === '/app/donors') return show('Donors', await donorsPage(c, url))

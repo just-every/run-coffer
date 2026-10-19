@@ -150,6 +150,14 @@
       "commands": [
         "COFFER_PLEDGE_BROWSER=.cache/pledge-balances node --test --test-name-pattern='GIFT-005' tests/pledges.test.mjs"
       ]
+    },
+    {
+      "name": "campaign-page",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='GIVE-002' tests/giving.test.mjs"
+      ]
     }
   ],
   "nightly": [

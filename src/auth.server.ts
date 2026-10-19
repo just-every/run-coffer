@@ -23,6 +23,7 @@ export interface Bindings {
  PANTRY_FUND_ACCOUNTS?: string
  QBO_ACCOUNT_NAMES?: string
  DB: D1Database
+ FILES: R2Bucket
  /** Built browser files; hosted deploys run the Worker first (staticAssetResponse). */
  ASSETS?: Fetcher
  RER_DEPLOY_SOURCE?: string

@@ -4,3 +4,5 @@
 .consent{display:flex;gap:10px;align-items:flex-start;margin:2px 0 0;font-size:15px;line-height:1.45}
 .consent input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:#7045f7}
 .checkout:disabled{opacity:.55;cursor:not-allowed}
+
+.campaign-media{margin:28px 0 0;max-width:100%;color:#d6d5f7}.campaign-media img,.campaign-media video{display:block;width:100%;max-width:100%;height:auto;border-radius:12px}.campaign-media figcaption{font-size:16px;line-height:1.5;margin-top:8px;overflow-wrap:anywhere}

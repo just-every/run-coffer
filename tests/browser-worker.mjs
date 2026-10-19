@@ -10,7 +10,7 @@ export async function withBrowserWorker(h,journey) {
   try {
    const path=new URL(req.url,'http://localhost').pathname,file=resolve(assets,'.'+decodeURIComponent(path))
    if(file.startsWith(assets+'/')&&extname(file)){
-    try {const bytes=await readFile(file);res.writeHead(200,{'content-type':({'.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2','.png':'image/png'})[extname(file)]??'application/octet-stream'});res.end(bytes);return}catch{}
+    try {const bytes=await readFile(file);res.writeHead(200,{'content-type':({'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2','.png':'image/png'})[extname(file)]??'application/octet-stream'});res.end(bytes);return}catch{}
    }
    const headers=new Headers(Object.entries(req.headers).filter(([,v])=>typeof v==='string'))
    headers.set('host',new URL(h.origin).host)

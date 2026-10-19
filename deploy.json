@@ -11,6 +11,11 @@
       "binding": "DB"
     }
   ],
+  "r2": [
+    {
+      "binding": "FILES"
+    }
+  ],
   "originVar": "AUTH_ORIGIN",
   "vars": {
     "AUTH_LOCAL": "false"
