@@ -53,7 +53,7 @@ export async function callTaskCommand(c: Context, command: string, p: Row): Prom
   const notes = longText(p.notes,'Call notes'), nextStep = optional(p.nextStep,'Next step',2000)
   const interactionId = newId(), day = today((await settings(c)).timezone,new Date(c.now))
   await commit(c,[...checks,
-   sql("INSERT INTO cf_interactions(id,donor_id,kind,occurred_on,who,notes,next_step,recorded_at,recorded_by) SELECT ?,d.id,'call',?,?,?, ?,?,? FROM cf_donors d WHERE d.id=?",interactionId,day,c.actor.name,`${outcome.replaceAll('_',' ')}: ${notes}`,nextStep,c.now,c.actor.name,task.donor_id),
+   sql("INSERT INTO cf_interactions(id,donor_id,kind,occurred_on,who,notes,next_step,recorded_at,recorded_by,recorded_by_id,meaningful) SELECT ?,d.id,'call',?,?,?, ?,?,?,?,? FROM cf_donors d WHERE d.id=?",interactionId,day,c.actor.name,`${outcome.replaceAll('_',' ')}: ${notes}`,nextStep,c.now,c.actor.name,c.actor.id,outcome==='connected'?1:0,task.donor_id),
    sql("UPDATE cf_call_tasks SET status='done',completed_at=?,interaction_id=?,version=version+1 WHERE id=?",c.now,interactionId,taskId),event(c,command,'task',taskId,task.donor_id,{outcome,interactionId})])
  }
  return (await one(c,'SELECT * FROM cf_call_tasks WHERE id=?',taskId))!

@@ -28,6 +28,15 @@ export async function majorGiftCommand(c: Context, command: string, p: Row): Pro
    WHERE id=? AND donor_id=? AND version=?`, label, stage, ownerId, cents, expectedCloseOn, nextStep, c.now, c.actor.id, prospectId, donorId, version))
  else statements.push(sql(`INSERT INTO cf_prospects(id,donor_id,label,stage,owner_id,ask_amount_cents,expected_close_on,next_step,version,created_at,created_by,updated_at,updated_by)
   VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?)`, prospectId, donorId, label, stage, ownerId, cents, expectedCloseOn, nextStep, c.now, c.actor.id, c.now, c.actor.id))
+ // A donor's first opportunity establishes a relationship portfolio. Later
+ // opportunity-owner changes never silently move that relationship.
+ const defaultPortfolio = 'existing-' + ownerId
+ statements.push(
+  sql(`INSERT INTO cf_portfolios(id,name,manager_id,untouched_days,version,created_at,updated_at)
+   SELECT ?,'Major gifts — '||display_name,id,90,1,?,? FROM oa_operators WHERE id=?
+   AND NOT EXISTS(SELECT 1 FROM cf_portfolios WHERE id=?)
+   AND NOT EXISTS(SELECT 1 FROM cf_portfolio_members WHERE donor_id=?)`, defaultPortfolio,c.now,c.now,ownerId,defaultPortfolio,donorId),
+  sql('INSERT INTO cf_portfolio_members SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_portfolio_members WHERE donor_id=?)',donorId,defaultPortfolio,today((await settings(c)).timezone,new Date(c.now)),donorId))
  statements.push(event(c, command, 'prospect', prospectId, donorId, { stage, ownerId, askAmountCents: cents, version: version + 1 }))
  await commit(c, statements)
  return { id: prospectId, donorId, stage, ownerId, askAmountCents: cents, expectedCloseOn, version: version + 1 }

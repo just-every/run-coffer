@@ -133,3 +133,8 @@ test('MAJOR-007: planned intentions, legacy enrollment and estate distributions 
  const {plannedGivingJourney}=await import('./planned-giving-journey.mjs')
  await plannedGivingJourney()
 })
+
+test('MAJOR-002: portfolios count manager moves, current pipeline, signed giving and untouched prospects with custody',async()=>{
+ const {portfoliosJourney}=await import('./portfolios-journey.mjs')
+ await portfoliosJourney()
+})

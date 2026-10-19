@@ -1,3 +1,5 @@
+import { portfolioReport } from './portfolios'
+import { portfoliosPage } from './ui/portfolios'
 import { recurringHealth } from './recurring-health'
 import { recurringHealthPage } from './ui/recurring-health'
 import { restrictionReport } from './restricted-funds'
@@ -88,7 +90,7 @@ async function formBody(request: Request, limit = LIMIT): Promise<FormData> {
 }
 function formInput(data: FormData) {
  const input: Record<string, any> = Object.fromEntries(data)
- for (const name of ['version', 'sourceVersion', 'targetDays', 'reminderDays', 'intervalMonths']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
+ for (const name of ['version', 'sourceVersion', 'targetDays', 'reminderDays', 'intervalMonths', 'untouchedDays']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
  if (input.command === 'gift.record' && data.has('splitAmount')) {
   const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
@@ -239,6 +241,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('welcome.') || command.startsWith('marketing.') || command.startsWith('reply.')) return redirect('/app/appeals')
  if (command.startsWith('fund.')) return redirect('/app/funds/restrictions')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
+ if (command.startsWith('portfolio.')) return redirect('/app/portfolios')
  if (command === 'prospect.save') return redirect('/app/pipeline')
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
  if (command === 'agent.revoke') return redirect('/app/data')
@@ -307,6 +310,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/lapses') return json(await lapses(c))
  if (path === '/api/coffer/tasks') return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: await taskSources(c) })
  if (path === '/api/coffer/retention') return json(await retention(c,url.searchParams.has('year') ? Number(url.searchParams.get('year')) : undefined))
+ if (path === '/api/coffer/portfolios') return json(await portfolioReport(c,url))
  if (path === '/api/coffer/prospects') return json(await prospects(c))
  if (path === '/api/coffer/reports/recurring') return json(await recurringHealth(c,url))
  if (path === '/api/coffer/reports/restrictions') return json(await restrictionReport(c,url))
@@ -345,6 +349,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/calls') return show('Call list', await callTasksPage(c,url))
  if (path === '/app/lapses') return show('Donors who need a call', await lapsesPage(c,url))
  if (path === '/app/retention') return show('Donor retention', await retentionPage(c,url))
+ if (path === '/app/portfolios') return show('Portfolios and moves',await portfoliosPage(c,url))
  if (path === '/app/pipeline') return show('Major-gift pipeline', await majorGiftsPage(c,url))
  if (path === '/app') return show('Today', await home(c))
  if (path === '/app/giving') return show('Online giving', await givingManagePage(c))

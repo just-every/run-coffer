@@ -602,7 +602,9 @@ An opportunity has a prospect, ask amount, expected amount, probability, target 
 
 Each major-gift prospect has a relationship manager and a portfolio; Coffer counts each manager's moves (meaningful contacts) per period, flags prospects with no contact in a set number of days, and shows portfolio size, pipeline and dollars raised per manager.
 
-*Acceptance:* An HTTP journey assigns two portfolios, logs contacts on some prospects, and reads moves counts and a flagged list of untouched prospects per manager.
+The report uses current portfolio membership and relationship managers; opportunity owners remain separate. Its inclusive date period uses the organization's calendar dates. Moves are recorded calls, meetings and emails by the portfolio manager; a call-task outcome counts only when connected. Older contacts without an auditable staff ID remain visible but do not count as that manager's moves. Untouched means at least the portfolio's configured number of days since any staff member's last meaningful contact through the period end, or since assignment when no contact exists. Pipeline is current opportunity asks for assigned constituents; dollars raised are signed ledger contributions in the period, including refunds and reversals, without soft credits or planned asks. A constituent's first opportunity establishes a named portfolio for its owner if none is assigned; later opportunity-owner changes do not silently reassign the relationship. Existing prospects retain a portfolio based on their first opportunity's owner and can be reassigned explicitly.
+
+*Acceptance:* An HTTP journey assigns two portfolios, logs contacts on some prospects, and reads moves counts and a flagged list of untouched prospects per manager. The same journey checks manager totals against the ledger, excludes unanswered calls, and exercises stale updates, backup/restore, merge/undo and erasure. The portfolio forms and filters run at 1440 and 390 pixels.
 
 #### MAJOR-003 — Action plans and proposals.
 
@@ -1055,8 +1057,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 7 | 2 | 0 | 9 |
-| Target and push further | 13 | 63 | 50 | 126 |
-| All | 20 | 65 | 50 | 135 |
+| Target and push further | 14 | 62 | 50 | 126 |
+| All | 21 | 64 | 50 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1144,7 +1146,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `STEW-005` | Gift-triggered rules | target | missing |  | No rules. |
 | `STEW-006` | Meetings and calendars | target | missing |  | No calendar connection. |
 | `MAJOR-001` | Opportunity pipeline | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Identify, qualify, cultivate, ask and stewardship opportunities carry ask amount, expected close, owner and next step; lists filter by owner and stage. Configurable stages, probability, campaign/fund forecasts and closed-won gift linkage remain. |
-| `MAJOR-002` | Portfolios and moves | target | partial | `src/coffer/major-gifts.ts`, `tests/pipeline.test.mjs` | Opportunities have staff owners, next steps and engagement inputs from recorded contacts. Portfolio definitions, manager moves reporting and untouched-prospect flags remain. |
+| `MAJOR-002` | Portfolios and moves | target | done | `src/coffer/portfolios.ts`, `src/coffer/ui/portfolios.ts`, `tests/pipeline.test.mjs`, `tests/portfolios-journey.mjs` | Named, versioned portfolios assign one relationship manager per prospect; inclusive-period moves, untouched flags, current pipeline and signed ledger giving aggregate per portfolio and manager. Clause-tagged HTTP and 1440/390 browser journeys exercise the public report, forms and custody. |
 | `MAJOR-003` | Action plans and proposals | target | missing |  | No plans or proposals. |
 | `MAJOR-004` | Engagement and retention scores | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Prospect scores expose recency, frequency, amount and conversation inputs with their points and the full fixed formula. Configurable weights, broader engagement sources and scores on every constituent remain. |
 | `MAJOR-005` | Prospect research | target | missing |  | No prospect research. |

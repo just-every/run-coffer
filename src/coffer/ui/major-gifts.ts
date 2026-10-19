@@ -50,7 +50,7 @@ export async function majorGiftsPage(c: Context, url: URL): Promise<string> {
  const create = staff ? box('Add an opportunity', donors.length && owners.length
   ? form('prospect.save', `${select('Donor', 'donorId', [['', 'Choose a donor'], ...donors.map(d => [d.id, `${d.name}${d.email ? ` · ${d.email}` : ''}`] as [string, string])], '', 'required')}${prospectFields(owners)}`, 'Add opportunity')
   : empty('Add a donor and an active team member before creating an opportunity.')) : ''
- return `${box('Pipeline', `${filter}${summary}<p class="muted">Each opportunity keeps its own ask and next step, including after donors are merged. Amounts are planned asks.</p>${pipeline}`)}
+ return `<p><a href="/app/portfolios">Portfolios and moves by manager</a></p>${box('Pipeline', `${filter}${summary}<p class="muted">Each opportunity keeps its own ask and next step, including after donors are merged. Amounts are planned asks.</p>${pipeline}`)}
  <div class="grid"><div>${create}</div><div>${box('How engagement is scored', `<p>Scores use recorded activity as of the organization’s current date. Each component contributes up to 25 points, for a total of 100.</p>
  <ul><li>Recency: the most recent eligible gift or conversation earns 25 points within 30 days, 15 within 90 days, 5 within 365 days, otherwise 0.</li>
  <li>Frequency: 5 points per eligible gift in the last 365 calendar days, capped at 25.</li>
