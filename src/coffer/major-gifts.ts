@@ -1,5 +1,6 @@
+import { engagementScores } from './engagement'
 import { requireRole } from './auth'
-import { addDays, all, choice, commit, date, daysBetween, event, fail, guard, id, integer, newId, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
+import { all, choice, commit, date, event, fail, guard, id, integer, newId, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { amount } from './money'
 import { settings } from './settings'
 
@@ -42,41 +43,16 @@ export async function majorGiftCommand(c: Context, command: string, p: Row): Pro
  return { id: prospectId, donorId, stage, ownerId, askAmountCents: cents, expectedCloseOn, version: version + 1 }
 }
 
-/** Deterministic, visible policy: four components, each capped at 25 points.
- * A refunded gift (including a partial refund) contributes no engagement.
- * Conversations and gifts in the future never contribute.
- */
-function engagement(row: Row, day: string) {
- const lastOn = [row.last_gift_on, row.last_conversation_on].filter(Boolean).sort().at(-1) ?? null
- const days = lastOn ? daysBetween(lastOn, day) : null
- const recency = { lastOn, days, points: days === null ? 0 : days <= 30 ? 25 : days <= 90 ? 15 : days <= 365 ? 5 : 0 }
- const frequency = { gifts: row.gift_count, points: Math.min(25, row.gift_count * 5) }
- const value = { cents: row.gift_cents, points: Math.min(25, Math.floor(row.gift_cents / 10000) * 5) }
- const conversations = { count: row.conversation_count, points: Math.min(25, row.conversation_count * 5) }
- return { score: recency.points + frequency.points + value.points + conversations.points, asOf: day, recency, frequency, amount: value, conversations }
-}
-
 export async function prospects(c: Context): Promise<Row[]> {
- const day = today((await settings(c)).timezone, new Date(c.now)), since = addDays(day, -364)
- const rows = await all(c, `WITH gifts AS (
-  SELECT g.donor_id,MAX(g.received_on) AS last_gift_on,
-   SUM(CASE WHEN g.received_on>=? THEN 1 ELSE 0 END) AS gift_count,
-   SUM(CASE WHEN g.received_on>=? THEN g.net_cents ELSE 0 END) AS gift_cents
-  FROM cf_gift_balances g WHERE g.net_cents>0 AND g.net_cents=g.amount_cents AND g.received_on<=?
-  GROUP BY g.donor_id
- ), conversations AS (
-  SELECT donor_id,MAX(occurred_on) AS last_conversation_on,
-   SUM(CASE WHEN occurred_on>=? THEN 1 ELSE 0 END) AS conversation_count
-  FROM cf_interactions WHERE occurred_on<=? GROUP BY donor_id
- )
- SELECT p.*,d.name AS donor_name,COALESCE(o.display_name,'Reassignment needed') AS owner_name,o.status AS owner_status,o.role AS owner_role,
-  g.last_gift_on,i.last_conversation_on,COALESCE(g.gift_count,0) AS gift_count,
-  COALESCE(g.gift_cents,0) AS gift_cents,COALESCE(i.conversation_count,0) AS conversation_count
- FROM cf_prospects p JOIN cf_donors d ON d.id=p.donor_id LEFT JOIN oa_operators o ON o.id=p.owner_id
- LEFT JOIN gifts g ON g.donor_id=d.id LEFT JOIN conversations i ON i.donor_id=d.id
- WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
- ORDER BY p.expected_close_on,lower(d.name),p.id`, since, since, day, since, day)
- return rows.map(row => ({ ...row, engagement: engagement(row, day) }))
+ const [rows, scores] = await Promise.all([
+  all(c, `SELECT p.*,d.name AS donor_name,COALESCE(o.display_name,'Reassignment needed') AS owner_name,o.status AS owner_status,o.role AS owner_role
+   FROM cf_prospects p JOIN cf_donors d ON d.id=p.donor_id LEFT JOIN oa_operators o ON o.id=p.owner_id
+   WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
+   ORDER BY p.expected_close_on,lower(d.name),p.id`),
+  engagementScores(c),
+ ])
+ const byDonor = new Map(scores.donors.map(d=>[d.donorId,d.engagement]))
+ return rows.map(row=>({...row,engagement:byDonor.get(row.donor_id)}))
 }
 
 /** Add to the caller's authorized merge transaction. Both donors may have

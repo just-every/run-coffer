@@ -1,3 +1,5 @@
+import { engagementPolicy, engagementScores } from './engagement'
+import { engagementPage } from './ui/engagement'
 import { cultivationState, proposalDownload } from './cultivation'
 import { cultivationPage } from './ui/cultivation'
 import { portfolioReport } from './portfolios'
@@ -252,6 +254,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('fund.')) return redirect('/app/funds/restrictions')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command.startsWith('portfolio.')) return redirect('/app/portfolios')
+ if (command === 'engagement.settings') return redirect('/app/engagement')
  if (command.startsWith('cultivation.') || command.startsWith('proposal.')) return redirect('/app/opportunities/' + encodeURIComponent(result.prospectId ?? input.prospectId))
  if (command === 'prospect.save') return redirect('/app/pipeline')
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
@@ -326,6 +329,8 @@ async function api(c: Context, url: URL): Promise<Response> {
  if(cultivation) return json(await cultivationState(c,cultivation[1]))
  const attachment=path.match(/^\/api\/coffer\/proposals\/([^/]+)\/download$/)
  if(attachment) return proposalDownload(c,attachment[1])
+ if (path === '/api/coffer/engagement/settings') return json(await engagementPolicy(c))
+ if (path === '/api/coffer/engagement') return json(await engagementScores(c))
  if (path === '/api/coffer/prospects') return json(await prospects(c))
  if (path === '/api/coffer/reports/recurring') return json(await recurringHealth(c,url))
  if (path === '/api/coffer/reports/restrictions') return json(await restrictionReport(c,url))
@@ -367,6 +372,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/portfolios') return show('Portfolios and moves',await portfoliosPage(c,url))
  const cultivation = path.match(/^\/app\/opportunities\/([^/]+)$/)
  if(cultivation) return show('Action plan and proposals',await cultivationPage(c,cultivation[1]))
+ if (path === '/app/engagement') return show('Engagement scores',await engagementPage(c))
  if (path === '/app/pipeline') return show('Major-gift pipeline', await majorGiftsPage(c,url))
  if (path === '/app') return show('Today', await home(c))
  if (path === '/app/giving') return show('Online giving', await givingManagePage(c))

@@ -143,3 +143,9 @@ test('MAJOR-003: dated cultivation tasks and attached proposals retain sending, 
  const {cultivationJourney}=await import('./cultivation-journey.mjs')
  await cultivationJourney()
 })
+
+
+test('MAJOR-004: every constituent has transparent configurable engagement and independent retention risk',async()=>{
+ const {engagementJourney}=await import('./engagement-journey.mjs')
+ await engagementJourney()
+})

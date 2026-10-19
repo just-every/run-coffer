@@ -164,7 +164,9 @@ Postal addresses are standardized and verified against USPS data through Smarty 
 
 A constituent's volunteer roles, hours and dates are recorded or imported (CSV, or VolunteerHub and Galaxy Digital exports), totaled per year, shown on the timeline and usable in segments, engagement scores and reports.
 
-*Acceptance:* An HTTP journey imports a volunteer-hours CSV, reads per-donor yearly hours on the donor page and filters a list of volunteers who have never given.
+Recorded volunteering feeds MAJOR-004 engagement scoring and its donor-page factors before volunteer history ships.
+
+*Acceptance:* An HTTP journey imports a volunteer-hours CSV, reads per-donor yearly hours on the donor page and filters a list of volunteers who have never given. Recorded volunteer activity feeds MAJOR-004 scoring and appears in the donor’s contributing factors under the configured weights.
 
 #### DONOR-011 — Giving summary.
 
@@ -334,7 +336,9 @@ A campaign has a goal, dates, funds, appeals and forms under it; progress is cou
 
 An event has ticket types with the fair market value of the benefit, registration through a hosted page with attendee names, dietary notes and custom questions mapped to custom fields (`DONOR-005`), sponsorship and table packages, a guest list, and check-in on a phone. A ticket's contribution part (price minus fair market value) is receipted with the quid pro quo disclosure (`RCPT-005`); attendance joins each guest's timeline.
 
-*Acceptance:* A browser journey sells a $150 gala ticket with a $60 dinner value, checks the guest in at 390 pixels, and reads a receipt stating $90 deductible and the attendance on the guest's timeline.
+Recorded event attendance feeds MAJOR-004 engagement scoring and its donor-page factors before event attendance ships.
+
+*Acceptance:* A browser journey sells a $150 gala ticket with a $60 dinner value, checks the guest in at 390 pixels, and reads a receipt stating $90 deductible and the attendance on the guest's timeline. The recorded attendance feeds MAJOR-004 scoring and appears in the donor’s contributing factors under the configured weights.
 
 #### CAMP-003 — Peer-to-peer fundraising.
 
@@ -464,9 +468,9 @@ Receipt templates must state the organization's name and EIN, the amount or a de
 
 #### RCPT-006 — Delivery tracking.
 
-Every receipt, acknowledgment and statement keeps its delivery result from the provider: delivered, bounced, complained, opened where tracked, and for mail the print vendor's events. A bounce opens a task to fix the address and offers print instead; the donor page shows each document's delivery.
+Every receipt, acknowledgment and statement keeps its delivery result from the provider: delivered, bounced, complained, opened where tracked, and for mail the print vendor's events. A bounce opens a task to fix the address and offers print instead; the donor page shows each document's delivery. Open tracking, when implemented, feeds the constituent’s MAJOR-004 engagement scoring with provider provenance and donor-visible contributing factors before it ships.
 
-*Acceptance:* An HTTP journey with the mail edge faked sends three receipts, one bounces, and the bounced one shows on the donor page with a task and a print option.
+*Acceptance:* An HTTP journey with the mail edge faked sends three receipts, one bounces, and the bounced one shows on the donor page with a task and a print option. A tracked provider open feeds MAJOR-004 scoring and appears in the donor’s contributing factors under the configured weights.
 
 #### RCPT-007 — Thank-you templates.
 
@@ -619,6 +623,8 @@ Applying a template snapshots its name and steps as separately owned tasks, with
 #### MAJOR-004 — Engagement and retention scores.
 
 Every constituent gets a transparent engagement score from recency, frequency and amount of giving plus opens, replies, events, volunteering and meetings, and a retention-risk flag; the formula with its current weights is shown on the scores settings page (and returned by its API), each donor's contributing factors are shown on the donor page, and the weights are an admin setting.
+
+Current scores use recorded giving and meaningful call, meeting and email interactions, including received replies once. Automatic replies and unanswered calls are excluded. Only wholly unrefunded positive gifts dated through the organization-calendar day score; frequency, amount and activity use today and the preceding 364 days. Recency base points are 25 within 30 days, 15 within 90 days, 5 within 365 days, otherwise zero. Frequency and conversations earn 5 base points per gift or interaction, capped at 25; amount earns 5 per complete $100, capped at 25. Each component contributes its base points times its configured weight divided by 25; four whole-number weights total 100, and components and their sum round to two decimals. Owner/admin edits are versioned and audited. Retention risk is independent: a last gift with a positive current balance more than 365 days ago is at risk; no giving history is unknown. The settings page and API disclose this policy and donor pages show each factor. This obligation is complete for every currently recorded source. Before shipping open tracking (`RCPT-006`), event attendance (`CAMP-002`), volunteering (`DONOR-010`) or another activity provider/record kind/door, its owning clause must feed those real records into MAJOR-004 scoring and expose the contributing factors under the configured policy. Absent activity capabilities are not represented by invented zero-valued records.
 
 *Acceptance:* An HTTP journey builds donors with different histories and reads scores and factors that follow the formula as read from the scores settings page and its API, then changes a weight and sees the scores change.
 
@@ -1019,7 +1025,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 37 | welcome journeys | `STEW-003` | partial |
 | 38 | Unsubscribes are honored everywhere | `CONSENT-001`, `APPEAL-001`, `COMM-001` | `CONSENT-001` done · `APPEAL-001` done · `COMM-001` partial |
 | 39 | replies land with the right person | `COMM-005` | partial |
-| 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | partial (core claim implemented; broader clauses remain) |
+| 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | `MAJOR-001` partial · `MAJOR-002` done · `MAJOR-004` done |
 | 41 | reconciles every gift | `DEV-001` | partial (core claim implemented; broader clauses remain) |
 | 42 | rescues failed monthly gifts | `DEV-002` | partial (core claim implemented; broader clauses remain) |
 | 43 | sends missing receipts | `DEV-003` | partial (core claim implemented; broader clauses remain) |
@@ -1061,8 +1067,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 16 | 61 | 49 | 126 |
-| All | 24 | 62 | 49 | 135 |
+| Target and push further | 17 | 60 | 49 | 126 |
+| All | 25 | 61 | 49 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1152,7 +1158,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MAJOR-001` | Opportunity pipeline | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Identify, qualify, cultivate, ask and stewardship opportunities carry ask amount, expected close, owner and next step; lists filter by owner and stage. Configurable stages, probability, campaign/fund forecasts and closed-won gift linkage remain. |
 | `MAJOR-002` | Portfolios and moves | target | done | `src/coffer/portfolios.ts`, `src/coffer/ui/portfolios.ts`, `tests/pipeline.test.mjs`, `tests/portfolios-journey.mjs` | Named, versioned portfolios assign one relationship manager per prospect; inclusive-period moves, untouched flags, current pipeline and signed ledger giving aggregate per portfolio and manager. Clause-tagged HTTP and 1440/390 browser journeys exercise the public report, forms and custody. |
 | `MAJOR-003` | Action plans and proposals | target | done | `src/coffer/cultivation.ts`, `src/coffer/ui/cultivation.ts`, `migrations/core/0051_coffer_cultivation.sql`, `tests/pipeline.test.mjs`, `tests/cultivation-journey.mjs` | Clause-named public-door proof applies four dated steps, completes two, drafts and attaches a proposal, downloads the exact document, records sending and a response, rejects stale changes, and exercises backup/restore, merge/undo and erasure. Native proposal forms run at 1440 and 390 pixels. |
-| `MAJOR-004` | Engagement and retention scores | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Prospect scores expose recency, frequency, amount and conversation inputs with their points and the full fixed formula. Configurable weights, broader engagement sources and scores on every constituent remain. |
+| `MAJOR-004` | Engagement and retention scores | target | done | `src/coffer/engagement.ts`, `src/coffer/ui/engagement.ts`, `src/coffer/ui/donors.ts`, `tests/engagement-journey.mjs`, `tests/pipeline.test.mjs` | Every current constituent has a score and independent retention risk; API/settings disclose the formula, owner/admin weights recalculate scores, donor and pipeline show factors. MAJOR-004 public-door proof covers giving, calls/meetings/email, routed replies and replay/automatic-reply exclusion, unanswered calls, future records, roles, stale writes, backup/restore, merge/undo and erasure. Future open tracking (RCPT-006), events (CAMP-002) and volunteering (DONOR-010) inherit scoring in their own text and acceptance. |
 | `MAJOR-005` | Prospect research | target | missing |  | No prospect research. |
 | `MAJOR-006` | Grants from foundations and corporations | target | missing |  | No grant tracking. |
 | `MAJOR-007` | Planned giving | target | done | `src/coffer/planned-giving.ts`, `src/coffer/ui/planned-giving.ts`, `tests/pipeline.test.mjs` | Versioned bequest and other intentions retain vehicle, optional estimated value and documentation status; dated legacy-society enrollment is separate from received gifts. Multiple estate distributions link once each to their intention and show reversal-aware net receipts. MAJOR-007 HTTP proof covers create/enroll/link, authorization, stale edits, backup/restore, merge/undo and erasure; donor forms run at 1440 and 390. |

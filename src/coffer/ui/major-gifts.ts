@@ -18,10 +18,10 @@ function prospectFields(owners: Row[], p: Row = {}): string {
 function scoreDetails(p: Row): string {
  const s = p.engagement
  return `<details><summary>Engagement ${s.score}/100 · see inputs and points</summary>
- <dl class="engagement-inputs"><dt>Recency</dt><dd>${s.recency.lastOn ? `${e(longDay(s.recency.lastOn))} · ${s.recency.days} days ago` : 'No eligible gifts or conversations'} → ${s.recency.points}/25 points</dd>
- <dt>Giving frequency, last 365 days</dt><dd>${s.frequency.gifts} gifts → ${s.frequency.points}/25 points</dd>
- <dt>Giving amount, last 365 days</dt><dd>${e(money(s.amount.cents))} → ${s.amount.points}/25 points</dd>
- <dt>Conversations, last 365 days</dt><dd>${s.conversations.count} recorded calls, meetings or emails → ${s.conversations.points}/25 points</dd></dl></details>`
+ <dl class="engagement-inputs"><dt>Recency</dt><dd>${s.recency.lastOn ? `${e(longDay(s.recency.lastOn))} · ${s.recency.days} days ago` : 'No eligible gifts or conversations'} → ${s.recency.points}/${s.recency.weight} points</dd>
+ <dt>Giving frequency, last 365 days</dt><dd>${s.frequency.gifts} gifts → ${s.frequency.points}/${s.frequency.weight} points</dd>
+ <dt>Giving amount, last 365 days</dt><dd>${e(money(s.amount.cents))} → ${s.amount.points}/${s.amount.weight} points</dd>
+ <dt>Conversations, last 365 days</dt><dd>${s.conversations.count} recorded calls, meetings or emails → ${s.conversations.points}/${s.conversations.weight} points</dd></dl></details>`
 }
 
 export async function majorGiftsPage(c: Context, url: URL): Promise<string> {
@@ -51,10 +51,5 @@ export async function majorGiftsPage(c: Context, url: URL): Promise<string> {
   ? form('prospect.save', `${select('Donor', 'donorId', [['', 'Choose a donor'], ...donors.map(d => [d.id, `${d.name}${d.email ? ` · ${d.email}` : ''}`] as [string, string])], '', 'required')}${prospectFields(owners)}`, 'Add opportunity')
   : empty('Add a donor and an active team member before creating an opportunity.')) : ''
  return `<p><a href="/app/portfolios">Portfolios and moves by manager</a></p>${box('Pipeline', `${filter}${summary}<p class="muted">Each opportunity keeps its own ask and next step, including after donors are merged. Amounts are planned asks.</p>${pipeline}`)}
- <div class="grid"><div>${create}</div><div>${box('How engagement is scored', `<p>Scores use recorded activity as of the organization’s current date. Each component contributes up to 25 points, for a total of 100.</p>
- <ul><li>Recency: the most recent eligible gift or conversation earns 25 points within 30 days, 15 within 90 days, 5 within 365 days, otherwise 0.</li>
- <li>Frequency: 5 points per eligible gift in the last 365 calendar days, capped at 25.</li>
- <li>Amount: 5 points per complete $100 of eligible gifts in that period, capped at 25 ($500).</li>
- <li>Conversations: 5 points per recorded call, meeting or email in that period, capped at 25.</li></ul>
- <p class="muted">Reversed gifts and gifts with any refunded contribution are excluded. Future gifts and conversations, pledges, soft credits and planned asks do not score. The 365-day period includes today. The score describes recorded engagement; it does not estimate wealth or promise a gift.</p>`)}</div></div>`
+ <div class="grid"><div>${create}</div><div>${box('How engagement is scored', '<p>Scores use current constituent activity and the organization’s current weights. <a href="/app/engagement">Read the complete formula and score settings</a>.</p>')}</div></div>`
 }
