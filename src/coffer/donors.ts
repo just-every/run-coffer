@@ -103,7 +103,7 @@ export async function donorHistory(c: Context, donorId: string) {
     (SELECT CASE WHEN a.printed_at IS NOT NULL THEN 'printed' ELSE COALESCE(NULLIF(a.delivery_status,'pending'),b.status) END FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_status,
     (SELECT b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.gift_id=g.id AND a.live=1) AS ack_sent_on,
     (SELECT a.batch_id FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1) AS ack_batch
-   FROM cf_contribution_ledger g WHERE g.donor_id=? ORDER BY g.received_on DESC, g.created_at DESC`, donorId),
+   FROM cf_contribution_ledger g WHERE g.donor_id=? ORDER BY g.received_on DESC, g.created_at DESC, g.id DESC`, donorId),
   pledgeHistory(c, donorId),
   all(c, 'SELECT * FROM cf_consents WHERE donor_id=? ORDER BY id DESC', donorId),
   all(c, `SELECT a.id,a.batch_id,a.gift_id,a.amount_cents,a.received_on,a.delivery_status,a.route,a.printed_at,a.delivered_at,a.delivery_note,b.kind,b.statement_year,b.status,b.sent_on FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.donor_id=? AND (a.live=1 OR b.kind='statement') AND b.status<>'discarded' ORDER BY a.received_on DESC`, donorId),
