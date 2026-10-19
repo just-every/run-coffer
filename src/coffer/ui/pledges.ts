@@ -1,3 +1,4 @@
+import { campaigns } from '../giving/campaigns'
 import type { Context, Row } from '../db'
 import { pledgeMailUnavailable } from '../pledges'
 import { area, box, chip, e, empty, field, form, longDay, money, select } from './common'
@@ -36,6 +37,6 @@ export async function pledgePanel(c: Context, history: Row, day: string, staff: 
  // Explicit matching also supports gifts imported or recorded before the schedule.
  const gifts = (history.gifts ?? []).filter((g: Row) => g.kind === 'gift' && !g.reversed_by)
  const match = staff && installments && gifts.length ? `<details class="edit"><summary>Match a recorded gift to an installment</summary>${form('pledge.match', `${select('Recorded gift', 'giftId', gifts.map((g: Row) => [g.id, `${longDay(g.received_on)} · ${money(g.amount_cents)} · ${g.fund}`] as [string, string]))}${installments}${field('Amount to match (USD; blank uses unmatched balance)', 'allocationAmount', 'text', '', 'inputmode="decimal"')}`, 'Match gift', { donorId })}</details>` : ''
- const create = staff ? `<details class="edit"><summary>Record a pledge</summary>${form('pledge.create', pledgeFields(day), 'Record pledge', { donorId })}</details>` : ''
+ const create = staff ? `<details class="edit"><summary>Record a pledge</summary>${form('pledge.create', pledgeFields(day) + select('Pledge campaign (optional)', 'campaignId', [['', 'No campaign'], ...(await campaigns(c)).map(r => [r.id, r.name + ' · ' + r.fund] as [string, string])]), 'Record pledge', { donorId })}</details>` : ''
  return box('Pledges', `${list}${unavailable ? `<p class="muted">${e(unavailable)}</p>` : '<p class="muted">Due reminders send once through SendGrid. Submitted means accepted by the provider; delivery is not confirmed.</p>'}${match}${create}`, 'pledges')
 }

@@ -27,6 +27,8 @@ import { auditCsv, auditLog, recordRequest } from './audit'
 import { donorFile } from './donor-file'
 import { stateReport, stateReportCsv } from './state-report'
 import { stateReportPage } from './ui/state-report'
+import { campaignProgress } from './campaign-progress'
+import { campaignProgressPage } from './ui/campaign-progress'
 import { attributionReport } from './attribution'
 import { attributionPage } from './ui/attribution'
 import { auditPage } from './ui/audit'
@@ -176,6 +178,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if (crmMoveIn) return crmMoveIn
   const payments = await paymentsResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
   if (payments) return payments
+  const progress = path.match(/^\/(api\/coffer|app)\/giving\/campaigns\/([^/]+)$/)
+  if (progress && request.method === 'GET') return isApi ? json(await campaignProgress(c, progress[2])) : page('Campaign progress', await campaignProgressPage(c, progress[2]), actor, 200, '/app/giving')
   if (path === '/api/coffer/giving/campaigns' || path === '/app/giving/campaigns') {
    if (request.method === 'GET' && isApi) return json({ campaigns: await campaigns(c) })
    if (request.method !== 'POST') fail('method_not_allowed', 'Use the campaign form.', 405)

@@ -126,6 +126,14 @@
       "commands": [
         "COFFER_RECOGNITION_BROWSER=.cache/recognition node --test --test-name-pattern='GIFT-011' tests/giving.test.mjs"
       ]
+    },
+    {
+      "name": "campaign-progress",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_CAMPAIGN_BROWSER=.cache/campaign node --test --test-name-pattern='CAMP-001' tests/giving.test.mjs"
+      ]
     }
   ],
   "nightly": [

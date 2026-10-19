@@ -60,7 +60,7 @@ async function deliver(h,id,type,{invalid=false}={}) {
  return h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'content-type':'application/json','stripe-signature':`t=${timestamp},v1=${signature}`},body:raw})
 }
 
-test('a failed monthly donation recovers on its second retry without duplicate gifts, with a private card and cancellation portal',async t=>{
+test('CAMP-001: recurring campaign progress; a failed monthly donation recovers on its second retry without duplicate gifts, with a private card and cancellation portal',async t=>{
  t.mock.timers.enable({apis:['Date'],now:Date.parse(fixedNow)})
  const edge=stripeEdge()
  await run(async h=>{
@@ -158,6 +158,8 @@ test('a failed monthly donation recovers on its second retry without duplicate g
   assert.equal(progress.raised_cents,2500)
   assert.equal(progress.gift_count,1)
   assert.equal(progress.recurring_donors,1)
+  const campaignReport=await h.get('/api/coffer/giving/campaigns/'+campaign.id)
+  assert.deepEqual([campaignReport.raisedCents,campaignReport.recurringDonors,campaignReport.donorCount],[2500,1,1])
   const publicProgress=await h.request('/give/keep-reading',{as:''})
   assert.equal(publicProgress.status,200)
   assert.match(await publicProgress.text(),/\$25\.00/)
@@ -195,3 +197,5 @@ test('REPORT-006: monthly health preserves starts, amount changes, failed paymen
 
 
 test('GIFT-011: checkout publication choices, donor and gift anonymity, honor rolls and custody',async()=>{const {recognitionJourney}=await import('./recognition-journey.mjs');await recognitionJourney()})
+
+ test('CAMP-001: dated nested campaigns reconcile forms, checks, pledge payments, recognition, donors and custody',async()=>{const {campaignProgressJourney}=await import('./campaign-progress-journey.mjs');await campaignProgressJourney()})

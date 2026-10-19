@@ -286,6 +286,8 @@ Coffer takes donations itself through the nonprofit's own Stripe account (and Pa
 
 An admin builds branded donation forms (logo, colors, copy, suggested amounts, one-time and recurring toggle, designation picker, tribute fields, employer field, comment, optional fee cover) and publishes them as a hosted page and an embeddable script for any website, including Pane, WordPress and Squarespace. Custom questions on a form map to custom fields (`DONOR-005`). Forms are accessible (WCAG 2.2 AA), work at 390 pixels and record each gift with its form, campaign and source. A form loads in under one second: on a cold cache at 390 pixels over a 4G profile (9 Mbps down, 1.5 Mbps up, 85 ms round trip) with 4x CPU throttling, the form's own content is rendered and accepts input within one second of navigation, and the Stripe payment field is ready within two seconds.
 
+Before this capability ships, its campaign membership and progress inherit `CAMP-001` ledger accounting, separate pledges/soft credits and donor statistics.
+
 *Acceptance:* A browser journey builds a form with a custom question, embeds it on a test page, and gives $50 at 1440 and 390 pixels with the Stripe edge in test mode; the gift, donor, consent answer, custom-field answer and receipt appear in Coffer, and an axe check of the form passes; a timing run of the hosted form under the stated profile (CDP network emulation and `Emulation.setCPUThrottlingRate` 4) records a median of five cold loads under one second to input-ready and under two seconds to payment-field-ready.
 
 #### GIVE-002 — Campaign pages.
@@ -344,6 +346,8 @@ The fundraising programs the incumbents run gifts through.
 
 A campaign has a goal, dates, funds, appeals and forms under it; progress is counted from the ledger (gifts, pledges outstanding, soft credits shown separately), with donors, new donors, recurring donors and average gift. Campaigns can nest (a capital campaign with yearly phases).
 
+The campaign progress page rolls up its nested phases once, retaining each phase’s own goal, primary fund and giving form. Dates are planning dates, not a filter hiding later refunds or reversals. Received money is the signed fund ledger; outstanding pledge balances and current soft credits are displayed separately and never added to received money. Giving donors and gifts have a positive remaining campaign balance; new donors made their first remaining gift in Coffer through the campaign or a nested phase. Average gift is net received divided by those gifts, rounded to the nearest cent. Recurring donors have an active, trialing or past-due plan not set to cancel. Defined appeals are attached at publication or appear from attributed gifts. Future independent forms (`GIVE-001`) and campaign-bearing capabilities (`CAMP-002`, `CAMP-003`, `CAMP-004`) inherit this membership and ledger obligation before shipping.
+
 *Acceptance:* An HTTP journey creates a spring appeal campaign with a $60,000 goal, records form, check and pledge gifts against it, and reads raised, pledged, donor and recurring counts that match the ledger.
 
 #### CAMP-002 — Fundraising events.
@@ -354,6 +358,8 @@ Recorded event attendance feeds MAJOR-004 engagement scoring and its donor-page 
 
 Before event attendance ships, its actual attendance records join the DONOR-004 timeline and type/date filters.
 
+Before this capability ships, its campaign membership and progress inherit `CAMP-001` ledger accounting, separate pledges/soft credits and donor statistics.
+
 *Acceptance:* A browser journey sells a $150 gala ticket with a $60 dinner value, checks the guest in at 390 pixels, and reads a receipt stating $90 deductible and the attendance on the guest's timeline. The recorded attendance feeds MAJOR-004 scoring and appears in the donor’s contributing factors under the configured weights.
 
 #### CAMP-003 — Peer-to-peer fundraising.
@@ -362,11 +368,15 @@ Supporters create personal or team fundraising pages under a campaign, share the
 
 Before any peer-to-peer wall or leaderboard ships it applies GIFT-011 donor/gift anonymity, recognition names and explicit publication permission.
 
+Before this capability ships, its campaign membership and progress inherit `CAMP-001` ledger accounting, separate pledges/soft credits and donor statistics.
+
 *Acceptance:* A browser journey creates a team and two personal pages, gives through each, and reads the leaderboard, the donor hard credits and the fundraiser soft credits.
 
 #### CAMP-004 — Memberships.
 
 Membership levels with price, term and benefits; joins and renewals through forms or entry; automatic renewal on a recurring plan; expiry, grace period and lapsed status; renewal reminders; and member counts by level. The contribution part of a membership is receipted like any gift with its benefits disclosed.
+
+Before this capability ships, its campaign membership and progress inherit `CAMP-001` ledger accounting, separate pledges/soft credits and donor statistics.
 
 *Acceptance:* An HTTP journey sells an annual membership with auto-renew, advances a test clock past the term, sees the renewal charge, then lets a second membership lapse and receives its reminder and lapsed status, and reads member counts by level.
 
@@ -1046,7 +1056,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 4 | and thank-yous | `RCPT-002`, `RCPT-007` | `RCPT-002` done · `RCPT-007` partial |
 | 5 | shows who needs a call | `DEV-005`, `REPORT-002` | partial (core claim implemented; broader clauses remain) |
 | 6 | 100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM | `OWN-001`, `MOVE-001`, `MOVE-002`, `MOVE-004` | `OWN-001` done · `MOVE-001` partial · `MOVE-002` partial · `MOVE-004` missing |
-| 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` partial · `REPORT-003` partial |
+| 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` done · `REPORT-003` partial |
 | 8 | Monthly $25 · Active | `GIVE-003` | partial |
 | 9 | Failed card · Retried successfully | `GIVE-006` | partial |
 | 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` done |
@@ -1108,8 +1118,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 33 | 54 | 39 | 126 |
-| All | 41 | 55 | 39 | 135 |
+| Target and push further | 34 | 53 | 39 | 126 |
+| All | 42 | 54 | 39 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1155,7 +1165,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `GIVE-007` | Fraud and card-testing protection | target | missing |  | No forms to protect. |
 | `GIVE-008` | Text-to-give | target | missing |  | No text-to-give. |
 | `GIVE-009` | Staff-entered card and bank payments | target | missing |  | Coffer takes no payments; staff record a gift by hand after the money arrives elsewhere. |
-| `CAMP-001` | Campaigns with goals | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Published campaigns have a goal and fund, with ledger-derived raised/gift totals and distinct recurring donors. Dates, nested campaigns, pledges/soft credits, manual attribution and additional campaign statistics remain outstanding. |
+| `CAMP-001` | Campaigns with goals | target | done | `src/coffer/giving/campaigns.ts`, `src/coffer/campaign-progress.ts`, `src/coffer/ui/campaign-progress.ts`, `migrations/core/0065_coffer_campaign_progress.sql`, `tests/campaign-progress-journey.mjs`, `tests/giving.test.mjs`, `tests/campaign-browser.mjs` | Clause-named HTTP and native journeys assert a $60,000 campaign, dates and nested phases, funds/appeals/forms, form/check/pledge payments, exact received/outstanding/recognition figures, donor/new/recurring/average statistics and custody. |
 | `CAMP-002` | Fundraising events | target | missing |  | No events. |
 | `CAMP-003` | Peer-to-peer fundraising | target | missing |  | No peer-to-peer pages. |
 | `CAMP-004` | Memberships | target | missing |  | No memberships. |

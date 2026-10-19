@@ -37,10 +37,11 @@ export async function pledgeCommand(c: Context, command: string, p: Row): Promis
  if (command === 'pledge.create') {
   const donorId = id(p.donorId, 'Donor'), pledgeId = newId(), cents = amount(p, 'amount', 'Pledge amount')
   const pledgedOn = date(p.pledgedOn, 'Pledged on'), fund = optional(p.fund, 'Fund', 100) ?? 'Unrestricted'
-  const installments = schedule(p, pledgedOn)
+  const installments = schedule(p, pledgedOn), campaignId = optional(p.campaignId, 'Campaign', 100)
   if (installments.reduce((n, row) => n + row.cents, 0) !== cents) fail('INPUT', 'The installment amounts must add up to the pledge amount.', 400)
   await commit(c, [guard('EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL)', 'NOT_FOUND', 'That donor does not exist.', donorId),
-   sql('INSERT INTO cf_pledges(id,donor_id,amount_cents,pledged_on,due_by,fund,created_at,created_by) VALUES(?,?,?,?,?,?,?,?)', pledgeId, donorId, cents, pledgedOn, installments.at(-1)!.dueOn, fund, c.now, c.actor.name),
+   ...(campaignId ? [guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=? AND fund=?)', 'CAMPAIGN_FUND', 'Choose a campaign raising for this pledge’s fund.', campaignId, fund)] : []),
+   sql('INSERT INTO cf_pledges(id,donor_id,amount_cents,pledged_on,due_by,fund,created_at,created_by,campaign_id) VALUES(?,?,?,?,?,?,?,?,?)', pledgeId, donorId, cents, pledgedOn, installments.at(-1)!.dueOn, fund, c.now, c.actor.name, campaignId),
    ...installments.map((i, index) => sql('INSERT INTO cf_pledge_installments(id,pledge_id,position,due_on,amount_cents,remind_on) VALUES(?,?,?,?,?,?)', i.id, pledgeId, index + 1, i.dueOn, i.cents, i.remindOn)),
    event(c, command, 'pledge', pledgeId, donorId, { amountCents: cents, installments: installments.length })])
   return { id: pledgeId, amountCents: cents, installments }

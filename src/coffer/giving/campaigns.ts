@@ -1,4 +1,4 @@
-import { all, commit, event, fail, newId, one, sql, text, type Context } from '../db'
+import { all, commit, date, event, fail, guard, newId, one, optional, sql, text, type Context } from '../db'
 import { amount } from '../money'
 import { requireRole } from '../auth'
 
@@ -18,8 +18,19 @@ export async function createCampaign(c: Context, input: Record<string, any>) {
  requireRole(c.actor, ['owner', 'admin'], 'publish campaigns')
  const id = newId(), name = text(input.name, 'Campaign name', 120), slug = text(input.slug, 'Page address', 80)
  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) fail('INPUT', 'Use lowercase letters, numbers and single hyphens for the page address.', 400)
+ const startsOn = optional(input.startsOn, 'Start date'), endsOn = optional(input.endsOn, 'End date'), parentId = optional(input.parentId, 'Parent campaign', 100)
+ if (startsOn) date(startsOn, 'Start date')
+ if (endsOn) date(endsOn, 'End date')
+ if (startsOn && endsOn && startsOn > endsOn) fail('INPUT', 'Campaign start must be on or before its end.', 400)
+ const codes = input.appeals === undefined || input.appeals === '' ? [] : typeof input.appeals === 'string' ? input.appeals.split(',').map((x: string) => x.trim()).filter(Boolean) : input.appeals
+ if (!Array.isArray(codes) || codes.length > 100 || codes.some(x => typeof x !== 'string' || !x.trim())) fail('INPUT', 'Choose up to 100 defined appeal codes.', 400)
  const description = text(input.description, 'Campaign description', 2000), fund = text(input.fund, 'Fund', 100), goal = amount(input, 'goal', 'Campaign goal')
- await commit(c, [sql('INSERT INTO cf_campaigns(id,slug,name,description,fund,goal_cents,created_at) VALUES(?,?,?,?,?,?,?)', id, slug, name, description, fund, goal, c.now), event(c, 'campaign.create', 'campaign', id, null)])
+ await commit(c, [
+  ...(parentId ? [guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=?)', 'CAMPAIGN_PARENT', 'Choose an existing parent campaign.', parentId)] : []),
+  sql('INSERT INTO cf_campaigns(id,slug,name,description,fund,goal_cents,created_at,starts_on,ends_on,parent_id) VALUES(?,?,?,?,?,?,?,?,?,?)', id, slug, name, description, fund, goal, c.now, startsOn, endsOn, parentId),
+  ...[...new Set<string>(codes)].flatMap(code => [guard('EXISTS(SELECT 1 FROM cf_appeal_codes WHERE code=?)', 'APPEAL', 'Choose defined appeal codes.', code), sql('INSERT INTO cf_campaign_appeals(campaign_id,appeal) VALUES(?,?)', id, code)]),
+  event(c, 'campaign.create', 'campaign', id, null),
+ ])
  return { id, slug }
 }
 export const subscriptions = (c: { db: D1Database }, donorId: string) => all(c, 'SELECT s.*,c.name AS campaign FROM cf_subscriptions s JOIN cf_campaigns c ON c.id=s.campaign_id WHERE s.donor_id=? ORDER BY s.updated_at DESC', donorId)
