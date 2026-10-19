@@ -13,7 +13,7 @@ export function pledgeMailUnavailable(env?: Bindings): string | null {
  return null
 }
 
-function schedule(p: Row, pledgedOn: string) {
+export function schedule(p: Row, pledgedOn: string) {
  let rows: unknown = p.installments
  if (rows === undefined && typeof p.schedule === 'string') rows = p.schedule.split(/\r?\n/).filter((s: string) => s.trim()).map((line: string) => {
   const parts = line.split('|').map(s => s.trim())

@@ -16,8 +16,8 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 17 | 60 | 49 | 126 |
-| All | 25 | 61 | 49 | 135 |
+| Target and push further | 18 | 60 | 48 | 126 |
+| All | 26 | 61 | 48 | 135 |
 
 ## Target
 
@@ -129,7 +129,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 83. **`MAJOR-003` Action plans and proposals** (done). An HTTP journey applies a four-step plan to an opportunity, completes two steps, drafts and attaches a proposal, downloads its exact document, records outside sending with date/method/evidence and its response, and exercises stale changes, backup/restore, merge/undo and erasure. The native forms run at 1440 and 390 pixels.
 84. **`MAJOR-004` Engagement and retention scores** (done). An HTTP journey builds donors with different histories and reads scores and factors that follow the formula as read from the scores settings page and its API, then changes a weight and sees the scores change. Every live constituent, including a non-prospect, has factors and an independent retention-risk flag. Routed replies count once; replay, automatic replies, unanswered calls, reversals and future records do not score. The journey also asserts role/stale-write boundaries, backup/restore, merge/undo and erasure; formula settings, pipeline factors and donor factors run at 1440 and 390 pixels. Future open tracking, attendance and volunteering inherit their MAJOR-004 input acceptance in RCPT-006, CAMP-002 and DONOR-010 respectively.
 85. **`MAJOR-005` Prospect research** (missing). An HTTP journey with the DonorSearch edge faked screens a list, reads stored ratings with provenance as an admin, is refused them as a data-entry user, and erases one donor's results.
-86. **`MAJOR-006` Grants from foundations and corporations** (missing). An HTTP journey tracks a request from letter of inquiry to award, reads the restricted pledge and the report-due task, and records the payment against it.
+86. **`MAJOR-006` Grants from foundations and corporations** (done). An HTTP journey tracks a request from letter of inquiry through proposal submission to award, attaches and downloads the actual document, reads the restricted pledge, exact installment schedule and owned report-due task, records payment, and checks that reversal reopens the balance. It completes reporting, refuses stale/unauthorized writes, leaves no pledge or tasks after an invalid award, and exercises backup/restore, merge/undo and erasure. Native forms complete the same request, award, payment and reporting path at 1440 and 390 pixels.
 87. **`MAJOR-007` Planned giving** (done). An HTTP journey records a bequest intention, enrolls the donor in the legacy society, and links a later estate distribution to it.
 
 ### Reporting

@@ -50,6 +50,6 @@ export async function majorGiftsPage(c: Context, url: URL): Promise<string> {
  const create = staff ? box('Add an opportunity', donors.length && owners.length
   ? form('prospect.save', `${select('Donor', 'donorId', [['', 'Choose a donor'], ...donors.map(d => [d.id, `${d.name}${d.email ? ` · ${d.email}` : ''}`] as [string, string])], '', 'required')}${prospectFields(owners)}`, 'Add opportunity')
   : empty('Add a donor and an active team member before creating an opportunity.')) : ''
- return `<p><a href="/app/portfolios">Portfolios and moves by manager</a></p>${box('Pipeline', `${filter}${summary}<p class="muted">Each opportunity keeps its own ask and next step, including after donors are merged. Amounts are planned asks.</p>${pipeline}`)}
+ return `<p><a href="/app/portfolios">Portfolios and moves by manager</a> · <a href="/app/grants">Foundation and corporate grants</a></p>${box('Pipeline', `${filter}${summary}<p class="muted">Each opportunity keeps its own ask and next step, including after donors are merged. Amounts are planned asks.</p>${pipeline}`)}
  <div class="grid"><div>${create}</div><div>${box('How engagement is scored', '<p>Scores use current constituent activity and the organization’s current weights. <a href="/app/engagement">Read the complete formula and score settings</a>.</p>')}</div></div>`
 }

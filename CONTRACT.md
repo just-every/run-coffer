@@ -638,6 +638,8 @@ An admin screens selected records through DonorSearch or WealthEngine; ratings, 
 
 A grant request has a funder, program, amount requested, deadlines (letter of inquiry, proposal, report), status and documents; an award becomes a restricted pledge with its payment schedule and reporting tasks.
 
+Staff record inquiry/proposal submissions and decisions completed outside Coffer with dates and evidence; labels do not claim Coffer sent or verified them. Request deadlines are inclusive organization-calendar dates in inquiry/proposal/report order. Draft requests are versioned; submitted requests retain their recorded facts. Documents are actual PDF or plain-text uploads up to 256,000 bytes. An award records its actual amount separately from the request and atomically creates one pledge in an existing purpose- or time-restricted fund, installments totaling the award, and owned dated reporting tasks. Received gifts use the existing installment door; reversals reopen balances. Reporting tasks can be reassigned and completed with evidence. Backup/restore, donor merge/undo and erasure retain custody; a later grant blocks undo of an imported funder.
+
 *Acceptance:* An HTTP journey tracks a request from letter of inquiry to award, reads the restricted pledge and the report-due task, and records the payment against it.
 
 #### MAJOR-007 — Planned giving.
@@ -1067,8 +1069,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 17 | 60 | 49 | 126 |
-| All | 25 | 61 | 49 | 135 |
+| Target and push further | 18 | 60 | 48 | 126 |
+| All | 26 | 61 | 48 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1160,7 +1162,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MAJOR-003` | Action plans and proposals | target | done | `src/coffer/cultivation.ts`, `src/coffer/ui/cultivation.ts`, `migrations/core/0051_coffer_cultivation.sql`, `tests/pipeline.test.mjs`, `tests/cultivation-journey.mjs` | Clause-named public-door proof applies four dated steps, completes two, drafts and attaches a proposal, downloads the exact document, records sending and a response, rejects stale changes, and exercises backup/restore, merge/undo and erasure. Native proposal forms run at 1440 and 390 pixels. |
 | `MAJOR-004` | Engagement and retention scores | target | done | `src/coffer/engagement.ts`, `src/coffer/ui/engagement.ts`, `src/coffer/ui/donors.ts`, `tests/engagement-journey.mjs`, `tests/pipeline.test.mjs` | Every current constituent has a score and independent retention risk; API/settings disclose the formula, owner/admin weights recalculate scores, donor and pipeline show factors. MAJOR-004 public-door proof covers giving, calls/meetings/email, routed replies and replay/automatic-reply exclusion, unanswered calls, future records, roles, stale writes, backup/restore, merge/undo and erasure. Future open tracking (RCPT-006), events (CAMP-002) and volunteering (DONOR-010) inherit scoring in their own text and acceptance. |
 | `MAJOR-005` | Prospect research | target | missing |  | No prospect research. |
-| `MAJOR-006` | Grants from foundations and corporations | target | missing |  | No grant tracking. |
+| `MAJOR-006` | Grants from foundations and corporations | target | done | `src/coffer/grants.ts`, `src/coffer/ui/grants.ts`, `migrations/core/0053_coffer_grants.sql`, `tests/grants-journey.mjs`, `tests/pipeline.test.mjs` | Clause-named public-door journey records inquiry/proposal progress, documents, a restricted award pledge, installments, payment/reversal and owned report completion. Roles, stale writes, refused atomic awards, backup/restore, merge/undo and erasure are asserted. Native create/upload/progress/award/payment/report flows run at 1440 and 390 pixels. Later grants fence Stripe and CRM import undo. |
 | `MAJOR-007` | Planned giving | target | done | `src/coffer/planned-giving.ts`, `src/coffer/ui/planned-giving.ts`, `tests/pipeline.test.mjs` | Versioned bequest and other intentions retain vehicle, optional estimated value and documentation status; dated legacy-society enrollment is separate from received gifts. Multiple estate distributions link once each to their intention and show reversal-aware net receipts. MAJOR-007 HTTP proof covers create/enroll/link, authorization, stale edits, backup/restore, merge/undo and erasure; donor forms run at 1440 and 390. |
 | `REPORT-001` | Donor retention | target | partial | `src/coffer/retention.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs` | Calendar-year retained, new, lapsed and recaptured counts and net amounts drill to every underlying donor; signed adjustments and erased identities reconcile to the contribution ledger. Fiscal years, list/fund/campaign filters and upgraded/downgraded cohorts remain. |
 | `REPORT-002` | LYBUNT and SYBUNT lists | target | partial | `src/coffer/lapses.ts`, `src/coffer/ui/lapses.ts`, `tests/pipeline.test.mjs`, `tests/giving.test.mjs` | LYBUNT and earlier-year SYBUNT lists show reasons, last gifts and annual amounts at risk, with stopped monthly-plan flags and owned call creation. Direct appeal and journey enrollment remain. |

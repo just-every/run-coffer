@@ -1,3 +1,5 @@
+import { grantsState, grantDownload } from './grants'
+import { grantsPage } from './ui/grants'
 import { engagementPolicy, engagementScores } from './engagement'
 import { engagementPage } from './ui/engagement'
 import { cultivationState, proposalDownload } from './cultivation'
@@ -102,7 +104,7 @@ async function formInput(data: FormData) {
  if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
  if (input.command === 'donor.merge') input.fields = Object.fromEntries([...data].filter(([key])=>key.startsWith('field:')).map(([key,value])=>[key.slice(6),value]))
  if (input.command === 'ack.prepare' && data.has('giftIds')) input.giftIds = data.getAll('giftIds')
- if (input.command === 'proposal.attach') {
+ if (['proposal.attach','grant.attach'].includes(input.command)) {
   const file=data.get('attachment')
   if (!file || typeof file==='string' || file.size<1 || file.size>256000) fail('INPUT','Attach a nonempty PDF or plain-text document up to 256 KB.',400)
   input.fileName=file.name; input.mediaType=file.type
@@ -254,6 +256,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('fund.')) return redirect('/app/funds/restrictions')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command.startsWith('portfolio.')) return redirect('/app/portfolios')
+ if (command.startsWith('grant.')) return redirect('/app/grants')
  if (command === 'engagement.settings') return redirect('/app/engagement')
  if (command.startsWith('cultivation.') || command.startsWith('proposal.')) return redirect('/app/opportunities/' + encodeURIComponent(result.prospectId ?? input.prospectId))
  if (command === 'prospect.save') return redirect('/app/pipeline')
@@ -329,6 +332,9 @@ async function api(c: Context, url: URL): Promise<Response> {
  if(cultivation) return json(await cultivationState(c,cultivation[1]))
  const attachment=path.match(/^\/api\/coffer\/proposals\/([^/]+)\/download$/)
  if(attachment) return proposalDownload(c,attachment[1])
+ if (path === '/api/coffer/grants') return json(await grantsState(c,url.searchParams.get('donorId')??undefined))
+ const grantDocument=path.match(/^\/api\/coffer\/grant-documents\/([^/]+)\/download$/)
+ if(grantDocument) return grantDownload(c,grantDocument[1])
  if (path === '/api/coffer/engagement/settings') return json(await engagementPolicy(c))
  if (path === '/api/coffer/engagement') return json(await engagementScores(c))
  if (path === '/api/coffer/prospects') return json(await prospects(c))
@@ -372,6 +378,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/portfolios') return show('Portfolios and moves',await portfoliosPage(c,url))
  const cultivation = path.match(/^\/app\/opportunities\/([^/]+)$/)
  if(cultivation) return show('Action plan and proposals',await cultivationPage(c,cultivation[1]))
+ if (path === '/app/grants') return show('Foundation and corporate grants',await grantsPage(c,url.searchParams.get('donorId')??undefined))
  if (path === '/app/engagement') return show('Engagement scores',await engagementPage(c))
  if (path === '/app/pipeline') return show('Major-gift pipeline', await majorGiftsPage(c,url))
  if (path === '/app') return show('Today', await home(c))

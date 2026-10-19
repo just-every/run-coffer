@@ -149,3 +149,9 @@ test('MAJOR-004: every constituent has transparent configurable engagement and i
  const {engagementJourney}=await import('./engagement-journey.mjs')
  await engagementJourney()
 })
+
+
+test('MAJOR-006: foundation requests become restricted pledges with payment schedules, documents and reporting tasks',async()=>{
+ const {grantsJourney}=await import('./grants-journey.mjs')
+ await grantsJourney()
+})

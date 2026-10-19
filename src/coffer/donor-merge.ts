@@ -80,6 +80,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql("UPDATE cf_welcome_enrollments SET status='completed',stopped_at=? WHERE donor_id IN (?,?) AND status='active'",c.now,source,target),
   sql('DELETE FROM cf_preference_sync WHERE donor_id IN (?,?)',source,target),
   sql('UPDATE cf_call_tasks SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
+  sql('UPDATE cf_grants SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_employer_matches SET employer_donor_id=? WHERE employer_donor_id=?',target,source),
   ...donorDepthMergeStatements(source,target),...majorGiftMergeStatements(source,target),
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',source,target),
