@@ -1,3 +1,4 @@
+import { restrictionLabel } from '../restricted-funds'
 import { date, fail, integer, sha256, text } from '../db'
 import type { PaymentsEnv } from './pantry'
 
@@ -26,9 +27,9 @@ const mapped = (map: Record<string, string>, key: string, label: string) => {
 /** Exact evidence bytes are independent of account mapping and submission state. */
 export function evidenceCsv(view: any): string {
  const p = view.payout
- const rows: unknown[][] = [['Payout ID', 'Arrival date', 'Currency', 'Source ID', 'Kind', 'Fund', 'Gross', 'Fees', 'Net', 'Gift ID']]
+ const rows: unknown[][] = [['Payout ID', 'Arrival date', 'Currency', 'Source ID', 'Kind', 'Fund', 'Gross', 'Fees', 'Net', 'Gift ID', 'Restriction']]
  for (const l of [...view.accountingLines].sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
-  rows.push([p.id, p.arrival_on, p.currency, l.source_id, l.kind, l.fund, dollars(l.amount_cents), dollars(l.fee_cents), dollars(l.net_cents), l.gift_id])
+  rows.push([p.id, p.arrival_on, p.currency, l.source_id, l.kind, l.fund, dollars(l.amount_cents), dollars(l.fee_cents), dollars(l.net_cents), l.gift_id, restrictionLabel(l)])
  }
  return csv(rows, [6, 7, 8])
 }
@@ -53,7 +54,7 @@ export function payoutJournal(view: any, env: PaymentsEnv): { date: string; line
   integer(s.net_cents, 'Fund net', -Number.MAX_SAFE_INTEGER)
   if (s.gross_cents - s.fee_cents !== s.net_cents) fail('PAYOUT_NOT_READY', 'The payout fund split does not balance.')
   gross += s.gross_cents; fees += s.fee_cents; net += s.net_cents
-  add(accountId, -s.gross_cents, `Stripe gifts and refunds · ${fund} · ${p.id}`, fund)
+  add(accountId, -s.gross_cents, `${restrictionLabel(s)} · ${fund} · Stripe gifts and refunds ${p.id}`, fund)
   if (s.fee_cents) add(text(env.PANTRY_FEE_ACCOUNT, 'Stripe fee account', 200), s.fee_cents, `Stripe fees · ${fund} · ${p.id}`, fund)
  }
  if (!Number.isSafeInteger(gross) || !Number.isSafeInteger(fees) || net !== p.amount_cents || gross - fees !== p.amount_cents || lines.length < 2 || lines.length > 200) fail('PAYOUT_NOT_READY', 'The payout requires a balanced journal of 2–200 lines.')

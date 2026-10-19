@@ -1,3 +1,5 @@
+import { restrictionReport } from './restricted-funds'
+import { restrictedFundsPage } from './ui/restricted-funds'
 import { recurringTasks } from './recurring-tasks'
 import { reassignmentReason } from './reassignment-reasons'
 import { fundEntries, fundLedgerCsv, fundReport } from './fund-report'
@@ -233,6 +235,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command === 'donor.merge' || command === 'donor.unmerge') return redirect('/app/audit?record='+encodeURIComponent(result.donorId))
  if (CONNECT.has(command)) return redirect('/app/appeals/connect')
  if (command.startsWith('welcome.') || command.startsWith('marketing.') || command.startsWith('reply.')) return redirect('/app/appeals')
+ if (command.startsWith('fund.')) return redirect('/app/funds/restrictions')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command === 'prospect.save') return redirect('/app/pipeline')
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
@@ -303,6 +306,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/tasks') return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: await taskSources(c) })
  if (path === '/api/coffer/retention') return json(await retention(c,url.searchParams.has('year') ? Number(url.searchParams.get('year')) : undefined))
  if (path === '/api/coffer/prospects') return json(await prospects(c))
+ if (path === '/api/coffer/reports/restrictions') return json(await restrictionReport(c,url))
  if (path === '/api/coffer/reports/funds') return json(await fundReport(c,url))
  if (path === '/api/coffer/settings') return json(await settings(c))
  return fail('not_found', 'Not found.', 404)
@@ -328,6 +332,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/duplicates/compare') return show('Compare donor records',await comparePage(c,url))
  if (path === '/app/audit') return show('Audit log',await auditPage(c,url))
  if (path === '/app/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
+ if (path === '/app/funds/restrictions') return show('Restricted funds',await restrictedFundsPage(c,url))
  if (path === '/app/funds') return show('Giving by fund',await fundReportPage(c,url))
  if (path === '/app/funds/ledger.csv') {
   if (!manager(actor)) fail('manager_required','Only the owner or an admin exports accounting entries.',403)

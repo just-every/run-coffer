@@ -21,7 +21,7 @@ async function deliver(h,id,type,objectId,{bad=false}={}) {
  return h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'stripe-signature':`t=${timestamp},v1=${sig}`},body:raw})
 }
 
-test('FIN-004: signed Stripe gifts, fees, refunds and payout reconcile by fund and post once to Pantry after approval',async()=>{
+test('FIN-003 / FIN-004: signed Stripe gifts, fees, refunds and payout reconcile by fund and post once to Pantry after approval',async()=>{
  let proposal=null,submissions=0,evidenceHash='',approved=false,providerCalls=0
  const outbound=async request=>{
   providerCalls++
@@ -51,6 +51,7 @@ test('FIN-004: signed Stripe gifts, fees, refunds and payout reconcile by fund a
     const value=x=>Math.round(Number(x)*100)
     assert.equal(lines.reduce((s,l)=>s+value(l.debit)-value(l.credit),0),0)
     assert.deepEqual(lines.filter(l=>['reading','meals'].includes(l.accountId)).map(l=>[l.accountId,l.credit]),[['meals','50.00'],['reading','75.00']])
+    assert.match(lines.find(l=>l.accountId==='reading').memo,/Purpose restricted: Literacy instruction/ )
     assert.equal(lines.find(l=>l.accountId==='bank').debit,'120.05')
     assert.equal(lines.filter(l=>l.accountId==='fees').reduce((s,l)=>s+value(l.debit),0),495)
     proposal={...input,id:'proposal_coffer',status:'proposed'}
@@ -62,6 +63,7 @@ test('FIN-004: signed Stripe gifts, fees, refunds and payout reconcile by fund a
  }
  const bindings={STRIPE_SECRET_KEY:'sk_test_payments_edge',STRIPE_WEBHOOK_SECRET:secret,PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+'a'.repeat(43),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Reading:'reading',Meals:'meals'}),QBO_ACCOUNT_NAMES:JSON.stringify({bank:'Checking',fees:'Stripe fees',reading:'Reading donations',meals:'Meals donations'})}
  await run(async h=>{
+  await h.command('fund.define',{name:'Reading',restriction:'purpose',detail:'Literacy instruction'})
   assert.equal((await deliver(h,'evt_bad','charge.succeeded',a.id,{bad:true})).status,400)
   assert.equal((await h.get('/api/coffer/donors')).total,0)
   for(const c of [a,b])assert.equal((await deliver(h,'evt_'+c.id,'charge.succeeded',c.id)).status,200)
