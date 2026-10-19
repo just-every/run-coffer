@@ -1,3 +1,7 @@
+import { donorRecognition } from './recognition'
+import { addressMove, stageAddressMove } from './address-history'
+import { timelineSources } from './timeline'
+import { manager } from './auth'
 import { withReceiptBenefits } from './receipt-rules'
 import { volunteering } from './volunteering'
 import { inKindState } from './in-kind'
@@ -40,9 +44,12 @@ export async function donorCommand(c: Context, command: string, p: Row): Promise
  }
  if (command === 'donor.update') {
   const donorId = id(p.donorId, 'Donor'), version = integer(p.version, 'Version', 1), name = text(p.name, 'Donor name'), mail = email(p.email), a = address(p), h = household(optional(p.household, 'Household'), c)
+  const movedOn = await addressMove(c, p.addressEffectiveOn)
   await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND ${LIVE})`, 'VERSION', 'This donor changed or was erased. Refresh before saving.', donorId, version), ...h.statements,
+   ...stageAddressMove(donorId, movedOn, 'staff'),
    sql(`UPDATE cf_donors SET version=version+1,name=?,email=?,phone=?,address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=?,household_id=${h.value} WHERE id=?`,
     name, mail, a.phone, a.line1, a.line2, a.city, a.region, a.postal, a.country, ...(h.value === 'NULL' ? [] : [optional(p.household, 'Household')]), donorId),
+   sql('DELETE FROM cf_address_moves WHERE donor_id=?', donorId),
    event(c, 'donor.update', 'donor', donorId, donorId)])
   return { id: donorId, version: version + 1 }
  }
@@ -110,11 +117,14 @@ export async function donorHistory(c: Context, donorId: string) {
  const summary = await givingSummary(c, donorId, { gifts:monetaryGifts, pledges, subscriptions: plans, recognitionCents: giftDepth.recognitionCents })
  const allocations=await allGiftAllocations(c,gifts.map(g=>g.id))
  for(const gift of gifts)gift.allocations=allocations.filter(a=>a.gift_id===(gift.reverses??gift.id))
+ const recognitionRows=await all(c,'SELECT r.* FROM cf_gift_recognition r JOIN cf_contribution_ledger g ON g.id=r.gift_id WHERE g.donor_id=?',donorId)
+ const recognitionByGift=new Map(recognitionRows.map(r=>[r.gift_id,r]))
+ for(const gift of gifts)gift.recognition=recognitionByGift.get(gift.id)??{anonymous:0,wall_opt_in:0,recognition_name:null}
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
-  engagement: await donorEngagement(c,donorId), donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: plans, summary,
+  recognition:await donorRecognition(c,donorId), timelineSources:await timelineSources(c,donorId), engagement: await donorEngagement(c,donorId), donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: plans, summary,
   volunteering:await volunteering(c,donorId), inKind:await inKindState(c,donorId), depth, giftDepth, plannedGiving:await plannedGiving(c,donorId),
-  notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? ORDER BY occurred_on DESC,recorded_at DESC', donorId),
+  notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? AND (confidential=0 OR ?=1) ORDER BY occurred_on DESC,recorded_at DESC', donorId,manager(c.actor)?1:0),
   firstGift: await one(c, `SELECT g.*,COALESCE((SELECT appeal FROM cf_gift_appeals WHERE gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal FROM cf_gift_balances g WHERE g.donor_id=? AND g.net_cents>0 ORDER BY g.received_on,g.created_at,g.id LIMIT 1`,donorId),
   totals: { lifetimeCents: monetaryGifts.reduce((s, g) => s + g.amount_cents, 0), byYear: [...byYear].sort((a, b) => b[0].localeCompare(a[0])).map(([year, cents]) => ({ year, cents })) },
   current: { email: consent('email'), mail: consent('mail') },

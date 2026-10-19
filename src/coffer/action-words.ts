@@ -3,6 +3,7 @@
 // through here; the API and the audit CSV keep the codes.
 
 const ACTIONS: Record<string, string> = {
+ 'recognition.donor':'Donor recognition saved', 'recognition.gift':'Gift recognition saved', 'recognition.honorRoll':'Honor roll prepared',
  'ack.prepare': 'Letters prepared', 'ack.prepareStatements': 'Year-end statements prepared', 'ack.approve': 'Letters approved',
  'ack.discard': 'Letters discarded', 'ack.export': 'Letters exported', 'ack.markSent': 'Letters marked sent', 'ack.send': 'Letters emailed',
  'ack.printed': 'Letters recorded as printed', 'ack.checkDelivery': 'Email delivery checked',
@@ -11,7 +12,7 @@ const ACTIONS: Record<string, string> = {
  'appeal.prepare': 'Appeal audience prepared', 'appeal.approve': 'Appeal approved', 'appeal.discard': 'Appeal discarded',
  'appeal.export': 'Appeal audience exported', 'appeal.markSent': 'Appeal marked sent', 'appeal.send': 'Appeal emailed',
  'campaign.create': 'Campaign created', 'consent.record': 'Consent recorded',
- 'donor.create': 'Donor added', 'donor.update': 'Donor details changed', 'donor.erase': 'Donor erased', 'donor.merge': 'Donors merged', 'donor.unmerge': 'Merge undone',
+ 'donor.create': 'Donor added', 'donor.update': 'Donor details changed', 'donor.erase': 'Donor erased', 'donor.dataRequest': 'Donor’s data file produced', 'donor.merge': 'Donors merged', 'donor.unmerge': 'Merge undone',
  'export.download': 'File downloaded', 'request.change': 'Change saved',
  'gift.record': 'Gift recorded', 'gift.reverse': 'Gift reversed', 'gift.classify': 'Goods or services answered',
  'giving.paid': 'Paid online', 'payments.gift': 'Stripe gift recorded', 'payments.entry': 'Stripe transaction recorded',

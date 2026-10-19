@@ -1,8 +1,10 @@
+import { mergeStatements as recognitionMergeStatements } from './recognition'
 import { reassignmentReason } from './reassignment-reasons'
 import { requireRole } from './auth'
 import { majorGiftMergeStatements } from './major-gifts'
 import { donorDepthMergeStatements } from './donor-depth'
 import { MERGE_FIELDS } from './duplicates'
+import { addressMove, stageAddressMove } from './address-history'
 import { advanceEarlierMergeVersions, captureMerge, journalTables, restoreMerge, unchangedMerge } from './merge-journal'
 import { all, commit, event, fail, guard, id, integer, newId, object, one, sql, type Context, type Row, type Stmt } from './db'
 
@@ -52,7 +54,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
  for (const [key,value] of Object.entries(picks)) if (!MERGE_FIELDS.some(([field])=>field===key) || !['source','target'].includes(String(value))) fail('INPUT','Choose the source or survivor for each contact field.',400)
  const selected = MERGE_FIELDS.map(([key,,column])=>(picks[key]==='source'?from:into)[column] ?? null)
  const reason = reassignmentReason('merge', p.reason)
- const mergeId = newId(), tables = await journalTables(c)
+ const mergeId = newId(), tables = await journalTables(c), mergedOn = await addressMove(c, undefined)
  const statements: Stmt[] = [
   guard(`(SELECT count(*) FROM cf_donors d WHERE (id=? AND version=? OR id=? AND version=?) AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))=2`, 'VERSION', 'A donor changed or was merged. Review both records again.', source,sourceVersion,target,version),
   ...quietCommunications(source,target),
@@ -62,7 +64,9 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('INSERT INTO cf_donor_merges VALUES(?,?,?,?)', source,target,c.now,c.actor.name),
   sql('UPDATE cf_donor_merges SET into_id=? WHERE into_id=?',target,source),
   sql('INSERT OR IGNORE INTO cf_donor_aliases(donor_id,email) SELECT id,email FROM cf_donors WHERE id IN (?,?) AND email IS NOT NULL',source,target),
+  ...stageAddressMove(target,mergedOn,'merge'),
   sql(`UPDATE cf_donors SET ${MERGE_FIELDS.map(([,,column])=>`${column}=?`).join(',')},version=version+1 WHERE id=?`,...selected,target),
+  sql('DELETE FROM cf_address_moves WHERE donor_id=?',target),
   sql('UPDATE cf_donors SET version=version+1 WHERE id=?',source),
   sql('UPDATE cf_gifts SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_consents SET donor_id=? WHERE donor_id=?',target,source),
@@ -71,7 +75,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('DELETE FROM cf_soft_credits WHERE donor_id IN (?,?) AND gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=?)',source,target,target),
   sql('DELETE FROM cf_soft_credits WHERE donor_id=? AND gift_id IN (SELECT gift_id FROM cf_soft_credits WHERE donor_id=?)',source,target),
  ]
- for (const table of ['cf_research_results','cf_volunteering','cf_planned_gifts','cf_legacy_memberships','cf_recurring_task_series','cf_pledges','cf_acks','cf_events','cf_soft_credits','cf_gift_tributes','cf_giving_customers','cf_giving_intents','cf_subscriptions','cf_communications','cf_reply_tasks']) statements.push(sql(`UPDATE ${table} SET donor_id=? WHERE donor_id=?`,target,source))
+ for (const table of ['cf_donor_address_history','cf_research_results','cf_volunteering','cf_planned_gifts','cf_legacy_memberships','cf_recurring_task_series','cf_pledges','cf_acks','cf_events','cf_soft_credits','cf_gift_tributes','cf_giving_customers','cf_giving_intents','cf_subscriptions','cf_communications','cf_reply_tasks']) statements.push(sql(`UPDATE ${table} SET donor_id=? WHERE donor_id=?`,target,source))
  statements.push(
   sql('DELETE FROM cf_appeal_recipients WHERE donor_id=? AND appeal_id IN (SELECT appeal_id FROM cf_appeal_recipients WHERE donor_id=?)',source,target),
   sql('UPDATE cf_appeal_recipients SET donor_id=? WHERE donor_id=?',target,source),
@@ -83,7 +87,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('UPDATE cf_grants SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_in_kind_gifts SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_employer_matches SET employer_donor_id=? WHERE employer_donor_id=?',target,source),
-  ...donorDepthMergeStatements(source,target),...majorGiftMergeStatements(source,target),
+  ...recognitionMergeStatements(source,target),...donorDepthMergeStatements(source,target),...majorGiftMergeStatements(source,target),
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',source,target),
   ...captureMerge(tables,mergeId,'after'),
   event(c,'donor.merge','donor',source,target,{mergeId,sourceDonorId:source,targetDonorId:target,reason}),
@@ -103,7 +107,12 @@ export async function undoMerge(c:Context,p:Row):Promise<Row> {
   guard('EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=? AND into_id=?) AND (SELECT count(*) FROM cf_donors WHERE id IN (?,?) AND erased_at IS NULL)=2','MERGE_CHANGED','The donor identities changed after this merge. Nothing was undone.',merge.source_id,merge.target_id,merge.source_id,merge.target_id),
   ...unchangedMerge(tables,mergeId),
   sql("UPDATE cf_donor_merge_journal SET status='undoing' WHERE id=?",mergeId),
+  // Restoring the survivor's address is not a move: drop the rows the trigger
+  // writes during the restore, so the journal's exact address history returns.
+  sql("INSERT OR REPLACE INTO cf_address_moves(donor_id,effective_on,source) VALUES(?,?,'undo')",merge.target_id,c.now.slice(0,10)),
   ...restoreMerge(tables,mergeId),
+  sql("DELETE FROM cf_donor_address_history WHERE donor_id IN (?,?) AND source='undo'",merge.source_id,merge.target_id),
+  sql('DELETE FROM cf_address_moves WHERE donor_id=?',merge.target_id),
   ...advanceEarlierMergeVersions(tables,mergeId),
   // Undo does not resurrect access tokens or restart cancelled email journeys.
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',merge.source_id,merge.target_id),

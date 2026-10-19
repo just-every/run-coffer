@@ -13,7 +13,9 @@ export function morePage(actor: Actor) {
   ${boss ? '<li><a href="/app/move-in/crm"><strong>Move in from a CRM</strong><span>Little Green Light, Bloomerang or Raiser’s Edge NXT exports, with totals checked before switching.</span></a></li>' : ''}
   ${boss ? '<li><a href="/app/move-in"><strong>Move in from Stripe</strong><span>Bring a year of customers and charges, review, apply or undo.</span></a></li>' : ''}
   <li><a href="/app/funds"><strong>Giving by fund</strong><span>Each payment and its fund allocations, with accounting CSV.</span></a></li>
+  <li><a href="/app/reports/states"><strong>Giving by state</strong><span>Donors, gifts and dollars per state for charitable-solicitation registrations, with CSV.</span></a></li>
  <li><a href="/app/settings"><strong>Letter settings</strong><span>Organization name, EIN, threshold and your letter wording.</span></a></li>
+  ${boss ? '<li><a href="/app/reports/honor-roll"><strong>Honor roll</strong><span>Recognition names, anonymous gifts and giving levels, with a private CSV export.</span></a></li>' : ''}
   ${boss ? '<li><a href="/app/data"><strong>Data &amp; access</strong><span>Backup and restore, people and roles, agent keys, erasure.</span></a></li>' : ''}
   <li><a href="/auth/settings/identity"><strong>Sign-in settings</strong><span>Your account and how people sign in.</span></a></li>
  </ul>`

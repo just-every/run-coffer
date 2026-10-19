@@ -114,9 +114,9 @@ The constituent record a Little Green Light or Bloomerang user expects on day on
 
 #### DONOR-002 — Organization records.
 
-A constituent is a person or an organization (business, foundation, church, school, government body, donor-advised fund sponsor). An organization has its own address, website, EIN and giving history, and named contacts who are person records linked to it with a role. Gifts from an organization credit the organization; its contacts see the gift on their timeline as related. An organization's letters and receipts are addressed to the organization with "Attn:" and its primary named contact, and open with that contact's salutation (`DONOR-014`).
+A constituent is a person or an organization (business, foundation, church, school, government body, donor-advised fund sponsor). An organization has its own address, website, EIN and giving history, and named contacts who are person records linked to it with a role. Gifts from an organization credit the organization; its contacts see the gift on their timeline as related. An organization's letters and receipts are addressed to the organization with "Attn:" and its primary named contact, and open with that contact's salutation (`DONOR-014`). An organization counts by its own address in the by-state report (`REPORT-008`).
 
-*Acceptance:* An HTTP and browser journey creates a foundation with two contacts, records a $10,000 grant payment from it, and reads the gift on the foundation, not the contacts, with both contacts listing it as related; the grant's receipt is addressed to the foundation, attention its primary contact, and opens with that contact's informal salutation.
+*Acceptance:* An HTTP and browser journey creates a foundation with two contacts, records a $10,000 grant payment from it, and reads the gift on the foundation, not the contacts, with both contacts listing it as related; the grant's receipt is addressed to the foundation, attention its primary contact, and opens with that contact's informal salutation. The organization's gifts appear under its own state in the `REPORT-008` report.
 
 #### DONOR-003 — Relationships.
 
@@ -126,7 +126,7 @@ Any two constituents can be related with a reciprocal type (spouse/spouse, paren
 
 #### DONOR-004 — Interaction timeline.
 
-Each constituent has one timeline of everything that happened: gifts, pledges, receipts sent and delivered, appeal sends, opens and replies, logged calls, meetings, visits, notes, tasks, event attendance and volunteer hours, newest first and filterable. Logging a call, meeting or note takes under ten seconds from the donor page or a phone: at most two taps or clicks plus the note text, with type, date and author defaulting to a call now by the signed-in person, and the entry shows on the timeline as soon as it is saved. Notes marked confidential are visible only to the roles `TEAM-001` allows.
+Each constituent has one timeline of everything that happened: gifts, pledges, receipts sent and delivered, appeal sends, opens and replies, logged calls, meetings, visits, notes, tasks, event attendance and volunteer hours, newest first and filterable. Logging a call, meeting or note takes under ten seconds from the donor page or a phone: at most two taps or clicks plus the note text, with type, date and author defaulting to a call now by the signed-in person, and the entry shows on the timeline as soon as it is saved. Notes marked confidential are visible only to the roles `TEAM-001` allows. Today the owner and admins alone record and read confidential notes; the member role is data entry and is refused those notes through direct HTTP, donor/context reads and exports. The owner’s private archive retains them. Staff record ordinary notes and visits in the existing portable note store, while calls, meetings and email remain conversations; all share organization-calendar dates and default to today and the signed-in author. Call, meeting and note quick actions take two clicks plus typing. Timeline type and inclusive date filters apply to every current gift, pledge, receipt and provider-delivery event, appeal, reply, conversation, task and volunteer source, newest first. This obligation is complete for current sources. Before event attendance (`CAMP-002`), tracked opens (`RCPT-006`) or another activity source ships, its clause adds it to this timeline and its filters; `TEAM-001` must apply its future confidential-note role and portfolio rules to every read/context/export door before those roles ship.
 
 *Acceptance:* A browser journey at 1440 and 390 pixels logs a call and a confidential note on a donor, counting at most two taps or clicks plus typing for each, and a timed run with a 30-character note typed at five characters a second takes under ten seconds from the first tap to the entry on the timeline; it sees both on the timeline with the gift and receipt events, filters the timeline to calls only and then to a date range and sees only the matching entries each time, and a data-entry user is refused the confidential note through HTTP.
 
@@ -152,15 +152,15 @@ Before a saved or new list kind ships, it supplies its live donor membership to 
 
 #### DONOR-008 — Documents on records.
 
-A person attaches files (signed pledge agreements, grant letters, estate documents, photos) to a constituent, gift, pledge or opportunity. Files are stored in the installation's own R2 bucket, previewed in the browser, restricted by role, exported with the record and removed by erasure.
+A person attaches files (signed pledge agreements, grant letters, estate documents, photos) to a constituent, gift, pledge or opportunity. Files are stored in the installation's own R2 bucket, previewed in the browser, restricted by role, exported with the record and removed by erasure. Attached files are included in the donor's own data file (`DATA-003`) before this ships.
 
-*Acceptance:* A browser journey attaches a PDF pledge agreement to a pledge, previews it, and a backup, restore and erasure include and then remove it.
+*Acceptance:* A browser journey attaches a PDF pledge agreement to a pledge, previews it, and a backup, restore and erasure include and then remove it. The same journey reads the attached PDF in that donor's `DATA-003` file.
 
 #### DONOR-009 — Address verification and NCOA.
 
-Postal addresses are standardized and verified against USPS data through Smarty when entered, and a scheduled National Change of Address pass through an NCOA licensee updates movers before each mail appeal. Each change keeps the old address in history with its source and date, and undeliverable addresses are flagged so mail appeals exclude them.
+Postal addresses are standardized and verified against USPS data through Smarty when entered, and a scheduled National Change of Address pass through an NCOA licensee updates movers before each mail appeal. Each change keeps the old address in history with its source and date, and undeliverable addresses are flagged so mail appeals exclude them. Today every address change already keeps the old address with its source and date (`REPORT-008`); verification and NCOA changes write that same history with their own source.
 
-*Acceptance:* An HTTP journey with the Smarty and NCOA edges faked enters an address that standardizes, runs an NCOA pass that moves one donor and flags one as undeliverable, and a mail appeal excludes the flagged donor with that reason.
+*Acceptance:* An HTTP journey with the Smarty and NCOA edges faked enters an address that standardizes, runs an NCOA pass that moves one donor and flags one as undeliverable, and a mail appeal excludes the flagged donor with that reason. The NCOA move reads in that history with its source and date, and the `REPORT-008` by-state report places the mover's earlier gifts in their earlier state.
 
 #### DONOR-010 — Volunteer history.
 
@@ -270,7 +270,11 @@ Before new stock, DAF or IRA contribution classifications ship, their actual mon
 
 A donor or a single gift can be marked anonymous, and every constituent has a recognition name ("The Rivera Family", "Anonymous") for honor rolls. Anonymous gifts never appear under the donor's name on campaign pages, donor walls, peer-to-peer leaderboards or an exported honor roll, while staff still see the donor, and the gift counts in every total and receipt. An honor-roll report lists donors by giving level for a period under their recognition names.
 
-*Acceptance:* An HTTP journey marks one donor anonymous and one gift anonymous, gives through a campaign page, and reads a donor wall and an honor-roll export that show "Anonymous" for both and recognition names for the others, while the staff donor page, totals and receipts include both gifts.
+Owner/admin/member staff set donor and individual monetary or property gift anonymity; agents retain read-only authority. A recognition name is separate from legal identity. Every public wall gift requires a donor’s explicit opt-in at checkout and keeps that gift’s chosen recognition name; blank names appear as Anonymous, never the legal name. Existing/imported gifts start private, and staff may withdraw a wall opt-in but cannot invent one for a private gift. Donor anonymity overrides every gift choice. Checkout replay preserves the exact publication choices, including for recurring installments.
+
+Owner/admin honor-roll reports and CSV use positive remaining monetary balances for gifts received in the inclusive selected date period; refunds and reversals reduce the original gift’s recognition, zero balances are absent, and property stated values and soft credits do not inflate giving levels. Each anonymous gift is a separate Anonymous row; donor-level anonymity and donors without honor-roll name permission remain anonymous. Giving levels have distinct names and inclusive integer-cent lower bounds starting at zero. Staff donor history and ordinary receipts retain the actual donor and every monetary fact. Backup/restore and merge/undo preserve choices conservatively; erasure clears names and public opt-ins, and later recognition changes block import undo. This is complete for current walls and honor-roll exports. Before peer-to-peer leaderboards (`CAMP-003`) or another public recognition door ships, its clause inherits these anonymity and explicit-publication rules.
+
+*Acceptance:* An HTTP journey marks one donor anonymous and one gift anonymous, gives through a campaign page, and reads a donor wall and an honor-roll export that show "Anonymous" for both and recognition names for the others, while the staff donor page, totals and receipts include both gifts. The clause-named journey also asserts private legacy gifts, checkout replay, role refusals, exact giving-level boundaries, refunds, property anonymity, audit, backup/restore, merge/undo, import-undo refusal and erasure; native checkout, staff recognition, public wall, honor-roll CSV and empty states run at 1440 and 390 pixels.
 
 ### Online giving
 
@@ -346,11 +350,15 @@ An event has ticket types with the fair market value of the benefit, registratio
 
 Recorded event attendance feeds MAJOR-004 engagement scoring and its donor-page factors before event attendance ships.
 
+Before event attendance ships, its actual attendance records join the DONOR-004 timeline and type/date filters.
+
 *Acceptance:* A browser journey sells a $150 gala ticket with a $60 dinner value, checks the guest in at 390 pixels, and reads a receipt stating $90 deductible and the attendance on the guest's timeline. The recorded attendance feeds MAJOR-004 scoring and appears in the donor’s contributing factors under the configured weights.
 
 #### CAMP-003 — Peer-to-peer fundraising.
 
 Supporters create personal or team fundraising pages under a campaign, share them, and see their totals on a leaderboard. Each gift is hard-credited to its donor and soft-credited to the fundraiser; fundraisers get thank-you and milestone emails.
+
+Before any peer-to-peer wall or leaderboard ships it applies GIFT-011 donor/gift anonymity, recognition names and explicit publication permission.
 
 *Acceptance:* A browser journey creates a team and two personal pages, gives through each, and reads the leaderboard, the donor hard credits and the fundraiser soft credits.
 
@@ -479,6 +487,8 @@ The receipt queue uses the lower of the configured threshold and $250 per indivi
 #### RCPT-006 — Delivery tracking.
 
 Every receipt, acknowledgment and statement keeps its delivery result from the provider: delivered, bounced, complained, opened where tracked, and for mail the print vendor's events. A bounce opens a task to fix the address and offers print instead; the donor page shows each document's delivery. Open tracking, when implemented, feeds the constituent’s MAJOR-004 engagement scoring with provider provenance and donor-visible contributing factors before it ships.
+
+Before tracked opens ship, their actual events join the DONOR-004 timeline and type/date filters.
 
 *Acceptance:* An HTTP journey with the mail edge faked sends three receipts, one bounces, and the bounced one shows on the donor page with a task and a print option. A tracked provider open feeds MAJOR-004 scoring and appears in the donor’s contributing factors under the configured weights.
 
@@ -728,7 +738,9 @@ The general Schedule B selection includes working contributions of at least $5,0
 
 For any fiscal or calendar year, a report sums gifts by the donor's US state at the gift date (from the address history of `DONOR-009`), with donors, gifts and dollars per state, separate rows for foreign and unknown addresses, organizations by their own address, and filters for fund, campaign, form and channel. Its rows sum to the ledger for the period, and it exports as CSV for state charitable-solicitation registrations and renewals.
 
-*Acceptance:* An HTTP journey records gifts from donors in three states, one with no address and one who moves state mid-year, and reads a by-state report for the year whose rows assign each gift to the state at its date and sum to the ledger total, then exports it as CSV.
+Coffer keeps each earlier address of a donor with the organization-calendar day it stopped applying and the source of the change (`staff`, `merge` or `system`). A staff edit may state the move date, which cannot be in the future or before the donor's last recorded move; otherwise a change takes effect on the day it is saved. A gift counts under the address in effect on its received date (a move takes effect on its stated day), and its later reversals and refunds count where the gift did. The year is the inclusive calendar or fiscal year, a fiscal year named by the calendar year it starts in, and each ledger entry falls in the year of its own date, so the rows sum to the fund ledger for the same period and filters. A donor who moved appears in each state they gave from; a gift counts once in its state. States are the 50 states, the District of Columbia, US territories and military codes, matched by code or name; a non-US country is "Outside the United States", and a blank or unrecognized US state is "Unknown address". Fund is the ledger fund, campaign is a gift's campaign attribution including split allocations, giving form is gifts made online through that campaign's `/give` page, and channel is the gift method. Every constituent, an organization included, counts by its own address; organization constituents (`DONOR-002`) keep that rule when they ship, and `DONOR-009` verification and NCOA changes write this same history with their own source before they ship. Merge and undo keep the exact history, backup and restore carry it, the donor's own file (`DATA-003`) includes it, and erasure removes it, leaving the erased donor's gifts under "Unknown address".
+
+*Acceptance:* An HTTP journey records gifts from donors in three states, one with no address and one who moves state mid-year, and reads a by-state report for the year whose rows assign each gift to the state at its date and sum to the ledger total, then exports it as CSV. The clause-named journey also asserts move-date refusals, the move-day boundary, reversals staying in the gift's state, foreign and unknown rows, an organization by its own address, the fund-report total, fund, channel, campaign and giving-form filters, a fiscal year, the CSV and native page, backup/restore, merge/undo, the donor file and erasure.
 
 ### Moving in
 
@@ -807,6 +819,8 @@ Roles a small development shop and its volunteers need.
 #### TEAM-001 — Roles and record-level access.
 
 Roles cover owner, admin, fundraiser, finance, data entry, volunteer and read-only, plus agents; a fundraiser can be limited to their portfolio, confidential notes and prospect research are restricted, finance can post and reconcile but not export donor lists, and exports of donor data are permitted per role and logged, and only permitted roles charge cards and bank accounts (`GIVE-009`). An admin sets each team member's manager (the person they report to) and weekly call capacity; task escalation (`STEW-001`) and the call list (`DEV-005`) use them.
+
+Before its wider roles and portfolio scopes ship, every DONOR-004 confidential-note read, agent context and export applies those roles and scopes. Before new roles ship, they decide who produces a donor's own data file (`DATA-003`); until then the owner and admins do.
 
 *Acceptance:* An HTTP journey signs in as each role and is allowed or refused each listed action, including a portfolio-limited fundraiser opening another portfolio's prospect; an admin sets a member's manager and call capacity and reads them back, and a member is refused setting them.
 
@@ -888,7 +902,9 @@ Constituents, gifts, pledges, plans, consent, interactions, tasks and opportunit
 
 On a donor's request staff produce a file of everything held about them (record, gifts, consent, interactions, documents) and log the request, alongside erasure in `DATA-001`.
 
-*Acceptance:* An HTTP journey produces one donor's file, checks it holds every record type for them and nobody else, and reads the logged request.
+The owner or an admin produces the file from the donor page or `POST /api/coffer/donors/{id}/data-request`, giving the organization-calendar request date (not in the future), how the donor asked (email, letter, phone, in person or other) and an optional ticket or letter number; members and agents are refused. The file is JSON downloaded to that person to review and give to the donor; Coffer never sends it and does not say it was sent. It is built from the live schema: every product table that names the donor (or a record merged into them), and every table reached from one of their own records (gifts, pledges and installments, prospects and proposal documents, grants and grant documents, property gifts, letters, subscriptions, drafts, task series and soft credits), with confidential notes labelled as such and WealthEngine research labelled as provider estimates, never verified wealth. Other people never appear: a relationship, soft credit, matching gift or audit row that touches another donor shows only this donor's facts and an opaque counterpart label (the same label for the same person), and a tribute's notified person is withheld. Hashed access tokens are credentials and stay out, as the file says. Erased and merged-away IDs are refused; the surviving donor's file includes the merged-in records. Each file is logged as `donor.dataRequest` with the person, date, method, reference and record counts only, never names or note text. Because the walk follows the schema, any record kind added later that names a donor or one of these records joins the file when it ships. Data kept outside these D1 tables (`DONOR-008` files in R2) joins the file in the clause that stores it, before it ships, and `TEAM-001` applies its roles to this door before those roles ship.
+
+*Acceptance:* An HTTP journey produces one donor's file, checks it holds every record type for them and nobody else, and reads the logged request. The clause-named journey also cross-checks each stored table naming the donor against the file, asserts opaque counterparts for relationships, soft credits and audit rows, withheld tribute contacts, labelled research and confidential notes, included proposal and grant documents, the merged-in record, member/agent/anonymous, merged, erased, future-date and free-text-reference refusals, no message sent, the native donor-page download, and refusal after erasure.
 
 #### OWN-001 — Free, open source and owned.
 
@@ -1023,7 +1039,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | # | Claim | Clauses | Status |
 | ---: | --- | --- | --- |
 | 1 | Coffer takes donations | `GIVE-001`, `GIVE-003`, `GIVE-004` | partial |
-| 2 | keeps every donor's story | `DONOR-001`, `DONOR-004` | `DONOR-001` done · `DONOR-004` partial |
+| 2 | keeps every donor's story | `DONOR-001`, `DONOR-004` | `DONOR-001` done · `DONOR-004` done |
 | 3 | sends the receipts | `ACK-001`, `RCPT-001`, `RCPT-002` | `ACK-001` partial · `RCPT-001` partial · `RCPT-002` done |
 | 4 | and thank-yous | `RCPT-002`, `RCPT-007` | `RCPT-002` done · `RCPT-007` partial |
 | 5 | shows who needs a call | `DEV-005`, `REPORT-002` | partial (core claim implemented; broader clauses remain) |
@@ -1049,7 +1065,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 25 | Donor portal · Monthly $25 · Receipts · Update card | `GIVE-005` | partial |
 | 26 | The thank-you carries the tax receipt with the IRS wording | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` done |
 | 27 | a link to manage her monthly gift | `GIVE-005` | partial |
-| 28 | Delivered 7:02 PM · Opened 7:40 PM | `RCPT-006`, `DONOR-004` | partial |
+| 28 | Delivered 7:02 PM · Opened 7:40 PM | `RCPT-006`, `DONOR-004` | `RCPT-006` partial · `DONOR-004` done |
 | 29 | Each gift lands on the donor's record, in the right fund, with its receipt | `GIFT-001`, `GIFT-004`, `RCPT-001` | `GIFT-001` done · `GIFT-004` done · `RCPT-001` partial |
 | 30 | Declined → Retried 7:16 PM | `GIVE-006` | partial |
 | 31 | Bank (ACH) · Pending · clears Mar 13 | `GIVE-004` | partial |
@@ -1061,7 +1077,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 37 | the development agent reconciles gifts, rescues failed monthly gifts, sends missed receipts | `DEV-001`, `DEV-002`, `DEV-003` | partial |
 | 38 | and ranks who needs a call | `DEV-005`, `STEW-001` | partial |
 | 39 | Retention rescored for 1,132 donors | `REPORT-001` | done |
-| 40 | Okafor household: lifetime, first gift, tribute, call, gift and DAF soft credit, newest first | `DONOR-004`, `DONOR-011`, `GIFT-006`, `GIFT-008`, `GIFT-009` | `DONOR-004` partial · `DONOR-011` done · `GIFT-006` done · `GIFT-008` partial · `GIFT-009` done |
+| 40 | Okafor household: lifetime, first gift, tribute, call, gift and DAF soft credit, newest first | `DONOR-004`, `DONOR-011`, `GIFT-006`, `GIFT-008`, `GIFT-009` | `DONOR-004` done · `DONOR-011` done · `GIFT-006` done · `GIFT-008` partial · `GIFT-009` done |
 | 41 | Close the appeal knowing who gave again, donor by donor | `REPORT-001` | done |
 | 42 | matched to the books · Matches QuickBooks Online to the cent | `FIN-001`, `FIN-003` | `FIN-001` partial · `FIN-003` done |
 | 43 | The appeal's report to the board, didn't renew added to the fall call list | `COMM-008`, `REPORT-002` | `COMM-008` missing · `REPORT-002` done |
@@ -1090,8 +1106,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 28 | 55 | 43 | 126 |
-| All | 36 | 56 | 43 | 135 |
+| Target and push further | 32 | 55 | 39 | 126 |
+| All | 40 | 56 | 39 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1106,12 +1122,12 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `DATA-001` | Custody and erasure | published | done | `src/coffer/archive-policy.mjs`, `src/coffer/imports/erasure.ts`, `scripts/backup-hosted.mjs`, `tests/coffer.test.mjs`, `tests/hosted-restore.test.mjs` |  |
 | `DONOR-002` | Organization records | target | partial | `src/coffer/donors.ts` | Every constituent is a person-shaped donor record; there is no organization type, EIN, website or contact role. |
 | `DONOR-003` | Relationships | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-depth.ts`, `docs/donor-depth.md` | Reciprocal spouse, employer, board member, foundation officer and introduced-by links show on both records and filter donor lists. Household salutations, head and combined totals remain. |
-| `DONOR-004` | Interaction timeline | target | partial | `src/coffer/donor-depth.ts`, `src/coffer/ui/donor-timeline.ts`, `docs/donor-depth.md` | Calls, meetings and emails record date, participants, notes, next step and author beside gifts, pledges and receipt events in one timeline. Confidential notes, timeline filters and the broader task/event integrations remain. |
+| `DONOR-004` | Interaction timeline | target | done | `src/coffer/donor-depth.ts`, `src/coffer/timeline.ts`, `src/coffer/ui/donor-timeline.ts`, `tests/timeline-journey.mjs`, `tests/coffer.test.mjs` | Clause-named HTTP and native 1440/390 journeys assert two-click timed call/confidential-note entry, every current source, inclusive type/date filters, role refusals and custody. |
 | `DONOR-005` | Custom fields and tags | target | missing |  | No custom fields, tags or categories. |
 | `DONOR-006` | Duplicate detection and merge | target | done | `src/coffer/duplicates.ts`, `src/coffer/donor-merge.ts`, `src/coffer/merge-journal.ts`, `migrations/core/0042_coffer_duplicates.sql`, `tests/duplicates.test.mjs` |  |
 | `DONOR-007` | Saved searches and lists | target | partial | `src/coffer/donors.ts`, `src/coffer/ui/donors.ts` | Donor search includes reciprocal relationship-type and connected-donor filters. General saved lists and undoable bulk actions remain. |
 | `DONOR-008` | Documents on records | target | missing |  | No attachments. |
-| `DONOR-009` | Address verification and NCOA | target | missing |  | No address verification or NCOA. |
+| `DONOR-009` | Address verification and NCOA | target | partial | `src/coffer/address-history.ts`, `migrations/core/0063_coffer_state_report.sql`, `tests/state-report-journey.mjs` | Each address change keeps the old address in history with its source and date (asserted under `REPORT-008`); no Smarty verification, NCOA pass or undeliverable flag. |
 | `DONOR-010` | Volunteer history | target | done | `src/coffer/volunteering.ts`, `src/coffer/ui/volunteering.ts`, `src/coffer/engagement.ts`, `tests/volunteering-journey.mjs`, `tests/pipeline.test.mjs` | Atomic CSV/manual activity, yearly minutes/hours, native timeline, live never-given segments, retention scopes, configurable real volunteering factors and custody are asserted through public doors. |
 | `DONOR-011` | Giving summary | target | done | `src/coffer/giving-summary.ts`, `src/coffer/ui/giving-summary.ts`, `tests/giving-summary.test.mjs`, `tests/giving.test.mjs` |  |
 | `DONOR-012` | Constituent status: active, inactive and deceased | target | missing |  | Constituents have no status; appeals exclude only on consent and address, and erasure is the only way to stop a record being used. |
@@ -1127,7 +1143,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `GIFT-008` | Tribute gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/year-end.ts`, `tests/soft-credits.test.mjs` | Honor/memory, honoree and notification contact are recorded on gifts and included in approved gift/year-end receipt text. Tribute grouping, notification sending and incumbent tribute imports remain. |
 | `GIFT-009` | In-kind gifts | target | done | `src/coffer/in-kind.ts`, `src/coffer/ui/in-kind.ts`, `migrations/core/0055_coffer_in_kind.sql`, `tests/pipeline.test.mjs`, `tests/in-kind-journey.mjs` | Unified noncash originals/corrections with a current property projection, internal stated values, frozen value-free property acknowledgments and exact dated disposal reminders; clause-named public-door proof includes custody and 1440/390 native use. |
 | `GIFT-010` | Stock, DAF grants and IRA distributions | target | missing |  | No stock, DAF or QCD gift types. |
-| `GIFT-011` | Anonymous gifts and recognition names | target | missing |  | No anonymity flag or recognition name. |
+| `GIFT-011` | Anonymous gifts and recognition names | target | done | `src/coffer/recognition.ts`, `src/coffer/ui/recognition.ts`, `src/coffer/giving/checkout.ts`, `src/coffer/giving/recording.ts`, `tests/recognition-journey.mjs`, `tests/recognition-browser.mjs`, `tests/giving.test.mjs` | Clause-named HTTP/native proof covers opt-in walls, donor/gift anonymity, actual-identity receipts, exact honor-roll levels and CSV, custody and 1440/390 end states. |
 | `GIVE-001` | Donation forms | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Hosted campaign forms collect once/monthly card and Link gifts and retain fund/campaign attribution. Advanced fields, embedding and the specified performance/accessibility acceptance remain outstanding. |
 | `GIVE-002` | Campaign pages | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Custom-path public campaign stories, goals, ledger totals, gift counts and recurring donor counts ship. Uploaded media, donor walls and closing dates remain outstanding. |
 | `GIVE-003` | Recurring giving | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Monthly Stripe subscriptions record successful installments and show status and recovery; donors cancel at period end. Quarterly/annual plans, staff editing, pause/resume and the three-month test-clock acceptance remain outstanding. |
@@ -1192,7 +1208,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `REPORT-005` | Scheduled reports | target | missing |  | No scheduled reports. |
 | `REPORT-006` | Recurring giving health | target | done | `src/coffer/recurring-health.ts`, `src/coffer/ui/recurring-health.ts`, `migrations/core/0046_coffer_recurring_health.sql`, `tests/giving.test.mjs`, `tests/coffer.test.mjs` | Monthly history retains amount/status/cancellation changes across webhooks, portal and imported plans. Reports show distinct active donors, committed monthly revenue, starts, actual cancellations, failed/recovered invoices and average known plan duration in the organization timezone. Unknown legacy starts/state and observation-only payment history are explicit. REPORT-006 HTTP proof advances January–March through each outcome and verifies earlier figures remain unchanged; report/filter screens run at 1440 and 390. |
 | `REPORT-007` | IRS Form 990 support | target | done | `src/coffer/tax-reports.ts`, `src/coffer/ui/tax-reports.ts`, `migrations/core/0056_coffer_tax_reports.sql`, `tests/pipeline.test.mjs`, `tests/tax-reports-journey.mjs` | Exact Schedule B working selections, five-year signed donor giving and separate current/anonymous noncash values reconcile through clause-named HTTP and 1440/390 native journeys. GIFT-010 text and acceptance inherit new contribution kinds before shipping. |
-| `REPORT-008` | Raised by state | target | missing |  | Each donor stores a current state, but there is no address history or report by state. |
+| `REPORT-008` | Raised by state | target | done | `src/coffer/state-report.ts`, `src/coffer/ui/state-report.ts`, `src/coffer/address-history.ts`, `migrations/core/0063_coffer_state_report.sql`, `tests/state-report-journey.mjs`, `tests/coffer.test.mjs` | Clause-named HTTP journey asserts state at each gift date from dated address history, foreign/unknown rows, ledger reconciliation, every filter, fiscal years, CSV and custody. |
 | `MOVE-001` | From Little Green Light | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Constituent names (including Prefix/Suffix) are authoritative; display names in gifts and relationships never block for name differences. LGL Appeal maps to the gift appeal, Campaign is retained separately in the note, and Check No. is carried in the reference alongside the source gift ID. Independent blockers are reviewed together, with concrete fixes; one cent per pledge payment is accepted as rounding and actual paid cents are retained. Documented LGL CSV/XLSX constituent and fundraising exports preview donors, households (explicit, or spouses and people at one address; never merged by name), gifts, funds/campaigns, relationships, soft credits, pledges/installments and notes, with source controls, every blocking row listed (paged, filterable, CSV), a preview that plans every part, part-by-part apply that names a failing part's rows, year-by-year re-import by LGL ID, and undo. Full multi-contact/name/custom-field, consent/restriction, acknowledgment, tribute and recurring-vault migration remains outside this export implementation. |
 | `MOVE-002` | From Bloomerang | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Documented Bloomerang CSV/XLSX reports import the same donor/gift history and attribution with source-control reconciliation and atomic apply/undo. REST API, full contact/custom-field, task, consent/restriction, acknowledgment, tribute and recurring-vault migration remains unbuilt. |
 | `MOVE-003` | From Raiser's Edge NXT | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | Configured NXT database-view CSV/XLSX constituent/gift reports import donor/gift history, households, relationships, soft credits, pledges and notes. Grouped web-list splits and repeated source IDs are explicitly blocked pending designation exports. SKY API, opportunities, full custom fields/contacts, restrictions, acknowledgment and recurring-vault migration remains unbuilt. |
@@ -1215,7 +1231,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MOBILE-002` | Native iOS and Android apps | target | missing |  | No native apps. |
 | `MOBILE-003` | In-person giving | target | missing |  | No in-person payments. |
 | `DATA-002` | Exports by record type | target | partial | `src/coffer/http.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | The owner downloads the full NDJSON archive, and letters and audiences export as CSV; no per-type or per-list CSV exports. |
-| `DATA-003` | A donor's own data on request | target | missing |  | No per-donor access export. |
+| `DATA-003` | A donor's own data on request | target | done | `src/coffer/donor-file.ts`, `src/coffer/http.ts`, `src/coffer/ui/donors.ts`, `tests/donor-file-journey.mjs`, `tests/coffer.test.mjs` | Clause-named HTTP journey asserts a schema-complete subject-only file, opaque counterparts, labelled research/confidential notes, documents, merged records, role/state refusals, the logged request and the native download. |
 | `OWN-001` | Free, open source and owned | target | done | `LICENSE`, `wrangler.jsonc`, `README.md` |  |
 | `OWN-002` | Runs on the nonprofit's own computer | target | done | `RUN-LOCALLY.md`, `tests/clone-journey.mjs` |  |
 | `DEV-001` | Reconciles every gift | push-further | partial | `src/coffer/agent/reconciliation.ts`, `tests/agent-reconciliation.test.mjs`, `docs/DEVELOPMENT-AGENT.md` | Stripe charges/payouts, contributions/funds and exact Pantry proposal/journal state are compared with source IDs. Safe contribution and missing-gift corrections have explicit apply and compensating undo; payout/accounting exceptions require Payments/Pantry review. Broader finance-role approvals and QuickBooks integration remain. |

@@ -1,3 +1,5 @@
+import { report as honorRoll, honorRollCsv } from './recognition'
+import { honorRollPage,honorRollUrl } from './ui/recognition'
 import { researchState } from './research'
 import { researchPage } from './ui/research'
 import { volunteering, volunteerCsv } from './volunteering'
@@ -22,6 +24,9 @@ import { recurringTasks } from './recurring-tasks'
 import { reassignmentReason } from './reassignment-reasons'
 import { fundEntries, fundLedgerCsv, fundReport } from './fund-report'
 import { auditCsv, auditLog, recordRequest } from './audit'
+import { donorFile } from './donor-file'
+import { stateReport, stateReportCsv } from './state-report'
+import { stateReportPage } from './ui/state-report'
 import { auditPage } from './ui/audit'
 import { compareDonors, likelyDuplicates } from './duplicates'
 import { comparePage, duplicatesPage } from './ui/duplicates'
@@ -190,6 +195,11 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    return await handler(request)
   }
   if (path.startsWith('/api/coffer/imports/') || path.startsWith('/app/move-in/')) return await moveIn(request, c, auth.authority, path, isApi)
+  const dataRequest = path.match(/^\/(?:api\/coffer|app)\/donors\/([^/]+)\/data-request$/)
+  if (dataRequest && request.method === 'POST') {
+   const file = await donorFile(c, decodeURIComponent(dataRequest[1]), isApi ? await jsonBody(request) : Object.fromEntries(await formBody(request)))
+   return new Response(JSON.stringify(file, null, 1), { headers: { ...headers, 'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="coffer-donor-file-${file.request.requestedOn}.json"` } })
+  }
   if ((path === '/api/coffer/commands' || path === '/app/actions') && request.method === 'POST') {
    const data = path === '/app/actions' ? await formInput(await formBody(request, 400000)) : await jsonBody(request), command = String(data.command), input = data.input ?? data
    let result
@@ -334,7 +344,16 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (url.pathname === '/api/coffer/audit') return json(await auditLog(c,url))
  if (url.pathname === '/api/coffer/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
  const path = url.pathname, match = (re: RegExp) => path.match(re)
+ if(path==='/api/coffer/reports/honor-roll')return json(await honorRoll(c,url))
+ if(path==='/api/coffer/reports/honor-roll.csv')return download(honorRollCsv(await honorRoll(c,url)),'coffer-honor-roll')
  if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo'), volunteer:url.searchParams.get('volunteer') }))
+ const noteMatch=match(/^\/api\/coffer\/notes\/([^/]+)$/)
+ if(noteMatch){
+  const note=await c.db.prepare('SELECT * FROM cf_donor_notes WHERE id=?').bind(noteMatch[1]).first<any>()
+  if(!note)fail('NOT_FOUND','That note does not exist.',404)
+  if(note.confidential && !manager(c.actor))fail('FORBIDDEN','Only the owner or an admin reads confidential notes.',403)
+  return json(note)
+ }
  let m = match(/^\/api\/coffer\/donors\/([^/]+)$/)
  if (m) return json(await donorHistory(c, m[1]))
  if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, batches: await batches(c) }) }
@@ -373,6 +392,8 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/reports/recurring') return json(await recurringHealth(c,url))
  if (path === '/api/coffer/reports/restrictions') return json(await restrictionReport(c,url))
  if (path === '/api/coffer/reports/funds') return json(await fundReport(c,url))
+ if (path === '/api/coffer/reports/states') return json(await stateReport(c,url))
+ if (path === '/api/coffer/reports/states.csv') return download(stateReportCsv(await stateReport(c,url)),'coffer-giving-by-state')
  if (path === '/api/coffer/settings') return json(await settings(c))
  return fail('not_found', 'Not found.', 404)
 }
@@ -400,12 +421,16 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/giving/health') return show('Recurring giving health',await recurringHealthPage(c,url))
  if (path === '/app/funds/restrictions') return show('Restricted funds',await restrictedFundsPage(c,url))
  if (path === '/app/funds') return show('Giving by fund',await fundReportPage(c,url))
+ if (path === '/app/reports/states') return show('Giving by state',await stateReportPage(c,url))
+ if (path === '/app/reports/states.csv') return download(stateReportCsv(await stateReport(c,url)),'coffer-giving-by-state')
  if (path === '/app/funds/ledger.csv') {
   if (!manager(actor)) fail('manager_required','Only the owner or an admin exports accounting entries.',403)
   return download(fundLedgerCsv(await fundEntries(c,url,null)),'coffer-fund-ledger')
  }
  if (path === '/app/calls') return show('Call list', await callTasksPage(c,url))
  if (path === '/app/lapses') return url.searchParams.has('annual') ? show('LYBUNT and SYBUNT',await annualLapsesPage(c,url)) : show('Donors who need a call', await lapsesPage(c,url))
+ if(path==='/app/reports/honor-roll') {if(!manager(actor))fail('FORBIDDEN','Only the owner or an admin reads honor rolls.',403);return show('Honor roll',await honorRollPage(c,url))}
+ if(path==='/app/reports/honor-roll.csv')return download(honorRollCsv(await honorRoll(c,honorRollUrl(url))),'coffer-honor-roll')
  if (path === '/app/reports/tax') return show('Form 990 support',await taxReportsPage(c,url))
  if (path === '/app/retention') return show('Donor retention', await retentionPage(c,url))
  if (path === '/app/portfolios') return show('Portfolios and moves',await portfoliosPage(c,url))

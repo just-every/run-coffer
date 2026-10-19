@@ -11,3 +11,9 @@ Coffer retains only the provider profile ID, screening date, matched/no-match ou
 Research follows donor merge and undo, is included in the owner's private installation archive, and is removed with donor erasure, including private merge snapshots. Restoring an archive predating that erasure is refused by DATA-001's fence. The optional account must be reconnected after restore. Staff cannot separately delete research in a way that promises to remove it from older archives.
 
 Provider-side retention is governed by the nonprofit's WealthEngine account; Coffer does not claim that a lookup or local erasure deletes provider records. See the [official WealthEngine API contract](https://apidocs.wealthengine.com/docs/api-service-openapi.yaml).
+
+## Public gift recognition
+
+GIFT-011 stores a separate recognition name and opt-in with a donation checkout in the installation’s database. Only gifts explicitly opted into the campaign wall publish that chosen recognition name and remaining monetary amount. A donor or gift anonymity choice overrides it; blank recognition names display Anonymous. Legal names, emails, donor/gift IDs and receipt text never enter the public wall. Existing and imported gifts start private. Staff can withdraw a wall opt-in; they cannot create one for an old private gift. These choices do not add data to Stripe requests.
+
+Owner/admin honor-roll reports and CSV files use current positive remaining monetary gifts received in an inclusive date period, under donor-authorized recognition names or Anonymous. Anonymous gift amounts have separate rows. The owner’s private archive keeps the original recognition choices; donor merge/undo retains conservative privacy, and erasure removes names and wall opt-ins.
