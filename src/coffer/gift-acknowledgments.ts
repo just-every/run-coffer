@@ -10,5 +10,8 @@ export async function withGiftAcknowledgments(c: {db:D1Database}, gifts:Row[]) {
   all(c,'SELECT gift_id FROM cf_prior_acknowledgements WHERE gift_id IN (SELECT value FROM json_each(?))',ids),
  ])
  const byId=new Map(recorded.map(r=>[r.gift_id,r])),beforeCutoff=new Set(prior.map(r=>r.gift_id))
- for(const gift of gifts)gift.acknowledgment=byId.get(gift.id)??(beforeCutoff.has(gift.id)?{status:'acknowledged',source:'Reviewed move-in cutoff',acknowledged_on:null,method:null,batch_id:null,letter_id:null,reason:null}:{status:'not acknowledged'})
+ for(const gift of gifts){
+  gift.before_acknowledge_from=beforeCutoff.has(gift.id)
+  gift.acknowledgment=byId.get(gift.id)??(beforeCutoff.has(gift.id)?{status:'acknowledged',source:'Reviewed move-in cutoff',acknowledged_on:null,method:null,batch_id:null,letter_id:null,reason:null}:{status:'not acknowledged'})
+ }
 }

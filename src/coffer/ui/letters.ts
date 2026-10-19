@@ -10,6 +10,7 @@ export const letterStatus = (value: string) => value === 'approved' ? chip('Appr
 export const giftLetter = (g: Row, thresholdCents: number, date: ((day: string) => string) | null = longDay) => {
  if(g.kind!=='gift')return ''
  const ack=g.acknowledgment
+ if(g.before_acknowledge_from&&ack?.status==='not acknowledged')return chip('Before acknowledgment cutoff')
  if(ack && ack.status!=='not acknowledged') {
   const label=chip(ack.status==='acknowledged'?'Acknowledged':'Do not acknowledge')
   return `${ack.batch_id?`<a href="/app/letters/${e(ack.batch_id)}">${label}</a>`:label}${ack.acknowledged_on&&date?` ${date(ack.acknowledged_on)}`:''}${ack.method?` · ${e(ack.method)}`:''}${ack.source?`<br><small>${e(ack.source)}</small>`:''}${ack.source_reference?`<br><small>${e(ack.source_reference)}</small>`:''}${ack.reason?`<br><small>${e(ack.reason)}</small>`:''}`

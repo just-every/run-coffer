@@ -71,6 +71,7 @@ async function sourceAcknowledgments(h,source) {
  assert.deepEqual(['acknowledged_on','method','reason','source','batch_id','letter_id'].map(k=>gifts.ACK_FULL.acknowledgment[k]),['2026-09-02','personal email','Source thank-you',label,null,null])
  assert.deepEqual(['acknowledged_on','method','reason'].map(k=>gifts.ACK_NO_DETAILS.acknowledgment[k]),[null,null,null],'An acknowledged source gift never invents missing details')
  assert.equal(gifts.ACK_SKIP.acknowledgment.reason,'Donor requested no letter')
+ assert.equal(gifts.ACK_OLD.before_acknowledge_from,true);assert.equal(gifts.ACK_DUE.before_acknowledge_from,false)
  assert.equal(gifts.ACK_ABSENT.acknowledgment.status,'not acknowledged','A missing source status defaults to not acknowledged')
  if(source==='lgl') {
   assert.deepEqual(['status','acknowledged_on','method','source_reference'].map(k=>gifts.ACK_TEMPLATE.acknowledgment[k]),['acknowledged','2026-09-09','letter','Spring thank-you'])
