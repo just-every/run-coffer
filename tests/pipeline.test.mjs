@@ -160,3 +160,9 @@ test('REPORT-002: independent annual LYBUNT/SYBUNT lists feed approved appeals a
  const {annualLapsesJourney}=await import('./annual-lapses-journey.mjs')
  await annualLapsesJourney()
 })
+
+
+test('MAJOR-001: configurable opportunity boards and lists link wins once and reconcile the probability-weighted forecast',async()=>{
+ const {opportunityJourney}=await import('./opportunity-journey.mjs')
+ await opportunityJourney()
+})

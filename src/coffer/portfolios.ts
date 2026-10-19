@@ -48,7 +48,7 @@ export async function portfolioReport(c: Context, url: URL) {
    (SELECT COUNT(*) FROM cf_interactions i WHERE i.donor_id=d.id AND i.meaningful=1 AND i.recorded_by_id=p.manager_id AND i.occurred_on>=? AND i.occurred_on<=?) AS moves,
    (SELECT COUNT(*) FROM cf_interactions i WHERE i.donor_id=d.id AND i.meaningful=1 AND i.recorded_by_id IS NULL AND i.occurred_on>=? AND i.occurred_on<=?) AS unattributed_contacts,
    (SELECT COALESCE(SUM(g.amount_cents),0) FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.received_on>=? AND g.received_on<=?) AS raised_cents,
-   (SELECT COALESCE(SUM(o.ask_amount_cents),0) FROM cf_prospects o WHERE o.donor_id=d.id) AS pipeline_cents
+   (SELECT COALESCE(SUM(o.ask_amount_cents),0) FROM cf_prospects o WHERE o.donor_id=d.id AND o.closed_on IS NULL) AS pipeline_cents
    FROM cf_portfolio_members m JOIN cf_portfolios p ON p.id=m.portfolio_id JOIN cf_donors d ON d.id=m.donor_id
    WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges x WHERE x.donor_id=d.id)
    AND (? IS NULL OR p.manager_id=?) ORDER BY lower(d.name),d.id`, through, from, through, from, through, from, through, selected, selected),

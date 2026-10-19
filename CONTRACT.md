@@ -604,7 +604,9 @@ The pipeline Raiser's Edge NXT and Bloomerang sell to development directors.
 
 An opportunity has a prospect, ask amount, expected amount, probability, target date, fund and stage (identify, qualify, cultivate, solicit, steward, closed won or lost, configurable). Pipeline boards and lists filter by manager, stage and campaign; a closed-won opportunity links to its pledge or gift so the forecast never double-counts.
 
-*Acceptance:* A browser journey creates three opportunities for two managers and two campaigns, filters the board by manager, by stage and by campaign and sees only the matching opportunities each time, moves one through to solicit, closes it won with a pledge, and reads a pipeline total that excludes the closed amount from the forecast.
+Ask and Stewardship remain the default labels for solicit and steward. The opportunity owner is its manager for these filters; relationship portfolios remain separate. Expected amount is unweighted USD; whole-number probability is 0–100 percent, defaulting to 100 when omitted, and omitted expected amount defaults to the ask. Forecast multiplies expected cents by probability, rounds half a cent upward per open opportunity, then sums the displayed cents. Campaigns must use the opportunity’s fund. Owner/admin stage settings preserve the codes and open/won/lost outcomes of stages already in use. Under the existing prospect/pledge staff permission, closing is atomic and requires a current version: a win links an existing pledge or positive-balance gift from the same donor/fund, or creates a pledge with installments totaling its amount; a loss has no financial link. Closing refuses a link already used by another opportunity, including a pledge and its recorded payments. Closed opportunities retain their facts and contribute zero to both the forecast and current portfolio asks; later refunds remain ledger facts and do not silently reopen an opportunity. Dates are organization-calendar days and closure cannot be future-dated. Backup/restore, merge/undo and erasure preserve custody; linked imported records cannot be undone while in use.
+
+*Acceptance:* A browser journey at 1440 and 390 pixels creates three opportunities for two managers and two campaigns, filters both board and list by manager, stage and campaign and sees only matching opportunities, moves one through the Ask (solicit) stage, closes it won with a pledge and reads a forecast excluding the closed amount. A clause-named HTTP journey checks exact-cent probability rounding, configurable stages, staff/settings role and stale-version refusals, atomic closure with existing and new pledges or gifts, no duplicate financial link, and backup/restore, merge/undo, import-undo refusal and erasure.
 
 #### MAJOR-002 — Portfolios and moves.
 
@@ -1031,7 +1033,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 37 | welcome journeys | `STEW-003` | partial |
 | 38 | Unsubscribes are honored everywhere | `CONSENT-001`, `APPEAL-001`, `COMM-001` | `CONSENT-001` done · `APPEAL-001` done · `COMM-001` partial |
 | 39 | replies land with the right person | `COMM-005` | partial |
-| 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | `MAJOR-001` partial · `MAJOR-002` done · `MAJOR-004` done |
+| 40 | major-gift pipeline with next steps, owners and engagement scores | `MAJOR-001`, `MAJOR-002`, `MAJOR-004` | `MAJOR-001` done · `MAJOR-002` done · `MAJOR-004` done |
 | 41 | reconciles every gift | `DEV-001` | partial (core claim implemented; broader clauses remain) |
 | 42 | rescues failed monthly gifts | `DEV-002` | partial (core claim implemented; broader clauses remain) |
 | 43 | sends missing receipts | `DEV-003` | partial (core claim implemented; broader clauses remain) |
@@ -1073,8 +1075,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 19 | 59 | 48 | 126 |
-| All | 27 | 60 | 48 | 135 |
+| Target and push further | 20 | 58 | 48 | 126 |
+| All | 28 | 59 | 48 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1161,7 +1163,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `STEW-004` | Pledge reminders and invoices | target | partial | `src/coffer/pledges.ts`, `src/server.ts`, `tests/pledges.test.mjs` | Self-hosted SendGrid reminders run daily or by staff before each unpaid installment using current email permission, with durable single-attempt submission states. Managed email is not available yet. Unpaid due installments now feed the owned call list. Pay links, printable invoices and automatic overdue follow-up remain. |
 | `STEW-005` | Gift-triggered rules | target | missing |  | No rules. |
 | `STEW-006` | Meetings and calendars | target | missing |  | No calendar connection. |
-| `MAJOR-001` | Opportunity pipeline | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Identify, qualify, cultivate, ask and stewardship opportunities carry ask amount, expected close, owner and next step; lists filter by owner and stage. Configurable stages, probability, campaign/fund forecasts and closed-won gift linkage remain. |
+| `MAJOR-001` | Opportunity pipeline | target | done | `src/coffer/major-gifts.ts`, `src/coffer/opportunity-stages.ts`, `src/coffer/opportunity-close.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs`, `tests/opportunity-journey.mjs` | Configurable stages, exact expected/probability forecasts, fund/campaign attribution and filtered boards/lists ship. Atomic wins link or create a pledge or link a received gift once, and closed amounts leave forecasts and current portfolio asks. Clause-named public-door and 1440/390 native journeys cover custody and refusals. |
 | `MAJOR-002` | Portfolios and moves | target | done | `src/coffer/portfolios.ts`, `src/coffer/ui/portfolios.ts`, `tests/pipeline.test.mjs`, `tests/portfolios-journey.mjs` | Named, versioned portfolios assign one relationship manager per prospect; inclusive-period moves, untouched flags, current pipeline and signed ledger giving aggregate per portfolio and manager. Clause-tagged HTTP and 1440/390 browser journeys exercise the public report, forms and custody. |
 | `MAJOR-003` | Action plans and proposals | target | done | `src/coffer/cultivation.ts`, `src/coffer/ui/cultivation.ts`, `migrations/core/0051_coffer_cultivation.sql`, `tests/pipeline.test.mjs`, `tests/cultivation-journey.mjs` | Clause-named public-door proof applies four dated steps, completes two, drafts and attaches a proposal, downloads the exact document, records sending and a response, rejects stale changes, and exercises backup/restore, merge/undo and erasure. Native proposal forms run at 1440 and 390 pixels. |
 | `MAJOR-004` | Engagement and retention scores | target | done | `src/coffer/engagement.ts`, `src/coffer/ui/engagement.ts`, `src/coffer/ui/donors.ts`, `tests/engagement-journey.mjs`, `tests/pipeline.test.mjs` | Every current constituent has a score and independent retention risk; API/settings disclose the formula, owner/admin weights recalculate scores, donor and pipeline show factors. MAJOR-004 public-door proof covers giving, calls/meetings/email, routed replies and replay/automatic-reply exclusion, unanswered calls, future records, roles, stale writes, backup/restore, merge/undo and erasure. Future open tracking (RCPT-006), events (CAMP-002) and volunteering (DONOR-010) inherit scoring in their own text and acceptance. |

@@ -26,7 +26,7 @@ import { lapses } from './lapses'
 import { annualLapses } from './annual-lapses'
 import { annualLapsesPage } from './ui/annual-lapses'
 import { retention } from './retention'
-import { prospects } from './major-gifts'
+import { prospects, opportunityStages, opportunityPipeline } from './major-gifts'
 import { callTasksPage } from './ui/call-tasks'
 import { lapsesPage } from './ui/lapses'
 import { retentionPage } from './ui/retention'
@@ -261,7 +261,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('grant.')) return redirect('/app/grants')
  if (command === 'engagement.settings') return redirect('/app/engagement')
  if (command.startsWith('cultivation.') || command.startsWith('proposal.')) return redirect('/app/opportunities/' + encodeURIComponent(result.prospectId ?? input.prospectId))
- if (command === 'prospect.save') return redirect('/app/pipeline')
+ if (command.startsWith('prospect.')) return redirect('/app/pipeline')
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
  if (command === 'agent.revoke') return redirect('/app/data')
  if (command === 'settings.update') return redirect('/app/settings?saved=1')
@@ -340,6 +340,8 @@ async function api(c: Context, url: URL): Promise<Response> {
  if(grantDocument) return grantDownload(c,grantDocument[1])
  if (path === '/api/coffer/engagement/settings') return json(await engagementPolicy(c))
  if (path === '/api/coffer/engagement') return json(await engagementScores(c))
+ if (path === '/api/coffer/prospect-stages') return json(await opportunityStages(c))
+ if (path === '/api/coffer/pipeline') return json(await opportunityPipeline(c,url))
  if (path === '/api/coffer/prospects') return json(await prospects(c))
  if (path === '/api/coffer/reports/recurring') return json(await recurringHealth(c,url))
  if (path === '/api/coffer/reports/restrictions') return json(await restrictionReport(c,url))

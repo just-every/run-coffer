@@ -16,8 +16,8 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 19 | 59 | 48 | 126 |
-| All | 27 | 60 | 48 | 135 |
+| Target and push further | 20 | 58 | 48 | 126 |
+| All | 28 | 59 | 48 | 135 |
 
 ## Target
 
@@ -124,7 +124,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 ### Major gifts and moves management
 
-81. **`MAJOR-001` Opportunity pipeline** (partial). A browser journey creates three opportunities for two managers and two campaigns, filters the board by manager, by stage and by campaign and sees only the matching opportunities each time, moves one through to solicit, closes it won with a pledge, and reads a pipeline total that excludes the closed amount from the forecast.
+81. **`MAJOR-001` Opportunity pipeline** (done). A browser journey creates three opportunities for two managers and two campaigns, filters the board by manager, by stage and by campaign and sees only the matching opportunities each time, moves one through Ask (solicit), closes it won with a pledge, and reads a pipeline total that excludes the closed amount from the forecast. Both board and list run at 1440 and 390 pixels. The clause-named HTTP journey asserts the exact expected-cents × whole-percent forecast (half-cent upward per opportunity), configurable stages and existing staff/settings permissions, atomic win/loss and pledge/gift linkage without duplicates, custody through backup/restore and merge/undo, import-undo refusal and erasure. Closed opportunities retain their recorded facts and never count in current portfolio asks.
 82. **`MAJOR-002` Portfolios and moves** (done). An HTTP journey assigns two portfolios and separate relationship managers, logs dated meaningful contacts, excludes unanswered call tasks, and reads moves, untouched prospects, current pipeline and signed period contributions per manager. Current portfolio membership applies; opportunity owners remain separate. Date bounds include both days, and untouched days run from any staff meaningful contact or assignment. Stale edits, backup/restore, merge/undo and erasure are exercised; forms and filters run at 1440 and 390 pixels.
 83. **`MAJOR-003` Action plans and proposals** (done). An HTTP journey applies a four-step plan to an opportunity, completes two steps, drafts and attaches a proposal, downloads its exact document, records outside sending with date/method/evidence and its response, and exercises stale changes, backup/restore, merge/undo and erasure. The native forms run at 1440 and 390 pixels.
 84. **`MAJOR-004` Engagement and retention scores** (done). An HTTP journey builds donors with different histories and reads scores and factors that follow the formula as read from the scores settings page and its API, then changes a weight and sees the scores change. Every live constituent, including a non-prospect, has factors and an independent retention-risk flag. Routed replies count once; replay, automatic replies, unanswered calls, reversals and future records do not score. The journey also asserts role/stale-write boundaries, backup/restore, merge/undo and erasure; formula settings, pipeline factors and donor factors run at 1440 and 390 pixels. Future open tracking, attendance and volunteering inherit their MAJOR-004 input acceptance in RCPT-006, CAMP-002 and DONOR-010 respectively.
