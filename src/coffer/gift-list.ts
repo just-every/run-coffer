@@ -2,6 +2,7 @@
 // monthly plan, campaign and acknowledgement state, filtered by tab and by the
 // strip's scope (one campaign, or one fund in a year); plus the selected donor's
 // card-retry history and the overnight work line.
+import { withGiftAcknowledgments } from './gift-acknowledgments'
 import { manager } from './auth'
 import { DUE } from './acknowledgements'
 import { addDays, all, one, today, type Context, type Row } from './db'
@@ -54,10 +55,15 @@ export async function giftList(c: Context, tab: GiftTab, page: number, scope: Gi
   one(c, `SELECT (SELECT count(*) FROM (${COLUMNS} AND ${ATTENTION} AND ${within})) AS attention,(SELECT count(*) FROM (${COLUMNS} AND (${DUE}) AND ${within})) AS letters,(SELECT count(*) FROM (${COLUMNS} AND ${within})) AS gifts,(SELECT count(*) FROM (${COLUMNS} AND (${DUE}))) AS letters_all`, s.threshold_cents, overdueBefore, ...scopeParams, s.threshold_cents, ...scopeParams, ...scopeParams, s.threshold_cents),
   one(c, `SELECT count(*) AS n FROM (${COLUMNS} AND ${where} AND ${within})`, ...params, ...scopeParams),
  ])
+ await withGiftAcknowledgments(c,rows)
  return { settings: s, today: day, rows, total: Number(total?.n ?? 0), counts: counts as Row }
 }
 
-export const giftById = (c: Context, giftId: string) => one(c, `${COLUMNS} AND g.id=?`, giftId)
+export async function giftById(c: Context, giftId: string) {
+ const gift=await one(c, `${COLUMNS} AND g.id=?`, giftId)
+ if(gift)await withGiftAcknowledgments(c,[gift])
+ return gift
+}
 
 /** The strip: the newest active campaign's progress, read from the same fund ledger as its
  * campaign page, beside its fund's total for the year; or the year's giving when none is published. */

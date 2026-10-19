@@ -11,7 +11,8 @@ const MAX_LETTERS = 500
 export const DUE = `g.kind='gift' AND (g.amount_cents>=min(?,25000) OR (g.amount_cents>7500 AND g.goods='provided' AND g.goods_cents>0 AND g.goods_cents<g.amount_cents)) AND d.erased_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
  AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1)
- AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)`
+ AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)
+ AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND k.status<>'not acknowledged')`
 
 export async function dueGifts(c: { db: D1Database }) {
  const s = await settings(c), day = today(s.timezone)
@@ -91,7 +92,10 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
  const timezone = (await settings(c)).timezone
  // The export date is the organization's calendar day, like Sent on itself.
  if (sentOn > today(timezone) || sentOn < today(timezone, new Date(batch.exported_at))) fail('INPUT', 'Sent on must be between the export date and today.', 400)
- await commit(c, [at(['exported']), bump('sent', ',sent_on=?,sent_method=?,sent_recorded_by=?', sentOn, method, c.actor.name), event(c, 'ack.markSent', 'acknowledgements', batchId, null, { sentOn, method })])
+ await commit(c, [at(['exported']), bump('sent', ',sent_on=?,sent_method=?,sent_recorded_by=?', sentOn, method, c.actor.name),
+  sql(`INSERT INTO cf_gift_acknowledgments(gift_id,status,acknowledged_on,method,batch_id,letter_id,reason,source,updated_at,updated_by)
+   SELECT gift_id,'acknowledged',?,'letter',batch_id,id,NULL,'Coffer letter batch',?,? FROM cf_acks WHERE batch_id=? AND gift_id IS NOT NULL
+   ON CONFLICT(gift_id) DO UPDATE SET status=excluded.status,acknowledged_on=excluded.acknowledged_on,method=excluded.method,batch_id=excluded.batch_id,letter_id=excluded.letter_id,reason=NULL,source=excluded.source,source_reference=NULL,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,sentOn,c.now,c.actor.name,batchId), event(c, 'ack.markSent', 'acknowledgements', batchId, null, { sentOn, method })])
  return { id: batchId, version: version + 1, status: 'sent' }
 }
 

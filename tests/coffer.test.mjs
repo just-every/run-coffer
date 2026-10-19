@@ -5,6 +5,7 @@ import {timelineJourney} from './timeline-journey.mjs'
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {run,installation,archive,restore,stripe,imported,reviewed,donor,csvRows,settings} from './harness.mjs'
+import {ackBrowser} from './ack-browser.mjs'
 import {mcpJourney} from './mcp-journey.mjs'
 
 test('API-004: MCP donor context and preparation retain native keys and human approval',mcpJourney)
@@ -54,7 +55,7 @@ test('GIFT-001: gifts are exact integer-cent ledger lines; corrections are rever
  assert.equal((await h.get('/api/coffer/letters')).due.length,0)
 }))
 
-test('an agent prepares acknowledgement letters, a person approves, exports and records them',()=>run(async h=>{
+test('ACK-001: an agent prepares frozen letters, a person approves, exports and records each gift acknowledged by letter',()=>run(async h=>{
  const {as}=await agentOf(h)
  const ana=await donor(h,'Ana Diaz'),ben=await donor(h,'Ben Cole')
  const gift=await h.command('gift.record',{donorId:ana.id,amount:'250',receivedOn:'2026-09-20',method:'check',goods:'none'})
@@ -64,8 +65,13 @@ test('an agent prepares acknowledgement letters, a person approves, exports and 
  assert.equal((await h.command('settings.update',{...settings,letterTemplate:'Dear {{donor_name}}, thanks.',version:1},{status:400})).error,'TEMPLATE')
  await reviewed(h)
  const due=await h.get('/api/coffer/letters');assert.equal(due.due.length,2)
+ const waiting=due.due.find(g=>g.id===gift.id),deadline=new Date(waiting.received_on+'T00:00:00Z');deadline.setUTCDate(deadline.getUTCDate()+(await h.get('/api/coffer/settings')).target_days)
+ assert.equal(waiting.due_on,deadline.toISOString().slice(0,10));assert.equal(waiting.overdue,due.today>waiting.due_on)
  const batch=await h.command('ack.prepare',{},as)
  assert.equal(batch.letters,2);assert.equal(batch.totalCents,75000)
+ const frozen=await h.get(`/api/coffer/letters/${batch.id}`)
+ await h.command('settings.update',{...settings,organisation:'Riverbend Literacy Foundation',version:(await h.get('/api/coffer/settings')).version})
+ assert.deepEqual((await h.get(`/api/coffer/letters/${batch.id}`)).letters,frozen.letters)
  assert.equal((await h.command('ack.approve',{batchId:batch.id,version:1},{...as,status:403})).error,'FORBIDDEN')
  await h.command('ack.export',{batchId:batch.id,version:1},{status:409})
  await h.command('gift.reverse',{giftId:gift.id,reason:'x'},{status:409})
@@ -81,11 +87,21 @@ test('an agent prepares acknowledgement letters, a person approves, exports and 
  assert.match(text,/You received two gala dinner tickets worth \$120\.00; \$380\.00 may be deductible\./)
  await h.command('ack.markSent',{batchId:batch.id,version:exported.version,sentOn:'2099-01-01',method:'mail'},{status:400})
  const today=new Date().toISOString().slice(0,10),sentOn=exported.exportHash&&new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(new Date())
- await h.command('ack.markSent',{batchId:batch.id,version:exported.version,sentOn,method:'mail'})
+ const sent=await h.command('ack.markSent',{batchId:batch.id,version:exported.version,sentOn,method:'mail'})
+ await h.command('ack.send',{batchId:batch.id,version:sent.version},{status:409})
  const history=await h.get(`/api/coffer/donors/${ana.id}`)
+ assert.equal(history.gifts[0].acknowledgment.status,'acknowledged');assert.equal(history.gifts[0].acknowledgment.method,'letter');assert.equal(history.gifts[0].acknowledgment.acknowledged_on,sentOn);assert.equal(history.gifts[0].acknowledgment.batch_id,batch.id);assert.equal(history.gifts[0].acknowledgment.letter_id,detail.letters.find(l=>l.gift_id===gift.id).id)
  assert.equal(history.gifts[0].ack_status,'sent');assert.equal(history.letters[0].sent_on,sentOn);assert.ok(today)
  assert.equal((await h.get('/api/coffer/letters')).due.length,0)
  assert.deepEqual((await h.get(`/api/coffer/letters/${batch.id}`)).events.map(e=>e.action),['ack.prepare','ack.approve','ack.export','ack.markSent'])
+ const backup=await archive(h),fresh=await installation()
+ try {
+  await restore(fresh,backup)
+  assert.deepEqual((await fresh.get(`/api/coffer/donors/${ana.id}`)).gifts[0].acknowledgment,history.gifts[0].acknowledgment)
+ }finally{await fresh.close()}
+ if(process.env.COFFER_ACK_BROWSER)await ackBrowser(h,process.env.COFFER_ACK_BROWSER)
+ const erased=await h.command('donor.erase',{donorId:ana.id,confirm:'ERASE'})
+ assert.equal((await h.get(`/api/coffer/donors/${erased.donorId}`)).gifts[0].acknowledgment.status,'not acknowledged')
 }))
 
 test('an appeal reaches only donors with current consent, and a withdrawal stops it',()=>run(async h=>{

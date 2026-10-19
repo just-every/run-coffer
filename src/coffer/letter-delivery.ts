@@ -25,6 +25,7 @@ export async function deliveryCommand(c: Context, command: string, p: Row): Prom
   }
   return { id: batchId, version, ...await deliverySummary(c, batchId) }
  }
+ if(b.status==='sent')fail('ALREADY_SENT','This batch was recorded as sent. Its frozen letters remain available as copies.')
  const frozen = await batchLetters(c, batchId)
  if (await letterHash(b.settings_version, frozen) !== b.content_hash) fail('CONTENT_CHANGED', 'These letters changed. Discard and prepare them again.')
  if (command === 'ack.printed') {
