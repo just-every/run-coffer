@@ -155,3 +155,8 @@ test('MAJOR-006: foundation requests become restricted pledges with payment sche
  const {grantsJourney}=await import('./grants-journey.mjs')
  await grantsJourney()
 })
+
+test('REPORT-002: independent annual LYBUNT/SYBUNT lists feed approved appeals and call tasks with ledger custody',async()=>{
+ const {annualLapsesJourney}=await import('./annual-lapses-journey.mjs')
+ await annualLapsesJourney()
+})

@@ -14,7 +14,7 @@ export async function lapsesPage(c: Context, url: URL): Promise<string> {
  const requestedOwner = url.searchParams.get('ownerId')
  const ownerId = ownerOptions.some(([id]) => id === requestedOwner) ? requestedOwner! : c.actor.id
  const dueOn = addDays(report.asOf, 7)
- return `<p>As of <strong>${longDay(report.asOf)}</strong> · ${e(report.timezone)}. Annual lapses are provisional until ${report.year} ends.</p>
+ return `<p><a href="/app/lapses?annual=1">LYBUNT and SYBUNT annual lists</a></p><p>As of <strong>${longDay(report.asOf)}</strong> · ${e(report.timezone)}. Annual lapses are provisional until ${report.year} ends.</p>
  <div class="stats"><a class="stat" href="#lapse-donors"><strong>${report.totals.donorCount}</strong><span>donors needing review</span></a><a class="stat" href="#lapse-donors"><strong>${money(report.totals.amountCents)}</strong><span>annual reference amount at risk</span></a></div>
  ${box('How these donors are identified', `<p>${e(report.policy)}</p><p>Annual giving uses signed contribution ledger amounts, including dated refunds and reversals. Last gift and monthly paid history use gift balances, excluding fully reversed or refunded gifts. Gifts on another plan or one-off gifts cannot reset a monthly plan’s clock.</p>${report.suppressedAnnualCount ? `<p>${report.suppressedAnnualCount} annual lapse rows are excluded because those donors already have stopped monthly plans listed below.</p>` : ''}`)}
  <div id="lapse-donors">${report.groups.map(group => box(LABELS[group.kind], `<p><a href="#${group.kind}-rows">${group.donorCount} donors · ${group.count} ${group.kind === 'monthly' ? 'plans' : 'rows'} · ${money(group.amountCents)} annual reference amount</a></p>

@@ -16,8 +16,8 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 18 | 60 | 48 | 126 |
-| All | 26 | 61 | 48 | 135 |
+| Target and push further | 19 | 59 | 48 | 126 |
+| All | 27 | 60 | 48 | 135 |
 
 ## Target
 
@@ -117,7 +117,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 75. **`STEW-001` Tasks with owners and reminders** (partial). A browser journey assigns a thank-you call due tomorrow, receives the reminder, completes it with a note that lands on the timeline, lets a second task go overdue past the delay and sees it on the assignee's manager's list and reminder, and sees a third, assigned to a person with no manager, escalate to the owner.
 76. **`STEW-002` Recurring tasks** (done). An HTTP journey completes a quarterly task and reads the next one dated three months on.
-77. **`STEW-003` Stewardship journeys** (partial). An HTTP journey with sender edges faked publishes a three-step first-gift welcome, enrolls a new donor, advances time through each step, and sees the donor leave when they give again; a gift-over-$1,000 journey enrolls a donor when a $1,500 gift arrives, and a lapse journey enrolls a donor whose last gift passes twelve months on the test clock; a second journey respects the frequency cap; a do-not-solicit donor enrolled in a journey receives its thank-you step and skips its ask step with that reason.
+77. **`STEW-003` Stewardship journeys** (partial). An HTTP journey with sender edges faked publishes a three-step first-gift welcome, enrolls a new donor, advances time through each step, and sees the donor leave when they give again; a gift-over-$1,000 journey enrolls a donor when a $1,500 gift arrives, and a lapse journey enrolls a donor whose last gift passes twelve months on the test clock; a second journey respects the frequency cap; a do-not-solicit donor enrolled in a journey receives its thank-you step and skips its ask step with that reason. A list-triggered journey must enroll the REPORT-002 LYBUNT and SYBUNT cohorts directly under their documented calendar-year semantics and exclude donors who no longer match before that capability ships.
 78. **`STEW-004` Pledge reminders and invoices** (partial). An HTTP journey creates a quarterly pledge, receives the reminder a week before an installment, pays through the link, and lets the next installment go overdue to see the follow-up and task; a do-not-solicit donor's installment reminder still goes.
 79. **`STEW-005` Gift-triggered rules** (missing). An HTTP journey defines two rules, gives through a form and imports old gifts, and sees the rules fire for the new gift only.
 80. **`STEW-006` Meetings and calendars** (missing). An HTTP journey with the calendar edge faked logs a meeting with a donor and receives a Dial booking that creates a meeting record and a preparation task.
@@ -135,7 +135,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 ### Reporting
 
 88. **`REPORT-001` Donor retention** (partial). An HTTP journey builds three years of giving and reads retention figures that match a hand calculation, then opens the lapsed figure to its donors.
-89. **`REPORT-002` LYBUNT and SYBUNT lists** (partial). An HTTP journey reads both lists for a built history and sends the LYBUNT list to an appeal.
+89. **`REPORT-002` LYBUNT and SYBUNT lists** (done). A clause-named HTTP journey reads independent signed-net annual cohorts (SYBUNT includes LYBUNT), checks last-gift date/balance and reference-year amounts, creates an owned call and sends the LYBUNT audience through human approval to the sender edge. New giving removes the donor from the live lists without changing an approved audience. Backup/restore, merge/undo and erasure retain custody; native lists and appeal preparation run at 1440 and 390 pixels. STEW-003 carries direct cohort enrollment before list-triggered journeys ship.
 90. **`REPORT-003` Fundraising dashboards** (partial). A browser journey at 1440 and 390 pixels reads the dashboard for a built year and opens a fund total to the gifts that make it; it reads raised by campaign and by month against last year and the goal, each figure equal to the ledger.
 91. **`REPORT-004` Report builder** (missing). An HTTP journey saves a gifts-by-fund-by-month report, shares it with a member, and exports it as CSV and .xlsx with the same rows and totals that match the ledger; it then adds a column to the saved definition, exports the definition as JSON, imports it into a second installation and gets the same totals there.
 92. **`REPORT-005` Scheduled reports** (missing). An HTTP journey schedules a weekly report with the mail edge faked, advances a week and reads the delivered report.

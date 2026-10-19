@@ -574,7 +574,9 @@ A task can repeat (quarterly board-member check-in, monthly donor-retention revi
 
 Admins build journeys triggered by first gift, recurring start, a gift over an amount, giving anniversary, lapse (no gift in twelve months), event attendance or joining a list. Steps send email (personal-style through `RCPT-001`'s path or marketing through Mango or Mailchimp), create tasks, wait, and branch on whether the donor gave or replied; a donor leaves when they give, unsubscribe, are moved or become inactive or deceased (`DONOR-012`). Each step is marked as an ask or not: an ask step skips a constituent with a solicitation restriction under the reason "do not solicit" and the donor carries on to the next step that is not an ask (`DONOR-015`). A journey runs only after a person publishes it, enrollment is visible per donor, and a frequency cap applies across journeys.
 
-*Acceptance:* An HTTP journey with sender edges faked publishes a three-step first-gift welcome, enrolls a new donor, advances time through each step, and sees the donor leave when they give again; a gift-over-$1,000 journey enrolls a donor when a $1,500 gift arrives, and a lapse journey enrolls a donor whose last gift passes twelve months on the test clock; a second journey respects the frequency cap; a do-not-solicit donor enrolled in a journey receives its thank-you step and skips its ask step with that reason.
+List triggers include the live LYBUNT and SYBUNT lists of `REPORT-002`, with their documented calendar-year cohort semantics; every list-trigger door must enroll their matching donors before it ships.
+
+*Acceptance:* An HTTP journey with sender edges faked publishes a three-step first-gift welcome, enrolls a new donor, advances time through each step, and sees the donor leave when they give again; a gift-over-$1,000 journey enrolls a donor when a $1,500 gift arrives, and a lapse journey enrolls a donor whose last gift passes twelve months on the test clock; a list-triggered journey enrolls the `REPORT-002` LYBUNT and SYBUNT cohorts directly and excludes donors who no longer match; a second journey respects the frequency cap; a do-not-solicit donor enrolled in a journey receives its thank-you step and skips its ask step with that reason.
 
 #### STEW-004 — Pledge reminders and invoices.
 
@@ -662,7 +664,9 @@ Retention, new, retained, recaptured, upgraded, downgraded and lapsed donors and
 
 Donors who gave last year but not this year (LYBUNT) and some year but not this year (SYBUNT), with last gift and amount, as lists that feed appeals, journeys and call tasks.
 
-*Acceptance:* An HTTP journey reads both lists for a built history and sends the LYBUNT list to an appeal.
+Annual lists use signed net calendar-year giving through the selected year end, or today in the organization’s time zone for the current year. Positive prior-year giving and no positive current-year giving qualifies; SYBUNT includes LYBUNT. Last gift date and current remaining amount are separate from the reference-year giving total. Stopped monthly plans never suppress these annual lists. Current lists feed consent-checked frozen appeal audiences and owned call tasks. Before list-triggered journeys ship under `STEW-003`, that clause must enroll these lists directly, preserve their cohort meaning and honor current journey exit and permission rules.
+
+*Acceptance:* An HTTP journey reads both lists for a built history, checks last-gift and reference-year amounts separately, creates an owned call and sends the LYBUNT list through an approved appeal to the sender edge. It checks current giving removes a donor while an already approved audience stays frozen, and exercises backup/restore, merge/undo and erasure. The annual lists and appeal preparation run at 1440 and 390 pixels. List-triggered journey enrollment is asserted under `STEW-003` before that capability ships.
 
 #### REPORT-003 — Fundraising dashboards.
 
@@ -1069,8 +1073,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 18 | 60 | 48 | 126 |
-| All | 26 | 61 | 48 | 135 |
+| Target and push further | 19 | 59 | 48 | 126 |
+| All | 27 | 60 | 48 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1165,7 +1169,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MAJOR-006` | Grants from foundations and corporations | target | done | `src/coffer/grants.ts`, `src/coffer/ui/grants.ts`, `migrations/core/0053_coffer_grants.sql`, `tests/grants-journey.mjs`, `tests/pipeline.test.mjs` | Clause-named public-door journey records inquiry/proposal progress, documents, a restricted award pledge, installments, payment/reversal and owned report completion. Roles, stale writes, refused atomic awards, backup/restore, merge/undo and erasure are asserted. Native create/upload/progress/award/payment/report flows run at 1440 and 390 pixels. Later grants fence Stripe and CRM import undo. |
 | `MAJOR-007` | Planned giving | target | done | `src/coffer/planned-giving.ts`, `src/coffer/ui/planned-giving.ts`, `tests/pipeline.test.mjs` | Versioned bequest and other intentions retain vehicle, optional estimated value and documentation status; dated legacy-society enrollment is separate from received gifts. Multiple estate distributions link once each to their intention and show reversal-aware net receipts. MAJOR-007 HTTP proof covers create/enroll/link, authorization, stale edits, backup/restore, merge/undo and erasure; donor forms run at 1440 and 390. |
 | `REPORT-001` | Donor retention | target | partial | `src/coffer/retention.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs` | Calendar-year retained, new, lapsed and recaptured counts and net amounts drill to every underlying donor; signed adjustments and erased identities reconcile to the contribution ledger. Fiscal years, list/fund/campaign filters and upgraded/downgraded cohorts remain. |
-| `REPORT-002` | LYBUNT and SYBUNT lists | target | partial | `src/coffer/lapses.ts`, `src/coffer/ui/lapses.ts`, `tests/pipeline.test.mjs`, `tests/giving.test.mjs` | LYBUNT and earlier-year SYBUNT lists show reasons, last gifts and annual amounts at risk, with stopped monthly-plan flags and owned call creation. Direct appeal and journey enrollment remain. |
+| `REPORT-002` | LYBUNT and SYBUNT lists | target | done | `src/coffer/annual-lapses.ts`, `src/coffer/ui/annual-lapses.ts`, `src/coffer/appeals.ts`, `tests/pipeline.test.mjs`, `tests/annual-lapses-journey.mjs` | Independent calendar-year signed-net lists include last-gift date/balance and reference-year totals, feed frozen consent-checked appeals and owned calls, and preserve custody. STEW-003 explicitly inherits direct cohort enrollment before list-triggered journeys ship. |
 | `REPORT-003` | Fundraising dashboards | target | partial | `src/coffer/ui/home.ts` | Today shows the current calendar year's total and acknowledgment backlog; no breakdowns, goals, comparisons or drill-down. |
 | `REPORT-004` | Report builder | target | missing |  | No report builder. |
 | `REPORT-005` | Scheduled reports | target | missing |  | No scheduled reports. |

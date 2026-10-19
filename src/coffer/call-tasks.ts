@@ -2,18 +2,22 @@ import { all, commit, date, event, fail, guard, id, integer, longText, newId, on
 import { requireRole } from './auth'
 import { settings } from './settings'
 import { lapses } from './lapses'
+import { annualLapses } from './annual-lapses'
 
 export const taskOwners = (c: Context) => all(c, "SELECT id,display_name AS name FROM oa_operators WHERE status='active' AND role IN ('owner','admin','member') ORDER BY display_name,id")
 export async function taskSources(c: Context) {
  const day = today((await settings(c)).timezone, new Date(c.now))
- const [flags, installments] = await Promise.all([
+ const [flags, annual, installments] = await Promise.all([
   lapses(c),
+  annualLapses(c),
   all(c, `SELECT i.id,p.donor_id AS donorId,d.name,i.due_on,p.fund,i.amount_cents-i.paid_cents AS amountCents
    FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
    WHERE i.due_on<=? AND i.paid_cents<i.amount_cents AND d.erased_at IS NULL
    AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id) ORDER BY i.due_on,d.name`, day),
  ])
- return [...flags.rows, ...installments.map(i => ({ key: `pledge:${i.id}`, donorId: i.donorId, name: i.name, kind: 'pledge', amountCents: i.amountCents,
+ const sources = [...flags.rows]
+ for (const row of annual.groups.flatMap(g=>g.rows)) if (!sources.some(s=>s.key===row.key)) sources.push(row)
+ return [...sources, ...installments.map(i => ({ key: `pledge:${i.id}`, donorId: i.donorId, name: i.name, kind: 'pledge', amountCents: i.amountCents,
   reason: `Unpaid ${i.fund} pledge installment due ${i.due_on}.`, lastGift: null }))]
 }
 export async function callTasks(c: Context, ownerId?: string | null, status?: string | null) {

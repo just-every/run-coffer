@@ -23,6 +23,8 @@ import { preferenceState } from './communications/preferences'
 import { replyTasks } from './communications/replies'
 import { callTasks, taskOwners, taskSources } from './call-tasks'
 import { lapses } from './lapses'
+import { annualLapses } from './annual-lapses'
+import { annualLapsesPage } from './ui/annual-lapses'
 import { retention } from './retention'
 import { prospects } from './major-gifts'
 import { callTasksPage } from './ui/call-tasks'
@@ -324,6 +326,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/appeals') return json({ appeals: await appeals(c) })
  if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)$/))) return json(await appealDetail(c, m[1]))
  if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
+ if (path === '/api/coffer/reports/annual-lapses') return json(await annualLapses(c,url.searchParams.has('year') ? Number(url.searchParams.get('year')) : undefined))
  if (path === '/api/coffer/lapses') return json(await lapses(c))
  if (path === '/api/coffer/tasks') return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: await taskSources(c) })
  if (path === '/api/coffer/retention') return json(await retention(c,url.searchParams.has('year') ? Number(url.searchParams.get('year')) : undefined))
@@ -373,7 +376,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
   return download(fundLedgerCsv(await fundEntries(c,url,null)),'coffer-fund-ledger')
  }
  if (path === '/app/calls') return show('Call list', await callTasksPage(c,url))
- if (path === '/app/lapses') return show('Donors who need a call', await lapsesPage(c,url))
+ if (path === '/app/lapses') return url.searchParams.has('annual') ? show('LYBUNT and SYBUNT',await annualLapsesPage(c,url)) : show('Donors who need a call', await lapsesPage(c,url))
  if (path === '/app/retention') return show('Donor retention', await retentionPage(c,url))
  if (path === '/app/portfolios') return show('Portfolios and moves',await portfoliosPage(c,url))
  const cultivation = path.match(/^\/app\/opportunities\/([^/]+)$/)
@@ -399,7 +402,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
   return printLetters(selected, (await settings(c)).organisation)
  }
  if ((m = path.match(/^\/app\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
- if (path === '/app/appeals') return show('Appeals', await appealsPage(c))
+ if (path === '/app/appeals') return show('Appeals', await appealsPage(c, null, url))
  if (path === '/app/appeals/connect') return show('Connect email marketing', await connectPage(c))
  if ((m = path.match(/^\/app\/appeals\/([^/]+)$/))) return show('Appeal', await appealPage(c, m[1]))
  if ((m = path.match(/^\/app\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
