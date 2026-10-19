@@ -15,9 +15,9 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 7 | 2 | 0 | 9 |
-| Target and push further | 13 | 63 | 50 | 126 |
-| All | 20 | 65 | 50 | 135 |
+| Published | 8 | 1 | 0 | 9 |
+| Target and push further | 16 | 61 | 49 | 126 |
+| All | 24 | 62 | 49 | 135 |
 
 ## Target
 
