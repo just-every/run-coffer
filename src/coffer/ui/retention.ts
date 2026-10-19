@@ -1,5 +1,5 @@
 import type { Context } from '../db'
-import { retention, type RetentionKind, type RetentionRow } from '../retention'
+import { retention, type RetentionKind, type RetentionRow, type SoftCreditRetentionRow } from '../retention'
 import { box, e, empty, field, longDay, money } from './common'
 
 const LABELS: Record<RetentionKind, string> = { retained: 'Retained', new: 'New', lapsed: 'Lapsed', recaptured: 'Recaptured' }
@@ -10,6 +10,11 @@ const EXPLANATIONS: Record<RetentionKind, string> = {
  recaptured: 'Positive net giving in the selected year and an earlier year, with no positive net giving in the prior year.',
 }
 const link = (target: string, value: string | number) => `<a href="#${e(target)}">${e(value)}</a>`
+
+function softCreditTable(rows: SoftCreditRetentionRow[], priorYear: number, year: number): string {
+ if (!rows.length) return empty('No soft credits in these periods.')
+ return `<table class="stack"><thead><tr><th scope="col">Credited constituent</th><th scope="col">${priorYear} soft credit</th><th scope="col">${year} soft credit</th><th scope="col">Credits</th></tr></thead><tbody>${rows.map(row => `<tr><td class="lead"><a href="/app/donors/${e(row.donorId)}">${e(row.name)}</a></td><td data-label="${priorYear} soft credit">${money(row.priorCents)}</td><td data-label="${year} soft credit">${money(row.currentCents)}</td><td data-label="Credits">${row.creditCount}</td></tr>`).join('')}</tbody></table>`
+}
 
 function donorTable(rows: RetentionRow[], priorYear: number, year: number): string {
  if (!rows.length) return empty('No donors in this group.')
@@ -37,6 +42,7 @@ export async function retentionPage(c: Context, url: URL): Promise<string> {
  <details id="prior-donors" class="card" open><summary>Donors giving in ${priorYear}</summary>${donorTable(cohortRows.filter(row => row.priorCents > 0), priorYear, year)}</details>
  <details id="current-donors" class="card" open><summary>Donors giving in ${year}</summary>${donorTable(cohortRows.filter(row => row.currentCents > 0), priorYear, year)}</details>
  <details id="all-donors" class="card" open><summary>All live donor rows behind the totals</summary>${donorTable([...cohortRows, ...report.adjustments.rows], priorYear, year)}</details>
+ ${box('Soft credits · separate recognition', `<p>${money(report.softCredits.priorCents)} in ${priorYear}; ${money(report.softCredits.currentCents)} in ${year}. These credits do not increase net received, donor retention counts or tax receipts.</p><p class="muted">Recognition uses each original gift’s date and its current remaining balance, capped at the recorded soft credit. Fully reversed gifts and erased or merged alias identities are excluded. A constituent with only soft credits appears here and does not become a hard-credit donor.</p>${softCreditTable(report.softCredits.rows, priorYear, year)}`, 'soft-credits')}
  ${box('Ledger reconciliation', `<p>Live donor net received: ${link('all-donors', money(totals.priorCents))} in ${priorYear}; ${link('all-donors', money(totals.currentCents))} in ${year}.</p><p>Excluded erased or merged alias identities: ${money(report.excluded.priorCents)} in ${priorYear}; ${money(report.excluded.currentCents)} in ${year}. These identities are excluded from donor drilldowns and counts.</p><p>Complete contribution ledger: ${money(report.ledgerTotals.priorCents)} in ${priorYear}; ${money(report.ledgerTotals.currentCents)} in ${year}.</p>`)}
  <p><a href="/app/lapses">Review donors who may need a follow-up</a></p>`
 }

@@ -1,15 +1,16 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {run,donor,reviewed} from './harness.mjs'
+import {run,donor,reviewed,archive,restore} from './harness.mjs'
 
 const receivedOn=new Date(Date.now()-7*86400000).toISOString().slice(0,10)
 const gift=(h,donorId,amount)=>h.command('gift.record',{donorId,amount,receivedOn,method:'check',goods:'none'})
 const history=(h,id)=>h.get(`/api/coffer/donors/${id}`)
 const ledgerTotal=async h=>(await h.get('/api/coffer/donors')).donors.reduce((sum,d)=>sum+d.total_cents,0)
 
-test('gift attribution recognizes other donors without duplicating cash, freezes tributes in receipts, and follows actual employer match reversals',()=>run(async h=>{
+test('GIFT-006 / RCPT-011 soft-credit acknowledgments and separate retention recognition; gift attribution recognizes other donors without duplicating cash, freezes tributes in receipts, and follows actual employer match reversals',()=>run(async h=>{
  await reviewed(h)
- const source=await donor(h,'Alex Rivera'),credited=await donor(h,'Blair Chen'),employer=await donor(h,'Northwind Company')
+ const source=await donor(h,'Riverbend DAF Sponsor'),credited=await donor(h,'Blair Chen'),employer=await donor(h,'Northwind Company')
+ const advisor=await donor(h,'DAF Advisor')
  const original=await gift(h,source.id,'250'),own=await gift(h,credited.id,'20')
  assert.equal((await h.request('/api/coffer/commands',{method:'POST',as:'',body:{command:'softCredit.record',input:{giftId:original.id,donorId:credited.id,amount:'125'}}})).status,401)
  await h.command('softCredit.record',{giftId:original.id,donorId:source.id,amount:'125'},{status:409})
@@ -26,13 +27,88 @@ test('gift attribution recognizes other donors without duplicating cash, freezes
  await h.command('softCredit.record',{giftId:original.id,donorId:credited.id,amount:'125'},{status:409})
  await h.command('softCredit.remove',{softCreditId:credit.id})
  assert.equal((await history(h,credited.id)).giftDepth.recognitionCents,0)
- await h.command('softCredit.record',{giftId:original.id,donorId:credited.id,amount:'125'})
+ const partial=await h.command('softCredit.record',{giftId:original.id,donorId:credited.id,amount:'125'})
+ const full=await h.command('softCredit.record',{giftId:original.id,donorId:advisor.id,amount:'250'})
+ const member=await h.person('entry@example.test'),admin=await h.person('admin@example.test','admin')
+ const readCredit=async(donorId,creditId)=>(await history(h,donorId)).giftDepth.creditedGifts.find(x=>x.id===creditId)
+ const baseAck={softCreditId:partial.id,version:0,acknowledgedOn:receivedOn,method:'handwritten note',notes:'Dear Blair, thank you for introducing this grant.'}
+ await h.command('softCredit.acknowledge',baseAck,{as:'',status:401})
+ await h.command('softCredit.acknowledge',{...baseAck,notes:''},{status:400})
+ await h.command('softCredit.acknowledge',{...baseAck,acknowledgedOn:'2099-01-01'},{status:400})
+ const wrongCall=await h.command('interaction.record',{donorId:source.id,kind:'call',occurredOn:receivedOn,who:'Morgan and sponsor',notes:'Thanked the sponsor.'})
+ await h.command('softCredit.acknowledge',{...baseAck,method:'phone call',notes:'',interactionId:wrongCall.id},{status:409})
+ const thanked=await h.command('softCredit.acknowledge',baseAck,{as:member.cookie})
+ let status=(await readCredit(credited.id,partial.id)).acknowledgment
+ assert.equal(status.status,'acknowledged');assert.equal(status.method,'handwritten note');assert.equal(status.acknowledgedOn,receivedOn)
+ assert.equal(status.link.id,thanked.noteId);assert.equal(status.link.content,baseAck.notes)
+ assert.ok((await history(h,credited.id)).notes.some(n=>n.id===thanked.noteId&&n.body===baseAck.notes))
+ assert.equal((await readCredit(advisor.id,full.id)).acknowledgment.status,'not acknowledged')
+ assert.ok((await h.get('/api/coffer/letters')).due.some(g=>g.id===original.id),'Soft-credit thank-you leaves the hard-credit receipt due')
+ await h.command('softCredit.resetAcknowledgment',{softCreditId:partial.id,version:0},{status:409})
+ await h.command('softCredit.doNotAcknowledge',{softCreditId:partial.id,version:1,reason:'Board acknowledgment handled personally'},{as:member.cookie,status:403})
+ await h.command('softCredit.doNotAcknowledge',{softCreditId:partial.id,version:1,reason:''},{status:400})
+ await h.command('softCredit.doNotAcknowledge',{softCreditId:partial.id,version:1,reason:'Board acknowledgment handled personally'},{as:admin.cookie})
+ status=(await readCredit(credited.id,partial.id)).acknowledgment
+ assert.equal(status.status,'do not acknowledge');assert.equal(status.reason,'Board acknowledgment handled personally');assert.equal(status.link,null)
+ await h.command('softCredit.resetAcknowledgment',{softCreditId:partial.id,version:2},{as:member.cookie})
+ status=(await readCredit(credited.id,partial.id)).acknowledgment
+ assert.equal(status.status,'not acknowledged');assert.equal(status.method,null);assert.equal(status.reason,null)
+ const call=await h.command('interaction.record',{donorId:credited.id,kind:'call',occurredOn:receivedOn,who:'Morgan and Blair',notes:'Thanked Blair for the introduction.'},{as:member.cookie})
+ await h.command('softCredit.acknowledge',{softCreditId:partial.id,version:3,acknowledgedOn:receivedOn,method:'phone call',interactionId:call.id},{as:member.cookie})
+ status=(await readCredit(credited.id,partial.id)).acknowledgment
+ assert.equal(status.link.id,call.id);assert.equal(status.link.kind,'interaction');assert.match(status.link.content,/Thanked Blair/)
+ const audit=await h.get(`/api/coffer/audit?record=${partial.id}`)
+ assert.deepEqual(audit.rows.filter(x=>x.action.startsWith('softCredit.')&&x.action!=='softCredit.record').map(x=>x.action).sort(),['softCredit.acknowledge','softCredit.acknowledge','softCredit.doNotAcknowledge','softCredit.resetAcknowledgment'].sort())
+ const year=receivedOn.slice(0,4),report=await h.get(`/api/coffer/retention?year=${year}`)
+ assert.equal(report.totals.currentCents,27000);assert.equal(report.totals.currentDonors,2)
+ assert.equal(report.softCredits.currentCents,37500)
+ assert.equal(report.softCredits.rows.find(x=>x.donorId===credited.id).currentCents,12500)
+ assert.equal(report.softCredits.rows.find(x=>x.donorId===advisor.id).currentCents,25000)
+ assert.equal(Object.values(report.groups).flatMap(g=>g.rows).some(x=>x.donorId===advisor.id),false)
+ const advisorHistory=await history(h,advisor.id)
+ assert.equal(advisorHistory.totals.lifetimeCents,0);assert.equal(advisorHistory.summary.softCreditCents,25000)
+ const reportHtml=await (await h.request(`/app/retention?year=${year}`)).text()
+ assert.match(reportHtml,/id="soft-credits"/);assert.match(reportHtml,/DAF Advisor/)
+ const statement=await h.command('ack.prepareStatements',{donorId:credited.id,year:Number(year)})
+ const annual=(await h.get(`/api/coffer/letters/${statement.id}`)).letters[0]
+ assert.equal(annual.amount_cents,2000);assert.match(annual.body,/Total gifts: \$20\.00/);assert.doesNotMatch(annual.body,/\$125\.00|\$250\.00/)
+ await h.command('ack.discard',{batchId:statement.id,version:1})
+ await h.command('ack.prepareStatements',{donorId:advisor.id,year:Number(year)},{status:409})
+ const saved=await archive(h)
+ await run(async fresh=>{
+  await restore(fresh,saved)
+  const copied=(await history(fresh,credited.id)).giftDepth.creditedGifts.find(x=>x.id===partial.id)
+  assert.deepEqual(copied.acknowledgment,status)
+  const copiedReport=await fresh.get(`/api/coffer/retention?year=${year}`)
+  assert.deepEqual(copiedReport.softCredits,report.softCredits)
+ })
+ if(process.env.COFFER_SOFT_BROWSER){const {softCreditBrowser}=await import('./soft-credit-journey.mjs');await softCreditBrowser(h,{donorId:advisor.id,softCreditId:full.id,sponsorId:source.id,receivedOn,year,directory:process.env.COFFER_SOFT_BROWSER})}
+
+ const merge=async(sourceId,targetId)=>{
+  const pair=await h.get(`/api/coffer/duplicates/compare?source=${sourceId}&target=${targetId}`)
+  return h.command('donor.merge',{sourceDonorId:sourceId,donorId:targetId,sourceVersion:pair.source.version,version:pair.target.version,reason:'duplicate_record'})
+ }
+ // A collision removes one credit and its acknowledgment. Undo restores both,
+ // including the actual conversation and earlier handwritten thank-you note.
+ const merged=await merge(credited.id,advisor.id)
+ assert.equal((await history(h,advisor.id)).giftDepth.creditedGifts.some(x=>x.id===partial.id),false)
+ await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'})
+ const restored=(await readCredit(credited.id,partial.id)).acknowledgment
+ assert.equal(restored.status,'acknowledged');assert.equal(restored.link.id,call.id)
+ assert.ok((await history(h,credited.id)).notes.some(n=>n.id===thanked.noteId))
+ // Changing only the surviving credit's status is enough to fence merge undo.
+ const alias=await donor(h,'Advisor duplicate')
+ const fenced=await merge(alias.id,advisor.id)
+ const before=(await readCredit(advisor.id,full.id)).acknowledgment
+ await h.command('softCredit.resetAcknowledgment',{softCreditId:full.id,version:before.version})
+ await h.command('donor.unmerge',{mergeId:fenced.mergeId,reason:'incorrect_match'},{status:409})
+ assert.equal((await readCredit(advisor.id,full.id)).acknowledgment.status,'not acknowledged')
 
  await h.command('tribute.record',{giftId:original.id,kind:'memory',honoree:'Jordan Rivera',notifiedName:'Casey Rivera',notifiedEmail:'casey@example.org',donorId:credited.id})
  const batch=await h.command('ack.prepare',{giftIds:[original.id]})
  let letters=await h.get(`/api/coffer/letters/${batch.id}`)
  assert.match(letters.letters[0].body,/in memory of Jordan Rivera/)
- assert.doesNotMatch(letters.letters[0].body,/casey@example.org/)
+ assert.doesNotMatch(letters.letters[0].body,/casey@example.org|Blair Chen|DAF Advisor/)
  await h.command('tribute.record',{giftId:original.id,kind:'honor',honoree:'Changed Person'},{status:409})
  await h.command('ack.approve',{batchId:batch.id,version:1})
  const printed=await h.request(`/app/letters/${batch.id}/print`)
@@ -56,12 +132,14 @@ test('gift attribution recognizes other donors without duplicating cash, freezes
  recognition=await history(h,credited.id)
  assert.equal(recognition.giftDepth.recognitionCents,0)
  assert.equal(recognition.totals.lifetimeCents,2000)
+ assert.equal((await h.get(`/api/coffer/retention?year=${year}`)).softCredits.currentCents,0)
  assert.equal((await history(h,source.id)).giftDepth.matches[0].status,'reversed')
  assert.equal(await ledgerTotal(h),14500)
  await h.command('softCredit.record',{giftId:original.id,donorId:employer.id,amount:'10'},{status:409})
  await h.command('donor.erase',{donorId:credited.id,confirm:'ERASE'})
  const afterErasure=await history(h,source.id)
- assert.equal(afterErasure.giftDepth.softCredits.length,0)
+ assert.equal(afterErasure.giftDepth.softCredits.some(x=>x.donor_id===credited.id),false)
+ await h.command('softCredit.resetAcknowledgment',{softCreditId:partial.id,version:4},{status:404})
  assert.equal(afterErasure.giftDepth.tributes.length,0)
  assert.doesNotMatch((await h.get(`/api/coffer/letters/${batch.id}`)).letters[0].body,/Jordan Rivera/)
 }))

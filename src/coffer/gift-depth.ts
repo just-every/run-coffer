@@ -65,8 +65,13 @@ export async function donorGiftDepth(c: { db: D1Database }, donorId: string) {
  const day = today((await settings(c)).timezone)
  const [credits, tributes, matches] = await Promise.all([
   all(c, `SELECT s.*,g.donor_id AS gift_donor_id,g.received_on,g.amount_cents AS gift_amount_cents,d.name AS gift_donor_name,credited.name AS credited_donor_name,
+    COALESCE(a.status,'not acknowledged') AS acknowledgment_status,COALESCE(a.version,0) AS acknowledgment_version,
+    a.acknowledged_on,a.method AS acknowledgment_method,a.reason AS acknowledgment_reason,a.interaction_id,a.note_id,
+    COALESCE(i.notes,n.body) AS acknowledgment_content,
     MIN(s.amount_cents,g.net_cents) AS recognized_cents,CASE WHEN ${ACTIVE} AND credited.erased_at IS NULL THEN 1 ELSE 0 END AS active
    FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id JOIN cf_donors d ON d.id=g.donor_id JOIN cf_donors credited ON credited.id=s.donor_id
+   LEFT JOIN cf_soft_credit_acknowledgments a ON a.soft_credit_id=s.id
+   LEFT JOIN cf_interactions i ON i.id=a.interaction_id LEFT JOIN cf_donor_notes n ON n.id=a.note_id
    WHERE s.donor_id=? OR g.donor_id=? ORDER BY g.received_on DESC`, donorId, donorId),
   all(c, `SELECT t.*,g.donor_id AS gift_donor_id,g.received_on,g.amount_cents AS gift_amount_cents,CASE WHEN ${ACTIVE} THEN 1 ELSE 0 END AS active
    FROM cf_gift_tributes t JOIN cf_gift_balances g ON g.id=t.gift_id JOIN cf_donors d ON d.id=g.donor_id WHERE g.donor_id=? OR t.donor_id=? ORDER BY g.received_on DESC`, donorId, donorId),
@@ -79,6 +84,11 @@ export async function donorGiftDepth(c: { db: D1Database }, donorId: string) {
    FROM cf_employer_matches m JOIN cf_gift_balances g ON g.id=m.gift_id JOIN cf_donors d ON d.id=g.donor_id JOIN cf_donors employer ON employer.id=m.employer_donor_id LEFT JOIN cf_gift_balances actual ON actual.id=m.received_gift_id
    WHERE g.donor_id=? OR m.employer_donor_id=? ORDER BY m.due_by,m.id`, day, donorId, donorId),
  ])
+ for (const credit of credits) credit.acknowledgment = {
+  status: credit.acknowledgment_status, version: credit.acknowledgment_version,
+  acknowledgedOn: credit.acknowledged_on, method: credit.acknowledgment_method, reason: credit.acknowledgment_reason,
+  link: credit.interaction_id || credit.note_id ? { kind: credit.interaction_id ? 'interaction' : 'note', id: credit.interaction_id || credit.note_id, content: credit.acknowledgment_content } : null,
+ }
  const creditedGifts = credits.filter(x => x.donor_id === donorId)
  return { softCredits: credits.filter(x => x.gift_donor_id === donorId), creditedGifts, recognitionCents: creditedGifts.filter(x => x.active).reduce((sum, x) => sum + x.recognized_cents, 0), tributes, matches }
 }

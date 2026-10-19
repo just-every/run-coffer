@@ -6,7 +6,7 @@ import { box, e, empty, longDay, money, when } from './common'
 export function donorTimeline(h: Row, timezone: string): string {
  const items: { day: string; order: string; html: string }[] = []
  for (const i of h.depth.interactions) items.push({ day: i.occurred_on, order: i.recorded_at, html: interactionItem(i, timezone) })
- for (const n of h.notes ?? []) items.push({ day: n.occurred_on, order: n.recorded_at, html: `<li><strong>Note</strong> · ${longDay(n.occurred_on)}<p>${e(n.body).replace(/\n/g,'<br>')}</p><span class="muted">Imported from ${e(n.source)}</span></li>` })
+ for (const n of h.notes ?? []) items.push({ day: n.occurred_on, order: n.recorded_at, html: `<li><strong>Note</strong> · ${longDay(n.occurred_on)}<p>${e(n.body).replace(/\n/g,'<br>')}</p><span class="muted">${String(n.source).startsWith('Coffer soft-credit thank-you') ? 'Recorded in' : 'Imported from'} ${e(n.source)}</span></li>` })
  for (const g of h.gifts) items.push({ day: g.received_on, order: g.created_at, html: `<li><strong>${g.kind === 'reversal' ? 'Gift reversal' : 'Gift'} · ${money(g.amount_cents)}</strong> · ${longDay(g.received_on)}<p>${e(g.fund)} · ${e(g.method)}${g.appeal ? ` · Appeal: ${e(g.appeal)}` : ''}</p>${g.note ? `<p>${e(g.note)}</p>` : ''}</li>` })
  for (const p of h.pledges) items.push({ day: p.pledged_on, order: p.created_at, html: `<li><strong>Pledge · ${money(p.amount_cents)}</strong> · ${longDay(p.pledged_on)}<p>${money(p.paid_cents)} paid · ${money(p.remaining_cents)} remaining</p></li>` })
  for (const l of h.letters) if (l.delivered_at || l.sent_on || l.printed_at) {
