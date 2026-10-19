@@ -37,16 +37,20 @@
 .payout-found { display: flex; align-items: center; gap: 12px; margin-top: 8px; padding: 11px 16px; border-radius: 8px; background: #e5f5eb; font-size: 15px; line-height: 1.35; color: #18442c; }
 .payout-found .check { flex: none; width: 24px; height: 24px; }
 .payout-funds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
-.fund { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 12px 12px; border-radius: 10px; font-size: 14px; color: #2b3058; white-space: nowrap; }
+.fund { display: flex; align-items: center; gap: 8px; padding: 12px 10px; border-radius: 10px; font-size: 14px; color: #2b3058; white-space: nowrap; }
 .fund > span::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 7px; border-radius: 50%; vertical-align: 0; }
 .fund b { margin-left: auto; font-weight: 500; }
 .fund.violet { background: #efebfe; } .fund.violet > span::before { background: #7c5cf5; }
 .fund.green { background: #e7f6ed; } .fund.green > span::before { background: #2bb673; }
 .fund.amber { background: #fdf2dc; } .fund.amber > span::before { background: #f4b13c; }
 
+@media (min-width: 1101px) and (max-width: 1439px) {
+  /* The feed keeps its drawn width, so every row stays one line with its status on the right; the copy gives way. */
+  .first-night .story-row { --art-min: 587px; }
+}
 @media (max-width: 1439px) {
   /* Narrower, each fund shows its name over its amount. */
-  .fund { display: grid; gap: 2px; }
+  .fund { display: grid; gap: 2px; padding-inline: 12px; }
   .fund b { margin-left: 18px; }
 }
 @media (max-width: 1100px) {

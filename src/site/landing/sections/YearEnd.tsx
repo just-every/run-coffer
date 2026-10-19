@@ -31,7 +31,7 @@ export function YearEnd() {
     <div className="site-wrap">
       <aside className="limits" aria-label="What Coffer doesn't do">
         <span className="limits-mark"><Icon name="moon" /></span>
-        <p><b>What Coffer doesn't do.</b> No auction bidding, volunteer shift scheduling, wealth screening or receipts outside the US.</p>
+        <p><b>What Coffer doesn't do.</b> No auction bidding, volunteer shift scheduling, wealth screening or receipts <span className="nowrap">outside the US.</span></p>
         <a href={links.docs}>Read the docs<span aria-hidden="true">{' '}→</span></a>
       </aside>
     </div>

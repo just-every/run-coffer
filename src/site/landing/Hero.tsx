@@ -10,7 +10,7 @@ export function Hero() {
       <div className="hero-copy">
         <h1 id="hero-title">Every gift, <span className="tint">thanked.</span></h1>
         <p className="hero-sub">Coffer takes donations, keeps every donor's story, sends the receipts and thank-yous, and shows who needs a call.</p>
-        <p className="hero-alt">100% free, open source alternative to <br /><strong>Bloomerang</strong>, <strong>Little Green Light</strong> and <strong>Neon CRM</strong></p>
+        <p className="hero-alt">100% free, open source alternative to <br /><strong>Bloomerang</strong>, <strong>Little Green Light</strong> and <strong>Neon{'\u00a0'}CRM</strong></p>
         <Actions className="hero-actions" />
       </div>
       <HeroCards />

@@ -14,6 +14,8 @@
 .night .cal-dot { width: 32px; height: 32px; margin: -1px 0 9px; border-width: 2px; background: radial-gradient(circle, #9473ff 0 9px, var(--night) 10px); box-shadow: 0 0 18px rgba(140, 98, 255, .7); }
 .cal-date { font-size: 18px; font-weight: 700; line-height: 1.3; color: #fff; }
 .cal-what { margin-top: 2px; font-size: 17px; line-height: 1.3; color: var(--on-night-body); }
+/* The night's label stays one line, centred over its column's edges: its neighbours' labels are short. */
+.night .cal-what { white-space: nowrap; }
 .calendar a:hover .cal-date { text-decoration: underline; text-underline-offset: 4px; }
 /* The night's three minutes hang under its stop, centred on its column of the list (--i), so they never widen it. */
 .cal-ticks { position: absolute; bottom: 0; left: calc((var(--i) + .5) * 100% / 7); display: flex; flex-direction: column; align-items: center; gap: 8px; transform: translateX(-50%); font-size: 13px; line-height: 1.3; color: #b6b4e6; white-space: nowrap; }
@@ -27,6 +29,14 @@
   .appeal h2 { font-size: min(64px, 7.4vw); }
   .cal-date { font-size: 16.5px; }
   .cal-what { font-size: 15px; }
+  /* Too narrow for the night's label in an even seventh: the calendar takes the window less a phone gutter, every
+     label keeps one line, the night's column takes 1.6 shares, and the line and the ticks follow the uneven columns. */
+  .calendar { width: min(1386px, 100% - 32px); }
+  .calendar a { padding: 0 2px; }
+  .cal-what { white-space: nowrap; }
+  .calendar ol { grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 1.6fr) repeat(4, minmax(0, 1fr)); }
+  .calendar ol::before { left: calc(100% / 15.2); right: calc(100% / 15.2); }
+  .cal-ticks { left: calc(2.8 * 100% / 7.6); }
 }
 @media (max-width: 760px) {
   .appeal { padding-top: 56px; text-align: left; }
@@ -40,7 +50,7 @@
   .calendar ol::before { top: 16px; bottom: 16px; left: 15px; right: auto; width: 2px; height: auto; background: linear-gradient(180deg, #8c62ff, #6f5ae8); }
   .calendar a { display: grid; grid-template-columns: 32px auto minmax(0, 1fr); align-items: center; column-gap: 14px; min-height: 44px; padding: 4px 0; text-align: left; }
   .cal-dot, .night .cal-dot { justify-self: center; margin: 0; }
-  .cal-what { margin-top: 0; font-size: 16px; }
+  .cal-what { margin-top: 0; font-size: 16px; white-space: normal; }
   .calendar ol { padding-bottom: 0; }
   .cal-ticks { position: static; grid-column: 2 / -1; align-items: flex-start; flex-direction: row; gap: 10px; margin: 2px 0 6px; padding: 0; transform: none; white-space: normal; }
   .cal-pips { padding-top: 5px; }

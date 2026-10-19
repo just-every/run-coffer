@@ -37,13 +37,20 @@
 .mail-body { padding: 20px 30px 28px; }
 .mail-from { font-size: 15px; color: var(--card-soft); }
 .mail-subject { margin-top: 4px; font: 800 23px/1.25 var(--font-head); letter-spacing: -.02em; }
-.mail-text { margin-top: 12px; font: 17px/1.55 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif; color: #2b3058; }
+.mail-text { margin-top: 12px; text-wrap: balance; font: 17px/1.55 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif; color: #2b3058; }
 .mail-button { display: grid; place-items: center; min-height: 46px; margin-top: 18px; padding: 8px 14px; border-radius: 8px; background: linear-gradient(180deg, #8a5fff, var(--violet)); color: #fff; font-size: 17px; font-weight: 600; text-align: center; }
 .send-strip { grid-column: 1 / 4; grid-row: 2; z-index: 2; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 10px; padding: 16px 0; border-radius: 14px; }
 .send-strip span { padding: 2px 16px; font-size: 17px; color: #474d75; text-align: center; }
 .send-strip span + span { border-left: 1px solid var(--card-line); }
 .send-strip b { font-size: 23px; font-weight: 700; color: var(--card-ink); }
 
+@media (min-width: 1101px) and (max-width: 1439px) {
+  /* Narrower, the copy gives up room and the email keeps its drawn width; the letter tucks further behind it. */
+  .send .story-row { --copy: 400fr; --gap: 48px; }
+  .send-art .drawing-inner { grid-template-columns: minmax(0, 1fr) 40px min(340px, 52%); }
+  .letter { padding-right: 44px; }
+  .mail-body { padding-inline: 26px; }
+}
 @media (max-width: 1439px) {
   .send-strip span { padding: 2px 10px; font-size: 15.5px; }
   .send-strip b { font-size: 20px; }

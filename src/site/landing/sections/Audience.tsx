@@ -53,7 +53,7 @@ export function Send() {
           <div className="mail-body">
             <p className="mail-from">From {org.name}</p>
             <p className="mail-subject">Maria, 180 meals last year</p>
-            <p className="mail-text">Dear Maria, last year your gifts stocked 180 meals. This spring we're filling the new cold-storage room.</p>
+            <p className="mail-text">Dear Maria, last year your gifts stocked 180 meals. This spring we're filling the new <span className="nowrap">cold-storage room.</span></p>
             <p className="mail-button">Give to the spring appeal</p>
           </div>
         </div>

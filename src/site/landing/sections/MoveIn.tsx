@@ -2,10 +2,12 @@ import { org } from '../data'
 import { Check, Chip, Drawing, Icon, StepCopy } from '../parts'
 
 const ROWS: [string, string][] = [['Constituents', '4,812'], ['Households', '1,207'], ['Gifts', '38,406 · $3,912,550.00'], ['Pledges', '214'], ['Duplicates merged', '63']]
+// Narrow, the first command wraps only after its flags, never at the pipe.
+const COMMANDS = [<>curl -fsSL <span className="nowrap">https://runeditrun.com/install.sh | sh</span></>, 'rer dev just-every/run-coffer']
 const exportFile = `${org.short.toLowerCase()}-export.zip`
 
 /** Feb 20, moving in: a Little Green Light export checked row by row, two gifts with no fund fixed, totals matched
- * to the cent; and the one documented command that installs and starts Coffer. */
+ * to the cent; and the two commands that install rer and start Coffer (the run page's steps 1 and 2). */
 export function MoveIn() {
   return <section id="move-in" className="story move-in" aria-labelledby="move-in-title">
     <div className="site-wrap story-row">
@@ -25,7 +27,7 @@ export function MoveIn() {
       </Drawing>
       <figure className="terminal" aria-label="Install and start Coffer from the source">
         <p className="terminal-bar" aria-hidden="true"><span /><span /><span /></p>
-        <pre><code><span className="terminal-line"><span className="prompt" aria-hidden="true">$ </span>curl -fsSL https://runeditrun.com/install.sh |{'\n'}</span><span className="terminal-line">{'    '}sh -s -- dev just-every/run-coffer{'\n'}</span></code></pre>
+        <pre><code>{COMMANDS.map((c, i) => <span key={i} className="terminal-line"><span className="prompt" aria-hidden="true">$ </span>{c}{'\n'}</span>)}</code></pre>
       </figure>
     </div>
   </section>

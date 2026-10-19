@@ -39,7 +39,7 @@
 /* ---------- Closing ---------- */
 .closing { position: relative; padding-top: 86px; text-align: center; }
 .closing h2 { padding-block: .1em; margin-block: -.1em; font: 600 72px/1.04 var(--font-head); letter-spacing: -.028em; color: #fff; }
-.closing-sub { margin-top: 18px; font-size: 26px; color: #c9c6f2; }
+.closing-sub { margin-top: 18px; font-size: 26px; color: #c9c6f2; text-wrap: balance; }
 .closing-actions { margin-top: 30px; flex-direction: row; justify-content: center; align-items: center; gap: 20px; }
 .closing-actions .site-ghost { min-width: 242px; min-height: 58px; font-size: 21px; font-weight: 600; border-color: rgba(255, 255, 255, .85); }
 .closing-small { margin-top: 30px; font-size: 16.5px; color: #e4e2ff; }

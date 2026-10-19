@@ -1,5 +1,5 @@
 import { tom } from '../data'
-import { Check, Chip, Drawing, Icon, Initials, Spark, StepCopy } from '../parts'
+import { Check, Chip, Drawing, Icon, Initials, Painting, Spark, StepCopy } from '../parts'
 
 const OVERNIGHT = [['61 gifts reconciled with Stripe'], ['3 failed monthly gifts', '2 recovered, 1 update link sent'], ['4 receipts were unsent', 'sent 6:10 AM'], ['Retention rescored for 1,132 donors']]
 
@@ -12,7 +12,7 @@ export function Calls() {
         Overnight, Coffer's development agent reconciles gifts, rescues failed monthly gifts, sends missed receipts and ranks who needs a call.
       </StepCopy>
       <Drawing className="calls-art" label={`Overnight on Apr 2: 61 gifts reconciled with Stripe; 3 failed monthly gifts, 2 recovered and 1 update link sent; 4 unsent receipts sent at 6:10 AM; retention rescored for 1,132 donors. The Okafor household, Tom and Ada in ${tom.place}: $4,350 lifetime since April 2017; Mar 10 Alma Wu gave $100 in memory of Grace Okafor; Jan 14 Ana R. called and they asked about the cold-storage room; Feb 12, 2025 $500 to the Winter appeal; Dec 2023 a $1,000 DAF grant, soft credit. Today's call list for Ana R., 3 calls: ${tom.name}, lapsed ${tom.lapsed} at $500 a year, last gift ${tom.lastGift}, suggest renewing at $500; Harbor Family Fund, $50,000 proposal follow-up due Apr 6; Ruth Chen, a welcome call after her first $250 gift. Apr 3: Ana called Tom and he renewed at $500.`}>
-        <span className="cottage-window"><i /><i /><i /><i /></span>
+        <Painting className="cottage-window" name="cottage-window" widths={[257, 514]} sizes="257px" />
         <div className="card overnight">
           <p className="overnight-head"><Spark /><span>Overnight<span className="dot">·</span>Apr 2</span></p>
           <ul>{OVERNIGHT.map(([lead, rest]) => <li key={lead}><Check /><span>{lead}{rest ? <><span className="dot">·</span>{rest}</> : null}</span></li>)}</ul>

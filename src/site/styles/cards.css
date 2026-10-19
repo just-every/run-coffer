@@ -5,7 +5,7 @@
 .card { background: var(--card); color: var(--card-ink); border-radius: var(--card-radius); box-shadow: var(--card-shadow); }
 .dot { margin: 0 .5em; color: var(--card-soft); }
 /* Card text avoids a last line of one short word. */
-.card :is(p, li, span), .paper :is(p, li), .sheet :is(p, li) { text-wrap: pretty; }
+.card :is(p, li, span), .paper :is(p, li), .sheet :is(p, li) { text-wrap-style: pretty; }
 .icon { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Tinted round icon chips */

@@ -46,7 +46,7 @@ export function ThankYou() {
           <div className="receipt">
             <span className="receipt-mark"><Icon name="doc" /></span>
             <div>
-              <p className="receipt-line"><b>Receipt<span className="dot">·</span>Gift $100.00</b><span className="dot">·</span>Mar 10<span className="dot">·</span>Card ending {maria.card}</p>
+              <p className="receipt-line"><b>Receipt<span className="dot">·</span>Gift $100.00</b><span className="dot">·</span>Mar 10<span className="dot receipt-sep">·</span><span className="receipt-card">Card ending {maria.card}</span></p>
               <p className="receipt-irs">No goods or services were provided in exchange for this gift.</p>
               <p className="receipt-link">Manage your monthly gift →</p>
             </div>

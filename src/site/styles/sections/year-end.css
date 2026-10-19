@@ -33,7 +33,7 @@
 .limits a { flex: none; font-size: 18px; font-weight: 600; color: #b39cff; text-decoration: none; white-space: nowrap; }
 .limits a:hover { color: #fff; text-decoration: underline; text-underline-offset: 5px; }
 
-@media (max-width: 1299px) {
+@media (max-width: 1379px) {
   .statement { padding: 48px 24px 214px 30px; }
   .st-org { font-size: 15px; }
   .st-title { font-size: 23px; }

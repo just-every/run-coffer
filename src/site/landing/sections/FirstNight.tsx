@@ -49,7 +49,7 @@ export function Reconcile() {
           <p className="payout-head"><span>Stripe payout<span className="dot">·</span>{payout.date}</span><b>{payout.net}</b></p>
           <dl className="payout-lines"><div><dt>{payout.gifts} gifts</dt><dd>{payout.gross}</dd></div><div><dt>Stripe fees</dt><dd>{payout.fees}</dd></div></dl>
           <p className="payout-gap"><span>Expected {payout.expected}</span><span className="dot">·</span><span>deposit {payout.net}</span><span className="dot">·</span><span>off by $20.00</span></p>
-          <p className="payout-found"><Check /><span><span>Refund<span className="dot">·</span>J. Patel {payout.refund} found at Stripe</span><span className="dot">·</span><span>matched to QuickBooks deposit</span></span></p>
+          <p className="payout-found"><Check /><span><span>Refund<span className="dot">·</span>J. Patel {payout.refund} <span className="nowrap">found at Stripe</span></span><span className="dot">·</span><span>matched to QuickBooks deposit</span></span></p>
           <p className="payout-funds">{payout.funds.map(f => <span key={f.name} className={`fund ${f.tone}`}><span>{f.name}</span><b>{f.amount}</b></span>)}</p>
         </div>
       </Drawing>
