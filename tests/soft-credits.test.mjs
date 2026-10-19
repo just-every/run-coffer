@@ -22,8 +22,12 @@ test('GIFT-006 / RCPT-011 soft-credit acknowledgments and separate retention rec
  assert.equal(recognition.giftDepth.creditedGifts[0].gift_id,original.id)
  assert.equal((await history(h,source.id)).totals.lifetimeCents,25000)
  assert.equal(await ledgerTotal(h),27000)
+ // REPORT-003 replaces the calendar-only home stat with the fiscal ledger dashboard.
+ const dashboard=await h.get('/api/coffer/reports/dashboard')
+ assert.equal(dashboard.summary.currentCents,27000,'Recognition does not become received money')
  const home=await h.request('/app')
- assert.match(await home.text(),/\$270\.00<\/strong><span>given in /)
+ const cashLink=dashboard.summary.href.replaceAll('&','&amp;')
+ assert.ok((await home.text()).includes(`href="${cashLink}"><strong>$270.00</strong>`),'Home opens its exact cash total to the ledger')
  await h.command('softCredit.record',{giftId:original.id,donorId:credited.id,amount:'125'},{status:409})
  await h.command('softCredit.remove',{softCreditId:credit.id})
  assert.equal((await history(h,credited.id)).giftDepth.recognitionCents,0)
