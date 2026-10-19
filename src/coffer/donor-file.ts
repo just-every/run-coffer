@@ -10,7 +10,9 @@ import { settings } from './settings'
  * subscriptions, drafts, series and soft credits) follows. A later table that
  * names a donor or one of those records therefore joins the file when it ships.
  * Other people never appear: any donor, gift or record reference outside this
- * donor's own records becomes an opaque counterpart label. */
+ * donor's own records becomes an opaque counterpart label. Confidential staff
+ * notes (owner and admins only) never leave Coffer this way: the file leaves
+ * them out and states how many were withheld. */
 
 const DONOR_COLUMNS: Record<string, string[]> = {
  cf_donors: ['id'], cf_donor_merges: ['donor_id', 'into_id'], cf_donor_merge_journal: ['source_id', 'target_id'], cf_move_in_records: ['donor_id', 'related_id'],
@@ -31,7 +33,7 @@ export const NOT_IN_FILE: Record<string, string> = {
 const THIRD_PARTY: Record<string, string[]> = { cf_gift_tributes: ['notified_name', 'notified_email'] }
 const LABELS: Record<string, string> = {
  research_results: 'WealthEngine estimates from prospect research: provider ranges, never verified wealth or an exact appraisal.',
- donor_notes: 'Rows with confidential = 1 are confidential staff notes, readable only by the owner and admins.',
+ donor_notes: 'Staff notes about this donor. Confidential staff notes are withheld from this file; `withheld` states how many.',
  donor_merge_rows: 'Earlier versions of this donor’s own contact record kept to undo a merge.',
 }
 export const REQUEST_METHODS: [string, string][] = [['email', 'Email'], ['letter', 'Letter'], ['phone', 'Phone'], ['in_person', 'In person'], ['other', 'Other']]
@@ -111,6 +113,9 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
  const foreign = (v: unknown) => typeof v === 'string' && v !== '' && !mine.has(v)
  const cleanDetail = (value: any): any => Array.isArray(value) ? value.map(cleanDetail) : value && typeof value === 'object'
   ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, /ids?$/i.test(k) && k !== 'fileId' ? (Array.isArray(v) ? v.map(x => foreign(x) ? opaque(x) : x) : foreign(v) ? opaque(v) : v) : cleanDetail(v)])) : value
+ // Withheld after the walk, so their ids stay this donor's own and are never shown as a counterpart.
+ const notes = rows.get('cf_donor_notes') ?? [], confidentialNotes = notes.filter(n => n.confidential === 1).length
+ rows.set('cf_donor_notes', notes.filter(n => n.confidential !== 1))
  const records: Record<string, Row[]> = {}
  for (const t of tables) {
   const found = rows.get(t.name); if (!found?.length) continue
@@ -129,13 +134,14 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
  const counts = Object.fromEntries(Object.entries(records).map(([k, v]) => [k, v.length]))
  const fileId = crypto.randomUUID()
  // Identifiers, date, method, counts and reference only; no names or note text.
- await commit(c, [event(c, 'donor.dataRequest', 'donor', donorId, donorId, { fileId, ...request, records: counts })])
+ await commit(c, [event(c, 'donor.dataRequest', 'donor', donorId, donorId, { fileId, ...request, records: counts, confidentialNotesWithheld: confidentialNotes })])
  return {
   format: 'coffer.donor-file', version: 1, fileId, donorId, mergedRecordIds: ids.slice(1), generatedAt: c.now,
   generatedBy: { id: c.actor.id, role: c.actor.role }, request,
   delivery: 'Produced for staff to review and give to the donor. Coffer has not sent this file to anyone.',
   counterparts: 'Other donors and their records appear only as opaque counterpart labels; their names, contact details and gifts are not in this file.',
   labels: Object.fromEntries(Object.entries(LABELS).filter(([k]) => records[k])),
+  withheld: { confidentialStaffNotes: confidentialNotes, statement: `${confidentialNotes} confidential staff notes withheld` },
   notIncluded: Object.entries(NOT_IN_FILE).map(([table, reason]) => ({ record: table.slice(3), reason })),
   records,
  }

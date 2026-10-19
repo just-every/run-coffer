@@ -23,7 +23,9 @@ export async function donorFileJourney() {
   await h.command('gift.record', { donorId: cara.id, amount: '40', receivedOn: '2026-01-05', method: 'cash', fund: 'Reading', goods: 'none' })
   await h.command('consent.record', { donorIds: [ada.id], channel: 'email', status: 'granted', method: 'paper form', evidence: 'Signed card at the fair', capturedOn: '2026-01-02' })
   await h.command('interaction.record', { donorId: ada.id, kind: 'meeting', occurredOn: day, who: 'Ada and Morgan', notes: 'Talked about the reading room.' })
+  await h.command('interaction.record', { donorId: ada.id, kind: 'note', occurredOn: day, notes: 'Prefers morning calls' })
   await h.command('interaction.record', { donorId: ada.id, kind: 'note', occurredOn: day, notes: 'Confidential: estate plans', confidential: true })
+  await h.command('interaction.record', { donorId: cara.id, kind: 'note', occurredOn: day, notes: 'Confidential: merged-record board seat', confidential: true })
   await h.command('relationship.create', { donorId: ada.id, relatedDonorId: ben.id, type: 'spouse' })
   await h.command('softCredit.record', { giftId: benGift.id, donorId: ada.id, amount: '50' })
   await h.command('softCredit.record', { giftId: gift.id, donorId: ben.id, amount: '25' })
@@ -70,11 +72,15 @@ export async function donorFileJourney() {
   assert.deepEqual(r.gifts.map(g => g.amount_cents).sort((a, b) => a - b), [4000, 12500])
   assert.equal(r.gifts.find(g => g.id === gift.id).note, 'Ada gift note')
   assert.equal(r.consents[0].evidence, 'Signed card at the fair')
-  assert.equal(r.donor_notes.find(n => n.confidential === 1).body, 'Confidential: estate plans')
+  // Confidential staff notes are owner/admin only: withheld from the donor's own file, with their count stated.
+  assert.deepEqual(r.donor_notes.map(n => [n.body, n.confidential]), [['Prefers morning calls', 0]])
+  for (const secret of ['Confidential: estate plans', 'Confidential: merged-record board seat']) assert.ok(!text.includes(secret), 'confidential staff notes are withheld')
+  assert.deepEqual(file.withheld, { confidentialStaffNotes: 2, statement: '2 confidential staff notes withheld' })
+  assert.ok(r.events.filter(e => e.action === 'interaction.record' && e.subject_kind === 'note').every(e => !/^counterpart-/.test(e.subject_id)), 'a withheld note is not shown as another person')
   assert.equal(Buffer.from(r.proposals[0].content_base64, 'base64').toString(), documentText)
   assert.equal(Buffer.from(r.grant_documents[0].content_base64, 'base64').toString(), 'Grant letter text')
   assert.ok(r.research_results.every(x => x.donor_id === ada.id && x.provider === 'wealthengine'))
-  assert.match(file.labels.donor_notes, /confidential/)
+  assert.match(file.labels.donor_notes, /Confidential staff notes are withheld/)
   assert.match(file.labels.research_results, /WealthEngine estimates.*never verified/)
   assert.deepEqual(file.notIncluded.map(x => x.record), ['donor_tokens', 'erased_stripe_customers'])
   // Nobody else: Ben appears only as one opaque counterpart, never by id, name, email, gift or note.
@@ -97,7 +103,8 @@ export async function donorFileJourney() {
    const columns = (await db.prepare(`PRAGMA table_info(${table})`).all()).results.map(c => c.name).filter(c => c === 'donor_id' || c.endsWith('_donor_id'))
    if (!columns.length) continue
    // The request's own log row is written once the file is built.
-   const held = (await db.prepare(`SELECT count(*) AS n FROM ${table} WHERE ${columns.map(c => `${c} IN (SELECT value FROM json_each(?1))`).join(' OR ')}`).bind(subject).first()).n - (table === 'cf_events' ? 1 : 0)
+   // Confidential staff notes are the one held row kind withheld by rule.
+   const held = (await db.prepare(`SELECT count(*) AS n FROM ${table} WHERE (${columns.map(c => `${c} IN (SELECT value FROM json_each(?1))`).join(' OR ')})${table === 'cf_donor_notes' ? ' AND confidential=0' : ''}`).bind(subject).first()).n - (table === 'cf_events' ? 1 : 0)
    if (held) { checked++; assert.ok((r[table.slice(3)]?.length ?? 0) >= held, `${table}: ${held} rows held, file has ${r[table.slice(3)]?.length ?? 0}`) }
   }
   assert.ok(checked >= 15)
@@ -108,7 +115,7 @@ export async function donorFileJourney() {
   const logged = audit.rows[0], detail = JSON.parse(logged.detail)
   assert.equal(logged.actor_id, admin.id); assert.equal(logged.actor_role, 'admin'); assert.equal(logged.subject_id, ada.id)
   assert.deepEqual({ fileId: detail.fileId, requestedOn: detail.requestedOn, method: detail.method, reference: detail.reference }, { fileId: file.fileId, requestedOn: day, method: 'email', reference: 'TICKET-1042' })
-  assert.equal(detail.records.gifts, 2)
+  assert.equal(detail.records.gifts, 2); assert.equal(detail.confidentialNotesWithheld, 2)
   assert.ok(!logged.detail.includes('Ada') && !logged.detail.includes('@'), 'no personal text in the audit row')
   await h.get(`/api/coffer/audit?record=${ada.id}&action=donor.dataRequest`, { as: member.cookie, status: 403 })
 
