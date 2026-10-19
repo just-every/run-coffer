@@ -270,7 +270,11 @@ Before new stock, DAF or IRA contribution classifications ship, their actual mon
 
 A donor or a single gift can be marked anonymous, and every constituent has a recognition name ("The Rivera Family", "Anonymous") for honor rolls. Anonymous gifts never appear under the donor's name on campaign pages, donor walls, peer-to-peer leaderboards or an exported honor roll, while staff still see the donor, and the gift counts in every total and receipt. An honor-roll report lists donors by giving level for a period under their recognition names.
 
-*Acceptance:* An HTTP journey marks one donor anonymous and one gift anonymous, gives through a campaign page, and reads a donor wall and an honor-roll export that show "Anonymous" for both and recognition names for the others, while the staff donor page, totals and receipts include both gifts.
+Owner/admin/member staff set donor and individual monetary or property gift anonymity; agents retain read-only authority. A recognition name is separate from legal identity. Every public wall gift requires a donor’s explicit opt-in at checkout and keeps that gift’s chosen recognition name; blank names appear as Anonymous, never the legal name. Existing/imported gifts start private, and staff may withdraw a wall opt-in but cannot invent one for a private gift. Donor anonymity overrides every gift choice. Checkout replay preserves the exact publication choices, including for recurring installments.
+
+Owner/admin honor-roll reports and CSV use positive remaining monetary balances for gifts received in the inclusive selected date period; refunds and reversals reduce the original gift’s recognition, zero balances are absent, and property stated values and soft credits do not inflate giving levels. Each anonymous gift is a separate Anonymous row; donor-level anonymity and donors without honor-roll name permission remain anonymous. Giving levels have distinct names and inclusive integer-cent lower bounds starting at zero. Staff donor history and ordinary receipts retain the actual donor and every monetary fact. Backup/restore and merge/undo preserve choices conservatively; erasure clears names and public opt-ins, and later recognition changes block import undo. This is complete for current walls and honor-roll exports. Before peer-to-peer leaderboards (`CAMP-003`) or another public recognition door ships, its clause inherits these anonymity and explicit-publication rules.
+
+*Acceptance:* An HTTP journey marks one donor anonymous and one gift anonymous, gives through a campaign page, and reads a donor wall and an honor-roll export that show "Anonymous" for both and recognition names for the others, while the staff donor page, totals and receipts include both gifts. The clause-named journey also asserts private legacy gifts, checkout replay, role refusals, exact giving-level boundaries, refunds, property anonymity, audit, backup/restore, merge/undo, import-undo refusal and erasure; native checkout, staff recognition, public wall, honor-roll CSV and empty states run at 1440 and 390 pixels.
 
 ### Online giving
 
@@ -353,6 +357,8 @@ Before event attendance ships, its actual attendance records join the DONOR-004 
 #### CAMP-003 — Peer-to-peer fundraising.
 
 Supporters create personal or team fundraising pages under a campaign, share them, and see their totals on a leaderboard. Each gift is hard-credited to its donor and soft-credited to the fundraiser; fundraisers get thank-you and milestone emails.
+
+Before any peer-to-peer wall or leaderboard ships it applies GIFT-011 donor/gift anonymity, recognition names and explicit publication permission.
 
 *Acceptance:* A browser journey creates a team and two personal pages, gives through each, and reads the leaderboard, the donor hard credits and the fundraiser soft credits.
 
@@ -1046,7 +1052,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 16 | Households | `DONOR-001` | done |
 | 17 | relationships | `DONOR-003` | partial |
 | 18 | every gift | `GIFT-001` | done |
-| 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` done · `COMM-004` partial · `COMM-005` done |
+| 19 | every conversation in one place | `DONOR-004`, `COMM-004`, `COMM-005` | `DONOR-004` done · `COMM-004` missing · `COMM-005` done |
 | 20 | soft credits | `GIFT-006` | done |
 | 21 | tributes | `GIFT-008` | partial |
 | 22 | employer matches | `GIFT-007` | partial |
@@ -1109,8 +1115,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 29 | 54 | 43 | 126 |
-| All | 37 | 55 | 43 | 135 |
+| Target and push further | 30 | 54 | 42 | 126 |
+| All | 38 | 55 | 42 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1146,7 +1152,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `GIFT-008` | Tribute gifts | target | partial | `src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/year-end.ts`, `tests/soft-credits.test.mjs` | Honor/memory, honoree and notification contact are recorded on gifts and included in approved gift/year-end receipt text. Tribute grouping, notification sending and incumbent tribute imports remain. |
 | `GIFT-009` | In-kind gifts | target | done | `src/coffer/in-kind.ts`, `src/coffer/ui/in-kind.ts`, `migrations/core/0055_coffer_in_kind.sql`, `tests/pipeline.test.mjs`, `tests/in-kind-journey.mjs` | Unified noncash originals/corrections with a current property projection, internal stated values, frozen value-free property acknowledgments and exact dated disposal reminders; clause-named public-door proof includes custody and 1440/390 native use. |
 | `GIFT-010` | Stock, DAF grants and IRA distributions | target | missing |  | No stock, DAF or QCD gift types. |
-| `GIFT-011` | Anonymous gifts and recognition names | target | missing |  | No anonymity flag or recognition name. |
+| `GIFT-011` | Anonymous gifts and recognition names | target | done | `src/coffer/recognition.ts`, `src/coffer/ui/recognition.ts`, `src/coffer/giving/checkout.ts`, `src/coffer/giving/recording.ts`, `tests/recognition-journey.mjs`, `tests/recognition-browser.mjs`, `tests/giving.test.mjs` | Clause-named HTTP/native proof covers opt-in walls, donor/gift anonymity, actual-identity receipts, exact honor-roll levels and CSV, custody and 1440/390 end states. |
 | `GIVE-001` | Donation forms | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Hosted campaign forms collect once/monthly card and Link gifts and retain fund/campaign attribution. Advanced fields, embedding and the specified performance/accessibility acceptance remain outstanding. |
 | `GIVE-002` | Campaign pages | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Custom-path public campaign stories, goals, ledger totals, gift counts and recurring donor counts ship. Uploaded media, donor walls and closing dates remain outstanding. |
 | `GIVE-003` | Recurring giving | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Monthly Stripe subscriptions record successful installments and show status and recovery; donors cancel at period end. Quarterly/annual plans, staff editing, pause/resume and the three-month test-clock acceptance remain outstanding. |

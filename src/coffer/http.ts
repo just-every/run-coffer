@@ -1,3 +1,5 @@
+import { report as honorRoll, honorRollCsv } from './recognition'
+import { honorRollPage,honorRollUrl } from './ui/recognition'
 import { researchState } from './research'
 import { researchPage } from './ui/research'
 import { volunteering, volunteerCsv } from './volunteering'
@@ -334,6 +336,8 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (url.pathname === '/api/coffer/audit') return json(await auditLog(c,url))
  if (url.pathname === '/api/coffer/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
  const path = url.pathname, match = (re: RegExp) => path.match(re)
+ if(path==='/api/coffer/reports/honor-roll')return json(await honorRoll(c,url))
+ if(path==='/api/coffer/reports/honor-roll.csv')return download(honorRollCsv(await honorRoll(c,url)),'coffer-honor-roll')
  if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo'), volunteer:url.searchParams.get('volunteer') }))
  const noteMatch=match(/^\/api\/coffer\/notes\/([^/]+)$/)
  if(noteMatch){
@@ -413,6 +417,8 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  }
  if (path === '/app/calls') return show('Call list', await callTasksPage(c,url))
  if (path === '/app/lapses') return url.searchParams.has('annual') ? show('LYBUNT and SYBUNT',await annualLapsesPage(c,url)) : show('Donors who need a call', await lapsesPage(c,url))
+ if(path==='/app/reports/honor-roll') {if(!manager(actor))fail('FORBIDDEN','Only the owner or an admin reads honor rolls.',403);return show('Honor roll',await honorRollPage(c,url))}
+ if(path==='/app/reports/honor-roll.csv')return download(honorRollCsv(await honorRoll(c,honorRollUrl(url))),'coffer-honor-roll')
  if (path === '/app/reports/tax') return show('Form 990 support',await taxReportsPage(c,url))
  if (path === '/app/retention') return show('Donor retention', await retentionPage(c,url))
  if (path === '/app/portfolios') return show('Portfolios and moves',await portfoliosPage(c,url))

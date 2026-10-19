@@ -1,3 +1,4 @@
+import { giftRecognitionStatement } from '../recognition'
 import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
 import { fail, newId, one, today, type Row } from '../db'
 import { settings } from '../settings'
@@ -61,6 +62,7 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
    VALUES(?,1,?,'gift',?,?,'card',?,?,'none',0,'stripe',?,'Stripe')`).bind(id, intent.donor_id, day, cents, reference, intent.fund, now),
   env.DB.prepare('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=? AND kind=\'gift\'').bind(intent.campaign_id, reference),
   ...(subscriptionId ? [env.DB.prepare('INSERT OR IGNORE INTO cf_subscription_gifts(subscription_id,gift_id) VALUES(?,?)').bind(subscriptionId,id)] : []),
+  ...[giftRecognitionStatement(id,intent)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   // The donor ticked the separate appeal box at checkout; receipts never depend on it.
   ...(intent.email_consent ? [env.DB.prepare(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
    SELECT ?,'email','granted','web form',?,?,?,'Giving page' WHERE EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_consents WHERE donor_id=? AND evidence=?)`)

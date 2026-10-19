@@ -9,6 +9,7 @@ const owned = (table:string,scope=`n.donor_id IN ${pair}`,keys=['id'],restore=tr
 // Only these server-owned identifiers may enter generated SQL. Tokens are never
 // captured. Welcome work stays stopped and preference checks are invalidated.
 const descriptions = [
+ owned('cf_donor_recognition',undefined,['donor_id']), owned('cf_gift_recognition',`n.gift_id IN (SELECT id FROM cf_contribution_ledger WHERE donor_id IN ${pair})`,['gift_id']),
  owned('cf_donors',`n.id IN ${pair}`),
  owned('cf_donor_merges',`n.donor_id IN ${pair} OR n.into_id IN ${pair}`,['donor_id']),
  owned('cf_donor_aliases',undefined,['donor_id','email']),

@@ -16,8 +16,8 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 29 | 54 | 43 | 126 |
-| All | 37 | 55 | 43 | 135 |
+| Target and push further | 30 | 54 | 42 | 126 |
+| All | 38 | 55 | 42 | 135 |
 
 ## Target
 
@@ -49,7 +49,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 27. **`GIFT-008` Tribute gifts** (partial). A form gift in memory of a named person with a notify-address produces a tribute record, a notification for approval that omits the amount, and a tribute total of all gifts in that name; after the `MOVE-002` import, a memorial tribute's total includes its imported gifts and equals the source.
 28. **`GIFT-009` In-kind gifts** (done). The clause-named GIFT-001/GIFT-009 HTTP journey records a laptop and $6,000 artwork as explicit noncash, zero-contribution lines in the shared ledger, with frozen dates/IDs/funds and separate internal values; corrections append history and leave originals unchanged; their frozen property acknowledgments omit internal property values, and the artwork receives Form 8283 and dated Form 8282 reminders when sold a year later. It checks goods holds, benefit statements, staff recording/manager approval/agent read-only boundaries, stale changes, exact disposal windows/deadlines, backup/restore, merge/undo, import-undo refusal and anonymous numeric/date retention after erasure scrubs personal text. Native entry, approval/download and disposal/reminder screens run at 1440/390. No property value enters cash receipts or deductible totals.
 29. **`GIFT-010` Stock, DAF grants and IRA distributions** (missing). An HTTP journey records one of each, reads the right hard and soft credits, and checks each acknowledgment's wording, including the absence of deductibility language on the DAF grant. Before new stock, DAF or IRA classifications ship, their actual values/classifications feed REPORT-007 contributor selection, five-year donor totals and noncash working papers with no cash/noncash or sponsor/advisor double counting.
-30. **`GIFT-011` Anonymous gifts and recognition names** (missing). An HTTP journey marks one donor anonymous and one gift anonymous, gives through a campaign page, and reads a donor wall and an honor-roll export that show "Anonymous" for both and recognition names for the others, while the staff donor page, totals and receipts include both gifts.
+30. **`GIFT-011` Anonymous gifts and recognition names** (done). An HTTP journey marks one donor anonymous and one gift anonymous, gives through a campaign page, and reads a donor wall and an honor-roll export that show "Anonymous" for both and recognition names for the others, while the staff donor page, totals and receipts include both gifts. The clause-named HTTP/native journey also asserts explicit checkout publication, private legacy gifts, stale/replay and role refusals, inclusive giving levels and current remaining monetary balances after refunds, property anonymity, audit, backup/restore, merge/undo, import-undo refusal and erasure at 1440/390.
 
 ### Online giving
 
@@ -67,7 +67,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 40. **`CAMP-001` Campaigns with goals** (partial). An HTTP journey creates a spring appeal campaign with a $60,000 goal, records form, check and pledge gifts against it, and reads raised, pledged, donor and recurring counts that match the ledger.
 41. **`CAMP-002` Fundraising events** (missing). A browser journey sells a $150 gala ticket with a $60 dinner value, checks the guest in at 390 pixels, and reads a receipt stating $90 deductible and the attendance on the guest's timeline. The recorded attendance feeds MAJOR-004 scoring and appears in the donor’s contributing factors under the configured weights. Before attendance ships it joins DONOR-004’s timeline and type/date filters.
-42. **`CAMP-003` Peer-to-peer fundraising** (missing). A browser journey creates a team and two personal pages, gives through each, and reads the leaderboard, the donor hard credits and the fundraiser soft credits.
+42. **`CAMP-003` Peer-to-peer fundraising** (missing). A browser journey creates a team and two personal pages, gives through each, and reads the leaderboard, the donor hard credits and the fundraiser soft credits. Before any peer-to-peer wall or leaderboard ships it inherits GIFT-011 anonymity, recognition names and explicit publication permission.
 43. **`CAMP-004` Memberships** (missing). An HTTP journey sells an annual membership with auto-renew, advances a test clock past the term, sees the renewal charge, then lets a second membership lapse and receives its reminder and lapsed status, and reads member counts by level.
 44. **`CAMP-005` Auction results as gifts** (missing). An HTTP journey imports a fixture auction-results CSV with a $500 winning bid on a lot valued at $200, a $150 bid on a lot valued at $300, a $1,000 fund-a-need raise and one lot without a value; it reads a $500 payment with $300 deductible, a purchase with no contribution, a $1,000 gift and the valueless lot waiting for a person, and each receipt carries the quid pro quo statement.
 

@@ -118,6 +118,14 @@
       "commands": [
         "COFFER_TIMELINE_BROWSER=.cache/timeline node --test --test-name-pattern='DONOR-004' tests/coffer.test.mjs"
       ]
+    },
+    {
+      "name": "recognition",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_RECOGNITION_BROWSER=.cache/recognition node --test --test-name-pattern='GIFT-011' tests/giving.test.mjs"
+      ]
     }
   ],
   "nightly": [

@@ -3,6 +3,7 @@
 // through here; the API and the audit CSV keep the codes.
 
 const ACTIONS: Record<string, string> = {
+ 'recognition.donor':'Donor recognition saved', 'recognition.gift':'Gift recognition saved', 'recognition.honorRoll':'Honor roll prepared',
  'ack.prepare': 'Letters prepared', 'ack.prepareStatements': 'Year-end statements prepared', 'ack.approve': 'Letters approved',
  'ack.discard': 'Letters discarded', 'ack.export': 'Letters exported', 'ack.markSent': 'Letters marked sent', 'ack.send': 'Letters emailed',
  'ack.printed': 'Letters recorded as printed', 'ack.checkDelivery': 'Email delivery checked',

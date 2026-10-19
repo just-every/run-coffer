@@ -1,3 +1,4 @@
+import { mergeStatements as recognitionMergeStatements } from './recognition'
 import { reassignmentReason } from './reassignment-reasons'
 import { requireRole } from './auth'
 import { majorGiftMergeStatements } from './major-gifts'
@@ -83,7 +84,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('UPDATE cf_grants SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_in_kind_gifts SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_employer_matches SET employer_donor_id=? WHERE employer_donor_id=?',target,source),
-  ...donorDepthMergeStatements(source,target),...majorGiftMergeStatements(source,target),
+  ...recognitionMergeStatements(source,target),...donorDepthMergeStatements(source,target),...majorGiftMergeStatements(source,target),
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',source,target),
   ...captureMerge(tables,mergeId,'after'),
   event(c,'donor.merge','donor',source,target,{mergeId,sourceDonorId:source,targetDonorId:target,reason}),

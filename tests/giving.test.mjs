@@ -192,3 +192,6 @@ test('REPORT-006: monthly health preserves starts, amount changes, failed paymen
  const {recurringHealthJourney}=await import('./recurring-health-journey.mjs')
  await recurringHealthJourney()
 })
+
+
+test('GIFT-011: checkout publication choices, donor and gift anonymity, honor rolls and custody',async()=>{const {recognitionJourney}=await import('./recognition-journey.mjs');await recognitionJourney()})
