@@ -8,15 +8,22 @@ const statuses: Record<string, ParsedAcknowledgment['status']> = {
  donotacknowledge: 'do not acknowledge',
 }
 
-/** Source facts only: a date alone cannot establish status, and a status never supplies a date or method. */
+/** MOVE-001..003: each incumbent's facts establish status, with opt-out taking precedence. */
 export function acknowledgment(r: SourceRow): ParsedAcknowledgment | undefined {
  const raw = r.get('acknowledgmentStatus'), date = r.get('acknowledgmentDate')
  const method = r.get('acknowledgmentMethod') || null, reason = r.get('acknowledgmentReason') || null
- if (!raw && !date && !method && !reason) return undefined
- const status = statuses[normalizeLabel(raw)]
- if (!status) r.error('ACKNOWLEDGMENT_STATUS', raw
-  ? `Acknowledgment status “${raw}” needs review. Export acknowledged, not acknowledged, or do not acknowledge.`
-  : 'Acknowledgment details have no status. Export acknowledged, not acknowledged, or do not acknowledge; a date or method alone cannot establish it.', 'acknowledgmentStatus')
+ const template = r.get('acknowledgmentTemplate'), reference = r.get('acknowledgmentReference'), optOut = r.get('acknowledgmentOptOut')
+ if (!raw && !date && !method && !reason && !template && !reference && !optOut) return undefined
+ const source = r.result.source
+ const key = normalizeLabel(raw)
+ let status = source === 'lgl' && key === 'donotacknowledgevialgl' ? 'do not acknowledge' as const : Object.hasOwn(statuses,key) ? statuses[key] : undefined
+ if (raw && !status) r.error('ACKNOWLEDGMENT_STATUS', `Acknowledgment status “${raw}” needs review. Export acknowledged, not acknowledged, or do not acknowledge.`, 'acknowledgmentStatus')
+ const flag = normalizeLabel(optOut)
+ if (optOut && !['yes','y','true','1','no','n','false','0'].includes(flag)) r.error('ACKNOWLEDGMENT_STATUS', `Do Not Acknowledge value “${optOut}” needs review. Export a yes/no flag.`, 'acknowledgmentOptOut')
  const acknowledgedOn = date ? r.date('acknowledgmentDate') || null : null
- return status ? { status, acknowledgedOn, method, reason } : undefined
+ if (status === 'do not acknowledge' || ['yes','y','true','1'].includes(flag)) status = 'do not acknowledge'
+ else if ((source === 'lgl' && template) || (source === 're-nxt' && (acknowledgedOn || reference))) status = 'acknowledged'
+ else status ||= 'not acknowledged'
+ const sourceReference = template && reference ? `Template: ${template}\nReference: ${reference}` : template || reference || null
+ return { status, acknowledgedOn, method: method || (template && status === 'acknowledged' ? 'letter' : null), reason, sourceReference }
 }

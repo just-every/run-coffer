@@ -16,7 +16,7 @@ export type ParsedGift = Located & {
 }
 export type ParsedAcknowledgment = {
  status: 'acknowledged' | 'not acknowledged' | 'do not acknowledge'
- acknowledgedOn: string | null; method: string | null; reason: string | null
+ acknowledgedOn: string | null; method: string | null; reason: string | null; sourceReference: string | null
 }
 export type ParsedHousehold = Located & { externalId: string; name: string }
 export type ParsedRelationship = Located & { externalId: string; donorExternalId: string; relatedDonorExternalId: string; type: string }

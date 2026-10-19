@@ -20,28 +20,40 @@ async function moveIn(h,preview,extra={}){
 // ACK-001 / MOVE-001..003 / MOVE-007: configured source columns preserve facts,
 // reject unknown states and keep both per-gift exclusions and the reviewed cutoff.
 async function sourceAcknowledgments(h,source) {
- const [donorId,giftId,type,status,date,method,reason,label]=({
-  lgl:['LGL Constituent ID','LGL Gift ID','Gift','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Little Green Light'],
-  bloomerang:['Account Number','Transaction Number','Donation','Acknowledgement Status','Acknowledgement Date','Acknowledgement Method','Acknowledgement Reason','Bloomerang'],
-  're-nxt':['Constituent ID','Gift ID','Cash','Acknowledgement','Acknowledged Date','Acknowledgement Method','Acknowledgement Reason',"Raiser's Edge NXT"],
+ const [donorId,giftId,type,status,date,method,reason,label,reference,optOut]=({
+  lgl:['LGL Constituent ID','LGL Gift ID','Gift','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Little Green Light','Acknowledgment Template','Do Not Acknowledge via LGL'],
+  bloomerang:['Account Number','Transaction Number','Donation','Acknowledged?','Acknowledgement Date','Acknowledgement Method','Acknowledgement Reason','Bloomerang','Acknowledgment Interaction ID','Do Not Acknowledge'],
+  're-nxt':['Constituent ID','Gift ID','Cash','Acknowledgement','Acknowledged Date','Acknowledgement Method','Acknowledgement Reason',"Raiser's Edge NXT",'Acknowledgment Letter','Do Not Acknowledge'],
  })[source]
  const rows=[
   ['ACK_FULL','2026-09-01','500','0','acknowledged','2026-09-02','personal email','Source thank-you'],
   ['ACK_NO_DETAILS','2026-09-03','300','0','acknowledged','','',''],
-  ['ACK_SKIP','2026-09-04','250','0','do not acknowledge','','','Donor requested no letter'],
+  ['ACK_SKIP','2026-09-04','250','0',source==='lgl'?'do not acknowledge via LGL':'do not acknowledge','','','Donor requested no letter'],
   ['ACK_DUE','2026-09-05','250','60','not acknowledged','','',''],
   ['ACK_OLD','2024-09-01','250','0','not acknowledged','','',''],
   ['ACK_UNKNOWN','2026-09-06','250','','not acknowledged','','',''],
   ['ACK_ABSENT','2026-09-07','250','0','','','',''],
- ]
+ ].map(r=>source==='bloomerang'?r.map((v,i)=>i===4?({'acknowledged':'Yes','not acknowledged':'No','do not acknowledge':'Do Not Acknowledge'}[v]??v):v):r)
+ if(source==='bloomerang')rows[0].push('interaction-48','')
+ const vendorRows=source==='lgl'?[
+  ['ACK_TEMPLATE','2026-09-08','500','0','','2026-09-09','','','Spring thank-you',''],
+  ['ACK_TEMPLATE_NO_DATE','2026-09-08','500','0','','','','','Spring thank-you',''],
+  ['ACK_TEMPLATE_SKIP','2026-09-09','500','0','not acknowledged','2026-09-10','','Donor opted out','Spring thank-you','Yes'],
+ ]:source==='re-nxt'?[
+  ['ACK_DATE','2026-09-08','500','0','','2026-09-09','','','',''],
+  ['ACK_LINK','2026-09-09','500','0','not acknowledged','','','','Legacy letter 42',''],
+  ['ACK_DATE_SKIP','2026-09-10','500','0','do not acknowledge','2026-09-11','','Donor opted out','Legacy letter 43',''],
+  ['ACK_FLAG_SKIP','2026-09-11','500','0','not acknowledged','2026-09-12','','Donor opted out','Legacy letter 44','Yes'],
+ ]:[]
+ rows.push(...vendorRows)
  const file=(name,values)=>({name,base64:Buffer.from(values.map(r=>r.join(',')).join('\r\n')+'\r\n').toString('base64')})
  const input=(giftRows=rows)=>({source,files:[file('constituents.csv',[[donorId,'Name'],['ACK_PERSON','Imported acknowledgment donor']]),file('gifts.csv',[
-  [giftId,donorId,'Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount','Goods Description',status,date,method,reason],
+  [giftId,donorId,'Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount','Goods Description',status,date,method,reason,reference,optOut],
   ...giftRows.map(([id,on,amount,goods,...ack])=>[id,'ACK_PERSON',type,on,amount,'Check',goods,goods==='60'?'Dinner':'',...ack]),
  ])]})
- for(const broken of [rows.map((r,i)=>i===0?r.map((v,j)=>j===4?'queued':v):r),rows.map((r,i)=>i===0?r.map((v,j)=>j===5?'2026-02-30':v):r),rows.map((r,i)=>i===0?r.map((v,j)=>j===4?'':v):r)]) {
+ for(const broken of [rows.map((r,i)=>i===0?r.map((v,j)=>j===4?'queued':v):r),rows.map((r,i)=>i===0?r.map((v,j)=>j===5?'2026-02-30':v):r),rows.map((r,i)=>i===0?[...r.slice(0,8),'','sometimes']:r)]) {
   const review=await post(h,'preview',input(broken))
-  assert.equal(review.canApply,false,'Unknown status, invalid source date and metadata without a status require review')
+  assert.equal(review.canApply,false,'Unknown status, invalid source date and unknown opt-out flag require review')
   assert.ok(review.diagnostics.some(d=>d.severity==='error'&&['ACKNOWLEDGMENT_STATUS','DATE'].includes(d.code)&&d.file==='gifts.csv'&&d.row===2))
   await post(h,'apply',{id:review.id,fingerprint:review.fingerprint,acceptedReason:'Do not silently accept unknown acknowledgment facts'},{status:409})
  }
@@ -54,11 +66,23 @@ async function sourceAcknowledgments(h,source) {
  await moveIn(h,preview,{acknowledged:'yes',acknowledgedBefore:'2025-01-01'})
  const person=(await h.get('/api/coffer/donors')).donors[0]
  const history=await h.get(`/api/coffer/donors/${person.id}`),gifts=Object.fromEntries(history.gifts.map(g=>[g.reference.split(':')[1],g]))
- assert.equal(history.totals.lifetimeCents,205000)
+ assert.equal(history.totals.lifetimeCents,205000+vendorRows.length*50000)
  assert.deepEqual(['ACK_FULL','ACK_NO_DETAILS','ACK_SKIP','ACK_DUE'].map(k=>gifts[k].acknowledgment.status),['acknowledged','acknowledged','do not acknowledge','not acknowledged'])
  assert.deepEqual(['acknowledged_on','method','reason','source','batch_id','letter_id'].map(k=>gifts.ACK_FULL.acknowledgment[k]),['2026-09-02','personal email','Source thank-you',label,null,null])
  assert.deepEqual(['acknowledged_on','method','reason'].map(k=>gifts.ACK_NO_DETAILS.acknowledgment[k]),[null,null,null],'An acknowledged source gift never invents missing details')
  assert.equal(gifts.ACK_SKIP.acknowledgment.reason,'Donor requested no letter')
+ assert.equal(gifts.ACK_ABSENT.acknowledgment.status,'not acknowledged','A missing source status defaults to not acknowledged')
+ if(source==='lgl') {
+  assert.deepEqual(['status','acknowledged_on','method','source_reference'].map(k=>gifts.ACK_TEMPLATE.acknowledgment[k]),['acknowledged','2026-09-09','letter','Spring thank-you'])
+  assert.deepEqual(['status','acknowledged_on','method','source_reference'].map(k=>gifts.ACK_TEMPLATE_NO_DATE.acknowledgment[k]),['acknowledged',null,'letter','Spring thank-you'],'An assigned LGL template never invents an absent acknowledged date')
+  assert.equal(gifts.ACK_TEMPLATE_SKIP.acknowledgment.status,'do not acknowledge','Do not acknowledge via LGL wins over an assigned template and date')
+  assert.equal(gifts.ACK_TEMPLATE_SKIP.acknowledgment.source_reference,'Spring thank-you')
+ } else if(source==='re-nxt') {
+  assert.deepEqual(['status','acknowledged_on','method','source_reference'].map(k=>gifts.ACK_DATE.acknowledgment[k]),['acknowledged','2026-09-09',null,null],'NXT date alone establishes acknowledged without inventing a method')
+  assert.deepEqual(['status','acknowledged_on','method','source_reference'].map(k=>gifts.ACK_LINK.acknowledgment[k]),['acknowledged',null,null,'Legacy letter 42'],'A linked NXT letter establishes acknowledged without inventing a date or method')
+  assert.equal(gifts.ACK_DATE_SKIP.acknowledgment.status,'do not acknowledge','NXT status wins over date and linked letter')
+  assert.equal(gifts.ACK_FLAG_SKIP.acknowledgment.status,'do not acknowledge','NXT opt-out flag wins over date and linked letter')
+ } else assert.equal(gifts.ACK_FULL.acknowledgment.source_reference,'interaction-48','Bloomerang keeps the source interaction reference')
  assert.deepEqual(['goods','goods_cents','goods_description'].map(k=>gifts.ACK_DUE[k]),['provided',6000,'Dinner'])
  assert.equal(gifts.ACK_NO_DETAILS.goods,'none')
  assert.equal(gifts.ACK_UNKNOWN.goods,'unknown')

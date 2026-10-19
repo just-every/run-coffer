@@ -13,10 +13,12 @@ const common: Record<string, string[]> = {
  type: ['Type', 'Gift Type', 'Transaction Type'], fund: ['Fund', 'Fund Name', 'Fund Description'], campaign: ['Campaign', 'Campaign Name'], appeal: ['Appeal', 'Appeal Name'], channel: ['Channel', 'Gift Channel', 'Solicitation Channel'],
  checkReference: ['Check No.', 'Check Number', 'Check/Reference No.', 'Check/Reference Number'],
  method: ['Method', 'Payment Type', 'Payment Method', 'Transaction Method', 'Pay Method'], giftNote: ['Gift Note', 'Gift Notes', 'Transaction Note', 'Gift Reference', 'Reference'],
- acknowledgmentStatus: ['Acknowledgment Status', 'Acknowledgement Status', 'Acknowledgment', 'Acknowledgement', 'Acknowledged'],
+ acknowledgmentStatus: ['Acknowledgment Status', 'Acknowledgement Status', 'Acknowledgment', 'Acknowledgement', 'Acknowledged', 'Acknowledged?'],
  acknowledgmentDate: ['Acknowledgment Date', 'Acknowledgement Date', 'Acknowledged Date', 'Acknowledged On'],
  acknowledgmentMethod: ['Acknowledgment Method', 'Acknowledgement Method'],
  acknowledgmentReason: ['Acknowledgment Reason', 'Acknowledgement Reason', 'Do Not Acknowledge Reason'],
+ acknowledgmentOptOut: ['Do Not Acknowledge', 'Do Not Acknowledge?'],
+ acknowledgmentReference: ['Acknowledgment Reference', 'Acknowledgement Reference', 'Acknowledgment Interaction ID', 'Acknowledgement Interaction ID'],
  note: ['Note', 'Notes', 'Note Text', 'Description'], noteId: ['Note ID', 'Note Number'], noteDate: ['Note Date'], noteType: ['Note Type', 'Note Category'],
  relationshipId: ['Relationship ID'], relatedDonor: ['Related Constituent ID', 'Related Account Number', 'Relationship Constituent ID'], relationshipType: ['Relationship Type', 'Relationship'],
  softId: ['Soft Credit ID', 'Soft Credit Number'], softDonor: ['Soft Credit Constituent ID', 'Soft Credit Account Number', 'Soft Credit Recipient ID'],
@@ -33,9 +35,13 @@ const vendor: Record<ImportSource, Record<string, string[]>> = {
   donorId: ['LGL Constituent ID', 'Constituent ID'], giftId: ['LGL Gift ID', 'Gift ID'],
   sortName: ['Sort Name'], relatedName: ['Related Constituent Name'],
   deductible: ['Deductible', 'Deductible Amount', 'Tax Deductible Amt'],
+  acknowledgmentTemplate: ['Acknowledgment Template', 'Acknowledgement Template', 'Acknowledgment Template Name', 'Acknowledgement Template Name'],
+  acknowledgmentOptOut: ['Do Not Acknowledge', 'Do Not Acknowledge?', 'Do Not Acknowledge via LGL'],
  },
  bloomerang: { name: ['Name', 'Full Name', 'Constituent Name'], softName: ['Donor Name', 'Soft Credit Name(s)'], donorId: ['Account Number', 'Constituent ID'], giftId: ['Transaction Number', 'Transaction ID'] },
- 're-nxt': { donorId: ['Constituent ID', 'Constituent System Record ID'], giftId: ['Gift ID', 'Gift System Record ID'] },
+ 're-nxt': { donorId: ['Constituent ID', 'Constituent System Record ID'], giftId: ['Gift ID', 'Gift System Record ID'],
+  acknowledgmentReference: ['Acknowledgment Reference', 'Acknowledgement Reference', 'Acknowledgment Letter', 'Acknowledgement Letter', 'Acknowledgment Letter ID', 'Acknowledgement Letter ID', 'Linked Acknowledgment Letter', 'Linked Acknowledgement Letter'],
+ },
 }
 export function normalizeLabel(value: string) { return value.toLowerCase().replace(/\uFEFF/g, '').replace(/[^a-z0-9]/g, '') }
 export function columnFields(source: ImportSource): Map<string, string> {

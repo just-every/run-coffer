@@ -113,7 +113,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   plan.giftIds.set(g.externalId,id)
   if(g.acknowledgment) {
    const a=g.acknowledgment
-   await add('acknowledgment',{externalId:g.externalId,location:g.location,...a},{gift_id:id,status:a.status,acknowledged_on:a.acknowledgedOn,method:a.method,batch_id:null,letter_id:null,reason:a.reason,source:({'lgl':'Little Green Light','bloomerang':'Bloomerang','re-nxt':"Raiser's Edge NXT"})[source],updated_at:c.now,updated_by:c.actor.name},undefined,donorId)
+   await add('acknowledgment',{externalId:g.externalId,location:g.location,...a},{gift_id:id,status:a.status,acknowledged_on:a.acknowledgedOn,method:a.method,batch_id:null,letter_id:null,reason:a.reason,source_reference:a.sourceReference,source:({'lgl':'Little Green Light','bloomerang':'Bloomerang','re-nxt':"Raiser's Edge NXT"})[source],updated_at:c.now,updated_by:c.actor.name},undefined,donorId)
   }
   const prior=mappings.find(m=>m.kind==='gift' && m.native_id===id)
   const cents=prior?(giftBalances.find(b=>b.id===id)?.net_cents??0):g.amountCents
