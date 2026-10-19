@@ -156,3 +156,5 @@ test('DONOR-010: recorded and imported volunteer roles, yearly hours, never-give
 test('MAJOR-005: restricted WealthEngine screening retains estimates with provenance and donor custody',async()=>{
  const {researchJourney}=await import('./research-journey.mjs');await researchJourney()
 })
+
+test('REPORT-003: fiscal dashboard, explicit goals, exact ledger drilldowns, cohorts, recurring sources and pipeline',async()=>{const {dashboardJourney}=await import('./dashboard-journey.mjs');await dashboardJourney()})

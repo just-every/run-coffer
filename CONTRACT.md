@@ -288,6 +288,8 @@ An admin builds branded donation forms (logo, colors, copy, suggested amounts, o
 
 Before this capability ships, its campaign membership and progress inherit `CAMP-001` ledger accounting, separate pledges/soft credits and donor statistics.
 
+Independent giving forms inherit `REPORT-003` actual form provenance and financial reporting before shipping.
+
 *Acceptance:* A browser journey builds a form with a custom question, embeds it on a test page, and gives $50 at 1440 and 390 pixels with the Stripe edge in test mode; the gift, donor, consent answer, custom-field answer and receipt appear in Coffer, and an axe check of the form passes; a timing run of the hosted form under the stated profile (CDP network emulation and `Emulation.setCPUThrottlingRate` 4) records a median of five cold loads under one second to input-ready and under two seconds to payment-field-ready.
 
 #### GIVE-002 — Campaign pages.
@@ -716,6 +718,10 @@ Annual lists use signed net calendar-year giving through the selected year end, 
 
 A home dashboard and report pages show raised this fiscal year against last and goal, by fund, campaign, appeal, form, channel and month, with recurring revenue, new donors, retention and pipeline; every number opens to its gifts.
 
+Fiscal years are labelled by their start year using the organization’s time zone and reviewed fiscal calendar. The selected current year ends today; earlier years use their full fiscal period. Comparison is labelled **Full prior fiscal year**. Organization, fund, campaign, appeal, giving-form, channel and month goals are explicitly recorded for that fiscal year; none is inferred from another or from a campaign’s lifetime goal. A giving form is today’s campaign checkout and is distinguished from manual campaign attribution; unknown historical form provenance is labelled. New independent forms (`GIVE-001`) inherit that provenance before shipping.
+
+Received-money figures open the exact signed ledger allocation entries, including refunds, reversals and retained anonymous amounts. Donor and retention figures open their cohorts and contributing entries. Goals and recurring commitments open their recorded sources; pipeline commitments open the current opportunity records, labelled as current independently of the selected historical fiscal year. Monthly recurring revenue is the recorded month-end commitment (today for this month), not received money, and unknown legacy history is disclosed.
+
 *Acceptance:* A browser journey at 1440 and 390 pixels reads the dashboard for a built year and opens a fund total to the gifts that make it; it reads raised by campaign and by month against last year and the goal, each figure equal to the ledger.
 
 #### REPORT-004 — Report builder.
@@ -1056,7 +1062,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 4 | and thank-yous | `RCPT-002`, `RCPT-007` | `RCPT-002` done · `RCPT-007` partial |
 | 5 | shows who needs a call | `DEV-005`, `REPORT-002` | partial (core claim implemented; broader clauses remain) |
 | 6 | 100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM | `OWN-001`, `MOVE-001`, `MOVE-002`, `MOVE-004` | `OWN-001` done · `MOVE-001` partial · `MOVE-002` partial · `MOVE-004` missing |
-| 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` done · `REPORT-003` partial |
+| 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` done · `REPORT-003` done |
 | 8 | Monthly $25 · Active | `GIVE-003` | partial |
 | 9 | Failed card · Retried successfully | `GIVE-006` | partial |
 | 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` done |
@@ -1118,8 +1124,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 34 | 53 | 39 | 126 |
-| All | 42 | 54 | 39 | 135 |
+| Target and push further | 35 | 52 | 39 | 126 |
+| All | 43 | 53 | 39 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1215,7 +1221,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MAJOR-007` | Planned giving | target | done | `src/coffer/planned-giving.ts`, `src/coffer/ui/planned-giving.ts`, `tests/pipeline.test.mjs` | Versioned bequest and other intentions retain vehicle, optional estimated value and documentation status; dated legacy-society enrollment is separate from received gifts. Multiple estate distributions link once each to their intention and show reversal-aware net receipts. MAJOR-007 HTTP proof covers create/enroll/link, authorization, stale edits, backup/restore, merge/undo and erasure; donor forms run at 1440 and 390. |
 | `REPORT-001` | Donor retention | target | done | `src/coffer/retention.ts`, `src/coffer/retention-scope.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs`, `tests/retention-journey.mjs` | Fiscal/calendar signed-net cohorts and retained-donor movements, current-list and exact split-aware fund/campaign scopes, donor drilldowns, erased-ledger reconciliation and backup/restore are clause-named HTTP proof; populated/filter/empty screens run at 1440/390. DONOR-007 inherits future saved-list parity in text and acceptance. |
 | `REPORT-002` | LYBUNT and SYBUNT lists | target | done | `src/coffer/annual-lapses.ts`, `src/coffer/ui/annual-lapses.ts`, `src/coffer/appeals.ts`, `tests/pipeline.test.mjs`, `tests/annual-lapses-journey.mjs` | Independent calendar-year signed-net lists include last-gift date/balance and reference-year totals, feed frozen consent-checked appeals and owned calls, and preserve custody. STEW-003 explicitly inherits direct cohort enrollment before list-triggered journeys ship. |
-| `REPORT-003` | Fundraising dashboards | target | partial | `src/coffer/ui/home.ts` | Today shows the current calendar year's total and acknowledgment backlog; no breakdowns, goals, comparisons or drill-down. |
+| `REPORT-003` | Fundraising dashboards | target | done | `src/coffer/dashboard.ts`, `src/coffer/dashboard-ledger.ts`, `src/coffer/dashboard-goals.ts`, `src/coffer/ui/dashboard.ts`, `src/coffer/ui/home.ts`, `migrations/core/0066_coffer_dashboard.sql`, `tests/dashboard-journey.mjs`, `tests/dashboard-browser.mjs`, `tests/pipeline.test.mjs` | Clause-named HTTP and 1440/390 browser journeys assert fiscal current/full-prior/explicit-goal comparisons; every dimension and exact allocation drilldown, monthly values, actual form provenance, donor/retention cohorts, recurring plan sources, current pipeline, authority, empty states and custody. |
 | `REPORT-004` | Report builder | target | missing |  | No report builder. |
 | `REPORT-005` | Scheduled reports | target | missing |  | No scheduled reports. |
 | `REPORT-006` | Recurring giving health | target | done | `src/coffer/recurring-health.ts`, `src/coffer/ui/recurring-health.ts`, `migrations/core/0046_coffer_recurring_health.sql`, `tests/giving.test.mjs`, `tests/coffer.test.mjs` | Monthly history retains amount/status/cancellation changes across webhooks, portal and imported plans. Reports show distinct active donors, committed monthly revenue, starts, actual cancellations, failed/recovered invoices and average known plan duration in the organization timezone. Unknown legacy starts/state and observation-only payment history are explicit. REPORT-006 HTTP proof advances January–March through each outcome and verifies earlier figures remain unchanged; report/filter screens run at 1440 and 390. |

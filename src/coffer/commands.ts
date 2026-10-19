@@ -1,3 +1,4 @@
+import { dashboardCommand } from './dashboard'
 import { recognitionCommand } from './recognition'
 import { researchCommand } from './research'
 import { volunteerCommand } from './volunteering'
@@ -46,7 +47,7 @@ export const ACCESS: Record<string, Role[]> = {
  'cultivation.template': STAFF, 'cultivation.apply': STAFF, 'cultivation.complete': STAFF, 'proposal.save': STAFF, 'proposal.attach': STAFF, 'proposal.sent': STAFF, 'proposal.response': STAFF,
  'portfolio.save': STAFF, 'portfolio.assign': STAFF,
  'planned.save': STAFF, 'planned.realize': STAFF, 'planned.unlink': STAFF, 'legacy.set': STAFF,
- 'fund.define': MANAGERS, 'fund.spend': MANAGERS, 'appealCode.define': MANAGERS,
+ 'dashboard.goal': MANAGERS, 'fund.define': MANAGERS, 'fund.spend': MANAGERS, 'appealCode.define': MANAGERS,
  'task.repeatCreate': STAFF, 'task.repeatComplete': STAFF, 'task.generate': STAFF, 'task.assign': STAFF, 'task.snooze': STAFF, 'task.complete': STAFF, 'prospect.save': STAFF,
  'donor.create': STAFF, 'donor.update': STAFF, 'gift.record': STAFF, 'consent.record': STAFF, 'pledge.create': STAFF,
  'donor.merge': MANAGERS, 'donor.unmerge': MANAGERS, 'relationship.create': STAFF, 'relationship.remove': STAFF, 'interaction.record': STAFF,
@@ -71,7 +72,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'donor.unmerge') return undoMerge(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) {
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }

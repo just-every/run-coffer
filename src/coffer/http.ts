@@ -1,3 +1,5 @@
+import { dashboardReport, dashboardEntries } from './dashboard'
+import { dashboardPage } from './ui/dashboard'
 import { report as honorRoll, honorRollCsv } from './recognition'
 import { honorRollPage,honorRollUrl } from './ui/recognition'
 import { researchState } from './research'
@@ -300,6 +302,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('prospect.')) return redirect('/app/pipeline')
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
  if (command === 'agent.revoke') return redirect('/app/data')
+ if (command === 'dashboard.goal') return redirect('/app/reports/dashboard?year='+encodeURIComponent(String(input.year))+'#goals')
  if (command === 'settings.update') return redirect('/app/settings?saved=1')
  if (command === 'donor.create') return redirect(`/app/donors/${result.id}`)
  if (input.returnDonorId) return redirect(`/app/donors/${encodeURIComponent(input.returnDonorId)}`)
@@ -399,6 +402,8 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/reports/restrictions') return json(await restrictionReport(c,url))
  if (path === '/api/coffer/reports/funds') return json(await fundReport(c,url))
  if (path === '/api/coffer/reports/states') return json(await stateReport(c,url))
+ if (path === '/api/coffer/reports/dashboard') return json(await dashboardReport(c,url))
+ if (path === '/api/coffer/reports/dashboard/entries') return json(await dashboardEntries(c,url))
  if (path === '/api/coffer/reports/attribution') return json(await attributionReport(c,url))
  if (path === '/api/coffer/reports/states.csv') return download(stateReportCsv(await stateReport(c,url)),'coffer-giving-by-state')
  if (path === '/api/coffer/settings') return json(await settings(c))
@@ -449,7 +454,8 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/grants') return show('Foundation and corporate grants',await grantsPage(c,url.searchParams.get('donorId')??undefined))
  if (path === '/app/engagement') return show('Engagement scores',await engagementPage(c))
  if (path === '/app/pipeline') return show('Major-gift pipeline', await majorGiftsPage(c,url))
- if (path === '/app') return show('Today', await home(c))
+ if (path === '/app/reports/dashboard') return show('Fundraising dashboard', await dashboardPage(c,url))
+ if (path === '/app') return show('Today', await home(c,url))
  if (path === '/app/giving') return show('Online giving', await givingManagePage(c))
  if (path === '/app/giving/setup') return show('Connect Stripe', await givingSetupPage(c))
  if (path === '/app/gifts') return page('Gifts', await giftsPage(c, url), actor, 200, path, { hideTitle: true })

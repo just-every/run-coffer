@@ -134,6 +134,14 @@
       "commands": [
         "COFFER_CAMPAIGN_BROWSER=.cache/campaign node --test --test-name-pattern='CAMP-001' tests/giving.test.mjs"
       ]
+    },
+    {
+      "name": "fundraising-dashboard",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test --test-name-pattern='REPORT-003' tests/pipeline.test.mjs"
+      ]
     }
   ],
   "nightly": [
