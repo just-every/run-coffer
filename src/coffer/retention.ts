@@ -53,8 +53,7 @@ export async function retention(c: Context, url: URL) {
    JOIN cf_donors d ON d.id=credited.id LEFT JOIN cf_households h ON h.id=d.household_id
    WHERE g.received_on>=? AND g.received_on<=? AND g.kind='gift' AND g.net_cents>0
     AND ${donorSql} AND hard.erased_at IS NULL AND credited.erased_at IS NULL
-    AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_fund_ledger l WHERE l.gift_id=g.id AND l.fund=?))
-    AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_fund_ledger l WHERE l.gift_id=g.id AND l.campaign_id=?))
+    AND EXISTS(SELECT 1 FROM cf_fund_ledger l WHERE l.gift_id=g.id AND (? IS NULL OR l.fund=?) AND (? IS NULL OR l.campaign_id=?))
     AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id IN (hard.id,credited.id))
     AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
    GROUP BY credited.id,credited.name ORDER BY lower(credited.name),credited.id`, start,start,priorStart,end,...donorParams,...ledgerParams),

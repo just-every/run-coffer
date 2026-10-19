@@ -35,8 +35,10 @@ export async function retentionJourney(){
   // Same donor and payment, different allocation scopes: recognition is not cash.
   const split=await gift(up,'100','2025-09-01',{allocations:[{campaignId:campaign.id,amount:'60'},{campaignId:mealsCampaign.id,amount:'40'}]})
   await h.command('gift.reverse',{giftId:split.id,reason:'Split check returned',reversedOn:'2025-09-02'})
-  await gift(up,'10','2025-09-03',{allocations:[{campaignId:campaign.id,amount:'6'},{campaignId:mealsCampaign.id,amount:'4'}]})
-  const scoped=await h.get(path+'&campaignId='+campaign.id);assert.equal(scoped.totals.currentCents,600);assert.equal(scoped.ledgerTotals.currentCents,600);assert.deepEqual(scoped.groups.new.rows.map(r=>r.donorId),[up.id])
+  const creditedSplit=await gift(up,'10','2025-09-03',{allocations:[{campaignId:campaign.id,amount:'6'},{campaignId:mealsCampaign.id,amount:'4'}]})
+  await h.command('softCredit.record',{giftId:creditedSplit.id,donorId:back.id,amount:'5',reason:'Introduced the donor'})
+  const conflict=await h.get(path+'&fund=Meals&campaignId='+campaign.id);assert.equal(conflict.totals.currentCents,0);assert.equal(conflict.softCredits.currentCents,0)
+  const scoped=await h.get(path+'&campaignId='+campaign.id);assert.equal(scoped.totals.currentCents,600);assert.equal(scoped.softCredits.currentCents,500);assert.equal(scoped.ledgerTotals.currentCents,600);assert.deepEqual(scoped.groups.new.rows.map(r=>r.donorId),[up.id])
   const meals=await h.get(path+'&fund=Meals');assert.equal(meals.totals.currentCents,400);assert.equal(meals.totals.priorCents,0)
   const currentYear=new Date().getUTCFullYear()
   const cohort=await h.get('/api/coffer/reports/annual-lapses?year='+currentYear)
@@ -71,6 +73,10 @@ async function retentionBrowser(h,directory){
    await page.screenshot({path:`${directory}/REPORT-001-filter-${width}.png`});await page.locator('#upgraded').screenshot({path:`${directory}/REPORT-001-upgraded-${width}.png`})
    await page.getByLabel('Donor search',{exact:true}).fill('Nobody matches');await page.getByRole('button',{name:'View year',exact:true}).click();assert.ok(await page.locator('#all-donors').getByText('No donors in this group.').isVisible())
    await page.screenshot({path:`${directory}/REPORT-001-empty-${width}.png`});await page.locator('#all-donors').screenshot({path:`${directory}/REPORT-001-empty-result-${width}.png`})
+   await page.getByLabel('Donor search',{exact:true}).fill('');await page.getByLabel('Calendar year',{exact:true}).fill('2025');await page.locator('select[name="basis"]').selectOption('calendar')
+   await page.locator('select[name="fund"]').selectOption('Meals');await page.locator('select[name="campaignId"]').selectOption({label:'Library renewal'});await page.getByRole('button',{name:'View year',exact:true}).click()
+   await page.locator('#all-donors').getByText('No donors in this group.').waitFor();assert.ok(await page.locator('#soft-credits').getByText('No soft credits in these periods.').isVisible())
+   await page.locator('#soft-credits').screenshot({path:`${directory}/REPORT-001-conflicting-scope-${width}.png`})
   }
  })
 }
