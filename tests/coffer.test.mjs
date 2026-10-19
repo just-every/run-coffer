@@ -1,6 +1,9 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {run,installation,archive,restore,stripe,imported,reviewed,donor,csvRows,settings} from './harness.mjs'
+import {mcpJourney} from './mcp-journey.mjs'
+
+test('API-004: MCP donor context and preparation retain native keys and human approval',mcpJourney)
 
 const agentOf=async h=>{const key=await h.command('agent.create',{label:'Letters assistant'});return {key,as:{as:'',headers:{authorization:`Bearer ${key.token}`}}}}
 const consent=(h,donorIds,channel='email',status='granted',options={})=>h.command('consent.record',{donorIds,channel,status,method:'paper form',evidence:'Ticked the newsletter box on the gala RSVP card',capturedOn:'2026-03-14'},options)

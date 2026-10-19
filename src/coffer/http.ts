@@ -1,3 +1,4 @@
+import { mcpResponse } from './mcp'
 import { taxReport } from './tax-reports'
 import { taxReportsPage } from './ui/tax-reports'
 import { inKindState, inKindAcknowledgment } from './in-kind'
@@ -149,8 +150,13 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  let actor: Actor | undefined
  try {
   const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
-  if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
+  if (path === '/api/coffer/mcp') {
+   if (!auth.bearer || actor.role !== 'agent') fail('agent_key_required', 'Use an existing Coffer agent key for MCP.', 403)
+   if (request.headers.has('origin') && request.headers.get('origin') !== url.origin) fail('invalid_origin', 'This MCP request came from another origin.', 403)
+   return await mcpResponse(request, c, () => textBody(request, LIMIT))
+  }
+  if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   if (!isApi && person(actor)) actor.org = (await settings(c)).organisation || undefined
   const agent = await agentResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
   if (agent) return agent

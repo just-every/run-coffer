@@ -168,7 +168,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 110. **`API-001` Public REST API** (partial). An HTTP journey creates a read-only key and a gift-entry key, reads donors with the first, is refused a write, records a gift idempotently with the second, sets and reads a donor's "do not solicit" restriction with a full key, and validates responses against the OpenAPI document.
 111. **`API-002` Webhooks** (missing). An HTTP journey subscribes an endpoint, records a gift, verifies the signature, fails one delivery and sees the retry and replay.
 112. **`API-003` Zapier and Crank** (missing). A Zapier CLI validation of the app passes, and a Crank flow triggered by a Coffer gift creates a task through the API.
-113. **`API-004` MCP endpoint** (missing). An MCP client lists donors and drafts an acknowledgment batch through the endpoint, which a person then approves; a write outside its grant is refused.
+113. **`API-004` MCP endpoint** (done). An MCP client lists donors and drafts an acknowledgment batch through the endpoint, which a person then approves; a write outside its grant is refused. The clause-named journey also reads context, prepares a consent-checked appeal, preserves preparer/approver identities and frozen hash, tests current discovery/legacy initialization, malformed content/metadata/method/body/origin and anonymous/cookie refusals, and proves key expiry/revocation. Native human review and approval run at 1440/390; DEV-012 inherits future wider-grant MCP parity.
 
 ### Mobile
 
@@ -196,6 +196,6 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 129. **`DEV-009` Confirms appeals actually reached donors** (missing). An HTTP journey with the Mailchimp edge faked sends an appeal where five recipients were dropped, runs the agent, and reads the five flagged with a prepared resend for approval.
 130. **`DEV-010` Follows pledges and grants to the end** (missing). An HTTP journey lets a pledge installment, a grant report and a match go overdue, runs the agent, and reads reminders, an escalation and a recorded resolution for each.
 131. **`DEV-011` Writes the development report** (missing). An HTTP journey runs the agent on a built month, checks every number against `REPORT-*` outputs, and sends only after approval.
-132. **`DEV-012` Agent grants and autonomy** (partial). An HTTP journey grants an agent receipt sending under a template version, sees it send within limits, refuses a send over the daily limit and a send after the template changes, and stops it with the kill switch.
+132. **`DEV-012` Agent grants and autonomy** (partial). An HTTP journey grants an agent receipt sending under a template version, sees it send within limits, refuses a send over the daily limit and a send after the template changes, and stops it with the kill switch. The same grant, record scope, daily/template limits and kill-switch refusals are exercised through API-004 MCP before wider grants ship.
 
 Fakes are allowed only at a paid or network edge; a provider fake proves Coffer's side only. Local checks do not prove hosted deployment; the independent stranger journey is run separately.

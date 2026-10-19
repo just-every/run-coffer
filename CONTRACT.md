@@ -844,7 +844,9 @@ A published Zapier app and a Crank connector expose the webhook triggers and API
 
 An MCP endpoint lets a nonprofit's own AI assistant read donor context and propose records under the same keys, roles and approvals as `AGENT-001` and `DEV-012`.
 
-*Acceptance:* An MCP client lists donors and drafts an acknowledgment batch through the endpoint, which a person then approves; a write outside its grant is refused.
+`POST /api/coffer/mcp` is stateless Streamable HTTP over the existing expiring, revocable agent bearer keys. It exposes native donor-list and donor-context reads and acknowledgment/appeal preparation only; no MCP tool approves, exports, sends, records gifts or changes settings. Each call rechecks native key authority, and preparation uses the same guarded command transaction and frozen human approval. Cookie actors are refused; any supplied Origin must equal the installation origin; UTF-8 JSON bodies are bounded to 1 MiB. GET, DELETE and other methods return 405 with Allow: POST. Current per-request discovery/metadata and explicit legacy initialization are documented in `docs/MCP.md`; missing or mismatched required protocol metadata and unsupported calls refuse without execution. Donor text remains untrusted record data. This is complete for today's AGENT-001 read/prepare permissions; before DEV-012 introduces broader grants or standing approvals, that clause must apply the same current grant, scope, limit, revocation and approval rules to MCP calls before those capabilities ship.
+
+*Acceptance:* A clause-named MCP HTTP client lists donors, reads a real donor's context and prepares an acknowledgment batch; a person reviews and approves that frozen batch, with both identities and its hash retained. A forbidden write is refused and changes nothing. The journey also prepares a consent-checked appeal, checks current discovery and legacy initialization, rejects bad content/metadata/method/body/origin and cookie/anonymous callers, and proves expiry/revocation. The existing human review/approved screens run at 1440/390. Broader grant parity is asserted under DEV-012 before shipping.
 
 ### Mobile
 
@@ -972,7 +974,9 @@ Monthly, the agent drafts a board-ready report (raised against goal, retention, 
 
 Each agent has a named grant: which records it may read, which commands it may prepare, and which it may run under a standing approval (for example, sending standard receipts in an approved template version), with daily limits and a kill switch. Every agent action is audited with the grant that allowed it, and a person can revoke or narrow a grant at once.
 
-*Acceptance:* An HTTP journey grants an agent receipt sending under a template version, sees it send within limits, refuses a send over the daily limit and a send after the template changes, and stops it with the kill switch.
+Before wider named grants, scoped records, daily limits, standing approvals or kill switches ship, they apply equally to every API-004 MCP tool call, with current authority rechecked and the same human approval and audit custody.
+
+*Acceptance:* An HTTP journey grants an agent receipt sending under a template version, sees it send within limits, refuses a send over the daily limit and a send after the template changes, and stops it with the kill switch. The same grant, record scope, daily/template limits and kill-switch refusals are exercised through API-004 MCP before wider grants ship.
 
 ## Honest boundaries
 
@@ -1095,8 +1099,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 25 | 55 | 46 | 126 |
-| All | 33 | 56 | 46 | 135 |
+| Target and push further | 26 | 55 | 45 | 126 |
+| All | 34 | 56 | 45 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1215,7 +1219,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `API-001` | Public REST API | target | partial | `src/coffer/http.ts`, `src/coffer/commands.ts`, `tests/coffer.test.mjs` | Authenticated donor reads and a command API exist; no versioned public API, OpenAPI document, scoped keys or idempotency keys. |
 | `API-002` | Webhooks | target | missing |  | No webhooks. |
 | `API-003` | Zapier and Crank | target | missing |  | No Zapier app or Crank connector. |
-| `API-004` | MCP endpoint | target | missing |  | No MCP endpoint. |
+| `API-004` | MCP endpoint | target | done | `src/coffer/mcp.ts`, `src/coffer/http.ts`, `docs/MCP.md`, `tests/coffer.test.mjs`, `tests/mcp-journey.mjs`, `tests/mcp-browser.mjs` |  |
 | `MOBILE-001` | Phone-ready web app | target | partial | `tests/browser-journey.mjs` | Every current screen fits 390 pixels with no horizontal scroll; no phone-first views, call logging or task list. |
 | `MOBILE-002` | Native iOS and Android apps | target | missing |  | No native apps. |
 | `MOBILE-003` | In-person giving | target | missing |  | No in-person payments. |
