@@ -152,9 +152,9 @@ Before a saved or new list kind ships, it supplies its live donor membership to 
 
 #### DONOR-008 — Documents on records.
 
-A person attaches files (signed pledge agreements, grant letters, estate documents, photos) to a constituent, gift, pledge or opportunity. Files are stored in the installation's own R2 bucket, previewed in the browser, restricted by role, exported with the record and removed by erasure.
+A person attaches files (signed pledge agreements, grant letters, estate documents, photos) to a constituent, gift, pledge or opportunity. Files are stored in the installation's own R2 bucket, previewed in the browser, restricted by role, exported with the record and removed by erasure. Attached files are included in the donor's own data file (`DATA-003`) before this ships.
 
-*Acceptance:* A browser journey attaches a PDF pledge agreement to a pledge, previews it, and a backup, restore and erasure include and then remove it.
+*Acceptance:* A browser journey attaches a PDF pledge agreement to a pledge, previews it, and a backup, restore and erasure include and then remove it. The same journey reads the attached PDF in that donor's `DATA-003` file.
 
 #### DONOR-009 — Address verification and NCOA.
 
@@ -818,7 +818,7 @@ Roles a small development shop and its volunteers need.
 
 Roles cover owner, admin, fundraiser, finance, data entry, volunteer and read-only, plus agents; a fundraiser can be limited to their portfolio, confidential notes and prospect research are restricted, finance can post and reconcile but not export donor lists, and exports of donor data are permitted per role and logged, and only permitted roles charge cards and bank accounts (`GIVE-009`). An admin sets each team member's manager (the person they report to) and weekly call capacity; task escalation (`STEW-001`) and the call list (`DEV-005`) use them.
 
-Before its wider roles and portfolio scopes ship, every DONOR-004 confidential-note read, agent context and export applies those roles and scopes.
+Before its wider roles and portfolio scopes ship, every DONOR-004 confidential-note read, agent context and export applies those roles and scopes. Before new roles ship, they decide who produces a donor's own data file (`DATA-003`); until then the owner and admins do.
 
 *Acceptance:* An HTTP journey signs in as each role and is allowed or refused each listed action, including a portfolio-limited fundraiser opening another portfolio's prospect; an admin sets a member's manager and call capacity and reads them back, and a member is refused setting them.
 
@@ -900,7 +900,9 @@ Constituents, gifts, pledges, plans, consent, interactions, tasks and opportunit
 
 On a donor's request staff produce a file of everything held about them (record, gifts, consent, interactions, documents) and log the request, alongside erasure in `DATA-001`.
 
-*Acceptance:* An HTTP journey produces one donor's file, checks it holds every record type for them and nobody else, and reads the logged request.
+The owner or an admin produces the file from the donor page or `POST /api/coffer/donors/{id}/data-request`, giving the organization-calendar request date (not in the future), how the donor asked (email, letter, phone, in person or other) and an optional ticket or letter number; members and agents are refused. The file is JSON downloaded to that person to review and give to the donor; Coffer never sends it and does not say it was sent. It is built from the live schema: every product table that names the donor (or a record merged into them), and every table reached from one of their own records (gifts, pledges and installments, prospects and proposal documents, grants and grant documents, property gifts, letters, subscriptions, drafts, task series and soft credits), with confidential notes labelled as such and WealthEngine research labelled as provider estimates, never verified wealth. Other people never appear: a relationship, soft credit, matching gift or audit row that touches another donor shows only this donor's facts and an opaque counterpart label (the same label for the same person), and a tribute's notified person is withheld. Hashed access tokens are credentials and stay out, as the file says. Erased and merged-away IDs are refused; the surviving donor's file includes the merged-in records. Each file is logged as `donor.dataRequest` with the person, date, method, reference and record counts only, never names or note text. Because the walk follows the schema, any record kind added later that names a donor or one of these records joins the file when it ships. Data kept outside these D1 tables (`DONOR-008` files in R2) joins the file in the clause that stores it, before it ships, and `TEAM-001` applies its roles to this door before those roles ship.
+
+*Acceptance:* An HTTP journey produces one donor's file, checks it holds every record type for them and nobody else, and reads the logged request. The clause-named journey also cross-checks each stored table naming the donor against the file, asserts opaque counterparts for relationships, soft credits and audit rows, withheld tribute contacts, labelled research and confidential notes, included proposal and grant documents, the merged-in record, member/agent/anonymous, merged, erased, future-date and free-text-reference refusals, no message sent, the native donor-page download, and refusal after erasure.
 
 #### OWN-001 — Free, open source and owned.
 
@@ -1115,8 +1117,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 1 | 0 | 9 |
-| Target and push further | 30 | 54 | 42 | 126 |
-| All | 38 | 55 | 42 | 135 |
+| Target and push further | 31 | 54 | 41 | 126 |
+| All | 39 | 55 | 41 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1240,7 +1242,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MOBILE-002` | Native iOS and Android apps | target | missing |  | No native apps. |
 | `MOBILE-003` | In-person giving | target | missing |  | No in-person payments. |
 | `DATA-002` | Exports by record type | target | partial | `src/coffer/http.ts`, `src/coffer/acknowledgements.ts`, `tests/coffer.test.mjs` | The owner downloads the full NDJSON archive, and letters and audiences export as CSV; no per-type or per-list CSV exports. |
-| `DATA-003` | A donor's own data on request | target | missing |  | No per-donor access export. |
+| `DATA-003` | A donor's own data on request | target | done | `src/coffer/donor-file.ts`, `src/coffer/http.ts`, `src/coffer/ui/donors.ts`, `tests/donor-file-journey.mjs`, `tests/coffer.test.mjs` | Clause-named HTTP journey asserts a schema-complete subject-only file, opaque counterparts, labelled research/confidential notes, documents, merged records, role/state refusals, the logged request and the native download. |
 | `OWN-001` | Free, open source and owned | target | done | `LICENSE`, `wrangler.jsonc`, `README.md` |  |
 | `OWN-002` | Runs on the nonprofit's own computer | target | done | `RUN-LOCALLY.md`, `tests/clone-journey.mjs` |  |
 | `DEV-001` | Reconciles every gift | push-further | partial | `src/coffer/agent/reconciliation.ts`, `tests/agent-reconciliation.test.mjs`, `docs/DEVELOPMENT-AGENT.md` | Stripe charges/payouts, contributions/funds and exact Pantry proposal/journal state are compared with source IDs. Safe contribution and missing-gift corrections have explicit apply and compensating undo; payout/accounting exceptions require Payments/Pantry review. Broader finance-role approvals and QuickBooks integration remain. |

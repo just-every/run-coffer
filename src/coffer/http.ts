@@ -24,6 +24,7 @@ import { recurringTasks } from './recurring-tasks'
 import { reassignmentReason } from './reassignment-reasons'
 import { fundEntries, fundLedgerCsv, fundReport } from './fund-report'
 import { auditCsv, auditLog, recordRequest } from './audit'
+import { donorFile } from './donor-file'
 import { auditPage } from './ui/audit'
 import { compareDonors, likelyDuplicates } from './duplicates'
 import { comparePage, duplicatesPage } from './ui/duplicates'
@@ -192,6 +193,11 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    return await handler(request)
   }
   if (path.startsWith('/api/coffer/imports/') || path.startsWith('/app/move-in/')) return await moveIn(request, c, auth.authority, path, isApi)
+  const dataRequest = path.match(/^\/(?:api\/coffer|app)\/donors\/([^/]+)\/data-request$/)
+  if (dataRequest && request.method === 'POST') {
+   const file = await donorFile(c, decodeURIComponent(dataRequest[1]), isApi ? await jsonBody(request) : Object.fromEntries(await formBody(request)))
+   return new Response(JSON.stringify(file, null, 1), { headers: { ...headers, 'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="coffer-donor-file-${file.request.requestedOn}.json"` } })
+  }
   if ((path === '/api/coffer/commands' || path === '/app/actions') && request.method === 'POST') {
    const data = path === '/app/actions' ? await formInput(await formBody(request, 400000)) : await jsonBody(request), command = String(data.command), input = data.input ?? data
    let result
