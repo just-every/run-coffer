@@ -1,3 +1,4 @@
+import {stateReportJourney} from './state-report-journey.mjs'
 import {donorFileJourney} from './donor-file-journey.mjs'
 import {timelineJourney} from './timeline-journey.mjs'
 import {test} from 'node:test'
@@ -307,3 +308,4 @@ test('a donor entered by hand is erased before any import exists',()=>run(async 
 
 test('DONOR-004: fast role-scoped timeline logging, complete current activity and inclusive filters',timelineJourney)
 test('DATA-003: a donor’s own file holds every record type for them and nobody else, and the request is logged',donorFileJourney)
+test('REPORT-008: giving by state assigns each gift to the address on its date and sums to the ledger',stateReportJourney)

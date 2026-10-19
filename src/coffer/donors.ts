@@ -1,4 +1,5 @@
 import { donorRecognition } from './recognition'
+import { addressMove, stageAddressMove } from './address-history'
 import { timelineSources } from './timeline'
 import { manager } from './auth'
 import { withReceiptBenefits } from './receipt-rules'
@@ -43,9 +44,12 @@ export async function donorCommand(c: Context, command: string, p: Row): Promise
  }
  if (command === 'donor.update') {
   const donorId = id(p.donorId, 'Donor'), version = integer(p.version, 'Version', 1), name = text(p.name, 'Donor name'), mail = email(p.email), a = address(p), h = household(optional(p.household, 'Household'), c)
+  const movedOn = await addressMove(c, p.addressEffectiveOn)
   await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND ${LIVE})`, 'VERSION', 'This donor changed or was erased. Refresh before saving.', donorId, version), ...h.statements,
+   ...stageAddressMove(donorId, movedOn, 'staff'),
    sql(`UPDATE cf_donors SET version=version+1,name=?,email=?,phone=?,address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=?,household_id=${h.value} WHERE id=?`,
     name, mail, a.phone, a.line1, a.line2, a.city, a.region, a.postal, a.country, ...(h.value === 'NULL' ? [] : [optional(p.household, 'Household')]), donorId),
+   sql('DELETE FROM cf_address_moves WHERE donor_id=?', donorId),
    event(c, 'donor.update', 'donor', donorId, donorId)])
   return { id: donorId, version: version + 1 }
  }
