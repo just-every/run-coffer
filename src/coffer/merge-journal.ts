@@ -22,6 +22,8 @@ const descriptions = [
  owned('cf_subscriptions'), owned('cf_communications'), owned('cf_reply_tasks'), owned('cf_call_tasks'),
  owned('cf_employer_matches',`n.employer_donor_id IN ${pair} OR n.gift_id IN (${gifts}) OR n.received_gift_id IN (${gifts})`),
  owned('cf_relationships',`n.donor_id IN ${pair} OR n.related_donor_id IN ${pair}`),
+ owned('cf_planned_gifts'), owned('cf_legacy_memberships'),
+ owned('cf_planned_distributions',`n.intention_id IN (SELECT id FROM cf_planned_gifts WHERE donor_id IN ${pair}) OR n.gift_id IN (${gifts})`,['gift_id']),
  owned('cf_interactions'), owned('cf_donor_notes'), owned('cf_prospects'),
  owned('cf_appeal_recipients',undefined,['appeal_id','donor_id']), owned('cf_stewardship_drafts'),
  owned('cf_welcome_steps',undefined,['id'],false), owned('cf_welcome_enrollments',undefined,['donor_id'],false),

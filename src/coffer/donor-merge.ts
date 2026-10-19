@@ -69,7 +69,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('DELETE FROM cf_soft_credits WHERE donor_id IN (?,?) AND gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=?)',source,target,target),
   sql('DELETE FROM cf_soft_credits WHERE donor_id=? AND gift_id IN (SELECT gift_id FROM cf_soft_credits WHERE donor_id=?)',source,target),
  ]
- for (const table of ['cf_recurring_task_series','cf_pledges','cf_acks','cf_events','cf_soft_credits','cf_gift_tributes','cf_giving_customers','cf_giving_intents','cf_subscriptions','cf_communications','cf_reply_tasks']) statements.push(sql(`UPDATE ${table} SET donor_id=? WHERE donor_id=?`,target,source))
+ for (const table of ['cf_planned_gifts','cf_legacy_memberships','cf_recurring_task_series','cf_pledges','cf_acks','cf_events','cf_soft_credits','cf_gift_tributes','cf_giving_customers','cf_giving_intents','cf_subscriptions','cf_communications','cf_reply_tasks']) statements.push(sql(`UPDATE ${table} SET donor_id=? WHERE donor_id=?`,target,source))
  statements.push(
   sql('DELETE FROM cf_appeal_recipients WHERE donor_id=? AND appeal_id IN (SELECT appeal_id FROM cf_appeal_recipients WHERE donor_id=?)',source,target),
   sql('UPDATE cf_appeal_recipients SET donor_id=? WHERE donor_id=?',target,source),

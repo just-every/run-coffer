@@ -130,7 +130,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 84. **`MAJOR-004` Engagement and retention scores** (partial). An HTTP journey builds donors with different histories and reads scores and factors that follow the formula as read from the scores settings page and its API, then changes a weight and sees the scores change.
 85. **`MAJOR-005` Prospect research** (missing). An HTTP journey with the DonorSearch edge faked screens a list, reads stored ratings with provenance as an admin, is refused them as a data-entry user, and erases one donor's results.
 86. **`MAJOR-006` Grants from foundations and corporations** (missing). An HTTP journey tracks a request from letter of inquiry to award, reads the restricted pledge and the report-due task, and records the payment against it.
-87. **`MAJOR-007` Planned giving** (missing). An HTTP journey records a bequest intention, enrolls the donor in the legacy society, and links a later estate distribution to it.
+87. **`MAJOR-007` Planned giving** (done). An HTTP journey records a bequest intention, enrolls the donor in the legacy society, and links a later estate distribution to it.
 
 ### Reporting
 

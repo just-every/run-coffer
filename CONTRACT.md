@@ -1055,8 +1055,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 7 | 2 | 0 | 9 |
-| Target and push further | 12 | 63 | 51 | 126 |
-| All | 19 | 65 | 51 | 135 |
+| Target and push further | 13 | 63 | 50 | 126 |
+| All | 20 | 65 | 50 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1149,7 +1149,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MAJOR-004` | Engagement and retention scores | target | partial | `src/coffer/major-gifts.ts`, `src/coffer/ui/major-gifts.ts`, `tests/pipeline.test.mjs` | Prospect scores expose recency, frequency, amount and conversation inputs with their points and the full fixed formula. Configurable weights, broader engagement sources and scores on every constituent remain. |
 | `MAJOR-005` | Prospect research | target | missing |  | No prospect research. |
 | `MAJOR-006` | Grants from foundations and corporations | target | missing |  | No grant tracking. |
-| `MAJOR-007` | Planned giving | target | missing |  | No planned-giving records. |
+| `MAJOR-007` | Planned giving | target | done | `src/coffer/planned-giving.ts`, `src/coffer/ui/planned-giving.ts`, `tests/pipeline.test.mjs` | Versioned bequest and other intentions retain vehicle, optional estimated value and documentation status; dated legacy-society enrollment is separate from received gifts. Multiple estate distributions link once each to their intention and show reversal-aware net receipts. MAJOR-007 HTTP proof covers create/enroll/link, authorization, stale edits, backup/restore, merge/undo and erasure; donor forms run at 1440 and 390. |
 | `REPORT-001` | Donor retention | target | partial | `src/coffer/retention.ts`, `src/coffer/ui/retention.ts`, `tests/pipeline.test.mjs` | Calendar-year retained, new, lapsed and recaptured counts and net amounts drill to every underlying donor; signed adjustments and erased identities reconcile to the contribution ledger. Fiscal years, list/fund/campaign filters and upgraded/downgraded cohorts remain. |
 | `REPORT-002` | LYBUNT and SYBUNT lists | target | partial | `src/coffer/lapses.ts`, `src/coffer/ui/lapses.ts`, `tests/pipeline.test.mjs`, `tests/giving.test.mjs` | LYBUNT and earlier-year SYBUNT lists show reasons, last gifts and annual amounts at risk, with stopped monthly-plan flags and owned call creation. Direct appeal and journey enrollment remain. |
 | `REPORT-003` | Fundraising dashboards | target | partial | `src/coffer/ui/home.ts` | Today shows the current calendar year's total and acknowledgment backlog; no breakdowns, goals, comparisons or drill-down. |

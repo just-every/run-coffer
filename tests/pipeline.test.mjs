@@ -128,3 +128,8 @@ test('STEW-002: quarterly completion and overdue monthly Cron create exactly one
  assert.ok(remaining.some(t=>t.series_id===monthly.series_id))
  const erasedBackup=JSON.stringify(await archive(h));assert.ok(!erasedBackup.includes('Reviewed the library plan and next board meeting.'))
 },{triggerHandlers:true}))
+
+test('MAJOR-007: planned intentions, legacy enrollment and estate distributions preserve ledger, merge and erasure',async()=>{
+ const {plannedGivingJourney}=await import('./planned-giving-journey.mjs')
+ await plannedGivingJourney()
+})
