@@ -1,3 +1,5 @@
+import { recurringHealth } from './recurring-health'
+import { recurringHealthPage } from './ui/recurring-health'
 import { restrictionReport } from './restricted-funds'
 import { restrictedFundsPage } from './ui/restricted-funds'
 import { recurringTasks } from './recurring-tasks'
@@ -306,6 +308,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/tasks') return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: await taskSources(c) })
  if (path === '/api/coffer/retention') return json(await retention(c,url.searchParams.has('year') ? Number(url.searchParams.get('year')) : undefined))
  if (path === '/api/coffer/prospects') return json(await prospects(c))
+ if (path === '/api/coffer/reports/recurring') return json(await recurringHealth(c,url))
  if (path === '/api/coffer/reports/restrictions') return json(await restrictionReport(c,url))
  if (path === '/api/coffer/reports/funds') return json(await fundReport(c,url))
  if (path === '/api/coffer/settings') return json(await settings(c))
@@ -332,6 +335,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/duplicates/compare') return show('Compare donor records',await comparePage(c,url))
  if (path === '/app/audit') return show('Audit log',await auditPage(c,url))
  if (path === '/app/audit.csv') return download(await auditCsv(c,url),'coffer-audit')
+ if (path === '/app/giving/health') return show('Recurring giving health',await recurringHealthPage(c,url))
  if (path === '/app/funds/restrictions') return show('Restricted funds',await restrictedFundsPage(c,url))
  if (path === '/app/funds') return show('Giving by fund',await fundReportPage(c,url))
  if (path === '/app/funds/ledger.csv') {

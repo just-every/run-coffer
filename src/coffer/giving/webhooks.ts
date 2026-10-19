@@ -18,6 +18,9 @@ export async function invoice(env: GivingEnv, id: string, failureEventId?: strin
  } else if (current.status === 'open' && current.attempt_count > 0 && stripeId(sub.latest_invoice) === current.id) {
   await env.DB.prepare("UPDATE cf_subscriptions SET failed_attempts=MAX(failed_attempts,?),recovered=0,next_attempt_at=? WHERE id=? AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE source='stripe' AND reference=?)").bind(current.attempt_count, current.next_payment_attempt ?? null, sub.id, current.id).run()
  }
+ const observedAt=new Date().toISOString()
+ if(current.status==='open'&&current.attempt_count>0)await env.DB.prepare('INSERT OR IGNORE INTO cf_recurring_payment_health(invoice_id,subscription_id,failed_at) VALUES(?,?,?)').bind(current.id,sub.id,observedAt).run()
+ if(current.status==='paid'&&current.amount_paid>0)await env.DB.prepare('UPDATE cf_recurring_payment_health SET recovered_at=COALESCE(recovered_at,?) WHERE invoice_id=?').bind(new Date(current.status_transitions.paid_at*1000).toISOString(),current.id).run()
  await observeRecovery(env, current, sub, intent, failureEventId)
 }
 

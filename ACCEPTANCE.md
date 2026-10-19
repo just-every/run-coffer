@@ -139,7 +139,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 90. **`REPORT-003` Fundraising dashboards** (partial). A browser journey at 1440 and 390 pixels reads the dashboard for a built year and opens a fund total to the gifts that make it; it reads raised by campaign and by month against last year and the goal, each figure equal to the ledger.
 91. **`REPORT-004` Report builder** (missing). An HTTP journey saves a gifts-by-fund-by-month report, shares it with a member, and exports it as CSV and .xlsx with the same rows and totals that match the ledger; it then adds a column to the saved definition, exports the definition as JSON, imports it into a second installation and gets the same totals there.
 92. **`REPORT-005` Scheduled reports** (missing). An HTTP journey schedules a weekly report with the mail edge faked, advances a week and reads the delivered report.
-93. **`REPORT-006` Recurring giving health** (missing). An HTTP journey runs plans through starts, failures, recoveries and cancellations on a test clock and reads matching monthly figures.
+93. **`REPORT-006` Recurring giving health** (done). An HTTP journey runs plans through starts, failures, recoveries and cancellations on a test clock and reads matching monthly figures.
 94. **`REPORT-007` IRS Form 990 support** (missing). An HTTP journey with a built five-year history reads the Schedule B list under both rules and five-year totals that match the ledger.
 95. **`REPORT-008` Raised by state** (missing). An HTTP journey records gifts from donors in three states, one with no address and one who moves state mid-year, and reads a by-state report for the year whose rows assign each gift to the state at its date and sum to the ledger total, then exports it as CSV.
 

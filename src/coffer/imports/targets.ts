@@ -65,6 +65,11 @@ export const ledgerTargets: D1TargetAdapter = {
     statements.push(
       sql(`INSERT INTO ${TABLE[k]}(${columns.join(',')}) VALUES(${columns.map(() => '?').join(',')}) ON CONFLICT(id) DO UPDATE SET ${columns.slice(1).map(c => `${c}=excluded.${c}`).join(',')}`, ...v),
       sql(`INSERT INTO cf_import_revisions(kind,id,import_revision,native_revision) VALUES('${k}',?,?,?) ON CONFLICT(kind,id) DO UPDATE SET import_revision=excluded.import_revision,native_revision=excluded.native_revision`, row.targetId, row.revision, k === 'donor' || k === 'gift' ? v[1] : 1))
+    if (k === 'subscription') {
+      const source = row.value as Record<string, Json>
+      statements.push(sql('UPDATE cf_subscription_lifetimes SET started_at=?,start_known=1 WHERE subscription_id=?',source.updatedAt,row.targetId),
+        sql('UPDATE cf_subscription_history SET observed_at=? WHERE subscription_id=?',new Date().toISOString(),row.targetId))
+    }
     if (k === 'gift' && (row.value as Record<string, Json>).appeal) statements.push(sql('INSERT INTO cf_gift_appeals(gift_id,appeal) VALUES(?,?) ON CONFLICT(gift_id) DO UPDATE SET appeal=excluded.appeal', row.targetId, (row.value as Record<string, Json>).appeal))
     return statements
   },

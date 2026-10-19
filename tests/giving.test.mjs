@@ -187,3 +187,8 @@ test('a failed monthly donation recovers on its second retry without duplicate g
   assert.equal((await summary()).raised_cents,2500,'Erasure keeps anonymous financial history')
  },{entry:'tests/fixed-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'sk_test_network_edge',STRIPE_WEBHOOK_SECRET:webhookSecret},outbound:edge.outbound})
 })
+
+test('REPORT-006: monthly health preserves starts, amount changes, failed payments, recoveries and cancellations across the clock',async()=>{
+ const {recurringHealthJourney}=await import('./recurring-health-journey.mjs')
+ await recurringHealthJourney()
+})

@@ -145,7 +145,7 @@ test('undo stops at an imported donor a person has since built on',()=>run(async
  assert.equal(history.consents.length,1);assert.equal(history.totals.lifetimeCents,60000)
 }))
 
-test('connected Stripe move-in follows pages, previews monthly plans, checks actual totals and undoes without writing Stripe', async()=>{
+test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans, checks actual totals and undoes without writing Stripe', async()=>{
  const created=Date.UTC(2026,0,2)/1000, calls=[]
  const customer={id:'cus_direct',name:'Ada Rivera',email:'ada@example.org',created}
  const charges=Array.from({length:101},(_,i)=>({id:`ch_direct${i}`,customer:customer.id,status:'succeeded',paid:true,currency:'usd',amount:2500,created,amount_refunded:i===0?500:0}))
@@ -181,8 +181,14 @@ test('connected Stripe move-in follows pages, previews monthly plans, checks act
   const d=(await h.get('/api/coffer/donors')).donors[0]
   const detail=await h.get('/api/coffer/donors/'+d.id)
   assert.deepEqual(detail.subscriptions.map(s=>[s.id,s.amount_cents,s.status]),[['sub_direct',2500,'active']])
+  const health=await h.get('/api/coffer/reports/recurring?from=2026-01')
+  assert.equal(health.rows[0].newPlans,1)
+  assert.equal(health.rows.at(-1).activeDonors,1)
+  assert.equal(health.rows.at(-1).mrrCents,2500)
+  assert.equal(health.rows[0].unknownStatePlans,1,'Import does not invent earlier monthly state')
   let undo=await h.api('/api/coffer/imports/undo',{id:job.id})
   while(undo.state!=='undone')undo=await h.api('/api/coffer/imports/undo',{id:job.id})
+  assert.ok((await h.get('/api/coffer/reports/recurring?from=2026-01')).rows.every(r=>r.newPlans===0&&r.activeDonors===0))
   assert.equal((await h.get('/api/coffer/donors')).total,0)
   const db=await h.mf.getD1Database('DB')
   assert.equal((await db.prepare('SELECT COUNT(*) n FROM cf_subscriptions').first()).n,0)

@@ -29,7 +29,12 @@ export async function identify(env: GivingEnv, intentId: string, customer: strin
 /** Read current Stripe state so delayed webhook deliveries cannot undo recovery. */
 export async function syncSubscription(env: GivingEnv, subscriptionId: string) {
  const sub = await stripe(env, '/subscriptions/' + encodeURIComponent(subscriptionId))
- const intent = await identify(env, sub.metadata?.coffer_intent ?? '', stripeId(sub.customer))
+ let intent = await identify(env, sub.metadata?.coffer_intent ?? '', stripeId(sub.customer))
+ if (!intent) {
+  // Imported plans retain their verified Stripe customer association and have no checkout intention.
+  const existing=await one({db:env.DB}, `SELECT s.*,c.fund FROM cf_subscriptions s JOIN cf_campaigns c ON c.id=s.campaign_id JOIN cf_donors d ON d.id=s.donor_id WHERE s.id=? AND s.customer_id=? AND d.erased_at IS NULL`,sub.id,stripeId(sub.customer))
+  if(existing)intent={...existing,frequency:'monthly'}
+ }
  if (!intent || intent.frequency !== 'monthly') return null
  // Checkout initially saves a subscription-specific card. Let the customer's
  // default take over so Billing Portal card changes also repair this plan.
@@ -37,9 +42,11 @@ export async function syncSubscription(env: GivingEnv, subscriptionId: string) {
   await stripe(env, '/customers/' + encodeURIComponent(intent.customer_id), { 'invoice_settings[default_payment_method]': stripeId(sub.default_payment_method) })
   await stripe(env, '/subscriptions/' + encodeURIComponent(sub.id), { default_payment_method: '' })
  }
- const now = new Date().toISOString(), cents = sub.items?.data?.[0]?.price?.unit_amount ?? intent.amount_cents
+ const now = new Date().toISOString(), item=sub.items?.data?.[0], cents = item?.price?.unit_amount === undefined ? intent.amount_cents : item.price.unit_amount*(item.quantity??1)
+ if(!Number.isSafeInteger(cents)||cents<=0)fail('invalid_payment','Stripe returned an invalid monthly amount.',409)
  await env.DB.prepare(`INSERT INTO cf_subscriptions(id,donor_id,campaign_id,customer_id,amount_cents,status,cancel_at_period_end,updated_at)
  VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,cancel_at_period_end=excluded.cancel_at_period_end,amount_cents=excluded.amount_cents,updated_at=excluded.updated_at`).bind(sub.id, intent.donor_id, intent.campaign_id, stripeId(sub.customer), cents, sub.status, sub.cancel_at_period_end ? 1 : 0, now).run()
+ if(Number.isSafeInteger(sub.created)&&sub.created>0)await env.DB.prepare('UPDATE cf_subscription_lifetimes SET started_at=?,start_known=1 WHERE subscription_id=?').bind(new Date(sub.created*1000).toISOString(),sub.id).run()
  return { sub, intent }
 }
 
