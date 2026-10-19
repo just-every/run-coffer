@@ -14,7 +14,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  const previous=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
  if(previous) return previous
  const conn=await requireConnection(c)
- const d=await one(c, `SELECT d.*,(SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger g WHERE g.donor_id=d.id) AS total_cents,
+ const d=await one(c, `SELECT d.*,(SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
  (SELECT COUNT(*) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS gift_count,
  (SELECT MAX(received_on) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS last_gift FROM cf_donors d WHERE id=? AND erased_at IS NULL`,input.donorId)
  if(!d) fail('DONOR_CHANGED','This donor is no longer available.',409)

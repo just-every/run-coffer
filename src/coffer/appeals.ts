@@ -14,7 +14,7 @@ const postal = (d: Row) => d.address_line1 && d.city && d.postal_code
 /** Splits the segment into consenting recipients and counted exclusions. */
 export async function audience(c: { db: D1Database }, channel: 'email' | 'mail', segment: { givenSince: string | null; minTotalCents: number; fund?: string | null; donorIds?: string[] }) {
  const rows = await all(c, `SELECT d.*,k.id AS consent_id,k.status AS consent,
-  (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger g WHERE g.donor_id=d.id) AS total_cents,
+  (SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
   (SELECT COUNT(*) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS gift_count,
   (SELECT MAX(received_on) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS last_gift FROM cf_donors d
   LEFT JOIN cf_consents k ON k.id=(SELECT id FROM cf_consents WHERE donor_id=d.id AND channel=? ORDER BY id DESC LIMIT 1)

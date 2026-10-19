@@ -10,7 +10,7 @@ export async function annualLapses(c: Context, requestedYear?: number) {
  const through = year === Number(day.slice(0, 4)) ? day : `${year}-12-31`
  const rows = await all<AnnualDonor>(c, `WITH annual AS (
   SELECT donor_id,substr(received_on,1,4) AS year,SUM(amount_cents) AS cents
-  FROM cf_contribution_ledger WHERE received_on<=? GROUP BY donor_id,substr(received_on,1,4)
+  FROM cf_monetary_contributions WHERE received_on<=? GROUP BY donor_id,substr(received_on,1,4)
  ), last_year AS (
   SELECT donor_id,MAX(year) AS year FROM annual WHERE year<? AND cents>0 GROUP BY donor_id
  ) SELECT d.id AS donorId,d.name,COALESCE(prior.cents,0) AS priorCents,

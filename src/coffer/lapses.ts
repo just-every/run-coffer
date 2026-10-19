@@ -17,7 +17,7 @@ export async function lapses(c: Context) {
  const [donors, plans] = await Promise.all([
   all<AnnualDonor>(c, `WITH annual AS (
    SELECT donor_id,substr(received_on,1,4) AS year,SUM(amount_cents) AS cents
-   FROM cf_contribution_ledger WHERE received_on<=? GROUP BY donor_id,substr(received_on,1,4)
+   FROM cf_monetary_contributions WHERE received_on<=? GROUP BY donor_id,substr(received_on,1,4)
   ), latest AS (
    SELECT donor_id,MAX(year) AS year FROM annual WHERE year<? AND cents>0 GROUP BY donor_id
   ), last_gifts AS (

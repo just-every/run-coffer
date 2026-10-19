@@ -66,7 +66,7 @@ export async function compareDonors(c: {db:D1Database}, sourceId: string, target
  if (!from || !into) fail('DONOR_CHANGED','Choose two current donors who have not been erased or merged.')
  const history = async (donorId:string) => one(c,`SELECT
   (SELECT count(*) FROM cf_gifts WHERE donor_id=?) AS gifts,
-  (SELECT COALESCE(sum(amount_cents),0) FROM cf_contribution_ledger WHERE donor_id=?) AS totalCents,
+  (SELECT COALESCE(sum(amount_cents),0) FROM cf_monetary_contributions WHERE donor_id=?) AS totalCents,
   (SELECT count(*) FROM cf_pledges WHERE donor_id=?) AS pledges,
   (SELECT count(*) FROM cf_consents WHERE donor_id=?) AS consents,
   (SELECT count(*) FROM cf_interactions WHERE donor_id=?) AS interactions`,donorId,donorId,donorId,donorId,donorId)

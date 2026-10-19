@@ -68,7 +68,7 @@ export async function giftProgress(c: Context, year: string) {
    (SELECT COUNT(DISTINCT g.gift_id) FROM cf_fund_ledger g WHERE g.campaign_id=c.id AND g.kind='gift') AS gift_count,
    (SELECT COUNT(DISTINCT donor_id) FROM cf_subscriptions s WHERE s.campaign_id=c.id AND s.status IN ('active','trialing','past_due') AND s.cancel_at_period_end=0) AS recurring_donors
    FROM cf_campaigns c WHERE c.active=1 ORDER BY c.created_at DESC LIMIT 1`),
-  one(c, `SELECT (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger WHERE received_on>=?) AS year_cents,(SELECT count(*) FROM cf_gifts WHERE kind='gift' AND received_on>=?) AS year_gifts,
+  one(c, `SELECT (SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions WHERE received_on>=?) AS year_cents,(SELECT count(*) FROM cf_gifts WHERE kind='gift' AND received_on>=?) AS year_gifts,
    (SELECT count(*) FROM cf_subscriptions WHERE status IN ('active','trialing','past_due') AND cancel_at_period_end=0) AS plans`, `${year}-01-01`, `${year}-01-01`),
   one(c, 'SELECT count(*) AS total,(SELECT count(DISTINCT payout_id) FROM cf_payout_postings) AS posted FROM cf_payouts'),
  ])
@@ -80,7 +80,7 @@ export async function giftProgress(c: Context, year: string) {
 export async function donorPanelData(c: Context, donorId: string) {
  const [donor, totals, consent, household, recovery, draft, ai] = await Promise.all([
   one(c, 'SELECT d.id,d.name,d.email,d.phone,d.address_line1,d.address_line2,d.city,d.region,d.postal_code,h.name AS household,d.household_id FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id WHERE d.id=?', donorId),
-  one(c, "SELECT count(*) AS gifts,MIN(received_on) AS first_gift,COALESCE((SELECT SUM(amount_cents) FROM cf_contribution_ledger WHERE donor_id=?),0) AS lifetime_cents FROM cf_gifts WHERE donor_id=? AND kind='gift'", donorId, donorId),
+  one(c, "SELECT count(*) AS gifts,MIN(received_on) AS first_gift,COALESCE((SELECT SUM(amount_cents) FROM cf_monetary_contributions WHERE donor_id=?),0) AS lifetime_cents FROM cf_gifts WHERE donor_id=? AND kind='gift'", donorId, donorId),
   all(c, 'SELECT channel,status FROM cf_consents k WHERE donor_id=? AND id=(SELECT MAX(id) FROM cf_consents WHERE donor_id=k.donor_id AND channel=k.channel)', donorId),
   one(c, 'SELECT count(*) AS members FROM cf_donors WHERE household_id=(SELECT household_id FROM cf_donors WHERE id=?) AND erased_at IS NULL', donorId),
   one(c, 'SELECT r.*,s.amount_cents FROM cf_agent_recovery r JOIN cf_subscriptions s ON s.id=r.subscription_id WHERE s.donor_id=? ORDER BY r.created_at DESC LIMIT 1', donorId),

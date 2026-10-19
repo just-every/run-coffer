@@ -237,6 +237,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now)
  const givingErasure = [
   { sql: "UPDATE cf_in_kind_acknowledgments SET subject='[erased]',body='[erased]' WHERE in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id=?)", params: [donorId] },
+  { sql: "UPDATE cf_in_kind_revisions SET snapshot=json_set(snapshot,'$.description','Erased property contribution','$.goods_description',NULL),reason='[erased]' WHERE in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id=?)", params: [donorId] },
   { sql: "UPDATE cf_in_kind_gifts SET donor_id=?,description='Erased property contribution',goods_description=NULL,disposal_evidence=NULL,version=version+1 WHERE donor_id=?", params: [placeholder,donorId] },
   { sql: 'INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_giving_customers WHERE donor_id=?', params: [placeholder, donorId] },
   { sql: "INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT source_ref,? FROM cf_donors WHERE id=? AND source='stripe' AND source_ref IS NOT NULL", params: [placeholder, donorId] },

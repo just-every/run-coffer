@@ -57,24 +57,31 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
  const donorId = id(p.donorId, 'Donor'), s = await settings(c), day = today(s.timezone, new Date(c.now))
  if (command === 'inKind.save') {
   const giftId = p.inKindId ? id(p.inKindId, 'In-kind gift') : newId(), version = p.inKindId ? integer(p.version, 'Version', 1) : 0
+  const existing=version?await one(c,'SELECT * FROM cf_in_kind_gifts WHERE id=? AND donor_id=?',giftId,donorId):null
+  if(version&&!existing)fail('NOT_FOUND','That property record does not exist.',404)
+  const fund=optional(p.fund,'Fund',100)??existing?.fund??'Unrestricted'
   const description = longText(p.description, 'Property description', 4000), quantity = String(p.quantity ?? '').trim()
   if (!/^\d{1,9}(\.\d{1,6})?$/.test(quantity) || Number(quantity) <= 0) fail('INPUT', 'Quantity must be a positive number with at most six decimal places.', 400)
   const value = amount(p, 'statedValue', 'Donor-stated total value', { allowZero: true }), receivedOn = date(p.receivedOn, 'Property received on')
-  const originalOn = p.originalReceivedOn ? date(p.originalReceivedOn, 'Original donee received on') : receivedOn
+  const originalOn = p.originalReceivedOn ? date(p.originalReceivedOn, 'Original donee received on') : existing?.original_received_on??receivedOn
   if (receivedOn > day || originalOn > receivedOn) fail('INPUT', 'Receipt dates must be in the past or today; original receipt must be on or before this organization received the property.', 400)
   const goods = choice(p.goods, IN_KIND_GOODS, 'Goods or services'), goodsDescription = goods === 'provided' ? longText(p.goodsDescription, 'Goods or services description', 1000) : null
   const goodsCents = goods === 'provided' ? amount(p, 'goodsValue', 'Good faith value of goods or services', { allowZero: true }) : 0
+  if(existing&&(receivedOn!==existing.received_on||originalOn!==existing.original_received_on||fund!==existing.fund))fail('PROPERTY_IMMUTABLE','Receipt dates and fund are immutable; a property correction keeps the original ledger facts.')
+  const correctionReason=version?longText(p.correctionReason,'Reason for property correction',2000):null
+  const snapshot=JSON.stringify({description,quantity,stated_value_cents:value,goods,goods_description:goodsDescription,goods_cents:goodsCents,form_8283:p.form8283??'unknown'})
   const form8283 = choice(p.form8283 ?? 'unknown', IN_KIND_FORM_8283, 'Form 8283 status')
   await commit(c, [live(donorId), ...(version ? [current(giftId, donorId, version),
    guard('NOT EXISTS(SELECT 1 FROM cf_in_kind_gifts WHERE id=? AND disposed_on IS NOT NULL)', 'PROPERTY_DISPOSED', 'Disposed property facts are frozen. Keep the disposition and its original receipt as recorded.', giftId),
-   sql(`UPDATE cf_in_kind_gifts SET description=?,quantity=?,stated_value_cents=?,received_on=?,original_received_on=?,goods=?,goods_description=?,goods_cents=?,form_8283=?,version=version+1,property_version=property_version+1,updated_at=? WHERE id=?`, description, quantity, value, receivedOn, originalOn, goods, goodsDescription, goodsCents, form8283, c.now, giftId)] :
-   [sql(`INSERT INTO cf_in_kind_gifts(id,donor_id,description,quantity,stated_value_cents,received_on,original_received_on,goods,goods_description,goods_cents,form_8283,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, giftId, donorId, description, quantity, value, receivedOn, originalOn, goods, goodsDescription, goodsCents, form8283, c.now, c.now)]),
+   sql('INSERT INTO cf_in_kind_revisions VALUES(?,?,?,?,?,?,?)',newId(),giftId,existing!.property_version+1,snapshot,correctionReason,c.now,c.actor.id),
+   sql('UPDATE cf_in_kind_gifts SET version=version+1,property_version=property_version+1,updated_at=? WHERE id=?',c.now,giftId)] :
+   [sql(`INSERT INTO cf_in_kind_gifts(id,donor_id,description,quantity,stated_value_cents,received_on,original_received_on,goods,goods_description,goods_cents,form_8283,created_at,updated_at,created_by,fund) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, giftId, donorId, description, quantity, value, receivedOn, originalOn, goods, goodsDescription, goodsCents, form8283, c.now, c.now,c.actor.id,fund)]),
    event(c, command, 'inKindGift', giftId, donorId, { statedValueCents: value, version: version + 1 }),
   ])
   return { id: giftId, donorId, version: version + 1 }
  }
  const giftId = id(p.inKindId, 'In-kind gift'), version = integer(p.version, 'Version', 1)
- const g = await one(c, 'SELECT g.*,d.name AS donor_name FROM cf_in_kind_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id=? AND g.donor_id=? AND d.erased_at IS NULL', giftId, donorId)
+ const g = await one(c, 'SELECT g.*,d.name AS donor_name FROM cf_in_kind_current g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id=? AND g.donor_id=? AND d.erased_at IS NULL', giftId, donorId)
  if (!g) fail('NOT_FOUND', 'That property record does not exist on this donor.', 404)
  if (command === 'inKind.acknowledge') {
   const on = date(p.acknowledgedOn, 'Acknowledgment date')
@@ -110,9 +117,10 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
 }
 
 export async function inKindState(c: { db: D1Database }, donorId?: string) {
- const gifts = await all(c, `SELECT g.*,d.name AS donor_name FROM cf_in_kind_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId ? 'AND g.donor_id=?' : ''} ORDER BY g.received_on DESC,g.created_at,g.id`, ...(donorId ? [donorId] : []))
+ const gifts = await all(c, `SELECT g.*,d.name AS donor_name FROM cf_in_kind_current g JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId ? 'AND g.donor_id=?' : ''} ORDER BY g.received_on DESC,g.created_at,g.id`, ...(donorId ? [donorId] : []))
  const acknowledgments = await all(c, `SELECT a.* FROM cf_in_kind_acknowledgments a JOIN cf_in_kind_gifts g ON g.id=a.in_kind_id JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId ? 'AND g.donor_id=?' : ''} ORDER BY a.created_at,a.id`, ...(donorId ? [donorId] : []))
- return { gifts: gifts.map(g => ({ ...g, reminders: inKindReminders(g), acknowledgments: acknowledgments.filter(a => a.in_kind_id === g.id).map(a => ({ ...a, current: a.property_version === g.property_version })) })), totalStatedValueCents: gifts.reduce((sum, g) => sum + g.stated_value_cents, 0) }
+ const revisions=await all(c,`SELECT r.* FROM cf_in_kind_revisions r JOIN cf_in_kind_gifts g ON g.id=r.in_kind_id JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId?'AND g.donor_id=?':''} ORDER BY r.property_version`,...(donorId?[donorId]:[]))
+ return { gifts: gifts.map(g => ({ ...g, corrections:revisions.filter(r=>r.in_kind_id===g.id).map(r=>({...r,snapshot:JSON.parse(r.snapshot)})), reminders: inKindReminders(g), acknowledgments: acknowledgments.filter(a => a.in_kind_id === g.id).map(a => ({ ...a, current: a.property_version === g.property_version })) })), totalStatedValueCents: gifts.reduce((sum, g) => sum + g.stated_value_cents, 0) }
 }
 
 /** HTTP caller applies the same authenticated staff-read boundary as donors. */

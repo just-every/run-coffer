@@ -60,7 +60,7 @@ export async function giftInstallmentStatements(c: Context, p: Row, giftId: stri
   if (!pledgeId) return []
   return [guard(`EXISTS(SELECT 1 FROM cf_pledges p JOIN cf_gift_balances g ON g.id=? WHERE p.id=? AND p.donor_id=? AND p.fund=g.fund
    AND NOT EXISTS(SELECT 1 FROM cf_pledge_installments i WHERE i.pledge_id=p.id)
-   AND (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger WHERE pledge_id=p.id)<=p.amount_cents)`, 'PLEDGE', 'Choose an installment for this pledge and use its donor and fund.', giftId, pledgeId, donorId)]
+   AND (SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions WHERE pledge_id=p.id)<=p.amount_cents)`, 'PLEDGE', 'Choose an installment for this pledge and use its donor and fund.', giftId, pledgeId, donorId)]
  }
  const installment = await one(c, 'SELECT * FROM cf_pledge_balances WHERE id=?', installmentId)
  if (!installment) fail('NOT_FOUND', 'That installment does not exist.', 404)
@@ -84,7 +84,7 @@ export async function pledgeHistory(c: { db: D1Database }, donorId: string): Pro
  const [pledges, installments] = await Promise.all([
   all(c, `SELECT p.*,COALESCE((SELECT SUM(g.amount_cents - CASE WHEN g.kind='reversal' THEN -1 ELSE 1 END *
    COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0))
-   FROM cf_contribution_ledger g WHERE g.pledge_id=p.id),0) AS legacy_paid_cents FROM cf_pledges p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
+   FROM cf_monetary_contributions g WHERE g.pledge_id=p.id),0) AS legacy_paid_cents FROM cf_pledges p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
   all(c, 'SELECT i.* FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=? ORDER BY i.position', donorId),
  ])
  return pledges.map(p => {

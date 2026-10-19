@@ -69,8 +69,8 @@ export async function listDonors(c: { db: D1Database }, query: { q?: string | nu
  const nameSearch = nameTerms.map(() => "lower(d.name) LIKE ? ESCAPE '\\'").join(' AND ')
  const relationship = query.relationship ?? '', relatedTo = query.relatedTo ?? ''
  const rows = await all(c, `SELECT d.id,d.version,d.name,d.email,d.city,d.region,d.source,d.erased_at,h.name AS household,
-   (SELECT COALESCE(SUM(amount_cents),0) FROM cf_contribution_ledger g WHERE g.donor_id=d.id) AS total_cents,
-   (SELECT MAX(received_on) FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
+   (SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
+   (SELECT MAX(received_on) FROM cf_monetary_contributions g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
    ${CURRENT('email')} AS email_consent, ${CURRENT('mail')} AS mail_consent
   FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id
   WHERE NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR lower(h.name) LIKE ? ESCAPE '\\')
@@ -99,9 +99,10 @@ export async function donorHistory(c: Context, donorId: string) {
   all(c, 'SELECT * FROM cf_events WHERE donor_id=? ORDER BY id DESC LIMIT 100', donorId),
  ])
  const byYear = new Map<string, number>()
- for (const g of gifts) byYear.set(g.received_on.slice(0, 4), (byYear.get(g.received_on.slice(0, 4)) ?? 0) + g.amount_cents)
+ const monetaryGifts=gifts.filter(g=>g.kind==='gift'||g.kind==='reversal')
+ for (const g of monetaryGifts) byYear.set(g.received_on.slice(0, 4), (byYear.get(g.received_on.slice(0, 4)) ?? 0) + g.amount_cents)
  const [plans, depth, giftDepth] = await Promise.all([subscriptions(c, donorId), donorDepth(c, donorId), donorGiftDepth(c, donorId)])
- const summary = await givingSummary(c, donorId, { gifts, pledges, subscriptions: plans, recognitionCents: giftDepth.recognitionCents })
+ const summary = await givingSummary(c, donorId, { gifts:monetaryGifts, pledges, subscriptions: plans, recognitionCents: giftDepth.recognitionCents })
  const allocations=await allGiftAllocations(c,gifts.map(g=>g.id))
  for(const gift of gifts)gift.allocations=allocations.filter(a=>a.gift_id===(gift.reverses??gift.id))
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
@@ -110,7 +111,7 @@ export async function donorHistory(c: Context, donorId: string) {
   inKind:await inKindState(c,donorId), depth, giftDepth, plannedGiving:await plannedGiving(c,donorId),
   notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? ORDER BY occurred_on DESC,recorded_at DESC', donorId),
   firstGift: await one(c, `SELECT g.*,COALESCE((SELECT appeal FROM cf_gift_appeals WHERE gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal FROM cf_gift_balances g WHERE g.donor_id=? AND g.net_cents>0 ORDER BY g.received_on,g.created_at,g.id LIMIT 1`,donorId),
-  totals: { lifetimeCents: gifts.reduce((s, g) => s + g.amount_cents, 0), byYear: [...byYear].sort((a, b) => b[0].localeCompare(a[0])).map(([year, cents]) => ({ year, cents })) },
+  totals: { lifetimeCents: monetaryGifts.reduce((s, g) => s + g.amount_cents, 0), byYear: [...byYear].sort((a, b) => b[0].localeCompare(a[0])).map(([year, cents]) => ({ year, cents })) },
   current: { email: consent('email'), mail: consent('mail') },
  }
 }

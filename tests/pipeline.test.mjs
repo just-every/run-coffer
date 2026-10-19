@@ -142,4 +142,4 @@ test('MAJOR-001: configurable opportunity boards and lists link wins once and re
  await opportunityJourney()
 })
 
-test('GIFT-009: property acknowledgments omit internal values, disposal reminders and custody stay separate from cash',inKindJourney)
+test('GIFT-001/GIFT-009: property acknowledgments omit internal values, disposal reminders and custody stay separate from cash',inKindJourney)

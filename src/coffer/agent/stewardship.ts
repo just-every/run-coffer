@@ -21,14 +21,14 @@ const SOURCE_SQL = `SELECT json_object(
  'organisation',(SELECT organisation FROM cf_settings WHERE id=1),
  'gifts',json((SELECT json_group_array(json(j)) FROM (
   SELECT json_object('id',g.id,'original_amount_cents',g.amount_cents,'received_on',g.received_on,'original_fund',g.fund,'note',g.note,
-   'current_amount_cents',(SELECT COALESCE(SUM(l.amount_cents),0) FROM cf_contribution_ledger l
+   'current_amount_cents',(SELECT COALESCE(SUM(l.amount_cents),0) FROM cf_monetary_contributions l
     LEFT JOIN cf_payment_entries p ON p.id=l.id WHERE l.donor_id=d.id AND ${ROOT_GIFT}=g.id)) AS j
   FROM cf_gifts g WHERE g.donor_id=d.id AND g.kind='gift'
   ORDER BY g.received_on DESC,g.id LIMIT 20))),
  'contributions',json((SELECT json_group_array(json(j)) FROM (
   SELECT json_object('id',l.id,'gift_id',${ROOT_GIFT},'kind',l.kind,'reverses',l.reverses,
    'signed_amount_cents',l.amount_cents,'received_on',l.received_on,'fund',l.fund,'note',l.note,'source',l.source) AS j
-  FROM cf_contribution_ledger l LEFT JOIN cf_payment_entries p ON p.id=l.id
+  FROM cf_monetary_contributions l LEFT JOIN cf_payment_entries p ON p.id=l.id
   WHERE l.donor_id=d.id AND ${ROOT_GIFT} IN (${RECENT_GIFTS})
   ORDER BY l.received_on DESC,l.created_at,l.id))),
  'funds',json((SELECT json_group_array(json(j)) FROM (
