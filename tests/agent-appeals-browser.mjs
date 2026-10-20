@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict'
+import {mkdir} from 'node:fs/promises'
+import {withBrowserWorker} from './browser-worker.mjs'
+export async function appealAgentBrowser(h,original,prepared,directory){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(`${origin}/app/agent/appeals?appealId=${original.id}`)
+   await page.getByRole('button',{name:'Check sender results',exact:true}).click()
+   await page.getByText('5 recipients need review.',{exact:false}).waitFor()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.screenshot({path:`${directory}/DEV-009-results-${width}.png`,fullPage:true})
+   await page.getByRole('link',{name:'Review resend (prepared)',exact:true}).click()
+   await page.getByRole('button',{name:'Approve this audience',exact:true}).waitFor()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.screenshot({path:`${directory}/DEV-009-resend-${width}.png`,fullPage:true})
+  }
+  await page.getByRole('button',{name:'Approve this audience',exact:true}).click()
+  const detail=await h.get('/api/coffer/appeals/'+prepared.id)
+  assert.equal(detail.appeal.status,'approved')
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.screenshot({path:`${directory}/DEV-009-approved-${width}.png`,fullPage:true})
+  }
+ })
+}

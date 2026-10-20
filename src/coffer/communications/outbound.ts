@@ -24,8 +24,8 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  const replyTo=(conn.fromEmail??c.env?.COFFER_REPLY_ADDRESS??'').trim().toLowerCase()
  const allowed=preference.allowed||conn.provider==='mango'&&preference.state==='pending'
  const state=allowed?'preparing':'suppressed'
- await commit(c,[...(allowed?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.email=? AND d.erased_at IS NULL AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s email or consent changed before sending.',d.id,d.email)]:[]),sql(`INSERT OR IGNORE INTO cf_communications(id,message_key,donor_id,source_kind,source_id,provider,status,subject,body,reply_to,created_at,note)
- VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,row.id,input.key,d.id,input.sourceKind,input.sourceId,conn.provider,state,row.subject,row.body,replyTo,c.now,allowed?'Preparing an email campaign.':preference.note),
+ await commit(c,[...(allowed?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.email=? AND d.erased_at IS NULL AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s email or consent changed before sending.',d.id,d.email)]:[]),sql(`INSERT OR IGNORE INTO cf_communications(id,message_key,donor_id,source_kind,source_id,provider,status,subject,body,reply_to,created_at,note,recipient_email)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,row.id,input.key,d.id,input.sourceKind,input.sourceId,conn.provider,state,row.subject,row.body,replyTo,c.now,allowed?'Preparing an email campaign.':preference.note,d.email),
  event(c,'marketing.prepare',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,state})])
  const claim=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
  if(claim?.id!==row.id) return claim!
@@ -72,16 +72,16 @@ async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConne
   throw error
  }
 }
-export async function refreshMessages(c:Context) {
+export async function refreshMessages(c:Context,source?:{kind:string;id:string}) {
  const conn=await savedConnection(c)
  if(conn?.provider!=='mailchimp')return {checked:0}
- const rows=await all(c,`SELECT * FROM cf_communications WHERE provider='mailchimp' AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') ORDER BY COALESCE(checked_at,''),created_at LIMIT 8`)
+ const rows=await all(c,`SELECT * FROM cf_communications WHERE provider='mailchimp' AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') AND (? IS NULL OR (source_kind=? AND source_id=?)) ORDER BY COALESCE(checked_at,''),created_at,id LIMIT 8`,source?.kind??null,source?.kind??null,source?.id??null)
  for(const row of rows){
   const report=await providerResults(conn,row)
   if(!Array.isArray(report.rows))fail('MAILCHIMP_RESPONSE','Mailchimp did not return send results.',502)
-  const donor=await one(c,'SELECT email FROM cf_donors WHERE id=? AND erased_at IS NULL',row.donor_id)
-  const facts=report.rows.filter((r:Row)=>r.destination?.toLowerCase()===donor?.email?.toLowerCase())
-  const disposition=facts[0]?.disposition??report.state??'unknown'
+  const frozen=row.recipient_email ?? (row.source_kind==='appeal' ? (await one(c,'SELECT email FROM cf_appeal_recipients WHERE appeal_id=? AND donor_id=?',row.source_id,row.donor_id))?.email : null)
+  const facts=report.rows.filter((r:Row)=>r.destination?.toLowerCase()===frozen?.toLowerCase())
+  const disposition=facts[0]?.disposition??(report.state==='sent'&&report.rows.length===0?'not_sent':report.state==='sent'?'unknown':report.state??'unknown')
   const note=['accepted','handed-off','sent'].includes(disposition)?'The provider confirmed email handoff. Delivery is not confirmed.':disposition==='delivered'?'The provider confirmed delivery.':`Provider result: ${disposition}. Check the provider for delivery details.`
   await commit(c,[sql('UPDATE cf_communications SET remote_status=?,checked_at=?,note=? WHERE id=?',disposition,c.now,note,row.id),
    ...(disposition!==row.remote_status?[event(c,'marketing.result',row.source_kind,row.source_id,row.donor_id,{communicationId:row.id,disposition})]:[])])

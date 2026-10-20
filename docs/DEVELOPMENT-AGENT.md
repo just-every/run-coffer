@@ -31,3 +31,11 @@ On RER Managed, provider calls say **not available yet**. Self-hosted installs u
 ## Validation
 
 `tests/agent-recovery.test.mjs` exercises failed monthly giving, one email across duplicate events, the card-update portal, scheduled reconciliation, recovery, lapse and reversible scheduling through HTTP. `tests/agent-reconciliation.test.mjs` exercises refund/fund correction and undo, missing-charge sync and undo, and exact Pantry posting verification. `tests/agent-receipts.test.mjs` queues small and signed-provider-bounced receipts for approval and undoes a batch. `tests/stewardship.test.mjs` covers setup, grounded sources, reviewed sending, consent, stale sources, discard/restore, refunds, corrections, undo and erasure. Only provider network edges are faked.
+
+## Appeal delivery review (DEV-009, partial)
+
+Open Development agent → Appeal delivery, select an approved appeal and check sender results. Each request checks up to eight Mailchimp messages, oldest check first; repeat for a larger audience. The page compares frozen recipients against saved outcomes and the existing response-code report, including signed reversals. The submitted email is retained when a donor changes their contact email. A provider handoff is not proof of delivery.
+
+Prepare resend creates a separate audience containing only confirmed not-sent recipients, rejected submissions and bounces, with current consent checked again. It retains the original message template; current giving figures are frozen in the new proposal. A person reviews and approves before sending. Repeated preparation opens the existing proposal; discard that proposal to prepare again. The new run has its own response code and report. Original messages and results stay in history. Suppressed and uncertain submissions are held, never automatically resent. Recipients with no submission yet continue through the original approved send, preventing a parallel resend.
+
+Mango list membership does not establish sending. Mango sender-result ingestion, journey gift-response binding and journey resend proposals remain unbuilt; journey results are displayed with those limits.

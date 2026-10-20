@@ -1190,8 +1190,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 44 | 45 | 37 | 126 |
-| All | 53 | 45 | 37 | 135 |
+| Target and push further | 44 | 46 | 36 | 126 |
+| All | 53 | 46 | 36 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1326,7 +1326,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `DEV-006` | Briefs before a meeting | push-further | missing |  | No meetings or briefs. |
 | `DEV-007` | Proves the move-in and the cutover | push-further | partial | `src/coffer/imports/service.ts`, `tests/coffer.test.mjs` | The Stripe move-in reads the connected account or a request-only restricted read key, follows pages for charges, Payment Intents, invoices and monthly plans, resolves customers, previews exact gifts and skips, imports supported existing monthly plans, checks actual gift counts/cents, and supports guarded undo (`src/coffer/imports/live-stripe.ts`, `src/coffer/imports/subscriptions.ts`, `docs/MOVE-IN.md`). No comparison agent, cross-account vault transfer, recurring reauthorization or cutover. |
 | `DEV-008` | Keeps the database clean | push-further | missing |  | No data hygiene agent. |
-| `DEV-009` | Confirms appeals actually reached donors | push-further | missing |  | No sender connection. |
+| `DEV-009` | Confirms appeals actually reached donors | push-further | partial | `src/coffer/agent/appeals.ts`, `src/coffer/agent/appeals-ui.ts`, `tests/agent-appeals.test.mjs`, `tests/agent-appeals-browser.mjs` | Mailchimp appeal reconciliation joins every frozen recipient to checked sender results and signed response-code gift totals; five dropped recipients prepare a separate, consent-checked audience for human approval. Submitted destinations remain frozen across email edits. Unknown/uncertain submissions are held; handoff never claims delivery. Mango sender-result ingestion, journey response binding and journey resend proposals remain unbuilt. |
 | `DEV-010` | Follows pledges and grants to the end | push-further | missing |  | No installments, grants or matching gifts to follow. |
 | `DEV-011` | Writes the development report | push-further | missing |  | No reports for the agent to draw on. |
 | `DEV-012` | Agent grants and autonomy | push-further | partial | `src/coffer/auth.ts`, `src/coffer/commands.ts`, `tests/coffer.test.mjs` | Expiring, revocable agent keys can only read and prepare; no named grants, standing approvals, limits or kill switch. |
