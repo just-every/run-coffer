@@ -1,6 +1,6 @@
 {
   "id": "coffer",
-  "name": "coffer",
+  "name": "Coffer",
   "version": "0.1.0",
   "maturity": "first release; independently gated on a computer and a hosted Cloudflare Worker on 18 October 2026",
   "category": "status",
