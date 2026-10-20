@@ -26,6 +26,10 @@ export async function relationshipsBrowser(h,{directory}) {
    await page.locator('#relationships').getByText('Add relationship',{exact:true}).click()
    const choices=await page.locator('#relationships').getByLabel('Relationship',{exact:true}).locator('option').evaluateAll(nodes=>nodes.map(n=>n.value))
    for(const type of ['spouse','employer','board_member','parent','friend','advisor'])assert.ok(choices.includes(type))
+   await page.goto(origin+'/app/donors?relationship=parent&relatedTo='+parent.id)
+   await page.getByRole('link',{name:`Casey Rivers ${width}`,exact:true}).waitFor()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'DONOR-003 filtered list fits '+width)
+   await page.screenshot({path:`${directory}/DONOR-003-list-${width}.png`,fullPage:true})
   }
   await page.close()
  })
