@@ -29,6 +29,7 @@ export function donorErasureStatements(donor: { id: string; email: string | null
        (json_extract(value,'$.id')=(SELECT household_id FROM cf_donors WHERE id=?) OR json_extract(value,'$.head_donor_id')=?))`, now, donorId, donorId),
     sql("DELETE FROM cf_donor_merge_rows WHERE merge_id IN (SELECT id FROM cf_donor_merge_journal WHERE status='erased')"),
     sql(`DELETE FROM cf_move_in_issues WHERE job_id IN (SELECT job_id FROM cf_move_in_records WHERE kind='household' AND native_id IN (SELECT id FROM cf_households WHERE id=(SELECT household_id FROM cf_donors WHERE id=?) OR head_donor_id=?))`, donorId, donorId),
+    sql(`DELETE FROM cf_move_in_parts WHERE job_id IN (SELECT job_id FROM cf_move_in_records WHERE donor_id=? OR related_id=? OR (kind='household' AND native_id=(SELECT household_id FROM cf_donors WHERE id=?)))`,donorId,donorId,donorId),
     sql(`UPDATE cf_move_in_jobs SET report='{}',accepted_reason=NULL,redacted=1,check_report=NULL WHERE id IN
       (SELECT job_id FROM cf_move_in_records WHERE kind='household' AND native_id IN (SELECT id FROM cf_households WHERE id=(SELECT household_id FROM cf_donors WHERE id=?) OR head_donor_id=?))
       OR EXISTS(SELECT 1 FROM json_each(cf_move_in_jobs.report,'$.householdCheckpoints') p JOIN cf_households h ON h.id=p.key WHERE h.id=(SELECT household_id FROM cf_donors WHERE id=?) OR h.head_donor_id=?)`, donorId, donorId, donorId, donorId),

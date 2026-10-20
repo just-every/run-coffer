@@ -41,7 +41,7 @@ export async function householdsJourney(h) {
  await gift(sam,'50',{receivedOn:'2024-02-01'})
  await gift(duplicate,'25')
  await h.command('pledge.create',{donorId:jane.id,amount:'500',pledgedOn:'2025-01-01',fund:'Library',installments:[{dueOn:'2027-01-01',amount:'500'}]})
- await h.command('match.record',{giftId:A.id,employerDonorId:sponsor.id,amount:'100',expectedBy:'2027-01-01'})
+ await h.command('match.record',{giftId:A.id,employerDonorId:sponsor.id,amount:'100',dueBy:'2027-01-01'})
  const beforeR=facts(await history(h,robert.id)),beforeJ=facts(await history(h,jane.id))
  const oldAudit=(await h.get('/api/coffer/audit?action=donor.create')).rows
  const stale=(await state()).household.version

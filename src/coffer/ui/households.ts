@@ -1,13 +1,14 @@
 import { manager } from '../auth'
-import { all, type Context, type Row } from '../db'
+import { all, one, type Context, type Row } from '../db'
 import { householdState } from '../households'
 import { NAME_FIELDS } from '../household-names'
 import { box, chip, e, field, form, money, select } from './common'
 
 export async function householdPanel(c:Context,donor:Row,url?:URL) {
  const staff=c.actor.role!=='agent',boss=manager(c.actor)
+ const profileVersion=donor.household_id?(await one(c,'SELECT version FROM cf_households WHERE id=?',donor.household_id))?.version:undefined
  const names=Object.entries(NAME_FIELDS).map(([key,column])=>field(({firstName:'First name',middleName:'Middle name',lastName:'Last name'} as Record<string,string>)[key]??key[0].toUpperCase()+key.slice(1),key,'text',donor[column]??'','maxlength="100"')).join('')
- const profile=staff?`<details><summary>Name parts and household eligibility</summary>${form('donor.profile',`<div class="fields">${names}${select('Record type','constituentKind',[['person','Person'],['organization','Organization']],donor.constituent_kind)}${select('Constituent status','constituentStatus',[['active','Active'],['inactive','Inactive'],['deceased','Deceased']],donor.constituent_status)}</div><p class="muted">Deceased members are omitted from computed household names. A deceased head stays flagged until a person chooses a replacement.</p>`,'Save name parts',{donorId:donor.id,version:donor.version} )}</details>`:''
+ const profile=staff?`<details><summary>Name parts and household eligibility</summary>${form('donor.profile',`<div class="fields">${names}${select('Record type','constituentKind',[['person','Person'],['organization','Organization']],donor.constituent_kind)}${select('Constituent status','constituentStatus',[['active','Active'],['inactive','Inactive'],['deceased','Deceased']],donor.constituent_status)}</div><p class="muted">Deceased members are omitted from computed household names. A deceased head stays flagged until a person chooses a replacement.</p>`,'Save name parts',{donorId:donor.id,version:donor.version,...(profileVersion?{householdVersion:profileVersion}:{})} )}</details>`:''
  if(!donor.household_id)return box('Household',`<p>No household. Use contact details to create or join one. A head is never chosen automatically.</p>${profile}`,'household')
  const rawYear=url?.searchParams.get('householdYear'),year=rawYear&&/^\d{4}$/.test(rawYear)?Number(rawYear):undefined,basis=url?.searchParams.get('householdBasis')==='fiscal'?'fiscal':'calendar'
  const state=await householdState(c,donor.household_id,{year,basis}),h=state.household,t=state.totals,head=state.members.find(m=>m.id===h.head_donor_id)
