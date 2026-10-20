@@ -294,7 +294,9 @@ Before this capability ships, its campaign membership and progress inherit `CAMP
 
 Independent giving forms inherit `REPORT-003` actual form provenance and financial reporting before shipping.
 
-*Acceptance:* A browser journey builds a form with a custom question, embeds it on a test page, and gives $50 at 1440 and 390 pixels with the Stripe edge in test mode; the gift, donor, consent answer, custom-field answer and receipt appear in Coffer, and an axe check of the form passes; a timing run of the hosted form under the stated profile (CDP network emulation and `Emulation.setCPUThrottlingRate` 4) records a median of five cold loads under one second to input-ready and under two seconds to payment-field-ready.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+
+*Acceptance:* A browser journey builds a form with a custom question, embeds it on a test page, and gives $50 at 1440 and 390 pixels with the Stripe edge in test mode; the gift, donor, consent answer, custom-field answer and receipt appear in Coffer, and an axe check of the form passes; a timing run of the hosted form under the stated profile (CDP network emulation and `Emulation.setCPUThrottlingRate` 4) records a median of five cold loads under one second to input-ready and under two seconds to payment-field-ready. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
 #### GIVE-002 — Campaign pages.
 
@@ -308,7 +310,9 @@ Current campaign publishers (owner/admin) upload PNG, JPEG or WebP images up to 
 
 Donors choose monthly, quarterly or annual giving on any form. Coffer schedules each installment itself against the donor's saved Stripe payment method (or keeps an adopted Stripe subscription running), records every successful installment as a gift linked to its plan, and shows plan status (active, past due, paused, canceled) with its history. Staff create a plan from a signed pledge form or a phone call by collecting its card or bank account through staff payment entry (`GIVE-009`), and change amount or date, pause and cancel, each recorded.
 
-*Acceptance:* An HTTP journey with Stripe in test mode and a test clock starts a $25 monthly plan, advances three months, reads three linked gifts, pauses and resumes the plan, and cancels it.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+
+*Acceptance:* An HTTP journey with Stripe in test mode and a test clock starts a $25 monthly plan, advances three months, reads three linked gifts, pauses and resumes the plan, and cancels it. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
 #### GIVE-004 — Card, bank, wallet and PayPal checkout.
 
@@ -344,7 +348,9 @@ A nonprofit claims a keyword on its Twilio number; a donor who texts it gets a l
 
 A fundraiser takes a gift by phone or from a mailed reply card without the donor-facing form. From a donor page or a gift batch (`GIFT-002`), they open a payment entry and choose one of three ways to pay: key a card into Stripe Elements as a card-not-present (mail or telephone order) payment; enter a US bank account into Stripe's bank account element with the donor's spoken or written ACH authorization recorded (method, date, who took it, and the signed form attached under `DONOR-008` or the call logged on the timeline); or charge a payment method already saved on the donor. One step charges the payment and records the gift with the entering user, its source (phone, mail, in person), fund, campaign and appeal, and sends the usual receipt (`RCPT-001`); an ACH payment is pending until it settles, as in `GIVE-004`. The same entry can start a recurring plan (`GIVE-003`) on the new or saved payment method, which is how a signed monthly pledge form becomes a plan. Staff payments never pass through the public form, so the card-testing limits of `GIVE-007` neither count nor block them. They are limited by role (`TEAM-001`): fundraisers, admins and the owner may charge, data-entry, volunteer and read-only roles may not, and an admin can turn charging off for a role. Card and account numbers go from the browser straight to Stripe; Coffer stores only Stripe references, the last four digits and the card brand or bank name.
 
-*Acceptance:* A browser journey with Stripe in test mode has a fundraiser key in a $100 card gift on a donor page, start a $20 monthly plan on an ACH test account with a spoken authorization recorded, and charge the donor's saved card for a second gift; it reads three ledger lines (the ACH one after its test settlement) with source "phone", the fundraiser as entering user and a receipt for each, and the plan active on the ACH payment method with its authorization; a data-entry user is refused the charge through HTTP, no `GIVE-007` limit counts the three payments, and an inspection of stored records finds no card or account number.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+
+*Acceptance:* A browser journey with Stripe in test mode has a fundraiser key in a $100 card gift on a donor page, start a $20 monthly plan on an ACH test account with a spoken authorization recorded, and charge the donor's saved card for a second gift; it reads three ledger lines (the ACH one after its test settlement) with source "phone", the fundraiser as entering user and a receipt for each, and the plan active on the ACH payment method with its authorization; a data-entry user is refused the charge through HTTP, no `GIVE-007` limit counts the three payments, and an inspection of stored records finds no card or account number. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
 ### Campaigns, events and memberships
 
@@ -420,19 +426,29 @@ A refund or dispute from the processor (or a staff-initiated refund through Coff
 
 Each online gift records its processing fee from the processor's balance transaction. A donor who covers the fee gives the grossed-up amount and is receipted for the full amount paid. Reports show gross, fees and net by fund, form and campaign.
 
-*Acceptance:* An HTTP journey gives $100 with fee cover, reads the gift, fee and receipt amounts, and a fee report by form that sums to the payouts.
+For current hosted campaign forms, fee cover is optional and unchecked. The owner or admin enables it with an organization-supplied estimate: integer basis points and fixed cents, labelled as an estimate rather than a Stripe-verified rate. The charged integer-cent total is `ceil((requested cents + fixed cents) * 10000 / (10000 - rate basis points))`; it is shown before checkout, rechecked by the server and frozen with the request. Existing requests and monthly plans keep their agreed amounts when settings change. Receipts include that full paid total; reports use the processor’s actual fee, independently of the estimate. Gross, fees and net include signed refunds and adjustments, allocate split gifts by the existing exact-cent payout rules, and group by the recorded fund, original form and campaign; absent provenance stays explicitly unrecorded. Each grouping reconciles to the same transaction totals and payout net, with unmatched transactions and deposit differences visible.
+
+The estimate uses one same-origin script with a fresh per-response nonce and no inline-script allowance, network requests or personal-data egress.
+
+GIVE-001 independent forms, GIVE-003 added recurring schedules, GIVE-009 staff payment entry and PAY-005/PAY-006 additional giving providers inherit PAY-004 actual fee recording, honest fee-cover totals and actual form/campaign provenance before shipping.
+
+*Acceptance:* An HTTP journey gives $100 with fee cover, reads the gift, fee and receipt amounts, and a fee report by form that sums to the payouts. The same clause-named journey verifies the full paid receipt, replay after a rate change, stale amount refusals, signed refunds, fund/form/campaign grouping totals, actual fees distinct from estimates, and payout reconciliation.
 
 #### PAY-005 — Other giving platforms.
 
 A nonprofit that keeps Givebutter, Donorbox, PayPal Giving Fund or a workplace-giving platform such as Benevity for some gifts connects it (Givebutter's API and webhooks, Donorbox's API, CSV disbursement reports otherwise); those gifts arrive in the same ledger with their source, fees and payout, matched to donors with the same review queue as `PAY-001`.
 
-*Acceptance:* An HTTP journey with the Givebutter edge faked ingests transactions and a changed transaction, and imports a Benevity disbursement CSV, reading gifts with source, fees and payout matched to donors.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+
+*Acceptance:* An HTTP journey with the Givebutter edge faked ingests transactions and a changed transaction, and imports a Benevity disbursement CSV, reading gifts with source, fees and payout matched to donors. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
 #### PAY-006 — Shop orders record only the contribution.
 
 When the nonprofit sells through Stall (Run Edit Run's shop) or Shopify, Coffer receives each paid order by signed webhook and writes only its contribution as a gift: a donation line, a round-up, or the part of a charity-priced item above its stated fair market value. Merchandise, shipping and sales tax never enter the gift ledger or a receipt; the buyer is matched to a donor by the review queue of `PAY-001`, and a refunded order reverses only its contribution.
 
-*Acceptance:* An HTTP journey with the Stall edge faked receives an order with a $40 T-shirt, $6 shipping, $3.20 sales tax and a $25 donation line, and writes one $25 gift with a receipt for $25 only; a $60 charity T-shirt with a stated value of $20 writes a $40 contribution; refunding the order reverses only the contribution; the same order from the Shopify edge writes the same gift.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+
+*Acceptance:* An HTTP journey with the Stall edge faked receives an order with a $40 T-shirt, $6 shipping, $3.20 sales tax and a $25 donation line, and writes one $25 gift with a receipt for $25 only; a $60 charity T-shirt with a stated value of $20 writes a $40 contribution; refunding the order reverses only the contribution; the same order from the Shopify edge writes the same gift. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
 ### Accounting
 
@@ -1139,8 +1155,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 37 | 50 | 39 | 126 |
-| All | 46 | 50 | 39 | 135 |
+| Target and push further | 38 | 49 | 39 | 126 |
+| All | 47 | 49 | 39 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1194,7 +1210,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `PAY-001` | Live Stripe connection | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Signed live charge, refund, dispute, failure and payout events, external donor matching and replay-safe money entries ship alongside saved-page move-in. OAuth/automatic endpoint registration, scheduled backfill/sweep and an ambiguous-match review queue remain outstanding. |
 | `PAY-002` | Payouts with their gifts | target | done | `src/coffer/payments/`, `tests/payments.test.mjs` | Payout detail retains every processor entry, gross, fees and fund split and flags differences; automatic membership comes from paginated Stripe balance APIs, manual membership is explicitly selected and validated. Posting requires a completed exact-cent match. |
 | `PAY-003` | Refunds and disputes | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Processor refunds and disputes append immutable contribution reversals and a dispute win reinstates the contribution. No receipt correction, staff-initiated refund, relationship-manager notice or evidence due-date workflow yet. |
-| `PAY-004` | Processing fees and fee cover | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Immutable balance transactions record processor gross, fees and net, shown by fund in each payout. Donor fee-cover checkout and form/campaign fee reports remain outstanding. |
+| `PAY-004` | Processing fees and fee cover | target | done | `src/coffer/giving/fee-cover.ts`, `src/coffer/giving/checkout.ts`, `src/coffer/payments/fee-report.ts`, `migrations/core/0070_coffer_fee_cover.sql`, `tests/fee-cover-journey.mjs`, `tests/fee-cover-browser.mjs`, `tests/giving.test.mjs`, `tests/payments.test.mjs` |  |
 | `PAY-005` | Other giving platforms | target | missing |  | No other platform connections. |
 | `PAY-006` | Shop orders record only the contribution | target | missing |  | No shop connection. |
 | `FIN-001` | QuickBooks Online sync | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Mapped fund, bank and fee accounts export as a balanced QBO journal CSV with fund classes; Desktop IIF is separate. No QBO OAuth/API connection or check-batch posting yet. |

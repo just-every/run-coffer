@@ -21,7 +21,7 @@ async function deliver(h,id,type,objectId,{bad=false}={}) {
  return h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'stripe-signature':`t=${timestamp},v1=${sig}`},body:raw})
 }
 
-test('FIN-003 / FIN-004: signed Stripe gifts, fees, refunds and payout reconcile by fund and post once to Pantry after approval',async()=>{
+test('FIN-003 / FIN-004 / PAY-004: signed Stripe gifts, fees, refunds and payout reconcile by fund and post once to Pantry after approval',async()=>{
  let proposal=null,submissions=0,evidenceHash='',approved=false,providerCalls=0
  const outbound=async request=>{
   providerCalls++
@@ -91,6 +91,11 @@ test('FIN-003 / FIN-004: signed Stripe gifts, fees, refunds and payout reconcile
   assert.equal(view.payout.amount_cents,12005)
   assert.equal(view.lines.length,3)
   assert.deepEqual(view.splits.map(s=>[s.fund,s.gross_cents,s.fee_cents,s.net_cents]),[['Meals',5000,175,4825],['Reading',7500,320,7180]])
+  const feeReport=await h.get('/api/coffer/payments/fees?payoutId='+payout.id)
+  assert.deepEqual(feeReport.totals,{gross_cents:12500,fee_cents:495,net_cents:12005},'PAY-004: actual fees and refunds reconcile to the payout')
+  assert.deepEqual(feeReport.byFund.map(r=>[r.id,r.gross_cents,r.fee_cents,r.net_cents]),view.splits.map(r=>[r.fund,r.gross_cents,r.fee_cents,r.net_cents]))
+  assert.deepEqual(feeReport.byForm,[{id:null,name:'No recorded giving form',...feeReport.totals}],'Imported payments are never assigned a guessed checkout form')
+  assert.equal(feeReport.payouts[0].difference_cents,0)
   assert.equal((await h.get('/api/coffer/payments')).failures.length,1)
   for(const endpoint of ['/app/payouts','/app/payouts/'+payout.id])assert.equal((await h.request(endpoint)).status,200)
   assert.equal((await h.request('/api/coffer/payments/'+payout.id,{as:''})).status,401)
@@ -161,6 +166,10 @@ test('FIN-003 / FIN-004: signed Stripe gifts, fees, refunds and payout reconcile
   assert.equal((await deliver(h,'evt_won','charge.dispute.closed',dispute.id)).status,200)
   assert.equal((await h.get('/api/coffer/donors/'+maria.id)).totals.lifetimeCents,7500)
   assert.equal((await h.get('/api/coffer/payments/'+payout.id)).payout.matched_cents,12005)
+  const allFees=await h.get('/api/coffer/payments/fees')
+  assert.deepEqual(allFees.unmatched,{gross_cents:0,fee_cents:0,net_cents:0},'A dispute and its win cancel while remaining visible as unmatched lines')
+  assert.equal(allFees.lines.filter(l=>!l.payout_id).length,2)
+  assert.equal(allFees.totals.net_cents,17795)
  },{bindings,outbound})
  const callsBeforeManaged=providerCalls
  await run(async h=>{

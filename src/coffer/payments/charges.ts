@@ -32,6 +32,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
    const payment = await stripe(env, '/payment_intents/' + encodeURIComponent(pi))
    if (payment.metadata?.coffer_intent) intent = await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', payment.metadata.coffer_intent)
   }
+  if (intent?.frequency === 'once' && (intent.customer_id !== customerId || intent.amount_cents !== gross)) fail('payment_mismatch', 'The charge differs from the agreed checkout total.', 409)
   let donor = intent?.donor_id ? await one(c, 'SELECT * FROM cf_donors WHERE id=?', intent.donor_id) : null
   const erased = customerId && await one(c, 'SELECT d.* FROM cf_erased_stripe_customers e JOIN cf_donors d ON d.id=e.donor_id WHERE e.customer_id=?', customerId)
   if (erased) donor = erased

@@ -198,4 +198,4 @@ test('REPORT-006: monthly health preserves starts, amount changes, failed paymen
 
 test('GIFT-011: checkout publication choices, donor and gift anonymity, honor rolls and custody',async()=>{const {recognitionJourney}=await import('./recognition-journey.mjs');await recognitionJourney()})
 
- test('CAMP-001 / GIVE-002: dated campaigns reconcile gifts and custody; public media pages close new giving and count donors',async()=>{const {campaignProgressJourney}=await import('./campaign-progress-journey.mjs');await campaignProgressJourney();const {campaignPageJourney}=await import('./campaign-page-journey.mjs');await campaignPageJourney()})
+ test('CAMP-001 / GIVE-002 / PAY-004: dated campaigns reconcile gifts and custody; public media pages close new giving and count donors',async()=>{const {campaignProgressJourney}=await import('./campaign-progress-journey.mjs');await campaignProgressJourney();const {campaignPageJourney}=await import('./campaign-page-journey.mjs');await campaignPageJourney();const {feeCoverJourney}=await import('./fee-cover-journey.mjs');await feeCoverJourney()})

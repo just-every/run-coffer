@@ -1,3 +1,5 @@
+import { feeReport } from './fee-report'
+import { feeReportPage } from './fee-report-ui'
 import { periodJournal } from './period-journal'
 import { manager, person } from '../auth'
 import { fail, id, type Context } from '../db'
@@ -23,6 +25,11 @@ export async function paymentsResponse(request: Request, c: Context, env: Paymen
   const data = await input(), payoutId = data.payoutId ? id(data.payoutId, 'Stripe payout ID') : undefined
   const result = await syncPayouts(env, payoutId, c)
   return api ? json(result) : redirect(payoutId ? '/app/payouts/' + encodeURIComponent(payoutId) : '/app/payouts')
+ }
+ if (suffix === '/fees' && ['GET', 'HEAD'].includes(request.method)) {
+  const payoutId = new URL(request.url).searchParams.get('payoutId') || null
+  const report = await feeReport(c, payoutId)
+  return api ? json(report) : page('Processing fees', feeReportPage(report, payoutId), c.actor, 200, '/app/payouts')
  }
  if (suffix === '/journal') {
   if (!['GET', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'Use GET to download a journal.', 405)

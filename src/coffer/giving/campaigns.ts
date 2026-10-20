@@ -1,5 +1,6 @@
 import { all, commit, date, event, fail, guard, newId, one, optional, sql, text, type Context } from '../db'
 import { amount } from '../money'
+import { feeCoverConfig } from './fee-cover'
 import { requireRole } from '../auth'
 import { campaignMedia, mediaStatements } from './media'
 
@@ -19,7 +20,7 @@ export async function campaign(c: { db: D1Database }, slug: string) {
 export async function createCampaign(c: Context, raw: Record<string, any> | FormData) {
  requireRole(c.actor, ['owner', 'admin'], 'publish campaigns')
  const input: Record<string, any> = raw instanceof FormData ? Object.fromEntries(raw) : raw
- const media = await campaignMedia(raw)
+ const media = await campaignMedia(raw), feeCover = feeCoverConfig(input)
  const id = newId(), name = text(input.name, 'Campaign name', 120), slug = text(input.slug, 'Page address', 80)
  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) fail('INPUT', 'Use lowercase letters, numbers and single hyphens for the page address.', 400)
  const startsOn = optional(input.startsOn, 'Start date'), endsOn = optional(input.endsOn, 'End date'), parentId = optional(input.parentId, 'Parent campaign', 100)
@@ -33,7 +34,7 @@ export async function createCampaign(c: Context, raw: Record<string, any> | Form
  const description = text(input.description, 'Campaign description', 2000), fund = text(input.fund, 'Fund', 100), goal = amount(input, 'goal', 'Campaign goal')
  await commit(c, [
   ...(parentId ? [guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=?)', 'CAMPAIGN_PARENT', 'Choose an existing parent campaign.', parentId)] : []),
-  sql('INSERT INTO cf_campaigns(id,slug,name,description,fund,goal_cents,created_at,starts_on,ends_on,parent_id,closes_on) VALUES(?,?,?,?,?,?,?,?,?,?,?)', id, slug, name, description, fund, goal, c.now, startsOn, endsOn, parentId, closesOn),
+  sql('INSERT INTO cf_campaigns(id,slug,name,description,fund,goal_cents,created_at,starts_on,ends_on,parent_id,closes_on,fee_cover_enabled,fee_cover_rate_bps,fee_cover_fixed_cents) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)', id, slug, name, description, fund, goal, c.now, startsOn, endsOn, parentId, closesOn, feeCover.enabled, feeCover.rate, feeCover.fixed),
   ...mediaStatements(id, media),
   ...[...new Set<string>(codes)].flatMap(code => [guard('EXISTS(SELECT 1 FROM cf_appeal_codes WHERE code=?)', 'APPEAL', 'Choose defined appeal codes.', code), sql('INSERT INTO cf_campaign_appeals(campaign_id,appeal) VALUES(?,?)', id, code)]),
   event(c, 'campaign.create', 'campaign', id, null),

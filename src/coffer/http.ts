@@ -73,6 +73,7 @@ import { givingResponse } from './giving/http'
 import { paymentsResponse } from './payments/http'
 import { agentResponse } from './agent/http'
 import { crmMoveInResponse } from './move-in/http'
+import { updateFeeCover } from './giving/fee-cover'
 import { createCampaign, campaigns } from './giving/campaigns'
 import { givingManageResponse } from './giving/manage-ui'
 import { checkStripe, givingSetupPage } from './giving/setup'
@@ -182,6 +183,12 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if (crmMoveIn) return crmMoveIn
   const payments = await paymentsResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
   if (payments) return payments
+  const feeCover = path.match(/^\/(api\/coffer|app)\/giving\/campaigns\/([^/]+)\/fee-cover$/)
+  if (feeCover) {
+   if (request.method !== 'POST') fail('method_not_allowed', 'Use the fee-cover form.', 405)
+   const result = await updateFeeCover(c, feeCover[2], isApi ? await jsonBody(request) : Object.fromEntries(await formBody(request)))
+   return isApi ? json(result) : redirect('/app/giving/campaigns/' + encodeURIComponent(feeCover[2]))
+  }
   const progress = path.match(/^\/(api\/coffer|app)\/giving\/campaigns\/([^/]+)$/)
   if (progress && request.method === 'GET') return isApi ? json(await campaignProgress(c, progress[2])) : page('Campaign progress', await campaignProgressPage(c, progress[2]), actor, 200, '/app/giving')
   const videoUpload = path.match(/^\/api\/coffer\/giving\/campaigns\/([^/]+)\/video$/)
