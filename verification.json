@@ -166,6 +166,14 @@
       "commands": [
         "COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='GIVE-002' tests/giving.test.mjs"
       ]
+    },
+    {
+      "name": "monthly-recovery",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_RECOVERY_BROWSER=.cache/monthly-recovery node --test --test-name-pattern=GIVE-006 tests/agent-recovery.test.mjs"
+      ]
     }
   ],
   "nightly": [

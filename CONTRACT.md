@@ -206,6 +206,8 @@ Before these added fields ship, family notifications under GIFT-008 inherit the 
 
 A constituent can carry a solicitation restriction, kept apart from channel consent (`CONSENT-001`, `COMM-001`): consent says which channels may be used; the restriction says whether the donor may be asked for money at all. It is "do not solicit" (no ask on any channel) or a limit instead of a full stop: no asks on chosen channels (for example "no mail appeals", while mailed receipts and statements still go), or at most a set number of asks in a period (for example "solicit once a year"), counted across every ask channel. Each restriction records its type, start date, optional end date, source (a person, the donor portal, a donor request logged as an interaction, or an import with its source system and date) and who set it; changes are versioned like consent and written to the audit log (`TEAM-003`), and only the roles `TEAM-001` allows (default: admin, owner and the relationship manager) can clear one. The restriction shows as a badge beside the name on the donor page, the phone view (`MOBILE-001`), the opportunity (`MAJOR-001`) and every call task; it is a filter in saved lists and reports (`DONOR-007`, `REPORT-004`), a column in exports (`DATA-002`), a value the `DONOR-007` bulk action sets or clears, and readable and writable through the API (`API-001`). Every outbound run is an ask or not. Email, mail and SMS appeals (`APPEAL-001`, `COMM-002`, `COMM-003`, `COMM-006`, `COMM-007`) are asks; journey steps (`STEW-003`) and call tasks (`STEW-001`, `DEV-005`) carry an ask flag set by whoever builds them, and ask and upgrade calls are asks. Every ask path excludes a restricted constituent by default and counts the exclusion under the reason "do not solicit" (or "solicitation limit" when a limit is used up, with the date of the last ask). The restriction never stops what is not an ask: email receipts and acknowledgments (`ACK-001`, `RCPT-001`, `RCPT-002`), year-end statements (`RCPT-004`), reminders and invoices for a pledge the donor made (`STEW-004`), failed-payment and card-expiry notices (`GIVE-006`), tribute notifications (`GIFT-008`), event confirmations, journey thank-you steps and newsletter sends marked as not an ask under the newsletter topic. A personal solicitation by the assigned relationship manager through the major-gift pipeline (`MAJOR-001` to `MAJOR-003`) is not blocked, and the badge shows there so the manager knows. A person preparing an ask can deliberately include a restricted constituent in that one run: they pick the record and give a reason, and the choice, its reason and who made it are recorded on the run and the donor's timeline; it never changes the restriction. Inactive status (`DONOR-012`) stops every send; the restriction is for a donor who still gets receipts, statements and the newsletter but is never asked. Every importer carries the incumbent's restrictions (`MOVE-001` to `MOVE-004`, `MOVE-008`), and the reconciliation counts them (`MOVE-007`).
 
+Before solicitation restrictions ship, this clause asserts GIVE-006 failed-payment and card-expiry notices to a real restricted donor as transactional non-asks.
+
 *Acceptance:* An HTTP journey with sender edges faked sets "do not solicit" on a donor with email, mail and SMS consent and an open pledge; an email appeal, a mail appeal and an SMS appeal each exclude them with the reason "do not solicit"; their next gift is still receipted by email, their year-end statement is still prepared, their pledge reminder still goes and a newsletter send still includes them; a journey's ask step skips them while its thank-you step runs; the `DEV-005` call list gives them no ask task; a person who includes them in one email appeal on purpose sees that choice, its reason and its author recorded on the run and the timeline; a "solicit once a year" donor is included in a first appeal and excluded from a second that year with the reason "solicitation limit"; a "no mail appeals" donor is excluded from a mail appeal and included in an email appeal; a data-entry user is refused clearing a restriction; a saved list filtered on the restriction and a bulk action that sets it on every record of a list both work and are audited; the API reads and writes it; and the badge shows on the donor page at 1440 and 390 pixels.
 
 ### Gifts and pledges
@@ -306,7 +308,7 @@ Before this capability ships, its campaign membership and progress inherit `CAMP
 
 Independent giving forms inherit `REPORT-003` actual form provenance and financial reporting before shipping.
 
-Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation. New schedules and staff-created plans also inherit GIVE-006 retry, card-expiry warning and exhausted-retry escalation parity, with clause-named public-door assertions before shipping.
 
 Before independent forms ship, they inherit `RCPT-007` form templates, precedence and version recording.
 
@@ -324,7 +326,7 @@ Current campaign publishers (owner/admin) upload PNG, JPEG or WebP images up to 
 
 Donors choose monthly, quarterly or annual giving on any form. Coffer schedules each installment itself against the donor's saved Stripe payment method (or keeps an adopted Stripe subscription running), records every successful installment as a gift linked to its plan, and shows plan status (active, past due, paused, canceled) with its history. Staff create a plan from a signed pledge form or a phone call by collecting its card or bank account through staff payment entry (`GIVE-009`), and change amount or date, pause and cancel, each recorded.
 
-Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation. New schedules and staff-created plans also inherit GIVE-006 retry, card-expiry warning and exhausted-retry escalation parity, with clause-named public-door assertions before shipping.
 
 *Acceptance:* An HTTP journey with Stripe in test mode and a test clock starts a $25 monthly plan, advances three months, reads three linked gifts, pauses and resumes the plan, and cancels it. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
@@ -344,7 +346,11 @@ Donors sign in with an emailed link (no password) to see their gifts, download r
 
 When an installment fails, Coffer retries on a schedule (or follows Stripe's retry outcome for an adopted subscription), emails the donor a link to update their payment method, warns donors a month before a saved card expires, marks the plan past due, and opens a task for the plan's relationship manager when retries run out. A recovered plan records which step recovered it. These notices are not asks: they still go to a donor with a solicitation restriction (`DONOR-015`).
 
-*Acceptance:* An HTTP journey with the Stripe edge faked fails a monthly installment, sends the donor notice, recovers on the second retry and records it; a second plan exhausts retries and opens a task; an expiring card sends the warning a month ahead; a do-not-solicit donor's failed-installment notice still goes.
+For today's adopted monthly Stripe plans, Stripe owns retries; Coffer records the current attempt count and recovery, never makes an extra charge, and creates one ordinary staff call task per exhausted failed invoice (an uncollectible/void invoice or unpaid/canceled/incomplete-expired subscription). The current `MAJOR-002` relationship manager owns it, otherwise the active installation owner does; the task never automatically contacts the donor. Daily and manual reconciliation check the subscription's current default payment method, then the customer's invoice default when absent. A card warning goes once per current subscription/card/expiry month during the calendar month before expiry in the organization's time zone. The durable send claim distinguishes provider acceptance from delivery and holds uncertain sends without automatic resending. Coffer retains only expiry month/year and the opaque method reference with operational claim state; replacement, donor erasure and merging away delete that metadata. Card numbers, CVC and last four are never retained. The provider edge is faked in the acceptance journey; this makes no live Stripe claim.
+
+This obligation is complete for today's monthly plans. Before `GIVE-003` adds schedules or staff-created plans, it inherits retry, expiry-warning and exhausted-retry escalation parity. Before `DONOR-015` adds solicitation restrictions, its journey must assert actual restricted-donor failed-payment and expiry notices remain transactional non-asks.
+
+*Acceptance:* The clause-named HTTP journey fails a monthly installment, sends one private portal notice, recovers on the second retry and records that attempt; a second plan exhausts retries and opens one owned task, with relationship-manager precedence and owner fallback. A default card two calendar months away sends nothing, one expiring next month sends one warning through concurrent and repeated checks, and replacement/merge/erasure delete the old metadata. Archive/restore preserves current warning custody, never last four. Native recovery and call-task end states run at 1440 and 390 pixels. New schedule parity is asserted under `GIVE-003`, and real do-not-solicit failure and expiry notices under `DONOR-015`, before those capabilities ship.
 
 #### GIVE-007 — Fraud and card-testing protection.
 
@@ -362,7 +368,7 @@ A nonprofit claims a keyword on its Twilio number; a donor who texts it gets a l
 
 A fundraiser takes a gift by phone or from a mailed reply card without the donor-facing form. From a donor page or a gift batch (`GIFT-002`), they open a payment entry and choose one of three ways to pay: key a card into Stripe Elements as a card-not-present (mail or telephone order) payment; enter a US bank account into Stripe's bank account element with the donor's spoken or written ACH authorization recorded (method, date, who took it, and the signed form attached under `DONOR-008` or the call logged on the timeline); or charge a payment method already saved on the donor. One step charges the payment and records the gift with the entering user, its source (phone, mail, in person), fund, campaign and appeal, and sends the usual receipt (`RCPT-001`); an ACH payment is pending until it settles, as in `GIVE-004`. The same entry can start a recurring plan (`GIVE-003`) on the new or saved payment method, which is how a signed monthly pledge form becomes a plan. Staff payments never pass through the public form, so the card-testing limits of `GIVE-007` neither count nor block them. They are limited by role (`TEAM-001`): fundraisers, admins and the owner may charge, data-entry, volunteer and read-only roles may not, and an admin can turn charging off for a role. Card and account numbers go from the browser straight to Stripe; Coffer stores only Stripe references, the last four digits and the card brand or bank name.
 
-Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation. New schedules and staff-created plans also inherit GIVE-006 retry, card-expiry warning and exhausted-retry escalation parity, with clause-named public-door assertions before shipping.
 
 *Acceptance:* A browser journey with Stripe in test mode has a fundraiser key in a $100 card gift on a donor page, start a $20 monthly plan on an ACH test account with a spoken authorization recorded, and charge the donor's saved card for a second gift; it reads three ledger lines (the ACH one after its test settlement) with source "phone", the fundraiser as entering user and a receipt for each, and the plan active on the ACH payment method with its authorization; a data-entry user is refused the charge through HTTP, no `GIVE-007` limit counts the three payments, and an inspection of stored records finds no card or account number. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
@@ -456,7 +462,7 @@ GIVE-001 independent forms, GIVE-003 added recurring schedules, GIVE-009 staff p
 
 A nonprofit that keeps Givebutter, Donorbox, PayPal Giving Fund or a workplace-giving platform such as Benevity for some gifts connects it (Givebutter's API and webhooks, Donorbox's API, CSV disbursement reports otherwise); those gifts arrive in the same ledger with their source, fees and payout, matched to donors with the same review queue as `PAY-001`.
 
-Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation. New schedules and staff-created plans also inherit GIVE-006 retry, card-expiry warning and exhausted-retry escalation parity, with clause-named public-door assertions before shipping.
 
 *Acceptance:* An HTTP journey with the Givebutter edge faked ingests transactions and a changed transaction, and imports a Benevity disbursement CSV, reading gifts with source, fees and payout matched to donors. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
@@ -464,7 +470,7 @@ Before this capability ships, it inherits PAY-004 actual processing-fee recordin
 
 When the nonprofit sells through Stall (Run Edit Run's shop) or Shopify, Coffer receives each paid order by signed webhook and writes only its contribution as a gift: a donation line, a round-up, or the part of a charity-priced item above its stated fair market value. Merchandise, shipping and sales tax never enter the gift ledger or a receipt; the buyer is matched to a donor by the review queue of `PAY-001`, and a refunded order reverses only its contribution.
 
-Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation. New schedules and staff-created plans also inherit GIVE-006 retry, card-expiry warning and exhausted-retry escalation parity, with clause-named public-door assertions before shipping.
 
 *Acceptance:* An HTTP journey with the Stall edge faked receives an order with a $40 T-shirt, $6 shipping, $3.20 sales tax and a $25 donation line, and writes one $25 gift with a receipt for $25 only; a $60 charity T-shirt with a stated value of $20 writes a $40 contribution; refunding the order reverses only the contribution; the same order from the Shopify edge writes the same gift. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
@@ -1132,7 +1138,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 6 | 100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM | `OWN-001`, `MOVE-001`, `MOVE-002`, `MOVE-004` | `OWN-001` done · `MOVE-001` partial · `MOVE-002` partial · `MOVE-004` missing |
 | 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` done · `REPORT-003` done |
 | 8 | Monthly $25 · Active | `GIVE-003` | partial |
-| 9 | Failed card · Retried successfully | `GIVE-006` | partial |
+| 9 | Failed card · Retried successfully | `GIVE-006` | done |
 | 10 | Receipt sent · Gift $250.00 · No goods or services provided | `RCPT-001`, `RCPT-005` | `RCPT-001` partial · `RCPT-005` done |
 | 11 | Call Tom Okafor · lapsed 14 months | `DEV-005`, `STEW-001` | partial (core claim implemented; broader clauses remain) |
 | 12 | Import from Little Green Light | `MOVE-001` | partial |
@@ -1153,7 +1159,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 27 | a link to manage her monthly gift | `GIVE-005` | partial |
 | 28 | Delivered 7:02 PM · Opened 7:40 PM | `RCPT-006`, `DONOR-004` | `RCPT-006` done · `DONOR-004` done |
 | 29 | Each gift lands on the donor's record, in the right fund, with its receipt | `GIFT-001`, `GIFT-004`, `RCPT-001` | `GIFT-001` done · `GIFT-004` done · `RCPT-001` partial |
-| 30 | Declined → Retried 7:16 PM | `GIVE-006` | partial |
+| 30 | Declined → Retried 7:16 PM | `GIVE-006` | done |
 | 31 | Bank (ACH) · Pending · clears Mar 13 | `GIVE-004` | partial |
 | 32 | In memory of Grace Okafor · Card to family queued | `GIFT-008` | done |
 | 33 | Employer match requested | `GIFT-007` | partial |
@@ -1192,8 +1198,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 45 | 46 | 35 | 126 |
-| All | 54 | 46 | 35 | 135 |
+| Target and push further | 46 | 45 | 35 | 126 |
+| All | 55 | 45 | 35 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1235,7 +1241,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `GIVE-003` | Recurring giving | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Monthly Stripe subscriptions record successful installments and show status and recovery; donors cancel at period end. Quarterly/annual plans, staff editing, pause/resume and the three-month test-clock acceptance remain outstanding. |
 | `GIVE-004` | Card, bank, wallet and PayPal checkout | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Stripe-hosted card and Link checkout ships, with Apple Pay offered on supported devices. ACH is coming soon pending a US test account; Apple Pay device payment, PayPal/Venmo, ACH settlement/returns and staff entry remain outstanding. No card numbers enter Coffer. |
 | `GIVE-005` | Donor portal | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Emailed single-use links open a donor-only portal to view monthly plans, update cards at Stripe and cancel. Statements, amounts/frequencies, pause, communication preferences and cancellation tasks remain outstanding. |
-| `GIVE-006` | Failed recurring payments | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Stripe schedules retries; verified failure outcomes email private card-update links and successful recovery is recorded. Expiry warnings and staff escalation after exhausted retries remain outstanding. |
+| `GIVE-006` | Failed recurring payments | target | done | `src/coffer/agent/recovery.ts`, `src/coffer/agent/card-expiry.ts`, `src/coffer/agent/recovery-ui.ts`, `migrations/core/0080_coffer_card_expiry.sql`, `tests/agent-recovery.test.mjs`, `tests/recovery-browser.mjs` |  |
 | `GIVE-007` | Fraud and card-testing protection | target | missing |  | No forms to protect. |
 | `GIVE-008` | Text-to-give | target | missing |  | No text-to-give. |
 | `GIVE-009` | Staff-entered card and bank payments | target | missing |  | Coffer takes no payments; staff record a gift by hand after the money arrives elsewhere. |

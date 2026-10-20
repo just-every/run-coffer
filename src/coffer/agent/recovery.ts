@@ -5,6 +5,9 @@ import { stripeId } from '../giving/recording'
 import { available, managed, requireStripe, stripe, type GivingEnv } from '../giving/stripe'
 import { invoice } from '../giving/webhooks'
 import { action, activityStatement } from './activity'
+import { cardExpiryNotices, checkCardExpiry } from './card-expiry'
+import { today, newId } from '../db'
+import { settings as cofferSettings } from '../settings'
 
 function system(env: GivingEnv): Context {
  return { db: env.DB, env, actor: { id: 'coffer-recovery', name: 'Coffer recovery', role: 'agent' }, authority: { sql: '1', params: [] }, now: new Date().toISOString() }
@@ -17,7 +20,7 @@ function authorize(c: Context) {
 export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, intent: Row, failureEventId?: string) {
  const c = system(env)
  const previous = await one(c, 'SELECT * FROM cf_agent_recovery WHERE invoice_id=?', current.id)
- const failed = current.status === 'open' && current.attempt_count > 0
+ const failed = ['open','void','uncollectible'].includes(current.status) && current.attempt_count > 0
  if (!previous && !failed) return
  const state = current.status === 'paid' && current.amount_paid > 0 ? 'recovered'
   : ['void', 'uncollectible'].includes(current.status) || ['unpaid', 'canceled', 'incomplete_expired'].includes(sub.status) ? 'lapsed' : 'waiting'
@@ -34,6 +37,7 @@ export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, in
   summary: state === 'recovered' ? 'Monthly gift recovered at Stripe; the paid gift is recorded.' : state === 'lapsed' ? 'Monthly gift lapsed at Stripe.' : 'Failed monthly gift is waiting on Stripe recovery.',
   why: `Current Stripe invoice and subscription state: ${current.status}; ${sub.status}. Stripe owns the retry schedule.`,
  })
+ if (state === 'lapsed') await exhaustedTask(c,current.id,sub.id)
  if (state !== 'waiting' || previous?.state === 'recovered') return
  // One atomic claim across duplicate events and concurrent Worker instances.
  // A crash after the claim is deliberately visible as uncertain; sending again
@@ -53,7 +57,7 @@ export async function recoveryData(c: Context) {
  const rows = await all(c, `SELECT r.*,s.donor_id,d.name AS donor_name,s.amount_cents,s.status AS subscription_status
   FROM cf_agent_recovery r JOIN cf_subscriptions s ON s.id=r.subscription_id JOIN cf_donors d ON d.id=s.donor_id
   WHERE d.erased_at IS NULL ORDER BY CASE r.state WHEN 'waiting' THEN 0 WHEN 'lapsed' THEN 1 ELSE 2 END,r.last_checked_at DESC LIMIT 100`)
- return { enabled: settings?.enabled === 1, lastRunAt: settings?.last_run_at ?? null, rows }
+ return { enabled: settings?.enabled === 1, lastRunAt: settings?.last_run_at ?? null, rows, expiryNotices: await cardExpiryNotices(c) }
 }
 
 /** Daily/manual reconciliation only: never creates an invoice or attempts a charge. */
@@ -80,6 +84,7 @@ export async function runRecovery(c: Context, env: GivingEnv) {
    const latest = stripeId(current.latest_invoice)
    if (latest) ids.add(latest)
    for (const id of ids) { await invoice(env, id); result.checked++ }
+   await checkCardExpiry(c,env,current)
   } catch {
    result.errors++
    await action(c, { kind: 'recovery.reconcile_failed', subjectId: sub.id, summary: 'Stripe recovery reconciliation failed.', why: 'Provider state could not be verified. No extra charge or replacement gift was created. The next scheduled run can reconcile again.' })
@@ -101,4 +106,16 @@ export async function recoveryAction(c: Context, _env: GivingEnv, input: Row) {
  await commit(c, [guard('EXISTS(SELECT 1 FROM cf_agent_recovery_settings WHERE id=1 AND enabled=?)', 'RECOVERY_CHANGED', 'The recovery schedule changed. Refresh and try again.', previous?.enabled),
   sql('UPDATE cf_agent_recovery_settings SET enabled=? WHERE id=1', enabled), recorded.statement, event(c, `recovery.${requested}`, 'agent', 'recovery-schedule', null)])
  return { enabled: Boolean(enabled) }
+}
+
+/** A current relationship manager owns follow-up; otherwise the installation owner. */
+async function exhaustedTask(c: Context, invoiceId: string, subscriptionId: string) {
+ const taskId=newId(), day=today((await cofferSettings(c)).timezone,new Date(c.now))
+ const owner=`COALESCE((SELECT o.id FROM cf_portfolio_members m JOIN cf_portfolios p ON p.id=m.portfolio_id JOIN oa_operators o ON o.id=p.manager_id WHERE m.donor_id=s.donor_id AND o.status='active' AND o.role IN ('owner','admin','member')),(SELECT id FROM oa_operators WHERE role='owner' AND status='active' ORDER BY id LIMIT 1))`
+ await commit(c,[sql(`INSERT OR IGNORE INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at)
+  SELECT ?,s.donor_id,?,'recovery','Stripe retries exhausted; review the monthly gift with its donor.',s.amount_cents,${owner},?,?
+  FROM cf_subscriptions s JOIN cf_donors d ON d.id=s.donor_id WHERE s.id=? AND d.erased_at IS NULL
+  AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id) AND ${owner} IS NOT NULL`,taskId,'recovery:'+invoiceId,day,c.now,subscriptionId),
+  sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
+   SELECT ?,?,?,?,'recovery.task_created','task',id,donor_id,'{}' FROM cf_call_tasks WHERE id=?`,c.now,c.actor.id,c.actor.name,c.actor.role,taskId)])
 }
