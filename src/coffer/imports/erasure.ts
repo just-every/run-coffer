@@ -62,7 +62,7 @@ export async function erase(db: D1Database, actor: ImportActor, donorId: string,
   if (actor.role !== 'owner') reject('FORBIDDEN', 'Only the owner can erase a donor.', 403)
   if (!Array.isArray(integration?.nativeStatements) || !Array.isArray(integration.checkpoint) || !integration.checkpoint.length)
     reject('IMPORT_ERASURE_FENCE', 'Native cleanup SQL and a portability redaction checkpoint are required.')
-  const donor = await db.prepare('SELECT id,email,source_ref,erased_at FROM cf_donors WHERE id=?').bind(donorId).first<{ id: string; email: string | null; source_ref: string | null; erased_at: string | null }>()
+  const donor = await db.prepare('SELECT id,email,source_ref,erased_at,version FROM cf_donors WHERE id=?').bind(donorId).first<{ id: string; email: string | null; source_ref: string | null; erased_at: string | null; version:number }>()
   if (!donor) reject('NOT_FOUND', 'That donor does not exist.', 404)
   if (donor.erased_at) reject('ALREADY_ERASED', 'This donor has already been erased.')
   const context = importContext(db, actor, authority)
@@ -79,7 +79,7 @@ export async function erase(db: D1Database, actor: ImportActor, donorId: string,
       SELECT ?,?,?,?,'household.erase','household',id,NULL,json_object('oldHead',head_donor_id,'newHead',CASE WHEN head_donor_id=? THEN NULL ELSE head_donor_id END,'overridesSet',json('[]'),'overridesCleared',json('["addressee","formal","informal"]'),'membershipChanged',json('true'))
       FROM cf_households WHERE id=(SELECT household_id FROM cf_donors WHERE id=?) OR head_donor_id=?`,new Date().toISOString(),actor.id,actor.name,actor.role,donorId,donorId,donorId),
   ]
-  const fence = guard(sql('EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL)', donorId))
+  const fence = guard(sql('EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND erased_at IS NULL)', donorId, donor.version))
   if (!await db.prepare('SELECT 1 FROM ik_jobs WHERE destination=? LIMIT 1').bind(destination).first()) {
     // Nothing was ever imported: there is no kit custody to rewrite. The same
     // portability checkpoint still refuses an older archive.

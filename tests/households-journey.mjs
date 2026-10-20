@@ -6,7 +6,7 @@ const facts=h=>({gifts:h.gifts,pledges:h.pledges,credits:h.giftDepth,consents:h.
 export async function householdsJourney(h) {
  await reviewed(h)
  const member=await h.person('household-entry@example.test'),admin=await h.person('household-admin@example.test','admin')
- const robert=await donor(h,'Robert Smith',{household:'Robert and Jane Smith'}),jane=await donor(h,'Jane Smith',{household:'Robert and Jane Smith'}),sam=await donor(h,'Sam Rivers'),sponsor=await donor(h,'Community DAF Sponsor'),duplicate=await donor(h,'Jane S Smith')
+ const robert=await donor(h,'Robert Smith',{household:'Robert and Jane Smith'}),jane=await donor(h,'Jane Smith',{household:'Robert and Jane Smith'}),sam=await donor(h,'Sam Rivers',{household:'Rivers household'}),sponsor=await donor(h,'Community DAF Sponsor'),duplicate=await donor(h,'Jane S Smith')
  const hid=(await history(h,robert.id)).donor.household_id
  const state=(suffix='',options={})=>h.get('/api/coffer/households/'+hid+suffix,options)
  const update=async(input={},options={})=>h.command('household.update',{householdId:hid,version:(await state()).household.version,...input},options)
@@ -43,13 +43,13 @@ export async function householdsJourney(h) {
  await h.command('pledge.create',{donorId:jane.id,amount:'500',pledgedOn:'2025-01-01',fund:'Library',installments:[{dueOn:'2027-01-01',amount:'500'}]})
  await h.command('match.record',{giftId:A.id,employerDonorId:sponsor.id,amount:'100',expectedBy:'2027-01-01'})
  const beforeR=facts(await history(h,robert.id)),beforeJ=facts(await history(h,jane.id))
- const oldAudit=(await h.get('/api/coffer/audit')).rows
+ const oldAudit=(await h.get('/api/coffer/audit?action=donor.create')).rows
  const stale=(await state()).household.version
  await update({headDonorId:jane.id},{as:member.cookie})
  await h.command('household.update',{householdId:hid,version:stale,headDonorId:robert.id},{status:409})
  assert.deepEqual(facts(await history(h,robert.id)),beforeR)
  assert.deepEqual(facts(await history(h,jane.id)),beforeJ)
- assert.deepEqual((await h.get('/api/coffer/audit')).rows.filter(r=>oldAudit.some(o=>o.id===r.id)),oldAudit)
+ assert.deepEqual((await h.get('/api/coffer/audit?action=donor.create')).rows,oldAudit)
  const audit=(await h.get('/api/coffer/audit?action=household.update&record='+hid)).rows[0]
  assert.equal(audit.actor_role,'member');assert.equal(audit.actor_id,member.id)
  assert.deepEqual([JSON.parse(audit.detail).oldHead,JSON.parse(audit.detail).newHead],[null,jane.id])
@@ -69,6 +69,8 @@ export async function householdsJourney(h) {
  await h.command('household.defaults',{version:preview.defaults.version,affectedCount:preview.affected.length+1,addressee:'{{full_names}}',formal:'Dear {{formal_names}}',informal:'Hello {{first_names}}'},{status:409})
  await h.command('household.defaults',{version:preview.defaults.version,affectedCount:preview.affected.length,addressee:'{{full_names}}',formal:'Dear {{formal_names}}',informal:'Hello {{first_names}}'})
  assert.equal((await state()).names.informal,'  Bob and Jane  ')
+ const samHousehold=(await history(h,sam.id)).donor.household_id
+ assert.equal((await h.get('/api/coffer/households/'+samHousehold)).names.informal,'Hello Sam Rivers')
  const statement=await h.command('ack.prepareStatements',{year:2025,householdId:hid})
  assert.deepEqual([statement.letters,statement.totalCents],[1,140000])
  let piece=(await h.get('/api/coffer/letters/'+statement.id)).letters[0]

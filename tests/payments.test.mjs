@@ -22,7 +22,7 @@ async function deliver(h,id,type,objectId,{bad=false}={}) {
  return h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'stripe-signature':`t=${timestamp},v1=${sig}`},body:raw})
 }
 
-test('FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds, disputes, receipts and fees reconcile and post once after approval',async()=>{
+test('DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds, disputes, receipts and fees reconcile and post once after approval',async()=>{
  let proposal=null,submissions=0,evidenceHash='',approved=false,providerCalls=0
  const outbound=async request=>{
   providerCalls++
@@ -70,6 +70,10 @@ test('FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds,
   for(const c of [a,b])assert.equal((await deliver(h,'evt_'+c.id,'charge.succeeded',c.id)).status,200)
   const donors=(await h.get('/api/coffer/donors')).donors,maria=donors.find(d=>d.email==='maria@example.test')
   const before=await h.get('/api/coffer/donors/'+maria.id),original=before.gifts[0]
+  await h.command('donor.update',{donorId:maria.id,version:before.donor.version,name:before.donor.name,email:before.donor.email,household:'Maria household'})
+  const householdId=(await h.get('/api/coffer/donors/'+maria.id)).donor.household_id
+  const household=()=>h.get('/api/coffer/households/'+householdId)
+  assert.equal((await household()).totals.moneyCents,10000)
   assert.equal(original.amount_cents,10000)
   const recognized=donors.find(d=>d.email==='jonah@example.test')
   await h.command('softCredit.record',{giftId:original.id,donorId:recognized.id,amount:'100'})
@@ -79,6 +83,7 @@ test('FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds,
   for(const event of ['evt_refund','evt_refund','evt_refund_other_id'])assert.equal((await deliver(h,event,'refund.created',refund.id)).status,200)
   const after=await h.get('/api/coffer/donors/'+maria.id)
   assert.equal(after.totals.lifetimeCents,7500)
+  assert.equal((await household()).totals.moneyCents,7500,'DONOR-003: refund reduces one ledger gift, with no duplicate adjustment gift')
   assert.equal(after.pledges[0].remaining_cents,2500)
   assert.equal((await h.get('/api/coffer/donors/'+recognized.id)).giftDepth.recognitionCents,7500)
   assert.deepEqual(after.gifts.find(g=>g.id===original.id),{...original,reversed_by:null},'The original gift is immutable')
@@ -163,9 +168,12 @@ test('FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds,
   assert.equal((await empty.text()).trim().split('\r\n').length,1,'An empty period has a readable header and no deposits')
   // A dispute and its win are new financial lines, even after an older payout.
   assert.equal((await deliver(h,'evt_disputed','charge.dispute.created',dispute.id)).status,200)
+  assert.equal((await household()).totals.moneyCents,2500,'DONOR-003: dispute reduces the same gift balance')
   dispute.balance_transactions.push({id:'txn_dispute_won',type:'adjustment',source:'dp_reading',amount:5000,fee:-1500,net:6500,currency:'usd',created:at})
   assert.equal((await deliver(h,'evt_won','charge.dispute.closed',dispute.id)).status,200)
   assert.equal((await h.get('/api/coffer/donors/'+maria.id)).totals.lifetimeCents,7500)
+  assert.equal((await household()).totals.moneyCents,7500,'DONOR-003: won-dispute reinstatement counts once')
+  assert.equal((await household()).totals.gifts.length,1)
   assert.equal((await h.get('/api/coffer/payments/'+payout.id)).payout.matched_cents,12005)
   const allFees=await h.get('/api/coffer/payments/fees')
   assert.deepEqual(allFees.unmatched,{gross_cents:0,fee_cents:0,net_cents:0},'A dispute and its win cancel while remaining visible as unmatched lines')
