@@ -152,3 +152,9 @@ test('stewardship uses real cited records, protects the key, and only sends an e
   return Response.json({ stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify(output)}] })
  } })
 })
+
+// DEV-006 shares this existing test file to keep the seed's test-file budget.
+test('DEV-006: schedule, day-ahead source-linked brief, existing research boundaries and custody',async()=>{
+ const {meetingBriefJourney}=await import('./meeting-briefs-journey.mjs')
+ await meetingBriefJourney()
+})

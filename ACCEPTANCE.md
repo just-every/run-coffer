@@ -16,8 +16,8 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 44 | 45 | 37 | 126 |
-| All | 53 | 45 | 37 | 135 |
+| Target and push further | 46 | 46 | 34 | 126 |
+| All | 55 | 46 | 34 | 135 |
 
 ## Target
 
@@ -190,7 +190,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 123. **`DEV-003` Sends missing receipts** (partial). An HTTP journey seeds overdue and bounced receipts, runs the agent, sees standard ones sent under the standing approval and the unusual ones queued for a person with reasons; after the `MOVE-002` fixture import, the agent proposes nothing for the gifts imported as acknowledged or do not acknowledge, nor for a not-acknowledged gift older than the acknowledge-from date.
 124. **`DEV-004` Drafts stewardship from the nonprofit's own history** (partial). An HTTP journey with the model edge faked drafts touches for three donors; every claim in each draft links to a record, a draft citing a non-existent fact is rejected by the check, a draft that asks a do-not-solicit donor for a gift is rejected too, and nothing is sent until a fundraiser approves.
 125. **`DEV-005` Shows who needs a human call next** (partial). An HTTP journey builds a history with lapsing, upgrading and silent donors and a manager with a capacity of 5; the agent creates 5 ranked call tasks with reasons and lists the rest as overflow; a do-not-solicit donor with upgrade signals gets no ask task and appears only as a thank-you call marked not an ask; 3 calls are logged, 2 of those donors give within N days, the fiscal year closes, and the per-donor table reads call made, gift within N days and retained for every listed donor, with called and uncalled retention rates that match a hand calculation.
-126. **`DEV-006` Briefs before a meeting** (missing). An HTTP journey schedules a meeting, receives the brief a day ahead, and checks every line against its linked record and that a data-entry user's brief omits research.
+126. **`DEV-006` Briefs before a meeting** (partial). `tests/stewardship.test.mjs` runs the DEV-006 public-door journey in `tests/meeting-briefs-journey.mjs`: scheduling/cancellation, exact 24-hour readiness and repeated scheduler ticks, every current API line resolving to its source, data-entry omission of stored research, current giving after reversals, and merge/undo/archive/erasure custody. Printable one-page delivery and explicit open-question tracking remain. An HTTP journey schedules a meeting, receives the brief a day ahead, and checks every line against its linked record and that a data-entry user's brief omits research.
 127. **`DEV-007` Proves the move-in and the cutover** (partial). An HTTP journey imports a fixture with gaps and a non-adoptable plan, runs the agent, reads the exception list and drafted campaign, re-authorizes the plan and records the owner's cutover.
 128. **`DEV-008` Keeps the database clean** (missing). An HTTP journey seeds duplicates, a returned letter and a missing salutation, runs the agent, and reads proposals that change nothing until accepted and then appear in the audit log.
 129. **`DEV-009` Confirms appeals actually reached donors** (partial). An HTTP journey with the Mailchimp edge faked sends an appeal where five recipients were dropped, runs the agent, and reads the five flagged with a prepared resend for approval. The clause-named `tests/agent-appeals.test.mjs` also runs native welcome steps, checks unsent/bounced/unknown/handoff results against frozen destinations, prepares a separate saved-message resend for human approval, refuses withdrawn or stale consent, preserves original history and asserts no automatic sends. The results and prepared audience run at 1440/390 in `tests/agent-appeals-browser.mjs`. Mango sender results and journey response binding remain outstanding.

@@ -39,3 +39,11 @@ Open Development agent → Appeal delivery, select an approved appeal and check 
 Prepare resend creates a separate audience containing only confirmed not-sent recipients, rejected submissions and bounces, with current consent checked again. It retains the original message template; current giving figures are frozen in the new proposal. A person reviews and approves before sending. Repeated preparation opens the existing proposal; discard that proposal to prepare again. The new run has its own response code and report. Original messages and results stay in history. Suppressed and uncertain submissions are held, never automatically resent. Recipients with no submission yet continue through the original approved send, preventing a parallel resend.
 
 Mango list membership does not establish sending. Mango sender-result ingestion, journey gift-response binding and journey resend proposals remain unbuilt; journey results are displayed with those limits.
+
+## Meeting-brief API (DEV-006, partial)
+
+Signed-in staff use `POST /api/coffer/commands` with `meeting.schedule` and input `{donorId, startsAt}`. `startsAt` is a future canonical UTC timestamp, for example `2030-02-02T12:00:00.000Z`. `meeting.cancel` takes the returned `id` and current `version`; stale cancellation is refused.
+
+`GET /api/coffer/meetings` lists metadata. The minute scheduler makes `GET /api/coffer/meetings/{id}/brief` available starting 24 elapsed hours before the meeting. It returns exact live giving summary, ten recent interactions, relationships, open pledges and open opportunities, with a source HTTP URL, JSON pointer and collection record ID per line. It includes existing stored research only for owner/admin readers, under the existing research permission. No model is called, capacity is never inferred, and no email is sent. Cancelled meetings have no readable brief.
+
+This is an API slice: printable one-page delivery and tracking unresolved questions from the previous meeting remain unbuilt, so DEV-006 stays partial. `tests/meeting-briefs-journey.mjs`, invoked by the clause-named test in `tests/stewardship.test.mjs`, asserts the shipped slice and its custody.

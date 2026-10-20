@@ -1,3 +1,4 @@
+import { meetings, meetingBrief } from './meeting-briefs'
 import { documentsResponse } from './documents-http'
 import { cleanDocumentUploads, purgeDocuments } from './documents'
 import { notificationDownload } from './tribute-notifications'
@@ -381,6 +382,9 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if(url.pathname==='/api/coffer/meetings')return json(await meetings(c))
+ const meeting=url.pathname.match(/^\/api\/coffer\/meetings\/([^/]+)\/brief$/)
+ if(meeting)return json(await meetingBrief(c,decodeURIComponent(meeting[1])))
  if (url.pathname === '/api/coffer/recurring-tasks') return json(await recurringTasks(c,url.searchParams.get('owner')))
  if (url.pathname === '/api/coffer/duplicates') return json(await likelyDuplicates(c,{donorId:url.searchParams.get('donorId'),page:Number(url.searchParams.get('page'))||0}))
  if (url.pathname === '/api/coffer/duplicates/compare') return json(await compareDonors(c,url.searchParams.get('source')??'',url.searchParams.get('target')??''))
