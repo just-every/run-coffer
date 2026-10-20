@@ -4,6 +4,7 @@ import {withBrowserWorker} from './browser-worker.mjs'
 
 export async function householdsBrowser(h,{donorId,householdId,statementId,directory,phase='selected'}) {
  await mkdir(directory,{recursive:true})
+ const original=householdId?(await h.get('/api/coffer/households/'+householdId)).household.informal_override:null
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
   for(const width of [1440,390]) {
@@ -28,4 +29,5 @@ export async function householdsBrowser(h,{donorId,householdId,statementId,direc
   }
   await page.close()
  })
+ if(phase==='selected'){const state=await h.get('/api/coffer/households/'+householdId);await h.command('household.update',{householdId,version:state.household.version,informal_override:original})}
 }
