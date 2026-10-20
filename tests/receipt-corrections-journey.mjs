@@ -163,6 +163,7 @@ export async function receiptCorrectionsJourney() {
      await page.getByRole('link',{name:'Print this letter / save PDF',exact:true}).click()
      await capture('print',width)
      await page.goto(origin+'/app/donors/'+cash.id)
+     await page.setViewportSize({width,height:2400})
      const propertyPanel=page.locator('#in-kind-'+property.id);await propertyPanel.waitFor()
      for(const summary of await propertyPanel.getByText('Read property acknowledgment',{exact:true}).all())await summary.click()
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
