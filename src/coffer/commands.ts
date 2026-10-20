@@ -30,6 +30,7 @@ import { giftCommand } from './gifts'
 import { ackCommand } from './acknowledgements'
 import { appealCommand } from './appeals'
 import { settingsCommand } from './settings'
+import { letterTemplateCommand } from './letter-templates'
 import { deliveryCommand } from './letter-delivery'
 import { prepareStatements } from './year-end'
 
@@ -54,7 +55,7 @@ export const ACCESS: Record<string, Role[]> = {
  'softCredit.acknowledge': STAFF, 'softCredit.resetAcknowledgment': STAFF, 'softCredit.doNotAcknowledge': MANAGERS,
  'softCredit.record': STAFF, 'softCredit.remove': STAFF, 'tribute.record': STAFF, 'match.record': STAFF, 'match.receive': STAFF,
  'pledge.remind': STAFF, 'pledge.match': STAFF, 'pledge.reduce': STAFF, 'pledge.writeOff': STAFF, 'pledge.linkPlan': STAFF,
- 'gift.reverse': MANAGERS, 'gift.classify': MANAGERS, 'settings.update': MANAGERS,
+ 'gift.reverse': MANAGERS, 'gift.classify': MANAGERS, 'settings.update': MANAGERS, 'letterTemplate.save': MANAGERS, 'letterTemplate.retire': MANAGERS,
  'ack.prepareStatements': MANAGERS, 'ack.send': MANAGERS, 'ack.checkDelivery': MANAGERS, 'ack.printed': MANAGERS, 'ack.prepare': PREPARERS, 'ack.approve': MANAGERS, 'ack.discard': MANAGERS, 'ack.export': MANAGERS, 'ack.markSent': MANAGERS,
  'marketing.sync': MANAGERS, 'marketing.connectMango': MANAGERS, 'marketing.connectMailchimp': MANAGERS, 'marketing.chooseAudience': MANAGERS, 'marketing.check': MANAGERS, 'marketing.disconnect': MANAGERS, 'marketing.refresh': MANAGERS, 'appeal.send': MANAGERS, 'welcome.publish': MANAGERS, 'welcome.run': MANAGERS, 'reply.complete': STAFF, 'reply.proposeStop': STAFF, 'reply.confirmStop': STAFF, 'reply.reverseStop': STAFF,
  'appeal.prepare': PREPARERS, 'appeal.approve': MANAGERS, 'appeal.discard': MANAGERS, 'appeal.export': MANAGERS, 'appeal.markSent': MANAGERS,
@@ -72,7 +73,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'donor.unmerge') return undoMerge(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [letterTemplateCommand, dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) {
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }

@@ -67,6 +67,12 @@ export async function pledgeBalancesJourney(){
   edge.invoice='in_pledge_2';await send(h,'evt_pledge_two','invoice.paid',edge.invoice)
   p=await current();assert.equal(p.remaining_cents,0);assert.equal(p.paid_cents,1050000);assert.equal(p.allocations.reduce((n,a)=>n+a.amount_cents,0),1050000);assert.equal((await h.get('/api/coffer/giving/campaigns/'+campaign.id)).pledgedOutstandingCents,0)
   assert.deepEqual((await h.get('/api/coffer/letters/'+receipt.id)).letters,issued,'Pledge adjustments and payments never alter issued gift receipts')
+  // RCPT-007: only a plan's first installment uses the recurring-start template.
+  const start=await h.command('letterTemplate.save',{kind:'recurring_start',name:'Monthly welcome',subject:'Welcome to monthly giving',body:'MONTHLY Dear {{donor_name}}, {{amount}} on {{gift_date}}. {{goods_statement}} {{organization}} EIN {{ein}}'})
+  const installments=(await h.get('/api/coffer/donors/'+ana.id)).gifts.filter(g=>/^in_pledge_/.test(g.reference??'')).sort((x,y)=>x.reference.localeCompare(y.reference))
+  const monthly=await h.command('ack.prepare',{giftIds:installments.map(g=>g.id)}),settingsVersion=(await h.get('/api/coffer/settings')).version
+  assert.deepEqual((await h.get('/api/coffer/letters/'+monthly.id)).letters.map(l=>[l.gift_id,l.template_kind,l.template_id,l.template_version]),[[installments[0].id,'recurring_start',start.id,1],[installments[1].id,'default',null,settingsVersion]])
+  await h.command('ack.discard',{batchId:monthly.id,version:1})
   const cash=(await h.get('/api/coffer/donors/'+ana.id)).totals.lifetimeCents;assert.equal(cash,1100000)
   const saved=await archive(h)
   await run(async fresh=>{await restore(fresh,saved);const restored=(await fresh.get('/api/coffer/donors/'+ana.id)).pledges.find(x=>x.id===p.id);assert.deepEqual(restored,p)})

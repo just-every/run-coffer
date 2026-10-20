@@ -270,6 +270,8 @@ Gifts of publicly traded securities (shares, symbol, transfer date, the mean of 
 
 Before new stock, DAF or IRA contribution classifications ship, their actual monetary/noncash values and classifications feed REPORT-007 contributor selection, five-year donor totals and noncash working papers once, preserving the distinction between recorded and accountant-verified values.
 
+Before these gift types ship, their acknowledgments inherit `RCPT-007` template selection, required-fact checks and version recording.
+
 *Acceptance:* An HTTP journey records one of each, reads the right hard and soft credits, and checks each acknowledgment's wording, including the absence of deductibility language on the DAF grant. The same journey must also assert REPORT-007 contributor, five-year and noncash totals for these new contribution kinds, with no cash/noncash or sponsor/advisor double counting.
 
 #### GIFT-011 — Anonymous gifts and recognition names.
@@ -295,6 +297,8 @@ Before this capability ships, its campaign membership and progress inherit `CAMP
 Independent giving forms inherit `REPORT-003` actual form provenance and financial reporting before shipping.
 
 Before this capability ships, it inherits PAY-004 actual processing-fee recording, full paid receipt amounts, optional fee-cover agreement and honest fund/form/campaign provenance and reconciliation.
+
+Before independent forms ship, they inherit `RCPT-007` form templates, precedence and version recording.
 
 *Acceptance:* A browser journey builds a form with a custom question, embeds it on a test page, and gives $50 at 1440 and 390 pixels with the Stripe edge in test mode; the gift, donor, consent answer, custom-field answer and receipt appear in Coffer, and an axe check of the form passes; a timing run of the hosted form under the stated profile (CDP network emulation and `Emulation.setCPUThrottlingRate` 4) records a median of five cold loads under one second to input-ready and under two seconds to payment-field-ready. The journey also asserts its PAY-004 fees, charged receipt amounts and report provenance.
 
@@ -532,7 +536,13 @@ Before tracked opens ship, their actual events join the DONOR-004 timeline and t
 
 Admins keep several reviewed templates: per form and campaign, first gift, recurring start, major gift, tribute, in-kind and year-end. Each template is checked for the required receipt facts before it can be used, merges the fields `RCPT-010` lists, and its version is recorded with every message sent.
 
-*Acceptance:* An HTTP journey saves a first-gift template, refuses one missing the goods-or-services statement, gives a first and a second gift, and reads the different templates and their versions on each receipt.
+Until a separate template role exists, the owner and admins save, edit and retire templates; members and agents cannot. At most one template of each kind is active, and one per form or campaign for form and campaign templates. Hosted campaign pages are today's giving forms, so a form or campaign template applies to gifts recorded with that campaign or given through that page. A gift letter or online receipt uses the first active template that applies, in this order: form or campaign; tribute (the gift has an honor or memory record); major gift (gift amount at or above the template's minimum, inclusive); first gift (no earlier unreversed gift from the same donor, ordered by received date, then entry time); recurring start (the first installment recorded for a recurring plan); otherwise the reviewed settings letter. Property acknowledgments use the in-kind template and year-end statements the year-end template when one is active, otherwise their built-in wording.
+
+Gift templates must include the donor name, amount, gift date, goods-or-services statement, organization and EIN. In-kind templates must include the donor name, gift date, property description, goods-or-services statement, organization and EIN, and cannot merge an amount or value. Year-end templates must include the donor name, year, itemized gift list, total, goods total, deductible total, goods-or-services statement, organization and EIN. Every letter, receipt, statement and property acknowledgment stores the template kind, ID and version it used; the settings letter and built-in wording record the settings version. Saving or retiring a template raises its version and keeps every earlier version; letters already prepared keep their frozen wording, and a template change during preparation refuses the batch.
+
+`RCPT-010` field additions, `GIVE-001` independent giving forms and `GIFT-010` stock, DAF and IRA gift types inherit this required-fact check, precedence and version recording before they ship.
+
+*Acceptance:* An HTTP journey saves a first-gift template, refuses one missing the goods-or-services statement, gives a first and a second gift, and reads the different templates and their versions on each receipt. The clause-named journeys also assert the form or campaign, tribute, inclusive major-gift, first-gift and recurring-start precedence, in-kind and year-end templates, role, stale and duplicate refusals, retirement, and recorded versions after archive and restore.
 
 #### RCPT-008 — Corrected and voided receipts.
 
@@ -549,6 +559,8 @@ Every print and mail run (a mail appeal file or Lob send under `COMM-007`, an ac
 #### RCPT-010 — Merge fields in every template.
 
 Every template that renders donor-facing text merges from one published list of fields, each written `{{field}}`. That covers receipts and acknowledgments (`ACK-001`, `RCPT-001`, `RCPT-002`, `RCPT-007`), year-end statements (`RCPT-004`), single letters and mail files (`RCPT-003`, `COMM-007`), and journey and pledge-reminder emails (`STEW-003`, `STEW-004`). The list holds: prefix, first, middle and last name, suffix, nickname, informal and formal salutation and envelope name (`DONOR-014`); recognition name (`GIFT-011`); household addressee and salutations (`DONOR-003`), used in place of the person's on a household piece (`RCPT-009`); the primary or chosen email and postal address (`DONOR-013`); gift amount, date, fund, campaign, appeal, deductible amount, goods statement, tribute and soft-credit names; giving summary figures (`DONOR-011`); organization name and EIN; and every custom field on the constituent, gift or interaction as `{{custom.<field key>}}` (`DONOR-005`). The template editor lists the fields and inserts them, and a template naming an unknown field is refused on save. A salutation or name field that is empty on a record falls back to the formal salutation, then to an admin-set greeting ("Friend"), never to a blank; any other field may carry a default in the template (`{{custom.board_term|our board}}`), and before a batch is approved Coffer lists every record that would still print a blank. The same list is the merge-field set synced to Mango, Mailchimp and Constant Contact (`COMM-002`, `COMM-003`).
+
+Before new fields ship, every `RCPT-007` template kind accepts them under the same required-fact check and records its version on each message.
 
 *Acceptance:* An HTTP journey reads the published field list from the API; saves a template using `{{informal_salutation}}`, `{{envelope_name}}`, `{{household_addressee}}` and a custom constituent field with a default; refuses a template with an unknown field; renders a batch in which a donor lacking the custom field gets the template default and a donor lacking an informal salutation gets the formal one; and reads the pre-approval list naming a record whose field without a default is empty.
 
@@ -1089,8 +1101,8 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | ---: | --- | --- | --- |
 | 1 | Coffer takes donations | `GIVE-001`, `GIVE-003`, `GIVE-004` | partial |
 | 2 | keeps every donor's story | `DONOR-001`, `DONOR-004` | `DONOR-001` done · `DONOR-004` done |
-| 3 | sends the receipts | `ACK-001`, `RCPT-001`, `RCPT-002` | `ACK-001` partial · `RCPT-001` partial · `RCPT-002` done |
-| 4 | and thank-yous | `RCPT-002`, `RCPT-007` | `RCPT-002` done · `RCPT-007` partial |
+| 3 | sends the receipts | `ACK-001`, `RCPT-001`, `RCPT-002` | `ACK-001` done · `RCPT-001` partial · `RCPT-002` done |
+| 4 | and thank-yous | `RCPT-002`, `RCPT-007` | `RCPT-002` done · `RCPT-007` done |
 | 5 | shows who needs a call | `DEV-005`, `REPORT-002` | partial (core claim implemented; broader clauses remain) |
 | 6 | 100% free, open source alternative to Bloomerang, Little Green Light and Neon CRM | `OWN-001`, `MOVE-001`, `MOVE-002`, `MOVE-004` | `OWN-001` done · `MOVE-001` partial · `MOVE-002` partial · `MOVE-004` missing |
 | 7 | Spring appeal $48,210 of $60,000, gifts and recurring donors | `CAMP-001`, `REPORT-003` | `CAMP-001` done · `REPORT-003` done |
@@ -1155,8 +1167,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 38 | 49 | 39 | 126 |
-| All | 47 | 49 | 39 | 135 |
+| Target and push further | 39 | 48 | 39 | 126 |
+| All | 48 | 48 | 39 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1224,7 +1236,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `RCPT-004` | Year-end giving statements | target | partial | `src/coffer/year-end.ts`, `tests/receipts.test.mjs` | Per-donor calendar-year statements itemize all unreversed gifts including imported gifts, goods values and deductible totals, then use approved email or print delivery. Unknown goods answers require review. Portal requests, automatic January scheduling, household grouping, deceased-recipient rules and corrected reissues remain unbuilt. |
 | `RCPT-005` | US receipt rules | target | done | `src/coffer/receipt-rules.ts`, `src/coffer/settings.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/in-kind.ts`, `migrations/core/0057_coffer_receipt_rules.sql`, `tests/receipts.test.mjs`, `tests/receipt-rules-journey.mjs`, `tests/receipt-rules-browser.mjs` |  |
 | `RCPT-006` | Delivery tracking | target | partial | `src/coffer/letter-delivery.ts`, `tests/receipts.test.mjs` | Signed SendGrid delivered, bounce, dropped and complaint events are recorded per letter, deduplicated and shown on donor and batch; negative results route the donor to print. Configure the signed provider webhook and verification key, or explicitly fetch events with SendGrid Email Logs access. Open tracking, address-fix tasks and print-vendor events remain unbuilt. |
-| `RCPT-007` | Thank-you templates | target | partial | `src/coffer/settings.ts`, `tests/coffer.test.mjs` | One reviewed letter template with required facts exists; no templates per form, campaign or gift type. |
+| `RCPT-007` | Thank-you templates | target | done | `src/coffer/letter-templates.ts`, `src/coffer/ui/letter-templates.ts`, `migrations/core/0071_coffer_letter_templates.sql`, `tests/letter-templates-journey.mjs`, `tests/receipts.test.mjs`, `tests/pledge-balances-journey.mjs` |  |
 | `RCPT-008` | Corrected and voided receipts | target | missing |  | No receipt numbering, voiding or reissue. |
 | `RCPT-009` | One piece per household | target | missing |  | Letters and appeal exports are one row per gift or per donor; no household grouping, addressee or combined totals. |
 | `RCPT-010` | Merge fields in every template | target | partial | `src/coffer/settings.ts`, `tests/coffer.test.mjs` | Letter templates merge a fixed list of nine fields (date, donor name, amount, gift date, fund, goods statement, organization, EIN, deductible amount) and are refused for unknown, missing required or unclosed fields; no name parts, salutations, household, contact-point, giving-summary or custom fields, no fallbacks, field list API or blank check. |

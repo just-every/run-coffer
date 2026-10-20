@@ -87,6 +87,7 @@ import { lettersPage, batchPage } from './ui/letters'
 import { appealsPage, appealPage } from './ui/appeals'
 import { connectPage } from './communications/connect-ui'
 import { morePage, settingsPage, dataPage } from './ui/more'
+import { letterTemplates } from './letter-templates'
 import { moveInPage, previewPage, journalPage } from './ui/move-in'
 
 const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' }
@@ -320,6 +321,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command === 'agent.revoke') return redirect('/app/data')
  if (command === 'dashboard.goal') return redirect('/app/reports/dashboard?year='+encodeURIComponent(String(input.year))+'#goals')
  if (command === 'settings.update') return redirect('/app/settings?saved=1')
+ if (command.startsWith('letterTemplate.')) return redirect('/app/settings?saved=1#thank-you-templates')
  if (command === 'donor.create') return redirect(`/app/donors/${result.id}`)
  if (input.returnDonorId) return redirect(`/app/donors/${encodeURIComponent(input.returnDonorId)}`)
  if (command === 'donor.erase') return redirect(`/app/donors/${result.donorId}`)
@@ -423,6 +425,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/reports/attribution') return json(await attributionReport(c,url))
  if (path === '/api/coffer/reports/states.csv') return download(stateReportCsv(await stateReport(c,url)),'coffer-giving-by-state')
  if (path === '/api/coffer/settings') return json(await settings(c))
+ if (path === '/api/coffer/letter-templates') return json({ templates: await letterTemplates(c) })
  return fail('not_found', 'Not found.', 404)
 }
 async function lettersFile(c: Context, batchId: string) {

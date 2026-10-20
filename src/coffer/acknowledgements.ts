@@ -1,7 +1,8 @@
 import { withReceiptBenefits } from './receipt-rules'
 import { receiptFundLabels } from './gift-splits'
 import { addDays, all, choice, commit, date, daysBetween, event, fail, guard, id, integer, newId, one, sha256, sql, today, type Context, type Row } from './db'
-import { renderLetter, settings } from './settings'
+import { settings } from './settings'
+import { giftTemplates, renderGiftLetter, templateRevision, templatesUnchanged } from './letter-templates'
 import { csv } from './csv'
 import { tributeReceiptText } from './gift-depth'
 
@@ -40,19 +41,19 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
   if (!chosen.length) fail('NOTHING_DUE', 'No gifts are waiting for an acknowledgement letter.')
   const donors = new Map((await all(c, 'SELECT * FROM cf_donors WHERE id IN (SELECT value FROM json_each(?))', JSON.stringify([...new Set(chosen.map(g => g.donor_id))]))).map(d => [d.id, d]))
   const tributes = new Map((await all(c, 'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))', JSON.stringify(chosen.map(g => g.id)))).map(t => [t.gift_id, t]))
-  const batchId = newId()
+  const batchId = newId(), revision = await templateRevision(c), templates = await giftTemplates(c, chosen)
   const letters = chosen.map((g, position) => {
-   const d = donors.get(g.donor_id)!, rendered = renderLetter(s, g, d.name, day)
-   return { id: newId(), batch_id: batchId, position, gift_id: g.id, donor_id: d.id, recipient_name: d.name, recipient_email: d.email, address: address(d), subject: rendered.subject, body: [rendered.body, tributeReceiptText(tributes.get(g.id))].filter(Boolean).join('\n\n'), amount_cents: g.amount_cents, received_on: g.received_on }
+   const d = donors.get(g.donor_id)!, rendered = renderGiftLetter(s, g, d.name, day, templates.get(g.id))
+   return { id: newId(), batch_id: batchId, position, gift_id: g.id, donor_id: d.id, recipient_name: d.name, recipient_email: d.email, address: address(d), subject: rendered.subject, body: [rendered.body, tributeReceiptText(tributes.get(g.id))].filter(Boolean).join('\n\n'), amount_cents: g.amount_cents, received_on: g.received_on, template_kind: rendered.template_kind, template_id: rendered.template_id, template_version: rendered.template_version }
   })
   const hash = await letterHash(s.version, letters), total = letters.reduce((n, l) => n + l.amount_cents, 0)
   await commit(c, [
-   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version),
+   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version), templatesUnchanged(revision),
    guard(`(SELECT count(*) FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id IN (SELECT value FROM json_each(?)) AND g.goods<>'unknown' AND ${DUE})=?`, 'NOT_DUE', 'A gift changed while preparing. Prepare again.', JSON.stringify(letters.map(l => l.gift_id)), s.threshold_cents, letters.length),
    guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE COALESCE((SELECT version FROM cf_gift_tributes WHERE gift_id=json_extract(j.value,'$.giftId')),0)<>json_extract(j.value,'$.version'))", 'TRIBUTE_CHANGED', 'A tribute changed while preparing. Prepare the letters again.', JSON.stringify(chosen.map(g => ({ giftId: g.id, version: tributes.get(g.id)?.version ?? 0 })))),
    sql("INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,'prepared',?,?,?,?,?,?,?,?)", batchId, hash, letters.length, total, s.version, c.actor.id, c.actor.name, c.actor.role, c.now),
-   sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on)
-    SELECT json_extract(value,'$.id'),json_extract(value,'$.batch_id'),json_extract(value,'$.position'),json_extract(value,'$.gift_id'),json_extract(value,'$.donor_id'),1,json_extract(value,'$.recipient_name'),json_extract(value,'$.recipient_email'),json_extract(value,'$.address'),json_extract(value,'$.subject'),json_extract(value,'$.body'),json_extract(value,'$.amount_cents'),json_extract(value,'$.received_on') FROM json_each(?)`, JSON.stringify(letters)),
+   sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,template_kind,template_id,template_version)
+    SELECT json_extract(value,'$.id'),json_extract(value,'$.batch_id'),json_extract(value,'$.position'),json_extract(value,'$.gift_id'),json_extract(value,'$.donor_id'),1,json_extract(value,'$.recipient_name'),json_extract(value,'$.recipient_email'),json_extract(value,'$.address'),json_extract(value,'$.subject'),json_extract(value,'$.body'),json_extract(value,'$.amount_cents'),json_extract(value,'$.received_on'),json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version') FROM json_each(?)`, JSON.stringify(letters)),
    event(c, 'ack.prepare', 'acknowledgements', batchId, null, { letters: letters.length, totalCents: total })])
   return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash }
  }

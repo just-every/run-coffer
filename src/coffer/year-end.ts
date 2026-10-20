@@ -4,7 +4,8 @@ import { all, commit, event, fail, guard, id, integer, newId, sql, today, type C
 import { address, letterHash } from './acknowledgements'
 import { tributeReceiptText } from './gift-depth'
 import { usd } from './money'
-import { goodsStatement, longDate, settings, type Settings } from './settings'
+import { fill, goodsStatement, longDate, settings, type Settings } from './settings'
+import { settingsUse, templateFor, templateRevision, templatesUnchanged, templateUse } from './letter-templates'
 
 const MAX_LETTERS = 500
 const ELIGIBLE = `g.kind='gift' AND g.received_on>=? AND g.received_on<=?
@@ -12,7 +13,7 @@ const ELIGIBLE = `g.kind='gift' AND g.received_on>=? AND g.received_on<=?
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)`
 
 /** One letter per donor: each gift listed once, the totals, and the charity's goods wording. */
-function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: string) {
+function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: string, template: Row | null) {
  const total = gifts.reduce((n, g) => n + g.amount_cents, 0)
  const goods = gifts.reduce((n, g) => n + g.goods_cents, 0)
  const provided = gifts.filter(g => g.goods === 'provided' || g.receipt_statement)
@@ -24,7 +25,13 @@ function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: 
  const wording = provided.length
   ? [...provided.map(g => `For your gift of ${usd(g.amount_cents)} on ${longDate(g.received_on)}: ${goodsStatement(s, g)}`), ...(provided.length < gifts.length ? [`For each other gift listed: ${s.none_statement}`] : [])]
   : [s.none_statement]
+ if (template) {
+  // RCPT-007: a reviewed year-end template places the same itemized facts in the charity's own words.
+  const fields = { date: longDate(day), donor_name: donor.name, year: String(year), gift_list: items.join('\n'), total: usd(total), goods_total: usd(goods), deductible_total: usd(total - goods), goods_statement: wording.join('\n'), organization: s.organisation, ein: s.ein }
+  return { subject: fill(template.subject, fields), body: fill(template.body, fields), amount_cents: total, ...templateUse(template, s) }
+ }
  return {
+  ...settingsUse(s),
   subject: `${year} annual giving statement — ${s.organisation}`,
   body: [
    longDate(day), '', `Dear ${donor.name},`, '',
@@ -61,14 +68,14 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  await withReceiptBenefits(c, gifts)
  await receiptFundLabels(c,gifts)
  for (const gift of gifts) gift.tribute = tributes.get(gift.id) ?? null
- const batchId = newId()
+ const batchId = newId(), template = await templateFor(c, 'year_end'), revision = await templateRevision(c)
  const letters = donors.map((d, position) => {
   const selected = gifts.filter(g => g.donor_id === d.id)
   if (!selected.length) fail('GIFTS_CHANGED', 'Gifts changed while preparing the statements. Prepare again.')
   return {
    id: newId(), batch_id: batchId, position, gift_id: selected[0].id, donor_id: d.id,
    recipient_name: d.name, recipient_email: d.email, address: address(d),
-   ...annualLetter(s, d, selected, year, day), received_on: `${year}-12-31`,
+   ...annualLetter(s, d, selected, year, day, template), received_on: `${year}-12-31`,
    statement_gifts: JSON.stringify(selected),
   }
  })
@@ -76,7 +83,7 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  const snapshots = JSON.stringify(gifts.map(g => ({ ...g, donor_version: donors.find(d => d.id === g.donor_id)!.version })))
  await commit(c, [
   guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE COALESCE((SELECT version FROM cf_gift_tributes WHERE gift_id=json_extract(j.value,'$.giftId')),0)<>json_extract(j.value,'$.version'))", 'TRIBUTE_CHANGED', 'A tribute changed while preparing. Prepare the statements again.', JSON.stringify(gifts.map(g=>({giftId:g.id,version:tributes.get(g.id)?.version??0})))),
-  guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version),
+  guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version), templatesUnchanged(revision),
   // The count covers the entire requested scope, including donors added since
   // selection. Exact rows and donor versions also fence reversals and erasure.
   guard(`(SELECT count(*) FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE ${ELIGIBLE})=?
@@ -95,10 +102,11 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
   'STATEMENT_EXISTS', 'A selected donor already has a statement for this year. Open that batch, or discard it before preparing again. Select a different donor to prepare another statement.', year, donorIds),
   sql(`INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at,kind,statement_year)
    VALUES(?,1,'prepared',?,?,?,?,?,?,?,?,'statement',?)`, batchId, hash, letters.length, total, s.version, c.actor.id, c.actor.name, c.actor.role, c.now, year),
-  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,statement_gifts)
+  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,statement_gifts,template_kind,template_id,template_version)
    SELECT json_extract(value,'$.id'),json_extract(value,'$.batch_id'),json_extract(value,'$.position'),json_extract(value,'$.gift_id'),json_extract(value,'$.donor_id'),0,
     json_extract(value,'$.recipient_name'),json_extract(value,'$.recipient_email'),json_extract(value,'$.address'),json_extract(value,'$.subject'),json_extract(value,'$.body'),
-    json_extract(value,'$.amount_cents'),json_extract(value,'$.received_on'),json_extract(value,'$.statement_gifts') FROM json_each(?)`, JSON.stringify(letters)),
+    json_extract(value,'$.amount_cents'),json_extract(value,'$.received_on'),json_extract(value,'$.statement_gifts'),
+    json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version') FROM json_each(?)`, JSON.stringify(letters)),
   event(c, 'ack.prepareStatements', 'acknowledgements', batchId, null, { year, letters: letters.length, totalCents: total }),
  ])
  return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash }

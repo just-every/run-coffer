@@ -1,6 +1,7 @@
 import { addDays, all, choice, commit, date, event, fail, guard, id, integer, longText, newId, one, optional, sql, today, type Context, type Row } from './db'
 import { amount, usd } from './money'
-import { longDate, settings, type Settings } from './settings'
+import { fill, longDate, settings, type Settings } from './settings'
+import { settingsUse, templateFor, templateRevision, templatesUnchanged, templateUse } from './letter-templates'
 
 export const IN_KIND_GOODS = ['unknown', 'none', 'provided', 'intangible religious benefits'] as const
 export const IN_KIND_FORM_8283 = ['unknown', 'section_b', 'not_section_b'] as const
@@ -39,14 +40,20 @@ export function inKindReminders(g: Row) {
  return { form8283, form8282, disposalWindowEndsOn: threeYearsAfter(g.original_received_on) }
 }
 
-function renderAcknowledgment(s: Settings, g: Row, donorName: string, on: string) {
+function renderAcknowledgment(s: Settings, g: Row, donorName: string, on: string, template: Row | null) {
  // Deliberately independent of monetary letter templates and stated value.
  const goods = g.goods === 'provided'
   ? `In exchange for this contribution, ${s.organisation} provided ${g.goods_description}, with a good faith estimated value of ${usd(g.goods_cents)}.`
   : g.goods === 'intangible religious benefits'
    ? 'The only goods or services provided in exchange for this contribution consisted entirely of intangible religious benefits.'
    : 'No goods or services were provided in exchange for this contribution.'
+ if (template) {
+  // RCPT-007: an in-kind template never merges a value; the property, quantity and goods facts stay.
+  const fields = { date: longDate(on), donor_name: donorName, gift_date: longDate(g.received_on), description: g.description, quantity: String(g.quantity), goods_statement: goods, organization: s.organisation, ein: s.ein }
+  return { subject: fill(template.subject, fields), body: fill(template.body, fields), ...templateUse(template, s) }
+ }
  return {
+  ...settingsUse(s),
   subject: `Property contribution acknowledgment from ${s.organisation}`,
   body: `${longDate(on)}\n\nDear ${donorName},\n\n${s.organisation} acknowledges receipt on ${longDate(g.received_on)} of the following property:\n\n${g.description}\nQuantity: ${g.quantity}\n\n${goods}\n\n${s.organisation}\nEIN ${s.ein}`,
  }
@@ -89,11 +96,11 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
   if (on < g.received_on || on > day) fail('INPUT', 'Acknowledgment date must be on or after receipt and no later than today.', 400)
   if (!s.reviewed_at || !s.ein) fail('SETTINGS', 'Review the organization name and EIN in settings before issuing a property acknowledgment.')
   if (g.goods === 'unknown') fail('GOODS_UNKNOWN', 'Confirm goods or services before issuing a property acknowledgment.')
-  const acknowledgmentId = newId(), letter = renderAcknowledgment(s, g, g.donor_name, on)
+  const acknowledgmentId = newId(), template = await templateFor(c, 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, g.donor_name, on, template)
   await commit(c, [live(donorId), current(giftId, donorId, version),
-   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Settings changed. Refresh before issuing the acknowledgment.', s.version),
+   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Settings changed. Refresh before issuing the acknowledgment.', s.version), templatesUnchanged(revision),
    guard('NOT EXISTS(SELECT 1 FROM cf_in_kind_acknowledgments WHERE in_kind_id=? AND property_version=?)', 'ALREADY_ACKNOWLEDGED', 'This property version already has an acknowledgment.', giftId, g.property_version),
-   sql('INSERT INTO cf_in_kind_acknowledgments VALUES(?,?,?,?,?,?,?,?)', acknowledgmentId, giftId, g.property_version, on, letter.subject, letter.body, c.actor.id, c.now),
+   sql('INSERT INTO cf_in_kind_acknowledgments(id,in_kind_id,property_version,acknowledged_on,subject,body,created_by,created_at,template_kind,template_id,template_version) VALUES(?,?,?,?,?,?,?,?,?,?,?)', acknowledgmentId, giftId, g.property_version, on, letter.subject, letter.body, c.actor.id, c.now, letter.template_kind, letter.template_id, letter.template_version),
    sql('UPDATE cf_in_kind_gifts SET version=version+1,updated_at=? WHERE id=?', c.now, giftId),
    event(c, command, 'inKindGift', giftId, donorId, { acknowledgmentId, propertyVersion: g.property_version }),
   ])

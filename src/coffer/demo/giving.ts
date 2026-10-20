@@ -7,6 +7,7 @@
 import { address, letterHash } from '../acknowledgements'
 import type { Row } from '../db'
 import { renderLetter, type Settings } from '../settings'
+import { settingsUse } from '../letter-templates'
 import { dayOf, timeOf, type AuditEvent, type Clock } from './ledger'
 
 type Plan = { key: string; dollars: number; started: number; declined?: number; cleared?: number }
@@ -67,7 +68,7 @@ export async function onlineGiving(clock: Clock, s: Settings, donors: Map<string
  for (const g of gifts) {
   const d = donors.get(g.donor_id)!, batchId = `receipt-${g.id}`, sent = g.created_at, fresh = Date.parse(clock.today) - Date.parse(g.received_on) < 3 * 86400000
   const rendered = renderLetter(s, g, d.name, g.received_on)
-  const letter = { id: batchId, batch_id: batchId, position: 0, gift_id: g.id, donor_id: d.id, live: 1, recipient_name: d.name, recipient_email: d.email, address: address(d), subject: rendered.subject, body: rendered.body, amount_cents: g.amount_cents, received_on: g.received_on,
+  const letter = { id: batchId, batch_id: batchId, position: 0, gift_id: g.id, donor_id: d.id, live: 1, recipient_name: d.name, recipient_email: d.email, address: address(d), subject: rendered.subject, body: rendered.body, amount_cents: g.amount_cents, received_on: g.received_on, ...settingsUse(s),
    route: 'email', delivery_status: fresh ? 'submitted' : 'delivered', message_id: `demo-message-${g.id}`, submitted_at: sent, delivered_at: fresh ? null : new Date(Date.parse(sent) + 90000).toISOString() }
   const hash = await letterHash(s.version, [letter])
   batches.push({ id: batchId, version: 1, status: 'approved', content_hash: hash, letters: 1, total_cents: g.amount_cents, settings_version: s.version, prepared_by_id: RECEIPTS.id, prepared_by_name: RECEIPTS.name, prepared_by_role: RECEIPTS.role, prepared_at: sent,

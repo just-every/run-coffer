@@ -15,10 +15,11 @@ export async function settings(c: { db: D1Database }): Promise<Settings> {
  return row
 }
 
-const LETTER = ['date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
+export const LETTER = ['date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
+export const LETTER_REQUIRED = ['donor_name', 'amount', 'gift_date', 'goods_statement', 'organization', 'ein']
 const GOODS = ['goods_value', 'goods_description', 'deductible_amount', 'amount']
 const placeholders = (value: string) => [...value.matchAll(/\{\{\s*([a-z_]+)\s*\}\}/g)].map(m => m[1])
-function check(value: string, label: string, allowed: string[], required: string[]) {
+export function checkTemplate(value: string, label: string, allowed: string[], required: string[]) {
  const used = placeholders(value), unknown = used.filter(x => !allowed.includes(x)), missing = required.filter(x => !used.includes(x))
  if (unknown.length) fail('TEMPLATE', `${label} uses unknown fields: ${unknown.map(x => `{{${x}}}`).join(', ')}.`, 400)
  if (missing.length) fail('TEMPLATE', `${label} must include ${missing.map(x => `{{${x}}}`).join(', ')}.`, 400)
@@ -35,10 +36,10 @@ export async function settingsCommand(c: Context, p: Row) {
  const threshold = amount(p, 'threshold', 'Acknowledgement threshold', { allowZero: true }), targetDays = integer(typeof p.targetDays === 'string' ? Number(p.targetDays) : p.targetDays, 'Days to send', 1, 365)
  const subject = text(p.letterSubject, 'Letter subject', 200), template = longText(p.letterTemplate, 'Letter', 8000)
  const none = longText(p.noneStatement, 'No goods or services statement', 1000), goods = longText(p.goodsStatement, 'Goods or services statement', 1000)
- check(subject, 'Letter subject', LETTER, [])
- check(template, 'Letter', LETTER, ['donor_name', 'amount', 'gift_date', 'goods_statement', 'organization', 'ein'])
- check(none, 'No goods or services statement', [], [])
- check(goods, 'Goods or services statement', GOODS, ['goods_value', 'goods_description'])
+ checkTemplate(subject, 'Letter subject', LETTER, [])
+ checkTemplate(template, 'Letter', LETTER, LETTER_REQUIRED)
+ checkTemplate(none, 'No goods or services statement', [], [])
+ checkTemplate(goods, 'Goods or services statement', GOODS, ['goods_value', 'goods_description'])
  if (!ein && placeholders(subject + template).includes('ein')) fail('TEMPLATE', 'Add your EIN or remove {{ein}} from the letter.', 400)
  const fiscalStart = p.fiscalYearStart === undefined ? null : text(p.fiscalYearStart, 'Fiscal year start', 5)
  if (fiscalStart && (!/^\d{2}-\d{2}$/.test(fiscalStart) || Number.isNaN(Date.parse(`2001-${fiscalStart}T00:00:00Z`)) || new Date(`2001-${fiscalStart}T00:00:00Z`).toISOString().slice(5, 10) !== fiscalStart)) fail('INPUT', 'Fiscal year start must be a month and day such as 07-01 (not February 29).', 400)
@@ -53,16 +54,18 @@ export async function settingsCommand(c: Context, p: Row) {
 }
 
 export const longDate = (day: string) => new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${day}T00:00:00Z`))
-const fill = (value: string, fields: Record<string, string>) => value.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, name) => fields[name] ?? '')
+export const fill = (value: string, fields: Record<string, string>) => value.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, name) => fields[name] ?? '')
 
 /** The charity's reviewed goods-or-services wording for one gift. */
 export const goodsStatement = (s: Settings, gift: Row) => gift.receipt_statement ?? (gift.goods === 'provided'
  ? fill(s.goods_statement, { goods_value: usd(gift.goods_cents), goods_description: gift.goods_description ?? '', deductible_amount: usd(gift.amount_cents - gift.goods_cents), amount: usd(gift.amount_cents) }) + `\nThe deductible contribution for federal income tax purposes is limited to the excess of the payment over the good-faith fair market value of the goods or services: ${usd(gift.amount_cents - gift.goods_cents)}.`
  : s.none_statement)
 
-export function renderLetter(s: Settings, gift: Row, donorName: string, day: string) {
- if (!s.ein || !/\{\{\s*ein\s*\}\}/.test(s.letter_template)) fail('RECEIPT_FACTS', 'Review letter settings: a receipt must include the organization’s EIN.', 409)
+/** Renders the settings letter, or a reviewed RCPT-007 template chosen for this gift. */
+export function renderLetter(s: Settings, gift: Row, donorName: string, day: string, template?: { subject: string; body: string } | null) {
+ const wording = template ?? { subject: s.letter_subject, body: s.letter_template }
+ if (!s.ein || !/\{\{\s*ein\s*\}\}/.test(wording.body)) fail('RECEIPT_FACTS', 'Review letter settings: a receipt must include the organization’s EIN.', 409)
  const deductible = usd(gift.amount_cents - gift.goods_cents), goods = goodsStatement(s, gift)
  const fields = { date: longDate(day), donor_name: donorName, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
- return { subject: fill(s.letter_subject, fields), body: fill(s.letter_template, fields) }
+ return { subject: fill(wording.subject, fields), body: fill(wording.body, fields) }
 }

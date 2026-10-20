@@ -7,6 +7,7 @@ import { address, letterHash, lettersCsv } from '../acknowledgements'
 import { audience, hashOf, recipientsCsv } from '../appeals'
 import { sha256, type Row } from '../db'
 import { renderLetter, type Settings } from '../settings'
+import { settingsUse } from '../letter-templates'
 import { dayOf, timeOf, type AuditEvent, type Clock, type Person, type Staff } from './ledger'
 
 type Stage = { status: 'prepared' | 'approved' | 'exported' | 'sent'; prepared: number; by: Person; approver?: Person; sent?: number; method?: string }
@@ -38,7 +39,7 @@ export async function letters(clock: Clock, s: Settings, gifts: Row[], donors: M
   const batchId = `demo-batch-${key}`, preparedAt = timeOf(clock, stage.prepared, 9), day = dayOf(clock, stage.prepared)
   const rows = chosen.map((g, position) => {
    const d = donors.get(g.donor_id)!, rendered = renderLetter(s, g, d.name, day)
-   return { id: `demo-ack-${key}-${position + 1}`, batch_id: batchId, position, gift_id: g.id, donor_id: d.id, live: 1, recipient_name: d.name, recipient_email: d.email, address: address(d), subject: rendered.subject, body: rendered.body, amount_cents: g.amount_cents, received_on: g.received_on }
+   return { id: `demo-ack-${key}-${position + 1}`, batch_id: batchId, position, gift_id: g.id, donor_id: d.id, live: 1, recipient_name: d.name, recipient_email: d.email, address: address(d), subject: rendered.subject, body: rendered.body, amount_cents: g.amount_cents, received_on: g.received_on, ...settingsUse(s) }
   })
   const hash = await letterHash(s.version, rows), total = rows.reduce((n, l) => n + l.amount_cents, 0)
   const decided = stage.approver ? timeOf(clock, stage.prepared - 1, 10) : null, exported = stage.status === 'exported' || stage.status === 'sent' ? timeOf(clock, stage.prepared - 1, 11) : null
