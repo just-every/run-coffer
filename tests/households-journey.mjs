@@ -44,6 +44,11 @@ export async function householdsJourney(h) {
  await h.command('pledge.create',{donorId:jane.id,amount:'500',pledgedOn:'2025-01-01',fund:'Library',installments:[{dueOn:'2027-01-01',amount:'500'}]})
  await h.command('match.record',{giftId:A.id,employerDonorId:sponsor.id,amount:'100',dueBy:'2027-01-01'})
  await screenshot('headless')
+ await h.command('recognition.gift',{giftId:C.id,anonymous:true,recognitionName:'Library friends'})
+ await h.command('consent.record',{donorIds:[jane.id],channel:'mail',status:'withdrawn',method:'paper form',evidence:'No appeals requested.',capturedOn:'2025-01-01'})
+ const portfolio=await h.command('portfolio.save',{name:'Library supporters',managerId:member.id,untouchedDays:30})
+ await h.command('portfolio.assign',{donorId:jane.id,portfolioId:portfolio.id})
+ const portfoliosBefore=await h.get('/api/coffer/portfolios')
  const beforeR=facts(await history(h,robert.id)),beforeJ=facts(await history(h,jane.id))
  const oldAudit=(await h.get('/api/coffer/audit?action=donor.create')).rows
  const stale=(await state()).household.version
@@ -51,10 +56,15 @@ export async function householdsJourney(h) {
  await h.command('household.update',{householdId:hid,version:stale,headDonorId:robert.id},{status:409})
  assert.deepEqual(facts(await history(h,robert.id)),beforeR)
  assert.deepEqual(facts(await history(h,jane.id)),beforeJ)
+ assert.deepEqual(await h.get('/api/coffer/portfolios'),portfoliosBefore)
+ await h.command('gift.record',{householdId:hid,amount:'5',receivedOn:'2025-01-01',method:'check',goods:'none'},{status:400})
  assert.deepEqual((await h.get('/api/coffer/audit?action=donor.create')).rows,oldAudit)
  const audit=(await h.get('/api/coffer/audit?action=household.update&record='+hid)).rows[0]
  assert.equal(audit.actor_role,'member');assert.equal(audit.actor_id,member.id)
  assert.deepEqual([JSON.parse(audit.detail).oldHead,JSON.parse(audit.detail).newHead],[null,jane.id])
+ const raceVersion=(await state()).household.version
+ const races=await Promise.all([robert.id,jane.id].map(headDonorId=>h.request('/api/coffer/commands',{method:'POST',body:{command:'household.update',input:{householdId:hid,version:raceVersion,headDonorId}}})))
+ assert.deepEqual(races.map(r=>r.status).sort(),[200,409],'DONOR-003: concurrent household writes cannot overwrite one another')
  s=await state('?year=2025')
  assert.equal(s.totals.moneyCents,140000);assert.equal(s.totals.recognitionCents,190000)
  assert.equal(s.totals.gifts.filter(g=>[A.id,A2.id,B.id,C.id].includes(g.id)).length,4)
@@ -106,7 +116,8 @@ export async function householdsJourney(h) {
  assert.ok(voidPiece.void_reason);assert.equal(voidPiece.body,piece.body)
  const corrected=await h.command('ack.correct',{letterId:piece.id})
  assert.equal(corrected.totalCents,40000)
- assert.equal(JSON.parse((await h.get('/api/coffer/letters/'+corrected.id)).letters[0].household_snapshot).headStatus,'none')
+ const correctedSnapshot=JSON.parse((await h.get('/api/coffer/letters/'+corrected.id)).letters[0].household_snapshot)
+ assert.equal(correctedSnapshot.headStatus,'none');assert.equal(correctedSnapshot.overridesReview,true)
  await update({headDonorId:robert.id})
  await h.command('ack.approve',{batchId:corrected.id,version:1},{status:409})
  await h.command('ack.discard',{batchId:corrected.id,version:1})
@@ -138,6 +149,8 @@ export async function householdsJourney(h) {
  await update({headDonorId:jane.id},{status:409})
  const erasedPiece=(await h.get('/api/coffer/letters/'+statement.id)).letters[0]
  assert.equal(erasedPiece.body,'[erased]');assert.equal(erasedPiece.household_snapshot,null)
+ await h.api('/auth/operator/status',{operatorId:member.id,status:'inactive'})
+ await update({headDonorId:robert.id},{as:member.cookie,status:401})
  await householdImports(h)
 }
 
