@@ -2,6 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {createHash,createHmac} from 'node:crypto'
 import {run} from './harness.mjs'
+import {paymentAdjustmentsJourney} from './payment-adjustments-journey.mjs'
 
 const secret='synthetic_whsec_payments_network_edge',at=Math.floor(Date.now()/1000)
 const charge=(id,amount,fund,email,fee)=>({id,object:'charge',paid:true,status:'succeeded',amount,currency:'usd',created:at,metadata:{fund},billing_details:{name:email.split('@')[0],email},balance_transaction:'txn_'+id,amount_refunded:0,fee})
@@ -21,7 +22,7 @@ async function deliver(h,id,type,objectId,{bad=false}={}) {
  return h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'stripe-signature':`t=${timestamp},v1=${sig}`},body:raw})
 }
 
-test('FIN-003 / FIN-004 / PAY-004: signed Stripe gifts, fees, refunds and payout reconcile by fund and post once to Pantry after approval',async()=>{
+test('FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds, disputes, receipts and fees reconcile and post once after approval',async()=>{
  let proposal=null,submissions=0,evidenceHash='',approved=false,providerCalls=0
  const outbound=async request=>{
   providerCalls++
@@ -182,4 +183,5 @@ test('FIN-003 / FIN-004 / PAY-004: signed Stripe gifts, fees, refunds and payout
   assert.match(await screen.text(),/Stripe and Pantry are not available yet on RER Managed/)
  },{bindings:{...bindings,RER_INSTALLATION_ID:'managed-test',RER_MANAGEMENT_ORIGIN:'https://runeditrun.com'},outbound})
  assert.equal(providerCalls,callsBeforeManaged)
+ await paymentAdjustmentsJourney()
 })

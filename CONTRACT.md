@@ -434,7 +434,11 @@ Each Stripe payout is recorded with every gift, refund, dispute and fee it conta
 
 A refund or dispute from the processor (or a staff-initiated refund through Coffer, which calls Stripe) writes a reversal line against the original gift, voids or corrects its receipt (`RCPT-008`), notifies the relationship manager, and for a dispute tracks evidence due dates and the outcome. A won dispute reinstates the gift as a new line.
 
-*Acceptance:* An HTTP journey with the Stripe edge faked refunds half a gift, opens a dispute on another and wins it, and reads the reversal lines, the corrected receipt and the reinstated gift.
+Staff refunds use the existing owner/admin payment-management boundary and exact positive USD cents. The request freezes the gift's current remaining contribution and a permanent attempt identity before one Stripe call; a changed balance, oversized refund or unresolved earlier attempt refuses a new request. Replays return the saved attempt without another call. Pending, failed and uncertain responses never count as completed refunds; only successful provider balance entries adjust contributions. A successful adjustment voids affected receipts atomically under `RCPT-008`; staff prepare a corrected replacement for the remaining gift and use ordinary human approval before sending it.
+
+The relationship manager follows the existing reply-routing order: active portfolio manager, active opportunity owner, then active installation owner. Each refund, dispute withdrawal and reinstatement has one durable notice attempt through the installation's SendGrid connection, with accepted, unavailable or uncertain outcomes visible. Provider acceptance is labelled submitted, never delivered, and replay never resends a notice. Disputes retain the current Stripe status, evidence deadline as an exact UTC instant, and the provider's evidence/past-due flags (unknown if absent); staff follow a link to review and submit evidence in Stripe. Wins reinstate contributions only through the processor's new balance entry, never by editing the original gift. Archive/restore preserves requests, deadlines and notice attempts without resending; gift custody follows merge/undo and erasure without storing donor text in these records.
+
+*Acceptance:* An HTTP journey with the Stripe edge faked refunds half a gift, opens a dispute on another and wins it, and reads the reversal lines, the corrected receipt and the reinstated gift. The PAY-003 journey also asserts staff half-refund and pending/failed/uncertain outcomes, exact-cent and stale-balance refusals, durable attempt and webhook replay behavior, relationship-manager notice routing and acceptance, dispute evidence deadlines/statuses, unchanged original gifts and receipt correction approval. Native refund entry, empty, pending, disputed and resolved screens run at 1440 and 390 pixels; archive/restore, merge/undo and erasure retain custody.
 
 #### PAY-004 — Processing fees and fee cover.
 
@@ -1186,8 +1190,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 43 | 46 | 37 | 126 |
-| All | 52 | 46 | 37 | 135 |
+| Target and push further | 44 | 45 | 37 | 126 |
+| All | 53 | 45 | 37 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1240,7 +1244,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `CAMP-005` | Auction results as gifts | target | missing |  | No events or auction import. |
 | `PAY-001` | Live Stripe connection | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Signed live charge, refund, dispute, failure and payout events, external donor matching and replay-safe money entries ship alongside saved-page move-in. OAuth/automatic endpoint registration, scheduled backfill/sweep and an ambiguous-match review queue remain outstanding. |
 | `PAY-002` | Payouts with their gifts | target | done | `src/coffer/payments/`, `tests/payments.test.mjs` | Payout detail retains every processor entry, gross, fees and fund split and flags differences; automatic membership comes from paginated Stripe balance APIs, manual membership is explicitly selected and validated. Posting requires a completed exact-cent match. |
-| `PAY-003` | Refunds and disputes | target | partial | `src/coffer/payments/`, `tests/payments.test.mjs` | Processor refunds and disputes append immutable contribution reversals and a dispute win reinstates the contribution. No receipt correction, staff-initiated refund, relationship-manager notice or evidence due-date workflow yet. |
+| `PAY-003` | Refunds and disputes | target | done | `src/coffer/payments/refunds.ts`, `src/coffer/payments/disputes.ts`, `src/coffer/payments/adjustment-notices.ts`, `src/coffer/receipt-corrections.ts`, `migrations/core/0076_coffer_payment_adjustments.sql`, `tests/payments.test.mjs`, `tests/payment-adjustments-journey.mjs`, `tests/payment-adjustments-browser.mjs` |  |
 | `PAY-004` | Processing fees and fee cover | target | done | `src/coffer/giving/fee-cover.ts`, `src/coffer/giving/checkout.ts`, `src/coffer/payments/fee-report.ts`, `migrations/core/0070_coffer_fee_cover.sql`, `tests/fee-cover-journey.mjs`, `tests/fee-cover-browser.mjs`, `tests/giving.test.mjs`, `tests/payments.test.mjs` |  |
 | `PAY-005` | Other giving platforms | target | missing |  | No other platform connections. |
 | `PAY-006` | Shop orders record only the contribution | target | missing |  | No shop connection. |

@@ -1,3 +1,5 @@
+import { adjustmentState, requestRefund } from './refunds'
+import { adjustmentsPage } from './adjustments-ui'
 import { feeReport } from './fee-report'
 import { feeReportPage } from './fee-report-ui'
 import { periodJournal } from './period-journal'
@@ -21,6 +23,14 @@ export async function paymentsResponse(request: Request, c: Context, env: Paymen
  const flags = { managed: managed(env), stripeAvailable: available(env), pantryAvailable: !managed(env) && Boolean(env.PANTRY_ORIGIN && env.PANTRY_AGENT_TOKEN) }
  const redirect = (location: string) => new Response(null, { status: 303, headers: { location, 'cache-control': 'no-store' } })
  const suffix = path.slice(root.length)
+ if (suffix === '/refunds' && request.method === 'POST') {
+  const result = await requestRefund(c,env,await input())
+  return api ? json(result) : redirect('/app/payouts/adjustments')
+ }
+ if (suffix === '/adjustments' && ['GET','HEAD'].includes(request.method)) {
+  const state=await adjustmentState(c)
+  return api ? json(state) : page('Refunds and disputes',adjustmentsPage(state),c.actor,200,'/app/payouts')
+ }
  if (suffix === '/sync' && request.method === 'POST') {
   const data = await input(), payoutId = data.payoutId ? id(data.payoutId, 'Stripe payout ID') : undefined
   const result = await syncPayouts(env, payoutId, c)

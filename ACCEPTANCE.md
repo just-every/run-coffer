@@ -16,8 +16,8 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 41 | 46 | 39 | 126 |
-| All | 50 | 46 | 39 | 135 |
+| Target and push further | 44 | 45 | 37 | 126 |
+| All | 53 | 45 | 37 | 135 |
 
 ## Target
 
@@ -75,7 +75,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 45. **`PAY-001` Live Stripe connection** (partial). An HTTP journey with Stripe in test mode connects an account, receives charge and refund webhooks (one replayed, one with a bad signature refused), drops one event and sees the daily sweep add it, and reviews an ambiguous donor match.
 46. **`PAY-002` Payouts with their gifts** (done). An HTTP journey with the Stripe edge faked receives a payout of 14 charges, two fees and one refund, opens it in Coffer, and reads gross, fees, refunds and net equal to the deposit.
-47. **`PAY-003` Refunds and disputes** (partial). An HTTP journey with the Stripe edge faked refunds half a gift, opens a dispute on another and wins it, and reads the reversal lines, the corrected receipt and the reinstated gift.
+47. **`PAY-003` Refunds and disputes** (done). An HTTP journey with the Stripe edge faked refunds half a gift, opens a dispute on another and wins it, and reads the reversal lines, the corrected receipt and the reinstated gift. The clause-named journey also asserts staff initiation, pending/failed/uncertain outcomes, exact-cent/stale/role refusals, replay-safe attempts, manager notice routing, evidence deadlines/outcomes, approved corrected receipts and custody; native entry and end states run at 1440/390.
 48. **`PAY-004` Processing fees and fee cover** (done). An HTTP journey gives $100 with fee cover, reads the gift, fee and receipt amounts, and a fee report by form that sums to the payouts. It verifies the server-rechecked integer-cent ceiling estimate, full paid receipt, frozen replay, actual fees distinct from estimates, signed refunds, grouping by fund/form/campaign and payout reconciliation.
 49. **`PAY-005` Other giving platforms** (missing). An HTTP journey with the Givebutter edge faked ingests transactions and a changed transaction, and imports a Benevity disbursement CSV, reading gifts with source, fees and payout matched to donors. Before shipping, its journey also asserts PAY-004 actual fees, the full charged receipt and honest form/campaign provenance.
 50. **`PAY-006` Shop orders record only the contribution** (missing). An HTTP journey with the Stall edge faked receives an order with a $40 T-shirt, $6 shipping, $3.20 sales tax and a $25 donation line, and writes one $25 gift with a receipt for $25 only; a $60 charity T-shirt with a stated value of $20 writes a $40 contribution; refunding the order reverses only the contribution; the same order from the Shopify edge writes the same gift. Before shipping, its journey also asserts PAY-004 actual fees, the full charged receipt and honest form/campaign provenance.

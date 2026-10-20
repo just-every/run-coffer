@@ -1,3 +1,4 @@
+import { notifyAdjustment } from './adjustment-notices'
 import { fail, one, sql, type Context } from '../db'
 import { settings } from '../settings'
 import { stripe, type GivingEnv } from '../giving/stripe'
@@ -35,6 +36,7 @@ export async function syncEntry(env: GivingEnv, input: any, authority?: Context)
  const existing = await one({ db: env.DB }, 'SELECT * FROM cf_payment_entries WHERE id=?', txn.id)
  if (existing) {
   if (existing.amount_cents !== amount || existing.fee_cents !== fee || existing.source_id !== sourceId) fail('payment_changed', 'A saved Stripe transaction differs from Stripe. No ledger entry was changed.', 409)
+  await notifyAdjustment(env,txn.id,authority)
   return existing
  }
  // Refunds in a saved-page import have already reduced the original gift.
@@ -51,5 +53,6 @@ export async function syncEntry(env: GivingEnv, input: any, authority?: Context)
   sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'stripe','Stripe','agent','payments.entry','payment',p.id,g.donor_id,? FROM cf_payment_entries p LEFT JOIN cf_gifts g ON g.id=p.gift_id
    WHERE p.id=? AND NOT EXISTS(SELECT 1 FROM cf_events WHERE action='payments.entry' AND subject_id=p.id)`, now, JSON.stringify({ amountCents: amount, feeCents: fee, kind }), txn.id)], authority)
+ await notifyAdjustment(env,txn.id,authority)
  return one({ db: env.DB }, 'SELECT * FROM cf_payment_entries WHERE id=?', txn.id)
 }

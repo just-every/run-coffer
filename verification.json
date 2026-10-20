@@ -62,10 +62,10 @@
     },
     {
       "name": "payments",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:payments"
+        "COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments pnpm run test:payments"
       ]
     },
     {

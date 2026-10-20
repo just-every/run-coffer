@@ -1,3 +1,5 @@
+import { reconcileRefund } from './refunds'
+import { recordDispute } from './disputes'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { syncCharge } from './charges'
 import { syncEntry } from './entries'
@@ -12,16 +14,16 @@ export async function paymentEvent(env: GivingEnv, event: any) {
   await syncCharge(env, id)
   if (charge.balance_transaction) await syncEntry(env, stripeId(charge.balance_transaction))
   if (charge.amount_refunded > 0) for await (const refund of stripePages(env, '/refunds?charge=' + encodeURIComponent(id))) {
-   if (refund.status === 'succeeded' && refund.balance_transaction) await syncEntry(env, stripeId(refund.balance_transaction))
+   await reconcileRefund(env,refund)
   }
  } else if (['refund.created', 'refund.updated', 'refund.failed'].includes(type)) {
   const refund = await stripe(env, '/refunds/' + encodeURIComponent(id))
   // Pending and failed refunds do not reverse a donation.
-  if (refund.status === 'succeeded' && refund.balance_transaction) await syncEntry(env, stripeId(refund.balance_transaction))
-  if (refund.failure_balance_transaction) await syncEntry(env, stripeId(refund.failure_balance_transaction))
+  await reconcileRefund(env,refund)
  } else if (type.startsWith('charge.dispute.')) {
   const dispute = await stripe(env, '/disputes/' + encodeURIComponent(id))
   for (const txn of dispute.balance_transactions ?? []) await syncEntry(env, txn)
+  await recordDispute(env,dispute)
  } else if (type === 'charge.failed' || type === 'payment_intent.payment_failed') {
   // Store no card details, error text or donor data. Failures never become gifts.
   await env.DB.prepare('INSERT OR IGNORE INTO cf_payment_failures(id,charge_id,status,created_at) VALUES(?,?,?,?)')
