@@ -1,11 +1,13 @@
 import { all, fail, guard, sha256, type Context, type Row, type Stmt } from '../db'
+import { computedHouseholdNames } from '../household-names'
+import type { HouseholdChange } from './household-writes'
 import { erasureHash } from '../imports/snapshots'
 import { snapshot, tables, type Kind } from './tables'
 import type { ParsedImport, Located, ImportTotals } from './types'
 import { accumulate, emptyTotals } from './source-totals'
 
 export type Effect = { kind: Kind; sourceKey: string; contentHash: string; nativeId: string; owned: boolean; row: Row; donorId: string | null; relatedId: string | null; location?: Located['location'] }
-export type Plan = { effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals }
+export type Plan = { effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
 const stable = (value: unknown): string => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))) : v)
 export const contentHash = (value: unknown) => sha256(stable(value))
 export const nativeId = async (source: string, kind: string, key: string) => `crm-${(await contentHash([source,kind,key])).slice(0,40)}`
@@ -25,7 +27,7 @@ const label: Record<Kind,string> = {household:'Household',donor:'Constituent',pl
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
- const plan: Plan = {effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals()}
+ const plan: Plan = {effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
  const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
@@ -43,6 +45,9 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const nameChoices=(name:string)=>[name,...Array.from({length:8},(_,i)=>`${name} (${i+2})`)]
  const householdRows = await readSet(c,plan,`SELECT json_object('name',lower(n.name)) AS snapshot FROM cf_households n WHERE lower(n.name) IN (SELECT lower(value) FROM json_each(?)) ORDER BY n.id`,[JSON.stringify(parsed.households.flatMap(h=>nameChoices(h.name)))])
  const takenNames=new Set(householdRows.map(r=>r.name as string))
+ const householdCustody = await readSet(c,plan,`SELECT ${snapshot('household')} AS snapshot FROM cf_households n WHERE id IN (SELECT value FROM json_each(?)) ORDER BY id`,[JSON.stringify(mappings.filter(m=>m.kind==='household').map(m=>m.native_id))])
+ const householdMembers = await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE household_id IN (SELECT value FROM json_each(?)) AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=n.id) ORDER BY created_at,id`,[JSON.stringify(householdCustody.map(h=>h.id))])
+ const defaults = (await readSet(c,plan,`SELECT json_object('addressee',addressee,'formal',formal,'informal',informal,'version',version) AS snapshot FROM cf_household_defaults WHERE id=1`))[0]
  const donorNativeIds=await Promise.all(parsed.donors.map(d=>nativeId(source,'donor',d.externalId)))
  const erased = await readSet(c,plan,`SELECT json_object('hash',hash) AS snapshot FROM cf_erasures WHERE hash IN (SELECT value FROM json_each(?)) ORDER BY hash`,[JSON.stringify([...parsed.donors.flatMap(d=>[erasureHash(d.email),erasureHash(`${source}:${d.externalId}`)]),...donorNativeIds.map(erasureHash)])])
  const suppressed = new Set(erased.map(r=>r.hash))
@@ -76,7 +81,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   const name = previous ? h.name : nameChoices(h.name).find(n=>!takenNames.has(n.toLowerCase()))
   if (!name) diagnostic(`Household ${h.name} and its numbered variants are already taken in Coffer. Rename this Household Name in the export or rename one of those households in Coffer, then upload again.`,h.location,'error','MOVE_IN_MAPPING','Household Name')
   takenNames.add((name||h.name).toLowerCase())
-  households.set(key,await add('household',h,{name:name||h.name,created_at:c.now}))
+  households.set(key,await add('household',h,{version:1,name:name||h.name,created_at:c.now,head_donor_id:null,addressee_override:null,formal_override:null,informal_override:null,overrides_review:0,head_source:null,head_imported_at:null}))
   return households.get(key)
  }
  for (const d of parsed.donors) {
@@ -88,8 +93,37 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if (matches.some(r=>r.erased_at) || new Set(matches.map(r=>r.id)).size>1) diagnostic(`Donor ${d.externalId} has conflicting existing matches. Open the matching donor records in Coffer and merge the records for the same person, or correct this constituent's Email in the export so it identifies only the intended donor.`,d.location,'error','MOVE_IN_MAPPING','Email')
   const match=matches[0]
   if(match) diagnostic(`Constituent ${d.externalId} (${d.name}) is ${match.name} already in Coffer${match.email&&match.email===d.email?`, with the same email ${d.email}`:''}. The gifts join that donor; Coffer keeps the donor’s own details and household.`,d.location,'warning','MATCHED_DONOR')
-  const id=await add('donor',d,{version:1,name:d.name,email:d.email||null,phone:d.phone||null,address_line1:d.addressLine1||null,address_line2:d.addressLine2||null,city:d.city||null,region:d.region||null,postal_code:d.postalCode||null,country:d.country||null,household_id:match?null:await householdOf(d.householdKey)||null,source:'manual',source_ref:`${source}:${d.externalId}`,created_at:c.now,erased_at:null},match?.id)
+  const id=await add('donor',d,{version:1,name:d.name,prefix:d.prefix||null,first_name:d.firstName||null,middle_name:d.middleName||null,last_name:d.lastName||null,suffix:d.suffix||null,nickname:d.nickname||null,constituent_kind:d.organization?'organization':'person',constituent_status:d.constituentStatus||'active',email:d.email||null,phone:d.phone||null,address_line1:d.addressLine1||null,address_line2:d.addressLine2||null,city:d.city||null,region:d.region||null,postal_code:d.postalCode||null,country:d.country||null,household_id:match||d.organization?null:await householdOf(d.householdKey)||null,source:'manual',source_ref:`${source}:${d.externalId}`,created_at:c.now,erased_at:null},match?.id)
   plan.donorIds.set(d.externalId,id)
+ }
+ // Source headship is set only after all source identities have resolved. A
+ // matched donor keeps their own membership; that never licenses moving them.
+ for (const [key,householdId] of households) {
+  const sourceHousehold=parsed.households.find(h=>h.externalId===key)!
+  const added=plan.effects.filter(e=>e.kind==='donor'&&e.owned&&e.row.household_id===householdId).map(e=>e.row)
+  if (!added.length) continue
+  const before=householdCustody.find(h=>h.id===householdId)??null
+  const custody=existing.get(`household:${await sourceKey(key)}`)
+  if (before&&(!custody?.snapshot||stable(JSON.parse(custody.snapshot))!==stable(before))) diagnostic(`Household ${sourceHousehold.name} changed after an earlier move-in. Keep its members as staff set them; undo or review the household before adding more imported members.`,sourceHousehold.location,'error','MOVE_IN_USED','Household ID')
+  const members=[...householdMembers.filter(d=>d.household_id===householdId),...added]
+  const after={...(before??plan.effects.find(e=>e.kind==='household'&&e.nativeId===householdId)!.row)}
+  // An established household retains its head. An explicit source head may be
+  // set on creation only; later files cannot replace a person's selection.
+  if (!before&&sourceHousehold.headExternalId) {
+   const head=plan.donorIds.get(sourceHousehold.headExternalId)
+   if (!members.some(d=>d.id===head&&d.constituent_kind==='person'&&d.constituent_status!=='deceased'&&!d.erased_at)) diagnostic(`Household ${sourceHousehold.name}: the explicitly flagged head matches a donor outside this household or an ineligible donor. Correct the source membership; Coffer keeps existing donor details.`,sourceHousehold.location,'error','HOUSEHOLD_HEAD','Head of Household')
+   else {after.head_donor_id=head;after.head_source=source;after.head_imported_at=c.now}
+  }
+  const names=computedHouseholdNames(members,after.head_donor_id,defaults)
+  const {location:_location,...householdPayload}=sourceHousehold
+  const sameSource=!before||custody?.content_hash===await contentHash(householdPayload)
+  for (const field of ['addressee','formal','informal'] as const) {
+   const sourceValue=sourceHousehold[field]
+   if (sameSource&&sourceValue!==undefined) after[`${field}_override`]=sourceValue!==names[field]?sourceValue:null
+  }
+  after.version=(before?.version??1)+1
+  after.overrides_review=before&&(after.addressee_override!==null||after.formal_override!==null||after.informal_override!==null)?1:after.overrides_review
+  plan.householdChanges.push({before,after,sourceKey:await sourceKey(key)})
  }
  const donor = (key: string, _location: Located['location']) => plan.donorIds.get(key)||''
  for(const p of parsed.pledges) pledges.set(p.externalId,await add('pledge',p,{donor_id:donor(p.donorExternalId,p.location),amount_cents:p.amountCents,pledged_on:p.pledgedOn,due_by:parsed.installments.filter(i=>i.pledgeExternalId===p.externalId).map(i=>i.dueOn).sort().at(-1)||null,fund:p.fund,created_at:c.now,created_by:c.actor.name},undefined,plan.donorIds.get(p.donorExternalId)))

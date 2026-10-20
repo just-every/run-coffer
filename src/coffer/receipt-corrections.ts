@@ -9,8 +9,9 @@ import { settings } from './settings'
 /** Reissue only from current ledger facts. The original stays in its batch;
  * this exact replacement must receive ordinary human approval before sending. */
 export async function correctReceipt(c: Context, p: Row): Promise<Row> {
- const original = await one(c, `SELECT a.*,b.kind FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.id=?`, id(p.letterId, 'Receipt'))
+ const original = await one(c, `SELECT a.*,b.kind,b.statement_year FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.id=?`, id(p.letterId, 'Receipt'))
  if (!original) fail('NOT_FOUND', 'That receipt does not exist.', 404)
+ if (original.void_reason && original.kind === 'statement' && original.household_id) return (await import('./household-statements')).prepareHouseholdStatement(c, original.statement_year, original.household_id, original)
  if (!original.void_reason || original.kind === 'statement') fail('NOT_CORRECTABLE', 'Choose a voided individual gift receipt. Annual statements remain void after their facts change.')
  const gift = await one(c, 'SELECT * FROM cf_gift_balances WHERE id=?', original.gift_id)
  if (!gift || gift.net_cents <= 0) fail('NO_CONTRIBUTION', 'A fully reversed or refunded gift has a void receipt and cannot be reissued.')

@@ -36,6 +36,8 @@ export class SourceRow {
  raw(field: string): Cell | undefined { const i = this.fields.get(field); return i === undefined ? undefined : this.cells[i] }
  peek(field: string) { return valueText(this.raw(field)) }
  get(field: string) { const i = this.fields.get(field); if (i !== undefined) this.used.add(i); return this.peek(field) }
+ // Source household overrides keep the exact exported wording and spacing.
+ verbatim(field: string) { this.get(field); const value = this.raw(field); return value === undefined || value === null ? '' : String(value) }
  date(field: string) { this.get(field); const date = day(this.raw(field)); if (!date) this.error('DATE', `${field} must be a real YYYY-MM-DD or MM/DD/YYYY date.`, field); return date }
  cents(field: string, allowZero = false) { this.get(field); const n = money(this.raw(field)); if (n === null || (!allowZero && n === 0)) { this.error('AMOUNT', `${field} must be a ${allowZero ? 'non-negative' : 'positive'} amount with at most two decimal places.`, field); return null } return n }
  required(field: string) { const text = this.get(field); if (!text) this.error('REQUIRED', `Missing ${field}; export this field from the source CRM.`, field); return text }

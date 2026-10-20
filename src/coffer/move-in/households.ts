@@ -1,4 +1,5 @@
 import type { ParsedDonor, ParsedImport } from './types'
+import type { SourceRow } from './source-rows'
 
 const addressKey = (d: ParsedDonor) => d.addressLine1 && (d.postalCode || d.city)
  ? [d.addressLine1, d.addressLine2, d.postalCode || d.city].map(v => v.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()).join('|') : ''
@@ -34,5 +35,37 @@ export function inferHouseholds(out: ParsedImport) {
   const household = { externalId: `members:${members.map(d => d.externalId).join('+')}`, name, location: members[0].location }
   out.households.push(household)
   for (const d of members) { d.householdKey = household.externalId; d.householdName = name }
+ }
+}
+
+/** Source IDs and explicit flags are evidence; order, address and spouse links are not. */
+export function sourceHousehold(r:SourceRow,out:ParsedImport,donor:ParsedDonor) {
+ const flag=r.get('householdHead').toLowerCase(), explicitId=r.get('householdHeadId')
+ const yes=['yes','true','y','1'].includes(flag), no=!flag||['no','false','n','0'].includes(flag)
+ if (!yes&&!no) r.error('HOUSEHOLD_HEAD','Export the head flag as yes or no, or use Head of Household ID.','householdHead')
+ if (yes&&explicitId&&explicitId!==donor.externalId) r.error('HOUSEHOLD_HEAD','The source head flag and head constituent ID disagree.','householdHeadId')
+ const headExternalId=explicitId||(yes?donor.externalId:undefined)
+ const overrides={addressee:r.verbatim('householdAddressee'),formal:r.verbatim('householdFormal'),informal:r.verbatim('householdInformal')}
+ if (!donor.householdKey||!donor.householdName) {
+  if (headExternalId||Object.values(overrides).some(Boolean)) r.error('HOUSEHOLD_ID','Source household head and greetings require an explicit Household ID and Household Name.','householdKey')
+  return
+ }
+ let household=out.households.find(h=>h.externalId===donor.householdKey)
+ if (!household) {household={externalId:donor.householdKey,name:donor.householdName,location:r.location};out.households.push(household)}
+ else if (household.name!==donor.householdName) r.error('HOUSEHOLD_CONFLICT',`Household ${household.externalId} has conflicting names. Use the same Household Name on every constituent with this Household ID.`,'householdName')
+ for (const [key,value] of Object.entries({headExternalId,...overrides})) {
+  if (!value) continue
+  const field=key as 'headExternalId'|'addressee'|'formal'|'informal'
+  if (household[field]&&household[field]!==value) r.error('HOUSEHOLD_CONFLICT',`Household ${household.externalId} has conflicting ${key}. Export one authoritative source value.`,key)
+  else household[field]=value
+ }
+}
+
+export function validateHouseholdHeads(out:ParsedImport) {
+ for (const h of out.households) {
+  if (!h.headExternalId) continue
+  const donor=out.donors.find(d=>d.externalId===h.headExternalId)
+  if (!donor||donor.householdKey!==h.externalId||donor.organization||donor.constituentStatus==='deceased')
+   out.diagnostics.push({...h.location,severity:'error',code:'HOUSEHOLD_HEAD',column:'Head of Household',message:`Household ${h.externalId} names a head who is not a living person member in these exports. Correct the source head or include their constituent row.`})
  }
 }

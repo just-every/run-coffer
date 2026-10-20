@@ -1,3 +1,4 @@
+import { householdState } from './households'
 import { meetings, meetingBrief } from './meeting-briefs'
 import { documentsResponse } from './documents-http'
 import { cleanDocumentUploads, purgeDocuments } from './documents'
@@ -126,7 +127,7 @@ async function formBody(request: Request, limit = LIMIT): Promise<FormData> {
 }
 async function formInput(data: FormData) {
  const input: Record<string, any> = Object.fromEntries(data)
- for (const name of ['version', 'sourceVersion', 'targetDays', 'reminderDays', 'intervalMonths', 'untouchedDays', 'templateVersion', 'stopVersion']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
+ for (const name of ['version', 'householdVersion', 'targetHouseholdVersion', 'affectedCount', 'sourceVersion', 'targetDays', 'reminderDays', 'intervalMonths', 'untouchedDays', 'templateVersion', 'stopVersion']) if (typeof input[name] === 'string' && input[name] !== '') input[name] = Number(input[name])
  if (input.command === 'gift.record' && data.has('splitAmount')) {
   const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
@@ -393,6 +394,11 @@ async function api(c: Context, url: URL): Promise<Response> {
  const path = url.pathname, match = (re: RegExp) => path.match(re)
  if(path==='/api/coffer/reports/honor-roll')return json(await honorRoll(c,url))
  if(path==='/api/coffer/reports/honor-roll.csv')return download(honorRollCsv(await honorRoll(c,url)),'coffer-honor-roll')
+ if (/^\/api\/coffer\/households\/[^/]+$/.test(path)) {
+  const year=url.searchParams.get('year'),basis=url.searchParams.get('basis')??'calendar'
+  if(year!==null&&!/^\d{4}$/.test(year)||!['calendar','fiscal'].includes(basis))fail('INPUT','Choose a four-digit year and calendar or fiscal basis.',400)
+  return json(await householdState(c,decodeURIComponent(path.split('/').at(-1)!),{...(year?{year:Number(year)}:{}),basis:basis as 'calendar'|'fiscal'}))
+ }
  if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo'), volunteer:url.searchParams.get('volunteer') }))
  const noteMatch=match(/^\/api\/coffer\/notes\/([^/]+)$/)
  if(noteMatch){

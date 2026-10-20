@@ -1,5 +1,5 @@
 import { creditChecks, sharedEmails } from './checks'
-import { inferHouseholds } from './households'
+import { inferHouseholds, validateHouseholdHeads } from './households'
 import { pledgeChecks } from './pledge-checks'
 import { readExports } from './parse-input'
 import { columnFields, normalizeLabel } from './source-columns'
@@ -30,6 +30,7 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  sourceTotals(rows, out.sourceTotals)
  for (const row of rows) if (row.kind() === 'control') { mapRow(row, out, input); controlRow(row, out) } else mapRow(row, out, input)
  inferHouseholds(out)
+ validateHouseholdHeads(out)
  sharedEmails(out)
  creditChecks(out)
  validateImport(out)

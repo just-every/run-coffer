@@ -1,3 +1,4 @@
+import { membershipChange } from './donor-households'
 import { tributeNotifications } from './tribute-notifications'
 import { receiptTasks } from './receipt-tasks'
 import { withGiftAcknowledgments } from './gift-acknowledgments'
@@ -39,21 +40,24 @@ function household(name: string | null, c: Context): { statements: Stmt[]; value
 export async function donorCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
  if (command === 'donor.create') {
   const donorId = newId(), name = text(p.name, 'Donor name'), mail = email(p.email), a = address(p), h = household(optional(p.household, 'Household'), c)
-  await commit(c, [...h.statements,
+  const membership=await membershipChange(c,donorId,null,optional(p.household,'Household'),p)
+  await commit(c, [...membership.before,...h.statements,
    sql(`INSERT INTO cf_donors(id,version,name,email,phone,address_line1,address_line2,city,region,postal_code,country,household_id,source,source_ref,created_at,erased_at) VALUES(?,1,?,?,?,?,?,?,?,?,?,${h.value},'manual',NULL,?,NULL)`,
     donorId, name, mail, a.phone, a.line1, a.line2, a.city, a.region, a.postal, a.country, ...(h.value === 'NULL' ? [] : [optional(p.household, 'Household')]), c.now),
-   event(c, 'donor.create', 'donor', donorId, donorId)])
+   ...membership.after, event(c, 'donor.create', 'donor', donorId, donorId)])
   return { id: donorId, version: 1 }
  }
  if (command === 'donor.update') {
   const donorId = id(p.donorId, 'Donor'), version = integer(p.version, 'Version', 1), name = text(p.name, 'Donor name'), mail = email(p.email), a = address(p), h = household(optional(p.household, 'Household'), c)
+  const current=await one(c,'SELECT household_id FROM cf_donors WHERE id=?',donorId)
+  const membership=await membershipChange(c,donorId,current?.household_id??null,optional(p.household,'Household'),p)
   const movedOn = await addressMove(c, p.addressEffectiveOn)
-  await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND ${LIVE})`, 'VERSION', 'This donor changed or was erased. Refresh before saving.', donorId, version), ...h.statements,
+  await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND ${LIVE})`, 'VERSION', 'This donor changed or was erased. Refresh before saving.', donorId, version), ...membership.before, ...h.statements,
    ...stageAddressMove(donorId, movedOn, 'staff'),
    sql(`UPDATE cf_donors SET version=version+1,name=?,email=?,phone=?,address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=?,household_id=${h.value} WHERE id=?`,
     name, mail, a.phone, a.line1, a.line2, a.city, a.region, a.postal, a.country, ...(h.value === 'NULL' ? [] : [optional(p.household, 'Household')]), donorId),
    sql('DELETE FROM cf_address_moves WHERE donor_id=?', donorId),
-   event(c, 'donor.update', 'donor', donorId, donorId)])
+   ...membership.after, event(c, 'donor.update', 'donor', donorId, donorId)])
   return { id: donorId, version: version + 1 }
  }
  if (command === 'consent.record') {

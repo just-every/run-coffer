@@ -28,7 +28,7 @@ export async function dueGifts(c: { db: D1Database }) {
 }
 
 export const address = (d: Row) => JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country })
-export const letterHash = (s: number, letters: Row[]) => sha256(JSON.stringify([s, letters.map(l => [l.gift_id, l.donor_id, l.recipient_name, l.recipient_email, l.address, l.subject, l.body, l.amount_cents, l.received_on, ...(l.statement_gifts ? [l.statement_gifts] : [])])]))
+export const letterHash = (s: number, letters: Row[]) => sha256(JSON.stringify([s, letters.map(l => [l.gift_id, l.donor_id, l.recipient_name, l.recipient_email, l.address, l.subject, l.body, l.amount_cents, l.received_on, ...(l.statement_gifts ? [l.statement_gifts] : []), ...(l.household_id ? [l.household_id, l.household_version, l.household_snapshot] : [])])]))
 export const batchLetters = (c: { db: D1Database }, batchId: string) => all(c, 'SELECT * FROM cf_acks WHERE batch_id=? ORDER BY position', batchId)
 
 export async function ackCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
@@ -71,6 +71,7 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
   const letters = await batchLetters(c, batchId)
   if (await letterHash(batch.settings_version, letters) !== batch.content_hash) fail('CONTENT_CHANGED', 'These letters no longer match what was prepared. Discard the batch and prepare again.')
   await commit(c, [at(['prepared']),
+   guard('NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.batch_id=? AND a.household_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cf_households h WHERE h.id=a.household_id AND h.version=a.household_version))', 'HOUSEHOLD_CHANGED', 'A household changed after these statements were prepared. Discard this batch and prepare it again before approval.', batchId),
    currentLetterGifts(batchId),
    guard("NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.batch_id=? AND (EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=a.gift_id) OR EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=a.donor_id AND d.erased_at IS NOT NULL)))", 'GIFT_CHANGED', 'A gift in this batch was reversed or its donor erased. Discard the batch and prepare again.', batchId),
    sql('INSERT INTO cf_approvals VALUES(?,?,?,?,?,?,?,?,?,?,?)', newId(), 'acknowledgements', batchId, batch.content_hash, batch.prepared_by_id, batch.prepared_by_name, batch.prepared_by_role, c.actor.id, c.actor.name, c.actor.role, c.now),
@@ -119,6 +120,6 @@ export async function batchDetail(c: { db: D1Database }, batchId: string) {
 
 /** Annual statements freeze the complete calendar year, including late gifts. */
 export const currentLetterGiftsCondition = `NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.batch_id=? AND a.void_reason IS NULL AND b.kind='statement' AND (
- (SELECT count(*) FROM cf_gifts g WHERE g.donor_id=a.donor_id AND g.kind='gift' AND substr(g.received_on,1,4)=CAST(b.statement_year AS TEXT) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id))<>json_array_length(a.statement_gifts)
- OR EXISTS(SELECT 1 FROM json_each(a.statement_gifts) j WHERE NOT EXISTS(SELECT 1 FROM cf_gifts g WHERE g.id=json_extract(j.value,'$.id') AND g.version=json_extract(j.value,'$.version') AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)))))`
+ (a.household_id IS NULL AND (SELECT count(*) FROM cf_gifts g WHERE g.donor_id=a.donor_id AND g.kind='gift' AND substr(g.received_on,1,4)=CAST(b.statement_year AS TEXT) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id))<>json_array_length(a.statement_gifts))
+ OR EXISTS(SELECT 1 FROM json_each(a.statement_gifts) j WHERE NOT EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=json_extract(j.value,'$.id') AND g.version=json_extract(j.value,'$.version') AND (a.household_id IS NULL OR (g.donor_id=json_extract(j.value,'$.donor_id') AND g.net_cents=json_extract(j.value,'$.amount_cents'))) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)))))`
 export const currentLetterGifts = (batchId: string) => guard(`(${currentLetterGiftsCondition}) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE batch_id=? AND void_reason IS NOT NULL)`, 'GIFT_CHANGED', 'A receipt or statement gift changed. Open its voided copy and prepare a correction.', batchId, batchId)

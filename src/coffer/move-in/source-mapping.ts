@@ -2,6 +2,7 @@ import { normalizeLabel } from './source-columns'
 import { SourceRow } from './source-rows'
 import { acknowledgment } from './acknowledgments'
 import { tribute } from './tributes'
+import { sourceHousehold } from './households'
 import type { ParsedDonor, ParsedImport, ParseInput } from './types'
 
 const donorFields = ['email', 'phone', 'addressLine1', 'addressLine2', 'city', 'region', 'postalCode', 'country', 'householdKey', 'householdName'] as const
@@ -18,7 +19,7 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  const externalId = r.required('donorId'); if (!externalId) return
  // An organization keeps no household: LGL's Is Org, a Bloomerang Organization type, or an organization name alone.
  const organization = /^(yes|true|y|1)$/i.test(r.get('isOrg')) || normalizeLabel(r.peek('type')) === 'organization' || (!!names[1] && !names[2] && !names[4])
- const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], lastName: names[4], organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
+ const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], middleName: names[3], lastName: names[4], prefix, suffix, nickname:r.get('nickname'), constituentStatus:sourceStatus(r), organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
  donor.email = donor.email.toLowerCase()
  if (donor.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donor.email)) r.error('EMAIL', 'Export a single valid primary email address.', 'email')
  if (donor.householdName && !donor.householdKey) r.error('HOUSEHOLD_ID', 'Fill Household ID with this household’s source ID, or clear Household Name if this constituent has no household.', 'householdKey')
@@ -28,16 +29,28 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  else {
   for (const key of ['name', ...donorFields] as const) {
    if (existing[key] && donor[key] && existing[key] !== donor[key]) r.error('DONOR_CONFLICT', `Conflicting ${key} for source constituent ${externalId}${out.source === 'lgl' ? ' in the constituents report. Correct the constituent rows so this ID has one value' : '. Export one authoritative value'}.`, key)
-   else if (!existing[key]) existing[key] = donor[key]
+   else if (!existing[key]) existing[key] = donor[key]??''
   }
-  existing.firstName ||= donor.firstName; existing.lastName ||= donor.lastName; existing.organization ||= donor.organization
+  for (const key of ['prefix','firstName','middleName','lastName','suffix','nickname','constituentStatus'] as const) {
+   const value=donor[key]
+   if (existing[key] && value && existing[key]!==value) r.error('DONOR_CONFLICT',`Conflicting ${key} for source constituent ${externalId}.`,key)
+   else if (!existing[key]&&value) existing[key]=value
+  }
+  existing.organization ||= donor.organization
  }
- if (donor.householdKey && donor.householdName) {
-  const household = out.households.find(h => h.externalId === donor.householdKey)
-  if (!household) out.households.push({ externalId: donor.householdKey, name: donor.householdName, location: r.location })
-  else if (household.name !== donor.householdName) r.error('HOUSEHOLD_CONFLICT', `Household ${household.externalId} has conflicting names. Use the same Household Name on every constituent with this Household ID.`, 'householdName')
- }
+ sourceHousehold(r,out,donor)
 }
+
+function sourceStatus(r:SourceRow) {
+ const raw=r.get('constituentStatus').toLowerCase()
+ if (!raw) return undefined
+ if (['yes','true','y','1','deceased'].includes(raw)) return 'deceased'
+ if (['no','false','n','0','active','living'].includes(raw)) return 'active'
+ if (raw==='inactive') return 'inactive'
+ r.error('CONSTITUENT_STATUS','Export active, inactive or deceased status (or a yes/no deceased flag).','constituentStatus')
+ return undefined
+}
+
 function note(r: SourceRow, out: ParsedImport, standalone = false) {
  const text = r.get('note'); if (!text) { if (standalone) r.error('NOTE', 'Fill Note with the note text, or remove this empty note row.', 'note'); return }
  const donorExternalId = r.required('donorId'), date = r.peek('noteDate') ? r.date('noteDate') : standalone && r.peek('date') ? r.date('date') : ''

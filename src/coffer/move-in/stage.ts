@@ -12,7 +12,11 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
  const pledges = new Map(parsed.pledges.map(p => [p.externalId, p])), gifts = new Map(parsed.gifts.map(g => [g.externalId, g]))
  const parts: ParsedImport[] = []
  const part = (fill: Partial<ParsedImport>, donorIds: Iterable<string>) => {
-  const ds = [...new Set(donorIds)].map(id => donors.get(id)).filter(d => d !== undefined)
+  const ids = new Set(donorIds)
+  // Include each explicit head's actual source row in the first household part.
+  // This resolves matches before headship is set, even across chunk boundaries.
+  for (const id of ids) { const h=households.get(donors.get(id)?.householdKey||''); if (h?.headExternalId) ids.add(h.headExternalId) }
+  const ds = [...ids].map(id => donors.get(id)).filter(d => d !== undefined)
   parts.push({ source: parsed.source, donors: ds, households: [...new Set(ds.map(d => d.householdKey).filter(Boolean))].map(k => households.get(k)!).filter(Boolean),
    gifts: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [], ...fill })
  }

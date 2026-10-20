@@ -242,3 +242,8 @@ test('ordered undo restores earlier import aliases and then reverses the earlier
  assert.equal(restored.gifts[0].amount_cents,1900)
  assert.ok(restored.donor.version>a.version)
 }))
+
+test('DONOR-003: explicit household head, salutations, net money, separate recognition, statements and lifecycle',()=>run(async h=>{
+ const {householdsJourney}=await import('./households-journey.mjs')
+ await householdsJourney(h)
+}))

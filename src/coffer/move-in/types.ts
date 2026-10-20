@@ -8,7 +8,7 @@ export type Located = { location: SourceLocation }
 export type ParsedDonor = Located & {
  externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
  city: string; region: string; postalCode: string; country: string; householdKey: string; householdName: string
- firstName: string; lastName: string; organization: boolean
+ firstName: string; lastName: string; prefix?: string; middleName?: string; suffix?: string; nickname?: string; constituentStatus?: string; organization: boolean
 }
 export type ParsedGift = Located & {
  externalId: string; donorExternalId: string; receivedOn: string; amountCents: number; fund: string
@@ -19,7 +19,7 @@ export type ParsedAcknowledgment = {
  status: 'acknowledged' | 'not acknowledged' | 'do not acknowledge'
  acknowledgedOn: string | null; method: string | null; reason: string | null; sourceReference: string | null
 }
-export type ParsedHousehold = Located & { externalId: string; name: string }
+export type ParsedHousehold = Located & { externalId: string; name: string; headExternalId?: string; addressee?: string; formal?: string; informal?: string }
 export type ParsedRelationship = Located & { externalId: string; donorExternalId: string; relatedDonorExternalId: string; type: string }
 export type ParsedSoftCredit = Located & { externalId: string; donorExternalId: string; giftExternalId: string; amountCents: number; pledgeExternalId: string }
 export type ParsedPledge = Located & { externalId: string; donorExternalId: string; pledgedOn: string; amountCents: number; fund: string; note: string }

@@ -13,12 +13,12 @@ const ELIGIBLE = `g.kind='gift' AND g.received_on>=? AND g.received_on<=?
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)`
 
 /** One letter per donor: each gift listed once, the totals, and the charity's goods wording. */
-function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: string, template: Row | null) {
+export function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: string, template: Row | null) {
  const total = gifts.reduce((n, g) => n + g.amount_cents, 0)
  const goods = gifts.reduce((n, g) => n + g.goods_cents, 0)
  const provided = gifts.filter(g => g.goods === 'provided' || g.receipt_statement)
  const items = gifts.map((g, i) => [
-  `${i + 1}. ${longDate(g.received_on)} · ${g.receipt_fund ?? g.fund} · ${usd(g.amount_cents)} · goods or services: ${g.receipt_statement ? g.receipt_statement : g.goods === 'provided' ? `${g.goods_description} (${usd(g.goods_cents)})` : 'none'} · deductible ${usd(g.amount_cents - g.goods_cents)}`,
+  `${i + 1}. ${longDate(g.received_on)} · ${g.donor_name ? `${g.donor_name} · ` : ''}${g.receipt_fund ?? g.fund} · ${usd(g.amount_cents)} · goods or services: ${g.receipt_statement ? g.receipt_statement : g.goods === 'provided' ? `${g.goods_description} (${usd(g.goods_cents)})` : 'none'} · deductible ${usd(g.amount_cents - g.goods_cents)}`,
   ...(g.tribute ? [`   ${tributeReceiptText(g.tribute)}`] : []),
  ].join('\n'))
  // A mixed year states each gift's own wording; it never inherits the no-goods sentence.
@@ -52,6 +52,11 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  const s = await settings(c), day = today(s.timezone, new Date(c.now))
  const year = integer(typeof p.year === 'string' ? Number(p.year) : p.year, 'Statement year', 1900, Number(day.slice(0, 4)))
  const donorId = p.donorId === undefined || p.donorId === null || p.donorId === '' ? null : id(p.donorId, 'Donor')
+ const householdId = p.householdId === undefined || p.householdId === null || p.householdId === '' ? null : id(p.householdId, 'Household')
+ if (householdId) {
+  if (donorId) fail('INPUT', 'Choose a donor or a household for this statement, not both.', 400)
+  return (await import('./household-statements')).prepareHouseholdStatement(c, year, householdId)
+ }
  if (!s.reviewed_at || !s.organisation || !s.ein) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')
  const scope = [`${year}-01-01`, `${year}-12-31`, donorId, donorId]
  const donors = await all(c, `SELECT d.* FROM cf_donors d WHERE EXISTS(

@@ -53,10 +53,19 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
  const picks = p.fields === undefined ? {} : object(p.fields,'Surviving fields')
  for (const [key,value] of Object.entries(picks)) if (!MERGE_FIELDS.some(([field])=>field===key) || !['source','target'].includes(String(value))) fail('INPUT','Choose the source or survivor for each contact field.',400)
  const selected = MERGE_FIELDS.map(([key,,column])=>(picks[key]==='source'?from:into)[column] ?? null)
+ const householdId = selected[MERGE_FIELDS.findIndex(([key])=>key==='householdId')]
+ const households = await all(c,'SELECT * FROM cf_households WHERE id IN (?,?)',from.household_id,into.household_id)
+ const householdChanges = households.map(h=>{
+  const nextHead = h.head_donor_id===source ? (householdId===h.id ? target : null)
+   : h.head_donor_id===target && householdId!==h.id ? null : h.head_donor_id
+  if (h.head_donor_id===source && nextHead===target && (into.constituent_kind!=='person' || into.constituent_status==='deceased')) fail('HOUSEHOLD_HEAD','The surviving donor must be a living person to carry household headship.')
+  return {household:h,head:nextHead}
+ })
  const reason = reassignmentReason('merge', p.reason)
  const mergeId = newId(), tables = await journalTables(c), mergedOn = await addressMove(c, undefined)
  const statements: Stmt[] = [
   guard(`(SELECT count(*) FROM cf_donors d WHERE (id=? AND version=? OR id=? AND version=?) AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))=2`, 'VERSION', 'A donor changed or was merged. Review both records again.', source,sourceVersion,target,version),
+  ...households.map(h=>guard('EXISTS(SELECT 1 FROM cf_households WHERE id=? AND version=?)','VERSION','A household changed. Review both donor records again.',h.id,h.version)),
   ...quietCommunications(source,target),
   guard(`NOT EXISTS(SELECT 1 FROM cf_employer_matches m JOIN cf_gifts g ON g.id=m.gift_id WHERE (m.employer_donor_id IN (?,?) AND g.donor_id IN (?,?))) AND NOT EXISTS(SELECT 1 FROM cf_employer_matches a JOIN cf_employer_matches b ON a.gift_id=b.gift_id WHERE a.employer_donor_id=? AND b.employer_donor_id=?)`, 'MATCH_CONFLICT', 'Resolve matching-gift promises between these records, or duplicate employer promises, before merging.', source,target,source,target,source,target),
   sql("INSERT INTO cf_donor_merge_journal(id,source_id,target_id,merged_at,merged_by,status) VALUES(?,?,?,?,?,'active')",mergeId,source,target,c.now,c.actor.name),
@@ -66,6 +75,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('INSERT OR IGNORE INTO cf_donor_aliases(donor_id,email) SELECT id,email FROM cf_donors WHERE id IN (?,?) AND email IS NOT NULL',source,target),
   ...stageAddressMove(target,mergedOn,'merge'),
   sql(`UPDATE cf_donors SET ${MERGE_FIELDS.map(([,,column])=>`${column}=?`).join(',')},version=version+1 WHERE id=?`,...selected,target),
+  ...(picks.name==='source'?[sql('UPDATE cf_donors SET prefix=?,first_name=?,middle_name=?,last_name=?,suffix=?,nickname=? WHERE id=?',from.prefix,from.first_name,from.middle_name,from.last_name,from.suffix,from.nickname,target)]:[]),
   sql('DELETE FROM cf_address_moves WHERE donor_id=?',target),
   sql('UPDATE cf_donors SET version=version+1 WHERE id=?',source),
   sql('UPDATE cf_gifts SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
@@ -91,6 +101,14 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('UPDATE cf_employer_matches SET employer_donor_id=? WHERE employer_donor_id=?',target,source),
   ...recognitionMergeStatements(source,target),...donorDepthMergeStatements(source,target),...majorGiftMergeStatements(source,target),
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',source,target),
+  ...householdChanges.flatMap(({household:h,head})=>[
+   ...(h.head_donor_id===source&&head===target?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE id=? AND household_id=? AND constituent_kind='person' AND constituent_status<>'deceased' AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))`,'HOUSEHOLD_HEAD','The survivor is no longer eligible to carry headship.',target,h.id)]:[]),
+   sql(`UPDATE cf_households SET version=version+1,head_donor_id=?,
+    head_source=CASE WHEN ? IS NULL THEN NULL ELSE head_source END,
+    head_imported_at=CASE WHEN ? IS NULL THEN NULL ELSE head_imported_at END,
+    overrides_review=CASE WHEN addressee_override IS NOT NULL OR formal_override IS NOT NULL OR informal_override IS NOT NULL THEN 1 ELSE overrides_review END WHERE id=?`,head,head,head,h.id),
+   event(c,'household.merge','household',h.id,null,{mergeId,oldHead:h.head_donor_id,newHead:head,overridesSet:[],overridesCleared:[],membershipChanged:true}),
+  ]),
   ...captureMerge(tables,mergeId,'after'),
   event(c,'donor.merge','donor',source,target,{mergeId,sourceDonorId:source,targetDonorId:target,reason}),
  )
@@ -104,6 +122,7 @@ export async function undoMerge(c:Context,p:Row):Promise<Row> {
  if (!merge || merge.status!=='active') fail('UNDO_UNAVAILABLE','This merge is already undone or its records were erased.')
  const reason = reassignmentReason('undo', p.reason)
  const tables = await journalTables(c)
+ const households = await all(c,`SELECT b.row_key,b.value AS before_value,a.value AS after_value FROM cf_donor_merge_rows b JOIN cf_donor_merge_rows a USING(merge_id,table_name,row_key) WHERE b.merge_id=? AND b.table_name='cf_households' AND b.phase='before' AND a.phase='after'`,mergeId)
  await commit(c,[
   guard("EXISTS(SELECT 1 FROM cf_donor_merge_journal WHERE id=? AND status='active')",'UNDO_UNAVAILABLE','This merge can no longer be undone.',mergeId),
   guard('EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=? AND into_id=?) AND (SELECT count(*) FROM cf_donors WHERE id IN (?,?) AND erased_at IS NULL)=2','MERGE_CHANGED','The donor identities changed after this merge. Nothing was undone.',merge.source_id,merge.target_id,merge.source_id,merge.target_id),
@@ -116,6 +135,7 @@ export async function undoMerge(c:Context,p:Row):Promise<Row> {
   sql("DELETE FROM cf_donor_address_history WHERE donor_id IN (?,?) AND source='undo'",merge.source_id,merge.target_id),
   sql('DELETE FROM cf_address_moves WHERE donor_id=?',merge.target_id),
   ...advanceEarlierMergeVersions(tables,mergeId),
+  ...households.map(h=>{const before=JSON.parse(h.before_value),after=JSON.parse(h.after_value);return event(c,'household.unmerge','household',before.id,null,{mergeId,oldHead:after.head_donor_id,newHead:before.head_donor_id,overridesSet:[],overridesCleared:[],membershipChanged:true})}),
   // Undo does not resurrect access tokens or restart cancelled email journeys.
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',merge.source_id,merge.target_id),
   sql('DELETE FROM cf_preference_sync WHERE donor_id IN (?,?)',merge.source_id,merge.target_id),

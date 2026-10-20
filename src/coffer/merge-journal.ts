@@ -11,6 +11,11 @@ const owned = (table:string,scope=`n.donor_id IN ${pair}`,keys=['id'],restore=tr
 const descriptions = [
  owned('cf_donor_recognition',undefined,['donor_id']), owned('cf_gift_recognition',`n.gift_id IN (SELECT id FROM cf_contribution_ledger WHERE donor_id IN ${pair})`,['gift_id']),
  owned('cf_donors',`n.id IN ${pair}`),
+ // Include original households after a contact-field choice moves the survivor.
+ // Household versions fence every later staff membership, head or override edit.
+ owned('cf_households',`n.id IN (SELECT household_id FROM cf_donors WHERE id IN ${pair}
+  UNION SELECT json_extract(value,'$.household_id') FROM cf_donor_merge_rows
+   WHERE merge_id=(SELECT id FROM merge) AND phase='before' AND table_name='cf_donors')`),
  owned('cf_donor_merges',`n.donor_id IN ${pair} OR n.into_id IN ${pair}`,['donor_id']),
  owned('cf_donor_aliases',undefined,['donor_id','email']),
  owned('cf_donor_meetings'), owned('cf_donor_address_history'), owned('cf_record_documents'),

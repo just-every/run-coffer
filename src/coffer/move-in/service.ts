@@ -4,6 +4,7 @@ import { settings } from '../settings'
 import { parseExports } from './parse'
 import { contentHash, planImport, type Plan } from './plan'
 import { compare } from './reconcile'
+import { importedHouseholdWrites, importHouseholdUndoFence, importHouseholdUndoWrites } from './household-writes'
 import { stageParts } from './stage'
 import { accumulate, emptyTotals } from './source-totals'
 import { kinds, snapshot, tables, type Kind } from './tables'
@@ -13,7 +14,7 @@ import type { Diagnostic, ParseInput, ParsedImport } from './types'
 const APPLY_BUDGET_MS = 20_000
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
-const summary=(p:ParsedImport)=>Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,(p as any)[k].length]))
+const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,(p as any)[k].length])),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
 
 /** Reads and checks the whole export, plans every part against Coffer as apply will, then stores the review.
  * Donor records do not change. */
@@ -87,6 +88,7 @@ export async function continueApply(c: Context,id:string) {
   if(errors.length)fail('MOVE_IN_ERRORS',`Part ${next.position+1} of ${job.parts} (${contents(part)}) could not be applied. ${errors.length} row${errors.length===1?'':'s'}: ${errors.slice(0,5).map(d=>`${d.file} row ${d.row}: ${d.message}`).join(' ')} Nothing from this part was saved; the ${job.applied_parts} part${job.applied_parts===1?'':'s'} before it stay in Coffer. Fix the record in Coffer and press Continue, or undo the whole move-in.`,409,errors.slice(0,50))
   const writes:Stmt[]=[...plan.checks,guard('EXISTS(SELECT 1 FROM cf_move_in_parts WHERE job_id=? AND position=? AND applied_at IS NULL)','MOVE_IN_CHANGED','This part was applied in another window. Refresh the journal.',id,next.position)]
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
+  writes.push(...importedHouseholdWrites(c,plan.householdChanges,job.source,id))
   if(job.acknowledged_before)writes.push(sql(`INSERT OR IGNORE INTO cf_prior_acknowledgements(gift_id,job_id,acknowledged_before) SELECT json_extract(value,'$.id'),?,? FROM json_each(?) WHERE json_extract(value,'$.received_on')<?`,id,job.acknowledged_before,JSON.stringify(plan.effects.filter(e=>e.kind==='gift'&&e.owned).map(e=>({id:e.nativeId,received_on:e.row.received_on}))),job.acknowledged_before))
   const jobGifts=await Promise.all(part.gifts.map(async g=>({giftId:plan.giftIds.get(g.externalId),donorKey:await sha256(g.donorExternalId)})))
   writes.push(sql("INSERT OR IGNORE INTO cf_move_in_job_gifts(job_id,gift_id,donor_source_key) SELECT ?,json_extract(value,'$.giftId'),json_extract(value,'$.donorKey') FROM json_each(?)",id,JSON.stringify(jobGifts)))
@@ -129,7 +131,7 @@ export async function recheck(c: Context,id:string) {
 function writeKind(writes:Stmt[],plan:Plan,kind:Kind,source:string,jobId:string) {
  const effects=plan.effects.filter(e=>e.kind===kind);if(!effects.length)return
  const t=tables[kind], rows=JSON.stringify(effects.map(e=>({...e.row,_owned:e.owned?1:0})))
- writes.push(sql(`INSERT INTO ${t.table}(${t.columns.join(',')}) SELECT ${t.columns.map(k=>`json_extract(value,'$.${k}')`).join(',')} FROM json_each(?) WHERE json_extract(value,'$._owned')=1`,rows))
+ writes.push(sql(`INSERT INTO ${t.table}(${t.columns.join(',')}) SELECT ${t.columns.map(k=>kind==='household'&&['head_donor_id','head_source','head_imported_at'].includes(k)?'NULL':`json_extract(value,'$.${k}')`).join(',')} FROM json_each(?) WHERE json_extract(value,'$._owned')=1`,rows))
  const records=JSON.stringify(effects.map(e=>({sourceKey:e.sourceKey,contentHash:e.contentHash,nativeId:e.nativeId,owned:e.owned?1:0,donorId:e.donorId,relatedId:e.relatedId})))
  writes.push(sql(`INSERT INTO cf_move_in_records(source,kind,source_key,native_id,content_hash,job_id,owned,donor_id,related_id,snapshot)
  SELECT ?,?,json_extract(j.value,'$.sourceKey'),n.${t.key},json_extract(j.value,'$.contentHash'),?,json_extract(j.value,'$.owned'),json_extract(j.value,'$.donorId'),json_extract(j.value,'$.relatedId'),${snapshot(kind)}
@@ -156,8 +158,10 @@ export async function undo(c: Context,id:string) {
   const t=tables[kind]
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>r.snapshot))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
+ writes.push(importHouseholdUndoFence(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
  const dependencies:[string,string,Kind,Kind|null,string][]=[
+  ['cf_acks','household_id','household',null,'id'],
   ['cf_gifts','donor_id','donor','gift','id'],['cf_pledges','donor_id','donor','pledge','id'],['cf_relationships','donor_id','donor','relationship','id'],['cf_relationships','related_donor_id','donor','relationship','id'],
   ['cf_soft_credits','donor_id','donor','softCredit','id'],['cf_soft_credits','gift_id','gift','softCredit','id'],['cf_donor_notes','donor_id','donor','note','id'],['cf_interactions','donor_id','donor','interaction','id'],
   ['cf_gift_acknowledgments','gift_id','gift','acknowledgment','gift_id'],
@@ -175,6 +179,7 @@ export async function undo(c: Context,id:string) {
  ]
  for(const [table,fk,parent,child,key] of dependencies)writes.push(guard(`NOT EXISTS(SELECT 1 FROM ${table} WHERE ${fk} IN (${owned(parent)})${child?` AND ${key} NOT IN (${owned(child)})`:''})`,'MOVE_IN_USED','Someone has used these imported records. Nothing was undone.',id,...(child?[id]:[])))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_job_gifts WHERE job_id<>? AND gift_id IN (${owned('gift')}))`,'MOVE_IN_USED','A later move-in counts gifts from this one. Undo that move-in first.',id,id))
+ writes.push(...importHouseholdUndoWrites(c,id))
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}
  writes.push(sql('DELETE FROM cf_move_in_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',id),sql("UPDATE cf_move_in_jobs SET state='undone',undone_at=?,applied_parts=0 WHERE id=?",c.now,id),event(c,'move-in.undo','move-in',id,null))
