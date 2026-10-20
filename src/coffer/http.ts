@@ -1,3 +1,5 @@
+import { documentsResponse } from './documents-http'
+import { cleanDocumentUploads, purgeDocuments } from './documents'
 import { notificationDownload } from './tribute-notifications'
 import { tributeGroups } from './tribute-groups'
 import { dashboardReport, dashboardEntries } from './dashboard'
@@ -180,6 +182,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   if (!isApi && person(actor)) actor.org = (await settings(c)).organisation || undefined
+  const documents=await documentsResponse(request,c,async()=>isApi?jsonBody(request):formBody(request,400000))
+  if(documents)return documents
   const agent = await agentResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
   if (agent) return agent
   const crmMoveIn = await crmMoveInResponse(request, c, { jsonBody, formBody })
@@ -217,6 +221,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if (path.startsWith('/api/portability/')) {
    if (actor.role !== 'owner') fail('owner_required', 'Only the owner can back up or restore.', 403)
    await cleanVideoUploads(c)
+   await cleanDocumentUploads(c);await purgeDocuments(c)
    const handler = await createPortabilityHandler({ db: env.DB, buckets: { FILES: env.FILES }, policy, appOrigin: env.AUTH_ORIGIN, authorize: async req => { const current = await identity(req, env); originGuard(req, env, current.bearer); return current.actor.role === 'owner' ? current.actor.id : null } })
    return await handler(request)
   }
@@ -249,6 +254,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if (path === '/app/backup' && request.method === 'POST') {
    if (actor.role !== 'owner') fail('owner_required', 'Only the owner can download a backup.', 403)
    await cleanVideoUploads(c)
+   await cleanDocumentUploads(c);await purgeDocuments(c)
    const service = await createPortability({ db: env.DB, buckets: { FILES: env.FILES }, policy }), id = await service.exports.create(actor.id)
    let state = await service.exports.advance(id, { maxParts: 1 })
    while (state.phase !== 'complete') state = await service.exports.advance(id, { expectedPart: state.completed, maxParts: 1 })
@@ -308,6 +314,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  // The placeholder must exist before its references move; delete the old donor last.
  const nativeStatements = [...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,?)", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder, JSON.stringify({reason})] }]
  const result: any = await imports.erase(c.db, c.actor, donorId, authority, { nativeStatements, checkpoint })
+ await purgeDocuments(c)
  return { erased: donorId, donorId: placeholder, receiptId: result.receiptId ?? result.id }
 }
 

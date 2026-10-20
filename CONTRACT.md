@@ -154,7 +154,7 @@ Before a saved or new list kind ships, it supplies its live donor membership to 
 
 #### DONOR-008 — Documents on records.
 
-A person attaches files (signed pledge agreements, grant letters, estate documents, photos) to a constituent, gift, pledge or opportunity. Files are stored in the installation's own R2 bucket, previewed in the browser, restricted by role, exported with the record and removed by erasure. Attached files are included in the donor's own data file (`DATA-003`) before this ships.
+A person attaches files (signed pledge agreements, grant letters, estate documents, photos) to a constituent, gift, pledge or opportunity. Files are stored in the installation's own R2 bucket, previewed in the browser, restricted by role, exported with the record and removed by erasure. Attached files are included in the donor's own data file (`DATA-003`) before this ships. Every current document door conforms to these obligations; before the wider roles and record scopes in `TEAM-001` ship, they must be asserted on document upload, preview, download and donor-file export.
 
 *Acceptance:* A browser journey attaches a PDF pledge agreement to a pledge, previews it, and a backup, restore and erasure include and then remove it. The same journey reads the attached PDF in that donor's `DATA-003` file.
 
@@ -1190,8 +1190,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 44 | 46 | 36 | 126 |
-| All | 53 | 46 | 36 | 135 |
+| Target and push further | 45 | 46 | 35 | 126 |
+| All | 54 | 46 | 35 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1210,7 +1210,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `DONOR-005` | Custom fields and tags | target | missing |  | No custom fields, tags or categories. |
 | `DONOR-006` | Duplicate detection and merge | target | done | `src/coffer/duplicates.ts`, `src/coffer/donor-merge.ts`, `src/coffer/merge-journal.ts`, `migrations/core/0042_coffer_duplicates.sql`, `tests/duplicates.test.mjs` |  |
 | `DONOR-007` | Saved searches and lists | target | partial | `src/coffer/donors.ts`, `src/coffer/ui/donors.ts` | Donor search includes reciprocal relationship-type and connected-donor filters. General saved lists and undoable bulk actions remain. |
-| `DONOR-008` | Documents on records | target | missing |  | No attachments. |
+| `DONOR-008` | Documents on records | target | done | `src/coffer/documents.ts`, `src/coffer/documents-http.ts`, `src/coffer/ui/documents.ts`, `src/coffer/archive-policy.mjs`, `migrations/core/0078_coffer_record_documents.sql`, `tests/documents.test.mjs`, `tests/documents-browser.mjs` | Clause-named native journey attaches and previews a pledge PDF at 1440/390; public doors assert constituent/gift/pledge/opportunity bindings, staff access and refusals, own R2 byte custody, subject-file contents, archive/restore, merge/undo, later-import-use refusal and erasure without affecting another constituent. |
 | `DONOR-009` | Address verification and NCOA | target | partial | `src/coffer/address-history.ts`, `migrations/core/0063_coffer_state_report.sql`, `tests/state-report-journey.mjs` | Each address change keeps the old address in history with its source and date (asserted under `REPORT-008`); no Smarty verification, NCOA pass or undeliverable flag. |
 | `DONOR-010` | Volunteer history | target | done | `src/coffer/volunteering.ts`, `src/coffer/ui/volunteering.ts`, `src/coffer/engagement.ts`, `tests/volunteering-journey.mjs`, `tests/pipeline.test.mjs` | Atomic CSV/manual activity, yearly minutes/hours, native timeline, live never-given segments, retention scopes, configurable real volunteering factors and custody are asserted through public doors. |
 | `DONOR-011` | Giving summary | target | done | `src/coffer/giving-summary.ts`, `src/coffer/ui/giving-summary.ts`, `tests/giving-summary.test.mjs`, `tests/giving.test.mjs` |  |

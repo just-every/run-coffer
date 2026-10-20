@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises'
 import {resolve,extname} from 'node:path'
 import {chromium} from '@playwright/test'
 
-export async function withBrowserWorker(h,journey) {
+export async function withBrowserWorker(h,journey,{channel}={}) {
  const assets=resolve('public')
  const server=createServer(async(req,res)=>{
   try {
@@ -24,7 +24,7 @@ export async function withBrowserWorker(h,journey) {
  })
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
  const origin=`http://127.0.0.1:${server.address().port}`
- const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ const browser=await chromium.launch({headless:true,...(channel?{channel}:{}),args:['--use-mock-keychain','--password-store=basic']})
  try {
   const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true})
   // Use the actual native session cookie so authentication survives redirects.

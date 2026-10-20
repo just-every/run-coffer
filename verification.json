@@ -1,6 +1,12 @@
 {
   "push": [
     {
+      "name": "record-documents",
+      "browser": true,
+      "hosted": false,
+      "commands": ["COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs"]
+    },
+    {
       "name": "source",
       "browser": false,
       "hosted": false,

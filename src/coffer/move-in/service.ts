@@ -169,6 +169,7 @@ export async function undo(c: Context,id:string) {
   ['cf_volunteering','donor_id','donor',null,'id'],
   ['cf_in_kind_gifts','donor_id','donor',null,'id'],
   ['cf_pledge_adjustments','pledge_id','pledge',null,'id'],['cf_pledge_plans','pledge_id','pledge',null,'pledge_id'],
+  ['cf_record_documents','donor_id','donor',null,'id'],['cf_record_documents','gift_id','gift',null,'id'],['cf_record_documents','pledge_id','pledge',null,'id'],
   ['cf_grants','donor_id','donor',null,'id'],['cf_grants','pledge_id','pledge',null,'id'],
   ['cf_prospects','donor_id','donor',null,'id'],['cf_prospects','pledge_id','pledge',null,'id'],['cf_prospects','gift_id','gift',null,'id'],['cf_call_tasks','donor_id','donor',null,'id'],['cf_call_tasks','interaction_id','interaction',null,'id'],
  ]

@@ -13,7 +13,7 @@ const descriptions = [
  owned('cf_donors',`n.id IN ${pair}`),
  owned('cf_donor_merges',`n.donor_id IN ${pair} OR n.into_id IN ${pair}`,['donor_id']),
  owned('cf_donor_aliases',undefined,['donor_id','email']),
- owned('cf_donor_address_history'),
+ owned('cf_donor_address_history'), owned('cf_record_documents'),
  owned('cf_gift_acknowledgments',`n.gift_id IN (${gifts})`,['gift_id']),
  owned('cf_gifts'), owned('cf_consents'), owned('cf_pledges'), owned('cf_acks'),
  owned('cf_events',`n.donor_id IN ${pair} AND NOT (n.action IN ('donor.merge','donor.unmerge') AND COALESCE(json_extract(n.detail,'$.mergeId'),'')=(SELECT id FROM merge))`),

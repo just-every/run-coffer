@@ -131,6 +131,14 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
  }
  const households = await all(c, 'SELECT id,name,created_at FROM cf_households WHERE id IN (SELECT household_id FROM cf_donors WHERE id IN (SELECT value FROM json_each(?)))', JSON.stringify(ids))
  if (households.length) records.households = households
+ const docs=records.record_documents??[]
+ for(const doc of docs){
+  const object=await c.env!.FILES.get(doc.object_key)
+  if(!object)fail('DOCUMENT_MISSING','A document file is missing. Restore the complete file before producing this donor’s data.',409)
+  const bytes=new Uint8Array(await object.arrayBuffer());let binary=''
+  for(const byte of bytes)binary+=String.fromCharCode(byte)
+  doc.content_base64=btoa(binary)
+ }
  const counts = Object.fromEntries(Object.entries(records).map(([k, v]) => [k, v.length]))
  const fileId = crypto.randomUUID()
  // Identifiers, date, method, counts and reference only; no names or note text.
