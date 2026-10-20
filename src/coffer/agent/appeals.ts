@@ -4,7 +4,7 @@ import { refreshMessages } from '../communications/outbound'
 import { action, AGENT } from './activity'
 
 /** A handoff is not delivery; an uncertain submission is never a safe resend. */
-function outcome(m:Row|null) {
+export function outcome(m:Row|null) {
  if (!m) return {state:'not submitted',flagged:true,resend:false}
  if (['bounced','not_sent','rejected','failed'].includes(m.remote_status)) return {state:String(m.remote_status).replaceAll('_',' '),flagged:true,resend:true}
  if (m.remote_status==='delivered') return {state:'delivered',flagged:false,resend:false}
@@ -29,14 +29,8 @@ export async function appealDelivery(c:Context,appealId:string) {
 export async function deliveryState(c:Context) {
  const appeals=await all(c,`SELECT a.id,a.name,a.status,a.recipients FROM cf_appeals a
  WHERE a.channel='email' AND a.status IN ('approved','exported','sent') ORDER BY a.prepared_at DESC,a.id DESC LIMIT 100`)
- // Materialized journey steps are their frozen audience. Future steps and
- // cancelled enrollments are not failed sends. There is no coded gift binding
- // for journey steps; report that limitation instead of inferring attribution.
- const steps=await all(c,`SELECT s.id,s.step,s.donor_id,d.name,s.status,m.id AS communication_id,m.provider,
- m.status AS message_status,m.remote_status,m.checked_at FROM cf_welcome_steps s JOIN cf_donors d ON d.id=s.donor_id
- LEFT JOIN cf_communications m ON m.message_key=s.message_key
- WHERE d.erased_at IS NULL AND s.status IN ('submitted','uncertain') ORDER BY s.due_at DESC,s.id LIMIT 100`)
- return {appeals,journey:steps.map(s=>({donor_id:s.donor_id,name:s.name,step:s.step,...s,...outcome(s.communication_id?{...s,status:s.message_status}:null),responses:'Unknown: journey steps have no gift response-code binding.'}))}
+ const { journeyDelivery }=await import('./journey-delivery')
+ return {appeals,journey:await journeyDelivery(c)}
 }
 
 export async function reconcileAppeal(c:Context,p:Row) {

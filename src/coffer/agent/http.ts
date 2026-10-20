@@ -1,3 +1,4 @@
+import { reconcileJourney, prepareJourneyResend } from './journey-delivery'
 import { appealDelivery, deliveryState, reconcileAppeal, prepareResend } from './appeals'
 import { appealAgentPage } from './appeals-ui'
 import { manager } from '../auth'
@@ -44,6 +45,8 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  if(request.method!=='POST')fail('METHOD','Use the agent page buttons.',405)
  const p=await body();let result:any,back='/app/agent'
  if(tail==='/appeals/run'){result=await reconcileAppeal(c,p);back='/app/agent/appeals?appealId='+encodeURIComponent(p.appealId)}
+ else if(tail==='/appeals/journey/run'){result=await reconcileJourney(c,p);back='/app/agent/appeals'}
+ else if(tail==='/appeals/journey/prepare'){result=await prepareJourneyResend(c,p);back='/app/appeals/'+result.id}
  else if(tail==='/appeals/prepare'){result=await prepareResend(c,p);back='/app/appeals/'+result.id}
  else if(tail==='/reconcile/run'){result=await runReconciliation(c,env);back='/app/agent/reconcile'}
  else if(tail==='/reconcile/apply'){result=await applyReconciliation(c,env,p);back='/app/agent/reconcile'}

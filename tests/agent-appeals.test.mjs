@@ -69,6 +69,62 @@ test('DEV-009: reconcile five dropped appeal recipients against the frozen audie
   await h.command('consent.record',{donorIds:[donors[0].id],channel:'email',status:'withdrawn',method:'email reply',evidence:'Synthetic withdrawal',capturedOn:'2026-09-02'})
   const subset=await h.api('/api/coffer/agent/appeals/prepare',{appealId:unsent.id})
   assert.equal((await h.get('/api/coffer/appeals/'+subset.id)).recipients.length,6,'New resend excludes current opt-outs')
+  // DEV-009 native journey: real published steps and provider calls, no seeded database rows.
+  await h.command('welcome.publish',{thankSubject:'Thank you {{donor_name}}',thankBody:'Your first gift helps our pantry.',impactSubject:'Pantry impact',impactBody:'Meals delivered.',askSubject:'Next gift',askBody:'Help again.',impactDays:7,askDays:21})
+  const journeyDonors=[]
+  for(const name of ['Jules Ives','Kira Jones','Lane King','Mira Lake']){
+   const d=await donor(h,name);journeyDonors.push(d)
+   await h.command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic journey permission',capturedOn:'2026-01-01'})
+   await h.command('gift.record',{donorId:d.id,amount:'30',receivedOn:new Date().toISOString().slice(0,10),method:'cash',fund:'Food',goods:'none'})
+  }
+  assert.equal((await h.command('welcome.run')).submitted,4)
+  const sentBefore=sends
+  let journey=(await h.get('/api/coffer/agent/appeals')).journey
+  assert.equal(journey.length,4)
+  const stepFor=d=>journey.find(s=>s.donor_id===d.id)
+  const droppedStep=stepFor(journeyDonors[0]),bouncedStep=stepFor(journeyDonors[1]),unknownStep=stepFor(journeyDonors[2]),handoffStep=stepFor(journeyDonors[3])
+  await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:droppedStep.id},{status:409})
+  for(const step of [droppedStep,bouncedStep,unknownStep,handoffStep])await h.api('/api/coffer/agent/appeals/journey/run',{stepId:step.id})
+  journey=(await h.get('/api/coffer/agent/appeals')).journey
+  assert.deepEqual(journeyDonors.map(d=>stepFor(d).state),['not sent','bounced','submission or delivery unknown','handoff confirmed; delivery unknown'])
+  assert.ok(journey.every(s=>s.checked_at&&s.responses.startsWith('Unknown:')))
+  for(const step of [unknownStep,handoffStep])await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:step.id},{status:409})
+  await h.api('/api/coffer/agent/appeals/journey/run',{stepId:'missing'},{status:409})
+  await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:droppedStep.id},{as:member.cookie,status:403})
+  await h.api('/api/coffer/agent/appeals/journey/run',{stepId:droppedStep.id},{as:'',status:401})
+  // The frozen submitted address is still checked after a donor edits their address.
+  const jules=(await h.get('/api/coffer/donors/'+journeyDonors[0].id)).donor
+  await h.command('donor.update',{donorId:jules.id,version:jules.version,name:jules.name,email:'jules.changed@example.org'})
+  assert.equal((await h.api('/api/coffer/agent/appeals/journey/run',{stepId:droppedStep.id})).state,'not sent')
+  let resend
+  if(process.env.COFFER_APPEAL_AGENT_BROWSER){
+   const {journeyResendBrowser}=await import('./agent-appeals-browser.mjs')
+   resend=await journeyResendBrowser(h,droppedStep,process.env.COFFER_APPEAL_AGENT_BROWSER)
+  }else resend=await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:droppedStep.id})
+  const draft=await h.get('/api/coffer/appeals/'+resend.id)
+  assert.equal(draft.appeal.status,'prepared');assert.equal(draft.approval,null)
+  assert.equal(draft.appeal.prepared_by_role,'agent')
+  assert.deepEqual(draft.recipients.map(r=>[r.donor_id,r.email]),[[jules.id,'jules.changed@example.org']])
+  assert.deepEqual([draft.message.subject,draft.message.body],['Thank you Jules Ives','Your first gift helps our pantry.'])
+  assert.equal((await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:droppedStep.id})).id,resend.id)
+  await h.command('appeal.send',{appealId:resend.id,version:1},{status:409})
+  assert.equal(sends,sentBefore,'Reconciliation and proposals send nothing')
+  await h.command('consent.record',{donorIds:[journeyDonors[1].id],channel:'email',status:'withdrawn',method:'email reply',evidence:'Synthetic stop request',capturedOn:'2026-09-02'})
+  await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:bouncedStep.id},{status:409})
+  // The normal approval gate also refuses a permission withdrawn after preparation.
+  await h.command('consent.record',{donorIds:[jules.id],channel:'email',status:'withdrawn',method:'email reply',evidence:'Synthetic stop after preparation',capturedOn:'2026-09-02'})
+  await h.command('appeal.approve',{appealId:resend.id,version:1},{status:409})
+  await h.command('appeal.discard',{appealId:resend.id,version:1})
+  await h.command('consent.record',{donorIds:[jules.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic renewed permission',capturedOn:'2026-09-03'})
+  const renewed=await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:droppedStep.id})
+  assert.notEqual(renewed.id,resend.id)
+  await h.command('appeal.approve',{appealId:renewed.id,version:1})
+  await h.command('appeal.send',{appealId:renewed.id,version:2})
+  assert.equal(sends,sentBefore+1)
+  const originalMessage=(await h.get('/api/coffer/donors/'+jules.id)).communications.find(m=>m.source_kind==='welcome')
+  assert.equal(originalMessage.recipient_email,'jules.ives@example.org')
+  assert.equal(originalMessage.remote_status,'not_sent')
+
  },{outbound:async request=>{
   const u=new URL(request.url),path=u.pathname.replace('/3.0',''),raw=request.method==='GET'?'':await request.text(),body=raw?JSON.parse(raw):null
   assert.equal(u.hostname,'us21.api.mailchimp.com')
@@ -95,6 +151,8 @@ test('DEV-009: reconcile five dropped appeal recipients against the frozen audie
   }
   const report=path.match(/^\/reports\/campaign-(\d+)\/sent-to$/)
   if(report){const n=Number(report[1]),campaign=campaigns.get('campaign-'+n),email=segments.get(campaign.recipients.segment_opts.saved_segment_id)
+   const native=email.startsWith('jules.')||email==='kira.jones@example.org'||email==='lane.king@example.org'||email==='mira.lake@example.org'
+   if(native)return Response.json({total_items:email==='jules.ives@example.org'?0:1,sent_to:email==='jules.ives@example.org'?[]:[{email_address:email==='lane.king@example.org'?'unrelated@example.test':email,status:email==='kira.jones@example.org'?'hard':'sent'}]})
    const dropped=resultMode==='dropped'||resultMode==='normal'&&n<=4
    return Response.json({total_items:dropped?0:1,sent_to:dropped?[]:[{email_address:resultMode==='mismatch'?'other@example.test':email,status:n===5?'hard':'sent'}]})
   }
@@ -102,7 +160,7 @@ test('DEV-009: reconcile five dropped appeal recipients against the frozen audie
  }})
  async function emailForHash(hash){
   const {createHash}=await import('node:crypto')
-  const emails=['avery.chen','bill.carter','cora.diaz','dalia.evans','eli.fox','farah.green','grace.hill','grace.changed'].map(n=>n+'@example.org')
+  const emails=['avery.chen','bill.carter','cora.diaz','dalia.evans','eli.fox','farah.green','grace.hill','grace.changed','jules.ives','kira.jones','lane.king','mira.lake','jules.changed'].map(n=>n+'@example.org')
   return emails.find(e=>createHash('md5').update(e).digest('hex')===hash)
  }
 })

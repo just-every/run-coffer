@@ -26,3 +26,27 @@ export async function appealAgentBrowser(h,original,prepared,directory){
   }
  })
 }
+
+export async function journeyResendBrowser(h,step,directory){
+ await mkdir(directory,{recursive:true})
+ return withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/agent/appeals')
+   const row=page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})})
+   await row.getByRole('button',{name:'Check journey sender results',exact:true}).click()
+   await page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})}).getByText('not sent',{exact:true}).waitFor()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.screenshot({path:`${directory}/DEV-009-journey-results-${width}.png`,fullPage:true})
+  }
+  await page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})}).getByRole('button',{name:'Prepare journey resend for approval',exact:true}).click()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.getByRole('button',{name:'Approve this audience',exact:true}).waitFor()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.screenshot({path:`${directory}/DEV-009-journey-prepared-${width}.png`,fullPage:true})
+  }
+  return {id:new URL(page.url()).pathname.split('/').at(-1)}
+ })
+}
