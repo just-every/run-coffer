@@ -560,7 +560,9 @@ Gift templates must include the donor name, amount, gift date, goods-or-services
 
 When a gift is reversed, refunded, split differently or reassigned, its receipt is voided or reissued with a corrected copy that says what changed, and the donor is told when a corrected receipt is sent. Receipt numbers are sequential per year and never reused.
 
-*Acceptance:* An HTTP journey refunds half a receipted gift and reads a corrected receipt with the next number referencing the original, and a voided one for a fully reversed gift.
+Current individual, automatic online, annual and property documents share one sequence per UTC preparation year. A number is reserved when the document is prepared and is never reused after discard, voiding, erasure or restore. Existing documents receive numbers in preparation order during upgrade. A financial adjustment, reversal, reassignment or property correction voids affected originals atomically, including every annual statement containing the changed gift; their numbers, frozen wording and delivery history remain as historical copies labelled VOID. Split allocations are immutable: changing a split uses reversal and a new gift, voiding the original receipt. Staff can prepare a corrected individual receipt from the remaining ledger balance; it names its predecessor and the change, retains the original goods value and reviewed benefit facts, and goes through the existing exact-content human approval and delivery path. A fully refunded contribution, an annual statement with changed facts, or a remaining contribution consumed by its original benefit value stays void rather than claiming a deductible replacement. Corrected property acknowledgments retain their predecessor and correction reason. A correction notice is part of the corrected copy; preparation alone never claims notification or delivery. Before GIFT-010, GIVE-009 or any new receipt, reassignment or split-edit door ships, it inherits the same numbering, atomic invalidation and correction custody.
+
+*Acceptance:* An HTTP journey refunds half a receipted gift and reads a corrected receipt with the next number referencing the original, and a voided one for a fully reversed gift. The RCPT-008 journey also asserts annual/property numbering, affected-statement voiding, changed-split reversal, reassignment, role and duplicate refusals, actual approved correction submission with donor notice, and archive/restore without number reuse; native void, preparation, delivery, print and property views run at 1440 and 390 pixels.
 
 #### RCPT-009 — One piece per household.
 
@@ -1182,8 +1184,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 41 | 46 | 39 | 126 |
-| All | 50 | 46 | 39 | 135 |
+| Target and push further | 42 | 46 | 38 | 126 |
+| All | 51 | 46 | 38 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1252,7 +1254,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `RCPT-005` | US receipt rules | target | done | `src/coffer/receipt-rules.ts`, `src/coffer/settings.ts`, `src/coffer/acknowledgements.ts`, `src/coffer/in-kind.ts`, `migrations/core/0057_coffer_receipt_rules.sql`, `tests/receipts.test.mjs`, `tests/receipt-rules-journey.mjs`, `tests/receipt-rules-browser.mjs` |  |
 | `RCPT-006` | Delivery tracking | target | done | `src/coffer/letter-delivery.ts`, `src/coffer/receipt-opens.ts`, `src/coffer/receipt-tasks.ts`, `tests/receipts.test.mjs`, `tests/receipt-delivery-journey.mjs`, `tests/receipt-delivery-browser.mjs` | Signed delivery and open events, independent outcomes, replay-safe address tasks and print routing, configured engagement factors and actual occurrence-day timelines are asserted through public doors and native 1440/390 journeys. RCPT-003 carries future print-vendor parity. |
 | `RCPT-007` | Thank-you templates | target | done | `src/coffer/letter-templates.ts`, `src/coffer/ui/letter-templates.ts`, `migrations/core/0071_coffer_letter_templates.sql`, `tests/letter-templates-journey.mjs`, `tests/receipts.test.mjs`, `tests/pledge-balances-journey.mjs` |  |
-| `RCPT-008` | Corrected and voided receipts | target | missing |  | No receipt numbering, voiding or reissue. |
+| `RCPT-008` | Corrected and voided receipts | target | done | `src/coffer/receipt-corrections.ts`, `src/coffer/receipt-format.ts`, `migrations/core/0074_coffer_receipt_corrections.sql`, `tests/receipts.test.mjs`, `tests/receipt-corrections-journey.mjs` |  |
 | `RCPT-009` | One piece per household | target | missing |  | Letters and appeal exports are one row per gift or per donor; no household grouping, addressee or combined totals. |
 | `RCPT-010` | Merge fields in every template | target | partial | `src/coffer/settings.ts`, `tests/coffer.test.mjs` | Letter templates merge a fixed list of nine fields (date, donor name, amount, gift date, fund, goods statement, organization, EIN, deductible amount) and are refused for unknown, missing required or unclosed fields; no name parts, salutations, household, contact-point, giving-summary or custom fields, no fallbacks, field list API or blank check. |
 | `RCPT-011` | Acknowledgment status on every gift and soft credit | target | partial | `src/coffer/soft-credit-ack.ts`, `src/coffer/acknowledgements.ts`, `tests/soft-credits.test.mjs`, `tests/receipts.test.mjs` | Soft credits have independent status, date, method, linked conversation or recorded thank-you note, exclusion reason and audited changes under GIFT-006. Hard gifts carry source acknowledgment status and sent-letter date/method/batch links under ACK-001. Manual outside-batch setters, automatic message updates, soft-credit queue settings, full importer interaction links and saved-list/report filters remain. |

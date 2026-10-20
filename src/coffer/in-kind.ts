@@ -1,3 +1,4 @@
+import { receiptText } from './receipt-format'
 import { addDays, all, choice, commit, date, event, fail, guard, id, integer, longText, newId, one, optional, sql, today, type Context, type Row } from './db'
 import { amount, usd } from './money'
 import { fill, longDate, settings, type Settings } from './settings'
@@ -96,11 +97,14 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
   if (on < g.received_on || on > day) fail('INPUT', 'Acknowledgment date must be on or after receipt and no later than today.', 400)
   if (!s.reviewed_at || !s.ein) fail('SETTINGS', 'Review the organization name and EIN in settings before issuing a property acknowledgment.')
   if (g.goods === 'unknown') fail('GOODS_UNKNOWN', 'Confirm goods or services before issuing a property acknowledgment.')
+  const previous = await one(c, 'SELECT * FROM cf_in_kind_acknowledgments WHERE in_kind_id=? ORDER BY property_version DESC LIMIT 1', giftId)
+  const correction = previous ? await one(c, 'SELECT reason FROM cf_in_kind_revisions WHERE in_kind_id=? AND property_version=?', giftId, g.property_version) : null
   const acknowledgmentId = newId(), template = await templateFor(c, 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, g.donor_name, on, template)
+  if (previous) letter.body = `Corrected property acknowledgment replacing ${previous.receipt_year}-${previous.receipt_sequence}. What changed: ${correction?.reason ?? 'Donor reassigned'}. Use this copy in place of the earlier acknowledgment.\n\n${letter.body}`
   await commit(c, [live(donorId), current(giftId, donorId, version),
    guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Settings changed. Refresh before issuing the acknowledgment.', s.version), templatesUnchanged(revision),
    guard('NOT EXISTS(SELECT 1 FROM cf_in_kind_acknowledgments WHERE in_kind_id=? AND property_version=?)', 'ALREADY_ACKNOWLEDGED', 'This property version already has an acknowledgment.', giftId, g.property_version),
-   sql('INSERT INTO cf_in_kind_acknowledgments(id,in_kind_id,property_version,acknowledged_on,subject,body,created_by,created_at,template_kind,template_id,template_version) VALUES(?,?,?,?,?,?,?,?,?,?,?)', acknowledgmentId, giftId, g.property_version, on, letter.subject, letter.body, c.actor.id, c.now, letter.template_kind, letter.template_id, letter.template_version),
+   sql('INSERT INTO cf_in_kind_acknowledgments(id,in_kind_id,property_version,acknowledged_on,subject,body,created_by,created_at,template_kind,template_id,template_version,replaces_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', acknowledgmentId, giftId, g.property_version, on, letter.subject, letter.body, c.actor.id, c.now, letter.template_kind, letter.template_id, letter.template_version, previous?.id ?? null),
    sql('UPDATE cf_in_kind_gifts SET version=version+1,updated_at=? WHERE id=?', c.now, giftId),
    event(c, command, 'inKindGift', giftId, donorId, { acknowledgmentId, propertyVersion: g.property_version }),
   ])
@@ -128,12 +132,12 @@ export async function inKindState(c: { db: D1Database }, donorId?: string) {
  const gifts = await all(c, `SELECT g.*,d.name AS donor_name FROM cf_in_kind_current g JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId ? 'AND g.donor_id=?' : ''} ORDER BY g.received_on DESC,g.created_at,g.id`, ...(donorId ? [donorId] : []))
  const acknowledgments = await all(c, `SELECT a.* FROM cf_in_kind_acknowledgments a JOIN cf_in_kind_gifts g ON g.id=a.in_kind_id JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId ? 'AND g.donor_id=?' : ''} ORDER BY a.created_at,a.id`, ...(donorId ? [donorId] : []))
  const revisions=await all(c,`SELECT r.* FROM cf_in_kind_revisions r JOIN cf_in_kind_gifts g ON g.id=r.in_kind_id JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId?'AND g.donor_id=?':''} ORDER BY r.property_version`,...(donorId?[donorId]:[]))
- return { gifts: gifts.map(g => ({ ...g, corrections:revisions.filter(r=>r.in_kind_id===g.id).map(r=>({...r,snapshot:JSON.parse(r.snapshot)})), reminders: inKindReminders(g), acknowledgments: acknowledgments.filter(a => a.in_kind_id === g.id).map(a => ({ ...a, current: a.property_version === g.property_version })) })), totalStatedValueCents: gifts.reduce((sum, g) => sum + g.stated_value_cents, 0) }
+ return { gifts: gifts.map(g => ({ ...g, corrections:revisions.filter(r=>r.in_kind_id===g.id).map(r=>({...r,snapshot:JSON.parse(r.snapshot)})), reminders: inKindReminders(g), acknowledgments: acknowledgments.filter(a => a.in_kind_id === g.id).map(a => ({ ...a, current: !a.void_reason && a.property_version === g.property_version })) })), totalStatedValueCents: gifts.reduce((sum, g) => sum + g.stated_value_cents, 0) }
 }
 
 /** HTTP caller applies the same authenticated staff-read boundary as donors. */
 export async function inKindAcknowledgment(c: { db: D1Database }, acknowledgmentId: string) {
  const a = await one(c, `SELECT a.* FROM cf_in_kind_acknowledgments a JOIN cf_in_kind_gifts g ON g.id=a.in_kind_id JOIN cf_donors d ON d.id=g.donor_id WHERE a.id=? AND d.erased_at IS NULL`, acknowledgmentId)
  if (!a) fail('NOT_FOUND', 'That property acknowledgment is not available.', 404)
- return new Response(`${a.subject}\n\n${a.body}\n`, { headers: { 'content-type': 'text/plain; charset=utf-8', 'content-disposition': 'attachment; filename="property-acknowledgment.txt"', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
+ return new Response(`${a.subject}\n\n${receiptText(a)}\n`, { headers: { 'content-type': 'text/plain; charset=utf-8', 'content-disposition': 'attachment; filename="property-acknowledgment.txt"', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
 }

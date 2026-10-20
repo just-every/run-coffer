@@ -58,9 +58,9 @@ export async function deliveryCommand(c: Context, command: string, p: Row): Prom
   await commit(c, [
    sql(`UPDATE cf_acks AS a SET route=CASE WHEN EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=a.donor_id AND ${eligible}) THEN 'email' ELSE 'print' END,
     delivery_status=CASE WHEN EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=a.donor_id AND ${eligible}) THEN 'sending' ELSE 'print' END,
-    attempt_id=?,delivery_note=NULL WHERE id=? AND route='pending'`, attempt, l.id)])
+    attempt_id=?,delivery_note=NULL WHERE id=? AND route='pending' AND void_reason IS NULL`, attempt, l.id)])
   const letter = await one(c, 'SELECT * FROM cf_acks WHERE id=?', l.id)
-  if (!letter || letter.attempt_id !== attempt || letter.route !== 'email') continue
+  if (!letter || letter.void_reason || letter.attempt_id !== attempt || letter.route !== 'email') continue
   try {
    const sent = await sendReceipt(c.env, letter)
    await c.db.prepare("UPDATE cf_acks SET message_id=?,submitted_at=?,delivery_status=CASE WHEN delivery_status='sending' THEN 'submitted' ELSE delivery_status END WHERE id=? AND attempt_id=?").bind(sent.messageId, c.now, l.id, attempt).run()

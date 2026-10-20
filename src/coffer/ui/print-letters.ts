@@ -1,3 +1,4 @@
+import { receiptText } from '../receipt-format'
 import type { Row } from '../db'
 import { e } from './common'
 
@@ -48,7 +49,7 @@ export function printLetters(letters: Row[], organisation: string): Response {
  <div class="letterhead">${e(organisation)}</div>
  <address class="recipient">${postalAddress(letter)}</address>
  <h2 class="subject" id="subject-${index}">${e(letter.subject)}</h2>
- <div class="letter-body">${e(letter.body)}</div>
+ <div class="letter-body">${e(receiptText(letter))}</div>
  </article>`).join('')
  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · ${e(organisation)}</title><style>${styles}</style></head><body>
  <header class="print-help"><h1>${title}</h1><p>${letters.length} ${letters.length === 1 ? 'letter' : 'letters'} · ${e(organisation)}</p><p>Use your browser’s Print menu to print or save as PDF. Choose US Letter paper, 100% scale, and turn off browser headers and footers. Check the print preview and a test sheet against your window envelope before mailing.</p><a href="/app/letters">Back to letters</a></header>

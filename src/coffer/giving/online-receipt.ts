@@ -36,7 +36,7 @@ export async function sendOnlineReceipt(env: GivingEnv, giftId: string): Promise
  const claim = await env.DB.prepare("UPDATE cf_acks SET route='email',delivery_status='sending',attempt_id=? WHERE id=? AND route='pending'").bind(attempt, letterId).run()
  if (!claim.meta.changes) return
  try {
-  const sent = await sendReceipt(env, { ...letter, attempt_id: attempt })
+  const sent = await sendReceipt(env, { ...(await one(c, 'SELECT * FROM cf_acks WHERE id=?', letterId))!, attempt_id: attempt })
   await env.DB.prepare("UPDATE cf_acks SET message_id=?,submitted_at=?,delivery_status=CASE WHEN delivery_status='sending' THEN 'submitted' ELSE delivery_status END WHERE id=? AND attempt_id=?").bind(sent.messageId, now, letterId, attempt).run()
  } catch (error: any) {
   const refused = ['mail_rejected', 'mail_rate_limited', 'mail_unavailable'].includes(error?.code)

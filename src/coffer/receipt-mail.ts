@@ -1,3 +1,4 @@
+import { receiptText } from './receipt-format'
 import { receiptReplyAddress } from './receipt-replies'
 import type { Bindings } from '../auth.server'
 import { sendSendGrid, SendGridSendError } from '../modules/mail/src/sendgrid-email/index.mjs'
@@ -23,6 +24,8 @@ export function assertReceiptMailAvailable(env: Bindings): void {
 export async function sendReceipt(env: Bindings, letter: Row): Promise<{ messageId: string }> {
  assertReceiptMailAvailable(env)
  const letterId = id(letter.id, 'Receipt letter'), attemptId = id(letter.attempt_id, 'Receipt email attempt')
+ if (letter.void_reason) fail('VOID_RECEIPT', 'A voided receipt cannot be sent.')
+ const body = receiptText(letter)
  const replyTo = await receiptReplyAddress(env, letter)
  let result
  try {
@@ -30,7 +33,7 @@ export async function sendReceipt(env: Bindings, letter: Row): Promise<{ message
    apiKey: env.MAIL_API_KEY!,
    message: {
     deliveryId: attemptId, from: env.MAIL_FROM!, to: [letter.recipient_email],
-    subject: letter.subject, text: letter.body, html: `<div>${String(letter.body).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]!)).replace(/\n/g,'<br>')}</div>`, ...(replyTo ? { replyTo } : {}),
+    subject: letter.subject, text: body, html: `<div>${String(body).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]!)).replace(/\n/g,'<br>')}</div>`, ...(replyTo ? { replyTo } : {}),
     customArgs: { coffer_letter_id: letterId, coffer_attempt_id: attemptId },
    },
   })

@@ -1,3 +1,4 @@
+import { receiptNumber, receiptText } from './receipt-format'
 import { withReceiptBenefits } from './receipt-rules'
 import { receiptFundLabels } from './gift-splits'
 import { addDays, all, choice, commit, date, daysBetween, event, fail, guard, id, integer, newId, one, sha256, sql, today, type Context, type Row } from './db'
@@ -17,7 +18,7 @@ export const DUE = `g.kind='gift' AND (g.amount_cents>=min(?,25000) OR (g.amount
 
 export async function dueGifts(c: { db: D1Database }) {
  const s = await settings(c), day = today(s.timezone)
- const rows = await all(c, `SELECT g.*,d.name AS donor_name,d.email AS donor_email FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE ${DUE} ORDER BY g.received_on,g.id LIMIT 2000`, s.threshold_cents)
+ const rows = await all(c, `SELECT g.*,d.name AS donor_name,d.email AS donor_email FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${DUE} ORDER BY g.received_on,g.id LIMIT 2000`, s.threshold_cents)
  await withReceiptBenefits(c, rows)
  await receiptFundLabels(c,rows)
  return {
@@ -36,7 +37,7 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
   if (!s.reviewed_at || !s.organisation) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')
   const wanted = Array.isArray(p.giftIds) ? new Set(p.giftIds.map((x: unknown) => id(x, 'Gift'))) : null
   const { gifts } = await dueGifts(c), day = today(s.timezone, new Date(c.now))
-  const chosen = gifts.filter(g => g.goods !== 'unknown' && (!wanted || wanted.has(g.id))).slice(0, MAX_LETTERS)
+  const chosen = gifts.filter(g => g.goods !== 'unknown' && g.net_cents > g.goods_cents && (!wanted || wanted.has(g.id))).slice(0, MAX_LETTERS).map((g): Row => ({ ...g, amount_cents: g.net_cents }))
   if (wanted && chosen.length !== wanted.size) fail('NOT_DUE', 'A selected gift is not waiting for a letter, or still needs its goods or services answer.')
   if (!chosen.length) fail('NOTHING_DUE', 'No gifts are waiting for an acknowledgement letter.')
   const donors = new Map((await all(c, 'SELECT * FROM cf_donors WHERE id IN (SELECT value FROM json_each(?))', JSON.stringify([...new Set(chosen.map(g => g.donor_id))]))).map(d => [d.id, d]))
@@ -48,6 +49,7 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
   })
   const hash = await letterHash(s.version, letters), total = letters.reduce((n, l) => n + l.amount_cents, 0)
   await commit(c, [
+   guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE NOT EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=json_extract(j.value,'$.id') AND g.net_cents=json_extract(j.value,'$.amount_cents') AND g.version=json_extract(j.value,'$.version')))", 'GIFT_CHANGED', 'A gift balance changed. Prepare again.', JSON.stringify(chosen)),
    guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version), templatesUnchanged(revision),
    guard(`(SELECT count(*) FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id IN (SELECT value FROM json_each(?)) AND g.goods<>'unknown' AND ${DUE})=?`, 'NOT_DUE', 'A gift changed while preparing. Prepare again.', JSON.stringify(letters.map(l => l.gift_id)), s.threshold_cents, letters.length),
    guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE COALESCE((SELECT version FROM cf_gift_tributes WHERE gift_id=json_extract(j.value,'$.giftId')),0)<>json_extract(j.value,'$.version'))", 'TRIBUTE_CHANGED', 'A tribute changed while preparing. Prepare the letters again.', JSON.stringify(chosen.map(g => ({ giftId: g.id, version: tributes.get(g.id)?.version ?? 0 })))),
@@ -85,7 +87,7 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
   if (!['approved', 'exported', 'sent'].includes(batch.status)) fail('NOT_APPROVED', 'A person must approve these letters before they are exported.')
   if (batch.status !== 'approved') return { id: batchId, version, status: batch.status, exportHash: batch.export_hash }
   const file = lettersCsv(await batchLetters(c, batchId)), hash = await sha256(file)
-  await commit(c, [at(['approved']), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'ack.export', 'acknowledgements', batchId, null, { letters: batch.letters })])
+  await commit(c, [at(['approved']), currentLetterGifts(batchId), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'ack.export', 'acknowledgements', batchId, null, { letters: batch.letters })])
   return { id: batchId, version: version + 1, status: 'exported', exportHash: hash }
  }
  const sentOn = date(p.sentOn, 'Sent on'), method = choice(p.method, ['mail', 'email', 'mail and email'] as const, 'how the letters went out')
@@ -93,7 +95,7 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
  const timezone = (await settings(c)).timezone
  // The export date is the organization's calendar day, like Sent on itself.
  if (sentOn > today(timezone) || sentOn < today(timezone, new Date(batch.exported_at))) fail('INPUT', 'Sent on must be between the export date and today.', 400)
- await commit(c, [at(['exported']), bump('sent', ',sent_on=?,sent_method=?,sent_recorded_by=?', sentOn, method, c.actor.name),
+ await commit(c, [at(['exported']), currentLetterGifts(batchId), bump('sent', ',sent_on=?,sent_method=?,sent_recorded_by=?', sentOn, method, c.actor.name),
   sql(`INSERT INTO cf_gift_acknowledgments(gift_id,status,acknowledged_on,method,batch_id,letter_id,reason,source,updated_at,updated_by)
    SELECT gift_id,'acknowledged',?,'letter',batch_id,id,NULL,'Coffer letter batch',?,? FROM cf_acks WHERE batch_id=? AND gift_id IS NOT NULL
    ON CONFLICT(gift_id) DO UPDATE SET status=excluded.status,acknowledged_on=excluded.acknowledged_on,method=excluded.method,batch_id=excluded.batch_id,letter_id=excluded.letter_id,reason=NULL,source=excluded.source,source_reference=NULL,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,sentOn,c.now,c.actor.name,batchId), event(c, 'ack.markSent', 'acknowledgements', batchId, null, { sentOn, method })])
@@ -102,7 +104,7 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
 
 export function lettersCsv(letters: Row[]) {
  return csv(['letter', 'donor_name', 'email', 'address_line1', 'address_line2', 'city', 'state', 'zip', 'country', 'gift_date', 'amount', 'subject', 'letter_text'],
-  letters.map(l => { const a = l.address ? JSON.parse(l.address) : {}; return [l.position + 1, l.recipient_name, l.recipient_email, a.line1, a.line2, a.city, a.region, a.postalCode, a.country, l.received_on, (l.amount_cents / 100).toFixed(2), l.subject, l.body] }))
+  letters.map(l => { const a = l.address ? JSON.parse(l.address) : {}; return [receiptNumber(l), l.recipient_name, l.recipient_email, a.line1, a.line2, a.city, a.region, a.postalCode, a.country, l.received_on, (l.amount_cents / 100).toFixed(2), l.subject, receiptText(l)] }))
 }
 
 export async function batches(c: { db: D1Database }) {
@@ -116,7 +118,7 @@ export async function batchDetail(c: { db: D1Database }, batchId: string) {
 }
 
 /** Annual statements freeze the complete calendar year, including late gifts. */
-export const currentLetterGiftsCondition = `NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.batch_id=? AND b.kind='statement' AND (
+export const currentLetterGiftsCondition = `NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.batch_id=? AND a.void_reason IS NULL AND b.kind='statement' AND (
  (SELECT count(*) FROM cf_gifts g WHERE g.donor_id=a.donor_id AND g.kind='gift' AND substr(g.received_on,1,4)=CAST(b.statement_year AS TEXT) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id))<>json_array_length(a.statement_gifts)
  OR EXISTS(SELECT 1 FROM json_each(a.statement_gifts) j WHERE NOT EXISTS(SELECT 1 FROM cf_gifts g WHERE g.id=json_extract(j.value,'$.id') AND g.version=json_extract(j.value,'$.version') AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)))))`
-export const currentLetterGifts = (batchId: string) => guard(currentLetterGiftsCondition, 'GIFT_CHANGED', 'A statement gift changed. Discard this batch and prepare it again.', batchId)
+export const currentLetterGifts = (batchId: string) => guard(`(${currentLetterGiftsCondition}) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE batch_id=? AND void_reason IS NOT NULL)`, 'GIFT_CHANGED', 'A receipt or statement gift changed. Open its voided copy and prepare a correction.', batchId, batchId)

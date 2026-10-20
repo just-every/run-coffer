@@ -29,6 +29,7 @@ import { giftDepthCommand } from './gift-depth'
 import { pledgeCommand } from './pledges'
 import { donorCommand } from './donors'
 import { giftCommand } from './gifts'
+import { correctReceipt } from './receipt-corrections'
 import { ackCommand } from './acknowledgements'
 import { appealCommand } from './appeals'
 import { settingsCommand } from './settings'
@@ -58,7 +59,7 @@ export const ACCESS: Record<string, Role[]> = {
  'softCredit.record': STAFF, 'softCredit.remove': STAFF, 'tribute.record': STAFF, 'match.record': STAFF, 'match.receive': STAFF,
  'pledge.remind': STAFF, 'pledge.match': STAFF, 'pledge.reduce': STAFF, 'pledge.writeOff': STAFF, 'pledge.linkPlan': STAFF,
  'gift.reverse': MANAGERS, 'gift.classify': MANAGERS, 'settings.update': MANAGERS, 'letterTemplate.save': MANAGERS, 'letterTemplate.retire': MANAGERS,
- 'ack.prepareStatements': MANAGERS, 'ack.send': MANAGERS, 'ack.checkDelivery': MANAGERS, 'ack.printed': MANAGERS, 'ack.prepare': PREPARERS, 'ack.approve': MANAGERS, 'ack.discard': MANAGERS, 'ack.export': MANAGERS, 'ack.markSent': MANAGERS,
+ 'ack.correct': MANAGERS, 'ack.prepareStatements': MANAGERS, 'ack.send': MANAGERS, 'ack.checkDelivery': MANAGERS, 'ack.printed': MANAGERS, 'ack.prepare': PREPARERS, 'ack.approve': MANAGERS, 'ack.discard': MANAGERS, 'ack.export': MANAGERS, 'ack.markSent': MANAGERS,
  'marketing.sync': MANAGERS, 'marketing.connectMango': MANAGERS, 'marketing.connectMailchimp': MANAGERS, 'marketing.chooseAudience': MANAGERS, 'marketing.check': MANAGERS, 'marketing.disconnect': MANAGERS, 'marketing.refresh': MANAGERS, 'appeal.send': MANAGERS, 'welcome.publish': MANAGERS, 'welcome.run': MANAGERS, 'reply.complete': STAFF, 'reply.proposeStop': STAFF, 'reply.confirmStop': STAFF, 'reply.reverseStop': STAFF,
  'appeal.prepare': PREPARERS, 'appeal.approve': MANAGERS, 'appeal.discard': MANAGERS, 'appeal.export': MANAGERS, 'appeal.markSent': MANAGERS,
  'agent.create': MANAGERS, 'agent.revoke': MANAGERS,
@@ -70,6 +71,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  requireRole(c.actor, allowed, `run ${command}`)
  const p = object(input)
  for (const key of ['donorId','employerDonorId','relatedDonorId']) if (typeof p[key] === 'string' && p[key] && await canonicalDonor(c,p[key]) !== p[key]) fail('MERGED_DONOR', 'This record was merged. Open the surviving donor record before saving.')
+ if (command === 'ack.correct') return correctReceipt(c, p)
  if (command === 'ack.prepareStatements') return prepareStatements(c, p)
  if (command === 'donor.merge') return mergeDonor(c, p)
  if (command === 'donor.unmerge') return undoMerge(c, p)
