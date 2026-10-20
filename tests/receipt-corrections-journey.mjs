@@ -31,7 +31,7 @@ export async function receiptCorrectionsJourney() {
   return {...await detail(h,batch.id),version:sent.version}
  }
  const paid=async(h,key)=>{
-  const charge={id:'ch_'+key,object:'charge',paid:true,status:'succeeded',amount:35000,currency:'usd',created:at,metadata:{fund:'Literacy'},billing_details:{name:'Nora '+key,email:key+'@example.test'},balance_transaction:'txn_'+key,amount_refunded:0}
+  const charge={id:'ch_'+key,object:'charge',paid:true,status:'succeeded',amount:35000,currency:'usd',created:at,metadata:{fund:'Literacy'},billing_details:{name:'Nora Bennett',email:key+'@example.test'},balance_transaction:'txn_'+key,amount_refunded:0}
   charges.set('/v1/charges/'+charge.id,charge)
   transactions.set('/v1/balance_transactions/'+charge.balance_transaction,{id:charge.balance_transaction,type:'charge',source:charge.id,amount:35000,fee:1000,net:34000,currency:'usd',created:at})
   await event(h,'evt_paid_'+key,'charge.succeeded',charge.id)
@@ -94,10 +94,14 @@ export async function receiptCorrectionsJourney() {
   assert.ok(voided.void_reason,'Reversal to change a split voids the original without altering its number')
   assert.equal(voided.receipt_sequence,cashReceipt.letters[0].receipt_sequence)
   await h.command('ack.correct',{letterId:voided.id},{status:409})
-  const property=await h.command('inKind.save',{donorId:cash.id,description:'Library shelving',quantity:'2',statedValue:'800',receivedOn:'2025-09-10',goods:'none'})
+  const changedSplit=await h.command('gift.record',{donorId:cash.id,amount:'400',receivedOn:'2025-09-12',method:'check',goods:'none',allocations:[{fund:'Books',amount:'200'},{fund:'Literacy',amount:'200'}]})
+  const changedSplitReceipt=await issue(h,changedSplit.id)
+  assert.equal(changedSplitReceipt.letters[0].receipt_sequence,voided.receipt_sequence+1,'A changed split is a new immutable gift and a new numbered receipt')
+  assert.ok((await detail(h,cashReceipt.batch.id)).letters[0].void_reason)
+  const property=await h.command('inKind.save' ,{donorId:cash.id,description:'Library shelving',quantity:'2',statedValue:'800',receivedOn:'2025-09-10',goods:'none'})
   const propertyAck=await h.command('inKind.acknowledge',{donorId:cash.id,inKindId:property.id,version:property.version,acknowledgedOn:'2025-09-12'})
   let propertyState=(await h.get('/api/coffer/in-kind?donorId='+cash.id)).gifts.find(g=>g.id===property.id)
-  assert.equal(propertyState.acknowledgments[0].receipt_sequence,voided.receipt_sequence+1,'Property acknowledgments share the cash sequence')
+  assert.equal(propertyState.acknowledgments[0].receipt_sequence,changedSplitReceipt.letters[0].receipt_sequence+1,'Property acknowledgments share the cash sequence')
   const propertyNumber=propertyState.acknowledgments[0].receipt_sequence
   await h.command('inKind.save',{donorId:cash.id,inKindId:property.id,version:propertyAck.version,description:'Library shelving, three units',quantity:'3',statedValue:'800',receivedOn:'2025-09-10',goods:'none',correctionReason:'Correct the quantity from the receiving record'})
   propertyState=(await h.get('/api/coffer/in-kind?donorId='+cash.id)).gifts.find(g=>g.id===property.id)
@@ -125,7 +129,18 @@ export async function receiptCorrectionsJourney() {
    assert.deepEqual((await detail(fresh,original.batch.id)).letters,(await detail(h,original.batch.id)).letters,'Original voided receipt remains historical')
    const extra=await fresh.command('gift.record',{donorId:cash.id,amount:'350',receivedOn:'2025-09-13',method:'check',goods:'none'})
    const next=await fresh.command('ack.prepare',{giftIds:[extra.id]})
-   assert.equal((await detail(fresh,next.id)).letters[0].receipt_sequence,lastNumber+1,'Restoration never reuses a reserved number')
+   const reserved=(await detail(fresh,next.id)).letters[0].receipt_sequence
+   assert.equal(reserved,lastNumber+1,'Restoration never reuses a reserved number')
+   await fresh.command('ack.discard',{batchId:next.id,version:1})
+   const rePrepared=await fresh.command('ack.prepare',{giftIds:[extra.id]})
+   assert.equal((await detail(fresh,rePrepared.id)).letters[0].receipt_sequence,reserved+1,'Discard never releases a number')
+   await fresh.command('donor.erase',{donorId:cash.id,confirm:'ERASE'})
+   const retained=(await detail(fresh,rePrepared.id)).letters[0]
+   assert.equal(retained.receipt_sequence,reserved+1,'Erasure retains the reserved numeric identity')
+   assert.equal(retained.body,'[erased]')
+   const another=await fresh.command('gift.record',{donorId:source.id,amount:'350',receivedOn:'2025-09-14',method:'check',goods:'none'})
+   const afterErasure=await fresh.command('ack.prepare',{giftIds:[another.id]})
+   assert.equal((await detail(fresh,afterErasure.id)).letters[0].receipt_sequence,reserved+2,'Erasure never reuses a number')
   },options)
   if(process.env.COFFER_CORRECTIONS_BROWSER){
    const directory=process.env.COFFER_CORRECTIONS_BROWSER;await mkdir(directory,{recursive:true})
@@ -148,7 +163,10 @@ export async function receiptCorrectionsJourney() {
      await page.getByRole('link',{name:'Print this letter / save PDF',exact:true}).click()
      await capture('print',width)
      await page.goto(origin+'/app/donors/'+cash.id)
-     await page.locator('#in-kind-'+property.id).waitFor();await capture('property',width)
+     const propertyPanel=page.locator('#in-kind-'+property.id);await propertyPanel.waitFor()
+     for(const summary of await propertyPanel.getByText('Read property acknowledgment',{exact:true}).all())await summary.click()
+     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+     await propertyPanel.screenshot({path:`${directory}/RCPT-008-property-${width}.png`})
     }
     await page.close()
    })
