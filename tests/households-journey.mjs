@@ -7,6 +7,7 @@ export async function householdsJourney(h) {
  await reviewed(h)
  const member=await h.person('household-entry@example.test'),admin=await h.person('household-admin@example.test','admin')
  const robert=await donor(h,'Robert Smith',{household:'Robert and Jane Smith'}),jane=await donor(h,'Jane Smith',{household:'Robert and Jane Smith'}),sam=await donor(h,'Sam Rivers',{household:'Rivers household'}),sponsor=await donor(h,'Community DAF Sponsor'),duplicate=await donor(h,'Jane S Smith')
+ const screenshot=async(phase)=>{if(process.env.COFFER_HOUSEHOLD_BROWSER){const {householdsBrowser}=await import('./households-browser.mjs');await householdsBrowser(h,{donorId:robert.id,directory:process.env.COFFER_HOUSEHOLD_BROWSER,phase})}}
  const hid=(await history(h,robert.id)).donor.household_id
  const state=(suffix='',options={})=>h.get('/api/coffer/households/'+hid+suffix,options)
  const update=async(input={},options={})=>h.command('household.update',{householdId:hid,version:(await state()).household.version,...input},options)
@@ -42,6 +43,7 @@ export async function householdsJourney(h) {
  await gift(duplicate,'25')
  await h.command('pledge.create',{donorId:jane.id,amount:'500',pledgedOn:'2025-01-01',fund:'Library',installments:[{dueOn:'2027-01-01',amount:'500'}]})
  await h.command('match.record',{giftId:A.id,employerDonorId:sponsor.id,amount:'100',dueBy:'2027-01-01'})
+ await screenshot('headless')
  const beforeR=facts(await history(h,robert.id)),beforeJ=facts(await history(h,jane.id))
  const oldAudit=(await h.get('/api/coffer/audit?action=donor.create')).rows
  const stale=(await state()).household.version
@@ -104,12 +106,14 @@ export async function householdsJourney(h) {
  assert.ok(voidPiece.void_reason);assert.equal(voidPiece.body,piece.body)
  const corrected=await h.command('ack.correct',{letterId:piece.id})
  assert.equal(corrected.totalCents,40000)
+ assert.equal(JSON.parse((await h.get('/api/coffer/letters/'+corrected.id)).letters[0].household_snapshot).headStatus,'none')
  await update({headDonorId:robert.id})
  await h.command('ack.approve',{batchId:corrected.id,version:1},{status:409})
  await h.command('ack.discard',{batchId:corrected.id,version:1})
  await profile(robert,{constituentStatus:'deceased'})
  assert.equal((await state()).headStatus,'deceased')
  assert.doesNotMatch((await state()).computed.addressee,/Robert/)
+ await screenshot('deceased')
  await update({headDonorId:robert.id},{status:409})
  await update({headDonorId:jane.id})
  await profile(jane,{constituentStatus:'inactive'})
@@ -130,6 +134,7 @@ export async function householdsJourney(h) {
  s=await state();assert.equal(s.headStatus,'none');assert.equal(s.household.informal_override,null);assert.equal(s.household.formal_override,null);assert.equal(s.household.addressee_override,null)
  assert.doesNotMatch(s.household.name,/Jane|Janet/)
  assert.equal(s.totals.moneyCents,20000)
+ await screenshot('erased')
  await update({headDonorId:jane.id},{status:409})
  const erasedPiece=(await h.get('/api/coffer/letters/'+statement.id)).letters[0]
  assert.equal(erasedPiece.body,'[erased]');assert.equal(erasedPiece.household_snapshot,null)

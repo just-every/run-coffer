@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {withBrowserWorker} from './browser-worker.mjs'
 
-export async function householdsBrowser(h,{donorId,householdId,statementId,directory}) {
+export async function householdsBrowser(h,{donorId,householdId,statementId,directory,phase='selected'}) {
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
@@ -10,6 +10,8 @@ export async function householdsBrowser(h,{donorId,householdId,statementId,direc
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/app/donors/'+donorId+'?householdYear=2025#household')
    const section=page.locator('#household')
+   await section.getByRole('heading',{name:'Combined giving'}).waitFor()
+   if(phase!=='selected'){await section.screenshot({path:`${directory}/DONOR-003-${phase}-${width}.png`});continue}
    await section.getByText('$1,400.00',{exact:true}).waitFor()
    await section.locator('summary').filter({hasText:'Edit head and household names'}).click()
    const form=section.locator('form').filter({has:page.locator('[name=command][value="household.update"]')})
