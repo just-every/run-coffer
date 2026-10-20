@@ -166,6 +166,7 @@ export async function householdsJourney(h) {
 async function householdImports(h) {
  const input={source:'bloomerang',files:[{name:'constituents.csv',base64:Buffer.from('Account Number,First Name,Last Name,Email,Household ID,Household Name,Head of Household,Household Addressee,Household Formal Salutation,Household Informal Salutation\n810,Avery,Hill,avery.hill@example.org,H81,Hill household,yes,The Hills,Dr. and Mr. Hill,Avery and Robin\n811,Robin,Hill,robin.hill@example.org,H81,Hill household,no,The Hills,Dr. and Mr. Hill,Avery and Robin\n').toString('base64')}]}
  const preview=await h.api('/api/coffer/move-in/preview',input)
+ if(process.env.COFFER_HOUSEHOLD_BROWSER){const {householdImportBrowser}=await import('./households-browser.mjs');await householdImportBrowser(h,preview,process.env.COFFER_HOUSEHOLD_BROWSER)}
  assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,0)
  let job=await h.api('/api/coffer/move-in/apply',{id:preview.id,fingerprint:preview.fingerprint})
  while(job.state==='applying')job=await h.api('/api/coffer/move-in/continue',{id:job.id})
