@@ -7,7 +7,7 @@ export async function timelineJourney(){
  await run(async h=>{
   await reviewed(h)
   const ada=await donor(h,'Ada Rivera'),other=await donor(h,'Ben Wells'),staff=await h.person('data-entry@example.test')
-  const owner=(await h.get('/auth/session')).operator,day=new Date().toISOString().slice(0,10)
+  const owner=(await h.get('/auth/session')).operator,day=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date())
   const gift=await h.command('gift.record',{donorId:ada.id,amount:'275',receivedOn:'2026-09-01',method:'check',goods:'none',fund:'Reading room'})
   const batch=await h.command('ack.prepare');await h.command('ack.approve',{batchId:batch.id,version:1})
   const exported=await h.command('ack.export',{batchId:batch.id,version:2})

@@ -6,7 +6,7 @@ import {withBrowserWorker} from './browser-worker.mjs'
 export async function volunteeringJourney(){
  await run(async h=>{
   const ada=await donor(h,'Ada Volunteer'),ben=await donor(h,'Ben Volunteer Giver'),other=await donor(h,'Cora Unrelated'),survivor=await donor(h,'Ada Second Record')
-  const day=new Date().toISOString().slice(0,10),year=day.slice(0,4),prior=`${Number(year)-1}-09-01`
+  const day=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date()),year=day.slice(0,4),prior=`${Number(year)-1}-09-01`
   const member=await h.person('volunteer-staff@example.test')
   const csv=`donor_id,role,date,hours,source_id\r\n${ada.id},Reading tutor,${day},1.5,one\r\n${ada.id},Book sorting,${prior},2.25,two\r\n${ben.id},Food pantry,${day},3,three\r\n`
   await h.command('volunteer.import',{source:'VolunteerHub',csv},{as:'',status:401})
@@ -45,13 +45,13 @@ export async function volunteeringJourney(){
   const merge=await h.command('donor.merge',{sourceDonorId:ada.id,donorId:survivor.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
   assert.equal((await h.get('/api/coffer/donors/'+survivor.id)).volunteering.rows.length,3)
   await h.command('donor.unmerge',{mergeId:merge.mergeId,reason:'incorrect_match'});assert.equal((await h.get('/api/coffer/donors/'+ada.id)).volunteering.rows.length,3)
-  if(process.env.COFFER_VOLUNTEER_BROWSER)await volunteerBrowser(h,ada.id,process.env.COFFER_VOLUNTEER_BROWSER)
+  if(process.env.COFFER_VOLUNTEER_BROWSER)await volunteerBrowser(h,ada.id,process.env.COFFER_VOLUNTEER_BROWSER,day)
   await h.command('donor.erase',{donorId:ada.id,confirm:'ERASE'})
   assert.equal((await h.get('/api/coffer/volunteering')).rows.some(v=>v.donor_id===ada.id),false)
   const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes('Reading tutor'));assert.ok(!erased.includes('Community garden'))
  })
 }
-async function volunteerBrowser(h,donorId,directory){
+async function volunteerBrowser(h,donorId,directory,day){
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage();page.setDefaultTimeout(15000)
@@ -63,7 +63,7 @@ async function volunteerBrowser(h,donorId,directory){
    await page.locator('#timeline').getByText(width===1440?'Volunteering · Library story hour':'Volunteering · Reading room setup',{exact:true}).waitFor()
    await page.locator('#timeline').evaluate(el=>el.scrollIntoView({block:'center'}));await page.locator('#timeline').screenshot({path:`${directory}/DONOR-010-timeline-${width}.png`})
    await page.locator('#engagement').screenshot({path:`${directory}/DONOR-010-score-${width}.png`})
-   await page.goto(origin+'/app/volunteering');await page.getByLabel('Source system',{exact:true}).fill('Community shifts');await page.getByLabel('Volunteer CSV',{exact:true}).fill(`donor_id,role,date,hours,source_id\n${donorId},Tour guide,${new Date().toISOString().slice(0,10)},0.25,${width}`);await page.getByRole('button',{name:'Import volunteer CSV',exact:true}).click();await page.getByText(/Tour guide/).first().waitFor();await page.getByLabel('Calendar year',{exact:true}).fill(new Date().getUTCFullYear().toString());await page.getByRole('button',{name:'View hours',exact:true}).click()
+   await page.goto(origin+'/app/volunteering');await page.getByLabel('Source system',{exact:true}).fill('Community shifts');await page.getByLabel('Volunteer CSV',{exact:true}).fill(`donor_id,role,date,hours,source_id\n${donorId},Tour guide,${day},0.25,${width}`);await page.getByRole('button',{name:'Import volunteer CSV',exact:true}).click();await page.getByText(/Tour guide/).first().waitFor();await page.getByLabel('Calendar year',{exact:true}).fill(day.slice(0,4));await page.getByRole('button',{name:'View hours',exact:true}).click()
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${directory}/DONOR-010-report-${width}.png`,fullPage:true})
    await page.getByRole('link',{name:'Volunteers who have never given',exact:true}).click();await page.getByRole('link',{name:'Ada Volunteer',exact:true}).waitFor();assert.equal(await page.getByRole('link',{name:'Ben Volunteer Giver',exact:true}).count(),0)
    await page.screenshot({path:`${directory}/DONOR-010-segment-${width}.png`})
