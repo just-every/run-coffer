@@ -1,3 +1,5 @@
+import { notificationDownload } from './tribute-notifications'
+import { tributeGroups } from './tribute-groups'
 import { dashboardReport, dashboardEntries } from './dashboard'
 import { dashboardPage } from './ui/dashboard'
 import { report as honorRoll, honorRollCsv } from './recognition'
@@ -219,6 +221,13 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    return await handler(request)
   }
   if (path.startsWith('/api/coffer/imports/') || path.startsWith('/app/move-in/')) return await moveIn(request, c, auth.authority, path, isApi)
+  if(path==='/api/coffer/tributes' && request.method==='GET')return json({groups:await tributeGroups(c)})
+  const notification=path.match(/^\/(api\/coffer|app)\/tribute-notifications\/([^/]+)\/(download|print)$/)
+  if(notification && request.method==='GET') {
+   const n=await notificationDownload(c,notification[2])
+   if(notification[3]==='print')return printLetters([{...n,subject:`Approved family notification · version ${n.version} · Not sent\n${n.subject}`,recipient_name:n.recipient_name,address:n.recipient_address?JSON.stringify({line1:n.recipient_address}):null,body:n.body,received_on:n.prepared_at.slice(0,10)}],(await settings(c)).organisation)
+   return new Response(`Approved family notification · version ${n.version}\nNot sent by Coffer.\nTo: ${n.recipient_name}${n.recipient_email?' <'+n.recipient_email+'>':''}\nSubject: ${n.subject}\n\n${n.body}`,{headers:{...headers,'content-type':'text/plain; charset=utf-8','content-disposition':'attachment; filename="coffer-family-notification.txt"'}})
+  }
   const dataRequest = path.match(/^\/(?:api\/coffer|app)\/donors\/([^/]+)\/data-request$/)
   if (dataRequest && request.method === 'POST') {
    const file = await donorFile(c, decodeURIComponent(dataRequest[1]), isApi ? await jsonBody(request) : Object.fromEntries(await formBody(request)))

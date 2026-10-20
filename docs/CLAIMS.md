@@ -2,7 +2,7 @@
 
 Every capability claim on the built homepage (`src/site/landing/`, branch `br/page`: the owner-approved page-s1 structure, one spring appeal at Wrenfield Food Bank told as dated steps), tracked against the current implementation on 19 October 2026. The copy is the desk's owner-accepted copy and is not watered down; the page may show the product being built toward (`platform/SEED-HOMEPAGE-PROCESS.md`, principle 12), so a claim is backed by shipped code or, for a core feature, by a clause of `CONTRACT.md`. Every claim marked "contract, not yet in code" or "partly" is a build priority. This table is what the run-site gate reads before any deploy.
 
-**Totals: 48 claims · 34 in code · 12 partly · 2 contract, not yet in code.**
+**Totals: 48 claims · 35 in code · 11 partly · 2 contract, not yet in code.**
 
 | # | Section | Claim | Status | Backed by |
 |---|---|---|---|---|
@@ -37,7 +37,7 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/pa
 | 29 | First night · Mar 10 | "Each gift lands on the donor's record, in the right fund, with its receipt" | in code | Paid gifts are written once to the immutable ledger with their fund and matched donor and receipted (`src/coffer/giving/recording.ts`, `src/coffer/gift-splits.ts`, `src/coffer/receipt-mail.ts`). |
 | 30 | First night · Mar 10 | Feed: "Declined → Retried 7:16 PM" | in code | Verified invoice outcomes record failed attempts and successful recovery (`src/coffer/giving/webhooks.ts`, `tests/giving.test.mjs`). |
 | 31 | First night · Mar 10 | Feed: "$500.00 · Bank (ACH) · Pending · clears Mar 13" | contract, not yet in code | ACH gifts pending until they settle (`GIVE-004`). |
-| 32 | First night · Mar 10 | Feed: "In memory of Grace Okafor · Card to family queued" | partly | Tributes record the honoree and notification contact and appear on receipts (`src/coffer/gift-depth.ts`, `src/coffer/acknowledgements.ts`); sending the family's card is contract (`GIFT-008`). |
+| 32 | First night · Mar 10 | Feed: "In memory of Grace Okafor · Card to family queued" | in code | Public tribute gifts and current CRM imports retain honor/memory and family contacts; staff prepare a private amount-withheld family notification for owner/admin approval, text download or print. Donor-authorized amount disclosure is frozen at checkout. Prepared/approved labels never claim sending (`GIFT-008`, `tests/tribute-gifts-journey.mjs`). |
 | 33 | First night · Mar 10 | Feed: "Employer match requested" | in code | Expected employer matches link to the original gift until the employer pays (`src/coffer/gift-depth.ts`, `tests/soft-credits.test.mjs`). |
 | 34 | First night · Mar 10 | Feed: "$5,000.00 · Check · Logged by Ana R." | in code | Staff record gifts received elsewhere by hand on the ledger, with the author on the event (`src/coffer/gifts.ts`, `cf_events`). |
 | 35 | Reconcile · Mar 16 | "Stripe payouts, fees and refunds sync on their own" | in code | Signed Stripe charge, refund and payout webhooks keep gross, fees and refunds as immutable balance entries (`src/coffer/payments/`, `tests/payments.test.mjs`). |

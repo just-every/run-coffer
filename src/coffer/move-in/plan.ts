@@ -21,7 +21,7 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',acknowledgment:'Gift acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
+const label: Record<Kind,string> = {household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
@@ -49,6 +49,8 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const giftBalances=await readSet(c,plan,`SELECT json_object('id',id,'net_cents',net_cents) AS snapshot FROM cf_gift_balances WHERE id IN (SELECT value FROM json_each(?)) ORDER BY id`,[JSON.stringify(mappings.filter(m=>m.kind==='gift').map(m=>m.native_id))])
  const reference = (g: ParsedImport['gifts'][number]) => `${source}:${g.externalId}${g.checkReference?` / ${g.checkReference}`:''}`
  const referenced = new Map((await readSet(c,plan,`SELECT json_object('id',id,'reference',reference) AS snapshot FROM cf_gifts WHERE source='manual' AND kind='gift' AND reference IN (SELECT value FROM json_each(?)) ORDER BY id`,[JSON.stringify(parsed.gifts.map(reference))])).map(r=>[r.reference as string,r.id as string]))
+ const tributeGiftIds = await Promise.all(parsed.gifts.map(g=>nativeId(source,'gift',g.externalId)))
+ const tributeRows = await readSet(c,plan,`SELECT ${snapshot('tribute')} AS snapshot FROM cf_gift_tributes n WHERE n.gift_id IN (SELECT value FROM json_each(?)) ORDER BY n.gift_id`,[JSON.stringify([...tributeGiftIds,...mappings.filter(m=>m.kind==='gift').map(m=>m.native_id)])])
  const households = new Map<string,string>(), pledges = new Map<string,string>(), installments = new Map<string,string>()
  const diagnostic = (message: string, location?: Located['location'], severity: 'error'|'warning' = 'error', code = 'MOVE_IN_MAPPING', column = 'Record ID') => plan.diagnostics.push({severity,code,message,column,...location})
  const add = async (kind: Kind, entity: Located & {externalId:string}, row: Row, match?: string, donorId: string | null = null, relatedId: string | null = null) => {
@@ -111,6 +113,11 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(held && held!==existing.get(`gift:${await sourceKey(g.externalId)}`)?.native_id)diagnostic(`Gift ${g.externalId}: Coffer already holds a gift with the reference ${reference(g)} that did not come from a move-in. Delete this exported row if it is the same gift. If it is a different gift, correct its source Gift ID to a distinct ID and upload again.`,g.location,'error','MOVE_IN_MAPPING','Gift ID')
   const id=await add('gift',g,{version:1,donor_id:donorId,kind:'gift',reverses:null,received_on:g.receivedOn,amount_cents:g.amountCents,method:g.method||'imported',reference:reference(g),fund:g.fund,pledge_id:pledges.get(g.pledgeExternalId)||null,goods:g.goodsCents===null?'unknown':g.goodsCents>0?'provided':'none',goods_cents:g.goodsCents||0,goods_description:g.goodsCents?g.goodsDescription||'Goods or services recorded in source export':null,note:g.note||null,source:'manual',created_at:c.now,created_by:c.actor.name},undefined,donorId)
   plan.giftIds.set(g.externalId,id)
+  if(g.tribute) {
+   const t=g.tribute
+   if(tributeRows.some(t=>t.gift_id===id) && !existing.has(`tribute:${await sourceKey(g.externalId)}`))diagnostic(`Gift ${g.externalId} already has a tribute in Coffer that did not come from this source move-in. Resolve that tribute before importing; it will not be overwritten.`,g.location,'error','TRIBUTE_CONFLICT','Tribute')
+   await add('tribute',{externalId:g.externalId,location:g.location,...t},{gift_id:id,version:1,kind:t.kind,honoree:t.honoree,notified_name:t.notifiedName||null,notified_email:t.notifiedEmail||null,notified_address:t.notifiedAddress||null,amount_permission:0,group_key:`${t.kind}:${t.honoree.trim().replace(/\s+/g,' ').toLowerCase()}`,source_group:t.sourceGroup||null,donor_id:null,created_at:c.now,created_by:c.actor.name},undefined,donorId)
+  }
   if(g.acknowledgment) {
    const a=g.acknowledgment
    await add('acknowledgment',{externalId:g.externalId,location:g.location,...a},{gift_id:id,status:a.status,acknowledged_on:a.acknowledgedOn,method:a.method,batch_id:null,letter_id:null,reason:a.reason,source_reference:a.sourceReference,source:({'lgl':'Little Green Light','bloomerang':'Bloomerang','re-nxt':"Raiser's Edge NXT"})[source],updated_at:c.now,updated_by:c.actor.name},undefined,donorId)

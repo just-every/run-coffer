@@ -147,3 +147,5 @@ test('GIFT-006 / RCPT-011 soft-credit acknowledgments and separate retention rec
  assert.equal(afterErasure.giftDepth.tributes.length,0)
  assert.doesNotMatch((await h.get(`/api/coffer/letters/${batch.id}`)).letters[0].body,/Jordan Rivera/)
 }))
+
+test('GIFT-008: public tribute gifts, private family notifications, source memorial totals and approvals',async()=>{const {tributeGiftsJourney}=await import('./tribute-gifts-journey.mjs');await tributeGiftsJourney()})

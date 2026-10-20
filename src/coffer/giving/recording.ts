@@ -1,3 +1,4 @@
+import { tributeGiftStatement } from './tribute'
 import { giftRecognitionStatement } from '../recognition'
 import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
 import { fail, newId, one, today, type Row } from '../db'
@@ -65,6 +66,7 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
   env.DB.prepare("INSERT OR IGNORE INTO cf_dashboard_gift_forms(gift_id,form_id) SELECT id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'").bind(intent.campaign_id, reference),
   ...onlineAttribution(intent, reference).map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...(subscriptionId ? [env.DB.prepare('INSERT OR IGNORE INTO cf_subscription_gifts(subscription_id,gift_id) VALUES(?,?)').bind(subscriptionId,id)] : []),
+  ...[tributeGiftStatement(id,intent.id,now)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...[giftRecognitionStatement(id,intent)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   // The donor ticked the separate appeal box at checkout; receipts never depend on it.
   ...(intent.email_consent ? [env.DB.prepare(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)

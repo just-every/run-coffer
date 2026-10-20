@@ -32,14 +32,16 @@ const common: Record<string, string[]> = {
 }
 const vendor: Record<ImportSource, Record<string, string[]>> = {
  lgl: {
+  tributeHonoree: ['Tribute Hon./Mem. Name'], tributeGroup: ['Tribute Name'], tributeType: ['Tribute Dedication'],
+  tributeNotifiedName: ['Tribute Recipient Name'], tributeNotifiedEmail: ['Tribute Recipient Email'], tributeNotifiedAddress: ['Tribute Recipient Address'],
   donorId: ['LGL Constituent ID', 'Constituent ID'], giftId: ['LGL Gift ID', 'Gift ID'],
   sortName: ['Sort Name'], relatedName: ['Related Constituent Name'],
   deductible: ['Deductible', 'Deductible Amount', 'Tax Deductible Amt'],
   acknowledgmentTemplate: ['Acknowledgment Template', 'Acknowledgement Template', 'Acknowledgment Template Name', 'Acknowledgement Template Name'],
   acknowledgmentOptOut: ['Do Not Acknowledge', 'Do Not Acknowledge?', 'Do Not Acknowledge via LGL'],
  },
- bloomerang: { name: ['Name', 'Full Name', 'Constituent Name'], softName: ['Donor Name', 'Soft Credit Name(s)'], donorId: ['Account Number', 'Constituent ID'], giftId: ['Transaction Number', 'Transaction ID'] },
- 're-nxt': { donorId: ['Constituent ID', 'Constituent System Record ID'], giftId: ['Gift ID', 'Gift System Record ID'],
+ bloomerang: { tributeHonoree: ['Tribute'], tributeType: ['Tribute Type'], hasTribute: ['Has Tribute'], name: ['Name', 'Full Name', 'Constituent Name'], softName: ['Donor Name', 'Soft Credit Name(s)'], donorId: ['Account Number', 'Constituent ID'], giftId: ['Transaction Number', 'Transaction ID'] },
+ 're-nxt': { tributeHonoree: ['Tribute Honoree'], tributeType: ['Tribute Type'], donorId: ['Constituent ID', 'Constituent System Record ID'], giftId: ['Gift ID', 'Gift System Record ID'],
   acknowledgmentReference: ['Acknowledgment Reference', 'Acknowledgement Reference', 'Acknowledgment Letter', 'Acknowledgement Letter', 'Acknowledgment Letter ID', 'Acknowledgement Letter ID', 'Linked Acknowledgment Letter', 'Linked Acknowledgement Letter'],
  },
 }

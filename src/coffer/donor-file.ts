@@ -19,7 +19,7 @@ const DONOR_COLUMNS: Record<string, string[]> = {
 }
 // A column naming a parent record, and the table whose `id` it names.
 const PARENTS: Record<string, string> = {
- gift_id: 'cf_gifts', received_gift_id: 'cf_gifts', first_gift_id: 'cf_gifts', reverses: 'cf_gifts', pledge_id: 'cf_pledges', prospect_id: 'cf_prospects',
+ intent_id:'cf_giving_intents', gift_id: 'cf_gifts', received_gift_id: 'cf_gifts', first_gift_id: 'cf_gifts', reverses: 'cf_gifts', pledge_id: 'cf_pledges', prospect_id: 'cf_prospects',
  in_kind_id: 'cf_in_kind_gifts', grant_id: 'cf_grants', subscription_id: 'cf_subscriptions', installment_id: 'cf_pledge_installments',
  communication_id: 'cf_communications', letter_id: 'cf_acks', series_id: 'cf_recurring_task_series', soft_credit_id: 'cf_soft_credits',
  draft_id: 'cf_stewardship_drafts', intention_id: 'cf_planned_gifts', charge_id: 'cf_stripe_charges', merge_id: 'cf_donor_merge_journal',
@@ -30,7 +30,7 @@ export const NOT_IN_FILE: Record<string, string> = {
  cf_erased_stripe_customers: 'Only erased placeholders appear here.',
 }
 // Contact details of a third party the donor named (a tribute's notified person).
-const THIRD_PARTY: Record<string, string[]> = { cf_gift_tributes: ['notified_name', 'notified_email'] }
+const THIRD_PARTY: Record<string, string[]> = { cf_gift_tributes: ['notified_name', 'notified_email', 'notified_address'], cf_giving_tributes:['notified_name','notified_email','notified_address'], cf_tribute_notifications:['recipient_name','recipient_email','recipient_address','body'] }
 const LABELS: Record<string, string> = {
  research_results: 'WealthEngine estimates from prospect research: provider ranges, never verified wealth or an exact appraisal.',
  donor_notes: 'Staff notes about this donor. Confidential staff notes are withheld from this file; `withheld` states how many.',

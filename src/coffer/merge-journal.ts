@@ -18,6 +18,7 @@ const descriptions = [
  owned('cf_gifts'), owned('cf_consents'), owned('cf_pledges'), owned('cf_acks'),
  owned('cf_events',`n.donor_id IN ${pair} AND NOT (n.action IN ('donor.merge','donor.unmerge') AND COALESCE(json_extract(n.detail,'$.mergeId'),'')=(SELECT id FROM merge))`),
  owned('cf_soft_credits',`n.donor_id IN ${pair} OR n.gift_id IN (${gifts})`),
+ owned('cf_tribute_notifications',`n.gift_id IN (${gifts})`,['id'],false),
  owned('cf_gift_tributes',`n.donor_id IN ${pair} OR n.gift_id IN (${gifts})`,['gift_id']),
  owned('cf_giving_customers',undefined,['customer_id']), owned('cf_giving_intents'),
  owned('cf_recurring_task_series'),

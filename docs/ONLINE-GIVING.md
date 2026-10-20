@@ -76,3 +76,20 @@ Donors open **Manage my monthly gift**, request an emailed link and confirm it t
 RER Managed does not have the payment connection yet. **Connect Stripe** says so, and any Stripe action on a managed installation says Stripe is not available yet. Use a self-hosted Coffer for giving today.
 
 Advanced form fields, embedding, other recurring frequencies, ACH and PayPal remain on the roadmap in `CONTRACT.md`.
+
+### Honor and memory gifts
+
+Open **Give in honor or memory** on a campaign page to name the honoree and an
+optional family contact. These details stay private with the organization; they
+are absent from Stripe metadata and the public donor wall. **Include my gift
+amount in the family notification** is optional and unchecked. Its saved answer
+cannot be changed by retrying a checkout. Staff and imported tributes have no
+amount permission by default.
+
+On the donor page, Tributes shows the current remaining total across gifts with
+the same honor/memory kind and case/whitespace-normalized honoree, including CRM
+history. This groups gifts; it never merges people. Staff prepare a family
+notification; an owner/admin reviews and approves its exact version before
+email-text download or printing. Coffer does not contact the family, send the
+notification or claim delivery. The approved copy retains its original wording;
+changed gifts or tribute facts need a fresh notification.

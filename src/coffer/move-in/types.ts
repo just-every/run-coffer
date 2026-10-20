@@ -12,8 +12,9 @@ export type ParsedDonor = Located & {
 }
 export type ParsedGift = Located & {
  externalId: string; donorExternalId: string; receivedOn: string; amountCents: number; fund: string
- campaign: string; appeal?: string; channel?: string; checkReference?: string; method: string; note: string; pledgeExternalId: string; noGoodsOrServices: boolean; goodsCents: number | null; goodsDescription: string; acknowledgment?: ParsedAcknowledgment
+ campaign: string; appeal?: string; channel?: string; checkReference?: string; method: string; note: string; pledgeExternalId: string; noGoodsOrServices: boolean; goodsCents: number | null; goodsDescription: string; tribute?: ParsedTribute; acknowledgment?: ParsedAcknowledgment
 }
+export type ParsedTribute = { kind: 'honor' | 'memory'; honoree: string; notifiedName?: string; notifiedEmail?: string; notifiedAddress?: string; sourceGroup?: string }
 export type ParsedAcknowledgment = {
  status: 'acknowledged' | 'not acknowledged' | 'do not acknowledge'
  acknowledgedOn: string | null; method: string | null; reason: string | null; sourceReference: string | null

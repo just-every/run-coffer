@@ -105,3 +105,24 @@ Optional `Acknowledgment Date`/`Acknowledgement Date` (also `Acknowledged Date` 
 **Already thanked?** Source gifts marked acknowledged or do not acknowledge never become letters due. Before you move in, Coffer also asks whether gifts before a date (the move-in date by default) were already thanked in your old CRM. With **Yes**, those older gifts never show as letters due or missing receipts. Gifts on or after that date wait for a letter when their source status is not acknowledged or absent. The cutoff remains a separate reviewed policy; it never invents a source acknowledgment date or method.
 
 Relationships normalize Spouse, Employer, Board Member, Foundation Officer, and Introduced By to Coffer's existing directional role names. Other relationship types are listed in the review for you to fix. Notes without a note ID are named by their file and row. Gift, constituent and pledge IDs are always required.
+
+## Tribute gifts
+
+Tribute fields stay attached to their source gift through preview, apply, repeated
+imports and undo. Unknown or ambiguous types/honorees block review. No imported
+row grants permission to disclose a gift amount in a family notification.
+
+- Bloomerang transaction report: `Tribute` (honoree), `Tribute Type` (`In Honor Of`
+  or `In Memory Of`), optional `Has Tribute` (`Yes`/`No`). No notification contact
+  is invented from the honoree. [Bloomerang tribute reports](https://help.bloomerang.com/en/articles/17568614-create-tributes).
+- Little Green Light gift export: `Tribute Hon./Mem. Name` is the honoree;
+  `Tribute Name` is the source group, such as Memorial - General, and never becomes
+  a person. Export `Tribute Dedication` as In Honor Of or In Memory Of. Optional
+  `Tribute Recipient Name`, `Tribute Recipient Email` and `Tribute Recipient Address`
+  retain the family contact. [LGL mapping fields](https://help.littlegreenlight.com/article/479-mapping-tribute-gifts),
+  [LGL export workflow](https://help.littlegreenlight.com/article/474-recording-and-managing-tribute-gifts).
+- NXT database view: configure export headings `Tribute Honoree` and `Tribute Type`
+  with explicit `honor`/`memory` or In Honor Of/In Memory Of values. These are this
+  import recipe's configured headings; Coffer does not claim that every NXT export
+  uses them. Custom tribute types need an explicit source choice; descriptions are
+  never guessed. [Blackbaud tribute guide](https://webfiles-sc1.blackbaud.com/files/support/guides/re7ent/trib_gift.pdf).

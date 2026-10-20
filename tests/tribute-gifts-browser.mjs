@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict'
+import {mkdir} from 'node:fs/promises'
+import {withBrowserWorker} from './browser-worker.mjs'
+
+export async function tributeGiftsBrowser(h,{edge,directory}) {
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage();page.setDefaultTimeout(15000)
+  await page.route('https://checkout.stripe.com/**',route=>route.fulfill({contentType:'text/plain',body:'Stripe checkout boundary'}))
+  const ownerCookies=()=>h.owner.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',httpOnly:true,secure:true,sameSite:'Lax'}})
+  const fits=async()=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  for(const width of [1440,390]) {
+   await page.setViewportSize({width,height:1000});await context.clearCookies()
+   await page.goto(origin+'/give/autumn-reading')
+   await page.getByLabel('Gift amount (USD)',{exact:true}).fill('35')
+   await page.getByLabel('Full name',{exact:true}).fill('Riley Memorial '+width)
+   await page.getByLabel('Email address',{exact:true}).fill(`riley.memorial.${width}@example.test`)
+   await page.getByText('Give in honor or memory',{exact:true}).click()
+   await page.getByLabel('Tribute type',{exact:true}).selectOption('memory')
+   await page.getByLabel('Honoree name',{exact:true}).fill('Morgan Ellis')
+   await page.getByLabel('Person to notify (optional)',{exact:true}).fill('Jamie Ellis')
+   await page.getByLabel('Notification email (optional)',{exact:true}).fill('jamie.private@example.test')
+   await page.getByLabel('Notification postal address (optional)',{exact:true}).fill('12 Garden Street, Springfield IL 62701')
+   assert.equal(await page.locator('[name=tributeAmountPermission]').isChecked(),false)
+   await fits();await page.screenshot({path:`${directory}/GIFT-008-form-${width}.png`,fullPage:true})
+   await page.getByRole('button',{name:'Continue to secure checkout'}).click();await page.waitForURL('https://checkout.stripe.com/**')
+   const session=[...edge.sessions.values()].at(-1)
+   assert.equal((await h.request('/giving/thanks?session_id='+session.id,{as:''})).status,200)
+   await context.addCookies(ownerCookies())
+   const supporter=(await h.get('/api/coffer/donors')).donors.find(d=>d.email===`riley.memorial.${width}@example.test`)
+   await page.goto(origin+'/app/donors/'+supporter.id)
+   const panel=page.locator('#tribute-notifications')
+   await panel.getByRole('button',{name:'Prepare family notification',exact:true}).click()
+   await panel.getByText('Prepared family notification · version 1',{exact:true}).waitFor();await fits()
+   assert.ok(!(await panel.locator('pre').textContent()).includes('$35'))
+   await panel.screenshot({path:`${directory}/GIFT-008-prepared-${width}.png`})
+   await panel.getByRole('button',{name:'Approve family notification',exact:true}).click()
+   await panel.getByText('Approved family notification · version 2',{exact:true}).waitFor();await fits()
+   await panel.screenshot({path:`${directory}/GIFT-008-approved-${width}.png`})
+   const download=page.waitForEvent('download');await panel.getByRole('link',{name:'Download approved email text',exact:true}).click();assert.equal((await download).suggestedFilename(),'coffer-family-notification.txt')
+   await panel.getByRole('link',{name:'Print approved family letter',exact:true}).click();await page.getByText('Approved family notification · version 2 · Not sent',{exact:false}).first().waitFor();await fits()
+   await page.screenshot({path:`${directory}/GIFT-008-print-${width}.png`,fullPage:true})
+  }
+  await page.close()
+ })
+}
