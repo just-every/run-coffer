@@ -63,7 +63,13 @@ export async function receiptCorrectionsJourney() {
   assert.ok((await detail(h,annual.id)).letters[0].void_reason,'A refund invalidates every statement containing that gift')
   await h.command('ack.send',{batchId:annual.id,version:2},{status:409})
   await h.command('ack.export',{batchId:annual.id,version:2},{status:409})
-  const member=await h.person('receipt-clerk@example.test')
+  const invitation=await h.request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email:'receipt-clerk@example.test',role:'member',displayName:'Receipt clerk'}).toString()})
+  assert.equal(invitation.status,303)
+  const invite=messages.findLast(m=>m.personalizations[0].to[0].email==='receipt-clerk@example.test')
+  const link=invite.content.find(c=>c.type==='text/plain').value.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]
+  const confirmed=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:new URL(link).searchParams.get('token')}})
+  assert.equal(confirmed.status,303)
+  const member={cookie:confirmed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')}
   await h.command('ack.correct',{letterId:old.id},{as:member.cookie,status:403})
   const replacement=await h.command('ack.correct',{letterId:old.id})
   let corrected=(await detail(h,replacement.id)).letters[0]
