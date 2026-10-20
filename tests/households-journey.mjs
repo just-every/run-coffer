@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {donor,reviewed,archive,restore,installation} from './harness.mjs'
+import {donor,reviewed,archive,restore,installation,settings as settingsInput} from './harness.mjs'
 
 const history=(h,id)=>h.get('/api/coffer/donors/'+id)
 const facts=h=>({gifts:h.gifts,pledges:h.pledges,credits:h.giftDepth,consents:h.consents,letters:h.letters,recognition:h.recognition})
@@ -43,6 +43,11 @@ export async function householdsJourney(h) {
  await gift(duplicate,'25')
  await h.command('pledge.create',{donorId:jane.id,amount:'500',pledgedOn:'2025-01-01',fund:'Library',installments:[{dueOn:'2027-01-01',amount:'500'}]})
  await h.command('match.record',{giftId:A.id,employerDonorId:sponsor.id,amount:'100',dueBy:'2027-01-01'})
+ const orgSettings=await h.get('/api/coffer/settings')
+ await h.command('settings.update',{...settingsInput,version:orgSettings.version,fiscalYearStart:'04-01'})
+ const fiscal=await state('?year=2025&basis=fiscal')
+ assert.equal(fiscal.totals.moneyCents,140000);assert.deepEqual([fiscal.totals.start,fiscal.totals.end],['2025-04-01','2026-04-01'])
+ assert.equal((await state('?year=2024&basis=fiscal')).totals.moneyCents,0)
  await screenshot('headless')
  await h.command('recognition.gift',{giftId:C.id,anonymous:true,recognitionName:'Library friends'})
  await h.command('consent.record',{donorIds:[jane.id],channel:'mail',status:'withdrawn',method:'paper form',evidence:'No appeals requested.',capturedOn:'2025-01-01'})
@@ -73,7 +78,7 @@ export async function householdsJourney(h) {
  await update({headDonorId:robert.id,informal_override:'  Bob and Jane  ',formal_override:'Dear Dr. Smith and Mr. Smith',addressee_override:'Robert and Jane Smith'},{as:admin.cookie})
  assert.equal((await state()).names.informal,'  Bob and Jane  ')
  await profile(jane,{firstName:'Janet'})
- assert.equal((await state()).names.formal,'Dear Dr. Smith and Mr. Smith')
+ assert.deepEqual((await state()).names,{addressee:'Robert and Jane Smith',formal:'Dear Dr. Smith and Mr. Smith',informal:'  Bob and Jane  '})
  assert.deepEqual(facts(await history(h,jane.id)),beforeJ)
  const preview=await h.command('household.defaultsPreview')
  await h.command('household.defaultsPreview',{}, {as:member.cookie,status:403})
@@ -129,7 +134,11 @@ export async function householdsJourney(h) {
  await update({headDonorId:jane.id})
  await profile(jane,{constituentStatus:'inactive'})
  assert.equal((await state()).headStatus,'selected')
- await update({addressee_override:null,formal_override:null,informal_override:null})
+ await update({addressee_override:null})
+ s=await state();assert.equal(s.names.addressee,s.computed.addressee);assert.equal(s.names.informal,'  Bob and Jane  ')
+ await update({formal_override:null})
+ s=await state();assert.equal(s.names.formal,s.computed.formal);assert.equal(s.names.informal,'  Bob and Jane  ')
+ await update({informal_override:null})
  s=await state();assert.deepEqual(s.names,s.computed)
  await update({informal_override:'Janet and Bob'})
  const snapshot=await archive(h),fresh=await installation()
