@@ -33,7 +33,7 @@ export async function paymentAdjustmentsJourney() {
   assert.equal(response.status,200,await response.text())
  }
  const invite=async(h,email,role='member')=>{
-  const response=await h.request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email,role,displayName:email.split('@')[0]}).toString()})
+  const response=await h.request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email,role,displayName:email.startsWith('relationship-manager')?'Ana Rivera':'Sam Ortiz'}).toString()})
   assert.equal(response.status,303,await response.text())
   const mail=messages.findLast(m=>m.personalizations[0].to[0].email===email)
   const link=mail.content.find(c=>c.type==='text/plain').value.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]
@@ -43,7 +43,7 @@ export async function paymentAdjustmentsJourney() {
   return {...(await h.get('/auth/session',{as:cookie})).operator,cookie,email}
  }
  const paid=async(h,key,amount=10000)=>{
-  const charge={id:'ch_adjust_'+key,object:'charge',paid:true,status:'succeeded',amount,currency:'usd',created:at,metadata:{fund:'Reading'},billing_details:{name:'Adjustment '+key,email:key+'.adjustment@example.test'},balance_transaction:'txn_adjust_'+key,amount_refunded:0}
+  const charge={id:'ch_adjust_'+key,object:'charge',paid:true,status:'succeeded',amount,currency:'usd',created:at,metadata:{fund:'Reading'},billing_details:{name:({'half':'Nora Bennett','dispute':'Luis Romero','failed':'Elaine Park','uncertain':'Miles Chen','browser-desktop':'Maya Torres','browser-mobile':'Owen Bell'}[key]??key),email:key+'.adjustment@example.test'},balance_transaction:'txn_adjust_'+key,amount_refunded:0}
   objects.set('/v1/charges/'+charge.id,charge)
   objects.set('/v1/balance_transactions/'+charge.balance_transaction,{id:charge.balance_transaction,type:'charge',source:charge.id,amount,fee:300,net:amount-300,currency:'usd',created:at})
   await event(h,'evt_paid_adjust_'+key,'charge.succeeded',charge.id)
@@ -132,6 +132,8 @@ export async function paymentAdjustmentsJourney() {
   assert.equal(completed.notices.length,3,'Refund, dispute and win each notify the relationship manager exactly once')
   assert.ok(completed.notices.every(n=>n.owner_id===manager.id&&n.status==='submitted'))
   assert.equal(new Set(completed.notices.map(n=>n.entry_id)).size,3)
+  const notice=messages.find(m=>m.personalizations[0].to[0].email===manager.email&&m.subject==='Coffer: Stripe gift adjustment')
+  assert.ok(notice.content.some(c=>c.value.includes('/app/donors/'+half.donor.id)||c.value.includes('/app/donors/'+contested.donor.id)),'Manager notices link to a donor record the existing staff role can open')
   assert.equal(messages.filter(m=>m.personalizations[0].to[0].email===manager.email).length,4,'One invitation and three payment notices reach the selected manager')
   const lines=(await h.get('/api/coffer/payments/fees')).lines
   assert.equal(lines.filter(l=>l.charge_id===half.charge.id&&l.kind==='refund').length,1)
@@ -161,10 +163,10 @@ export async function paymentAdjustmentsJourney() {
     assert.deepEqual(durable(await state(fresh)),durable(expected),'Archive preserves refund request identity, dispute deadlines and notice custody')
     assert.deepEqual((await personState(fresh,half)).gifts,(await personState(h,half)).gifts)
     assert.deepEqual((await fresh.get('/api/coffer/letters/'+replacement.id)).letters,(await h.get('/api/coffer/letters/'+replacement.id)).letters)
-    const survivor=await donor(fresh,'Adjustment surviving record')
+    const survivor=await donor(fresh,'Nora B.')
     const compare=await fresh.get(`/api/coffer/duplicates/compare?source=${half.donor.id}&target=${survivor.id}`)
     const merge=await fresh.command('donor.merge',{sourceDonorId:half.donor.id,donorId:survivor.id,sourceVersion:compare.source.version,version:compare.target.version,fields:{},reason:'duplicate_record'})
-    assert.equal((await state(fresh)).refunds.find(r=>r.id===requested.id).name,'Adjustment surviving record','Refund custody follows the gift through merge')
+    assert.equal((await state(fresh)).refunds.find(r=>r.id===requested.id).name,'Nora B.','Refund custody follows the gift through merge')
     await fresh.command('donor.unmerge',{mergeId:merge.mergeId,reason:'incorrect_match'})
     assert.equal((await state(fresh)).refunds.find(r=>r.id===requested.id).name,half.donor.name)
     const erased=await fresh.command('donor.erase',{donorId:half.donor.id,confirm:'ERASE'})
