@@ -1,4 +1,0 @@
-
-> @nonprofit/coffer@0.1.0 typecheck <checkout>
-> tsc --build --incremental
-
