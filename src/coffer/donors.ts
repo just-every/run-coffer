@@ -1,3 +1,4 @@
+import { receiptTasks } from './receipt-tasks'
 import { withGiftAcknowledgments } from './gift-acknowledgments'
 import { donorRecognition } from './recognition'
 import { addressMove, stageAddressMove } from './address-history'
@@ -124,7 +125,7 @@ export async function donorHistory(c: Context, donorId: string) {
  for(const gift of gifts)gift.recognition=recognitionByGift.get(gift.id)??{anonymous:0,wall_opt_in:0,recognition_name:null}
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
-  recognition:await donorRecognition(c,donorId), timelineSources:await timelineSources(c,donorId), engagement: await donorEngagement(c,donorId), donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: plans, summary,
+  receiptTasks:await receiptTasks(c,donorId), recognition:await donorRecognition(c,donorId), timelineSources:await timelineSources(c,donorId), engagement: await donorEngagement(c,donorId), donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: plans, summary,
   volunteering:await volunteering(c,donorId), inKind:await inKindState(c,donorId), depth, giftDepth, plannedGiving:await plannedGiving(c,donorId),
   notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? AND (confidential=0 OR ?=1) ORDER BY occurred_on DESC,recorded_at DESC', donorId,manager(c.actor)?1:0),
   firstGift: await one(c, `SELECT g.*,COALESCE((SELECT a.name FROM cf_gift_appeals ga JOIN cf_appeal_codes a ON a.code=ga.appeal WHERE ga.gift_id=g.id),(SELECT c.name FROM cf_campaign_gifts cg JOIN cf_campaigns c ON c.id=cg.campaign_id WHERE cg.gift_id=g.id)) AS appeal FROM cf_gift_balances g WHERE g.donor_id=? AND g.net_cents>0 ORDER BY g.received_on,g.created_at,g.id LIMIT 1`,donorId),

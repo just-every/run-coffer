@@ -95,9 +95,9 @@ export async function receiptEvents(request: Request, env: Bindings): Promise<Re
   const incoming: Row[] = []
   for (const e of events) {
    if (typeof e.coffer_letter_id !== 'string' || typeof e.coffer_attempt_id !== 'string' || typeof e.sg_event_id !== 'string' || e.sg_event_id.length > 250) continue
-   if (!['delivered', 'bounce', 'dropped', 'spamreport'].includes(e.event) || !Number.isFinite(e.timestamp)) continue
+   if (!['delivered', 'bounce', 'dropped', 'spamreport', 'open'].includes(e.event) || !Number.isSafeInteger(e.timestamp) || e.timestamp < 0 || e.timestamp > 8640000000000) continue
    incoming.push({ id: e.sg_event_id, letterId: e.coffer_letter_id, attempt: e.coffer_attempt_id,
-    state: e.event === 'delivered' ? 'delivered' : e.event === 'spamreport' ? 'complained' : 'bounced', occurred: new Date(e.timestamp * 1000).toISOString() })
+    state: e.event === 'open' ? 'opened' : e.event === 'delivered' ? 'delivered' : e.event === 'spamreport' ? 'complained' : 'bounced', occurred: new Date(e.timestamp * 1000).toISOString() })
   }
   if (incoming.length) await recordDeliveryEvents(env.DB, incoming)
   return Response.json({ ok: true }, { headers: { 'cache-control': 'no-store' } })
@@ -118,6 +118,11 @@ async function recordDeliveryEvents(db: D1Database, incoming: Row[]) {
   db.prepare(`INSERT OR IGNORE INTO cf_letter_events(id,letter_id,event,occurred_at,recorded_at)
    SELECT json_extract(j.value,'$.id'),a.id,json_extract(j.value,'$.state'),json_extract(j.value,'$.occurred'),?
    FROM json_each(?) j JOIN cf_acks a ON a.id=json_extract(j.value,'$.letterId') AND a.attempt_id=json_extract(j.value,'$.attempt') AND a.route IN ('email','print')`).bind(new Date().toISOString(), payload),
+  db.prepare(`INSERT OR IGNORE INTO cf_receipt_address_tasks(id,letter_id,created_at)
+   SELECT 'receipt-address:'||a.id,a.id,min(e.recorded_at) FROM cf_acks a
+   JOIN cf_letter_events e ON e.letter_id=a.id AND e.event='bounced'
+   JOIN cf_donors d ON d.id=a.donor_id AND d.erased_at IS NULL
+   WHERE a.id IN (SELECT json_extract(value,'$.letterId') FROM json_each(?)) GROUP BY a.id`).bind(payload),
   db.prepare(`UPDATE cf_acks AS a SET
    delivery_status=CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event='complained') THEN 'complained'
     WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event='bounced') THEN 'bounced'

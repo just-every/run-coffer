@@ -2,7 +2,7 @@
 
 Every capability claim on the built homepage (`src/site/landing/`, branch `br/page`: the owner-approved page-s1 structure, one spring appeal at Wrenfield Food Bank told as dated steps), tracked against the current implementation on 19 October 2026. The copy is the desk's owner-accepted copy and is not watered down; the page may show the product being built toward (`platform/SEED-HOMEPAGE-PROCESS.md`, principle 12), so a claim is backed by shipped code or, for a core feature, by a clause of `CONTRACT.md`. Every claim marked "contract, not yet in code" or "partly" is a build priority. This table is what the run-site gate reads before any deploy.
 
-**Totals: 48 claims · 33 in code · 13 partly · 2 contract, not yet in code.**
+**Totals: 48 claims · 34 in code · 12 partly · 2 contract, not yet in code.**
 
 | # | Section | Claim | Status | Backed by |
 |---|---|---|---|---|
@@ -33,7 +33,7 @@ Every capability claim on the built homepage (`src/site/landing/`, branch `br/pa
 | 25 | Maria gives · Mar 10 | Card: "Donor portal · Monthly $25 · Receipts · Update card" | partly | Emailed single-use links open a donor-only portal with monthly plans and a Stripe card update (`src/coffer/giving/portal.ts`); receipt downloads in the portal are contract (`GIVE-005`). |
 | 26 | Thank-you · Mar 10 | "The thank-you carries the tax receipt with the IRS wording" | in code | Online gifts' receipts are emailed as soon as each gift is paid, with the reviewed goods-or-services statement (`src/coffer/receipt-mail.ts`, `src/coffer/receipt-rules.ts`, `tests/receipts.test.mjs`). |
 | 27 | Thank-you · Mar 10 | "and a link to manage her monthly gift" | in code | Monthly donors get a private donor-portal link for their plans (`src/coffer/giving/portal.ts`, `tests/giving.test.mjs`). |
-| 28 | Thank-you · Mar 10 | Chip: "Delivered 7:02 PM · Opened 7:40 PM" | partly | Signed SendGrid delivered and bounce events are recorded per letter (`src/coffer/letter-delivery.ts`, `RCPT-006`). Opens on the timeline are contract (`DONOR-004`). |
+| 28 | Thank-you · Mar 10 | Chip: "Delivered 7:02 PM · Opened 7:40 PM" | in code | Signed SendGrid delivery and provider-reported opens are retained per document on the donor timeline with occurrence-date filters; opens are labelled as provider-reported rather than proof of reading (`RCPT-006`, `DONOR-004`, `tests/receipt-delivery-journey.mjs`). |
 | 29 | First night · Mar 10 | "Each gift lands on the donor's record, in the right fund, with its receipt" | in code | Paid gifts are written once to the immutable ledger with their fund and matched donor and receipted (`src/coffer/giving/recording.ts`, `src/coffer/gift-splits.ts`, `src/coffer/receipt-mail.ts`). |
 | 30 | First night · Mar 10 | Feed: "Declined → Retried 7:16 PM" | in code | Verified invoice outcomes record failed attempts and successful recovery (`src/coffer/giving/webhooks.ts`, `tests/giving.test.mjs`). |
 | 31 | First night · Mar 10 | Feed: "$500.00 · Bank (ACH) · Pending · clears Mar 13" | contract, not yet in code | ACH gifts pending until they settle (`GIVE-004`). |

@@ -30,8 +30,23 @@ same way as the other secrets (`read -rs MAIL_EVENT_PUBLIC_KEY && export MAIL_EV
 then `rer deploy --environment <name> --set-secret MAIL_EVENT_PUBLIC_KEY`).
 Coffer accepts only events signed with that key, and repeated events are
 counted once. Negative delivery evidence
-wins over a late delivery event and moves the letter to the print batch. Both
+wins over a late delivery event and moves the letter to the print batch. A bounce creates one address-fix task for the document, shown in Letters and on the donor. Staff check the current email, record how they checked it, and complete the task. The document stays available to print; completing the task never claims email or postal delivery. Both
 the donor and batch show delivery results. Coffer does not configure other SendGrid account webhooks.
+
+If your own SendGrid account already has Open Tracking on, you may also select
+Open webhook events. Coffer supplies an escaped HTML alternative of the exact
+frozen receipt text so SendGrid can track that format. Coffer never enables
+tracking or adds a pixel. It retains only the signed event ID, document ID and
+time; no recipient IP address or user agent is stored. The donor timeline says
+**provider-reported open, not proof of reading**: mail software may open messages
+automatically. Open events never replace delivered, bounced or complained results.
+
+In Engagement settings an owner or admin may assign a weight to provider-reported
+opens (zero by default). Each distinct document opened in today and the preceding
+364 organization-calendar days earns 5 base points, capped at 25; repeated opens
+of the same document score once. The usual weight/25 formula applies. Opens do
+not change giving recency or the retention-risk clock. Donor factors show the
+provider, actual contributing events, document count, weight and points.
 
 The explicit **Check delivery with SendGrid** action also reads provider events
 through the Email Logs API, using the stored provider message ID and exact

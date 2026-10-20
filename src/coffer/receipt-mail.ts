@@ -30,7 +30,7 @@ export async function sendReceipt(env: Bindings, letter: Row): Promise<{ message
    apiKey: env.MAIL_API_KEY!,
    message: {
     deliveryId: attemptId, from: env.MAIL_FROM!, to: [letter.recipient_email],
-    subject: letter.subject, text: letter.body, ...(replyTo ? { replyTo } : {}),
+    subject: letter.subject, text: letter.body, html: `<div>${String(letter.body).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]!)).replace(/\n/g,'<br>')}</div>`, ...(replyTo ? { replyTo } : {}),
     customArgs: { coffer_letter_id: letterId, coffer_attempt_id: attemptId },
    },
   })

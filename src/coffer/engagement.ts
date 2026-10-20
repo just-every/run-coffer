@@ -1,8 +1,9 @@
+import { receiptOpens } from './receipt-opens'
 import { requireRole } from './auth'
 import { addDays, all, commit, daysBetween, event, fail, guard, integer, one, sql, today, type Context, type Row } from './db'
 import { settings } from './settings'
 
-export const ENGAGEMENT_COMPONENTS = ['recency', 'frequency', 'amount', 'conversations', 'volunteering'] as const
+export const ENGAGEMENT_COMPONENTS = ['recency', 'frequency', 'amount', 'conversations', 'volunteering', 'opens'] as const
 export type EngagementWeights = Record<typeof ENGAGEMENT_COMPONENTS[number], number>
 export type EngagementPolicy = { version: number; weights: EngagementWeights; formula: typeof ENGAGEMENT_FORMULA; updatedAt: string | null }
 export const ENGAGEMENT_FORMULA = {
@@ -11,6 +12,7 @@ export const ENGAGEMENT_FORMULA = {
  frequency: { pointsPerGift: 5, cap: 25 },
  amount: { centsPerUnit: 10000, pointsPerUnit: 5, cap: 25 },
  conversations: { pointsPerInteraction: 5, cap: 25 },
+ opens: { pointsPerDocument: 5, cap: 25, provider: 'SendGrid', meaning: 'Provider-reported opens, not proof of reading. One distinct document scores once per 365-day window; no open changes the giving recency or retention clock. Coffer does not enable provider tracking.' },
  volunteering: { minutesPerUnit: 60, pointsPerUnit: 5, cap: 25 },
  weighting: 'Each component contributes base points × its weight / 25. Weights total 100. Component points and the total are rounded to two decimal places.',
  gifts: 'Only positive, wholly unrefunded gifts dated on or before the organization day score. Pledges, soft credits and planned asks do not score.',
@@ -21,7 +23,7 @@ export const ENGAGEMENT_FORMULA = {
 
 export async function engagementPolicy(c: { db: D1Database }): Promise<EngagementPolicy> {
  const row = await one(c, 'SELECT * FROM cf_engagement_settings WHERE id=1')
- const weights = Object.fromEntries(ENGAGEMENT_COMPONENTS.map(key => [key, row ? row[key] : key==='volunteering'?0:25])) as EngagementWeights
+ const weights = Object.fromEntries(ENGAGEMENT_COMPONENTS.map(key => [key, row ? row[key] : ['volunteering','opens'].includes(key)?0:25])) as EngagementWeights
  return { version: row?.version ?? 1, weights, formula: ENGAGEMENT_FORMULA, updatedAt: row?.updated_at ?? null }
 }
 
@@ -29,21 +31,21 @@ export async function engagementCommand(c: Context, command: string, p: Row): Pr
  if (command !== 'engagement.settings') return undefined
  requireRole(c.actor, ['owner', 'admin'], 'change engagement weights')
  const version = integer(Number(p.version), 'Score settings version', 1)
- const weights = Object.fromEntries(ENGAGEMENT_COMPONENTS.map(key => [key, integer(Number(p[key]??(key==='volunteering'?0:undefined)), `${key} weight`, 0, 100)])) as EngagementWeights
+ const weights = Object.fromEntries(ENGAGEMENT_COMPONENTS.map(key => [key, integer(Number(p[key]??(['volunteering','opens'].includes(key)?0:undefined)), `${key} weight`, 0, 100)])) as EngagementWeights
  if (Object.values(weights).reduce((sum, value) => sum + value, 0) !== 100) fail('INPUT', 'The engagement weights must add to 100.', 400)
  await commit(c, [
   guard('COALESCE((SELECT version FROM cf_engagement_settings WHERE id=1),1)=?', 'VERSION', 'Score settings changed. Refresh before saving.', version),
-  sql(`INSERT INTO cf_engagement_settings(id,version,recency,frequency,amount,conversations,volunteering,updated_at,updated_by)
-   VALUES(1,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,recency=excluded.recency,
-   frequency=excluded.frequency,amount=excluded.amount,conversations=excluded.conversations,volunteering=excluded.volunteering,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,
-   version + 1, weights.recency, weights.frequency, weights.amount, weights.conversations, weights.volunteering, c.now, c.actor.id),
+  sql(`INSERT INTO cf_engagement_settings(id,version,recency,frequency,amount,conversations,volunteering,opens,updated_at,updated_by)
+   VALUES(1,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,recency=excluded.recency,
+   frequency=excluded.frequency,amount=excluded.amount,conversations=excluded.conversations,volunteering=excluded.volunteering,opens=excluded.opens,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,
+   version + 1, weights.recency, weights.frequency, weights.amount, weights.conversations, weights.volunteering, weights.opens, c.now, c.actor.id),
   event(c, command, 'engagement_settings', '1', null, { version: version + 1, weights }),
  ])
  return engagementPolicy(c)
 }
 
 const round = (value: number) => Math.round(value * 100) / 100
-function score(row: Row, asOf: string, policy: EngagementPolicy) {
+function score(row: Row, asOf: string, policy: EngagementPolicy, openEvents: Row[]) {
  const lastOn = [row.last_gift_on, row.last_conversation_on, row.last_volunteer_on].filter(Boolean).sort().at(-1) ?? null
  const days = lastOn ? daysBetween(lastOn, asOf) : null
  const baseRecency = days === null ? 0 : ENGAGEMENT_FORMULA.recency.find(tier => days <= tier.throughDays)?.basePoints ?? 0
@@ -54,11 +56,12 @@ function score(row: Row, asOf: string, policy: EngagementPolicy) {
  const conversations = { count: row.conversation_count, calls: row.calls, meetings: row.meetings, emails: row.emails, replies: row.replies,
   ...weighted('conversations', Math.min(25, row.conversation_count * 5)) }
  const volunteering = { minutes:row.volunteer_minutes, hours:row.volunteer_minutes/60, activities:row.volunteer_count, ...weighted('volunteering',Math.min(25,Math.floor(row.volunteer_minutes/60)*5)) }
+ const opens = { documents:new Set(openEvents.map(e=>e.letterId)).size,provider:'SendGrid',meaning:'Provider-reported open, not proof of reading',events:openEvents, ...weighted('opens',Math.min(25,new Set(openEvents.map(e=>e.letterId)).size*5)) }
  const givingDays = row.last_positive_gift_on ? daysBetween(row.last_positive_gift_on, asOf) : null
  const retentionRisk = { flag: givingDays !== null && givingDays > 365, status: givingDays === null ? 'unknown' : givingDays > 365 ? 'at_risk' : 'current',
   lastGiftOn: row.last_positive_gift_on ?? null, days: givingDays, reason: givingDays === null ? 'No positive-balance giving history.' : givingDays > 365 ? 'No positive-balance gift in more than 365 days.' : 'A positive-balance gift falls within the past 365 days.' }
- return { score: round(recency.points + frequency.points + amount.points + conversations.points + volunteering.points), asOf, policyVersion: policy.version,
-  recency, frequency, amount, conversations, volunteering, retentionRisk }
+ return { score: round(recency.points + frequency.points + amount.points + conversations.points + volunteering.points + opens.points), asOf, policyVersion: policy.version,
+  recency, frequency, amount, conversations, volunteering, opens, retentionRisk }
 }
 
 /** Compute from native facts on every read. Merge, undo and erasure need no
@@ -66,6 +69,7 @@ function score(row: Row, asOf: string, policy: EngagementPolicy) {
 export async function engagementScores(c: Context, donorId?: string) {
  const [s, policy] = await Promise.all([settings(c), engagementPolicy(c)])
  const asOf = today(s.timezone, new Date(c.now)), since = addDays(asOf, -364)
+ const openEvents=await receiptOpens(c,s.timezone,since,asOf)
  const rows = await all(c, `WITH gifts AS (
   SELECT donor_id,MAX(CASE WHEN net_cents=amount_cents THEN received_on END) AS last_gift_on,
    MAX(received_on) AS last_positive_gift_on,
@@ -97,7 +101,7 @@ export async function engagementScores(c: Context, donorId?: string) {
  WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
  AND (? IS NULL OR d.id=?) ORDER BY lower(d.name),d.id`,
  since, since, asOf, asOf, since, since, since, since, since, since, since, asOf, donorId ?? null, donorId ?? null)
- return { asOf, timezone: s.timezone, policy, donors: rows.map(row => ({ donorId: row.donorId, name: row.name, engagement: score(row, asOf, policy) })) }
+ return { asOf, timezone: s.timezone, policy, donors: rows.map(row => ({ donorId: row.donorId, name: row.name, engagement: score(row, asOf, policy,openEvents.get(row.donorId)??[]) })) }
 }
 
 export async function donorEngagement(c: Context, donorId: string) {
