@@ -2,13 +2,16 @@ import { manager, requireRole } from './auth'
 import { all, choice, commit, date, event, fail, guard, id, longText, newId, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { settings } from './settings'
 
-export const RELATIONSHIP_TYPES = ['spouse', 'employer', 'board_member', 'foundation_officer', 'introduced_by'] as const
+export const RELATIONSHIP_TYPES = ['spouse', 'parent', 'friend', 'advisor', 'employer', 'board_member', 'foundation_officer', 'introduced_by'] as const
 export type RelationshipType = typeof RELATIONSHIP_TYPES[number]
 export const INTERACTION_TYPES = ['call', 'meeting', 'email', 'note', 'visit'] as const
 export type InteractionType = typeof INTERACTION_TYPES[number]
 /** Labels describe the OTHER donor, relative to the record being viewed. */
 export const RELATIONSHIP_LABELS: Record<RelationshipType, { outgoing: string; incoming: string; sentence: string }> = {
  spouse: { outgoing: 'Spouse', incoming: 'Spouse', sentence: 'is spouse of' },
+ parent: { outgoing: 'Child', incoming: 'Parent', sentence: 'is parent of' },
+ friend: { outgoing: 'Friend', incoming: 'Friend', sentence: 'is a friend of' },
+ advisor: { outgoing: 'Client', incoming: 'Advisor', sentence: 'is advisor to' },
  employer: { outgoing: 'Employer', incoming: 'Employee', sentence: 'is employed by' },
  board_member: { outgoing: 'Board organization', incoming: 'Board member', sentence: 'is a board member of' },
  foundation_officer: { outgoing: 'Foundation', incoming: 'Foundation officer', sentence: 'is a foundation officer of' },
@@ -35,7 +38,7 @@ export async function donorDepthCommand(c: Context, command: string, p: Row): Pr
  if (command === 'relationship.create') {
   const relatedId = id(p.relatedDonorId, 'Related donor'), type = choice(p.type, RELATIONSHIP_TYPES, 'relationship')
   if (donorId === relatedId) fail('INPUT', 'Choose a different donor for the relationship.', 400)
-  const [from, to] = type === 'spouse' && donorId > relatedId ? [relatedId, donorId] : [donorId, relatedId], relationshipId = newId()
+  const [from, to] = (type === 'spouse' || type === 'friend') && donorId > relatedId ? [relatedId, donorId] : [donorId, relatedId], relationshipId = newId()
   await commit(c, [liveDonor(donorId), liveDonor(relatedId),
    guard('NOT EXISTS(SELECT 1 FROM cf_relationships WHERE donor_id=? AND related_donor_id=? AND type=?)', 'DUPLICATE_RELATIONSHIP', 'This relationship is already recorded.', from, to, type),
    sql('INSERT INTO cf_relationships(id,donor_id,related_donor_id,type,created_at,created_by) VALUES(?,?,?,?,?,?)', relationshipId, from, to, type, c.now, c.actor.name),
@@ -87,12 +90,12 @@ export async function donorDepth(c: { db: D1Database }, donorId: string): Promis
 
 /** Append this bound predicate to listDonors' WHERE clause (donor alias d).
  * Either direction finds every donor with that connection. Outgoing/incoming
- * distinguish employees from employers etc.; spouse is symmetric throughout.
+ * distinguish employees from employers etc.; spouse and friend are symmetric.
  */
 export function relationshipPredicate(type?: RelationshipType, direction: 'either' | 'outgoing' | 'incoming' = 'either'): Stmt {
  if (type !== undefined) choice(type, RELATIONSHIP_TYPES, 'relationship')
  choice(direction, ['either', 'outgoing', 'incoming'] as const, 'relationship direction')
- const endpoint = direction === 'either' ? '(r.donor_id=d.id OR r.related_donor_id=d.id)' : `(r.${direction === 'outgoing' ? 'donor_id' : 'related_donor_id'}=d.id OR (r.type='spouse' AND (r.donor_id=d.id OR r.related_donor_id=d.id)))`
+ const endpoint = direction === 'either' ? '(r.donor_id=d.id OR r.related_donor_id=d.id)' : `(r.${direction === 'outgoing' ? 'donor_id' : 'related_donor_id'}=d.id OR (r.type IN ('spouse','friend') AND (r.donor_id=d.id OR r.related_donor_id=d.id)))`
  return sql(`d.erased_at IS NULL AND EXISTS(SELECT 1 FROM cf_relationships r
   JOIN cf_donors a ON a.id=r.donor_id AND a.erased_at IS NULL
   JOIN cf_donors b ON b.id=r.related_donor_id AND b.erased_at IS NULL
@@ -108,8 +111,8 @@ export function donorDepthMergeStatements(sourceId: string, targetId: string): S
  const mapped = `WITH mapped AS (SELECT id,type,created_at,
   CASE WHEN donor_id=? THEN ? ELSE donor_id END AS a,
   CASE WHEN related_donor_id=? THEN ? ELSE related_donor_id END AS b FROM cf_relationships),
-  projected AS (SELECT id,type,created_at,CASE WHEN type='spouse' THEN min(a,b) ELSE a END AS a,
-  CASE WHEN type='spouse' THEN max(a,b) ELSE b END AS b FROM mapped)`
+  projected AS (SELECT id,type,created_at,CASE WHEN type IN ('spouse','friend') THEN min(a,b) ELSE a END AS a,
+  CASE WHEN type IN ('spouse','friend') THEN max(a,b) ELSE b END AS b FROM mapped)`
  const params = [sourceId, targetId, sourceId, targetId]
  return [liveDonor(sourceId), liveDonor(targetId),
   sql('DELETE FROM cf_relationships WHERE (donor_id=? AND related_donor_id=?) OR (donor_id=? AND related_donor_id=?)', sourceId, targetId, targetId, sourceId),

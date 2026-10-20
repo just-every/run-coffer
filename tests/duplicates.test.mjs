@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {run,donor,archive,reviewed} from './harness.mjs'
+import {run,donor,archive,restore,reviewed} from './harness.mjs'
+import {relationshipsBrowser} from './relationships-browser.mjs'
 
 const day='2026-09-01'
 const history=(h,id)=>h.get(`/api/coffer/donors/${id}`)
@@ -58,7 +59,7 @@ test('duplicates queue requires contact evidence, pages every pair, and excludes
  assert.ok(filtered.pairs.every(p=>p.source.id===copy.id||p.target.id===copy.id))
 }))
 
-test('GIFT-001 / DONOR-006: field choices combine histories without changing cash and undo restores removed credits, links and original contact values',()=>run(async h=>{
+test('GIFT-001 / DONOR-003 / DONOR-006: reciprocal relationships and field choices survive merge, undo and custody without changing cash',()=>run(async h=>{
  await reviewed(h)
  const source=await donor(h,'Elena Mercer',{email:'elena.new@example.org',phone:'202-555-0110',addressLine1:'19 South Road',household:'Mercer new household'})
  const target=await donor(h,'Elena M Mercer',{email:'elena.old@example.org',phone:'202-555-0140',addressLine1:'2 Old Road'})
@@ -69,6 +70,16 @@ test('GIFT-001 / DONOR-006: field choices combine histories without changing cas
  await h.command('relationship.create',{donorId:source.id,relatedDonorId:other.id,type:'employer'})
  await h.command('relationship.create',{donorId:target.id,relatedDonorId:other.id,type:'employer'})
  await h.command('relationship.create',{donorId:source.id,relatedDonorId:target.id,type:'spouse'})
+ for(const [type,outgoing,incoming] of [['parent','Child','Parent'],['friend','Friend','Friend'],['advisor','Client','Advisor']]){
+  for(const person of [source,target]){
+   const link=await h.command('relationship.create',{donorId:person.id,relatedDonorId:other.id,type})
+   assert.equal((await history(h,person.id)).depth.relationships.find(r=>r.id===link.id).label,outgoing)
+   assert.equal((await history(h,other.id)).depth.relationships.find(r=>r.id===link.id).label,incoming)
+  }
+ }
+ assert.equal((await h.command('relationship.create',{donorId:other.id,relatedDonorId:source.id,type:'friend'},{status:409})).error,'DUPLICATE_RELATIONSHIP')
+ assert.equal((await h.command('relationship.create',{donorId:source.id,relatedDonorId:source.id,type:'friend'},{status:400})).error,'INPUT')
+ assert.ok((await h.get(`/api/coffer/donors?relationship=friend&relatedTo=${other.id}`)).donors.some(d=>d.id===source.id))
  const selfCredit=await h.command('softCredit.record',{giftId:a.id,donorId:target.id,amount:'10'})
  const sourceCredit=await h.command('softCredit.record',{giftId:outside.id,donorId:source.id,amount:'12'})
  const targetCredit=await h.command('softCredit.record',{giftId:outside.id,donorId:target.id,amount:'15'})
@@ -96,7 +107,8 @@ test('GIFT-001 / DONOR-006: field choices combine histories without changing cas
  assert.deepEqual(combined.consents.map(k=>k.id).sort(),[...beforeSource.consents,...beforeTarget.consents].map(k=>k.id).sort())
  assert.deepEqual(combined.letters.map(l=>l.id).sort(),[...beforeSource.letters,...beforeTarget.letters].map(l=>l.id).sort())
  assert.equal(combined.depth.interactions[0].notes,beforeSource.depth.interactions[0].notes)
- assert.equal(combined.depth.relationships.length,1)
+ assert.deepEqual(combined.depth.relationships.map(r=>r.type).sort(),['advisor','employer','friend','parent'])
+ assert.deepEqual(combined.depth.relationships.filter(r=>r.type!=='employer').map(r=>[r.type,r.label]).sort(),[['advisor','Client'],['friend','Friend'],['parent','Child']])
  assert.ok(combined.pledges.some(p=>p.id===pledge.id))
  assert.ok((await h.get('/api/coffer/prospects')).some(p=>p.id===prospect.id&&p.donor_id===target.id))
  assert.equal((await history(h,source.id)).donor.id,target.id)
@@ -126,7 +138,16 @@ test('GIFT-001 / DONOR-006: field choices combine histories without changing cas
  assert.ok(restoredTarget.giftDepth.creditedGifts.some(c=>c.id===targetCredit.id))
  assert.ok((await h.get('/api/coffer/prospects')).some(p=>p.id===prospect.id&&p.donor_id===source.id))
  assert.equal(restoredSource.letters[0].delivery_status,'submitted')
+ const backup=await archive(h)
+ await run(async fresh=>{
+  await restore(fresh,backup)
+  assert.deepEqual((await history(fresh,source.id)).depth.relationships,restoredSource.depth.relationships)
+  assert.deepEqual((await history(fresh,target.id)).depth.relationships,restoredTarget.depth.relationships)
+ })
+ if(process.env.COFFER_RELATIONSHIPS_BROWSER)await relationshipsBrowser(h,{sourceId:source.id,targetId:target.id,otherId:other.id,directory:process.env.COFFER_RELATIONSHIPS_BROWSER})
  await h.command('donor.unmerge',{mergeId:result.mergeId,reason:'incorrect_match'},{status:409})
+ await h.command('donor.erase',{donorId:other.id,confirm:'ERASE'})
+ for(const person of [source,target])assert.ok((await history(h,person.id)).depth.relationships.every(r=>r.other_donor_id!==other.id))
 },{bindings:{MAIL_PROVIDER:'sendgrid'},outbound:async request=>{assert.equal(new URL(request.url).pathname,'/v3/mail/send');return new Response(null,{status:202,headers:{'x-message-id':'merge-receipt'}})}}))
 
 test('merge is manager-only and refuses stale fields; undo refuses new uses without moving later gifts',()=>run(async h=>{
