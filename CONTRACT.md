@@ -640,7 +640,9 @@ A mail appeal produces a mail-house file (or a Lob send) with one piece per hous
 
 Each appeal shows recipients, delivered, opened, clicked, responded, gifts, dollars, average gift, cost and return, with a comparison to earlier appeals, from the ledger and the sender results.
 
-*Acceptance:* An HTTP journey runs an email and a mail appeal with gifts from each and reads results that match the ledger and sender events.
+Each newly prepared run creates one explicit permanent distinct response code, shown in its results and used on reply gifts. Historical runs stay unbound and show unknown results; names never infer a binding. The cost is the run's recorded nonnegative integer-cent cost, default zero, frozen at preparation. Dollars sum signed fund-ledger entries for that code across all dates and channels, including reversals and processor adjustments, counting split gifts once. Gifts count original gifts with positive remaining contribution; responded counts distinct frozen recipient donors with such a gift, and response rate divides that count by frozen recipient count. Average gift is net dollars divided by the positive gift count, rounded to the nearest cent (half up for nonnegative totals); absent gifts give unknown. Net return is dollars minus cost, and return on cost divides net return by cost; zero cost gives unknown. Comparisons show earlier bound runs ordered by preparation timestamp then run ID. Delivery is confirmed only by a provider delivery result, never by a list addition, send submission, provider handoff or a staff-recorded postal send; the unknown delivery count remains visible. Open/click tracking stays off, so those outcomes read unknown. RCPT-006's separate provider-reported receipt opens remain available only when the owner's own provider already reports them.
+
+*Acceptance:* An HTTP journey runs an email and a mail appeal with gifts from each and reads results that match the ledger and sender events. It asserts distinct response codes, signed reversal-aware totals, unique responders and gifts, cost, average and return, earlier comparison, unknown delivery/tracking, disabled tracking at the provider edge, historical unbound results through a portable fixture, and archive/restore custody. The preparation and email/mail result screens are exercised at 1440 and 390 pixels.
 
 ### Stewardship and follow-up
 
@@ -1158,7 +1160,7 @@ Every capability claim on the run site's homepage (the desk's owner-accepted cop
 | 40 | Okafor household: lifetime, first gift, tribute, call, gift and DAF soft credit, newest first | `DONOR-004`, `DONOR-011`, `GIFT-006`, `GIFT-008`, `GIFT-009` | `DONOR-004` done · `DONOR-011` done · `GIFT-006` done · `GIFT-008` partial · `GIFT-009` done |
 | 41 | Close the appeal knowing who gave again, donor by donor | `REPORT-001` | done |
 | 42 | matched to the books · Matches QuickBooks Online to the cent | `FIN-001`, `FIN-003` | `FIN-001` partial · `FIN-003` done |
-| 43 | The appeal's report to the board, didn't renew added to the fall call list | `COMM-008`, `REPORT-002` | `COMM-008` missing · `REPORT-002` done |
+| 43 | The appeal's report to the board, didn't renew added to the fall call list | `COMM-008`, `REPORT-002` | `COMM-008` done · `REPORT-002` done |
 | 44 | Each donor gets one statement of the year's gifts, by email or on paper | `RCPT-004` | partial |
 | 45 | 1,486 emailed · 1,452 delivered · 34 bounced · print batch | `RCPT-006` | done |
 | 46 | Open source donor management for nonprofits | `OWN-001` | done |
@@ -1184,8 +1186,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 42 | 46 | 38 | 126 |
-| All | 51 | 46 | 38 | 135 |
+| Target and push further | 43 | 46 | 37 | 126 |
+| All | 52 | 46 | 37 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1265,7 +1267,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `COMM-005` | Replies reach the right person | target | done | `src/coffer/communications/replies.ts`, `src/coffer/communications/reply-stop.ts`, `src/coffer/receipt-replies.ts`, `migrations/core/0058_coffer_reply_stops.sql`, `tests/communications.test.mjs`, `tests/reply-stop-journey.mjs`, `tests/transactional-replies-journey.mjs` |  |
 | `COMM-006` | SMS outreach | target | missing |  | No SMS. |
 | `COMM-007` | Direct mail appeals | target | partial | `src/coffer/appeals.ts`, `tests/coffer.test.mjs` | Mail-channel audiences with postal addresses export as CSV; no ask amounts, response codes or mailing history. |
-| `COMM-008` | Appeal results | target | missing |  | No appeal results. |
+| `COMM-008` | Appeal results | target | done | `src/coffer/appeal-results.ts`, `src/coffer/appeals.ts`, `src/coffer/ui/appeals.ts`, `migrations/core/0075_coffer_appeal_results.sql`, `tests/communications.test.mjs` |  |
 | `STEW-001` | Tasks with owners and reminders | target | partial | `src/coffer/call-tasks.ts`, `src/coffer/ui/call-tasks.ts`, `tests/pipeline.test.mjs` | Owned, dated call tasks from lapses and unpaid due pledge installments support assignment, reassignment, snooze and atomic donor-timeline call completion. Recurring tasks, reminders, escalation and other task kinds remain. |
 | `STEW-002` | Recurring tasks | target | done | `src/coffer/recurring-tasks.ts`, `src/coffer/ui/recurring-tasks.ts`, `migrations/core/0044_coffer_recurring_tasks.sql`, `tests/pipeline.test.mjs`, `tests/recurring-browser.mjs` | Staff create monthly or quarterly donor-linked or general team tasks. Completion atomically creates the next dated occurrence; the installed minute Cron also advances a task whose due date passed. Unique predecessors prevent duplicate occurrences on concurrent ticks or later completion. Month-end cadence retains the original day. HTTP/Cron proof includes backup/restore, merge/undo and erasure; create and complete journeys run at 1440 and 390. |
 | `STEW-003` | Stewardship journeys | target | partial | `docs/COMMUNICATIONS.md` | A person publishes the first-gift thank-you, impact and second-ask series. Durable due steps run through the provider on the minute Worker scheduler; another gift, unavailable email consent, merge or erasure stops pending work. Other triggers, branches, frequency caps, inactive/deceased statuses and solicitation restrictions remain. |

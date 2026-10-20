@@ -2,6 +2,7 @@ import { all, choice, commit, date, event, fail, guard, id, integer, newId, one,
 import { amount } from './money'
 import { settings } from './settings'
 import { csv } from './csv'
+import { appealResults } from './appeal-results'
 import { annualLapses } from './annual-lapses'
 
 const MAX_RECIPIENTS = 10000
@@ -53,15 +54,17 @@ export async function appealCommand(c: Context, command: string, p: Row): Promis
   const { recipients, excluded } = await audience(c, channel, { givenSince, minTotalCents, fund, donorIds })
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)
   if (recipients.length > MAX_RECIPIENTS) fail('TOO_MANY', `An appeal holds at most ${MAX_RECIPIENTS} recipients. Narrow the segment.`, 400)
-  const appealId = newId(), hash = await hashOf(name, channel, recipients,message), list = JSON.stringify(recipients)
+  const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, hash = await hashOf(name, channel, recipients,message), list = JSON.stringify(recipients)
   await commit(c, [
    guard(`NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE (SELECT k.id FROM cf_consents k WHERE k.donor_id=json_extract(j.value,'$.donor_id') AND k.channel=? ORDER BY k.id DESC LIMIT 1) IS NOT json_extract(j.value,'$.consent_id'))`, 'CONSENT_CHANGED', 'A donor’s consent changed while preparing. Prepare again.', list, channel),
+   sql("INSERT INTO cf_appeal_codes(code,name,origin,created_at) VALUES(?,?,'staff',?)",code,name,c.now),
    sql("INSERT INTO cf_appeals(id,version,name,channel,segment,excluded,status,content_hash,recipients,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,?,?,?,?,'prepared',?,?,?,?,?,?)",
     appealId, name, channel, JSON.stringify({ givenSince, minTotalCents, fund, ...(annual ? {annualList,listYear:annual.year,listThrough:annual.through} : {}) }), JSON.stringify(excluded), hash, recipients.length, c.actor.id, c.actor.name, c.actor.role, c.now),
+   sql('INSERT INTO cf_appeal_runs(appeal_id,code,cost_cents) VALUES(?,?,?)',appealId,code,costCents),
    sql(`INSERT INTO cf_appeal_recipients(appeal_id,donor_id,consent_id,name,email,address,total_cents,gift_count,last_gift) SELECT ?,json_extract(value,'$.donor_id'),json_extract(value,'$.consent_id'),json_extract(value,'$.name'),json_extract(value,'$.email'),json_extract(value,'$.address'),json_extract(value,'$.total_cents'),json_extract(value,'$.gift_count'),json_extract(value,'$.last_gift') FROM json_each(?)`, appealId, list),
    ...(message ? [sql('INSERT INTO cf_appeal_messages VALUES(?,?,?)',appealId,message.subject,message.body)] : []),
    event(c, 'appeal.prepare', 'appeal', appealId, null, { channel, recipients: recipients.length, excluded })])
-  return { id: appealId, version: 1, recipients: recipients.length, excluded, contentHash: hash }
+  return { id: appealId, code, costCents, version: 1, recipients: recipients.length, excluded, contentHash: hash }
  }
  if (!['appeal.approve', 'appeal.discard', 'appeal.export', 'appeal.markSent'].includes(command)) return undefined
  const appealId = id(p.appealId, 'Appeal'), version = integer(typeof p.version === 'string' ? Number(p.version) : p.version, 'Version', 1)
@@ -114,5 +117,5 @@ export async function appealDetail(c: { db: D1Database }, appealId: string) {
  if (!appeal) fail('NOT_FOUND', 'That appeal does not exist.', 404)
  const [recipients, approval, changed] = await Promise.all([recipientsOf(c, appealId), one(c, "SELECT * FROM cf_approvals WHERE subject_kind='appeal' AND subject_id=?", appealId),
   one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_appeal_recipients r WHERE r.appeal_id=? AND ${CONSENT} IS NOT r.consent_id`, appealId, appeal.channel)])
- return { appeal, recipients, approval, message:await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),messages:await all(c,"SELECT m.*,d.name FROM cf_communications m JOIN cf_donors d ON d.id=m.donor_id WHERE m.source_kind='appeal' AND m.source_id=? ORDER BY m.created_at",appealId), consentChanged: changed?.n ?? 0 }
+ return { appeal, recipients, approval, results: await appealResults(c,appealId), message:await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),messages:await all(c,"SELECT m.*,d.name FROM cf_communications m JOIN cf_donors d ON d.id=m.donor_id WHERE m.source_kind='appeal' AND m.source_id=? ORDER BY m.created_at",appealId), consentChanged: changed?.n ?? 0 }
 }
