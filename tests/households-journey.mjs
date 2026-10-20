@@ -164,6 +164,7 @@ export async function householdsJourney(h) {
  await h.api('/auth/operator/status',{operatorId:member.id,status:'inactive'})
  await update({headDonorId:robert.id},{as:member.cookie,status:401})
  await householdImports(h)
+ await householdHeadMerge(h)
 }
 
 async function householdImports(h) {
@@ -187,4 +188,25 @@ async function householdImports(h) {
  const r=(await h.get('/api/coffer/donors?q=riley.moon')).donors[0],rh=(await history(h,r.id)).donor.household_id
  assert.equal((await h.get('/api/coffer/households/'+rh)).headStatus,'none')
  await h.api('/api/coffer/move-in/undo',{id:j.id})
+}
+
+async function householdHeadMerge(h) {
+ const source=await donor(h,'Lee Stone',{household:'Stone household'}),target=await donor(h,'Lee M Stone',{household:'Stone household'})
+ const hid=(await history(h,source.id)).donor.household_id
+ const state=()=>h.get('/api/coffer/households/'+hid)
+ const gift=await h.command('gift.record',{donorId:source.id,amount:'7.50',receivedOn:'2025-02-01',method:'check',goods:'none'})
+ await h.command('household.update',{householdId:hid,version:(await state()).household.version,headDonorId:source.id})
+ const merge=async()=>{const a=(await history(h,source.id)).donor,b=(await history(h,target.id)).donor;return h.command('donor.merge',{sourceDonorId:a.id,donorId:b.id,sourceVersion:a.version,version:b.version,reason:'duplicate_record'})}
+ const first=await merge()
+ assert.equal((await state()).household.head_donor_id,target.id,'DONOR-003: source head carries to a survivor in the same household')
+ const original=(await history(h,target.id)).gifts.find(g=>g.id===gift.id)
+ assert.equal(original.amount_cents,750)
+ await h.command('donor.unmerge',{mergeId:first.mergeId,reason:'incorrect_match'})
+ assert.equal((await state()).household.head_donor_id,source.id)
+ const restored=(await history(h,source.id)).gifts.find(g=>g.id===gift.id)
+ assert.deepEqual([restored.amount_cents,restored.received_on,restored.fund],[original.amount_cents,original.received_on,original.fund])
+ const t=(await history(h,target.id)).donor
+ await h.command('donor.update',{donorId:target.id,version:t.version,name:t.name,email:t.email,household:'Other Stone household',householdVersion:(await state()).household.version})
+ await merge()
+ assert.equal((await state()).headStatus,'none','DONOR-003: source head clears when the survivor stays in another household')
 }
