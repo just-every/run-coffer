@@ -6,7 +6,7 @@ const facts=h=>({gifts:h.gifts,pledges:h.pledges,credits:h.giftDepth,consents:h.
 export async function householdsJourney(h) {
  await reviewed(h)
  const member=await h.person('household-entry@example.test'),admin=await h.person('household-admin@example.test','admin')
- const robert=await donor(h,'Robert Smith',{household:'Robert and Jane Smith'}),jane=await donor(h,'Jane Smith',{household:'Robert and Jane Smith'}),sam=await donor(h,'Sam Rivers',{household:'Rivers household'}),sponsor=await donor(h,'Community DAF Sponsor'),duplicate=await donor(h,'Jane S Smith')
+ const robert=await donor(h,'Robert Smith',{household:'Robert and Jane Smith'},{as:member.cookie}),jane=await donor(h,'Jane Smith',{household:'Robert and Jane Smith'}),sam=await donor(h,'Sam Rivers',{household:'Rivers household'}),sponsor=await donor(h,'Community DAF Sponsor'),duplicate=await donor(h,'Jane S Smith')
  const screenshot=async(phase)=>{if(process.env.COFFER_HOUSEHOLD_BROWSER){const {householdsBrowser}=await import('./households-browser.mjs');await householdsBrowser(h,{donorId:robert.id,directory:process.env.COFFER_HOUSEHOLD_BROWSER,phase})}}
  const hid=(await history(h,robert.id)).donor.household_id
  const state=(suffix='',options={})=>h.get('/api/coffer/households/'+hid+suffix,options)
@@ -20,6 +20,9 @@ export async function householdsJourney(h) {
  await profile(jane,{prefix:'Dr.',firstName:'Jane',lastName:'Smith'})
  let s=await state()
  assert.equal(s.headStatus,'none');assert.equal(s.household.head_donor_id,null)
+ const firstMembership=(await h.get('/api/coffer/audit?action=household.membership&record='+hid)).rows
+ assert.equal(firstMembership.length,2);assert.ok(firstMembership.some(r=>r.actor_role==='member'&&r.actor_id===member.id))
+ assert.ok(firstMembership.every(r=>JSON.parse(r.detail).newHead===null))
  assert.deepEqual(s.names,{addressee:'Mr. Robert Smith and Dr. Jane Smith',formal:'Mr. Robert Smith and Dr. Jane Smith',informal:'Bob and Jane'})
  const agent=await h.command('agent.create',{label:'Household reader'}),agentOptions={as:'',headers:{authorization:'Bearer '+agent.token}}
  await state('',{as:'',status:401})
