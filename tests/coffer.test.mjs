@@ -342,3 +342,5 @@ test('DONOR-015: SMS asks honor restrictions while approved thank-yous and pledg
 test('DONOR-015: incumbent restrictions retain source meaning, previews, reconciliation and undo across current CRM doors',async()=>{const {solicitationImportJourney}=await import('./solicitation-import-journey.mjs');await solicitationImportJourney()})
 
 test('STEW-005: reviewed rules act once on live gifts and never on historical imports',async()=>{const {giftRulesJourney}=await import('./gift-rules-journey.mjs');await giftRulesJourney()})
+
+test('DONOR-015: ask restrictions preserve transactional contact and deliberate audited exceptions',async()=>{const {solicitationJourney}=await import('./solicitation-journey.mjs');await solicitationJourney()})

@@ -18,7 +18,7 @@ export const hashOf = (name: string, channel: string, recipients: Row[], message
 const postal = (d: Row) => d.address_line1 && d.city && d.postal_code
 
 /** Splits the segment into consenting recipients and counted exclusions. */
-export async function audience(c: { db: D1Database }, channel: 'email' | 'mail', segment: { givenSince: string | null; minTotalCents: number; fund?: string | null; donorIds?: string[]; isAsk?: boolean; includeIds?: string[] }) {
+export async function audience(c: { db: D1Database; now?:string }, channel: 'email' | 'mail', segment: { givenSince: string | null; minTotalCents: number; fund?: string | null; donorIds?: string[]; isAsk?: boolean; includeIds?: string[] }) {
  const rows = await all(c, `SELECT d.*,k.id AS consent_id,k.status AS consent,
   (SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
   (SELECT COUNT(*) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS gift_count,
@@ -32,7 +32,7 @@ export async function audience(c: { db: D1Database }, channel: 'email' | 'mail',
  const recipients: Row[] = []
  for (const d of rows) {
   if (segment.donorIds && !segment.donorIds.includes(d.id)) continue
-  const restricted=segment.isAsk===false?null:await solicitationReason(c,d.id,channel)
+  const restricted=segment.isAsk===false?null:await solicitationReason(c,d.id,channel,c.now)
   if (d.constituent_status !== 'active') countReason(excluded, d.constituent_status)
   else if (restricted&&!segment.includeIds?.includes(d.id)) countReason(excluded,restricted.reason)
   else if (!d.consent) excluded['no consent recorded']++

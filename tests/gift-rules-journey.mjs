@@ -56,7 +56,7 @@ export async function giftRulesJourney() {
   assert.equal(notices.length,0,'Saving configuration cannot contact the team')
   await publish(notification)
   await giveRecognition(h,{...values,amount:'1'})
-  assert.equal(notices.length,1)
+  assert.equal(notices.length,1,JSON.stringify(await state()))
   assert.ok(notices[0].text.includes('synthetic-coffer-307'))
   assert.ok(!notices[0].text.includes(values.name)&&!notices[0].text.includes(values.email),'The notice does not share donor identity')
   assert.equal((await state()).firings.find(f=>f.rule_id===notification.id).status,'submitted')
