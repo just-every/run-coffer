@@ -25,7 +25,7 @@ export async function giftAcknowledgmentWrite(c: Context, command: string, p: Ro
    noteId=optional(p.recordedNoteId,'Recorded thank-you note',100)
    if(noteId)statements.push(guard('EXISTS(SELECT 1 FROM cf_donor_notes WHERE id=? AND donor_id=? AND occurred_on=? AND confidential=0)','ACK_NOTE','Choose an ordinary note on this donor and thank-you date.',noteId,gift.donor_id,day))
    else {const body=longText(p.notes,'Thank-you message');noteId=newId()
-    statements.push(sql('INSERT INTO cf_donor_notes(id,donor_id,occurred_on,body,source,recorded_at,recorded_by) VALUES(?,?,?,?,?,?,?)',noteId,gift.donor_id,day,body,'Coffer gift thank-you',c.now,c.actor.name))}
+    statements.push(sql('INSERT INTO cf_donor_notes(id,donor_id,occurred_on,body,source,recorded_at,recorded_by) VALUES(?,?,?,?,?,?,?)',noteId,gift.donor_id,day,body,'Coffer',c.now,c.actor.name))}
 
   }
  }else if(status==='do not acknowledge')reason=text(p.reason,'Reason not to acknowledge',1000)

@@ -61,6 +61,12 @@ export async function journeyResponseBrowser(current,historical,stepId,directory
    const page=await context.newPage()
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
+    if(label==='bound'){
+     await page.goto(origin+'/app/appeals')
+     const welcome=page.locator('section').filter({has:page.getByRole('heading',{name:'First-gift welcome series',exact:true})})
+     await welcome.getByText('Only gifts entered with a step’s code count as responses.',{exact:false}).waitFor()
+     await welcome.screenshot({path:`${directory}/DEV-009-welcome-publication-${width}.png`})
+    }
     await page.goto(origin+'/app/agent/appeals')
     const row=page.locator('li').filter({has:page.locator(`input[name="stepId"][value="${stepId}"]`)})
     if(step.responses.bound){

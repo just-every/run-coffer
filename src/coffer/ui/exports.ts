@@ -24,9 +24,8 @@ export async function exportsPage(c: Context, url: URL, error = '') {
  ${error?`<p role="alert">${e(error)}</p>`:''}
  ${box('Choose an export',`<form method="get" action="/app/exports"><div class="fields">
   ${select('List','list',[['search','Current donor search'],['lybunt','LYBUNT'],['sybunt','SYBUNT'],...lists.map(l=>[`saved:${l.id}`,l.name] as [string,string])],list,'aria-label="List"')}
-  ${select('Record type','type',EXPORT_TYPES.map(t=>[t,label(t)] as [string,string]),type,'aria-label="Record type"')}
   ${field('Annual list calendar year','year','number',value('year')||today(m.timezone,new Date(m.asOf)).slice(0,4),'min="1900"')}
-  </div><button>Review export</button></form>`)}
+  </div>${formValues({type})}<button>Choose list</button></form><form method="get" action="/app/exports">${formValues(Object.fromEntries([...url.searchParams.entries()].filter(([key])=>key!=='type')))}<div class="fields">${select('Record type','type',EXPORT_TYPES.map(t=>[t,label(t)] as [string,string]),type,'aria-label="Record type"')}</div><button>Review export</button></form>`)}
  ${list==='search'||list==='lybunt'||list==='sybunt'?box('Filter this list',`<form method="get" action="/app/exports">${formValues({list,type,year:value('year')})}<div class="fields">${filters}</div><button>Apply list filters</button></form>`):'<p>This list uses its saved search filters.</p>'}
  ${box('Review your download',`<p>${m.listName?`${e(m.listName)} · `:''}${m.memberCount} constituents · ${m.rowCount} ${e(type)} rows.</p>
   <p>${e(m.withheld.statement)}.</p><p>Reviewed as of ${e(m.asOf)} UTC. Dates use ${e(m.timezone)}.</p>
