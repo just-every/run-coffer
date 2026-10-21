@@ -19,7 +19,7 @@ BEGIN
  UPDATE cf_acks SET recipient_name='[erased contact]',address=NULL,subject='[erased]',body='[erased]',delivery_note=NULL
  WHERE json_extract(address,'$.attentionDonorId')=NEW.id;
  UPDATE cf_in_kind_acknowledgments SET recipient_address=NULL,subject='[erased]',body='[erased]' WHERE json_extract(recipient_address,'$.attentionDonorId')=NEW.id;
- UPDATE cf_donor_merge_journal SET status='erased',erased_at=NEW.erased_at WHERE id IN (SELECT merge_id FROM cf_donor_merge_rows WHERE (table_name='cf_acks' AND json_extract(value,'$.address.attentionDonorId')=NEW.id) OR (table_name='cf_acks' AND json_extract(json_extract(value,'$.address'),'$.attentionDonorId')=NEW.id) OR (table_name='cf_organization_contacts' AND (json_extract(value,'$.contact_donor_id')=NEW.id OR json_extract(value,'$.organization_donor_id')=NEW.id)));
+ UPDATE cf_donor_merge_journal SET status='erased',erased_at=NEW.erased_at WHERE id IN (SELECT merge_id FROM cf_donor_merge_rows WHERE (table_name='cf_acks' AND json_extract(value,'$.address.attentionDonorId')=NEW.id) OR (table_name='cf_acks' AND json_extract(json_extract(value,'$.address'),'$.attentionDonorId')=NEW.id) OR (table_name='cf_in_kind_acknowledgments' AND json_extract(json_extract(value,'$.recipient_address'),'$.attentionDonorId')=NEW.id) OR (table_name='cf_organization_contacts' AND (json_extract(value,'$.contact_donor_id')=NEW.id OR json_extract(value,'$.organization_donor_id')=NEW.id)));
  DELETE FROM cf_donor_merge_rows WHERE merge_id IN (SELECT id FROM cf_donor_merge_journal WHERE status='erased');
  DELETE FROM cf_organization_contacts WHERE organization_donor_id=NEW.id OR contact_donor_id=NEW.id;
 END;

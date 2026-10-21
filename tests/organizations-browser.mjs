@@ -10,7 +10,7 @@ export async function organizationsBrowser(h,directory) {
   const formFor=command=>page.locator('form').filter({has:page.locator(`[name=command][value="${command}"]`)})
   const fits=async name=>{
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'DONOR-002 '+name+' fits')
-   const target=name.startsWith('create-')?formFor('donor.create'):name.startsWith('organization-')?page.locator('#organization'):name.startsWith('contact-')?page.locator('#timeline'):page.locator('main')
+   const target=name.startsWith('create-')?formFor('donor.create'):name.startsWith('profile-')?formFor('donor.profile'):name.startsWith('organization-')?page.locator('#organization'):name.startsWith('contact-')?page.locator('#timeline'):page.locator('main')
    await target.screenshot({path:`${directory}/DONOR-002-${name}.png`})
   }
   for(const width of [1440,390]){
@@ -42,6 +42,7 @@ export async function organizationsBrowser(h,directory) {
     await page.getByText('Name parts and household eligibility',{exact:true}).click()
     const profile=formFor('donor.profile')
     await profile.getByLabel('Informal salutation',{exact:true}).fill(name.split(' ')[0])
+    await fits('profile-'+name.split(' ')[0]+'-'+width)
     await profile.getByRole('button',{name:'Save name parts',exact:true}).click()
     await page.waitForLoadState('domcontentloaded')
    }
