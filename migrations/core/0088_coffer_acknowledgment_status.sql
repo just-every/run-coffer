@@ -8,6 +8,7 @@ ALTER TABLE cf_gift_acknowledgments ADD COLUMN updated_by_id TEXT NOT NULL DEFAU
 ALTER TABLE cf_gift_acknowledgments ADD COLUMN updated_by_role TEXT NOT NULL DEFAULT 'owner';
 ALTER TABLE cf_gift_acknowledgments ADD COLUMN change_source TEXT NOT NULL DEFAULT 'automatic';
 ALTER TABLE cf_settings ADD COLUMN thank_soft_credits INTEGER NOT NULL DEFAULT 0 CHECK(thank_soft_credits IN (0,1));
+ALTER TABLE cf_letter_events ADD COLUMN signature_verified INTEGER NOT NULL DEFAULT 0;
 CREATE TRIGGER cf_gift_ack_audit_insert AFTER INSERT ON cf_gift_acknowledgments
 BEGIN
  INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
@@ -23,10 +24,10 @@ BEGIN
  FROM cf_gifts g WHERE g.id=NEW.gift_id;
 END;
 CREATE TRIGGER cf_ack_email_failed AFTER UPDATE OF delivery_status ON cf_acks
-WHEN NEW.delivery_status IN ('bounced','complained','rejected') AND OLD.delivery_status<>NEW.delivery_status
+WHEN NEW.delivery_status IN ('bounced','complained','rejected') AND (NEW.delivery_status='rejected' OR EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=NEW.id AND e.event IN ('bounced','complained') AND e.signature_verified=1))
 BEGIN
  UPDATE cf_gift_acknowledgments SET version=version+1,status='not acknowledged',acknowledged_on=NULL,method=NULL,reason=NULL,outcome_unknown=0,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),updated_by='Receipt provider',updated_by_id='coffer-mail',updated_by_role='owner',change_source='automatic'
- WHERE gift_id=NEW.gift_id AND letter_id=NEW.id AND change_source='automatic';
+ WHERE gift_id=NEW.gift_id AND letter_id=NEW.id AND change_source='automatic' AND (status='acknowledged' OR outcome_unknown=1);
 END;
 CREATE TRIGGER cf_ack_email_uncertain AFTER UPDATE OF delivery_status ON cf_acks
 WHEN NEW.delivery_status IN ('sending','uncertain') AND NEW.gift_id IS NOT NULL
@@ -42,5 +43,4 @@ BEGIN
  UPDATE cf_gift_acknowledgments SET reason=NULL,interaction_id=NULL,note_id=NULL,communication_id=NULL,letter_id=NULL,batch_id=NULL,source_reference=NULL,source='Coffer',updated_by='Coffer',updated_by_id='coffer-erasure' WHERE gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=NEW.id);
 END;
 
-ALTER TABLE cf_letter_events ADD COLUMN signature_verified INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE cf_communications ADD COLUMN thank_recorded_at TEXT;

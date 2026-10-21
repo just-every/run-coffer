@@ -74,19 +74,25 @@ export async function receiptStatusJourney(){
   const receiptQueue=await h.api('/api/coffer/agent/receipts/queue',{});assert.equal(receiptQueue.queued,0,'Uncertain submissions wait for a person, never an automatic replacement')
   let ack=await read(h,d.id,g.id)
   assert.equal(ack.status,'acknowledged');assert.equal(ack.method,'email');assert.equal(ack.delivery,'delivery not confirmed');assert.equal(ack.link.kind,'letter')
+  await h.command('ack.checkDelivery',{batchId:b.id,version:3})
+  assert.equal((await read(h,d.id,g.id)).delivery,'delivery not confirmed','Unsigned provider logs do not become signed delivery proof')
+  assert.equal((await read(h,second.id,g2.id)).status,'acknowledged','A log lookup alone never performs the signed-bounce reset')
   const letters=(await h.get(`/api/coffer/letters/${b.id}`)).letters
   const event=async(giftId,kind,eventId)=>{
    const l=letters.find(l=>l.gift_id===giftId),timestamp=String(Math.floor(Date.now()/1000)),raw=JSON.stringify([{event:kind,sg_event_id:eventId,timestamp:Number(timestamp),coffer_letter_id:l.id,coffer_attempt_id:l.attempt_id}])
    assert.equal((await h.request('/api/coffer/mail/events',{method:'POST',as:'',raw,headers:{'x-twilio-email-event-webhook-timestamp':timestamp,'x-twilio-email-event-webhook-signature':sign('sha256',Buffer.from(timestamp+raw),keys.privateKey).toString('base64')}})).status,200)
   }
-  await event(g.id,'delivered','synthetic-coffer-delivery')
+  await event(g.id,'delivered','synthetic-coffer-log-1')
   assert.equal((await read(h,d.id,g.id)).delivery,'delivered (provider-reported)')
-  await event(g2.id,'bounce','synthetic-coffer-bounce')
+  await event(g2.id,'bounce','synthetic-coffer-log-2')
   assert.equal((await read(h,second.id,g2.id)).status,'not acknowledged')
   assert.ok((await h.get('/api/coffer/letters')).due.some(x=>x.id===g2.id))
   const later=await h.command('gift.acknowledge',{giftId:g.id,version:ack.version,acknowledgedOn:day,method:'handwritten note',notes:'A later personal handwritten thank-you.'})
   await event(g.id,'bounce','synthetic-coffer-late-bounce')
   ack=await read(h,d.id,g.id);assert.equal(ack.status,'acknowledged');assert.equal(ack.note_id,later.noteId)
   if(process.env.COFFER_ACK_STATUS_BROWSER){const {receiptDeliveryStatusBrowser}=await import('./receipt-status-browser.mjs');await receiptDeliveryStatusBrowser(h,{donorId:second.id,giftId:g2.id,directory:process.env.COFFER_ACK_STATUS_BROWSER})}
- },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_EVENT_PUBLIC_KEY:keys.publicKey.export({type:'spki',format:'der'}).toString('base64')},outbound:async request=>{assert.equal(new URL(request.url).hostname,'api.sendgrid.com');const message=await request.json();sent.push(message);if(message.personalizations[0].to[0].email==='taylor.ahmed@example.org')return new Response(null,{status:202});return new Response(null,{status:202,headers:{'x-message-id':`synthetic-coffer-${sent.length}`}})}})
+ },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_EVENT_PUBLIC_KEY:keys.publicKey.export({type:'spki',format:'der'}).toString('base64')},outbound:async request=>{const url=new URL(request.url);assert.equal(url.hostname,'api.sendgrid.com');
+  if(url.pathname==='/v3/logs'){const query=(await request.json()).query;return Response.json({messages:sent.flatMap((m,i)=>query.includes(m.personalizations[0].to[0].email)?[{sg_message_id:`synthetic-coffer-${i+1}.recvd.0`,to_email:m.personalizations[0].to[0].email}]:[])})}
+  if(url.pathname.startsWith('/v3/logs/')){const i=Number(url.pathname.match(/synthetic-coffer-(\d+)/)[1])-1,m=sent[i];return Response.json({sg_message_id:`synthetic-coffer-${i+1}.recvd.0`,to_email:m.personalizations[0].to[0].email,events:[{event:m.personalizations[0].to[0].email==='drew.navarro@example.org'?'bounce':'delivered',timestamp:Math.floor(Date.now()/1000),sg_event_id:`synthetic-coffer-log-${i+1}`,custom_args:m.custom_args}]})}
+  const message=await request.json();sent.push(message);if(message.personalizations[0].to[0].email==='taylor.ahmed@example.org')return new Response(null,{status:202});return new Response(null,{status:202,headers:{'x-message-id':`synthetic-coffer-${sent.length}`}})}})
 }
