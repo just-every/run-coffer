@@ -10,7 +10,7 @@ export function checkStatement(donorId:string,fingerprint:string,result:SmartyRe
  return sql(`INSERT INTO cf_address_checks(donor_id,version,fingerprint,status,reason,codes,checked_at,source,move_effective_month) VALUES(?,1,?,?,?,?,?,?,?)
  ON CONFLICT(donor_id) DO UPDATE SET version=version+1,fingerprint=excluded.fingerprint,status=excluded.status,reason=excluded.reason,codes=excluded.codes,checked_at=excluded.checked_at,source=excluded.source,move_effective_month=excluded.move_effective_month`,donorId,fingerprint,result.status,result.reason,JSON.stringify(result.providerCodes),at,source,moveMonth)
 }
-export async function addressState(c:Context,donorId?:string) {
+export async function addressState(c:Context,donorId?:string):Promise<Row> {
  const connection=await addressProcessing(c)
  const runs=await all(c,'SELECT id,state,total,processed,created_at,completed_at,reason FROM cf_ncoa_runs ORDER BY created_at DESC LIMIT 20')
  if(!donorId)return {connection,runs}

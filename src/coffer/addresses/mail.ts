@@ -15,10 +15,11 @@ export async function mailPreflight(c:Context) {
 }
 export async function mailEligibility(c:{db:D1Database},donors:Row[]) {
  const result=new Map<string,{reason:string;check?:Row}>()
- if(!(await addressProcessing(c)).enabled)return result
+ const enabled=Boolean((await addressProcessing(c)).enabled)
  const checks=await all(c,'SELECT * FROM cf_address_checks WHERE donor_id IN(SELECT value FROM json_each(?))',JSON.stringify(donors.map(d=>d.id))),byId=new Map(checks.map(r=>[r.donor_id,r]))
  for(const donor of donors){
   const check=byId.get(donor.id)
+  if(!enabled){if(check?.status==='undeliverable'&&check.fingerprint===await addressFingerprint(donor))result.set(donor.id,{reason:'undeliverable address',check});continue}
   if(!check||check.fingerprint!==await addressFingerprint(donor))result.set(donor.id,{reason:'address not verified'})
   else if(check.status==='undeliverable')result.set(donor.id,{reason:'undeliverable address',check})
   else if(check.status!=='verified')result.set(donor.id,{reason:'address not verified',check})

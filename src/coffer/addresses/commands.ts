@@ -4,7 +4,7 @@ import { verifyExistingAddress } from './entry'
 import { addressFingerprint, addressProcessing } from './state'
 
 export async function ncoaCandidates(c:Context) {
- const rows=await all(c,`SELECT * FROM cf_donors d WHERE erased_at IS NULL AND constituent_status='active' AND address_line1 IS NOT NULL AND city IS NOT NULL AND region IS NOT NULL AND postal_code IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND upper(country) IN('US','USA','UNITED STATES','UNITED STATES OF AMERICA') ORDER BY id`)
+ const rows=await all(c,`SELECT * FROM cf_donors d WHERE erased_at IS NULL AND constituent_status='active' AND trim(COALESCE(address_line1,''))<>'' AND trim(COALESCE(city,''))<>'' AND trim(COALESCE(region,''))<>'' AND trim(COALESCE(postal_code,''))<>'' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND upper(country) IN('US','USA','UNITED STATES','UNITED STATES OF AMERICA') ORDER BY id`)
  const groups=new Map<string,number>(),members=[]
  for(const d of rows){
   const fingerprint=await addressFingerprint(d),key=await addressFingerprint({...d,name:d.name.trim().toUpperCase(),...Object.fromEntries(Object.entries(d).filter(([k])=>['address_line1','address_line2','city','region','postal_code','country'].includes(k)).map(([k,v])=>[k,typeof v==='string'?v.trim().toUpperCase():v])),country:'US'})
