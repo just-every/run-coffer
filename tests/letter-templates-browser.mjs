@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {withBrowserWorker} from './browser-worker.mjs'
 
-export async function letterTemplatesBrowser(h,{batchId,directory}) {
+export async function letterTemplatesBrowser(h,{batchId,statementId,directory}) {
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage();page.setDefaultTimeout(15000)
@@ -29,6 +29,9 @@ export async function letterTemplatesBrowser(h,{batchId,directory}) {
    assert.equal(await section.getByText('Monthly welcome '+width).count(),0)
    await page.goto(origin+'/app/letters/'+batchId);await page.getByText('Major gift template v1').first().waitFor();await fits()
    await page.screenshot({path:`${directory}/RCPT-010-letters-${width}.png`,fullPage:true})
+   await page.goto(origin+'/app/letters/'+statementId)
+   await page.getByText('No email recorded',{exact:false}).first().waitFor();await fits()
+   await page.screenshot({path:`${directory}/RCPT-010-defaults-${width}.png`,fullPage:true})
   }
   await page.close()
  })

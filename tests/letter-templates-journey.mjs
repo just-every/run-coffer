@@ -39,7 +39,7 @@ export async function letterTemplatesJourney(){
   await save({kind:'year_end',name:'Year end',subject:'{{year}}',body:'Dear {{donor_name}} {{gift_list}} {{goods_statement}} {{organization}} {{ein}}'},{status:400})
   const yearEnd=await save({kind:'year_end',name:'Annual statement',subject:'Your {{year}} giving',body:'YEAR-END Dear {{donor_name}}, your {{year}} gifts:\n{{gift_list}}\nTotal {{total}} · goods {{goods_total}} · deductible {{deductible_total}}\n{{goods_statement}}\n{{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
 
-  const ana=await donor(h,'Ana Template'),bo=await donor(h,'Bo Template',{email:null}),cy=await donor(h,'Cy Template')
+  const ana=await donor(h,'Ana Template'),bo=await donor(h,'Bo Template',{email:null,addressLine1:null,city:null,region:null,postalCode:null}),cy=await donor(h,'Cy Template')
   const a1=await gift(h,ana.id,'300','2025-08-01'),a2=await gift(h,ana.id,'400','2025-08-02'),a3=await gift(h,ana.id,'1500','2025-08-03')
   const a4=await gift(h,ana.id,'2000','2025-08-04',{fund:'Reading',campaignId:campaign.id}),a5=await gift(h,ana.id,'1200','2025-08-05')
   await h.command('tribute.record',{giftId:a5.id,kind:'memory',honoree:'Leela Template'})
@@ -53,6 +53,7 @@ export async function letterTemplatesJourney(){
   assert.match(of(a1).body,/EIN 12-3456789/);assert.match(of(a1).body,/No goods or services/)
   assert.ok(of(a1).body.includes('Email: '+(await h.get('/api/coffer/donors/'+ana.id)).donor.email))
   assert.ok(of(b1).body.includes('Email: No email recorded'))
+  assert.ok(of(b1).body.includes('Address: No postal address recorded'))
   assert.ok(of(a1).body.includes('Address: 1 Main Street\nSpringfield\nIL\n62701'))
   assert.doesNotMatch(of(a2).body,/^(FIRST|MAJOR|CAMPAIGN|TRIBUTE)/)
   assert.match(of(a4).body,/^CAMPAIGN /);assert.match(of(a5).body,/^TRIBUTE [\s\S]*memory of Leela Template/)
@@ -84,7 +85,7 @@ export async function letterTemplatesJourney(){
   await h.command('letterTemplate.retire',{templateId:recurring.id,version:1})
   const settingsPage=await (await h.request('/app/settings')).text()
   assert.ok(settingsPage.includes('Thank-you templates')&&settingsPage.includes('Annual statement')&&settingsPage.includes('$1,000.00 or more'))
-  if(process.env.COFFER_RCPT007_BROWSER){const {letterTemplatesBrowser}=await import('./letter-templates-browser.mjs');await letterTemplatesBrowser(h,{batchId:again.id,directory:process.env.COFFER_RCPT007_BROWSER})}
+  if(process.env.COFFER_RCPT007_BROWSER){const {letterTemplatesBrowser}=await import('./letter-templates-browser.mjs');await letterTemplatesBrowser(h,{batchId:again.id,statementId:statements.id,directory:process.env.COFFER_RCPT007_BROWSER})}
   // Templates, their versions and the recorded versions on letters travel with the archive.
   const saved=await archive(h)
   await run(async fresh=>{

@@ -11,5 +11,5 @@ export const CONTACT_MERGE_FIELDS = ['email', 'postal_address']
 /** Today's primary contact, using the same frozen delivery address as the letter. */
 export function recipientMergeFields(d: Row): Record<string, string> {
  const a = d.letter_address ? JSON.parse(d.letter_address) : { line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country }
- return { ...nameMergeFields(d), email: d.email ?? '', postal_address: [a?.line1, a?.line2, a?.city, a?.region, a?.postalCode, a?.country].filter(Boolean).join('\n') }
+ return { ...nameMergeFields(d), email: d.email ?? '', postal_address: a?.line1 ? [a.line1, a.line2, a.city, a.region, a.postalCode, a.country].filter(Boolean).join('\n') : '' }
 }
