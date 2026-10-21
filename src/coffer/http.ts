@@ -1,3 +1,6 @@
+import { exportsResponse } from './exports-http'
+import { savedLists } from './saved-lists'
+import { exportsPage } from './ui/exports'
 import { form } from './ui/common'
 import { publishedTemplateFields } from './letter-templates'
 import { printMeetingBrief } from './ui/meeting-brief'
@@ -259,6 +262,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    if (isApi) return json(result)
    return actionPage(command, input, result, actor, (await settings(c)).timezone)
   }
+  const csvExport=await exportsResponse(request,c);if(csvExport)return csvExport
   if (path === '/app/backup' && request.method === 'POST') {
    if (actor.role !== 'owner') fail('owner_required', 'Only the owner can download a backup.', 403)
    await cleanVideoUploads(c)
@@ -328,6 +332,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
+ if(command==='list.save')return redirect('/app/exports?list=saved:'+encodeURIComponent(result.id))
  if (command === 'donor.merge' || command === 'donor.unmerge') return redirect('/app/audit?record='+encodeURIComponent(result.donorId))
  if (CONNECT.has(command)) return redirect('/app/appeals/connect')
  if (command.startsWith('welcome.') || command.startsWith('marketing.') || command.startsWith('reply.')) return redirect('/app/appeals')
@@ -349,6 +354,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command === 'settings.update') return redirect('/app/settings?saved=1')
  if (command.startsWith('letterTemplate.')) return redirect('/app/settings?saved=1#thank-you-templates')
  if (command === 'donor.create') return redirect(`/app/donors/${result.id}`)
+ if(input.returnGiftId)return redirect('/app/gifts?gift='+encodeURIComponent(input.returnGiftId)+'#selected-gift-acknowledgment')
  if (input.returnDonorId) return redirect(`/app/donors/${encodeURIComponent(input.returnDonorId)}`)
  if (command === 'donor.erase') return redirect(`/app/donors/${result.donorId}`)
  if (command === 'consent.record') return redirect(input.returnTo === 'donor' && input.donorIds?.length === 1 ? `/app/donors/${input.donorIds[0]}#consent` : '/app/donors?consent=' + result.recorded)
@@ -391,6 +397,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if(url.pathname==='/api/coffer/lists')return json({lists:await savedLists(c)})
  if(url.pathname==='/api/coffer/template-fields')return json(publishedTemplateFields())
  if(url.pathname==='/api/coffer/meetings')return json(await meetings(c))
  const meeting=url.pathname.match(/^\/api\/coffer\/meetings\/([^/]+)\/brief$/)
@@ -481,6 +488,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if(path==='/app/exports')return show('Export donor records',await exportsPage(c,url))
  if (path === '/app/duplicates') return show('Possible duplicates',await duplicatesPage(c,url))
  if (path === '/app/duplicates/compare') return show('Compare donor records',await comparePage(c,url))
  if (path === '/app/audit') return show('Audit log',await auditPage(c,url))
