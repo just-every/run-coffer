@@ -1,7 +1,8 @@
+import { letterRecipient } from './organizations'
 import { withReceiptBenefits } from './receipt-rules'
 import { receiptFundLabels } from './gift-splits'
 import { all, commit, event, fail, guard, id, integer, newId, sql, today, type Context, type Row } from './db'
-import { address, letterHash } from './acknowledgements'
+import { letterHash } from './acknowledgements'
 import { tributeReceiptText } from './gift-depth'
 import { usd } from './money'
 import { fill, goodsStatement, longDate, settings, type Settings } from './settings'
@@ -27,14 +28,14 @@ export function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number
   : [s.none_statement]
  if (template) {
   // RCPT-007: a reviewed year-end template places the same itemized facts in the charity's own words.
-  const fields = { date: longDate(day), donor_name: donor.name, year: String(year), gift_list: items.join('\n'), total: usd(total), goods_total: usd(goods), deductible_total: usd(total - goods), goods_statement: wording.join('\n'), organization: s.organisation, ein: s.ein }
+  const fields = { date: longDate(day), donor_name: donor.letter_salutation??donor.name, year: String(year), gift_list: items.join('\n'), total: usd(total), goods_total: usd(goods), deductible_total: usd(total - goods), goods_statement: wording.join('\n'), organization: s.organisation, ein: s.ein }
   return { subject: fill(template.subject, fields), body: fill(template.body, fields), amount_cents: total, ...templateUse(template, s) }
  }
  return {
   ...settingsUse(s),
   subject: `${year} annual giving statement — ${s.organisation}`,
   body: [
-   longDate(day), '', `Dear ${donor.name},`, '',
+   longDate(day), '', `Dear ${donor.letter_salutation??donor.name},`, '',
    `Thank you for supporting ${s.organisation} in ${year}. For your tax records, this statement lists each gift you made from January 1 through December 31, ${year}.`, '',
    ...items, '',
    `Total gifts: ${usd(total)}`,
@@ -74,12 +75,13 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  await receiptFundLabels(c,gifts)
  for (const gift of gifts) gift.tribute = tributes.get(gift.id) ?? null
  const batchId = newId(), template = await templateFor(c, 'year_end'), revision = await templateRevision(c)
+ for(let i=0;i<donors.length;i++)donors[i]=await letterRecipient(c,donors[i])
  const letters = donors.map((d, position) => {
   const selected = gifts.filter(g => g.donor_id === d.id)
   if (!selected.length) fail('GIFTS_CHANGED', 'Gifts changed while preparing the statements. Prepare again.')
   return {
    id: newId(), batch_id: batchId, position, gift_id: selected[0].id, donor_id: d.id,
-   recipient_name: d.name, recipient_email: d.email, address: address(d),
+   recipient_name: d.letter_name, recipient_email: d.email, address: d.letter_address,
    ...annualLetter(s, d, selected, year, day, template), received_on: `${year}-12-31`,
    statement_gifts: JSON.stringify(selected),
   }

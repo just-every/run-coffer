@@ -1,3 +1,4 @@
+import {organizationsJourney} from './organizations-journey.mjs'
 import {stateReportJourney} from './state-report-journey.mjs'
 import {attributionJourney} from './attribution-journey.mjs'
 import {donorFileJourney} from './donor-file-journey.mjs'
@@ -7,6 +8,8 @@ import assert from 'node:assert/strict'
 import {run,installation,archive,restore,stripe,imported,reviewed,donor,csvRows,settings} from './harness.mjs'
 import {ackBrowser} from './ack-browser.mjs'
 import {mcpJourney} from './mcp-journey.mjs'
+
+test('DONOR-002: organizations retain their own gifts, two named contacts, addressed receipts and state attribution',organizationsJourney)
 
 test('API-004: MCP donor context and preparation retain native keys and human approval',mcpJourney)
 

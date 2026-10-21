@@ -5,7 +5,7 @@ import { e } from './common'
 function postalAddress(letter: Row): string {
  const address: Row = letter.address ? JSON.parse(letter.address) : {}
  const locality = [address.city, address.region, address.postalCode].filter(Boolean).join(' ')
- return [letter.recipient_name, address.line1, address.line2, locality, address.country]
+ return [...String(letter.recipient_name).split("\n"), address.line1, address.line2, locality, address.country]
   .filter(Boolean).map(e).join('<br>')
 }
 

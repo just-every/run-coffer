@@ -1,5 +1,6 @@
+import { letterRecipient } from './organizations'
 import { receiptNumber } from './receipt-format'
-import { address, letterHash } from './acknowledgements'
+import { letterHash } from './acknowledgements'
 import { all, commit, event, fail, guard, id, newId, one, sql, today, type Context, type Row } from './db'
 import { giftTemplates, renderGiftLetter, templateRevision, templatesUnchanged } from './letter-templates'
 import { withReceiptBenefits } from './receipt-rules'
@@ -27,9 +28,10 @@ export async function correctReceipt(c: Context, p: Row): Promise<Row> {
   const parts = allocateCents(gift.net_cents, allocations.map(a => ({ amountCents: a.amount_cents })))
   current.receipt_fund = allocations.map((a, i) => `${a.fund}: $${(parts[i] / 100).toFixed(2)}`).join('; ')
  }
- const rendered = renderGiftLetter(s, current, donor.name, today(s.timezone, new Date(c.now)), (await giftTemplates(c, [current])).get(gift.id))
+ const recipient=await letterRecipient(c,donor)
+ const rendered = renderGiftLetter(s, current, recipient.letter_salutation, today(s.timezone, new Date(c.now)), (await giftTemplates(c, [current])).get(gift.id))
  const batchId = newId(), letterId = newId()
- const letter = { id: letterId, batch_id: batchId, position: 0, gift_id: gift.id, donor_id: donor.id, recipient_name: donor.name, recipient_email: donor.email, address: address(donor),
+ const letter = { id: letterId, batch_id: batchId, position: 0, gift_id: gift.id, donor_id: donor.id, recipient_name: recipient.letter_name, recipient_email: donor.email, address: recipient.letter_address,
   ...rendered, body: `Corrected receipt replacing ${receiptNumber(original)}.\nWhat changed: ${original.void_reason}. Original contribution $${(original.amount_cents / 100).toFixed(2)}; current contribution $${(gift.net_cents / 100).toFixed(2)}. Use this corrected receipt in place of the original.\n\n${rendered.body}`,
   amount_cents: gift.net_cents, received_on: gift.received_on }
  const hash = await letterHash(s.version, [letter])

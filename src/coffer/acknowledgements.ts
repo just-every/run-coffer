@@ -1,3 +1,4 @@
+import { letterRecipient } from './organizations'
 import { receiptNumber, receiptText } from './receipt-format'
 import { withReceiptBenefits } from './receipt-rules'
 import { receiptFundLabels } from './gift-splits'
@@ -41,11 +42,12 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
   if (wanted && chosen.length !== wanted.size) fail('NOT_DUE', 'A selected gift is not waiting for a letter, or still needs its goods or services answer.')
   if (!chosen.length) fail('NOTHING_DUE', 'No gifts are waiting for an acknowledgement letter.')
   const donors = new Map((await all(c, 'SELECT * FROM cf_donors WHERE id IN (SELECT value FROM json_each(?))', JSON.stringify([...new Set(chosen.map(g => g.donor_id))]))).map(d => [d.id, d]))
+  for(const [key,d] of donors)donors.set(key,await letterRecipient(c,d))
   const tributes = new Map((await all(c, 'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))', JSON.stringify(chosen.map(g => g.id)))).map(t => [t.gift_id, t]))
   const batchId = newId(), revision = await templateRevision(c), templates = await giftTemplates(c, chosen)
   const letters = chosen.map((g, position) => {
-   const d = donors.get(g.donor_id)!, rendered = renderGiftLetter(s, g, d.name, day, templates.get(g.id))
-   return { id: newId(), batch_id: batchId, position, gift_id: g.id, donor_id: d.id, recipient_name: d.name, recipient_email: d.email, address: address(d), subject: rendered.subject, body: [rendered.body, tributeReceiptText(tributes.get(g.id))].filter(Boolean).join('\n\n'), amount_cents: g.amount_cents, received_on: g.received_on, template_kind: rendered.template_kind, template_id: rendered.template_id, template_version: rendered.template_version }
+   const d = donors.get(g.donor_id)!, rendered = renderGiftLetter(s, g, d.letter_salutation, day, templates.get(g.id))
+   return { id: newId(), batch_id: batchId, position, gift_id: g.id, donor_id: d.id, recipient_name: d.letter_name, recipient_email: d.email, address: d.letter_address, subject: rendered.subject, body: [rendered.body, tributeReceiptText(tributes.get(g.id))].filter(Boolean).join('\n\n'), amount_cents: g.amount_cents, received_on: g.received_on, template_kind: rendered.template_kind, template_id: rendered.template_id, template_version: rendered.template_version }
   })
   const hash = await letterHash(s.version, letters), total = letters.reduce((n, l) => n + l.amount_cents, 0)
   await commit(c, [

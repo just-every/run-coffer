@@ -35,10 +35,10 @@
     },
     {
       "name": "donors",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:coffer",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations pnpm run test:coffer",
         "node --test tests/audit.test.mjs",
         "node --test tests/hosted-restore.test.mjs",
         "node --test tests/portability-http.test.mjs"

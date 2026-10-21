@@ -121,6 +121,14 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
   const found = rows.get(t.name); if (!found?.length) continue
   records[t.name.slice(3)] = found.map(r => {
    const out: Row = { ...r }
+   if(t.name==='cf_acks'||t.name==='cf_in_kind_acknowledgments') {
+    const key=t.name==='cf_acks'?'address':'recipient_address'
+    const address=out[key]?JSON.parse(out[key]):null
+    if(address?.attentionDonorId&&!ids.includes(address.attentionDonorId)) {
+     out[key]=JSON.stringify({...address,attention:'[third party withheld]',attentionDonorId:opaque(address.attentionDonorId),salutation:'[third party withheld]'})
+     out.recipient_name='[third party withheld]';out.body='[third party withheld]'
+    }
+   }
    for (const k of t.donors) if (out[k] !== null && !ids.includes(out[k])) out[k] = opaque(out[k])
    for (const k of t.parents) if (!ownsRef(k, out[k])) out[k] = opaque(out[k])
    for (const k of THIRD_PARTY[t.name] ?? []) if (out[k] !== null) out[k] = '[third party withheld]'

@@ -4,6 +4,7 @@ export const MERGE_FIELDS = [
  ['name', 'Name', 'name'], ['email', 'Email', 'email'], ['phone', 'Phone', 'phone'],
  ['addressLine1', 'Address line 1', 'address_line1'], ['addressLine2', 'Address line 2', 'address_line2'],
  ['city', 'City', 'city'], ['region', 'State / region', 'region'], ['postalCode', 'Postal code', 'postal_code'],
+ ['organizationType','Organization type','organization_type'], ['website','Website','website'], ['ein','Organization EIN','ein'], ['informalSalutation','Informal salutation','informal_salutation'],
  ['country', 'Country', 'country'], ['householdId', 'Household', 'household_id'],
 ] as const
 

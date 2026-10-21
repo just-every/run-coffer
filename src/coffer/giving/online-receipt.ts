@@ -1,4 +1,5 @@
-import { address, letterHash } from '../acknowledgements'
+import { letterRecipient } from '../organizations'
+import { letterHash } from '../acknowledgements'
 import { one, today } from '../db'
 import { mailSuppressed, sendReceipt } from '../receipt-mail'
 import { settings } from '../settings'
@@ -18,8 +19,9 @@ export async function sendOnlineReceipt(env: GivingEnv, giftId: string): Promise
  if (!gift) return
  const now = new Date().toISOString(), day = today(s.timezone, new Date(now)), batchId = `receipt-${giftId}`, letterId = `receipt-${giftId}`
  const donor = await one(c, 'SELECT * FROM cf_donors WHERE id=?', gift.donor_id)
- const rendered = renderGiftLetter(s, gift, gift.donor_name, day, (await giftTemplates(c, [gift])).get(gift.id))
- const letter = { id: letterId, batch_id: batchId, position: 0, gift_id: gift.id, donor_id: gift.donor_id, recipient_name: gift.donor_name, recipient_email: gift.donor_email, address: address(donor!), subject: rendered.subject, body: rendered.body, amount_cents: gift.amount_cents, received_on: gift.received_on }
+ const recipient=await letterRecipient(c,donor!)
+ const rendered = renderGiftLetter(s, gift, recipient.letter_salutation, day, (await giftTemplates(c, [gift])).get(gift.id))
+ const letter = { id: letterId, batch_id: batchId, position: 0, gift_id: gift.id, donor_id: gift.donor_id, recipient_name: recipient.letter_name, recipient_email: gift.donor_email, address: recipient.letter_address, subject: rendered.subject, body: rendered.body, amount_cents: gift.amount_cents, received_on: gift.received_on }
  const hash = await letterHash(s.version, [letter])
  // The owner's setting is the standing approval for this exact letter.
  await env.DB.batch([

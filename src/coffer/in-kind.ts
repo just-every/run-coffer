@@ -1,3 +1,4 @@
+import { letterRecipient } from './organizations'
 import { receiptText } from './receipt-format'
 import { addDays, all, choice, commit, date, event, fail, guard, id, integer, longText, newId, one, optional, sql, today, type Context, type Row } from './db'
 import { amount, usd } from './money'
@@ -99,12 +100,14 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
   if (g.goods === 'unknown') fail('GOODS_UNKNOWN', 'Confirm goods or services before issuing a property acknowledgment.')
   const previous = await one(c, 'SELECT * FROM cf_in_kind_acknowledgments WHERE in_kind_id=? ORDER BY property_version DESC LIMIT 1', giftId)
   const correction = previous ? await one(c, 'SELECT reason FROM cf_in_kind_revisions WHERE in_kind_id=? AND property_version=?', giftId, g.property_version) : null
-  const acknowledgmentId = newId(), template = await templateFor(c, 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, g.donor_name, on, template)
+  const recipient=await letterRecipient(c,(await one(c,'SELECT * FROM cf_donors WHERE id=?',donorId))!)
+  const acknowledgmentId = newId(), template = await templateFor(c, 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, recipient.letter_salutation, on, template)
+  if(recipient.constituent_kind==='organization')letter.body=[recipient.letter_name,...[recipient.address_line1,recipient.address_line2,[recipient.city,recipient.region,recipient.postal_code].filter(Boolean).join(' '),recipient.country].filter(Boolean),'',letter.body].join('\n')
   if (previous) letter.body = `Corrected property acknowledgment replacing ${previous.receipt_year}-${previous.receipt_sequence}. What changed: ${correction?.reason ?? 'Donor reassigned'}. Use this copy in place of the earlier acknowledgment.\n\n${letter.body}`
   await commit(c, [live(donorId), current(giftId, donorId, version),
    guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Settings changed. Refresh before issuing the acknowledgment.', s.version), templatesUnchanged(revision),
    guard('NOT EXISTS(SELECT 1 FROM cf_in_kind_acknowledgments WHERE in_kind_id=? AND property_version=?)', 'ALREADY_ACKNOWLEDGED', 'This property version already has an acknowledgment.', giftId, g.property_version),
-   sql('INSERT INTO cf_in_kind_acknowledgments(id,in_kind_id,property_version,acknowledged_on,subject,body,created_by,created_at,template_kind,template_id,template_version,replaces_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', acknowledgmentId, giftId, g.property_version, on, letter.subject, letter.body, c.actor.id, c.now, letter.template_kind, letter.template_id, letter.template_version, previous?.id ?? null),
+   sql('INSERT INTO cf_in_kind_acknowledgments(id,in_kind_id,property_version,acknowledged_on,subject,body,created_by,created_at,template_kind,template_id,template_version,replaces_id,recipient_address) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', acknowledgmentId, giftId, g.property_version, on, letter.subject, letter.body, c.actor.id, c.now, letter.template_kind, letter.template_id, letter.template_version, previous?.id ?? null,recipient.letter_address),
    sql('UPDATE cf_in_kind_gifts SET version=version+1,updated_at=? WHERE id=?', c.now, giftId),
    event(c, command, 'inKindGift', giftId, donorId, { acknowledgmentId, propertyVersion: g.property_version }),
   ])
