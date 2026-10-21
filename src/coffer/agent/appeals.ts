@@ -5,13 +5,14 @@ import { action, AGENT } from './activity'
 
 /** A handoff is not delivery; an uncertain submission is never a safe resend. */
 export function outcome(m:Row|null) {
- if (!m) return {state:'not submitted',flagged:true,resend:false}
- if (['bounced','not_sent','rejected','failed'].includes(m.remote_status)) return {state:String(m.remote_status).replaceAll('_',' '),flagged:true,resend:true}
- if (m.remote_status==='delivered') return {state:'delivered',flagged:false,resend:false}
- if (['sent','accepted','handed-off'].includes(m.remote_status)) return {state:'handoff confirmed; delivery unknown',flagged:false,resend:false}
- if (m.status==='rejected') return {state:'submission rejected',flagged:true,resend:true}
- if (m.status==='suppressed') return {state:'suppressed by preferences',flagged:true,resend:false}
- return {state:m.provider==='mango'?'Mango results unavailable':'submission or delivery unknown',flagged:true,resend:false}
+ if (!m) return {state:'unknown',reason:'No saved submission result. Continue the original approved send; no separate resend.',flagged:true,resend:false}
+ if (m.status==='suppressed'||['suppressed','unsubscribe','unsubscribed','complaint'].includes(m.remote_status)) return {state:'not sent',reason:'Suppressed by preferences; consent evidence never qualifies for a resend.',flagged:true,resend:false}
+ if (m.remote_status==='bounced') return {state:'bounced',reason:'Provider-reported final bounce.',flagged:true,resend:true}
+ if (m.remote_status==='not_sent'||m.status==='rejected') return {state:'not sent',reason:m.note??'The provider confirmed this message was not sent.',flagged:true,resend:true}
+ if (m.remote_status==='delivered') return {state:'delivered',reason:'The provider reports acceptance by the recipient’s mail server, not proof of reading.',flagged:false,resend:false}
+ if (m.remote_status==='sent') return {state:'sent',reason:'The provider reports sending to this recipient; delivery is unconfirmed.',flagged:false,resend:false}
+ if (['accepted','handed-off'].includes(m.remote_status)||!m.remote_status&&(m.status==='submitted'||m.provider==='mango'&&m.status==='listed')) return {state:'handed off',reason:m.provider==='mango'?'On the Mango list, awaiting the Mango operator. Mango’s events API lacks campaign-bound sender results; delivery remains unknown.':'The provider accepted the request; sending and delivery remain unconfirmed.',flagged:false,resend:false}
+ return {state:'unknown',reason:m.provider==='mango'?'Mango’s events API lacks campaign-bound sender results. Unknown results are held.':'No bound final result. Deferred or uncertain results are held for provider review.',flagged:true,resend:false}
 }
 
 export async function appealDelivery(c:Context,appealId:string) {
@@ -22,7 +23,9 @@ export async function appealDelivery(c:Context,appealId:string) {
  })
  const existing=await one(c,`SELECT id,status FROM cf_appeals WHERE json_extract(segment,'$.resendOf')=? AND status<>'discarded' ORDER BY prepared_at DESC,id DESC LIMIT 1`,appealId)
  return {appeal:detail.appeal,rows,results:detail.results,resend:existing,
-  reconciled:rows.every(r=>r.checkedAt || r.state==='not submitted'),
+  reconciled:rows.every(r=>r.checkedAt || !r.communicationId || r.state==='handed off'),
+  unknown:rows.filter(r=>r.state==='unknown').length,
+  deliveryUnknown:rows.filter(r=>!['delivered','bounced','not sent'].includes(r.state)).length,
   deliveryComplete:rows.length>0&&rows.every(r=>r.state==='delivered'),flagged:rows.filter(r=>r.flagged).length}
 }
 

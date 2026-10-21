@@ -6,6 +6,13 @@ import { composeMailchimpCampaign, createMailchimpCampaign, listInMango, provide
 import { requireConnection, savedConnection } from './connection'
 import { settings } from '../settings'
 import { reconcileDonor } from './preferences'
+import { communicationAcknowledgment } from '../gift-acknowledgments'
+
+async function savedResult(c: Context, messageId: string, disposition: string) {
+ const message = (await one(c, 'SELECT * FROM cf_communications WHERE id=?', messageId))!
+ await communicationAcknowledgment(c, message, disposition)
+ return message
+}
 
 export type MessageInput = { key:string; donorId:string; subject:string; body:string; sourceKind:'appeal'|'welcome'; sourceId:string; listName:string; expectedEmail?:string; merge?:Row }
 export function mergeMessage(template: string, values: Row) {
@@ -33,7 +40,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  event(c,'marketing.prepare',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,state})])
  const claim=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
  if(claim?.id!==row.id) return claim!
- if(!allowed) return {...claim,status:'suppressed'}
+ if(!allowed) return savedResult(c,row.id,'suppressed')
  if(conn.provider==='mango') return listMessage(c,conn,row,d,input)
  try {
   // Persist the returned draft before composition/approval. A lost create answer
@@ -43,20 +50,22 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
   const current=await reconcileDonor(c,d.id)
   if(!current.allowed) {
    await c.db.prepare("UPDATE cf_communications SET status='suppressed',note='Consent changed before Mailchimp sent it.' WHERE id=?").bind(row.id).run()
-   return {id:row.id,status:'suppressed'}
+   return savedResult(c,row.id,'suppressed')
   }
   await composeMailchimpCampaign(conn,row,draft)
   await c.db.batch([
    c.db.prepare("UPDATE cf_communications SET status='submitted',submitted_at=?,note='Submitted to the email provider; email handoff is not yet confirmed.' WHERE id=?").bind(c.now,row.id),
    c.db.prepare(event(c,'marketing.submitted',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,provider:conn.provider,campaignId:draft.campaignId}).sql).bind(...event(c,'marketing.submitted',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,provider:conn.provider,campaignId:draft.campaignId}).params),
   ])
-  return {id:row.id,status:'submitted',campaignId:draft.campaignId}
+  // The exact message was accepted by the sender. This acknowledges a thank-you;
+  // it does not claim a provider delivery result.
+  return savedResult(c,row.id,'accepted')
  }catch(error) {
   const detail=error as {code?:string;details?:{providerStatus?:number}}
   const rejected=['MANGO_REPLY','MAILCHIMP_REPLY'].includes(detail?.code??'') || ['MANGO_REFUSED','MAILCHIMP_REFUSED'].includes(detail?.code??'') && Number(detail.details?.providerStatus)>=400 && Number(detail.details?.providerStatus)<500
   const label=providerTitle(conn.provider),state=rejected?'rejected':'uncertain',note=rejected?`${label} refused this submission. Review the saved draft and sender checks. No email was scheduled by Coffer.`:`${label} submission was not confirmed. Review the saved campaign; no automatic resend.`
   await c.db.prepare('UPDATE cf_communications SET status=?,note=? WHERE id=?').bind(state,note,row.id).run()
-  return {id:row.id,status:state}
+  return savedResult(c,row.id,rejected?'not_sent':'unknown')
  }
 }
 /** Mango: the donor joins the appeal's list with Coffer's consent evidence; a person approves the campaign in Mango. */
@@ -69,16 +78,17 @@ async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConne
   await commit(c,[sql('UPDATE cf_communications SET status=?,campaign_id=?,submitted_at=?,note=? WHERE id=?',listed?'listed':'suppressed',(contact.segmentIds??[]).join(',')||null,c.now,note,row.id),
    event(c,'marketing.listed',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,provider:'mango',list:input.listName,status:contact.emailStatus})])
   if(!listed)await reconcileDonor(c,d.id)
-  return {id:row.id,status:listed?'listed':'suppressed'}
+  return savedResult(c,row.id,listed?'handed-off':'suppressed')
  } catch(error) {
   const detail=error as {message?:string}
   await c.db.prepare("UPDATE cf_communications SET status='uncertain',note=? WHERE id=?").bind(`Mango did not confirm this donor on the list: ${detail.message??'unknown error'}`,row.id).run()
+  await savedResult(c,row.id,'unknown')
   throw error
  }
 }
 export async function refreshMessages(c:Context,source?:{kind:string;id:string}) {
  const conn=await savedConnection(c)
- if(conn?.provider!=='mailchimp')return {checked:0}
+ if(conn?.provider!=='mailchimp')return {checked:0,...(conn?.provider==='mango'?{unavailable:'Mango’s events API lacks contact-and-campaign-bound sender results. List handoff is not delivery.'}:{})}
  const rows=await all(c,`SELECT * FROM cf_communications WHERE provider='mailchimp' AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') AND (? IS NULL OR (source_kind=? AND source_id=?)) ORDER BY COALESCE(checked_at,''),created_at,id LIMIT 8`,source?.kind??null,source?.kind??null,source?.id??null)
  for(const row of rows){
   const report=await providerResults(conn,row)
@@ -86,9 +96,10 @@ export async function refreshMessages(c:Context,source?:{kind:string;id:string})
   const frozen=row.recipient_email ?? (row.source_kind==='appeal' ? (await one(c,'SELECT email FROM cf_appeal_recipients WHERE appeal_id=? AND donor_id=?',row.source_id,row.donor_id))?.email : null)
   const facts=report.rows.filter((r:Row)=>r.destination?.toLowerCase()===frozen?.toLowerCase())
   const disposition=facts[0]?.disposition??(report.state==='sent'&&report.rows.length===0?'not_sent':report.state==='sent'?'unknown':report.state??'unknown')
-  const note=['accepted','handed-off','sent'].includes(disposition)?'The provider confirmed email handoff. Delivery is not confirmed.':disposition==='delivered'?'The provider confirmed delivery.':`Provider result: ${disposition}. Check the provider for delivery details.`
+  const note=disposition==='sent'?'The provider reports sending this message to the frozen recipient. Delivery is not confirmed.':['accepted','handed-off'].includes(disposition)?'The provider accepted the request. Sending and delivery are unconfirmed.':disposition==='delivered'?'The provider reports acceptance by the recipient’s mail server; this is not proof of reading.':`Provider result: ${disposition}. Check the provider for delivery details.`
   await commit(c,[sql('UPDATE cf_communications SET remote_status=?,checked_at=?,note=? WHERE id=?',disposition,c.now,note,row.id),
    ...(disposition!==row.remote_status?[event(c,'marketing.result',row.source_kind,row.source_id,row.donor_id,{communicationId:row.id,disposition})]:[])])
+  await savedResult(c,row.id,disposition)
   await reconcileDonor(c,row.donor_id)
  }
  return {checked:rows.length}

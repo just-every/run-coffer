@@ -6,6 +6,7 @@ import { all, commit, event, fail, guard, integer, longText, newId, one, sql, te
 import { submitMessage } from './outbound'
 import { settings } from '../settings'
 import { today } from '../db'
+import { journeyLinks } from '../agent/journey-results'
 
 const liveDonor = `d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`
 const sendable = `${liveDonor} AND d.constituent_status='active'`
@@ -37,17 +38,28 @@ export async function welcomeCommand(c: Context, command: string, p: Row): Promi
  const askSubject = content(p.askSubject, 'Second-ask subject'), askBody = content(p.askBody, 'Second-ask message', true)
  const impactDays = integer(Number(p.impactDays), 'Impact days after first gift', 1, 365)
  const askDays = integer(Number(p.askDays), 'Second-ask days after first gift', impactDays + 1, 730)
+ const publicationId = newId()
+ const messages = { thank: { subject: thankSubject, body: thankBody }, impact: { subject: impactSubject, body: impactBody }, ask: { subject: askSubject, body: askBody } }
+ const publications = stepNames.map(step => {
+  const code = `WELCOME-${publicationId}-${step}`, message = messages[step]
+  return { step, code, subject: message.subject, body: journeyLinks(message.body, code, c.env!.AUTH_ORIGIN), list: `Coffer welcome · ${step} · ${publicationId}` }
+ })
  await commit(c, [
   guard("NOT EXISTS(SELECT 1 FROM cf_welcome_enrollments WHERE status='active')", 'WELCOME_ACTIVE', 'Finish the active welcome series before changing its saved messages.'),
   guard("COALESCE((SELECT published_at FROM cf_welcome WHERE id='welcome'),'')=?", 'WELCOME_CHANGED', 'The welcome series changed. Refresh before publishing.', typeof p.publishedAt === 'string' ? p.publishedAt : ''),
-  sql(`INSERT INTO cf_welcome(id,published_at,published_by,thank_subject,thank_body,impact_subject,impact_body,ask_subject,ask_body,impact_days,ask_days)
-   VALUES('welcome',?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET published_by=excluded.published_by,
+  guard("COALESCE((SELECT publication_id FROM cf_welcome WHERE id='welcome'),'')=?", 'WELCOME_CHANGED', 'The welcome series changed. Refresh before publishing.', typeof p.publicationId === 'string' ? p.publicationId : ''),
+  ...publications.flatMap(v => [
+   sql("INSERT INTO cf_appeal_codes(code,name,origin,created_at) VALUES(?,?,'staff',?)", v.code, `Welcome · ${v.step}`, c.now),
+   sql('INSERT INTO cf_journey_step_publications(code,publication_id,step,subject,body,list_name,published_at) VALUES(?,?,?,?,?,?,?)', v.code, publicationId, v.step, v.subject, v.body, v.list, c.now),
+  ]),
+  sql(`INSERT INTO cf_welcome(id,published_at,published_by,thank_subject,thank_body,impact_subject,impact_body,ask_subject,ask_body,impact_days,ask_days,publication_id)
+   VALUES('welcome',?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET published_by=excluded.published_by,publication_id=excluded.publication_id,
    thank_subject=excluded.thank_subject,thank_body=excluded.thank_body,impact_subject=excluded.impact_subject,impact_body=excluded.impact_body,
    ask_subject=excluded.ask_subject,ask_body=excluded.ask_body,impact_days=excluded.impact_days,ask_days=excluded.ask_days`,
-   c.now, c.actor.name, thankSubject, thankBody, impactSubject, impactBody, askSubject, askBody, impactDays, askDays),
-  event(c, command, 'welcome', 'welcome', null, { impactDays, askDays }),
+   c.now, c.actor.name, thankSubject, thankBody, impactSubject, impactBody, askSubject, askBody, impactDays, askDays, publicationId),
+  event(c, command, 'welcome', 'welcome', null, { impactDays, askDays, publicationId }),
  ])
- return { id: 'welcome', published: true }
+ return { id: 'welcome', published: true, publicationId, steps: publications.map(v => ({ step: v.step, code: v.code, body: v.body })) }
 }
 
 /** Reconcile first-time gifts and materialize all three steps in one batch.
@@ -67,11 +79,12 @@ async function enroll(c: Context) {
    AND julianday(g.created_at)<=julianday(?) AND g.received_on>=? AND NOT EXISTS(SELECT 1 FROM cf_gifts prior
     WHERE prior.donor_id=d.id AND prior.kind='gift' AND (julianday(prior.created_at)<julianday(g.created_at)
      OR (julianday(prior.created_at)=julianday(g.created_at) AND prior.id<g.id)))`, c.now, c.now, publishedDay),
-  ...stepNames.map(step => sql(`INSERT OR IGNORE INTO cf_welcome_steps(id,donor_id,step,due_at,status,message_key,note)
+  ...stepNames.map(step => sql(`INSERT OR IGNORE INTO cf_welcome_steps(id,donor_id,step,due_at,status,message_key,note,response_code)
    SELECT 'welcome:'||e.donor_id||':${step}',e.donor_id,'${step}',
    strftime('%Y-%m-%dT%H:%M:%fZ',g.created_at, '+'||${step === 'thank' ? '0' : `w.${step}_days`}||' days'),
-   'pending','welcome:'||e.donor_id||':${step}',NULL
-   FROM cf_welcome_enrollments e JOIN cf_gifts g ON g.id=e.first_gift_id JOIN cf_welcome w ON w.id='welcome' WHERE e.status='active'`)),
+   'pending','welcome:'||e.donor_id||':${step}',NULL,v.code
+   FROM cf_welcome_enrollments e JOIN cf_gifts g ON g.id=e.first_gift_id JOIN cf_welcome w ON w.id='welcome'
+   LEFT JOIN cf_journey_step_publications v ON v.publication_id=w.publication_id AND v.step='${step}' WHERE e.status='active'`)),
  ])
 }
 
@@ -107,8 +120,11 @@ async function run(c: Context): Promise<Row> {
    AND NOT EXISTS(SELECT 1 FROM cf_welcome_steps prior WHERE prior.donor_id=cf_welcome_steps.donor_id
     AND prior.status='pending' AND CASE prior.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END
      <CASE cf_welcome_steps.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END)`, claim, row.id, c.now)])
-  const step = await one(c, `SELECT s.*,w.thank_subject,w.thank_body,w.impact_subject,w.impact_body,w.ask_subject,w.ask_body
-   FROM cf_welcome_steps s JOIN cf_welcome w ON w.id='welcome' WHERE s.id=? AND s.status='uncertain' AND s.note=?`, row.id, claim)
+  const step = await one(c, `SELECT s.*,
+   COALESCE(v.subject,CASE s.step WHEN 'thank' THEN w.thank_subject WHEN 'impact' THEN w.impact_subject ELSE w.ask_subject END) AS subject,
+   COALESCE(v.body,CASE s.step WHEN 'thank' THEN w.thank_body WHEN 'impact' THEN w.impact_body ELSE w.ask_body END) AS body,v.list_name
+   FROM cf_welcome_steps s JOIN cf_welcome w ON w.id='welcome' LEFT JOIN cf_journey_step_publications v ON v.code=s.response_code
+   WHERE s.id=? AND s.status='uncertain' AND s.note=?`, row.id, claim)
   if (!step) continue
   await stop(c)
   if (!await one(c, `SELECT id FROM cf_welcome_steps WHERE id=? AND status='uncertain' AND note=? AND ${allowed}`, step.id, claim)) {
@@ -118,7 +134,7 @@ async function run(c: Context): Promise<Row> {
   }
   let state = 'uncertain', note = 'Submission could not be confirmed. Check the message history before contacting this donor. No automatic resend.'
   try {
-   const result = await submitMessage(c, { key: step.message_key, donorId: step.donor_id, subject: step[`${step.step}_subject`], body: step[`${step.step}_body`], sourceKind: 'welcome', sourceId: step.id, listName: `Coffer welcome · ${step.step === 'thank' ? '1 Thank you' : step.step === 'impact' ? '2 Impact' : '3 Next gift'}` })
+   const result = await submitMessage(c, { key: step.message_key, donorId: step.donor_id, subject: step.subject, body: step.body, sourceKind: 'welcome', sourceId: step.id, listName: step.list_name ?? `Coffer welcome · ${step.step === 'thank' ? '1 Thank you' : step.step === 'impact' ? '2 Impact' : '3 Next gift'}` })
    state = ['submitted', 'listed'].includes(result.status) ? 'submitted' : result.status === 'suppressed' ? 'cancelled' : 'uncertain'
    note = state === 'submitted' ? 'Submitted; delivery is not confirmed.' : state === 'cancelled' ? 'Message suppressed; no email was sent.' : note
   } catch (error) {
@@ -150,7 +166,7 @@ export async function runWelcome(env: Bindings, at: Date): Promise<Row> {
 }
 
 export async function welcomeState(c: Context): Promise<Row> {
- const [journey, enrollments, steps, counts] = await Promise.all([
+ const [journey, enrollments, steps, counts, publications] = await Promise.all([
   one(c, "SELECT * FROM cf_welcome WHERE id='welcome'"),
   all(c, `SELECT e.*,d.name,d.email FROM cf_welcome_enrollments e JOIN cf_donors d ON d.id=e.donor_id
    WHERE ${liveDonor} ORDER BY e.enrolled_at DESC,e.donor_id LIMIT 100`),
@@ -158,6 +174,7 @@ export async function welcomeState(c: Context): Promise<Row> {
    AND s.donor_id IN (SELECT donor_id FROM cf_welcome_enrollments ORDER BY enrolled_at DESC,donor_id LIMIT 100)
    ORDER BY s.due_at,CASE s.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END`),
   one(c, "SELECT COUNT(*) AS active FROM cf_welcome_enrollments WHERE status='active'"),
+  all(c, 'SELECT v.* FROM cf_journey_step_publications v JOIN cf_welcome w ON w.publication_id=v.publication_id ORDER BY CASE v.step WHEN \'thank\' THEN 0 WHEN \'impact\' THEN 1 ELSE 2 END'),
  ])
- return { journey, activeCount: counts?.active ?? 0, enrollments: enrollments.map(e => ({ ...e, steps: steps.filter(s => s.donor_id === e.donor_id) })) }
+ return { journey, publications, activeCount: counts?.active ?? 0, enrollments: enrollments.map(e => ({ ...e, steps: steps.filter(s => s.donor_id === e.donor_id) })) }
 }

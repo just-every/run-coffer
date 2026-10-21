@@ -37,6 +37,8 @@ export async function journeyResendBrowser(h,step,directory){
    const row=page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})})
    await row.getByRole('button',{name:'Check journey sender results',exact:true}).click()
    await page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})}).getByText('not sent',{exact:true}).waitFor()
+   await page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})}).getByText(step.responses.code,{exact:true}).waitFor()
+   assert.ok((await row.innerText()).includes('2 responded · 2 gifts · $101.26'))
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    await page.screenshot({path:`${directory}/DEV-009-journey-results-${width}.png`,fullPage:true})
   }
@@ -49,4 +51,27 @@ export async function journeyResendBrowser(h,step,directory){
   }
   return {id:new URL(page.url()).pathname.split('/').at(-1)}
  })
+}
+
+export async function journeyResponseBrowser(current,historical,stepId,directory){
+ await mkdir(directory,{recursive:true})
+ for(const [h,label] of [[current,'bound'],[historical,'historical']]){
+  const step=(await h.get('/api/coffer/agent/appeals')).journey.find(s=>s.id===stepId)
+  await withBrowserWorker(h,async(context,origin)=>{
+   const page=await context.newPage()
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000})
+    await page.goto(origin+'/app/agent/appeals')
+    const row=page.locator('li').filter({has:page.locator(`input[name="stepId"][value="${stepId}"]`)})
+    if(step.responses.bound){
+     await row.getByText(step.responses.code,{exact:true}).waitFor()
+     assert.ok((await row.innerText()).includes('2 responded · 3 gifts · $112.26'))
+     await page.getByRole('heading',{name:'Journey results',exact:true}).waitFor()
+     await page.getByText('handed off',{exact:true}).waitFor()
+    }else await row.getByText(step.responses.note,{exact:true}).waitFor()
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+    await page.screenshot({path:`${directory}/DEV-009-journey-${label}-${width}.png`,fullPage:true})
+   }
+  })
+ }
 }
