@@ -70,6 +70,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   ...quietCommunications(source,target),
   guard(`NOT EXISTS(SELECT 1 FROM cf_contribution_types t JOIN cf_gifts g ON g.id=t.gift_id JOIN cf_soft_credits a ON a.id=t.soft_credit_id WHERE (g.donor_id=? AND a.donor_id=?) OR (g.donor_id=? AND a.donor_id=?))`,'DAF_CREDIT_CONFLICT','A DAF sponsor and its advisor must retain distinct hard and soft credits. Resolve these records before merging.',source,target,target,source),
   ...solicitationCustodyGuards(source,target),
+  guard("NOT EXISTS(SELECT 1 FROM cf_ncoa_members m JOIN cf_ncoa_runs r ON r.id=m.run_id WHERE m.donor_id IN(?,?) AND r.state IN('queued','processing'))",'IN_ADDRESS_PASS','Finish or disable the pending address pass before merging these donors.',source,target),
   guard(`NOT EXISTS(SELECT 1 FROM cf_employer_matches m JOIN cf_gifts g ON g.id=m.gift_id WHERE (m.employer_donor_id IN (?,?) AND g.donor_id IN (?,?))) AND NOT EXISTS(SELECT 1 FROM cf_employer_matches a JOIN cf_employer_matches b ON a.gift_id=b.gift_id WHERE a.employer_donor_id=? AND b.employer_donor_id=?)`, 'MATCH_CONFLICT', 'Resolve matching-gift promises between these records, or duplicate employer promises, before merging.', source,target,source,target,source,target),
   sql("INSERT INTO cf_donor_merge_journal(id,source_id,target_id,merged_at,merged_by,status) VALUES(?,?,?,?,?,'active')",mergeId,source,target,c.now,c.actor.name),
   ...captureMerge(tables,mergeId,'before'),

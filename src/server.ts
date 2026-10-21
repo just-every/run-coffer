@@ -1,3 +1,4 @@
+import { advanceNcoa } from './coffer/addresses/scheduler'
 import { advanceMeetingBriefs } from './coffer/meeting-briefs'
 import { advanceRecurringTasks } from './coffer/recurring-tasks'
 import { runWelcome } from './coffer/communications/welcome'
@@ -37,6 +38,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     execution.waitUntil(runMarketingSync(runtimeBindings(env),new Date(controller.scheduledTime)))
     execution.waitUntil(runWelcome(runtimeBindings(env),new Date(controller.scheduledTime)))
     const tick=new Date(controller.scheduledTime)
+    execution.waitUntil(advanceNcoa(runtimeBindings(env),tick))
     execution.waitUntil(advanceMeetingBriefs(runtimeBindings(env),tick))
     execution.waitUntil(advanceRecurringTasks(runtimeBindings(env),tick))
     execution.waitUntil(advancePledgeTasks(runtimeBindings(env),tick))

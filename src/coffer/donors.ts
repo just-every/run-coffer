@@ -1,3 +1,4 @@
+import { enteredAddress } from './addresses/entry'
 import { contributionTypeState } from './contribution-types'
 import { solicitationState } from './solicitation'
 import { smsPreferenceHistory } from './sms'
@@ -37,6 +38,7 @@ function address(p: Row) {
   city: optional(p.city, 'City', 100), region: optional(p.region, 'State', 100), postal: optional(p.postalCode, 'ZIP code', 20), country: optional(p.country, 'Country', 100) ?? 'United States',
  }
 }
+const entryRow=(id:string,name:string,kind:string,a:ReturnType<typeof address>)=>({id,name,constituent_kind:kind,address_line1:a.line1,address_line2:a.line2,city:a.city,region:a.region,postal_code:a.postal,country:a.country})
 /** A household is found by name (any case) or created in the same batch. */
 function household(name: string | null, c: Context): { statements: Stmt[]; value: string } {
  if (!name) return { statements: [], value: 'NULL' }
@@ -48,25 +50,31 @@ export async function donorCommand(c: Context, command: string, p: Row): Promise
   const donorId = newId(), name = text(p.name, 'Donor name'), mail = email(p.email), a = address(p), h = household(optional(p.household, 'Household'), c)
   const org=organizationFields(p)
   if(!['person','organization'].includes(org.kind))fail('INPUT','Choose a constituent type.',400)
+  await commit(c,[])
+  const checked=await enteredAddress(c,entryRow(donorId,name,org.kind,a)),verified=checked.donor
   const membership=await membershipChange(c,donorId,null,optional(p.household,'Household'),p)
   await commit(c, [...membership.before,...h.statements,
    sql(`INSERT INTO cf_donors(id,version,name,email,phone,address_line1,address_line2,city,region,postal_code,country,household_id,source,source_ref,created_at,erased_at) VALUES(?,1,?,?,?,?,?,?,?,?,?,${h.value},'manual',NULL,?,NULL)`,
     donorId, name, mail, a.phone, a.line1, a.line2, a.city, a.region, a.postal, a.country, ...(h.value === 'NULL' ? [] : [optional(p.household, 'Household')]), c.now),
    sql('UPDATE cf_donors SET constituent_kind=?,organization_type=?,website=?,ein=?,informal_salutation=? WHERE id=?',org.kind,org.organizationType,org.website,org.ein,org.salutation,donorId),
+   ...(checked.statements.length?[...stageAddressMove(donorId,await addressMove(c,null),'smarty'),sql('UPDATE cf_donors SET address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=? WHERE id=?',verified.address_line1,verified.address_line2,verified.city,verified.region,verified.postal_code,verified.country,donorId),sql('DELETE FROM cf_address_moves WHERE donor_id=?',donorId),...checked.statements]:[]),
    ...membership.after, event(c, 'donor.create', 'donor', donorId, donorId)])
   return { id: donorId, version: 1 }
  }
  if (command === 'donor.update') {
   const donorId = id(p.donorId, 'Donor'), version = integer(p.version, 'Version', 1), name = text(p.name, 'Donor name'), mail = email(p.email), a = address(p), h = household(optional(p.household, 'Household'), c)
-  const current=await one(c,'SELECT household_id FROM cf_donors WHERE id=?',donorId)
+  const current=await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',donorId)
+  if(!current||current.version!==version)fail('VERSION','This donor changed or was erased. Refresh before saving.')
+  await commit(c,[])
+  const checked=await enteredAddress(c,entryRow(donorId,name,current.constituent_kind,a)),verified=checked.donor
   const membership=await membershipChange(c,donorId,current?.household_id??null,optional(p.household,'Household'),p)
   const movedOn = await addressMove(c, p.addressEffectiveOn)
   await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND ${LIVE})`, 'VERSION', 'This donor changed or was erased. Refresh before saving.', donorId, version), ...membership.before, ...h.statements,
-   ...stageAddressMove(donorId, movedOn, 'staff'),
+   ...stageAddressMove(donorId, movedOn, checked.statements.length?'smarty':'staff'),
    sql(`UPDATE cf_donors SET version=version+1,name=?,email=?,phone=?,address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=?,household_id=${h.value} WHERE id=?`,
-    name, mail, a.phone, a.line1, a.line2, a.city, a.region, a.postal, a.country, ...(h.value === 'NULL' ? [] : [optional(p.household, 'Household')]), donorId),
+    name, mail, a.phone, verified.address_line1, verified.address_line2, verified.city, verified.region, verified.postal_code, verified.country, ...(h.value === 'NULL' ? [] : [optional(p.household, 'Household')]), donorId),
    sql('DELETE FROM cf_address_moves WHERE donor_id=?', donorId),
-   ...membership.after, event(c, 'donor.update', 'donor', donorId, donorId)])
+   ...checked.statements, ...membership.after, event(c, 'donor.update', 'donor', donorId, donorId)])
   return { id: donorId, version: version + 1 }
  }
  if (command === 'consent.record') {

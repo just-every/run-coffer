@@ -12,7 +12,7 @@ export async function addressMove(c: Context, value: unknown) {
 }
 
 /** Stage the move for the trigger in this batch; the writer clears it after its update. */
-export function stageAddressMove(donorId: string, effectiveOn: string, source: 'staff' | 'merge'): Stmt[] {
+export function stageAddressMove(donorId: string, effectiveOn: string, source: 'staff' | 'merge' | 'smarty' | 'ncoa'): Stmt[] {
  return [
   guard('NOT EXISTS(SELECT 1 FROM cf_donor_address_history WHERE donor_id=? AND until_on>?)', 'ADDRESS_ORDER', 'A move date cannot be before this donor’s last recorded move.', donorId, effectiveOn),
   sql('INSERT OR REPLACE INTO cf_address_moves(donor_id,effective_on,source) VALUES(?,?,?)', donorId, effectiveOn, source),

@@ -92,3 +92,94 @@ export async function stateReportJourney() {
  }, { bindings: { STRIPE_SECRET_KEY: 'sk_test_recognition_edge', MAIL_PROVIDER: 'sendgrid' }, outbound: edge.outbound })
 }
 
+
+/** DONOR-009: real entry, minute Cron, mail preparation and custody; only the
+ * Smarty and licensed NCOA HTTP edges are faked. The list has 100 genuine test
+ * constituents, rather than production padding to evade a provider minimum. */
+export async function addressVerificationJourney(){
+ const smarty=[],ncoa=[];let rejectSmarty=false,malformedNcoa=false,failNcoa=false,moverId,badId
+ const edge=async request=>{
+  const host=new URL(request.url).hostname,body=await request.json()
+  if(host==='us-street.api.smarty.com'){
+   assert.equal(request.method,'POST');assert.ok(request.headers.get('authorization')?.startsWith('Basic '));smarty.push(body)
+   if(rejectSmarty)return new Response('unavailable',{status:503})
+   return Response.json(body.map((a,i)=>({input_id:a.input_id,input_index:i,delivery_line_1:a.street.toUpperCase().replace('STREET','ST'),delivery_line_2:a.street2,components:{city_name:a.city.toUpperCase(),state_abbreviation:a.state.toUpperCase(),zipcode:a.zipcode.slice(0,5),plus4_code:'1234'},analysis:{dpv_match_code:'Y',dpv_vacant:'N',dpv_no_stat:'N',dpv_footnotes:'AABB'}})))
+  }
+  assert.equal(host,'smartmover.melissadata.net');assert.equal(request.method,'POST');ncoa.push(body)
+  assert.equal(body.Actions,'NCOA');assert.equal(body.CustomerID,'synthetic-coffer-903');assert.equal(body.Records.length,100)
+  if(failNcoa)return new Response('unavailable',{status:503})
+  const records=body.Records.map(r=>({...r,CountryCode:'US',Plus4:'1234',Results:r.RecordID===badId?'AE04':r.RecordID===moverId?'AS01,CS01':'AS01',MoveReturnCode:r.RecordID===moverId?'A':'00',...(r.RecordID===moverId?{AddressLine1:'9 MOVER ST',City:'ALBANY',State:'NY',PostalCode:'12207',MoveEffectiveDate:'202609'}:{})}))
+  if(malformedNcoa)records[1].RecordID=records[0].RecordID
+  return Response.json({TransmissionResults:'',TransmissionReference:body.TransmissionReference,TotalRecords:String(records.length),Records:records})
+ }
+ await run(async h=>{
+  await reviewed(h)
+  const member=await h.person('synthetic-coffer-904@example.test'),getAddress=id=>h.get('/api/coffer/donors/'+id+'/addresses')
+  const processing=version=>h.command('address.processing',{version,enabled:'yes',pafReference:'synthetic-coffer-905',reviewed:'yes'})
+  await h.command('address.processing',{version:0,enabled:'yes',pafReference:'synthetic-coffer-905',reviewed:'yes'},{as:member.cookie,status:403})
+  await h.get('/api/coffer/addresses',{as:member.cookie,status:403});await h.get('/api/coffer/addresses',{as:'',status:401})
+  await processing(0)
+  const maya=await donor(h,'Synthetic Address Maya',{email:'synthetic-coffer-906@example.test',addressLine1:'1 maple street'});moverId=maya.id
+  let history=await h.get('/api/coffer/donors/'+maya.id)
+  assert.equal(history.donor.address_line1,'1 MAPLE ST');assert.equal(history.donor.postal_code,'62701-1234')
+  assert.equal((await getAddress(maya.id)).check.status,'verified')
+  assert.ok((await getAddress(maya.id)).history.some(r=>r.address_line1==='1 maple street'&&r.source==='smarty'))
+  const undeliverable=await donor(h,'Synthetic Address Rowan',{email:'synthetic-coffer-907@example.test',addressLine1:'2 maple street'});badId=undeliverable.id
+  const permission=d=>h.command('consent.record',{donorIds:[d.id],channel:'mail',status:'granted',method:'paper form',evidence:'synthetic-coffer-908',capturedOn:'2025-01-01'})
+  await permission(maya);await permission(undeliverable)
+  await h.command('gift.record',{donorId:maya.id,amount:'100',receivedOn:'2025-01-01',method:'check',goods:'none'})
+  const short=await h.command('address.queueNcoa',{}, {status:409});assert.equal(short.error,'NCOA_LIST_TOO_SMALL');assert.equal(ncoa.length,0)
+  for(let i=0;i<98;i++)await donor(h,'Synthetic Address Supporter '+i,{email:`synthetic-coffer-${1000+i}@example.test`,addressLine1:`${i+10} maple street`})
+  rejectSmarty=true
+  await donor(h,'Synthetic Unverified Write',{email:'synthetic-coffer-909@example.test'},{status:502})
+  assert.equal((await h.get('/api/coffer/donors?q=Synthetic%20Unverified%20Write')).donors.length,0,'A provider outage saves no purported verification or partial donor')
+  rejectSmarty=false
+  const prepare=()=>h.command('appeal.prepare',{name:'Autumn address-reviewed mailing',channel:'mail'})
+  const queued=await h.command('appeal.prepare',{name:'Autumn address-reviewed mailing',channel:'mail'},{status:409})
+  assert.equal(queued.error,'NCOA_PENDING');assert.equal(ncoa.length,0,'Preparing a pass sends no unreviewed mailing or immediate NCOA request')
+  const tick=async()=>{const response=await h.mf.dispatchFetch(h.origin+'/cdn-cgi/local/scheduled?time='+Date.now()+'&format=json');assert.equal(response.status,200,await response.text())}
+  await tick();await tick()
+  assert.equal(ncoa.length,1,'The actual minute scheduler processes this pass once')
+  assert.equal((await h.get('/api/coffer/addresses')).runs[0].state,'completed')
+  history=await h.get('/api/coffer/donors/'+maya.id)
+  assert.equal(history.donor.region,'NY');assert.equal(history.donor.address_line1,'9 MOVER ST')
+  const move=await getAddress(maya.id)
+  assert.equal(move.check.source,'ncoa');assert.equal(move.check.move_effective_month,'2026-09')
+  assert.ok(move.history.some(r=>r.region==='IL'&&r.source==='ncoa'),'The mover retains the original Illinois address with NCOA provenance')
+  assert.equal((await getAddress(undeliverable.id)).check.status,'undeliverable')
+  const report=await h.get('/api/coffer/reports/states?year=2025');assert.equal(report.rows.find(r=>r.state==='IL').amountCents,10000);assert.ok(!report.rows.some(r=>r.state==='NY'),'Earlier gifts remain in the earlier state')
+  const appeal=await prepare();assert.equal(appeal.recipients,1);assert.equal(appeal.excluded['undeliverable address'],1)
+  await h.command('appeal.approve',{appealId:appeal.id,version:1})
+  // Re-verification invalidates a frozen check even if the address stays valid.
+  await h.command('address.verify',{donorId:maya.id,version:history.donor.version})
+  assert.equal((await h.command('appeal.export',{appealId:appeal.id,version:2},{status:409})).error,'ADDRESS_CHANGED')
+  assert.equal((await h.get('/api/coffer/appeals/'+appeal.id)).addressChanged,true)
+  await h.command('appeal.discard',{appealId:appeal.id,version:2})
+  await h.command('address.queueNcoa');malformedNcoa=true;await tick();malformedNcoa=false
+  assert.equal((await h.get('/api/coffer/addresses')).runs[0].state,'failed','A duplicate provider record ID refuses the whole batch')
+  assert.equal((await h.get('/api/coffer/donors/'+maya.id)).donor.region,'NY')
+  await h.command('address.queueNcoa');failNcoa=true;await tick();failNcoa=false
+  assert.equal((await h.get('/api/coffer/addresses')).runs[0].state,'failed')
+  const beforeRetry=ncoa.length;await tick();assert.equal(ncoa.length,beforeRetry,'A failed provider pass is not silently resubmitted')
+  await h.command('address.queueNcoa');await tick()
+  const approved=await prepare();await h.command('appeal.approve',{appealId:approved.id,version:1});await h.command('appeal.export',{appealId:approved.id,version:2})
+  const file=await h.request('/api/coffer/appeals/'+approved.id+'/recipients.csv');assert.equal(file.status,200);assert.match(await file.text(),/9 MOVER ST/)
+  const backup=await archive(h)
+  await run(async fresh=>{await restore(fresh,backup);assert.equal((await fresh.get('/api/coffer/donors/'+maya.id+'/addresses')).check.source,'ncoa');assert.equal((await fresh.get('/api/coffer/addresses')).connection.enabled,0)})
+  if(process.env.COFFER_ADDRESS_BROWSER){
+   const {mkdir}=await import('node:fs/promises');await mkdir(process.env.COFFER_ADDRESS_BROWSER,{recursive:true})
+   const {withBrowserWorker}=await import('./browser-worker.mjs')
+   await withBrowserWorker(h,async(context,origin)=>{
+    const page=await context.newPage()
+    for(const width of [1440,390]){
+     await page.setViewportSize({width,height:1500});await page.goto(origin+'/app/addresses');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-passes-${width}.png`,fullPage:true})
+     await page.goto(origin+'/app/donors/'+maya.id);await page.locator('#address-verification details').evaluate(el=>el.open=true);await page.locator('#address-verification').screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-move-${width}.png`})
+     await page.goto(origin+'/app/donors/'+undeliverable.id);await page.locator('#address-verification').screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-undeliverable-${width}.png`})
+     await page.goto(origin+'/app/appeals/'+approved.id);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-mail-${width}.png`,fullPage:true})
+    }
+   })
+  }
+  await h.command('donor.erase',{donorId:maya.id,confirm:'ERASE'})
+  const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes('Synthetic Address Maya')&&!erased.includes('9 MOVER ST'))
+ },{triggerHandlers:true,bindings:{SMARTY_AUTH_ID:'synthetic-coffer-901',SMARTY_AUTH_TOKEN:'synthetic-coffer-902',MELISSA_SMARTMOVER_KEY:'synthetic-coffer-903'},outbound:edge})
+}

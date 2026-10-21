@@ -1,4 +1,6 @@
 import { contributionTypeState } from './contribution-types'
+import { addressState } from './addresses/state'
+import { addressesPage } from './ui/addresses'
 import { giftRulesState } from './gift-rules'
 import { giftRulesPage } from './ui/gift-rules'
 import { solicitationState } from './solicitation'
@@ -265,6 +267,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    try { result = command === 'donor.erase' ? await eraseDonor(c, auth.authority, input) : await execute(c, command, input) }
    catch (error: any) {
     if (!isApi && command.startsWith('giftBatch.') && input.batchId && error instanceof CofferError) return page('Batch gift entry and deposits', `<p role="alert" class="alert">${esc(error.message)}</p>`+await giftBatchesPage(c,new URL('/app/gifts/batches?id='+encodeURIComponent(input.batchId),url)),actor,error.status,'/app/gifts/batches')
+    if (!isApi && command === 'appeal.prepare' && error instanceof CofferError && error.code.startsWith('NCOA_')) return page('Addresses', `<p role="alert" class="alert">${esc(error.message)}</p><p><a href="/app/appeals">Return to appeals</a></p>` + (manager(c.actor)?await addressesPage(c):''), actor, error.status, '/app/addresses')
     // A rejected appeal form comes back on its own page with the answers kept.
     if (!isApi && command === 'appeal.prepare' && error instanceof CofferError && error.status === 400) return page('Appeals', await appealsPage(c, { error: error.message, values: input }), actor, 400, '/app/appeals')
     if (!isApi && CONNECT.has(command) && error instanceof CofferError) return page('Connect email marketing', await connectPage(c, error.message), actor, error.status ?? 409, '/app/appeals')
@@ -344,6 +347,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
  if(command.startsWith('sms.'))return redirect(command==='sms.preference'?'/app/donors/'+encodeURIComponent(input.donorId)+'#sms-permission':'/app/texts?runId='+encodeURIComponent(result.id??input.runId))
+ if(command.startsWith('address.'))return redirect(input.returnDonorId?'/app/donors/'+encodeURIComponent(input.returnDonorId)+'#address-verification':'/app/addresses')
  if(command==='solicitation.set')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#solicitation')
  if(command.startsWith('giftRule.'))return redirect('/app/gift-rules')
  if(command.startsWith('giftBatch.'))return redirect('/app/gifts/batches?id='+encodeURIComponent(result.id))
@@ -431,6 +435,8 @@ async function api(c: Context, url: URL): Promise<Response> {
   if(year!==null&&!/^\d{4}$/.test(year)||!['calendar','fiscal'].includes(basis))fail('INPUT','Choose a four-digit year and calendar or fiscal basis.',400)
   return json(await householdState(c,decodeURIComponent(path.split('/').at(-1)!),{...(year?{year:Number(year)}:{}),basis:basis as 'calendar'|'fiscal'}))
  }
+ if(path==='/api/coffer/addresses'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages address processing.',403);return json(await addressState(c))}
+ const addressDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)\/addresses$/);if(addressDonor)return json(await addressState(c,addressDonor[1]))
  if(path==='/api/coffer/texts')return json(await smsState(c,url.searchParams.get('runId')??undefined))
  const typedDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)\/contribution-types$/);if(typedDonor)return json(await contributionTypeState(c,typedDonor[1]))
  const smsDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)\/sms$/);if(smsDonor)return json({preference:await smsPreference(c,smsDonor[1])})
@@ -509,6 +515,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if(path==='/app/addresses')return show('Addresses',await addressesPage(c))
  if(path==='/app/gift-rules')return show('Gift rules',await giftRulesPage(c))
  if(path==='/app/texts')return show('Text messages',await textsPage(c,url.searchParams.get('runId')??undefined))
  if(path==='/app/gifts/batches')return show('Batch gift entry and deposits',await giftBatchesPage(c,url))

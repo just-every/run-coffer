@@ -346,3 +346,5 @@ test('STEW-005: reviewed rules act once on live gifts and never on historical im
 test('DONOR-015: ask restrictions preserve transactional contact and deliberate audited exceptions',async()=>{const {solicitationJourney}=await import('./solicitation-journey.mjs');await solicitationJourney()})
 
 test('GIFT-010: typed stock, DAF and IRA gifts preserve credit, receipt custody and tax-report totals',async()=>{const {contributionTypesJourney}=await import('./contribution-types-journey.mjs');await contributionTypesJourney()})
+
+test('DONOR-009: verified entry and licensed scheduled address passes preserve moves and exclude undeliverable mail',async()=>{const {addressVerificationJourney}=await import('./state-report-journey.mjs');await addressVerificationJourney()})

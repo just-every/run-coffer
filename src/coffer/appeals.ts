@@ -1,3 +1,4 @@
+import { mailPreflight, mailEligibility, mailSnapshot, mailRunGuards, mailAddressChanged } from './addresses/mail'
 import { solicitationReasons, solicitationState, prepareSolicitationRun, solicitationRunGuards, solicitationAskStatements } from './solicitation'
 import { frozenNameFields } from './person-names'
 import { letterRecipient } from './organizations'
@@ -30,6 +31,7 @@ export async function audience(c: { db: D1Database; now?:string }, channel: 'ema
   ORDER BY lower(d.name),d.id`, channel, segment.givenSince, segment.givenSince, Math.max(1, segment.minTotalCents), segment.fund??null,segment.fund??null)
  const excluded: Record<string, number> = { 'no consent recorded': 0, 'consent withdrawn': 0, 'no email address': 0, 'no postal address': 0 }
  const recipients: Row[] = []
+ const addressHolds=channel==='mail'?await mailEligibility(c,rows):new Map()
  const donorIds=segment.donorIds?new Set(segment.donorIds):null,includeIds=new Set(segment.includeIds??[])
  const reasons=segment.isAsk===false?new Map():await solicitationReasons(c,rows.filter(d=>!donorIds||donorIds.has(d.id)).map(d=>d.id),channel,c.now)
  for (const d of rows) {
@@ -41,6 +43,7 @@ export async function audience(c: { db: D1Database; now?:string }, channel: 'ema
   else if (d.consent !== 'granted') excluded['consent withdrawn']++
   else if (channel === 'email' && !d.email) excluded['no email address']++
   else if (channel === 'mail' && !postal(d)) excluded['no postal address']++
+  else if (channel === 'mail' && addressHolds.has(d.id)) countReason(excluded,addressHolds.get(d.id).reason)
   else recipients.push({ donor_id: d.id, consent_id: d.consent_id, name: d.name, name_fields:frozenNameFields(await letterRecipient(c,d)), total_cents:d.total_cents,gift_count:d.gift_count,last_gift:d.last_gift, email: channel === 'email' ? d.email : null, address: channel === 'mail' ? JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country }) : null })
  }
  return { recipients, excluded }
@@ -65,10 +68,12 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (written && !String(p.body ?? '').trim()) fail('INPUT', 'Write the email message donors will receive, or clear the subject to export the list instead.', 400)
  const message = written ? {subject:text(p.subject,'Email subject',250),body:longText(p.body,'Email message',12000)} : null
   if(message){ const {mergeMessage}=await import('./communications/outbound'); mergeMessage(message.subject,{name:'Donor'});mergeMessage(message.body,{name:'Donor'}) }
+  const addressPass=channel==='mail'?await mailPreflight(c):null
   const { recipients, excluded } = await audience(c, channel, { givenSince, minTotalCents, fund, donorIds: selection?.donorIds ?? donorIds, isAsk, includeIds:includes.map(x=>x.donorId) })
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)
   if (recipients.length > MAX_RECIPIENTS) fail('TOO_MANY', `An appeal holds at most ${MAX_RECIPIENTS} recipients. Narrow the segment.`, 400)
   const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, hash = await hashOf(name, channel, recipients,message), list = JSON.stringify(recipients)
+  const addressSnapshot=await mailSnapshot(c,appealId,addressPass,recipients)
   const restriction=await prepareSolicitationRun(c,{kind:'appeal',id:appealId,channel,isAsk,donorIds:recipients.map(r=>r.donor_id),includes})
   await commit(c, [...restriction.statements,
    ...(selection?[guard("NOT EXISTS(SELECT 1 FROM cf_appeals WHERE json_extract(segment,'$.resendOf')=? AND status<>'discarded')",'RESEND_EXISTS','A resend was prepared concurrently. Refresh to review it.',selection.resendOf)]:[]),
@@ -78,6 +83,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
     appealId, name, channel, JSON.stringify({ givenSince, minTotalCents, fund, purpose, isAsk, ...(selection ? {resendOf:selection.resendOf} : {}), ...(annual ? {annualList,listYear:annual.year,listThrough:annual.through} : {}) }), JSON.stringify(excluded), hash, recipients.length, c.actor.id, c.actor.name, c.actor.role, c.now),
    sql('INSERT INTO cf_appeal_runs(appeal_id,code,cost_cents) VALUES(?,?,?)',appealId,code,costCents),
    sql(`INSERT INTO cf_appeal_recipients(appeal_id,donor_id,consent_id,name,email,address,total_cents,gift_count,last_gift,name_fields) SELECT ?,json_extract(value,'$.donor_id'),json_extract(value,'$.consent_id'),json_extract(value,'$.name'),json_extract(value,'$.email'),json_extract(value,'$.address'),json_extract(value,'$.total_cents'),json_extract(value,'$.gift_count'),json_extract(value,'$.last_gift'),json_extract(value,'$.name_fields') FROM json_each(?)`, appealId, list),
+   ...addressSnapshot,
    ...(message ? [sql('INSERT INTO cf_appeal_messages VALUES(?,?,?)',appealId,message.subject,message.body)] : []),
    event(c, 'appeal.prepare', 'appeal', appealId, null, { channel, recipients: recipients.length, excluded })])
   return { id: appealId, code, costCents, version: 1, recipients: recipients.length, excluded, contentHash: hash }
@@ -93,7 +99,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (command === 'appeal.approve') {
   if (appeal.status !== 'prepared') fail('NOT_PREPARED', 'Only a prepared appeal can be approved.')
   if (await hashOf(appeal.name, appeal.channel, await recipientsOf(c, appealId),await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId)) !== appeal.content_hash) fail('CONTENT_CHANGED', 'This audience no longer matches what was prepared. Discard it and prepare again.')
-  await commit(c, [at(['prepared']), consent, ...await solicitationRunGuards(c,'appeal',appealId),
+  await commit(c, [at(['prepared']), consent, ...mailRunGuards(appealId), ...await solicitationRunGuards(c,'appeal',appealId),
    sql('INSERT INTO cf_approvals VALUES(?,?,?,?,?,?,?,?,?,?,?)', newId(), 'appeal', appealId, appeal.content_hash, appeal.prepared_by_id, appeal.prepared_by_name, appeal.prepared_by_role, c.actor.id, c.actor.name, c.actor.role, c.now),
    bump('approved'), event(c, 'appeal.approve', 'appeal', appealId, null, { recipients: appeal.recipients, preparedBy: appeal.prepared_by_role })])
   return { id: appealId, version: version + 1, status: 'approved' }
@@ -108,7 +114,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   if (!['approved', 'exported', 'sent'].includes(appeal.status)) fail('NOT_APPROVED', 'A person must approve this audience before it is exported.')
   if (appeal.status !== 'approved') return { id: appealId, version, status: appeal.status, exportHash: appeal.export_hash }
   const hash = await sha256(recipientsCsv(appeal, await recipientsOf(c, appealId)))
-  await commit(c, [at(['approved']), consent, ...await solicitationAskStatements(c,'appeal',appealId), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'appeal.export', 'appeal', appealId, null, { recipients: appeal.recipients })])
+  await commit(c, [at(['approved']), consent, ...mailRunGuards(appealId), ...await solicitationAskStatements(c,'appeal',appealId), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'appeal.export', 'appeal', appealId, null, { recipients: appeal.recipients })])
   return { id: appealId, version: version + 1, status: 'exported', exportHash: hash }
  }
  const sentOn = date(p.sentOn, 'Sent on')
@@ -144,5 +150,5 @@ export async function appealDetail(c: { db: D1Database }, appealId: string) {
    return versions.get(state.donor_id)!==state.scope_version||reasons.get(state.donor_id)&&!asked.has(state.donor_id)&&exceptions.get(state.donor_id)!==state.scope_version
   }).length
  }
- return { appeal, recipients, approval, restrictionChanged, inclusions, results: await appealResults(c,appealId), message:await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),messages:await all(c,"SELECT m.*,d.name FROM cf_communications m JOIN cf_donors d ON d.id=m.donor_id WHERE m.source_kind='appeal' AND m.source_id=? ORDER BY m.created_at",appealId), consentChanged: changed?.n ?? 0 }
+ return { appeal, recipients, approval, addressChanged:await mailAddressChanged(c,appealId), restrictionChanged, inclusions, results: await appealResults(c,appealId), message:await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),messages:await all(c,"SELECT m.*,d.name FROM cf_communications m JOIN cf_donors d ON d.id=m.donor_id WHERE m.source_kind='appeal' AND m.source_id=? ORDER BY m.created_at",appealId), consentChanged: changed?.n ?? 0 }
 }

@@ -28,11 +28,11 @@ const audienceRule = (segment: { givenSince?: string | null; minTotalCents?: num
 
 export async function appealPage(c: Context, appealId: string) {
  const {connection:conn}=await emailConnection(c), label=conn?providerTitle(conn.provider):''
- const { appeal: a, recipients, approval, consentChanged:consentChangedCount, restrictionChanged, message, messages, results, inclusions } = await appealDetail(c, appealId), boss = manager(c.actor), tz = (await settings(c)).timezone, day = today(tz, new Date(c.now))
- const consentChanged=consentChangedCount+restrictionChanged
+ const { appeal: a, recipients, approval, consentChanged:consentChangedCount, restrictionChanged, addressChanged, message, messages, results, inclusions } = await appealDetail(c, appealId), boss = manager(c.actor), tz = (await settings(c)).timezone, day = today(tz, new Date(c.now))
+ const consentChanged=consentChangedCount+restrictionChanged+Number(addressChanged)
  const v = { appealId: a.id, version: a.version }, excluded = Object.entries(JSON.parse(a.excluded) as Record<string, number>).filter(([, n]) => n > 0)
  const complete=Boolean(message)&&recipients.every(r=>r.communication_id)
- const warning = complete && consentChanged ? '<p class="notice">Preferences changed after these submissions. Future appeals use the current answers.</p>' : consentChanged && ['prepared', 'approved'].includes(a.status) ? `<p class="alert" role="alert">Recipient permission, status or solicitation choices changed since this audience was prepared. Discard it and prepare it again.</p>` : ''
+ const warning = complete && consentChanged ? '<p class="notice">Preferences changed after these submissions. Future appeals use the current answers.</p>' : consentChanged && ['prepared', 'approved'].includes(a.status) ? `<p class="alert" role="alert">Recipient permission, address, status or solicitation choices changed since this audience was prepared. Discard it and prepare it again.</p>` : ''
  const waiting=recipients.filter(r=>!r.communication_id).length, batch=conn?sendBatch(conn.provider):0
  const plural=(n:number,word:string)=>`${n} ${word}${n===1?'':'s'}`
  const sendable = boss && a.channel==='email' && message && ['approved','exported','sent'].includes(a.status) && !consentChanged && waiting>0
