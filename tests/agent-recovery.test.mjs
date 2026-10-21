@@ -1,10 +1,28 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createHmac, randomUUID } from 'node:crypto'
+import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { run, donor, archive, restore } from './harness.mjs'
 
-const secret = 'whsec_recovery_network_edge'
+const secret = randomBytes(32).toString('hex')
 const form = (values, as = '') => ({ method: 'POST', as, headers: { 'content-type': 'application/x-www-form-urlencoded' }, raw: new URLSearchParams(values).toString() })
+
+// Inspect values and embedded JSON, so opaque IDs, checksums and legitimate
+// postal codes containing the same digits cannot masquerade as card storage.
+function assertNoCardLastFour(value) {
+ if (typeof value === 'string') {
+  assert.notEqual(value, '4242', 'Provider card last four are never persisted as a value')
+  let parsed
+  try { parsed = JSON.parse(value) } catch {}
+  if (parsed !== undefined) assertNoCardLastFour(parsed)
+ } else if (Array.isArray(value)) {
+  value.forEach(assertNoCardLastFour)
+ } else if (value !== null && typeof value === 'object') {
+  for (const [key, stored] of Object.entries(value)) {
+   assert.doesNotMatch(key, /^(?:last_?4|lastFour)$/i, 'Provider card last-four fields are never persisted')
+   assertNoCardLastFour(stored)
+  }
+ } else assert.notEqual(value, 4242, 'Provider card last four are never persisted as a number')
+}
 
 // Stripe and mail are the only fake boundaries. Operator authentication, donor
 // portal, webhook processing, scheduled reconciliation and ledger run unchanged.
@@ -47,7 +65,7 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
   assert.fail(`Unexpected network request ${request.method} ${url.pathname}`)
  }
  await run(async h => {
-  const person = await donor(h, 'Rae Recovery')
+  const person = await donor(h, 'Rae Recovery', {city:'Henderson',region:'KY',postalCode:'42420'})
   await h.api('/api/coffer/giving/campaigns', { name: 'Monthly reading', slug: 'monthly-reading', description: 'Reading for all.', fund: 'Reading', goal: '1000.00' })
   const checkout = await h.request('/give/monthly-reading/checkout', form({ name: 'Rae Recovery', email: 'rae.recovery@example.org', amount: '25.00', frequency: 'monthly', requestId: randomUUID() }))
   assert.equal(checkout.status, 303, await checkout.text())
@@ -158,7 +176,7 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
   await h.api('/api/coffer/agent/recovery/run',{})
   assert.equal(portalMessages().length,beforeExpiry+1,'Repeated reconciliation never resends the warning')
   const portable=await archive(h)
-  assert.ok(!JSON.stringify(portable).includes('4242'),'Provider card last four are never persisted')
+  assertNoCardLastFour(portable)
   await run(async fresh=>{await restore(fresh,portable);assert.deepEqual((await fresh.get('/api/coffer/agent')).recovery.expiryNotices,(await recovery()).expiryNotices)})
   if(process.env.COFFER_RECOVERY_BROWSER){const {recoveryBrowser}=await import('./recovery-browser.mjs');await recoveryBrowser(h,{directory:process.env.COFFER_RECOVERY_BROWSER})}
   assert.equal(portalMessages().length,beforeExpiry+1,'Native checks use the same single-attempt claim')
