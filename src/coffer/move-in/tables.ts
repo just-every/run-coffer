@@ -1,7 +1,7 @@
 /** Server-owned table descriptions. Never accept SQL identifiers from an upload. */
 export const tables = {
  household: { table: 'cf_households', key: 'id', columns: ['id','version','name','created_at','head_donor_id','addressee_override','formal_override','informal_override','overrides_review','head_source','head_imported_at'] },
- donor: { table: 'cf_donors', key: 'id', columns: ['id','version','name','prefix','first_name','middle_name','last_name','suffix','nickname','constituent_kind','constituent_status','email','phone','address_line1','address_line2','city','region','postal_code','country','household_id','source','source_ref','created_at','erased_at'] },
+ donor: { table: 'cf_donors', key: 'id', columns: ['id','version','name','prefix','first_name','middle_name','last_name','suffix','nickname','constituent_kind','constituent_status','status_reason','deceased_on','status_changed_at','status_changed_by','email','phone','address_line1','address_line2','city','region','postal_code','country','household_id','source','source_ref','created_at','erased_at'] },
  pledge: { table: 'cf_pledges', key: 'id', columns: ['id','donor_id','amount_cents','pledged_on','due_by','fund','created_at','created_by'] },
  installment: { table: 'cf_pledge_installments', key: 'id', columns: ['id','pledge_id','position','due_on','amount_cents','remind_on','reminder_status'] },
  gift: { table: 'cf_gifts', key: 'id', columns: ['id','version','donor_id','kind','reverses','received_on','amount_cents','method','reference','fund','pledge_id','goods','goods_cents','goods_description','note','source','created_at','created_by'] },

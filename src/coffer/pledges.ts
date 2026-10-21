@@ -107,7 +107,7 @@ export async function pledgeHistory(c: { db: D1Database }, donorId: string): Pro
 }
 
 const eligible = `(SELECT status FROM cf_consents k WHERE k.donor_id=d.id AND k.channel='email' ORDER BY k.id DESC LIMIT 1)='granted'
- AND d.erased_at IS NULL AND d.email IS NOT NULL
+ AND d.erased_at IS NULL AND d.constituent_status='active' AND d.email IS NOT NULL
  AND NOT EXISTS(SELECT 1 FROM cf_acks bad WHERE bad.donor_id=d.id AND bad.recipient_email=d.email AND bad.delivery_status IN ('bounced','complained'))`
 
 async function remind(c: Context, p: Row): Promise<Row> {
@@ -120,6 +120,9 @@ async function remind(c: Context, p: Row): Promise<Row> {
  const due = await all(c, `SELECT i.id FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id
   JOIN cf_donors d ON d.id=p.donor_id WHERE i.reminder_status='pending' AND i.remind_on<=? AND i.paid_cents<i.amount_cents
   AND (? IS NULL OR p.donor_id=?) AND (? IS NULL OR p.id=?) AND ${eligible} ORDER BY i.remind_on,i.id LIMIT 8`, day, donorId, donorId, pledgeId, pledgeId)
+ // Counted under their reason; a restored constituent's reminder is still pending and resumes.
+ const held = await all(c, `SELECT d.constituent_status AS status,count(*) AS n FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
+  WHERE i.reminder_status='pending' AND i.remind_on<=? AND i.paid_cents<i.amount_cents AND (? IS NULL OR p.donor_id=?) AND (? IS NULL OR p.id=?) AND d.constituent_status<>'active' AND d.erased_at IS NULL GROUP BY d.constituent_status`, day, donorId, donorId, pledgeId, pledgeId)
  let submitted = 0, uncertain = 0, rejected = 0
  for (const row of due) {
   const attempt = newId()
@@ -151,7 +154,7 @@ async function remind(c: Context, p: Row): Promise<Row> {
   else if (state === 'rejected') rejected++
   else uncertain++
  }
- return { submitted, uncertain, rejected }
+ return { submitted, uncertain, rejected, excluded: Object.fromEntries(held.map(r => [r.status, r.n])) }
 }
 
 /** Real Worker scheduled handler calls this; failures stay visible to the host.

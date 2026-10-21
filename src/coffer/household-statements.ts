@@ -18,6 +18,7 @@ export async function prepareHouseholdStatement(c: Context, year: number, househ
  if (!s.reviewed_at || !s.organisation || !s.ein) fail('SETTINGS_UNREVIEWED', 'Review organization and receipt settings before preparing statements.')
  const state = await householdState(c, householdId, { year, basis: 'calendar' })
  const { household, members, names } = state
+ if (household.survivor_review) fail('NAMES_UNCONFIRMED', 'A member was marked deceased or restored, so the household names were recomputed. Confirm them on the household before preparing a statement.')
  const memberIds = JSON.stringify(members.map(m => m.id)), period = [`${year}-01-01`, `${year}-12-31`, memberIds]
  const gifts = await all(c, `SELECT g.*,d.name AS donor_name,d.version AS donor_version FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${scope} ORDER BY g.received_on,g.id`, ...period)
  if (!gifts.length) fail('NOTHING_DUE', 'No remaining monetary gifts were found for this calendar year and household.')
@@ -40,7 +41,7 @@ export async function prepareHouseholdStatement(c: Context, year: number, househ
  }
  const snapshot = { members: members.map(m => ({ id: m.id, name: m.name })), names, headStatus: state.headStatus, overridesReview: !!household.overrides_review, asOf: day }
  // A stable member order supplies delivery contact details, independently of headship.
- const contact = members[0], batchId = newId(), letterId = newId()
+ const contact = members.find(m => m.constituent_status !== 'deceased') ?? members[0], batchId = newId(), letterId = newId()
  const rendered = annualLetter(s, { name: names.formal }, gifts, year, day, template)
  const basis = `Household statement — current members as of ${day}: ${members.map(m => m.name).join('; ')}. Each gift is listed under its hard-credit donor.`
  const body = `${basis}\n\n${rendered.body}`

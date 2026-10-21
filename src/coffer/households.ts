@@ -3,6 +3,7 @@ import { requireRole } from './auth'
 import { all, commit, event, fail, guard, id, integer, newId, one, sql, text, type Context, type Row } from './db'
 import { NAME_FIELDS, computedHouseholdNames, householdDefaults, householdMembers, HOUSEHOLD_TOKENS } from './household-names'
 import { householdTotals } from './household-totals'
+import { STATUSES, statusChange } from './status'
 
 export async function householdState(c:Context,householdId:string,query:{year?:number,basis?:'calendar'|'fiscal'}={}) {
  const household=await one(c,'SELECT * FROM cf_households WHERE id=?',householdId)
@@ -21,11 +22,11 @@ export async function householdCommand(c:Context,command:string,p:Row):Promise<R
   if(!donor)fail('NOT_FOUND','Open a current donor record.',404)
   const fields=Object.entries(NAME_FIELDS),values=fields.map(([key,column])=>p[key]===undefined?donor[column]:p[key]===null||p[key]===''?null:text(p[key],key,100))
   const kind=p.constituentKind??donor.constituent_kind,status=p.constituentStatus??donor.constituent_status
-  if(!['person','organization'].includes(kind)||!['active','inactive','deceased'].includes(status))fail('INPUT','Choose a constituent type and status.',400)
-  const org=organizationFields(p,donor)
+  if(!['person','organization'].includes(kind)||!STATUSES.includes(status))fail('INPUT','Choose a constituent type and status.',400)
+  const org=organizationFields(p,donor),change=await statusChange(c,donor,p,status)
   const h=donor.household_id?await one(c,'SELECT * FROM cf_households WHERE id=?',donor.household_id):null
   if(h?.head_donor_id===donorId&&kind==='organization')fail('HEAD_INELIGIBLE','Clear this household head before changing to an organization.')
-  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND erased_at IS NULL)','VERSION','This donor changed. Refresh before saving.',donorId,version),...(h?[guard('EXISTS(SELECT 1 FROM cf_households WHERE id=? AND version=?)','VERSION','The household changed. Refresh before saving.',h.id,p.householdVersion??h.version)]:[]),sql(`UPDATE cf_donors SET version=version+1,${fields.map(([,column])=>column+'=?').join(',')},constituent_kind=?,constituent_status=?,organization_type=?,website=?,ein=?,informal_salutation=? WHERE id=?`,...values,kind,status,org.organizationType,org.website,org.ein,org.salutation,donorId),...(h?[sql('UPDATE cf_households SET version=version+1 WHERE id=?',h.id),event(c,'household.names','household',h.id,null,{oldHead:h.head_donor_id,newHead:h.head_donor_id,overridesSet:[],overridesCleared:[]})]:[]),event(c,command,'donor',donorId,donorId,{status,kind})])
+  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND erased_at IS NULL)','VERSION','This donor changed. Refresh before saving.',donorId,version),...(h?[guard('EXISTS(SELECT 1 FROM cf_households WHERE id=? AND version=?)','VERSION','The household changed. Refresh before saving.',h.id,p.householdVersion??h.version)]:[]),sql(`UPDATE cf_donors SET version=version+1,${fields.map(([,column])=>column+'=?').join(',')},constituent_kind=?,constituent_status=?,status_reason=?,deceased_on=?,status_changed_at=?,status_changed_by=?,organization_type=?,website=?,ein=?,informal_salutation=? WHERE id=?`,...values,kind,status,change.columns.status_reason,change.columns.deceased_on,change.columns.status_changed_at,change.columns.status_changed_by,org.organizationType,org.website,org.ein,org.salutation,donorId),...(h?[sql('UPDATE cf_households SET version=version+1 WHERE id=?',h.id),event(c,'household.names','household',h.id,null,{oldHead:h.head_donor_id,newHead:h.head_donor_id,overridesSet:[],overridesCleared:[]})]:[]),event(c,command,'donor',donorId,donorId,{status,kind}),...change.after])
   return {id:donorId,version:version+1}
  }
  if(command==='household.defaultsPreview') {
@@ -42,6 +43,12 @@ export async function householdCommand(c:Context,command:string,p:Row):Promise<R
   })
   await commit(c,[guard('EXISTS(SELECT 1 FROM cf_household_defaults WHERE id=1 AND version=?)','VERSION','Household defaults changed. Preview again.',version),guard('(SELECT count(*) FROM cf_households WHERE addressee_override IS NULL OR formal_override IS NULL OR informal_override IS NULL)=?','VERSION','The household count changed. Preview again.',affected),sql('UPDATE cf_household_defaults SET version=version+1,addressee=?,formal=?,informal=? WHERE id=1',...templates),sql('UPDATE cf_households SET version=version+1 WHERE addressee_override IS NULL OR formal_override IS NULL OR informal_override IS NULL'),event(c,command,'householdDefaults','1',null,{affected})])
   return {version:version+1,affected}
+ }
+ if(command==='household.confirmNames') {
+  requireRole(c.actor,['owner','admin','member'],'confirm household names')
+  const householdId=id(p.householdId,'Household'),version=integer(p.version,'Household version',1),state=await householdState(c,householdId)
+  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_households WHERE id=? AND version=? AND survivor_review=1)','VERSION','These names were already confirmed, or the household changed. Refresh before confirming.',householdId,version),sql('UPDATE cf_households SET survivor_review=0,version=version+1 WHERE id=?',householdId),event(c,command,'household',householdId,null,{names:state.names})])
+  return {id:householdId,version:version+1,names:state.names}
  }
  if(command!=='household.update')return undefined
  requireRole(c.actor,['owner','admin','member'],'edit households')

@@ -84,7 +84,8 @@
         "pnpm run test:donor-depth",
         "node --test tests/giving-summary.test.mjs",
         "node --test tests/split-gifts.test.mjs",
-        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test tests/duplicates.test.mjs"
+        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test tests/duplicates.test.mjs",
+        "node --test tests/status.test.mjs"
       ]
     },
     {

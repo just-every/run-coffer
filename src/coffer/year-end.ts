@@ -9,9 +9,10 @@ import { fill, goodsStatement, longDate, settings, type Settings } from './setti
 import { settingsUse, templateFor, templateRevision, templatesUnchanged, templateUse } from './letter-templates'
 
 const MAX_LETTERS = 500
-const ELIGIBLE = `g.kind='gift' AND g.received_on>=? AND g.received_on<=?
+const GIFTS = `g.kind='gift' AND g.received_on>=? AND g.received_on<=?
  AND d.erased_at IS NULL AND (? IS NULL OR d.id=?)
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)`
+const ELIGIBLE = `${GIFTS} AND d.constituent_status='active'`
 
 /** One letter per donor: each gift listed once, the totals, and the charity's goods wording. */
 export function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: string, template: Row | null) {
@@ -64,7 +65,10 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
   SELECT 1 FROM cf_gifts g WHERE g.donor_id=d.id AND ${ELIGIBLE})
   ORDER BY lower(d.name),d.id LIMIT ${MAX_LETTERS + 1}`, ...scope)
  if (donors.length > MAX_LETTERS) fail('TOO_MANY_LETTERS', 'This year has more than 500 donor statements. Select one donor to prepare their statement.')
- if (!donors.length) fail('NOTHING_DUE', 'No unreversed gifts were found for this calendar year and donor selection.')
+ // Inactive and deceased constituents get no statement; they are counted under that reason.
+ const held = await all(c, `SELECT d.constituent_status AS status,count(DISTINCT d.id) AS n FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE ${GIFTS} AND d.constituent_status<>'active' GROUP BY d.constituent_status`, ...scope)
+ const excluded = Object.fromEntries(held.map(r => [r.status, r.n]))
+ if (!donors.length) fail('NOTHING_DUE', 'No unreversed gifts from active constituents were found for this calendar year and donor selection.', 409, { excluded })
  const donorIds = JSON.stringify(donors.map(d => d.id))
  const gifts = await all(c, `SELECT g.id,g.version,g.donor_id,g.received_on,g.amount_cents,g.fund,g.goods,g.goods_cents,g.goods_description
   FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id
@@ -116,5 +120,5 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
     json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version') FROM json_each(?)`, JSON.stringify(letters)),
   event(c, 'ack.prepareStatements', 'acknowledgements', batchId, null, { year, letters: letters.length, totalCents: total }),
  ])
- return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash }
+ return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash, excluded }
 }

@@ -13,6 +13,7 @@ const common: Record<string, string[]> = {
  householdHeadId: ['Head of Household ID', 'Household Head Constituent ID', 'Household Head Account Number'],
  householdAddressee: ['Household Addressee'], householdFormal: ['Household Formal Salutation', 'Household Formal Greeting'], householdInformal: ['Household Informal Salutation', 'Household Informal Greeting'],
  nickname: ['Nickname', 'Nick Name'], constituentStatus: ['Constituent Status', 'Deceased', 'Is Deceased'],
+ deceasedOn: ['Date of Death', 'Deceased Date', 'Date Deceased', 'Death Date', 'Deceased On'], statusReason: ['Inactive Reason', 'Reason Inactive', 'Status Reason', 'Constituent Inactive Reason'],
  amount: ['Amount', 'Gift Amount', 'Transaction Amount', 'Pledge Amount'], date: ['Date', 'Gift Date', 'Transaction Date', 'Pledge Date'],
  type: ['Type', 'Gift Type', 'Transaction Type'], fund: ['Fund', 'Fund Name', 'Fund Description'], campaign: ['Campaign', 'Campaign Name'], appeal: ['Appeal', 'Appeal Name'], channel: ['Channel', 'Gift Channel', 'Solicitation Channel'],
  checkReference: ['Check No.', 'Check Number', 'Check/Reference No.', 'Check/Reference Number'],

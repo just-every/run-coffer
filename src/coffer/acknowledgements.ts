@@ -11,19 +11,23 @@ import { tributeReceiptText } from './gift-depth'
 const MAX_LETTERS = 500
 // A gift is due for a letter when it reaches the threshold, has not been
 // reversed, is in no live letter and its donor has not been erased.
-export const DUE = `g.kind='gift' AND (g.amount_cents>=min(?,25000) OR (g.amount_cents>7500 AND g.goods='provided' AND g.goods_cents>0 AND g.goods_cents<g.amount_cents)) AND d.erased_at IS NULL
+export const DUE_ANY = `g.kind='gift' AND (g.amount_cents>=min(?,25000) OR (g.amount_cents>7500 AND g.goods='provided' AND g.goods_cents>0 AND g.goods_cents<g.amount_cents)) AND d.erased_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
  AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1)
  AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)
  AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND k.status<>'not acknowledged')`
+// An inactive constituent's gifts wait outside the letter list, counted under that reason (DONOR-012).
+// A deceased donor's gift is still receipted, addressed to the estate or the surviving household (letterRecipient).
+export const DUE = `${DUE_ANY} AND d.constituent_status<>'inactive'`
 
 export async function dueGifts(c: { db: D1Database }) {
  const s = await settings(c), day = today(s.timezone)
  const rows = await all(c, `SELECT g.*,d.name AS donor_name,d.email AS donor_email FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${DUE} ORDER BY g.received_on,g.id LIMIT 2000`, s.threshold_cents)
  await withReceiptBenefits(c, rows)
  await receiptFundLabels(c,rows)
+ const held = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${DUE_ANY} AND d.constituent_status='inactive'`, s.threshold_cents)
  return {
-  settings: s, today: day,
+  settings: s, today: day, held: { inactive: held?.n ?? 0 },
   gifts: rows.map((g): Row => { const due = addDays(g.received_on, s.target_days); return { ...g, due_on: due, overdue: day > due, age_days: daysBetween(g.received_on, day) } }),
  }
 }

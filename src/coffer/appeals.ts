@@ -4,11 +4,13 @@ import { settings } from './settings'
 import { csv } from './csv'
 import { appealResults } from './appeal-results'
 import { annualLapses } from './annual-lapses'
+import { countReason } from './status'
 
 const MAX_RECIPIENTS = 10000
 const CONSENT = `(SELECT k.id FROM cf_consents k WHERE k.donor_id=r.donor_id AND k.channel=? ORDER BY k.id DESC LIMIT 1)`
 // Every frozen recipient still has the exact consent answer that admitted them.
-const UNCHANGED = `NOT EXISTS(SELECT 1 FROM cf_appeal_recipients r WHERE r.appeal_id=? AND ${CONSENT} IS NOT r.consent_id)`
+const CHANGED = `(${CONSENT} IS NOT r.consent_id OR (SELECT constituent_status FROM cf_donors WHERE id=r.donor_id)<>'active')`
+const UNCHANGED = `NOT EXISTS(SELECT 1 FROM cf_appeal_recipients r WHERE r.appeal_id=? AND ${CHANGED})`
 export const hashOf = (name: string, channel: string, recipients: Row[], message?: Row | null) => sha256(JSON.stringify([name, channel, recipients.map(r => [r.donor_id, r.consent_id, r.name, r.email, r.address, ...(message ? [r.total_cents,r.gift_count,r.last_gift] : [])]), ...(message ? [message.subject,message.body] : [])]))
 const postal = (d: Row) => d.address_line1 && d.city && d.postal_code
 
@@ -23,11 +25,12 @@ export async function audience(c: { db: D1Database }, channel: 'email' | 'mail',
   AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_fund_ledger g WHERE g.donor_id=d.id AND g.fund=? GROUP BY g.fund HAVING SUM(g.amount_cents)>0))
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
   ORDER BY lower(d.name),d.id`, channel, segment.givenSince, segment.givenSince, Math.max(1, segment.minTotalCents), segment.fund??null,segment.fund??null)
- const excluded = { 'no consent recorded': 0, 'consent withdrawn': 0, 'no email address': 0, 'no postal address': 0 }
+ const excluded: Record<string, number> = { 'no consent recorded': 0, 'consent withdrawn': 0, 'no email address': 0, 'no postal address': 0 }
  const recipients: Row[] = []
  for (const d of rows) {
   if (segment.donorIds && !segment.donorIds.includes(d.id)) continue
-  if (!d.consent) excluded['no consent recorded']++
+  if (d.constituent_status !== 'active') countReason(excluded, d.constituent_status)
+  else if (!d.consent) excluded['no consent recorded']++
   else if (d.consent !== 'granted') excluded['consent withdrawn']++
   else if (channel === 'email' && !d.email) excluded['no email address']++
   else if (channel === 'mail' && !postal(d)) excluded['no postal address']++
@@ -73,7 +76,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (!appeal) fail('NOT_FOUND', 'That appeal does not exist.', 404)
  if (appeal.version !== version) fail('VERSION', 'This appeal changed. Refresh before continuing.')
  const at = (statuses: string[]) => guard(`EXISTS(SELECT 1 FROM cf_appeals WHERE id=? AND version=? AND status IN (${statuses.map(() => '?').join(',')}))`, 'VERSION', 'This appeal changed. Refresh before continuing.', appealId, version, ...statuses)
- const consent = guard(UNCHANGED, 'CONSENT_CHANGED', 'A recipient’s consent changed or their record was erased since this audience was prepared. Discard the appeal and prepare it again.', appealId, appeal.channel)
+ const consent = guard(UNCHANGED, 'CONSENT_CHANGED', 'A recipient’s consent or status changed, or their record was erased, since this audience was prepared. Discard the appeal and prepare it again.', appealId, appeal.channel)
  const bump = (status: string, extra = '', ...params: unknown[]) => sql(`UPDATE cf_appeals SET version=version+1,status=?${extra} WHERE id=?`, status, ...params, appealId)
  if (command === 'appeal.approve') {
   if (appeal.status !== 'prepared') fail('NOT_PREPARED', 'Only a prepared appeal can be approved.')
@@ -117,6 +120,6 @@ export async function appealDetail(c: { db: D1Database }, appealId: string) {
  const appeal = await one(c, 'SELECT * FROM cf_appeals WHERE id=?', appealId)
  if (!appeal) fail('NOT_FOUND', 'That appeal does not exist.', 404)
  const [recipients, approval, changed] = await Promise.all([recipientsOf(c, appealId), one(c, "SELECT * FROM cf_approvals WHERE subject_kind='appeal' AND subject_id=?", appealId),
-  one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_appeal_recipients r WHERE r.appeal_id=? AND ${CONSENT} IS NOT r.consent_id`, appealId, appeal.channel)])
+  one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_appeal_recipients r WHERE r.appeal_id=? AND ${CHANGED}`, appealId, appeal.channel)])
  return { appeal, recipients, approval, results: await appealResults(c,appealId), message:await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),messages:await all(c,"SELECT m.*,d.name FROM cf_communications m JOIN cf_donors d ON d.id=m.donor_id WHERE m.source_kind='appeal' AND m.source_id=? ORDER BY m.created_at",appealId), consentChanged: changed?.n ?? 0 }
 }

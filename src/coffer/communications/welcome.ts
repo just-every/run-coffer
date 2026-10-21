@@ -7,13 +7,14 @@ import { settings } from '../settings'
 import { today } from '../db'
 
 const liveDonor = `d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`
+const sendable = `${liveDonor} AND d.constituent_status='active'`
 const consent = `(SELECT k.status FROM cf_consents k WHERE k.donor_id=d.id AND k.channel='email' ORDER BY k.id DESC LIMIT 1)='granted'`
 // Any second recorded gift stops the journey, including one subsequently
 // reversed. A correction must never reactivate a second-gift solicitation.
 const gaveAgain = `EXISTS(SELECT 1 FROM cf_gifts g WHERE g.donor_id=e.donor_id AND g.kind='gift' AND g.id<>e.first_gift_id)`
 const firstStillValid = `EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=e.first_gift_id AND g.donor_id=e.donor_id AND g.net_cents>0)`
 const allowed = `EXISTS(SELECT 1 FROM cf_welcome_enrollments e JOIN cf_donors d ON d.id=e.donor_id
- WHERE e.donor_id=cf_welcome_steps.donor_id AND e.status='active' AND ${liveDonor} AND ${consent}
+ WHERE e.donor_id=cf_welcome_steps.donor_id AND e.status='active' AND ${sendable} AND ${consent}
  AND ${firstStillValid} AND NOT ${gaveAgain})`
 const stepNames = ['thank', 'impact', 'ask'] as const
 
@@ -61,7 +62,7 @@ async function enroll(c: Context) {
   sql(`INSERT OR IGNORE INTO cf_welcome_enrollments(donor_id,first_gift_id,enrolled_at,status,stopped_at)
    SELECT d.id,g.id,?,'active',NULL FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id
    JOIN cf_welcome w ON w.id='welcome'
-   WHERE g.net_cents>0 AND ${liveDonor} AND julianday(g.created_at)>julianday(w.published_at)
+   WHERE g.net_cents>0 AND ${sendable} AND julianday(g.created_at)>julianday(w.published_at)
    AND julianday(g.created_at)<=julianday(?) AND g.received_on>=? AND NOT EXISTS(SELECT 1 FROM cf_gifts prior
     WHERE prior.donor_id=d.id AND prior.kind='gift' AND (julianday(prior.created_at)<julianday(g.created_at)
      OR (julianday(prior.created_at)=julianday(g.created_at) AND prior.id<g.id)))`, c.now, c.now, publishedDay),
@@ -75,8 +76,11 @@ async function enroll(c: Context) {
 
 async function stop(c: Context) {
  await commit(c, [
+  // A deceased or inactive constituent leaves the journey with that reason, before any consent reasoning.
+  sql(`UPDATE cf_welcome_enrollments AS e SET status=(SELECT d.constituent_status FROM cf_donors d WHERE d.id=e.donor_id),stopped_at=? WHERE e.status='active'
+   AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=e.donor_id AND d.constituent_status<>'active')`, c.now),
   sql(`UPDATE cf_welcome_enrollments AS e SET status='unsubscribed',stopped_at=? WHERE e.status='active'
-   AND NOT EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=e.donor_id AND ${liveDonor} AND ${consent})`, c.now),
+   AND NOT EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=e.donor_id AND ${sendable} AND ${consent})`, c.now),
   sql(`UPDATE cf_welcome_enrollments AS e SET status='gave',stopped_at=? WHERE e.status='active' AND ${gaveAgain}`, c.now),
   sql(`UPDATE cf_welcome_enrollments AS e SET status='completed',stopped_at=? WHERE e.status='active' AND NOT ${firstStillValid}`, c.now),
   sql(`UPDATE cf_welcome_steps SET status='cancelled',note='The welcome series stopped before submission.' WHERE status='pending'

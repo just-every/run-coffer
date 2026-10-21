@@ -49,7 +49,8 @@ import { fundReportPage } from './ui/fund-report'
 import { welcomeState } from './communications/welcome'
 import { preferenceState } from './communications/preferences'
 import { replyTasks } from './communications/replies'
-import { callTasks, taskOwners, taskSources } from './call-tasks'
+import { callTasks, taskCandidates, taskOwners } from './call-tasks'
+import { statusNotices } from './status'
 import { lapses } from './lapses'
 import { annualLapses } from './annual-lapses'
 import { annualLapsesPage } from './ui/annual-lapses'
@@ -410,7 +411,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  }
  let m = match(/^\/api\/coffer\/donors\/([^/]+)$/)
  if (m) return json(await donorHistory(c, m[1]))
- if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, batches: await batches(c) }) }
+ if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, held: due.held, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, batches: await batches(c) }) }
  if ((m = match(/^\/api\/coffer\/letters\/([^/]+)$/))) return json(await batchDetail(c, m[1]))
  if ((m = match(/^\/api\/coffer\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
  if (path === '/api/coffer/welcome') return json(await welcomeState(c))
@@ -421,7 +422,8 @@ async function api(c: Context, url: URL): Promise<Response> {
  if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
  if (path === '/api/coffer/reports/annual-lapses') return json(await annualLapses(c,url.searchParams.has('year') ? Number(url.searchParams.get('year')) : undefined))
  if (path === '/api/coffer/lapses') return json(await lapses(c))
- if (path === '/api/coffer/tasks') return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: await taskSources(c) })
+ if (path === '/api/coffer/tasks') { const candidates = await taskCandidates(c); return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: candidates.sources, excluded: candidates.excluded }) }
+ if (path === '/api/coffer/status-notices') return json({ notices: await statusNotices(c) })
  if (path === '/api/coffer/retention') return json(await retention(c,url))
  if (path === '/api/coffer/portfolios') return json(await portfolioReport(c,url))
  const cultivation = path.match(/^\/api\/coffer\/opportunities\/([^/]+)$/)

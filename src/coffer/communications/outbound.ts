@@ -18,13 +18,14 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  (SELECT COUNT(*) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS gift_count,
  (SELECT MAX(received_on) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS last_gift FROM cf_donors d WHERE id=? AND erased_at IS NULL`,input.donorId)
  if(!d) fail('DONOR_CHANGED','This donor is no longer available.',409)
+ const excludedStatus=d.constituent_status!=='active'?d.constituent_status:null
  if(input.expectedEmail!==undefined && input.expectedEmail!==d.email)fail('RECIPIENT_CHANGED','The donor’s email changed after approval. Prepare a new appeal audience.',409)
- const preference=await reconcileDonor(c,d.id,conn.provider==='mailchimp')
+ const preference=excludedStatus?{allowed:false,state:'excluded',note:`The constituent is ${excludedStatus}; no email was sent.`}:await reconcileDonor(c,d.id,conn.provider==='mailchimp')
  const row={id:newId(),email:d.email,name:d.name,subject:mergeMessage(input.subject,input.merge??d),body:mergeMessage(input.body,input.merge??d)}
  const replyTo=(conn.fromEmail??c.env?.COFFER_REPLY_ADDRESS??'').trim().toLowerCase()
  const allowed=preference.allowed||conn.provider==='mango'&&preference.state==='pending'
  const state=allowed?'preparing':'suppressed'
- await commit(c,[...(allowed?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.email=? AND d.erased_at IS NULL AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s email or consent changed before sending.',d.id,d.email)]:[]),sql(`INSERT OR IGNORE INTO cf_communications(id,message_key,donor_id,source_kind,source_id,provider,status,subject,body,reply_to,created_at,note,recipient_email)
+ await commit(c,[...(allowed?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.email=? AND d.erased_at IS NULL AND d.constituent_status='active' AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s email or consent changed before sending.',d.id,d.email)]:[]),sql(`INSERT OR IGNORE INTO cf_communications(id,message_key,donor_id,source_kind,source_id,provider,status,subject,body,reply_to,created_at,note,recipient_email)
  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,row.id,input.key,d.id,input.sourceKind,input.sourceId,conn.provider,state,row.subject,row.body,replyTo,c.now,allowed?'Preparing an email campaign.':preference.note,d.email),
  event(c,'marketing.prepare',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,state})])
  const claim=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)

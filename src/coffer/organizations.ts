@@ -1,3 +1,4 @@
+import { computedHouseholdNames, householdDefaults, householdMembers } from './household-names'
 import { all, commit, event, fail, guard, id, integer, newId, one, optional, sql, text, type Context, type Row } from './db'
 
 export const ORGANIZATION_TYPES = ['business','foundation','church','school','government body','donor-advised fund sponsor'] as const
@@ -30,7 +31,17 @@ export async function organizationState(c:{db:D1Database},donorId:string) {
 }
 /** Address and greeting are separate from the constituent credited by the ledger. */
 export async function letterRecipient(c:{db:D1Database},d:Row):Promise<Row> {
+ if(d.constituent_status==='deceased'&&d.constituent_kind!=='organization')return {...d,...await survivorAddressing(c,d)}
  const contact=d.constituent_kind==='organization'?await one(c,`SELECT d.* FROM cf_organization_contacts r JOIN cf_donors d ON d.id=r.contact_donor_id WHERE r.organization_donor_id=? AND r.is_primary=1 AND d.erased_at IS NULL AND d.constituent_kind='person'`,d.id):null
  return {...d,letter_name:contact?`${d.name}\nAttn: ${contact.name}`:d.name,letter_salutation:contact?informalName(contact):d.name,
   letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,organization:d.constituent_kind==='organization',...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
+}
+/** A receipt for a gift on a deceased constituent's record goes to the surviving household or the estate, never to the deceased. */
+async function survivorAddressing(c:{db:D1Database},d:Row) {
+ const household=d.household_id?await one(c,'SELECT * FROM cf_households WHERE id=?',d.household_id):null
+ const living=household?(await householdMembers(c,household.id)).filter(m=>m.constituent_status!=='deceased'):[]
+ const address=JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,organization:false})
+ if(!household||!living.length){const estate=`Estate of ${d.name}`;return {letter_name:estate,letter_salutation:estate,letter_address:address}}
+ const computed=computedHouseholdNames(living,household.head_donor_id,await householdDefaults(c))
+ return {letter_name:household.addressee_override??computed.addressee,letter_salutation:household.informal_override??computed.informal,letter_address:address}
 }
