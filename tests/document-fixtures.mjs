@@ -1,4 +1,3 @@
-import {donor} from './harness.mjs'
 import {readFileSync} from 'node:fs'
 
 export function agreement(){
@@ -17,12 +16,5 @@ export function documentFormats(){
   {extension:'png',mediaType:'image/png',bytes:readFileSync(new URL('./fixtures/campaign-page/story.png',import.meta.url))},
   {extension:'txt',mediaType:'text/plain',bytes:Buffer.from('Riverbend Literacy Project\nSigned pledge: $1,000 for the reading room.\nAvery Chen — reviewed agreement.\n')},
  ].map(format=>({...format,contentType:format.mediaType==='text/plain'?'text/plain; charset=utf-8':format.mediaType}))
-}
-export async function documentRecords(h,name){
- const constituent=await donor(h,name),owner=(await h.get('/auth/session')).operator
- const gift=await h.command('gift.record',{donorId:constituent.id,amount:'250',receivedOn:'2026-01-05',method:'check',fund:'Library',goods:'none'})
- const pledge=await h.command('pledge.create',{donorId:constituent.id,amount:'1000',pledgedOn:'2026-01-01',fund:'Library',installments:[{dueOn:'2026-12-31',amount:'1000'}]})
- const opportunity=await h.command('prospect.save',{donorId:constituent.id,ownerId:owner.id,label:'Reading room pledge',stage:'identify',askAmount:'1000',expectedCloseOn:'2026-12-31',nextStep:'Review signed pledge'})
- return {constituent,targets:[['donor',constituent.id],['gift',gift.id],['pledge',pledge.id],['opportunity',opportunity.id]]}
 }
 export const documentInput=(donorId,kind,recordId,format,title)=>({donorId,recordRef:`${kind}:${recordId}`,title,fileName:`agreement.${format.extension}`,mediaType:format.mediaType,contentBase64:format.bytes.toString('base64')})

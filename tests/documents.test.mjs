@@ -43,10 +43,9 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   }
   assert.equal((await h.request(`/api/coffer/documents/${own.id}/download`,{as:''})).status,401)
   assert.equal((await h.request(`/api/coffer/documents/${own.id}/preview`,{as:'',headers:{authorization:'Bearer '+agent.token}})).status,403)
-  let browserFiles=0
   if(process.env.COFFER_DOCUMENT_BROWSER){
    const {documentBrowser}=await import('./documents-browser.mjs')
-   browserFiles=await documentBrowser(h,process.env.COFFER_DOCUMENT_BROWSER)
+   await documentBrowser(h,{constituent:ada,targets:[['donor',ada.id],['gift',gift.id],['pledge',pledge.id],['opportunity',prospect.id]]},process.env.COFFER_DOCUMENT_BROWSER)
   }
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date()),file=await h.api(`/api/coffer/donors/${ada.id}/data-request`,{requestedOn:day,method:'email',reference:'DOC-008'})
   const docs=(await h.get('/api/coffer/documents?donorId='+ada.id)).documents
@@ -67,7 +66,7 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'},{as:matrix.admin.cookie})
   assert.equal((await h.get('/api/coffer/documents?donorId='+ada.id)).documents.length,docs.length)
   const saved=await archive(h)
-  assert.equal(saved[0].objects.length,docs.length+1+browserFiles)
+  assert.equal(saved[0].objects.length,docs.length+1)
   const fresh=await installation()
   try{
    const restoredMember=await fresh.person('restored-file-member@example.test')

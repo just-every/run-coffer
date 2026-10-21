@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {withBrowserWorker} from './browser-worker.mjs'
-import {documentFormats,documentRecords} from './document-fixtures.mjs'
+import {documentFormats} from './document-fixtures.mjs'
 
-export async function documentBrowser(h,directory){
+export async function documentBrowser(h,{constituent,targets},directory){
  await mkdir(directory,{recursive:true})
  const admin=await h.person('native-document-admin@example.test','admin'),member=await h.person('native-document-member@example.test')
  return withBrowserWorker(h,async(context,origin)=>{
@@ -13,14 +13,14 @@ export async function documentBrowser(h,directory){
    await context.clearCookies()
    await context.addCookies(cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',httpOnly:true,secure:true,sameSite:'Lax'}}))
    for(const width of [1440,390]){
-    const {constituent,targets}=await documentRecords(h,`Native ${role} ${width}`)
     await page.setViewportSize({width,height:1000})
     const opened=await page.goto(`${origin}/app/donors/${constituent.id}#documents`)
     assert.equal(opened.status(),200)
     const panel=page.locator('#documents')
-    let count=0
+    const initial=await panel.locator('li').count()
+    let count=initial
     for(const [kind,id] of targets)for(const format of documentFormats()){
-     const title=`${kind} agreement ${format.extension}`
+     const title=`${role} ${kind} agreement ${format.extension} ${width}`
      await panel.locator('select[name=recordRef]').selectOption(kind+':'+id)
      await panel.getByLabel('Document title',{exact:true}).fill(title)
      await panel.locator('input[type=file]').setInputFiles({name:`agreement.${format.extension}`,mimeType:format.mediaType,buffer:format.bytes})
@@ -49,7 +49,7 @@ export async function documentBrowser(h,directory){
      }
      await page.goto(`${origin}/app/donors/${constituent.id}#documents`)
     }
-    uploaded+=count
+    uploaded+=count-initial
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${role} documents fit ${width}`)
     await panel.locator('button').scrollIntoViewIfNeeded()
     await page.screenshot({path:`${directory}/DONOR-008-${role}-uploaded-${width}.png`})
