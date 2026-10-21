@@ -5,6 +5,7 @@ import { savedLists } from '../saved-lists'
 import { RELATIONSHIP_TYPES, RELATIONSHIP_LABELS } from '../donor-depth'
 import { box, e, field, form, select } from './common'
 
+const formValues=(values:Record<string,string>)=>Object.entries(values).map(([name,value])=>`<input type="hidden" name="${e(name)}" value="${e(value)}">`).join('')
 const label = (value: string) => value.charAt(0).toUpperCase()+value.slice(1)
 export async function exportsPage(c: Context, url: URL, error = '') {
  requireRole(c.actor,['owner','admin'],'export donor records')
@@ -25,8 +26,8 @@ export async function exportsPage(c: Context, url: URL, error = '') {
   ${select('List','list',[['search','Current donor search'],['lybunt','LYBUNT'],['sybunt','SYBUNT'],...lists.map(l=>[`saved:${l.id}`,l.name] as [string,string])],list)}
   ${select('Record type','type',EXPORT_TYPES.map(t=>[t,label(t)] as [string,string]),type)}
   ${field('Annual list calendar year','year','number',value('year')||today(m.timezone,new Date(m.asOf)).slice(0,4),'min="1900"')}
-  ${list==='search'||list==='lybunt'||list==='sybunt'?filters:'<p>This list uses its saved search filters.</p>'}
   </div><button>Review export</button></form>`)}
+ ${list==='search'||list==='lybunt'||list==='sybunt'?box('Filter this list',`<form method="get" action="/app/exports">${formValues({list,type,year:value('year')})}<div class="fields">${filters}</div><button>Apply list filters</button></form>`):'<p>This list uses its saved search filters.</p>'}
  ${box('Review your download',`<p>${m.listName?`${e(m.listName)} · `:''}${m.memberCount} constituents · ${m.rowCount} ${e(type)} rows.</p>
   <p>${e(m.withheld.statement)}.</p><p>Reviewed as of ${e(m.asOf)} UTC. Dates use ${e(m.timezone)}.</p>
   <p>The download uses the list’s membership when you download it. Coffer records who downloaded it and the row count.</p>
