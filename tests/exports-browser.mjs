@@ -4,11 +4,19 @@ import {withBrowserWorker} from './browser-worker.mjs'
 
 export async function exportsBrowser(h,{listId,headers},directory){
  await mkdir(directory,{recursive:true})
+ const constituent=await h.command('donor.create',{name:'Marisol Alvarez',email:'marisol@example.test',addressLine1:'42 Orchard Lane',city:'Springfield',region:'IL',postalCode:'62701'})
+ await h.command('gift.record',{donorId:constituent.id,amount:'79.25',receivedOn:'2026-10-18',method:'check',fund:'Reading room',goods:'none'})
  await withBrowserWorker(h,async(context,origin)=>{
   await context.setExtraHTTPHeaders({cookie:h.owner,...headers})
   const page=await context.newPage()
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/donors?q=Marisol')
+   await page.getByRole('link',{name:'Marisol Alvarez',exact:true}).waitFor()
+   await page.screenshot({path:`${directory}/exports-donor-search-${width}.png`,fullPage:true})
+   await page.getByRole('link',{name:'Export this list or save its filters',exact:true}).click()
+   await page.getByRole('heading',{name:'Review your download',exact:true}).waitFor()
+   assert.equal(new URL(page.url()).searchParams.get('q'),'Marisol')
    await page.goto(origin+'/app/more')
    await page.getByRole('link',{name:'Export donor records',exact:false}).waitFor()
    await page.screenshot({path:`${directory}/exports-more-${width}.png`,fullPage:true})
