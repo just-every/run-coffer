@@ -16,26 +16,33 @@ function goods(p: Row, giftCents: number) {
  return { kind, cents, description }
 }
 
-/** Gifts are immutable ledger lines in integer cents; corrections are reversals. */
-export async function giftCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
- if (command === 'gift.record') {
-  const donorId = id(p.donorId, 'Donor'), giftId = newId(), cents = amount(p, 'amount', 'Gift amount'), received = date(p.receivedOn, 'Received on')
+/** Prepare a ledger write so a balanced deposit can publish all its gifts atomically. */
+export async function prepareGiftRecord(c: Context, p: Row, suppliedId?: string) {
+  const donorId = id(p.donorId, 'Donor'), giftId = suppliedId ?? newId(), cents = amount(p, 'amount', 'Gift amount'), received = date(p.receivedOn, 'Received on')
   const s = await settings(c), benefit = receiptBenefit(p, cents, received, s)
   if (received > today(s.timezone)) fail('INPUT', 'A gift records money already received; its date cannot be in the future.', 400)
   const allocations = await prepareGiftAllocations(c, p, cents)
   const method = choice(p.method, METHODS, 'how the gift was paid'), reference = optional(p.reference, 'Reference', 100), fund = allocations.length ? allocations[0].fund : optional(p.fund, 'Fund', 100) ?? 'Unrestricted'
   const pledgeId = optional(p.pledgeId, 'Pledge', 100), g = benefit ? { kind: 'none', cents: 0, description: null } : goods(p, cents), note = optional(p.note, 'Note', 1000)
   const attribution = await entryAttribution(c, p, fund, allocations.length > 0)
-  await commit(c, [
-   guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL)", 'NOT_FOUND', 'That donor does not exist.', donorId),
+  const statements = [
+   guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=?))", 'NOT_FOUND', 'That donor does not exist.', donorId, donorId),
    ...(pledgeId ? [guard('EXISTS(SELECT 1 FROM cf_pledges WHERE id=? AND donor_id=?)', 'PLEDGE', 'That pledge belongs to another donor.', pledgeId, donorId)] : []),
    sql("INSERT INTO cf_gifts VALUES(?,1,?,'gift',NULL,?,?,?,?,?,?,?,?,?,?,'manual',?,?)", giftId, donorId, received, cents, method, reference, fund, pledgeId, g.kind, g.cents, g.description, note, c.now, c.actor.name),
    ...benefitStatements(giftId, benefit, s),
    ...giftAllocationStatements(giftId, allocations),
    ...attribution.statements(giftId),
    ...await giftInstallmentStatements(c, p, giftId, donorId, cents, pledgeId),
-   event(c, 'gift.record', 'gift', giftId, donorId, { amountCents: cents, receivedOn: received, campaignId: attribution.campaignId, appeal: attribution.appeal, channel: attribution.channel, ...(allocations.length ? { allocations } : {}) })])
-  return { id: giftId, amountCents: cents, campaignId: attribution.campaignId, appeal: attribution.appeal, channel: attribution.channel, ...(allocations.length ? { allocations } : {}) }
+   event(c, 'gift.record', 'gift', giftId, donorId, { amountCents: cents, receivedOn: received, campaignId: attribution.campaignId, appeal: attribution.appeal, channel: attribution.channel, ...(allocations.length ? { allocations } : {}) })]
+  return { statements, result: { id: giftId, amountCents: cents, campaignId: attribution.campaignId, appeal: attribution.appeal, channel: attribution.channel, ...(allocations.length ? { allocations } : {}) } }
+ }
+
+/** Gifts are immutable ledger lines in integer cents; corrections are reversals. */
+export async function giftCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
+ if (command === 'gift.record') {
+  const write = await prepareGiftRecord(c, p)
+  await commit(c, write.statements)
+  return write.result
  }
  if (command === 'gift.reverse') {
   const giftId = id(p.giftId, 'Gift'), reason = text(p.reason, 'Reason', 300), reversalId = newId()

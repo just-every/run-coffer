@@ -96,11 +96,11 @@ export async function listDonors(c: { db: D1Database }, query: { q?: string | nu
    (SELECT MAX(received_on) FROM cf_monetary_contributions g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
    ${CURRENT('email')} AS email_consent, ${CURRENT('mail')} AS mail_consent
   FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id
-  WHERE NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR lower(h.name) LIKE ? ESCAPE '\\')
+  WHERE NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR d.phone LIKE ? ESCAPE '\\' OR d.source_ref LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cf_donor_aliases a WHERE a.donor_id=d.id AND a.email LIKE ? ESCAPE '\\') OR lower(h.name) LIKE ? ESCAPE '\\')
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id OR r.related_donor_id=d.id) AND r.type=?))
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id AND r.related_donor_id=?) OR (r.related_donor_id=d.id AND r.donor_id=?)))
   AND (?='' OR (d.erased_at IS NULL AND EXISTS(SELECT 1 FROM cf_volunteering v WHERE v.donor_id=d.id) AND (?<>'never-given' OR NOT EXISTS(SELECT 1 FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind IN ('gift','in_kind')))))
-  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, q, ...nameTerms, like, like, relationship, relationship, relatedTo, relatedTo, relatedTo, volunteer, volunteer, PAGE + 1, page * PAGE)
+  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, q, ...nameTerms, like, like, like, like, like, relationship, relationship, relatedTo, relatedTo, relatedTo, volunteer, volunteer, PAGE + 1, page * PAGE)
  const count = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_donors WHERE ${LIVE} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=cf_donors.id)`)
  return { donors: rows.slice(0, PAGE), more: rows.length > PAGE, page, q, total: count?.n ?? 0 }
 }

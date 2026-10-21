@@ -7,7 +7,7 @@ import type { Context, Row } from '../db'
 import { GIFT_PAGE, GIFT_TABS, giftById, giftList, giftProgress, overnight, type GiftScope, type GiftTab } from '../gift-list'
 import { donorPanel } from './gift-panel'
 import { giftLetter } from './letters'
-import { chip, e, empty, hidden, money, paidBy, shortDate } from './common'
+import { field, chip, e, empty, hidden, money, paidBy, shortDate } from './common'
 import { icon } from './icons'
 import { pager } from './ledger'
 
@@ -37,7 +37,7 @@ function readScope(url: URL): GiftScope {
 export async function giftsPage(c: Context, url: URL) {
  const tab = (GIFT_TABS as readonly string[]).includes(url.searchParams.get('tab') ?? '') ? url.searchParams.get('tab') as GiftTab : 'all'
  const pageNo = Math.max(0, Number(url.searchParams.get('page') ?? 0) || 0), scope = readScope(url)
- const list = await giftList(c, tab, pageNo, scope), s = list.settings, boss = manager(c.actor), year = list.today.slice(0, 4)
+ const list = await giftList(c, tab, pageNo, scope, url.searchParams.get('q')??''), s = list.settings, boss = manager(c.actor), year = list.today.slice(0, 4)
  const asked = url.searchParams.get('gift')
  const selected = (asked ? list.rows.find(g => g.id === asked) ?? await giftById(c, asked) : null)
   ?? list.rows.find(g => g.failed_attempts > 0) ?? list.rows[0] ?? null
@@ -79,5 +79,5 @@ export async function giftsPage(c: Context, url: URL) {
  const due = plural(Number(list.counts.letters_all), 'letter')
  const footer = `<div class="cf-overnight" aria-label="Overnight work">${night.run ? `<p>${icon('check', 'cf-dot ok')}<span>Checked ${plural(Number(night.run.checkedCharges), 'Stripe charge')} and ${plural(Number(night.run.checkedPayouts), 'payout')} ${e(shortDate(night.run.at))}. ${due} due.</span></p>` : `<p>${icon('file', 'cf-dot')}<span>${due} due.${boss ? ' <a href="/app/agent/reconcile">Reconcile gifts</a>' : ''}</span></p>`}${lapse ? `<p class="cf-call"><a href="/app/lapses">${icon('phone', 'cf-dot warn')}<span>${e(lapse.name)}, ${e(why)}: call suggested</span>${icon('right', 'cf-chev')}</a></p>` : ''}<p class="cf-updated">Last updated ${e(time)}</p></div>`
 
- return `${strip}<div class="cf-gifts${asked && selected ? ' is-picked' : ''}"><div class="cf-gifts-main"><section class="cf-ledger" aria-label="${TAB_LABELS[tab][0]}">${tabs}${pagerLine}${scopeBar}<div class="cf-ledger-body">${table}</div>${prepareForm}</section>${footer}</div>${panel}</div>`
+ return `<p><a href="/app/gifts/batches">Check and cash batches · deposits</a></p><form method="get" action="/app/gifts">${field('Find a check number','q','search',url.searchParams.get('q')??'')}<button>Find check</button></form>${strip}<div class="cf-gifts${asked && selected ? ' is-picked' : ''}"><div class="cf-gifts-main"><section class="cf-ledger" aria-label="${TAB_LABELS[tab][0]}">${tabs}${pagerLine}${scopeBar}<div class="cf-ledger-body">${table}</div>${prepareForm}</section>${footer}</div>${panel}</div>`
 }

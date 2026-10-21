@@ -334,3 +334,5 @@ test('REPORT-008: giving by state assigns each gift to the address on its date a
 test('GIFT-003: entry, a tracked-link form and a CRM import attribute gifts to funds, a campaign, appeals and channels whose totals sum to the ledger',attributionJourney)
 
 test('DATA-002: live unpaged list exports reconcile all record types and protect custody',async()=>{const {exportsJourney}=await import('./exports-journey.mjs');await exportsJourney()})
+
+test('GIFT-002: keyboard check batches balance once, preserve defaults and legacy lookup, and create a searchable deposit',async()=>{const {giftBatchesJourney}=await import('./gift-batches-journey.mjs');await giftBatchesJourney()})

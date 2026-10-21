@@ -1,3 +1,5 @@
+import { giftBatch, giftBatches } from './gift-batches'
+import { giftBatchesPage } from './ui/gift-batches'
 import { exportsResponse } from './exports-http'
 import { savedLists } from './saved-lists'
 import { exportsPage } from './ui/exports'
@@ -254,6 +256,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    let result
    try { result = command === 'donor.erase' ? await eraseDonor(c, auth.authority, input) : await execute(c, command, input) }
    catch (error: any) {
+    if (!isApi && command.startsWith('giftBatch.') && input.batchId && error instanceof CofferError) return page('Batch gift entry and deposits', `<p role="alert" class="alert">${esc(error.message)}</p>`+await giftBatchesPage(c,new URL('/app/gifts/batches?id='+encodeURIComponent(input.batchId),url)),actor,error.status,'/app/gifts/batches')
     // A rejected appeal form comes back on its own page with the answers kept.
     if (!isApi && command === 'appeal.prepare' && error instanceof CofferError && error.status === 400) return page('Appeals', await appealsPage(c, { error: error.message, values: input }), actor, 400, '/app/appeals')
     if (!isApi && CONNECT.has(command) && error instanceof CofferError) return page('Connect email marketing', await connectPage(c, error.message), actor, error.status ?? 409, '/app/appeals')
@@ -332,6 +335,8 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
+ if(command.startsWith('giftBatch.'))return redirect('/app/gifts/batches?id='+encodeURIComponent(result.id))
+ if(command==='donor.create' && input.returnBatchId)return redirect('/app/gifts/batches?id='+encodeURIComponent(input.returnBatchId)+'&donor='+encodeURIComponent(result.id))
  if(command==='list.save')return redirect('/app/exports?list=saved:'+encodeURIComponent(result.id))
  if (command === 'donor.merge' || command === 'donor.unmerge') return redirect('/app/audit?record='+encodeURIComponent(result.donorId))
  if (CONNECT.has(command)) return redirect('/app/appeals/connect')
@@ -415,6 +420,7 @@ async function api(c: Context, url: URL): Promise<Response> {
   if(year!==null&&!/^\d{4}$/.test(year)||!['calendar','fiscal'].includes(basis))fail('INPUT','Choose a four-digit year and calendar or fiscal basis.',400)
   return json(await householdState(c,decodeURIComponent(path.split('/').at(-1)!),{...(year?{year:Number(year)}:{}),basis:basis as 'calendar'|'fiscal'}))
  }
+ if(path==='/api/coffer/gift-batches')return json(url.searchParams.has('id')?await giftBatch(c,url.searchParams.get('id')!):{batches:await giftBatches(c)})
  if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo'), volunteer:url.searchParams.get('volunteer') }))
  const noteMatch=match(/^\/api\/coffer\/notes\/([^/]+)$/)
  if(noteMatch){
@@ -488,6 +494,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if(path==='/app/gifts/batches')return show('Batch gift entry and deposits',await giftBatchesPage(c,url))
  if(path==='/app/exports')return show('Export donor records',await exportsPage(c,url))
  if (path === '/app/duplicates') return show('Possible duplicates',await duplicatesPage(c,url))
  if (path === '/app/duplicates/compare') return show('Compare donor records',await comparePage(c,url))
