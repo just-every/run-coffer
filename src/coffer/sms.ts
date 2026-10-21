@@ -30,7 +30,7 @@ const restrictionGuards=(c:Context,runId:string,donorIds?:string[])=>solicitatio
 const askSubmission=(c:Context,runId:string,donorId:string)=>solicitationAskStatements(c,'sms',runId,[donorId])
 
 export async function smsCommand(c:Context,command:string,p:Row):Promise<Row|undefined>{
- if(!['sms.preference','sms.prepare','sms.approve','sms.send'].includes(command))return undefined
+ if(!['sms.preference','sms.prepare','sms.approve','sms.send','sms.discard'].includes(command))return undefined
  if(command==='sms.preference'){
   if(!['owner','admin','member'].includes(c.actor.role))fail('FORBIDDEN','A staff person must record SMS permission.',403)
   const donorId=id(p.donorId,'Donor'),status=choice(p.status,['granted','withdrawn'] as const,'SMS permission'),number=phone(p.phone),timezone=zone(p.timezone)
@@ -63,7 +63,10 @@ export async function smsCommand(c:Context,command:string,p:Row):Promise<Row|und
   ]);return {id:runId,version:1,recipients:recipients.length,excluded}
  }
  const runId=id(p.runId,'Text run'),version=integer(Number(p.version),'Text run version',1),state=await smsState(c,runId),run=state.run,recipients=state.recipients as Row[]
- if(run.state==='redacted')fail('REDACTED','This text run was redacted after erasure and cannot be sent. Prepare a new run.',409)
+ if(command==='sms.discard') {
+  await commit(c,[guard("EXISTS(SELECT 1 FROM cf_sms_runs WHERE id=? AND version=? AND state IN ('prepared','approved')) AND NOT EXISTS(SELECT 1 FROM cf_sms_recipients WHERE run_id=? AND state IN ('submitting','submitted','uncertain'))",'SMS_ALREADY_SUBMITTED','Only a run with no submitted or uncertain texts may be discarded.',runId,version,runId),sql("UPDATE cf_sms_runs SET state='discarded',version=version+1 WHERE id=?",runId),event(c,command,'sms',runId,null,{})]);return {id:runId,version:version+1,state:'discarded'}
+ }
+ if(['redacted','discarded'].includes(run.state))fail('REDACTED','This text run was redacted after erasure and cannot be sent. Prepare a new run.',409)
  const runGuard=guard('EXISTS(SELECT 1 FROM cf_sms_runs WHERE id=? AND version=? AND state=?)','VERSION','This text run changed. Refresh before continuing.',runId,version,command==='sms.approve'?'prepared':'approved')
  if(command==='sms.approve'){
   await commit(c,[runGuard,...recipients.flatMap(r=>[...eligibility(r),...pledgeEligibility(run.purpose,r.donor_id)]),...await restrictionGuards(c,runId),sql("UPDATE cf_sms_runs SET state='approved',version=version+1,approved_at=?,approved_by=? WHERE id=?",c.now,c.actor.name,runId),event(c,command,'sms',runId,null,{purpose:run.purpose,recipients:recipients.length})])

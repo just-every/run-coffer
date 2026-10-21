@@ -66,6 +66,7 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
  }
  await run(async h => {
   const person = await donor(h, 'Rae Recovery', {city:'Henderson',region:'KY',postalCode:'42420'})
+  await h.command('solicitation.set',{donorId:person.id,version:0,type:'stop',startsOn:new Date().toISOString().slice(0,10)})
   await h.api('/api/coffer/giving/campaigns', { name: 'Monthly reading', slug: 'monthly-reading', description: 'Reading for all.', fund: 'Reading', goal: '1000.00' })
   const checkout = await h.request('/give/monthly-reading/checkout', form({ name: 'Rae Recovery', email: 'rae.recovery@example.org', amount: '25.00', frequency: 'monthly', requestId: randomUUID() }))
   assert.equal(checkout.status, 303, await checkout.text())

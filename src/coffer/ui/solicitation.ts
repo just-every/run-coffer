@@ -3,9 +3,11 @@ import { solicitationState } from '../solicitation'
 import { box, chip, e, field, form, select } from './common'
 
 export function solicitationBadge(state:Row|undefined):string {
- if(!state||state.type==='none'||!state.active)return ''
+ if(!state)return ''
+ const inherited=(state.inherited??[]).filter((r:Row)=>r.active).map((r:Row)=>solicitationBadge(r)).join(' ')
+ if(state.type==='none'||!state.active)return inherited
  const label=state.type==='stop'?'Do not solicit':state.type==='channels'?`No ${state.channels.join(', ')} appeals`:`At most ${state.max_asks} ask${state.max_asks===1?'':'s'} per calendar year`
- return chip(label,'warn')
+ return chip(label,'warn')+' '+inherited
 }
 
 export async function solicitationPanel(c:Context,donorId:string):Promise<string> {
@@ -20,7 +22,7 @@ export async function solicitationPanel(c:Context,donorId:string):Promise<string
   field('Maximum asks per calendar year','maxAsks','number',state.max_asks??1,'min="1" max="10000"')+
   select('Source','source',[['person','Recorded by a person'],['interaction','Donor request logged as an interaction']],'person')+
   field('Interaction ID (for a logged donor request)','sourceRef')+
-  '<p>Only an owner, admin or assigned relationship manager can replace or clear an existing restriction.</p>',
+  '<p>Only an owner, admin or assigned relationship manager can replace or clear a restriction. Saving replaces the choices for all original records merged into this donor; their prior answers remain in history.</p>',
   'Save restriction',{donorId,version:state.version,returnDonorId:donorId}):''
- return box('Solicitation restriction',explanation+current+editor,'solicitation')
+ return box('Solicitation restriction',explanation+current+(state.inherited?.length?`<p>Restrictions retained from merged original records: ${solicitationBadge({...state,type:'none'})||'none active'}.</p>`:'')+editor,'solicitation')
 }

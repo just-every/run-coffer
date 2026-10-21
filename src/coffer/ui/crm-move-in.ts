@@ -5,13 +5,15 @@ import { exportSteps } from './crm-export-steps'
 export const sources: [string,string][]=[['lgl','Little Green Light'],['bloomerang','Bloomerang'],['re-nxt',"Raiser's Edge NXT"]]
 const name=(source:string)=>sources.find(([key])=>key===source)?.[1]||source
 const sourceGuide=guide('move-in-crm')
+const restrictionMapping=()=>`<details><summary>Map organization-specific communication codes</summary><p>For each code in your exports, write one line: <strong>code = stop</strong>, <strong>code = no mail</strong> (or email, phone, sms), <strong>code = limit 1</strong> (annual asks), or <strong>code = ignore</strong> for an ordinary tag. NXT codes always need this review. Known LGL and Bloomerang Do Not Contact flags retain their channel consent meaning automatically. Your last completed mapping is reused for the same CRM.</p>${area('Code meanings','solicitCodes','','placeholder="Annual appeal only = limit 1&#10;No fundraising = stop"')}</details>`
+
 
 export function crmMoveInPage(jobs:Row[],tz:string) {
  return `<p>Bring your donor records and gift history into Coffer. Preview every file and compare totals before you switch.</p><div class="grid"><div>
  ${box('1. Choose your exports',`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${select('Moving from','source',sources)}
  <label>Export files (CSV or XLSX)<input type="file" name="exports" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required></label>
  <p class="muted">Include the constituent and gift exports, plus relationships, pledges, soft credits and notes if you have them. Workbooks can contain several sheets. One move-in takes up to 16 MB of files and 100,000 rows, about 10,000 donors with 80,000 gifts. Larger? Split the gift export by year and move the years in oldest first, uploading constituents.csv again with each year’s file; donors and pledges already moved in are matched by their CRM ID, not copied.</p>
- <label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
+ ${restrictionMapping()}<label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
  <p class="muted">Leave this unticked if you are unsure. Those gifts wait for a goods answer before a receipt.</p><button>Preview exports</button></form>`)}
  </div><div>${box('Export from your CRM',`<p>Open your CRM’s steps below. Each export needs the record IDs, so gifts find their donors.</p>${exportSteps()}<p><a href="${sourceGuide}">CRM move-in guide</a> covers pledges, soft credits, households and total checks in more detail.</p>`)}
  ${box('Prepare the switch',`<ol class="steps"><li>Export the files above, keeping the record ID columns.</li><li>Check the counts and the gift totals by year, fund and donor against your CRM.</li><li>Fix every row the review marks “Must fix” (it lists them all and downloads them as a spreadsheet), or say why a difference is fine.</li><li>Move it in. Large exports go in parts of about 800 records; Coffer checks the totals again at the end. Undo removes everything this move-in added while nobody has used it yet.</li></ol><p>Exports move history. They do not move stored cards or start or stop recurring charges. Keep the old system until your cutover is complete.</p><p><a href="/app/move-in">Move in from Stripe</a></p>`)}
@@ -61,7 +63,7 @@ function leftOutColumns(columns:Row[]) {
 
 const upload=(source:string,title:string)=>box(title,`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${hidden('source',source)}
  <label>Export files (CSV or XLSX)<input type="file" name="exports" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required></label>
- <label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
+ ${restrictionMapping()}<label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
  <p class="muted">Upload all the files again, not only the one you changed. Reading and checking 100,000 rows takes up to a minute.</p><button>Check the files again</button></form>`,'again')
 
 export function crmReviewPage(job:Row,list:Row,today:string) {
@@ -73,6 +75,7 @@ export function crmReviewPage(job:Row,list:Row,today:string) {
  <div class="grid wide"><div>${rowsToLook(job.id,list)}
  ${box('2. Check totals before switching',`<p>“Your files” counts every gift row exactly as exported. “Coffer” counts the gifts Coffer will hold after the move-in. Pledges and soft credits are promises and recognition, so they are not counted as money received. If you exported a totals report, its numbers are checked too.</p>${totals(r.reconciliation)}`)}
  ${box('Columns left out',leftOutColumns(r.leftOut),'left-out')}
+ ${r.solicitCodes?box('Reviewed communication codes',`<ul>${Object.entries(r.solicitCodes).map(([code,rule])=>`<li>${e(code)}: ${e(JSON.stringify(rule))}</li>`).join('')}</ul>`):''}
  ${records('Donors',r.counts.donors,s.donors,d=>`<strong>${e(d.name)}</strong> · ${e(d.externalId)}${d.householdName?` · ${e(d.householdName)}`:''}`)}
  ${records('Households',r.counts.households,s.households,h=>`${e(h.name)} · ${e(h.externalId.startsWith('members:')?`linked as spouses or at one address`:h.externalId)}`)}
  ${records('Gifts',r.counts.gifts,s.gifts,g=>`${e(g.externalId)} · donor ${e(g.donorExternalId)} · ${longDay(g.receivedOn)} · ${money(g.amountCents)} · ${e(g.fund)}${g.campaign?` · ${e(g.campaign)}`:''}`)}

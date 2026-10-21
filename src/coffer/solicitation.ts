@@ -5,7 +5,9 @@ export const SOLICITATION_CHANNELS = ['email','mail','sms','phone'] as const
 export type SolicitationChannel = typeof SOLICITATION_CHANNELS[number]
 type ReadContext = Pick<Context,'db'>
 export type SolicitationReason = { reason: 'do not solicit' | 'solicitation limit'; lastAskOn: string | null }
-const currentVersion = `COALESCE((SELECT version FROM cf_solicitation WHERE donor_id=?),0)`
+const canonical=(column:string)=>`COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=${column}),${column})`
+const currentVersion = `COALESCE((SELECT SUM(s.version) FROM cf_solicitation s WHERE ${canonical('s.donor_id')}=?),0)`
+const ownVersion = `COALESCE((SELECT version FROM cf_solicitation WHERE donor_id=?),0)`
 const assigned = `EXISTS(SELECT 1 FROM cf_portfolio_members m JOIN cf_portfolios p ON p.id=m.portfolio_id JOIN oa_operators o ON o.id=p.manager_id WHERE m.donor_id=? AND o.id=? AND o.status='active' AND o.role IN ('owner','admin','member'))`
 const live = (donorId:string) => guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))`,'DONOR_CHANGED','Choose a current donor.',donorId)
 const versionGuard = (donorId:string,version:number) => guard(`${currentVersion}=?`,'SOLICITATION_CHANGED','The solicitation restriction changed. Prepare or refresh again.',donorId,version)
@@ -20,42 +22,31 @@ async function calendarDay(c:ReadContext,at?:string) {
 /** Array includes an explicit version-zero/none state for every requested ID. */
 export async function solicitationState(c:ReadContext,donorIds:string[]):Promise<Row[]> {
  if(!donorIds.length)return []
- const rows=await all(c,'SELECT * FROM cf_solicitation WHERE donor_id IN (SELECT value FROM json_each(?))',JSON.stringify([...new Set(donorIds)]))
+ const rows=await all(c,`SELECT s.*,${canonical('s.donor_id')} AS canonical_id FROM cf_solicitation s WHERE ${canonical('s.donor_id')} IN (SELECT value FROM json_each(?))`,JSON.stringify([...new Set(donorIds)]))
  const day=await calendarDay(c)
  return [...new Set(donorIds)].map(donorId=>{
-  const row=rows.find(r=>r.donor_id===donorId)
-  return row?{...row,asOf:day,channels:JSON.parse(row.channels),active:row.type!=='none'&&row.starts_on<=day&&(!row.ends_on||row.ends_on>=day)}:{donor_id:donorId,version:0,type:'none',channels:[],active:false,asOf:day}
+  const group=rows.filter(r=>r.canonical_id===donorId),row=group.find(r=>r.donor_id===donorId)
+  const active=(r:Row)=>r.type!=='none'&&r.starts_on<=day&&(!r.ends_on||r.ends_on>=day)
+  const inherited=group.filter(r=>r.donor_id!==donorId).map(r=>({...r,channels:JSON.parse(r.channels),active:active(r)}))
+  return {...(row?{...row,channels:JSON.parse(row.channels),active:active(row)}:{donor_id:donorId,version:0,type:'none',channels:[],active:false}),asOf:day,scope_version:group.reduce((n,r)=>n+r.version,0),inherited}
+
  })
 }
 
 export async function solicitationReason(c:ReadContext,donorId:string,channel:SolicitationChannel,at?:string):Promise<SolicitationReason|null> {
  choice(channel,SOLICITATION_CHANNELS,'ask channel')
- const day=await calendarDay(c,at),r=await one(c,'SELECT * FROM cf_solicitation WHERE donor_id=?',donorId)
- if(!r||r.type==='none'||r.starts_on>day||(r.ends_on&&r.ends_on<day))return null
- const last=await one(c,'SELECT MAX(asked_on) AS last FROM cf_solicitation_asks WHERE donor_id=? AND asked_on<=?',donorId,day)
- if(r.type==='stop'||(r.type==='channels'&&JSON.parse(r.channels).includes(channel)))return {reason:'do not solicit',lastAskOn:last?.last??null}
- if(r.type==='limit') {
-  const count=await one(c,'SELECT COUNT(*) AS n FROM cf_solicitation_asks WHERE donor_id=? AND asked_on>=? AND asked_on<=?',donorId,day.slice(0,4)+'-01-01',day)
-  if(count!.n>=r.max_asks)return {reason:'solicitation limit',lastAskOn:last?.last??null}
- }
+ const day=await calendarDay(c,at),rows=await all(c,`SELECT s.* FROM cf_solicitation s WHERE ${canonical('s.donor_id')}=? AND s.type<>'none' AND s.starts_on<=? AND (s.ends_on IS NULL OR s.ends_on>=?)`,donorId,day,day)
+ if(!rows.length)return null
+ const last=await one(c,`SELECT MAX(a.asked_on) AS last,COUNT(CASE WHEN a.asked_on>=? THEN 1 END) AS n FROM cf_solicitation_asks a WHERE ${canonical('a.donor_id')}=? AND a.asked_on<=?`,day.slice(0,4)+'-01-01',donorId,day)
+ if(rows.some(r=>r.type==='stop'||r.type==='channels'&&JSON.parse(r.channels).includes(channel)))return {reason:'do not solicit',lastAskOn:last?.last??null}
+ if(rows.some(r=>r.type==='limit'&&last!.n>=r.max_asks))return {reason:'solicitation limit',lastAskOn:last?.last??null}
  return null
 }
 
 export async function solicitationCommand(c:Context,command:string,p:Row):Promise<Row|undefined> {
- if(!['solicitation.set','solicitation.include'].includes(command))return undefined
+ if(command!=='solicitation.set')return undefined
  staff(c)
- const donorId=id(p.donorId,'Donor'),version=integer(Number(p.version),'Restriction version',0)
- if(command==='solicitation.include') {
-  const kind=id(p.kind,'Run kind'),runId=id(p.runId,'Run'),reason=text(p.reason,'Reason for including this donor',1000)
-  const run=await one(c,'SELECT * FROM cf_solicitation_runs WHERE kind=? AND run_id=?',kind,runId)
-  if(!run||!run.is_ask)fail('ASK_RUN','Choose an existing ask run.',400)
-  await commit(c,[live(donorId),versionGuard(donorId,version),
-   guard('NOT EXISTS(SELECT 1 FROM cf_solicitation_asks WHERE kind=? AND run_id=?)','RUN_SUBMITTED','This run has already been submitted.',kind,runId),
-   sql('INSERT INTO cf_solicitation_inclusions VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(kind,run_id,donor_id) DO UPDATE SET restriction_version=excluded.restriction_version,reason=excluded.reason,actor_id=excluded.actor_id,actor_name=excluded.actor_name,recorded_at=excluded.recorded_at',kind,runId,donorId,version,reason,c.actor.id,c.actor.name,c.now),
-   event(c,command,kind,runId,donorId,{reason,restrictionVersion:version}),
-  ])
-  return {donorId,kind,runId,reason,actorId:c.actor.id,actorName:c.actor.name}
- }
+ const donorId=id(p.donorId,'Donor')
  const write=await solicitationWriteStatements(c,p)
  await commit(c,write.statements)
  return (await solicitationState(c,[donorId]))[0]
@@ -85,16 +76,22 @@ export async function solicitationWriteStatements(c:Context,p:Row,trustedSource?
  if((source==='portal'||source==='import')&&source!==trustedSource)fail('SOURCE','Use the portal or reviewed importer to record this source.',400)
  if(trustedSource&&(source!==trustedSource||!sourceRef))fail('SOURCE','A trusted source needs its system or request reference.',400)
  if(source==='interaction'&&!sourceRef)fail('INPUT','Choose the donor request interaction.',400)
- const existing=await one(c,'SELECT type FROM cf_solicitation WHERE donor_id=?',donorId)
+ const originals=await all(c,`SELECT s.* FROM cf_solicitation s WHERE ${canonical('s.donor_id')}=?`,donorId)
  // Changing an existing restriction can relax it as surely as clearing it.
- const requiresManager=!!existing&&existing.type!=='none'
+ const requiresManager=originals.some(r=>r.type!=='none')
  if(requiresManager&&!['owner','admin'].includes(c.actor.role)&&!await one(c,`SELECT 1 AS ok WHERE ${assigned}`,donorId,c.actor.id))fail('FORBIDDEN','Only an owner, admin or assigned relationship manager can replace or clear a restriction.',403)
  const answer={type,startsOn,endsOn,channels:type==='channels'?selected:[],maxAsks,period:type==='limit'?'calendar-year':null,source,sourceRef,sourceOn,actorId:c.actor.id,actorName:c.actor.name,at:c.now}
- const statements=[live(donorId),versionGuard(donorId,version),
+ const statements=[live(donorId),guard(`${ownVersion}=?`,'SOLICITATION_CHANGED','The solicitation restriction changed. Refresh again.',donorId,version),
   ...(requiresManager&&!['owner','admin'].includes(c.actor.role)?[guard(assigned,'MANAGER_CHANGED','The assigned relationship manager changed.',donorId,c.actor.id)]:[]),
   ...(source==='interaction'?[guard('EXISTS(SELECT 1 FROM cf_interactions WHERE id=? AND donor_id=?)','SOURCE_CHANGED','Choose a request on this donor’s timeline.',sourceRef,donorId)]:[]),
   sql('INSERT INTO cf_solicitation VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(donor_id) DO UPDATE SET version=excluded.version,type=excluded.type,starts_on=excluded.starts_on,ends_on=excluded.ends_on,channels=excluded.channels,max_asks=excluded.max_asks,source=excluded.source,source_ref=excluded.source_ref,source_on=excluded.source_on,recorded_at=excluded.recorded_at,recorded_by_id=excluded.recorded_by_id,recorded_by_name=excluded.recorded_by_name',donorId,version+1,type,startsOn,endsOn,JSON.stringify(answer.channels),maxAsks,source,sourceRef,sourceOn,c.now,c.actor.id,c.actor.name),
   sql('INSERT INTO cf_solicitation_history VALUES(?,?,?)',donorId,version+1,JSON.stringify(answer)),
+  ...originals.filter(r=>r.donor_id!==donorId&&r.type!=='none').flatMap(r=>[
+   guard('EXISTS(SELECT 1 FROM cf_solicitation WHERE donor_id=? AND version=?)','SOLICITATION_CHANGED','An original merged restriction changed.',r.donor_id,r.version),
+   sql("UPDATE cf_solicitation SET version=version+1,type='none',channels='[]',max_asks=NULL,source=?,source_ref=?,source_on=?,recorded_at=?,recorded_by_id=?,recorded_by_name=? WHERE donor_id=?",source,sourceRef,sourceOn,c.now,c.actor.id,c.actor.name,r.donor_id),
+   sql('INSERT INTO cf_solicitation_history VALUES(?,?,?)',r.donor_id,r.version+1,JSON.stringify({...answer,type:'none',channels:[],maxAsks:null,period:null,resolvedAtDonorId:donorId})),
+   event(c,'solicitation.resolveMerged','donor',r.donor_id,donorId,{originalDonorId:r.donor_id,version:r.version+1,answer}),
+  ]),
   event(c,'solicitation.set','donor',donorId,donorId,{...answer,version:version+1}),
  ]
  return {donorId,version:version+1,statements}
@@ -110,7 +107,8 @@ export async function prepareSolicitationRun(c:Context,input:{kind:string;id:str
  id(kind,'Run kind');id(runId,'Run');choice(channel,SOLICITATION_CHANNELS,'ask channel')
  if(typeof isAsk!=='boolean')fail('INPUT','Mark the outbound run as an ask or not an ask.',400)
  const states=await solicitationState(c,donorIds),recipients:Row[]=[],excluded:Row[]=[]
- for(const state of states) {
+ for(const ownState of states) {
+  const state={...ownState,version:ownState.scope_version}
   const savedException=await one(c,'SELECT * FROM cf_solicitation_inclusions WHERE kind=? AND run_id=? AND donor_id=? AND restriction_version=?',kind,runId,state.donor_id,state.version)
   const exception=explicit.has(state.donor_id)?{donor_id:state.donor_id,restriction_version:state.version,reason:explicit.get(state.donor_id),actor_id:c.actor.id,actor_name:c.actor.name,recorded_at:c.now}:savedException
   const reason=isAsk?await solicitationReason(c,state.donor_id,channel,c.now):null
@@ -139,9 +137,9 @@ export async function solicitationRunGuards(c:Context,kind:string,runId:string,d
   guard('EXISTS(SELECT 1 FROM cf_solicitation_recipients WHERE kind=? AND run_id=? AND donor_id=? AND restriction_version=?)','ASK_RUN_CHANGED','The frozen audience changed. Prepare again.',kind,runId,r.donor_id,r.restriction_version),...(run.is_ask?[guard(`
   EXISTS(SELECT 1 FROM cf_solicitation_asks WHERE kind=? AND run_id=? AND donor_id=?) OR
   EXISTS(SELECT 1 FROM cf_solicitation_inclusions WHERE kind=? AND run_id=? AND donor_id=? AND restriction_version=?) OR
-  NOT EXISTS(SELECT 1 FROM cf_solicitation s WHERE s.donor_id=? AND s.type<>'none' AND s.starts_on<=? AND (s.ends_on IS NULL OR s.ends_on>=?) AND
+  NOT EXISTS(SELECT 1 FROM cf_solicitation s WHERE ${canonical('s.donor_id')}=? AND s.type<>'none' AND s.starts_on<=? AND (s.ends_on IS NULL OR s.ends_on>=?) AND
    (s.type='stop' OR (s.type='channels' AND EXISTS(SELECT 1 FROM json_each(s.channels) WHERE value=?)) OR
-    (s.type='limit' AND (SELECT COUNT(*) FROM cf_solicitation_asks a WHERE a.donor_id=s.donor_id AND a.asked_on>=? AND a.asked_on<=?)>=s.max_asks)))`,
+    (s.type='limit' AND (SELECT COUNT(*) FROM cf_solicitation_asks a WHERE ${canonical('a.donor_id')}=${canonical('s.donor_id')} AND a.asked_on>=? AND a.asked_on<=?)>=s.max_asks)))`,
   'SOLICITATION_RESTRICTED','This donor is now excluded by their solicitation restriction. Prepare again.',kind,runId,r.donor_id,kind,runId,r.donor_id,r.restriction_version,r.donor_id,day,day,run.channel,year,day)]:[])])
 }
 

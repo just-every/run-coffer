@@ -1,3 +1,4 @@
+import { runGiftRules } from '../gift-rules'
 import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
 import { email, fail, newId, one, sql, type Context } from '../db'
 import { settings } from '../settings'
@@ -63,6 +64,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
     AND NOT EXISTS(SELECT 1 FROM cf_events WHERE action='payments.gift' AND subject_id=cf_gifts.id)`, now, JSON.stringify({ chargeId, amountCents: gross }), reference),
   ], authority)
   gift = await one(c, "SELECT * FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'", reference)
+  if(gift)await runGiftRules(env,gift.id)
  }
  if (!gift || gift.amount_cents > gross) fail('payment_mismatch', 'The saved gift differs from this Stripe charge.', 409)
  // Saved-page move-in already netted refunds. Preserve those originals, and

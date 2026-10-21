@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {donor,reviewed,archive,restore,installation,settings as settingsInput} from './harness.mjs'
 
 const history=(h,id)=>h.get('/api/coffer/donors/'+id)
-const facts=h=>({gifts:h.gifts,pledges:h.pledges,credits:h.giftDepth,consents:h.consents,letters:h.letters,recognition:h.recognition})
+const facts=h=>({gifts:h.gifts,pledges:h.pledges,credits:h.giftDepth,solicitation:h.solicitation,consents:h.consents,letters:h.letters,recognition:h.recognition})
 export async function householdsJourney(h) {
  await reviewed(h)
  const member=await h.person('household-entry@example.test'),admin=await h.person('household-admin@example.test','admin')
@@ -57,6 +57,7 @@ export async function householdsJourney(h) {
  const portfolio=await h.command('portfolio.save',{name:'Library supporters',managerId:member.id,untouchedDays:30})
  await h.command('portfolio.assign',{donorId:jane.id,portfolioId:portfolio.id})
  const portfoliosBefore=await h.get('/api/coffer/portfolios')
+ await h.command('solicitation.set',{donorId:jane.id,version:0,type:'stop',startsOn:'2025-01-01'})
  const beforeR=facts(await history(h,robert.id)),beforeJ=facts(await history(h,jane.id))
  const oldAudit=(await h.get('/api/coffer/audit?action=donor.create')).rows
  const stale=(await state()).household.version

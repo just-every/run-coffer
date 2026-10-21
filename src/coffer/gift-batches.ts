@@ -50,7 +50,7 @@ export async function giftBatchCommand(c: Context, command: string, p: Row): Pro
    ...writes.flatMap(write=>write.statements),sql('UPDATE cf_batch_entries SET gift_id=id WHERE batch_id=?',batchId),
    sql("UPDATE cf_gift_batches SET status='closed',closed_at=?,closed_by=?,version=version+1 WHERE id=?",c.now,c.actor.name,batchId),
    event(c,command,'giftBatch',batchId,null,{giftCount:batch.entries.length,amountCents:batch.total_cents})])
-  return { id:batchId,depositId:batchId,version:version+1 }
+  return { id:batchId,depositId:batchId,version:version+1,giftIds:batch.entries.map(e=>e.id) }
  }
  return undefined
 }

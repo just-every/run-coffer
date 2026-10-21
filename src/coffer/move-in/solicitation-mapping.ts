@@ -17,15 +17,15 @@ export function sourceRestrictions(r:SourceRow,out:ParsedImport,input:ParseInput
  if(!raw)return
  if(!donorExternalId){r.error('SOLICITATION_DONOR','Restriction needs a constituent ID.','donorId');return}
  const sourceOn=r.peek('restrictionDate')?r.date('restrictionDate'):''
- const codes=[...new Set((out.source==='re-nxt'&&input.solicitCodes&&Object.hasOwn(input.solicitCodes,raw)?[raw]:raw.split(/[;,|\r\n]+/)).map(s=>s.trim()).filter(Boolean))].sort()
+ const codes=[...new Set((input.solicitCodes&&Object.hasOwn(input.solicitCodes,raw)?[raw]:raw.split(/[;,|\r\n]+/)).map(s=>s.trim()).filter(Boolean))].sort()
  let stop=false,limit:number|null=null
  const restricted=new Set<string>(),withdrawals=new Set<'email'|'mail'|'phone'|'sms'>()
  const configured=input.solicitCodes??{}
  if(typeof configured!=='object'||Array.isArray(configured)){r.error('SOLICITATION_MAPPING','Supply an explicit solicit-code mapping object.');return}
  if(Object.keys(configured).length>200){r.error('SOLICITATION_MAPPING','Use at most 200 configured solicit codes.');return}
  for(const code of codes) {
-  const dictionary=out.source==='re-nxt'?configured:known,key=out.source==='re-nxt'?code:normalizeLabel(code)
-  const mapping=Object.hasOwn(dictionary,key)?dictionary[key]:undefined
+  const key=normalizeLabel(code)
+  const mapping=Object.hasOwn(configured,code)?configured[code]:out.source!=='re-nxt'&&Object.hasOwn(known,key)?known[key]:undefined
   if(!mapping) {
    r.error('SOLICITATION_CODE',`Map communication code “${code}” explicitly before importing; its restriction cannot be guessed.`,'communicationRestrictions');continue
   }

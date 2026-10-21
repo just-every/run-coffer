@@ -12,6 +12,7 @@ export function morePage(actor: Actor) {
  return `<ul class="tiles">
   ${boss ? '<li><a href="/app/audit"><strong>Audit log</strong><span>Browse and export changes, approvals, downloads, sign-ins and agent actions.</span></a></li>' : ''}
   ${boss?'<li><a href="/app/exports"><strong>Export donor records</strong><span>Save live search lists and download CSVs by record type.</span></a></li>':''}
+  ${boss?'<li><a href="/app/gift-rules"><strong>Gift rules</strong><span>Review first-gift tags, thank-you calls and fund notifications.</span></a></li>':''}
   ${boss?'<li><a href="/app/texts"><strong>Text messages</strong><span>Review SMS permission, prepare an appeal or thank-you and approve a text run.</span></a></li>':''}
   <li><a href="/app/duplicates"><strong>Possible duplicates</strong><span>Compare donor records, combine their histories and undo a merge.</span></a></li>
   ${boss ? '<li><a href="/app/agent"><strong>Development agent</strong><span>Reconcile gifts, recover monthly gifts, queue receipts and draft stewardship.</span></a></li>' : ''}

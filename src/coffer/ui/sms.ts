@@ -15,5 +15,5 @@ export async function textsPage(c:Context,runId?:string):Promise<string>{
  const r=state.run
  return box(r.name,note+`<p>${chip(r.purpose==='appeal'?'Ask':'Not an ask')} ${chip(r.state)}</p><blockquote>${e(r.body)}</blockquote><p>Prepared by ${e(r.prepared_by)}${r.approved_by?`; approved by ${e(r.approved_by)}`:''}.</p>`+
   `<ul>${state.recipients.map((d:any)=>`<li>${e(d.name)} · ${e(d.timezone)} · ${e(d.state==='submitting'?'Submission in progress or uncertain':d.state)}${d.provider_status?` (${e(d.provider_status)})`:''}</li>`).join('')}</ul><h3>Excluded</h3><ul>${r.excluded.map((x:any)=>`<li>${e(x.donorId)}: ${e(x.reason)}</li>`).join('')}</ul>`+
-  (manager?form(r.state==='prepared'?'sms.approve':'sms.send','',r.state==='prepared'?'Approve exact message and recipients':'Send approved texts now',{runId:r.id,version:r.version}):''))
+  (manager&&['prepared','approved'].includes(r.state)?form(r.state==='prepared'?'sms.approve':'sms.send','',r.state==='prepared'?'Approve exact message and recipients':'Send approved texts now',{runId:r.id,version:r.version})+form('sms.discard','<p>Discard only before any text has been submitted or has an uncertain result.</p>','Discard unsent run',{runId:r.id,version:r.version},'secondary'):''))
 }

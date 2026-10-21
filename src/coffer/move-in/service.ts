@@ -23,8 +23,8 @@ export async function preview(c: Context,input: ParseInput) {
  authorize(c)
  if(!input || !Array.isArray(input.files) || input.files.some(f=>!f||typeof f.name!=='string'||typeof f.base64!=='string'))fail('MOVE_IN_INPUT','Supply named CSV or XLSX files and their base64 contents.',400)
  // Reuse the last successfully reviewed code dictionary unless this review supplies one.
- if(input.source==='re-nxt'&&input.solicitCodes===undefined) {
-  const saved=await one(c,"SELECT json_extract(report,'$.solicitCodes') AS mapping FROM cf_move_in_jobs WHERE source='re-nxt' AND state='completed' AND json_type(report,'$.solicitCodes')='object' ORDER BY created_at DESC LIMIT 1")
+ if(input.solicitCodes===undefined) {
+  const saved=await one(c,"SELECT json_extract(report,'$.solicitCodes') AS mapping FROM cf_move_in_jobs WHERE source=? AND state='completed' AND json_type(report,'$.solicitCodes')='object' ORDER BY created_at DESC LIMIT 1",input.source)
   if(saved?.mapping)input={...input,solicitCodes:JSON.parse(saved.mapping)}
  }
  const parsed=await parseExports(input)

@@ -1,3 +1,4 @@
+import { runGiftRules } from '../gift-rules'
 import { tributeGiftStatement } from './tribute'
 import { giftRecognitionStatement } from '../recognition'
 import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
@@ -75,6 +76,7 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'stripe','Stripe','agent','giving.paid','gift',?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_events WHERE action='giving.paid' AND subject_id=?)`).bind(now, id, intent.donor_id, JSON.stringify({ amountCents: cents, campaignId: intent.campaign_id }), id),
  ])
+ await runGiftRules(env,id)
  await sendOnlineReceipt(env, id)
  return id
 }
