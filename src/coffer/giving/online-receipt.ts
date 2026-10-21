@@ -1,3 +1,4 @@
+import { receiptAcceptance } from '../gift-ack-receipt'
 import { letterRecipient } from '../organizations'
 import { letterHash } from '../acknowledgements'
 import { one, today } from '../db'
@@ -39,7 +40,8 @@ export async function sendOnlineReceipt(env: GivingEnv, giftId: string): Promise
  if (!claim.meta.changes) return
  try {
   const sent = await sendReceipt(env, { ...(await one(c, 'SELECT * FROM cf_acks WHERE id=?', letterId))!, attempt_id: attempt })
-  await env.DB.prepare("UPDATE cf_acks SET message_id=?,submitted_at=?,delivery_status=CASE WHEN delivery_status='sending' THEN 'submitted' ELSE delivery_status END WHERE id=? AND attempt_id=?").bind(sent.messageId, now, letterId, attempt).run()
+  const receiptContext={db:env.DB,now,actor:{id:SYSTEM[0],name:SYSTEM[1],role:'owner' as const},authority:{sql:'1',params:[]}}
+  await env.DB.batch((await receiptAcceptance(receiptContext,{id:letterId,attempt_id:attempt},sent.messageId)).map(s=>env.DB.prepare(s.sql).bind(...s.params)))
  } catch (error: any) {
   const refused = ['mail_rejected', 'mail_rate_limited', 'mail_unavailable'].includes(error?.code)
   await env.DB.prepare("UPDATE cf_acks SET route=CASE WHEN ? THEN 'print' ELSE route END,delivery_status=?,delivery_note=? WHERE id=? AND attempt_id=? AND delivery_status='sending'")

@@ -14,9 +14,9 @@ const MAX_LETTERS = 500
 // reversed, is in no live letter and its donor has not been erased.
 export const DUE_ANY = `g.kind='gift' AND (g.amount_cents>=min(?,25000) OR (g.amount_cents>7500 AND g.goods='provided' AND g.goods_cents>0 AND g.goods_cents<g.amount_cents)) AND d.erased_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
- AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1)
+ AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1 AND (a.delivery_status NOT IN ('bounced','rejected','complained') OR a.printed_at IS NOT NULL))
  AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)
- AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND k.status<>'not acknowledged')`
+ AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND (k.status<>'not acknowledged' OR k.outcome_unknown=1))`
 // An inactive constituent's gifts wait outside the letter list, counted under that reason (DONOR-012).
 // A deceased donor's gift is still receipted, addressed to the estate or the surviving household (letterRecipient).
 export const DUE = `${DUE_ANY} AND d.constituent_status<>'inactive'`
@@ -28,6 +28,7 @@ export async function dueGifts(c: { db: D1Database }) {
  await receiptFundLabels(c,rows)
  const held = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${DUE_ANY} AND d.constituent_status='inactive'`, s.threshold_cents)
  return {
+  softCredits: s.thank_soft_credits ? await all(c,`SELECT s.id,s.gift_id,s.donor_id,d.name AS donor_name,g.received_on,min(s.amount_cents,g.net_cents) AS recognized_cents,COALESCE(a.version,0) AS version FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id JOIN cf_donors d ON d.id=s.donor_id LEFT JOIN cf_soft_credit_acknowledgments a ON a.soft_credit_id=s.id WHERE d.erased_at IS NULL AND d.constituent_status='active' AND g.net_cents>0 AND COALESCE(a.status,'not acknowledged')='not acknowledged' AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id) ORDER BY g.received_on,s.id`) : [],
   settings: s, today: day, held: { inactive: held?.n ?? 0 },
   gifts: rows.map((g): Row => { const due = addDays(g.received_on, s.target_days); return { ...g, due_on: due, overdue: day > due, age_days: daysBetween(g.received_on, day) } }),
  }
@@ -60,6 +61,7 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
    guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version), templatesUnchanged(revision),
    guard(`(SELECT count(*) FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id IN (SELECT value FROM json_each(?)) AND g.goods<>'unknown' AND ${DUE})=?`, 'NOT_DUE', 'A gift changed while preparing. Prepare again.', JSON.stringify(letters.map(l => l.gift_id)), s.threshold_cents, letters.length),
    guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE COALESCE((SELECT version FROM cf_gift_tributes WHERE gift_id=json_extract(j.value,'$.giftId')),0)<>json_extract(j.value,'$.version'))", 'TRIBUTE_CHANGED', 'A tribute changed while preparing. Prepare the letters again.', JSON.stringify(chosen.map(g => ({ giftId: g.id, version: tributes.get(g.id)?.version ?? 0 })))),
+   sql("UPDATE cf_acks SET live=0 WHERE gift_id IN (SELECT value FROM json_each(?)) AND live=1 AND delivery_status IN ('bounced','rejected','complained') AND printed_at IS NULL",JSON.stringify(chosen.map(g=>g.id))),
    sql("INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,'prepared',?,?,?,?,?,?,?,?)", batchId, hash, letters.length, total, s.version, c.actor.id, c.actor.name, c.actor.role, c.now),
    sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,template_kind,template_id,template_version,merge_blanks)
     SELECT json_extract(value,'$.id'),json_extract(value,'$.batch_id'),json_extract(value,'$.position'),json_extract(value,'$.gift_id'),json_extract(value,'$.donor_id'),1,json_extract(value,'$.recipient_name'),json_extract(value,'$.recipient_email'),json_extract(value,'$.address'),json_extract(value,'$.subject'),json_extract(value,'$.body'),json_extract(value,'$.amount_cents'),json_extract(value,'$.received_on'),json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version'),json_extract(value,'$.merge_blanks') FROM json_each(?)`, JSON.stringify(letters)),
@@ -104,9 +106,9 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
  // The export date is the organization's calendar day, like Sent on itself.
  if (sentOn > today(timezone) || sentOn < today(timezone, new Date(batch.exported_at))) fail('INPUT', 'Sent on must be between the export date and today.', 400)
  await commit(c, [at(['exported']), currentLetterGifts(batchId), bump('sent', ',sent_on=?,sent_method=?,sent_recorded_by=?', sentOn, method, c.actor.name),
-  sql(`INSERT INTO cf_gift_acknowledgments(gift_id,status,acknowledged_on,method,batch_id,letter_id,reason,source,updated_at,updated_by)
-   SELECT gift_id,'acknowledged',?,'letter',batch_id,id,NULL,'Coffer letter batch',?,? FROM cf_acks WHERE batch_id=? AND gift_id IS NOT NULL
-   ON CONFLICT(gift_id) DO UPDATE SET status=excluded.status,acknowledged_on=excluded.acknowledged_on,method=excluded.method,batch_id=excluded.batch_id,letter_id=excluded.letter_id,reason=NULL,source=excluded.source,source_reference=NULL,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,sentOn,c.now,c.actor.name,batchId), event(c, 'ack.markSent', 'acknowledgements', batchId, null, { sentOn, method })])
+  sql(`INSERT INTO cf_gift_acknowledgments(gift_id,status,acknowledged_on,method,batch_id,letter_id,reason,source,updated_at,updated_by,updated_by_id,updated_by_role)
+   SELECT gift_id,'acknowledged',?,'letter',batch_id,id,NULL,'Coffer letter batch',?,?,?,? FROM cf_acks WHERE batch_id=? AND gift_id IS NOT NULL
+   ON CONFLICT(gift_id) DO UPDATE SET version=version+1,status=excluded.status,acknowledged_on=excluded.acknowledged_on,method=excluded.method,interaction_id=NULL,note_id=NULL,communication_id=NULL,outcome_unknown=0,change_source='automatic',batch_id=excluded.batch_id,letter_id=excluded.letter_id,reason=NULL,source=excluded.source,source_reference=NULL,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,sentOn,c.now,c.actor.name,c.actor.id,c.actor.role,batchId), event(c, 'ack.markSent', 'acknowledgements', batchId, null, { sentOn, method })])
  return { id: batchId, version: version + 1, status: 'sent' }
 }
 

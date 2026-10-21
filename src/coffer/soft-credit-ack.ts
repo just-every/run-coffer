@@ -9,8 +9,8 @@ export async function softCreditAckCommand(c: Context, command: string, p: Row):
  if (!['softCredit.acknowledge', 'softCredit.resetAcknowledgment', 'softCredit.doNotAcknowledge'].includes(command)) return undefined
  requireRole(c.actor, command === 'softCredit.doNotAcknowledge' ? ['owner', 'admin'] : ['owner', 'admin', 'member'], 'change this soft-credit acknowledgment')
  const creditId = id(p.softCreditId, 'Soft credit'), version = integer(p.version, 'Version', 0)
- const credit = await one(c, `SELECT s.*,g.received_on FROM cf_soft_credits s JOIN cf_gifts g ON g.id=s.gift_id
-  JOIN cf_donors d ON d.id=s.donor_id WHERE s.id=? AND d.erased_at IS NULL
+ const credit = await one(c, `SELECT s.*,g.received_on,COALESCE(a.status,'not acknowledged') AS old_status FROM cf_soft_credits s JOIN cf_gifts g ON g.id=s.gift_id
+  JOIN cf_donors d ON d.id=s.donor_id LEFT JOIN cf_soft_credit_acknowledgments a ON a.soft_credit_id=s.id WHERE s.id=? AND d.erased_at IS NULL
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`, creditId)
  if (!credit) fail('NOT_FOUND', 'That soft credit no longer exists on a live donor.', 404)
  const status = command === 'softCredit.acknowledge' ? 'acknowledged' : command === 'softCredit.doNotAcknowledge' ? 'do not acknowledge' : 'not acknowledged'
@@ -38,7 +38,7 @@ export async function softCreditAckCommand(c: Context, command: string, p: Row):
   ...evidence,
   sql(`INSERT INTO cf_soft_credit_acknowledgments(soft_credit_id,version,status,acknowledged_on,method,interaction_id,note_id,reason,updated_at,updated_by)
    VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(soft_credit_id) DO UPDATE SET version=excluded.version,status=excluded.status,acknowledged_on=excluded.acknowledged_on,method=excluded.method,interaction_id=excluded.interaction_id,note_id=excluded.note_id,reason=excluded.reason,updated_at=excluded.updated_at,updated_by=excluded.updated_by`, creditId, version + 1, status, acknowledgedOn, method, interactionId, noteId, reason, c.now, c.actor.name),
-  event(c, command, 'softCredit', creditId, credit.donor_id, { status, acknowledgedOn, method, interactionId, noteId, version: version + 1 }),
+  event(c, command, 'softCredit', creditId, credit.donor_id, { oldStatus:credit.old_status, source:'manual', status, acknowledgedOn, method, interactionId, noteId, version: version + 1 }),
  ])
  return { id: creditId, donorId: credit.donor_id, version: version + 1, status, acknowledgedOn, method, interactionId, noteId, reason }
 }

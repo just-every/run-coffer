@@ -46,3 +46,5 @@ test('RCPT-005: written acknowledgments, quid pro quo, frozen token exceptions, 
 test('RCPT-007 / RCPT-010: reviewed thank-you templates by kind and campaign, checked facts, precedence and the version on every letter',async()=>{const {letterTemplatesJourney}=await import('./letter-templates-journey.mjs');await letterTemplatesJourney()})
 
 test('RCPT-008: annual receipt numbers, half-refund corrections, voided reversals, property custody and approved corrected delivery',async()=>{const {receiptCorrectionsJourney}=await import('./receipt-corrections-journey.mjs');await receiptCorrectionsJourney()})
+
+test('RCPT-011a: versioned gift thank-yous, role boundaries, separate soft-credit queue, sender acceptance and bounce recovery',async()=>{const {receiptStatusJourney}=await import('./receipt-status-journey.mjs');await receiptStatusJourney()})

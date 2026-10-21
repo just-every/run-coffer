@@ -1,3 +1,4 @@
+import { receiptAcceptance } from './gift-ack-receipt'
 import { readReceiptDelivery } from './receipt-activity'
 import type { Bindings } from '../auth.server'
 import { batchLetters, letterHash, currentLetterGifts } from './acknowledgements'
@@ -63,7 +64,7 @@ export async function deliveryCommand(c: Context, command: string, p: Row): Prom
   if (!letter || letter.void_reason || letter.attempt_id !== attempt || letter.route !== 'email') continue
   try {
    const sent = await sendReceipt(c.env, letter)
-   await c.db.prepare("UPDATE cf_acks SET message_id=?,submitted_at=?,delivery_status=CASE WHEN delivery_status='sending' THEN 'submitted' ELSE delivery_status END WHERE id=? AND attempt_id=?").bind(sent.messageId, c.now, l.id, attempt).run()
+   await c.db.batch((await receiptAcceptance(c,letter,sent.messageId)).map(s=>c.db.prepare(s.sql).bind(...s.params)))
   } catch (error: any) {
    if (['mail_rejected','mail_rate_limited'].includes(error?.code)) {
     await c.db.prepare("UPDATE cf_acks SET route='print',delivery_status='rejected',delivery_note='The provider did not accept this email. This letter is in the print batch.' WHERE id=? AND attempt_id=? AND delivery_status='sending'").bind(l.id, attempt).run()
@@ -99,7 +100,7 @@ export async function receiptEvents(request: Request, env: Bindings): Promise<Re
    incoming.push({ id: e.sg_event_id, letterId: e.coffer_letter_id, attempt: e.coffer_attempt_id,
     state: e.event === 'open' ? 'opened' : e.event === 'delivered' ? 'delivered' : e.event === 'spamreport' ? 'complained' : 'bounced', occurred: new Date(e.timestamp * 1000).toISOString() })
   }
-  if (incoming.length) await recordDeliveryEvents(env.DB, incoming)
+  if (incoming.length) await recordDeliveryEvents(env.DB, incoming, true)
   return Response.json({ ok: true }, { headers: { 'cache-control': 'no-store' } })
  } catch (error: any) {
   return Response.json({ error: error.code ?? 'INVALID_EVENT', message: error.code ? error.message : 'Invalid delivery event.' }, { status: error.status ?? 400 })
@@ -112,12 +113,13 @@ async function recordDelivery(db: D1Database, letterId: string, attempt: string,
 
 // Bulk intake stays within the free Worker subrequest budget even for a large
 // provider event batch. The actual event rows, rather than arrival order, decide.
-async function recordDeliveryEvents(db: D1Database, incoming: Row[]) {
+async function recordDeliveryEvents(db: D1Database, incoming: Row[], signed=false) {
  const payload = JSON.stringify(incoming)
  await db.batch([
-  db.prepare(`INSERT OR IGNORE INTO cf_letter_events(id,letter_id,event,occurred_at,recorded_at)
-   SELECT json_extract(j.value,'$.id'),a.id,json_extract(j.value,'$.state'),json_extract(j.value,'$.occurred'),?
-   FROM json_each(?) j JOIN cf_acks a ON a.id=json_extract(j.value,'$.letterId') AND a.attempt_id=json_extract(j.value,'$.attempt') AND a.route IN ('email','print')`).bind(new Date().toISOString(), payload),
+  db.prepare(`INSERT OR IGNORE INTO cf_letter_events(id,letter_id,event,occurred_at,recorded_at,signature_verified)
+   SELECT json_extract(j.value,'$.id'),a.id,json_extract(j.value,'$.state'),json_extract(j.value,'$.occurred'),?,?
+   FROM json_each(?) j JOIN cf_acks a ON a.id=json_extract(j.value,'$.letterId') AND a.attempt_id=json_extract(j.value,'$.attempt') AND a.route IN ('email','print')`).bind(new Date().toISOString(), signed?1:0, payload),
+  db.prepare(`UPDATE cf_letter_events SET signature_verified=1 WHERE ?=1 AND id IN (SELECT json_extract(value,'$.id') FROM json_each(?)) AND letter_id IN (SELECT a.id FROM cf_acks a JOIN json_each(?) j ON a.id=json_extract(j.value,'$.letterId') AND a.attempt_id=json_extract(j.value,'$.attempt'))`).bind(signed?1:0,payload,payload),
   db.prepare(`INSERT OR IGNORE INTO cf_receipt_address_tasks(id,letter_id,created_at)
    SELECT 'receipt-address:'||a.id,a.id,min(e.recorded_at) FROM cf_acks a
    JOIN cf_letter_events e ON e.letter_id=a.id AND e.event='bounced'

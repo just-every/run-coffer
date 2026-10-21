@@ -1,3 +1,4 @@
+import { giftAcknowledgmentWrite } from './gift-ack-write'
 import { personDefaultsCommand } from './person-defaults'
 import { organizationContactCommand } from './organizations'
 import { meetingQuestionCommand } from './meeting-questions'
@@ -63,6 +64,7 @@ export const ACCESS: Record<string, Role[]> = {
  'task.repeatCreate': STAFF, 'task.repeatComplete': STAFF, 'task.generate': STAFF, 'task.assign': STAFF, 'task.snooze': STAFF, 'task.complete': STAFF, 'prospect.save': STAFF,
  'donor.create': STAFF, 'donor.update': STAFF, 'gift.record': STAFF, 'consent.record': STAFF, 'pledge.create': STAFF,
  'donor.merge': MANAGERS, 'donor.unmerge': MANAGERS, 'relationship.create': STAFF, 'relationship.remove': STAFF, 'interaction.record': STAFF,
+ 'gift.acknowledge': STAFF, 'gift.resetAcknowledgment': STAFF, 'gift.doNotAcknowledge': MANAGERS,
  'softCredit.acknowledge': STAFF, 'softCredit.resetAcknowledgment': STAFF, 'softCredit.doNotAcknowledge': MANAGERS,
  'softCredit.record': STAFF, 'softCredit.remove': STAFF, 'tribute.record': STAFF, 'match.record': STAFF, 'match.receive': STAFF,
  'pledge.remind': STAFF, 'pledge.match': STAFF, 'pledge.reduce': STAFF, 'pledge.writeOff': STAFF, 'pledge.linkPlan': STAFF,
@@ -79,6 +81,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  requireRole(c.actor, allowed, `run ${command}`)
  const p = object(input)
  for (const key of ['donorId','employerDonorId','relatedDonorId']) if (typeof p[key] === 'string' && p[key] && await canonicalDonor(c,p[key]) !== p[key]) fail('MERGED_DONOR', 'This record was merged. Open the surviving donor record before saving.')
+ if (['gift.acknowledge','gift.resetAcknowledgment','gift.doNotAcknowledge'].includes(command)) { const write=await giftAcknowledgmentWrite(c,command,p); await commit(c,write.statements); return write.result }
  if (command === 'ack.correct') return correctReceipt(c, p)
  if (command === 'ack.prepareStatements') return prepareStatements(c, p)
  if (command === 'donor.merge') return mergeDonor(c, p)
