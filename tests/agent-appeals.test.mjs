@@ -1,11 +1,14 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {readFile,mkdir} from 'node:fs/promises'
-import {run,donor} from './harness.mjs'
+import {readFile} from 'node:fs/promises'
+import {randomUUID} from 'node:crypto'
+import {run,donor,archive,restore,installation} from './harness.mjs'
+import {recognitionEdges,form} from './recognition-edge.mjs'
 const fixture=JSON.parse(await readFile(new URL('./fixtures/mailchimp/responses.json',import.meta.url),'utf8'))
 
 test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the frozen audience and signed gifts, then prepare a human-approved resend',async()=>{
  const segments=new Map(),campaigns=new Map(),contacts=new Map();let sends=0,resultMode='normal'
+ const giving=recognitionEdges(),mangoContacts=new Map(),mangoLists=[]
  await run(async h=>{
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date())
   const donors=[]
@@ -30,7 +33,7 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   assert.equal(result.flagged,5)
   assert.deepEqual(result.rows.filter(r=>r.flagged).map(r=>r.donorId).sort(),donors.slice(0,5).map(d=>d.id).sort())
   assert.deepEqual(result.rows.slice(0,5).map(r=>r.state),['not sent','not sent','not sent','not sent','bounced'])
-  assert.ok(result.rows.slice(5).every(r=>r.state==='handoff confirmed; delivery unknown'))
+  assert.ok(result.rows.slice(5).every(r=>r.state==='sent'))
   assert.deepEqual([result.results.gifts,result.results.dollarsCents,result.results.responded],[1,12525,1])
   const prepared=await h.api('/api/coffer/agent/appeals/prepare',{appealId:frozen.id})
   const detail=await h.get('/api/coffer/appeals/'+prepared.id)
@@ -57,13 +60,13 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   const unsent=await h.command('appeal.prepare',{name:'Not submitted yet',channel:'email',subject:'Hello',body:'Hello {{donor_name}}'})
   await h.command('appeal.approve',{appealId:unsent.id,version:1})
   result=await h.api('/api/coffer/agent/appeals/run',{appealId:unsent.id})
-  assert.equal(result.flagged,7);assert.ok(result.rows.every(r=>r.state==='not submitted'))
+  assert.equal(result.flagged,7);assert.ok(result.rows.every(r=>r.state==='unknown'))
   assert.ok(result.rows.every(r=>!r.resend),'Missing submissions continue through the original approved send, never a parallel resend')
   await h.api('/api/coffer/agent/appeals/prepare',{appealId:unsent.id},{status:409})
   await h.command('appeal.send',{appealId:unsent.id,version:2})
   resultMode='mismatch'
   result=await h.api('/api/coffer/agent/appeals/run',{appealId:unsent.id})
-  assert.ok(result.rows.every(r=>r.flagged&&!r.resend&&r.state==='submission or delivery unknown'))
+  assert.ok(result.rows.every(r=>r.flagged&&!r.resend&&r.state==='unknown'))
   await h.api('/api/coffer/agent/appeals/prepare',{appealId:unsent.id},{status:409})
   resultMode='dropped'
   await h.api('/api/coffer/agent/appeals/run',{appealId:unsent.id})
@@ -71,7 +74,16 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   const subset=await h.api('/api/coffer/agent/appeals/prepare',{appealId:unsent.id})
   assert.equal((await h.get('/api/coffer/appeals/'+subset.id)).recipients.length,6,'New resend excludes current opt-outs')
   // DEV-009 native journey: real published steps and provider calls, no seeded database rows.
-  await h.command('welcome.publish',{thankSubject:'Thank you {{informal_salutation}}',thankBody:'{{prefix}} {{first_name}} {{middle_name}} {{last_name}} {{suffix}} {{nickname}} | {{formal_salutation}} | {{envelope_name}}',impactSubject:'Pantry impact',impactBody:'Meals delivered.',askSubject:'Next gift',askBody:'Help again.',impactDays:7,askDays:21})
+  await h.api('/api/coffer/giving/campaigns',{name:'Journey giving',slug:'journey-giving',description:'A synthetic campaign.',fund:'Food',goal:'1000'})
+  const welcomeInput={thankSubject:'Thank you {{informal_salutation}}',thankBody:'{{prefix}} {{first_name}} {{middle_name}} {{last_name}} {{suffix}} {{nickname}} | {{formal_salutation}} | {{envelope_name}}\n\nGive: /give/journey-giving?from=welcome\nOther: https://elsewhere.example.test/give/journey-giving',impactSubject:'Pantry impact',impactBody:'Meals delivered.',askSubject:'Next gift',askBody:'Help again: /give/journey-giving',impactDays:7,askDays:21}
+  const firstPublication=await h.command('welcome.publish',welcomeInput)
+  const firstState=await h.get('/api/coffer/welcome')
+  const publication=await h.command('welcome.publish',{...welcomeInput,publishedAt:firstState.journey.published_at,publicationId:firstPublication.publicationId})
+  const codes=[...firstPublication.steps,...publication.steps].map(s=>s.code)
+  assert.equal(new Set(codes).size,codes.length,'Every published step version has a distinct code')
+  const thankCode=publication.steps.find(s=>s.step==='thank').code
+  assert.deepEqual((await h.get('/api/coffer/welcome')).publications.map(v=>v.code),publication.steps.map(s=>s.code))
+  await h.command('welcome.publish',{...welcomeInput,publishedAt:firstState.journey.published_at,publicationId:firstPublication.publicationId},{status:409})
   const journeyDonors=[]
   for(const name of ['Jules Ives','Kira Jones','Lane King','Mira Lake']){
    const d=await donor(h,name);journeyDonors.push(d)
@@ -80,7 +92,17 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
    await h.command('gift.record',{donorId:d.id,amount:'30',receivedOn:day,method:'cash',fund:'Food',goods:'none'})
   }
   assert.equal((await h.command('welcome.run')).submitted,4)
-  for(const d of journeyDonors){const history=await h.get('/api/coffer/donors/'+d.id),m=history.communications.find(m=>m.source_kind==='welcome');assert.equal(m.subject,'Thank you Friend '+history.donor.first_name);assert.ok(m.body.includes('Dr. '+history.donor.last_name+' | Household '+history.donor.first_name+' '+history.donor.last_name));assert.ok(!m.body.includes('{{'))}
+  for(const d of journeyDonors){
+   const history=await h.get('/api/coffer/donors/'+d.id),m=history.communications.find(m=>m.source_kind==='welcome')
+   assert.equal(m.subject,'Thank you Friend '+history.donor.first_name)
+   assert.ok(m.body.includes('Dr. '+history.donor.last_name+' | Household '+history.donor.first_name+' '+history.donor.last_name));assert.ok(!m.body.includes('{{'))
+   const link=new URL(m.body.match(/https?:\/\/[^\s]+\/give\/journey-giving\?[^\s]+/)[0])
+   assert.equal(link.origin,h.origin);assert.equal(link.searchParams.get('appeal'),thankCode)
+   assert.equal(link.searchParams.get('from'),'welcome')
+   assert.ok(m.body.includes('https://elsewhere.example.test/give/journey-giving'))
+   const acknowledgment=history.gifts.find(g=>g.kind==='gift').acknowledgment
+   assert.equal(acknowledgment.status,'acknowledged');assert.equal(acknowledgment.method,'email');assert.equal(acknowledgment.communication_id,m.id)
+  }
   const sentBefore=sends
   let journey=(await h.get('/api/coffer/agent/appeals')).journey
   assert.equal(journey.length,4)
@@ -89,12 +111,29 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:droppedStep.id},{status:409})
   for(const step of [droppedStep,bouncedStep,unknownStep,handoffStep])await h.api('/api/coffer/agent/appeals/journey/run',{stepId:step.id})
   journey=(await h.get('/api/coffer/agent/appeals')).journey
-  assert.deepEqual(journeyDonors.map(d=>stepFor(d).state),['not sent','bounced','submission or delivery unknown','handoff confirmed; delivery unknown'])
-  assert.ok(journey.every(s=>s.checked_at&&s.responses.startsWith('Unknown:')))
+  assert.deepEqual(journeyDonors.map(d=>stepFor(d).state),['not sent','bounced','unknown','sent'])
+  assert.ok(journey.every(s=>s.checked_at&&s.responses.bound&&s.responses.code===thankCode))
+  for(const d of journeyDonors.slice(0,2))assert.equal((await h.get('/api/coffer/donors/'+d.id)).gifts.find(g=>g.kind==='gift').acknowledgment.status,'not acknowledged','A confirmed unsent result or bounce reopens acknowledgment')
   for(const step of [unknownStep,handoffStep])await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:step.id},{status:409})
   await h.api('/api/coffer/agent/appeals/journey/run',{stepId:'missing'},{status:409})
   await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:droppedStep.id},{as:member.cookie,status:403})
   await h.api('/api/coffer/agent/appeals/journey/run',{stepId:droppedStep.id},{as:'',status:401})
+  // Entry and checkout use the same permanent code. Splits count once; reversals
+  // reduce net dollars, and a same-day uncoded gift never becomes a response.
+  await h.command('gift.record',{donorId:journeyDonors[0].id,amount:'41.25',receivedOn:day,method:'cash',allocations:[{fund:'Food',amountCents:2000},{fund:'General',amountCents:2125}],goods:'none',appeal:thankCode},{as:member.cookie})
+  const reversed=await h.command('gift.record',{donorId:journeyDonors[0].id,amount:'5',receivedOn:day,method:'cash',fund:'Food',goods:'none',appeal:thankCode})
+  await h.command('gift.reverse',{giftId:reversed.id,reason:'Synthetic correction'})
+  await h.command('gift.record',{donorId:journeyDonors[2].id,amount:'7',receivedOn:day,method:'cash',fund:'Food',goods:'none'})
+  await h.command('gift.record',{donorId:journeyDonors[3].id,amount:'3',receivedOn:day,method:'cash',fund:'Food',goods:'none',appeal:firstPublication.steps[0].code})
+  const trackedPage=await (await h.request('/give/journey-giving?appeal='+thankCode,{as:''})).text()
+  assert.ok(trackedPage.includes(`name="appeal" value="${thankCode}"`))
+  const onlineDonor=(await h.get('/api/coffer/donors/'+journeyDonors[3].id)).donor
+  const checkout=await h.request('/give/journey-giving/checkout',{...form({requestId:randomUUID(),frequency:'once',name:onlineDonor.name,email:onlineDonor.email,amount:'60.01',appeal:thankCode}),as:''})
+  assert.equal(checkout.status,303,await checkout.text())
+  const session=new URL(checkout.headers.get('location')).pathname.split('/').at(-1)
+  assert.equal((await h.request('/giving/thanks?session_id='+session,{as:''})).status,200)
+  journey=(await h.get('/api/coffer/agent/appeals')).journey
+  assert.deepEqual([stepFor(journeyDonors[0]).responses.responded,stepFor(journeyDonors[0]).responses.gifts,stepFor(journeyDonors[0]).responses.dollarsCents],[2,2,10126])
   // The frozen submitted address is still checked after a donor edits their address.
   const jules=(await h.get('/api/coffer/donors/'+journeyDonors[0].id)).donor
   await h.command('donor.update',{donorId:jules.id,version:jules.version,name:jules.name,email:'jules.changed@example.org'})
@@ -108,7 +147,9 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   assert.equal(draft.appeal.status,'prepared');assert.equal(draft.approval,null)
   assert.equal(draft.appeal.prepared_by_role,'agent')
   assert.deepEqual(draft.recipients.map(r=>[r.donor_id,r.email]),[[jules.id,'jules.changed@example.org']])
-  assert.deepEqual([draft.message.subject,draft.message.body],['Thank you Friend Jules','Dr. Jules  Ives  Friend Jules | Dr. Ives | Household Jules Ives'])
+  const savedMessage=(await h.get('/api/coffer/donors/'+jules.id)).communications.find(m=>m.source_kind==='welcome')
+  assert.deepEqual([draft.message.subject,draft.message.body],[savedMessage.subject,savedMessage.body])
+  assert.ok(draft.message.body.includes('appeal='+thankCode),'Resend preserves the original step’s tracked link')
   assert.equal((await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:droppedStep.id})).id,resend.id)
   await h.command('appeal.send',{appealId:resend.id,version:1},{status:409})
   assert.equal(sends,sentBefore,'Reconciliation and proposals send nothing')
@@ -127,8 +168,71 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   const originalMessage=(await h.get('/api/coffer/donors/'+jules.id)).communications.find(m=>m.source_kind==='welcome')
   assert.equal(originalMessage.recipient_email,'jules.ives@example.org')
   assert.equal(originalMessage.remote_status,'not_sent')
+  const resent=(await h.get('/api/coffer/appeals/'+renewed.id)).message
+  const resendCode=new URL(resent.body.match(/https?:\/\/[^\s]+\/give\/journey-giving\?[^\s]+/)[0]).searchParams.get('appeal')
+  assert.equal(resendCode,thankCode)
+  await h.command('gift.record',{donorId:jules.id,amount:'11',receivedOn:day,method:'check',fund:'Food',goods:'none',appeal:resendCode})
+  journey=(await h.get('/api/coffer/agent/appeals')).journey
+  assert.deepEqual([stepFor(journeyDonors[0]).responses.responded,stepFor(journeyDonors[0]).responses.gifts,stepFor(journeyDonors[0]).responses.dollarsCents],[2,3,11226])
+  const resendReport=(await h.get('/api/coffer/appeals/'+renewed.id)).results
+  assert.equal(resendReport.gifts,0,'The new resend run code does not steal the original step’s responses')
 
- },{outbound:async request=>{
+  // Mango's documented list handoff is held, not inferred to be a send. The
+  // preference feed supplies no campaign-bound result, so no result is invented.
+  await h.command('marketing.connectMango',{origin:'https://mango.example.test',credential:'synthetic-coffer-2'})
+  const held=await donor(h,'Nora Hold')
+  await h.command('consent.record',{donorIds:[held.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic permission',capturedOn:day})
+  const heldGift=await h.command('gift.record',{donorId:held.id,amount:'31',receivedOn:day,method:'cash',fund:'Food',goods:'none'})
+  assert.equal((await h.command('welcome.run')).submitted,1)
+  const heldHistory=await h.get('/api/coffer/donors/'+held.id),heldMessage=heldHistory.communications.find(m=>m.source_kind==='welcome')
+  const heldAck=heldHistory.gifts.find(g=>g.id===heldGift.id).acknowledgment
+  assert.equal(heldAck.status,'not acknowledged');assert.equal(heldAck.outcome_unknown,1)
+  assert.equal(heldAck.communication_id,heldMessage.id)
+  assert.ok(!(await h.get('/api/coffer/agent')).missingReceipts.some(g=>g.id===heldGift.id))
+  journey=(await h.get('/api/coffer/agent/appeals')).journey
+  const heldStep=stepFor(held)
+  assert.equal(heldStep.state,'handed off');assert.equal(heldStep.resend,false)
+  assert.ok(mangoLists.some(list=>list.includes(publication.publicationId)))
+  const beforeCheck=sends,checkedHold=await h.api('/api/coffer/agent/appeals/journey/run',{stepId:heldStep.id})
+  assert.equal(checkedHold.checked,0);assert.equal(checkedHold.state,'handed off');assert.equal(sends,beforeCheck)
+  await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:heldStep.id},{status:409})
+
+  const lines=await archive(h),fresh=await installation()
+  try{
+   await restore(fresh,lines)
+   const restored=(await fresh.get('/api/coffer/agent/appeals')).journey
+   assert.deepEqual(restored.find(s=>s.id===droppedStep.id).responses,stepFor(journeyDonors[0]).responses)
+   assert.deepEqual((await fresh.get('/api/coffer/welcome')).publications,(await h.get('/api/coffer/welcome')).publications)
+   assert.equal((await fresh.get('/api/coffer/agent/appeals')).journey.find(s=>s.id===heldStep.id).state,'handed off')
+  }finally{await fresh.close()}
+  const historical=await installation()
+  try{
+   await restore(historical,await legacyJourney(lines,droppedStep.id))
+   const legacy=(await historical.get('/api/coffer/agent/appeals')).journey.find(s=>s.id===droppedStep.id)
+   assert.equal(legacy.responses.bound,false);assert.equal(legacy.responses.code,null)
+   if(process.env.COFFER_APPEAL_AGENT_BROWSER){
+    const {journeyResponseBrowser}=await import('./agent-appeals-browser.mjs')
+    await journeyResponseBrowser(h,historical,droppedStep.id,process.env.COFFER_APPEAL_AGENT_BROWSER)
+   }
+  }finally{await historical.close()}
+
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1'},outbound:async request=>{
+  const target=new URL(request.url)
+  if(target.hostname==='api.stripe.com')return giving.outbound(request)
+  if(target.hostname==='mango.example.test'){
+   const path=target.pathname.replace('/api/integrations/v1',''),body=request.method==='GET'?null:await request.json()
+   if(path==='/segments')return Response.json({segments:[]})
+   if(path==='/events')return Response.json({events:[],nextCursor:0})
+   if(path==='/campaigns/coffer-connection-check/send')return Response.json({error:'invalid'},{status:400})
+   if(path==='/contacts'&&request.method==='PUT'){
+    if(!body.email)return Response.json({error:'invalid'},{status:400})
+    mangoLists.push(body.segmentName)
+    const contact={id:'synthetic-coffer-3',email:body.email,emailStatus:'subscribed',segmentIds:['synthetic-coffer-4']}
+    mangoContacts.set(body.email,contact);return Response.json({contact})
+   }
+   if(path==='/contacts')return Response.json({contacts:mangoContacts.has(target.searchParams.get('email'))?[mangoContacts.get(target.searchParams.get('email'))]:[]})
+   assert.fail(request.method+' '+path)
+  }
   const u=new URL(request.url),path=u.pathname.replace('/3.0',''),raw=request.method==='GET'?'':await request.text(),body=raw?JSON.parse(raw):null
   assert.equal(u.hostname,'us21.api.mailchimp.com')
   if(path==='/lists')return Response.json(fixture.lists??{lists:[{id:'fixture-list',name:'Fixture audience',stats:{member_count:7}}]})
@@ -173,3 +277,17 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   return emails.find(e=>createHash('md5').update(e).digest('hex')===hash)
  }
 })
+
+// A valid portable fixture whose older enrolled step has no publication binding.
+// Read-time names, dates and existing appeal-code gifts must never infer one.
+async function legacyJourney(lines,stepId){
+ const {makePart,ArchiveVerifier,ContentVerifier}=await import('@runeditrun/rer/modules/portability/format')
+ const manifest=structuredClone(lines[0]),items=structuredClone(lines.filter(r=>r.kind==='part').flatMap(p=>p.items))
+ for(const item of items)if(item.kind==='row'&&item.table==='cf_welcome_steps'&&item.row.id===stepId)item.row.response_code=null
+ const parts=[]
+ for(let i=0;i<items.length;i+=200)parts.push(await makePart(parts.length,items.slice(i,i+200)))
+ manifest.partCount=parts.length
+ const integrity=new ArchiveVerifier(manifest),content=new ContentVerifier(manifest)
+ for(const part of parts){integrity.add(part);for(const item of part.items)content.add(item)}
+ return [manifest,...parts,{kind:'closing',partCount:parts.length,archiveHash:integrity.digest(),contentHash:content.digest()}]
+}

@@ -3,6 +3,7 @@ import { appealCommand } from '../appeals'
 import { refreshMessages } from '../communications/outbound'
 import { AGENT, action } from './activity'
 import { outcome } from './appeals'
+import { journeyResults } from './journey-results'
 
 const source = `FROM cf_welcome_steps s JOIN cf_donors d ON d.id=s.donor_id
  LEFT JOIN cf_communications m ON m.message_key=s.message_key
@@ -15,15 +16,21 @@ async function proposal(c:Context,stepId:string) {
 }
 
 export async function journeyDelivery(c:Context) {
- const steps=await all(c,`SELECT s.id,s.step,s.donor_id,d.name,s.status,m.id AS communication_id,m.provider,
+ const steps=await all(c,`SELECT s.id,s.step,s.response_code,s.donor_id,d.name,s.status,m.id AS communication_id,m.provider,
  m.status AS message_status,m.remote_status,m.checked_at ${source} ORDER BY s.due_at DESC,s.id LIMIT 100`)
- return Promise.all(steps.map(s=>result(c,s)))
+ const totals = new Map<string, ReturnType<typeof journeyResults>>()
+ return Promise.all(steps.map(s=>{
+  const key=s.response_code??''
+  if(!totals.has(key))totals.set(key,journeyResults(c,s.response_code))
+  return result(c,s,totals.get(key))
+ }))
 }
 
-async function result(c:Context,s:Row) {
+async function result(c:Context,s:Row,totals=journeyResults(c,s.response_code)) {
+ const responses=await totals
  return {id:s.id,step:s.step,donor_id:s.donor_id,name:s.name,checked_at:s.checked_at,
   ...outcome(s.communication_id?{...s,status:s.message_status}:null),resendProposal:await proposal(c,s.id),
-  responses:'Unknown: journey steps have no gift response-code binding.'}
+  responses}
 }
 
 async function submittedStep(c:Context,p:Row) {
@@ -39,7 +46,7 @@ export async function reconcileJourney(c:Context,p:Row) {
  const refresh=await refreshMessages(c,{kind:'welcome',id:step.id})
  const checked=await result(c,await submittedStep(c,p))
  await action(c,{kind:'appeals.journey.reconcile',subjectId:step.id,
-  summary:`Checked ${refresh.checked} journey sender results.`,why:'Compared the saved message and its frozen destination with sender results. Handoff is not delivery; gift responses remain unknown.'})
+  summary:`Checked ${refresh.checked} journey sender results.`,why:'Compared the saved message and its frozen destination with sender results. Handoff is not delivery; gift responses bind only through the published step code.'})
  return {...checked,checked:refresh.checked}
 }
 
