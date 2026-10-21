@@ -6,6 +6,7 @@ export async function organizationsBrowser(h,directory) {
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
+  page.setDefaultTimeout(15000)
   const formFor=command=>page.locator('form').filter({has:page.locator(`[name=command][value="${command}"]`)})
   const fits=async name=>{
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'DONOR-002 '+name+' fits')
@@ -19,8 +20,8 @@ export async function organizationsBrowser(h,directory) {
     await form.getByLabel('Name',{exact:true}).fill(name)
     await form.getByLabel('Email',{exact:true}).fill(name.toLowerCase().replaceAll(' ','.')+'@example.test')
     if(organization){
-     await form.getByLabel('Record type',{exact:true}).selectOption('organization')
-     await form.getByLabel('Organization type',{exact:true}).selectOption('foundation')
+     await form.locator('[name=constituentKind]').selectOption('organization')
+     await form.locator('[name=organizationType]').selectOption('foundation')
      await form.getByLabel('Website',{exact:true}).fill('https://foundation.example.org')
      await form.getByLabel('Organization EIN',{exact:true}).fill('12-7654321')
     }
@@ -48,7 +49,7 @@ export async function organizationsBrowser(h,directory) {
     await page.goto(origin+'/app/donors/'+organizationId)
     await page.getByText('Add or update organization contact',{exact:true}).click()
     const link=formFor('organization.contact')
-    await link.getByLabel('Person record',{exact:true}).selectOption(contactIds[index])
+    await link.locator('[name=contactDonorId]').selectOption(contactIds[index])
     await link.getByLabel('Contact role',{exact:true}).fill(index?'Grants officer':'Executive director')
     if(index===0)await link.getByRole('checkbox').check()
     await link.getByRole('button',{name:'Save organization contact',exact:true}).click()
@@ -63,7 +64,7 @@ export async function organizationsBrowser(h,directory) {
    const gift=formFor('gift.record')
    await gift.getByLabel('Amount (USD)',{exact:true}).fill('10000')
    await gift.getByLabel('Received on',{exact:true}).fill('2026-09-15')
-   await gift.getByLabel('Paid by',{exact:true}).selectOption('check')
+   await gift.locator('[name=method]').selectOption('check')
    await gift.getByLabel('Fund',{exact:true}).fill('Food access')
    await gift.getByLabel('No goods or services',{exact:true}).check()
    await gift.getByRole('button',{name:'Record gift',exact:true}).click()

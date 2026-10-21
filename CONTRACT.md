@@ -1242,7 +1242,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 48 | 46 | 32 | 126 |
+| Target and push further | 49 | 45 | 32 | 126 |
 | All | 58 | 45 | 32 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
@@ -1268,7 +1268,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `DONOR-011` | Giving summary | target | done | `src/coffer/giving-summary.ts`, `src/coffer/ui/giving-summary.ts`, `tests/giving-summary.test.mjs`, `tests/giving.test.mjs` |  |
 | `DONOR-012` | Constituent status: active, inactive and deceased | target | partial | `src/coffer/households.ts`, `src/coffer/household-names.ts`, `src/coffer/move-in/source-mapping.ts`, `tests/duplicates.test.mjs`, `tests/households-journey.mjs` | Versioned profile status and current CRM status imports drive household eligibility and names; deceased heads are flagged without replacement. Date of death, global send/task exclusions and survivor confirmation remain. |
 | `DONOR-013` | Several emails, phones and addresses | target | partial | `src/coffer/donors.ts`, `migrations/core/0016_coffer.sql` | A donor has one email (refused if any other record has it), one phone and one postal address; no further contact points, types, primaries, seasonal ranges or email shared within a household. |
-| `DONOR-014` | Name parts, salutations and envelope name | target | partial | `src/coffer/donors.ts`, `src/coffer/settings.ts`, `tests/coffer.test.mjs` | Editable prefix, first/middle/last, suffix and nickname feed computed household names and organization household defaults; current CRM imports retain them. Individual computed/overridden salutations and envelope names, individual defaults and all template/import consumers remain. |
+| `DONOR-014` | Name parts, salutations and envelope name | target | partial | `src/coffer/donors.ts`, `src/coffer/settings.ts`, `tests/coffer.test.mjs` | Editable prefix, first/middle/last, suffix and nickname feed computed household names and organization household defaults; current CRM imports retain them. An explicit individual informal salutation is available for organization addressing under DONOR-002; formal/envelope computation and overrides, individual defaults and all template/import consumers remain. |
 | `DONOR-015` | Solicitation restrictions | target | missing |  | No solicitation restriction: consent is per channel (email and postal) only, and appeals exclude only on consent and address. |
 | `GIFT-002` | Batch gift entry and deposits | target | missing |  | Gifts are entered one at a time; no batches or deposit totals. |
 | `GIFT-003` | Campaign, appeal, fund and channel attribution | target | done | `src/coffer/attribution.ts`, `src/coffer/gifts.ts`, `src/coffer/giving/tracked-link.ts`, `src/coffer/move-in/source-mapping.ts`, `migrations/core/0064_coffer_gift_attribution.sql`, `src/coffer/ui/attribution.ts`, `tests/attribution-journey.mjs` | Clause-named HTTP journey: defined appeals, campaign/appeal/channel on entry, tracked-link form gift, CRM appeal/channel mapping, refusals, and totals by fund, campaign, appeal and channel that each sum to the ledger. |
