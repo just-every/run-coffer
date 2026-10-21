@@ -16,7 +16,7 @@ export function documentFormats(){
   {extension:'pdf',mediaType:'application/pdf',bytes:agreement()},
   {extension:'png',mediaType:'image/png',bytes:readFileSync(new URL('./fixtures/campaign-page/story.png',import.meta.url))},
   {extension:'txt',mediaType:'text/plain',bytes:Buffer.from('Riverbend Literacy Project\nSigned pledge: $1,000 for the reading room.\nAvery Chen — reviewed agreement.\n')},
- ]
+ ].map(format=>({...format,contentType:format.mediaType==='text/plain'?'text/plain; charset=utf-8':format.mediaType}))
 }
 export async function documentRecords(h,name){
  const constituent=await donor(h,name),owner=(await h.get('/auth/session')).operator

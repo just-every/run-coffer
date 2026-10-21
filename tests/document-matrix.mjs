@@ -21,7 +21,7 @@ export async function documentMatrix(h,{ada,other,gift,pledge,prospect,member,ag
    for(const door of ['preview','download']){
     const response=await h.request(`/api/coffer/documents/${doc.id}/${door}`,options)
     assert.equal(response.status,200,`${role} ${kind} ${format.extension} ${door}`)
-    assert.equal(response.headers.get('content-type'),format.mediaType)
+    assert.equal(response.headers.get('content-type'),format.contentType)
     assert.match(response.headers.get('content-disposition'),door==='preview'?/^inline;/:/^attachment;/)
     assert.deepEqual(Buffer.from(await response.arrayBuffer()),format.bytes)
    }

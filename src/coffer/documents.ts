@@ -47,7 +47,8 @@ export async function documentDownload(c:Context,documentId:string,preview=false
  if(!d)fail('NOT_FOUND','That document is unavailable.',404)
  const object=await c.env!.FILES.get(d.object_key)
  if(!object)fail('DOCUMENT_MISSING','This document’s stored file is missing. Restore it from a complete backup.',409)
- return new Response(object.body,{headers:{'content-type':d.media_type,'content-disposition':`${preview?'inline':'attachment'}; filename="${d.file_name.replace(/["\x00-\x1f\x7f-\uffff]/g,'_')}"`,'cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"sandbox; default-src 'none'",'referrer-policy':'no-referrer'}})
+ const contentType=d.media_type==='text/plain'?'text/plain; charset=utf-8':d.media_type
+ return new Response(object.body,{headers:{'content-type':contentType,'content-disposition':`${preview?'inline':'attachment'}; filename="${d.file_name.replace(/["\x00-\x1f\x7f-\uffff]/g,'_')}"`,'cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"sandbox; default-src 'none'",'referrer-policy':'no-referrer'}})
 }
 /** Durable erasure cleanup; repeatable after an interrupted object-store call. */
 export async function purgeDocuments(c:Context) {

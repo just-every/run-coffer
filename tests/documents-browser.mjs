@@ -30,7 +30,7 @@ export async function documentBrowser(h,directory){
      assert.equal(await panel.locator('li').count(),++count)
      const preview=await link.getAttribute('href')
      const bytes=await context.request.get(origin+preview,{headers:{cookie}})
-     assert.equal(bytes.status(),200);assert.equal(bytes.headers()['content-type'],format.mediaType)
+     assert.equal(bytes.status(),200);assert.equal(bytes.headers()['content-type'],format.contentType)
      assert.deepEqual(await bytes.body(),format.bytes)
      const downloading=page.waitForEvent('download')
      await link.locator('..').getByRole('link',{name:'Download',exact:true}).click()
@@ -40,7 +40,7 @@ export async function documentBrowser(h,directory){
      assert.deepEqual(Buffer.concat(chunks),format.bytes)
      const previewed=await page.goto(origin+preview,{waitUntil:'domcontentloaded'})
      assert.equal(previewed.status(),200)
-     if(format.extension==='txt')assert.ok((await page.locator('body').innerText()).includes('Signed pledge: $1,000'))
+     if(format.extension==='txt')assert.ok((await page.locator('body').innerText()).includes(format.bytes.toString('utf8').trim()),'UTF-8 plain text previews preserve every character')
      if(format.extension==='png')await page.locator('img').waitFor()
      if(format.extension==='pdf')assert.match((await previewed.body()).toString(),/type="application\/pdf"/,'Chromium opened its native PDF viewer')
      if(role==='owner'&&kind==='pledge'){
