@@ -16,7 +16,8 @@ export async function meetingBriefJourney() {
   await h.command('gift.record',{donorId:d.id,amount:'75',receivedOn:'2026-01-02',method:'check',goods:'none',fund:'Library'})
   const conversation=await h.command('interaction.record',{donorId:d.id,kind:'meeting',occurredOn:'2026-01-03',who:'Morgan',notes:'Discussed the library proposal.',openQuestion,nextStep:'Ask about a follow-up visit.'})
   const previous=await h.command('interaction.record',{donorId:d.id,kind:'meeting',occurredOn:'2026-01-02',who:'Morgan',notes:'Earlier visit.',openQuestion:'Earlier question, superseded by the latest meeting.'})
-  for(let i=1;i<=12;i++)await h.command('interaction.record',{donorId:d.id,kind:'call',occurredOn:`2026-02-${String(i).padStart(2,'0')}`,who:'Morgan',notes:'Discussed the library collection and the program plans for the next school year. The donor asked for the source proposal before deciding.',nextStep:'Send the reviewed proposal.'})
+  const recentCalls=[]
+  for(let i=1;i<=12;i++)recentCalls.push(await h.command('interaction.record',{donorId:d.id,kind:'call',occurredOn:`2026-02-${String(i).padStart(2,'0')}`,who:'Morgan',notes:'Discussed the library collection and the program plans for the next school year. The donor asked for the source proposal before deciding.',nextStep:'Send the reviewed proposal.'}))
   const relationship=await h.command('relationship.create',{donorId:d.id,relatedDonorId:related.id,type:'spouse'})
   const pledge=await h.command('pledge.create',{donorId:d.id,amount:'90',pledgedOn:'2026-01-03',fund:'Library',installments:[{dueOn:'2030-03-01',amount:'90'}]})
   const opportunity=await h.command('prospect.save',{donorId:d.id,ownerId:owner.id,stage:'cultivate',askAmount:'500',expectedCloseOn:'2030-03-01',nextStep:'Review the proposal.'})
@@ -66,7 +67,8 @@ export async function meetingBriefJourney() {
    await meetingBriefsBrowser(h,{directory:process.env.COFFER_MEETING_BROWSER,meetingId:meeting.id,donorId:d.id,questionId:conversation.id})
   }
   assert.equal(brief.lines.find(l=>l.kind==='giving_summary').facts.lifetimeCents,7500)
-  assert.ok(brief.lines.some(l=>l.kind==='interaction'&&l.facts.id===conversation.id))
+  assert.deepEqual(brief.lines.filter(l=>l.kind==='interaction').map(l=>l.facts.id),recentCalls.slice(-10).reverse().map(i=>i.id))
+  assert.ok(!brief.lines.some(l=>l.kind==='interaction'&&l.facts.id===conversation.id),'The older meeting stays available as question source, outside the ten recent interactions')
   assert.ok(brief.lines.some(l=>l.kind==='relationship'&&l.facts.id===relationship.id))
   assert.ok(brief.lines.some(l=>l.kind==='pledge'&&l.facts.id===pledge.id))
   assert.ok(brief.lines.some(l=>l.kind==='opportunity'&&l.facts.id===opportunity.id))
