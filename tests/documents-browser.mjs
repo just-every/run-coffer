@@ -1,29 +1,54 @@
 import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {withBrowserWorker} from './browser-worker.mjs'
-export async function documentBrowser(h,donor,pledge,pdf,directory){
+import {documentFormats,documentRecords} from './document-fixtures.mjs'
+
+export async function documentBrowser(h,directory){
  await mkdir(directory,{recursive:true})
+ const admin=await h.person('native-document-admin@example.test','admin'),member=await h.person('native-document-member@example.test')
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
-  for(const width of [1440,390]){
-   await page.setViewportSize({width,height:1000})
-   const opened=await page.goto(`${origin}/app/donors/${donor.id}#documents`)
-   assert.equal(opened.status(),200,await page.locator('body').innerText())
-   const panel=page.locator('#documents')
-   await panel.locator('select[name=recordRef]').selectOption('pledge:'+pledge.id)
-   await panel.getByLabel('Document title',{exact:true}).fill(`Signed pledge agreement ${width}`)
-   await panel.locator('input[type=file]').setInputFiles({name:`agreement-${width}.pdf`,mimeType:'application/pdf',buffer:pdf})
-   await panel.getByRole('button',{name:'Upload document',exact:true}).click()
-   await page.getByRole('link',{name:`Signed pledge agreement ${width}`,exact:true}).waitFor()
-   await panel.scrollIntoViewIfNeeded()
-   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
-   await page.screenshot({path:`${directory}/DONOR-008-uploaded-${width}.png`})
-   const link=page.getByRole('link',{name:`Signed pledge agreement ${width}`,exact:true}),path=await link.getAttribute('href')
-   const response=await page.goto(origin+path,{waitUntil:'domcontentloaded'})
-   assert.equal(response.status(),200);assert.equal(response.headers()['content-type'],'application/pdf')
-   assert.match((await response.body()).toString(),/type="application\/pdf"/,'Chromium opened its native PDF viewer')
-   await page.waitForLoadState('networkidle')
-   await page.screenshot({path:`${directory}/DONOR-008-preview-${width}.png`})
+  for(const [role,cookie] of [['owner',h.owner],['admin',admin.cookie],['member',member.cookie]]){
+   await context.clearCookies()
+   await context.addCookies(cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',httpOnly:true,secure:true,sameSite:'Lax'}}))
+   for(const width of [1440,390]){
+    const {constituent,targets}=await documentRecords(h,`Native ${role} ${width}`)
+    await page.setViewportSize({width,height:1000})
+    const opened=await page.goto(`${origin}/app/donors/${constituent.id}#documents`)
+    assert.equal(opened.status(),200)
+    const panel=page.locator('#documents')
+    let count=0
+    for(const [kind,id] of targets)for(const format of documentFormats()){
+     const title=`${kind} agreement ${format.extension}`
+     await panel.locator('select[name=recordRef]').selectOption(kind+':'+id)
+     await panel.getByLabel('Document title',{exact:true}).fill(title)
+     await panel.locator('input[type=file]').setInputFiles({name:`agreement.${format.extension}`,mimeType:format.mediaType,buffer:format.bytes})
+     await panel.getByRole('button',{name:'Upload document',exact:true}).click()
+     const link=panel.getByRole('link',{name:title,exact:true})
+     await link.waitFor()
+     assert.equal(await panel.locator('li').count(),++count)
+     const preview=await link.getAttribute('href')
+     const bytes=await context.request.get(origin+preview)
+     assert.equal(bytes.status(),200);assert.equal(bytes.headers()['content-type'],format.mediaType)
+     assert.deepEqual(await bytes.body(),format.bytes)
+     const downloading=page.waitForEvent('download')
+     await link.locator('..').getByRole('link',{name:'Download',exact:true}).click()
+     const download=await downloading
+     const stream=await download.createReadStream(),chunks=[]
+     for await(const chunk of stream)chunks.push(chunk)
+     assert.deepEqual(Buffer.concat(chunks),format.bytes)
+     await link.click()
+     if(format.extension==='txt')assert.ok((await page.locator('body').innerText()).includes('Signed pledge: $1,000'))
+     if(format.extension==='png')await page.locator('img').waitFor()
+     if(format.extension==='pdf')await page.locator('embed[type="application/pdf"]').waitFor()
+     if(role==='owner'&&kind==='pledge')await page.screenshot({path:`${directory}/DONOR-008-preview-${format.extension}-${width}.png`})
+     await page.goto(`${origin}/app/donors/${constituent.id}#documents`)
+    }
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${role} documents fit ${width}`)
+    await panel.locator('button').scrollIntoViewIfNeeded()
+    await page.screenshot({path:`${directory}/DONOR-008-${role}-uploaded-${width}.png`})
+   }
   }
+  await page.close()
  },{channel:'chromium'})
 }

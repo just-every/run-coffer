@@ -1,17 +1,9 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {mkdir} from 'node:fs/promises'
+import {agreement} from './document-fixtures.mjs'
+import {documentMatrix} from './document-matrix.mjs'
 import {installation,donor,archive,restore,imported} from './harness.mjs'
 
-function agreement(){
- const stream='BT /F1 16 Tf 50 740 Td (Pledge agreement) Tj 0 -30 Td (Riverbend literacy project - signed by Avery Chen) Tj ET'
- const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`]
- let output='%PDF-1.4\n';const offsets=[0]
- objects.forEach((o,i)=>{offsets.push(Buffer.byteLength(output));output+=`${i+1} 0 obj\n${o}\nendobj\n`})
- const xref=Buffer.byteLength(output)
- output+=`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
- return Buffer.from(output)
-}
 
 test('DONOR-008: attach, preview and export record documents, restore their R2 bytes, and erase them with the constituent',async()=>{
  const h=await installation(),pdf=agreement()
@@ -29,6 +21,7 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   await attach('gift:'+gift.id,{mediaType:'image/svg+xml'},{status:400})
   await attach('donor:'+ada.id,{fileName:'../private.pdf'},{status:400})
   await attach('donor:'+ada.id,{contentBase64:Buffer.from('not a PDF').toString('base64')},{status:400})
+  const matrix=await documentMatrix(h,{ada,other,gift,pledge,prospect,member,agent,pdf})
   const own=await attach('donor:'+ada.id,{}, {as:member.cookie})
   const gifts=await attach('gift:'+gift.id),opportunity=await attach('opportunity:'+prospect.id)
   const agreementDoc=await attach('pledge:'+pledge.id)
@@ -37,7 +30,7 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   const photo=await attach('donor:'+ada.id,{title:'Reading room photo',fileName:'room.png',mediaType:'image/png',contentBase64:png.toString('base64')})
   const otherFile=await h.api('/api/coffer/documents',{donorId:other.id,recordRef:'donor:'+other.id,title:'Other private agreement',fileName:'other.pdf',mediaType:'application/pdf',contentBase64:pdf.toString('base64')})
   const bindings=(await h.get('/api/coffer/documents?donorId='+ada.id)).documents
-  assert.equal(bindings.length,5)
+  assert.ok(bindings.length>=5)
   for(const [document,kind,recordId] of [[own,'donor',ada.id],[gifts,'gift',gift.id],[opportunity,'opportunity',prospect.id],[agreementDoc,'pledge',pledge.id]]){
    const bound=bindings.find(d=>d.id===document.id)
    assert.deepEqual([bound.record_kind,bound.record_id],[kind,recordId])
@@ -52,7 +45,7 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   assert.equal((await h.request(`/api/coffer/documents/${own.id}/preview`,{as:'',headers:{authorization:'Bearer '+agent.token}})).status,403)
   if(process.env.COFFER_DOCUMENT_BROWSER){
    const {documentBrowser}=await import('./documents-browser.mjs')
-   await documentBrowser(h,ada,pledge,pdf,process.env.COFFER_DOCUMENT_BROWSER)
+   await documentBrowser(h,process.env.COFFER_DOCUMENT_BROWSER)
   }
   const day=new Date().toISOString().slice(0,10),file=await h.api(`/api/coffer/donors/${ada.id}/data-request`,{requestedOn:day,method:'email',reference:'DOC-008'})
   const docs=(await h.get('/api/coffer/documents?donorId='+ada.id)).documents
@@ -62,28 +55,43 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   assert.deepEqual(Buffer.from(file.records.record_documents.find(d=>d.id===photo.id).content_base64,'base64'),png)
   const duplicate=await donor(h,'Avery Chen duplicate')
   const before=(await h.get('/api/coffer/donors/'+ada.id)).donor
-  const merged=await h.command('donor.merge',{sourceDonorId:ada.id,donorId:duplicate.id,sourceVersion:before.version,version:1,reason:'duplicate_record'})
+  const mergeInput={sourceDonorId:ada.id,donorId:duplicate.id,sourceVersion:before.version,version:1,reason:'duplicate_record'}
+  for(const options of [{as:member.cookie},{as:'',headers:{authorization:'Bearer '+agent.token}}])await h.command('donor.merge',mergeInput,{...options,status:403})
+  const merged=await h.command('donor.merge',{sourceDonorId:ada.id,donorId:duplicate.id,sourceVersion:before.version,version:1,reason:'duplicate_record'},{as:matrix.admin.cookie})
+  await attach('donor:'+ada.id,{},{as:member.cookie,status:409})
+  await h.get('/api/coffer/documents?donorId='+ada.id,{as:member.cookie,status:404})
   assert.equal((await h.get('/api/coffer/documents?donorId='+duplicate.id)).documents.length,docs.length)
   assert.deepEqual(Buffer.from(await (await h.request(`/api/coffer/documents/${agreementDoc.id}/download`)).arrayBuffer()),pdf)
-  await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'})
+  for(const options of [{as:member.cookie},{as:'',headers:{authorization:'Bearer '+agent.token}}])await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'},{...options,status:403})
+  await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'},{as:matrix.admin.cookie})
   assert.equal((await h.get('/api/coffer/documents?donorId='+ada.id)).documents.length,docs.length)
   const saved=await archive(h)
-  assert.equal(saved[0].objects.length,docs.length+1)
+  assert.ok(saved[0].objects.length>=docs.length+1)
   const fresh=await installation()
   try{
    await restore(fresh,saved)
    for(const doc of docs){
     const response=await fresh.request(`/api/coffer/documents/${doc.id}/download`)
     assert.equal(response.status,200)
-    assert.deepEqual(Buffer.from(await response.arrayBuffer()),doc.id===photo.id?png:pdf)
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()),Buffer.from(file.records.record_documents.find(d=>d.id===doc.id).content_base64,'base64'))
    }
    const restoredFile=await fresh.api(`/api/coffer/donors/${ada.id}/data-request`,{requestedOn:day,method:'email',reference:'RESTORE-008'})
    assert.deepEqual(Buffer.from(restoredFile.records.record_documents.find(d=>d.id===agreementDoc.id).content_base64,'base64'),pdf)
+   for(const as of [member.cookie])assert.equal((await h.request(`/api/coffer/documents/${agreementDoc.id}/preview`,{as})).status,200)
+   const restoredMember=await fresh.person('restored-file-member@example.test')
    await fresh.command('donor.erase',{donorId:ada.id,reason:'donor_request',confirm:'ERASE'})
-   for(const doc of docs)assert.equal((await fresh.request(`/api/coffer/documents/${doc.id}/download`)).status,404)
+   await fresh.api(`/api/coffer/donors/${ada.id}/data-request`,{requestedOn:day,method:'email'},{status:404})
+   await fresh.api('/api/coffer/documents',{donorId:ada.id,recordRef:'donor:'+ada.id,title:'Erased attachment',fileName:'erased.pdf',mediaType:'application/pdf',contentBase64:pdf.toString('base64')},{as:restoredMember.cookie,status:409})
+   for(const doc of docs)for(const door of ['download','preview'])for(const as of [fresh.owner,restoredMember.cookie])assert.equal((await fresh.request(`/api/coffer/documents/${doc.id}/${door}`,{as})).status,404)
    assert.equal((await fresh.request(`/api/coffer/documents/${otherFile.id}/download`)).status,200)
    const after=await archive(fresh)
-   assert.equal(after[0].objects.length,1,'Erased PDF and image bytes leave the real R2 inventory; the other constituent is retained')
+   assert.equal(after[0].objects.length,saved[0].objects.length-docs.length,'Only the erased constituent’s stored files leave the real R2 inventory')
+   const protectedRestore=await installation()
+   try{
+    await restore(protectedRestore,saved,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}})
+    for(const doc of docs)assert.equal((await protectedRestore.request(`/api/coffer/documents/${doc.id}/download`)).status,404,'An older archive cannot revive erased bytes when the current erasure journal is supplied')
+    assert.equal((await archive(protectedRestore))[0].objects.length,0)
+   }finally{await protectedRestore.close()}
   }finally{await fresh.close()}
   const moved=await imported(h),importDonor=(await h.get('/api/coffer/donors')).donors.find(d=>d.source==='stripe')
   const importedGift=(await h.get('/api/coffer/donors/'+importDonor.id)).gifts.find(g=>g.kind==='gift')

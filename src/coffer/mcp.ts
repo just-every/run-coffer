@@ -83,6 +83,9 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
   return result({ tools })
  }
  if (message.method !== 'tools/call') return error(id, -32601, 'Method not found.', modern ? 404 : 200)
+ // DONOR-008: agent keys never grant record-file access, including direct
+ // calls to document operations that are deliberately absent from discovery.
+ if (typeof p.name === 'string' && p.name.startsWith('documents.')) return error(id, -32602, 'Agent keys cannot use record documents.', 403, { code: 'FORBIDDEN' })
  const tool = tools.find(tool => tool.name === p.name)
  if (!tool) return error(id, -32602, 'Unknown tool. Only the listed read and preparation tools are available.', modern ? 400 : 200)
  const args = p.arguments === undefined ? {} : p.arguments
