@@ -27,7 +27,7 @@ export function normalizeMoverRecord(record: Record<string, unknown>, id: string
  const moveCode = text(record.MoveReturnCode)
  const notes = text(record.DPVFootNotes)
  const safeMoveCode = /^(?:A|\d{2})$/.test(moveCode) ? moveCode : ''
- const safeNotes = /^(?:[A-Z0-9]{2})*$/.test(notes) && notes.length <= 40 ? notes.match(/.{2}/g) ?? [] : []
+ const safeNotes: string[] = /^(?:[A-Z0-9]{2})*$/.test(notes) && notes.length <= 40 ? notes.match(/.{2}/g) ?? [] : []
  const providerCodes = [...codes, ...(safeMoveCode ? [`MOVE:${safeMoveCode}`] : []), ...safeNotes.map(code => `DPV_NOTE:${code}`)]
  const result = (status: SmartMoverAddressResult['status'], reason: SmartMoverAddressResult['reason']): SmartMoverAddressResult => ({ id, status, reason, providerCodes })
  if (codes.some(code => ['CM03', 'CM04', 'AE04', 'AS16', 'AS17'].includes(code)) || ['02', '03'].includes(moveCode) || safeNotes.includes('R7')) return result('undeliverable', 'not_deliverable')

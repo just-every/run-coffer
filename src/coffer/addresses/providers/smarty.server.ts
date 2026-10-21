@@ -28,7 +28,7 @@ export async function verifySmartyAddress(input: SmartyRequest, fetcher?: Provid
  const dpv = text(analysis.dpv_match_code), vacant = text(analysis.dpv_vacant), noStat = text(analysis.dpv_no_stat)
  const footnotes = text(analysis.dpv_footnotes)
  if (!['', 'Y', 'N', 'S', 'D'].includes(dpv) || !['', 'Y', 'N'].includes(vacant) || !['', 'Y', 'N'].includes(noStat) || !/^(?:[A-Z0-9]{2}){0,20}$/.test(footnotes)) return result('error', 'invalid_response')
- const notes = footnotes.match(/[A-Z0-9]{2}/g) ?? []
+ const notes: string[] = footnotes.match(/[A-Z0-9]{2}/g) ?? []
  const codes = [dpv && `DPV:${dpv}`, vacant && `VACANT:${vacant}`, noStat && `NO_STAT:${noStat}`, ...notes.map(code => `DPV_NOTE:${code}`)].filter(Boolean)
  if (vacant === 'Y') return result('undeliverable', 'vacant', codes)
  if (noStat === 'Y') return result('undeliverable', 'no_stat', codes)
