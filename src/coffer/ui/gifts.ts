@@ -41,7 +41,7 @@ export async function giftsPage(c: Context, url: URL) {
  const asked = url.searchParams.get('gift')
  const selected = (asked ? list.rows.find(g => g.id === asked) ?? await giftById(c, asked) : null)
   ?? list.rows.find(g => g.failed_attempts > 0) ?? list.rows[0] ?? null
- const [progress, night, panel] = await Promise.all([giftProgress(c, year), overnight(c), selected ? donorPanel(c, selected.donor_id, s.timezone) : ''])
+ const [progress, night, panel] = await Promise.all([giftProgress(c, year), overnight(c), selected ? donorPanel(c, selected.donor_id, s.timezone,selected) : ''])
  const scopeParams: Record<string, string> = !scope ? {} : 'campaign' in scope ? { campaign: scope.campaign } : { fund: scope.fund, year: scope.year }
  const link = (values: Record<string, string | number>, keepScope = true) => `/app/gifts?${new URLSearchParams(Object.entries({ tab, ...(keepScope ? scopeParams : {}), ...values }).map(([k, v]) => [k, String(v)]).filter(([, v]) => v !== 'all' && v !== '0'))}`
  const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`

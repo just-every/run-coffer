@@ -1,3 +1,6 @@
+import { manager } from '../auth'
+import { today } from '../db'
+import { acknowledgmentStatus, giftAcknowledgmentForms } from './gift-acknowledgments'
 // The Gifts screen's right-hand donor panel: who they are, their recent gifts or
 // card retries, the development agent's place, and contact and consent.
 import type { Row, Context } from '../db'
@@ -13,7 +16,7 @@ const RETRY: Record<string, [Step['tone'], IconName, string]> = {
 }
 const consent = (value: string | undefined) => value === 'granted' ? chip('Yes', 'ok') : value === 'withdrawn' ? chip('Withdrawn', 'alarm') : chip('Not asked')
 
-export async function donorPanel(c: Context, donorId: string, timezone: string) {
+export async function donorPanel(c: Context, donorId: string, timezone: string,selectedGift?:Row) {
  const p = await donorPanelData(c, donorId), d = p.donor
  if (!d) return ''
  const stamp = (at: string) => moment(at, timezone)
@@ -45,8 +48,9 @@ export async function donorPanel(c: Context, donorId: string, timezone: string) 
   <dt>Mail</dt><dd class="cf-val"><span>${mail.length ? mail.map(e).join('<br>') : '<span class="muted">None</span>'}</span>${consent(p.consent.mail)}</dd>
   ${d.phone ? `<dt>Phone</dt><dd>${e(d.phone)}</dd>` : ''}${d.household ? `<dt>Household</dt><dd>${e(d.household)} (${p.members})</dd>` : ''}</dl></section>`
 
+ const acknowledgment=selectedGift?`<section class="cf-card" id="selected-gift-acknowledgment"><h3>Gift thank-you</h3><p>${money(selectedGift.amount_cents)} · ${e(shortDate(selectedGift.received_on))}</p>${acknowledgmentStatus(selectedGift)}${!d.erased_at&&c.actor.role!=='agent'?giftAcknowledgmentForms(selectedGift,today(timezone,new Date(c.now)),manager(c.actor),[],true):''}</section>`:''
  const initials = d.name.split(/\s+/).filter(Boolean).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
  return `<aside class="cf-donor" id="donor" aria-label="Selected donor"><section class="cf-card cf-identity-card"><div class="cf-identity"><span class="cf-initials" aria-hidden="true">${e(initials)}</span><div><h2><a href="${href}">${e(d.name)}</a></h2><p>${e([d.city, d.region].filter(Boolean).join(', '))}</p></div></div>
   <div class="cf-donor-stats"><p><strong>${p.totals.gifts}</strong><span>${p.totals.gifts === 1 ? 'gift' : 'gifts'}${since ? ` since ${since}` : ''}</span></p><p><strong>${money(p.totals.lifetime_cents)}</strong><span>lifetime giving</span></p><p><strong>${years < 1 ? 'New' : `${years} ${years === 1 ? 'year' : 'years'}`}</strong><span>${years < 1 ? 'donor this year' : 'as a donor'}</span></p></div>
-  <nav class="cf-panel-tabs" aria-label="${e(d.name)}"><a aria-current="page" href="#donor">Overview</a><a href="${href}">Gifts</a><a href="${href}#timeline">Timeline</a><a href="${href}#consent">Consent</a></nav></section>${activity}${agent}${details}</aside>`
+  <nav class="cf-panel-tabs" aria-label="${e(d.name)}"><a aria-current="page" href="#donor">Overview</a><a href="${href}">Gifts</a><a href="${href}#timeline">Timeline</a><a href="${href}#consent">Consent</a></nav></section>${activity}${acknowledgment}${agent}${details}</aside>`
 }
