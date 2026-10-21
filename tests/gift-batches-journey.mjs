@@ -22,13 +22,28 @@ export async function giftBatchesJourney() {
   const member=await h.person('batch-entry@example.test'), agent=await h.command('agent.create',{label:'Batch reader'})
   await h.command('giftBatch.create',{},{as:'',status:401})
   await h.command('giftBatch.create',{},{as:'',headers:{authorization:'Bearer '+agent.token},status:403})
-  const batch=await h.command('giftBatch.create',{name:'October reply cards',receivedOn:'2026-10-01',fund:'Reading',campaignId:campaign.id,appeal:'REPLY-26',method:'check',expected:'1250'},{as:member.cookie})
+  let batch
+  await h.command('giftBatch.create',{name:'Cash table',receivedOn:'2026-10-01',fund:'Reading',method:'cash',expected:'25'},{as:member.cookie})
   const state=()=>h.get('/api/coffer/gift-batches?id='+batch.id)
   const directory=process.env.COFFER_BATCH_BROWSER??'.cache/gift-batches'
   await mkdir(directory,{recursive:true})
   await withBrowserWorker(h,async(context,origin)=>{
-   const page=await context.newPage(), path=`${origin}/app/gifts/batches?id=${batch.id}`
-   await page.goto(path)
+   const page=await context.newPage()
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/gifts/batches')
+    await page.screenshot({path:`${directory}/batch-start-${width}.png`,fullPage:true})
+   }
+   await page.setViewportSize({width:1440,height:1000})
+   await page.getByLabel('Batch name',{exact:true}).fill('October reply cards')
+   await page.getByLabel('Received on',{exact:true}).fill('2026-10-01')
+   await page.getByLabel('Fund',{exact:true}).fill('Reading')
+   await page.getByLabel('Campaign',{exact:true}).selectOption(campaign.id)
+   await page.getByLabel('Appeal',{exact:true}).selectOption('REPLY-26')
+   await page.getByLabel('Expected deposit total (USD)',{exact:true}).fill('1250')
+   await page.getByRole('button',{name:'Start batch',exact:true}).press('Enter')
+   await page.getByRole('heading',{name:'October reply cards',exact:true}).waitFor()
+   batch={id:new URL(page.url()).searchParams.get('id')}
+   const path=`${origin}/app/gifts/batches?id=${batch.id}`
    // Every check is entered through native forms using the keyboard, including legacy lookup.
    for(let n=0;n<12;n++){
     if(n===11){
@@ -43,6 +58,7 @@ export async function giftBatchesJourney() {
     }
     await page.getByLabel('Gift amount (USD)',{exact:true}).fill('100')
     await page.keyboard.press('Tab');await page.keyboard.type(String(638200+n))
+    if(n===0)await page.screenshot({path:`${directory}/batch-entry-1440.png`,fullPage:true})
     await page.getByRole('button',{name:'Add gift',exact:true}).press('Enter')
    }
    assert.equal((await state()).total_cents,120000)
@@ -86,6 +102,8 @@ export async function giftBatchesJourney() {
   }
   await h.command('giftBatch.close',{batchId:batch.id,version:closed.version},{status:409})
   await h.command('giftBatch.add',{batchId:batch.id,version:closed.version,donorId:legacy.id,amount:'1',reference:'another',goods:'none'},{status:409})
+  const report=await h.get('/api/coffer/reports/attribution?from=2026-10-01&to=2026-10-01')
+  assert.equal(report.campaign.find(x=>x.key===campaign.id).amountCents,125000)
   const saved=await archive(h),fresh=await installation()
   try{await restore(fresh,saved);assert.equal((await fresh.get('/api/coffer/gift-batches?id='+batch.id)).entries.length,12)}finally{await fresh.close()}
  })
