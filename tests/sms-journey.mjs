@@ -88,7 +88,7 @@ export async function smsJourney(){
   await command('solicitation.set',{donorId:source.id,version:0,type:'channels',channels:['mail'],startsOn:'2026-10-15',source:'person',sourceRef:'Synthetic source mail restriction'})
   await command('solicitation.set',{donorId:target.id,version:0,type:'limit',maxAsks:2,startsOn:'2026-10-15',source:'person',sourceRef:'Synthetic survivor annual limit'})
   for(const d of [source,target]){
-   for(const channel of ['email','mail'])await command('consent.record',{donorIds:[d.id],channel,status:'granted',method:'written',evidence:'Synthetic custody channel permission',capturedOn:'2026-10-15'})
+   for(const channel of ['email','mail'])await command('consent.record',{donorIds:[d.id],channel,status:'granted',method:'paper form',evidence:'Synthetic custody channel permission',capturedOn:'2026-10-15'})
    const run=await prepare('appeal',[d.id],d.id===source.id?sourceBody:targetBody)
    const approval=await command('sms.approve',{runId:run.id,version:run.version})
    assert.equal((await command('sms.send',{runId:run.id,version:approval.version})).submitted,1)

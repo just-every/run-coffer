@@ -125,6 +125,7 @@ export async function contributionTypesJourney(){
   if(process.env.COFFER_GIFT010_BROWSER){
    const directory=process.env.COFFER_GIFT010_BROWSER;await mkdir(directory,{recursive:true})
    await withBrowserWorker(h,async(context,origin)=>{
+    await context.setExtraHTTPHeaders(headers)
     const page=await context.newPage()
     for(const width of [1440,390]){
      await page.setViewportSize({width,height:1000})
@@ -132,6 +133,10 @@ export async function contributionTypesJourney(){
       await page.goto(origin+'/app/donors/'+person.id);const panel=page.locator('#contribution-types');await panel.scrollIntoViewIfNeeded()
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
       await panel.screenshot({path:`${directory}/GIFT-010-${label}-${width}.png`})
+      const entry=panel.locator('details').filter({has:page.getByText(label==='stock'?'Record publicly traded stock':label==='daf'?'Record a DAF sponsor grant':'Record an IRA distribution',{exact:true})}).first()
+      await entry.locator('summary').first().click()
+      await entry.screenshot({path:`${directory}/GIFT-010-${label}-entry-${width}.png`})
+      await entry.locator('summary').first().click()
       if(label==='stock'){
        const property=page.locator('#in-kind-'+stock.id)
        for(const summary of await property.locator('summary').filter({hasText:'Read property acknowledgment'}).all())await summary.click()
@@ -146,5 +151,5 @@ export async function contributionTypesJourney(){
     await page.close()
    })
   }
- })
+ },{entry:'tests/advancing-clock-worker.ts'})
 }
