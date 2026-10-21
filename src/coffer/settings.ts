@@ -1,4 +1,5 @@
-import { NAME_MERGE_FIELDS, nameMergeFields, personNames } from './person-names'
+import { NAME_MERGE_FIELDS, personNames } from './person-names'
+import { CONTACT_MERGE_FIELDS, fieldPattern, fillFields, recipientMergeFields, templateTokens } from './template-fields'
 import { receiptRuleSettings } from './receipt-rules'
 import { commit, event, fail, guard, integer, longText, one, optional, sql, text, type Context, type Row } from './db'
 import { amount, usd } from './money'
@@ -16,15 +17,15 @@ export async function settings(c: { db: D1Database }): Promise<Settings> {
  return row
 }
 
-export const LETTER = [...NAME_MERGE_FIELDS, 'date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
+export const LETTER = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, 'date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
 export const LETTER_REQUIRED = ['donor_name', 'amount', 'gift_date', 'goods_statement', 'organization', 'ein']
 const GOODS = ['goods_value', 'goods_description', 'deductible_amount', 'amount']
-const placeholders = (value: string) => [...value.matchAll(/\{\{\s*([a-z_]+)\s*\}\}/g)].map(m => m[1])
+const placeholders = (value: string) => templateTokens(value).map(t => t.field)
 export function checkTemplate(value: string, label: string, allowed: string[], required: string[]) {
- const used = placeholders(value), unknown = used.filter(x => !allowed.includes(x)), missing = required.filter(x => !used.includes(x))
+ const tokens = templateTokens(value), used = tokens.map(t => t.field), unknown = used.filter(x => !allowed.includes(x)), missing = required.filter(x => !tokens.some(t => t.field === x && t.fallback === undefined))
  if (unknown.length) fail('TEMPLATE', `${label} uses unknown fields: ${unknown.map(x => `{{${x}}}`).join(', ')}.`, 400)
  if (missing.length) fail('TEMPLATE', `${label} must include ${missing.map(x => `{{${x}}}`).join(', ')}.`, 400)
- if (/\{\{|\}\}/.test(value.replace(/\{\{\s*[a-z_]+\s*\}\}/g, ''))) fail('TEMPLATE', `${label} has an unclosed {{field}}.`, 400)
+ if (tokens.some(t => t.fallback === '') || /\{\{|\}\}/.test(value.replace(fieldPattern(), ''))) fail('TEMPLATE', `${label} has an unclosed or malformed {{field}}.`, 400)
 }
 
 /** The letter wording is the charity's own. Coffer only checks that the facts a
@@ -55,7 +56,7 @@ export async function settingsCommand(c: Context, p: Row) {
 }
 
 export const longDate = (day: string) => new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${day}T00:00:00Z`))
-export const fill = (value: string, fields: Record<string, string>) => value.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, name) => fields[name] ?? '')
+export const fill = fillFields
 
 /** The charity's reviewed goods-or-services wording for one gift. */
 export const goodsStatement = (s: Settings, gift: Row) => gift.receipt_statement ?? (gift.goods === 'provided'
@@ -67,6 +68,6 @@ export function renderLetter(s: Settings, gift: Row, recipient: Row, day: string
  const wording = template ?? { subject: s.letter_subject, body: s.letter_template }
  if (!s.ein || !/\{\{\s*ein\s*\}\}/.test(wording.body)) fail('RECEIPT_FACTS', 'Review letter settings: a receipt must include the organization’s EIN.', 409)
  const deductible = usd(gift.amount_cents - gift.goods_cents), goods = goodsStatement(s, gift)
- const fields = { date: longDate(day), ...nameMergeFields(recipient), donor_name: recipient.letter_salutation ?? personNames(recipient).informal, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
+ const fields = { date: longDate(day), ...recipientMergeFields(recipient), donor_name: recipient.letter_salutation ?? personNames(recipient).informal, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
  return { subject: fill(wording.subject, fields), body: fill(wording.body, fields) }
 }

@@ -1,4 +1,4 @@
-import { nameMergeFields } from './person-names'
+import { recipientMergeFields } from './template-fields'
 import { letterRecipient } from './organizations'
 import { withReceiptBenefits } from './receipt-rules'
 import { receiptFundLabels } from './gift-splits'
@@ -30,7 +30,7 @@ export function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number
   : [s.none_statement]
  if (template) {
   // RCPT-007: a reviewed year-end template places the same itemized facts in the charity's own words.
-  const fields = { ...nameMergeFields(donor), date: longDate(day), donor_name: donor.letter_salutation??donor.name, year: String(year), gift_list: items.join('\n'), total: usd(total), goods_total: usd(goods), deductible_total: usd(total - goods), goods_statement: wording.join('\n'), organization: s.organisation, ein: s.ein }
+  const fields = { ...recipientMergeFields(donor), date: longDate(day), donor_name: donor.letter_salutation??donor.name, year: String(year), gift_list: items.join('\n'), total: usd(total), goods_total: usd(goods), deductible_total: usd(total - goods), goods_statement: wording.join('\n'), organization: s.organisation, ein: s.ein }
   return { subject: fill(template.subject, fields), body: fill(template.body, fields), amount_cents: total, ...templateUse(template, s) }
  }
  return {

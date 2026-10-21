@@ -1,4 +1,5 @@
 import { form } from './ui/common'
+import { publishedTemplateFields } from './letter-templates'
 import { printMeetingBrief } from './ui/meeting-brief'
 import { householdState } from './households'
 import { meetings, meetingBrief } from './meeting-briefs'
@@ -388,6 +389,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if(url.pathname==='/api/coffer/template-fields')return json(publishedTemplateFields())
  if(url.pathname==='/api/coffer/meetings')return json(await meetings(c))
  const meeting=url.pathname.match(/^\/api\/coffer\/meetings\/([^/]+)\/brief$/)
  if(meeting)return json(await meetingBrief(c,decodeURIComponent(meeting[1])))

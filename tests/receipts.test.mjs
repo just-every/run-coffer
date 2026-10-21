@@ -43,6 +43,6 @@ test('a calendar-year statement itemizes every unreversed gift and totals deduct
 
 test('RCPT-005: written acknowledgments, quid pro quo, frozen token exceptions, religious and property receipts',receiptRulesJourney)
 
-test('RCPT-007: reviewed thank-you templates by kind and campaign, checked facts, precedence and the version on every letter',async()=>{const {letterTemplatesJourney}=await import('./letter-templates-journey.mjs');await letterTemplatesJourney()})
+test('RCPT-007 / RCPT-010: reviewed thank-you templates by kind and campaign, checked facts, precedence and the version on every letter',async()=>{const {letterTemplatesJourney}=await import('./letter-templates-journey.mjs');await letterTemplatesJourney()})
 
 test('RCPT-008: annual receipt numbers, half-refund corrections, voided reversals, property custody and approved corrected delivery',async()=>{const {receiptCorrectionsJourney}=await import('./receipt-corrections-journey.mjs');await receiptCorrectionsJourney()})

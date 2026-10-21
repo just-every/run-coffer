@@ -1,4 +1,4 @@
-import { nameMergeFields } from './person-names'
+import { recipientMergeFields } from './template-fields'
 import { letterRecipient } from './organizations'
 import { receiptText } from './receipt-format'
 import { addDays, all, choice, commit, date, event, fail, guard, id, integer, longText, newId, one, optional, sql, today, type Context, type Row } from './db'
@@ -52,7 +52,7 @@ function renderAcknowledgment(s: Settings, g: Row, recipient: Row, on: string, t
    : 'No goods or services were provided in exchange for this contribution.'
  if (template) {
   // RCPT-007: an in-kind template never merges a value; the property, quantity and goods facts stay.
-  const fields = { ...nameMergeFields(recipient), date: longDate(on), donor_name: recipient.letter_salutation, gift_date: longDate(g.received_on), description: g.description, quantity: String(g.quantity), goods_statement: goods, organization: s.organisation, ein: s.ein }
+  const fields = { ...recipientMergeFields(recipient), date: longDate(on), donor_name: recipient.letter_salutation, gift_date: longDate(g.received_on), description: g.description, quantity: String(g.quantity), goods_statement: goods, organization: s.organisation, ein: s.ein }
   return { subject: fill(template.subject, fields), body: fill(template.body, fields), ...templateUse(template, s) }
  }
  return {
