@@ -67,6 +67,82 @@ Mailchimp. Missing addresses and known receipt bounces/complaints still route
 to print. The receipt test was updated to require both an opted-in donor and a
 marketing-withdrawn donor to receive their receipt, with distinct provider IDs.
 
+## Ask classification and restrictions
+
+Every current outbound run records whether it is an ask. Email and mail appeals,
+SMS appeals and the welcome second-ask step are asks. A newsletter explicitly
+prepared as a newsletter, welcome thank-you/impact steps, gift receipts, annual
+statements and reminders for the donor's own pledge are non-asks. Non-ask status
+retains each door's separate consent and constituent-status checks. The current
+call list excludes restricted ask candidates while allowing explicitly non-ask
+stewardship calls. A gift-triggered thank-you task is also a non-ask.
+
+Solicitation restrictions are versioned facts separate from consent: do not
+solicit, no asks on selected channels, or an annual ask allowance. Preparation
+counts exclusions as “do not solicit” or “solicitation limit”; approval and
+submission recheck frozen restriction versions and the current allowance. An
+owner or admin can deliberately include a selected restricted donor in one run
+with a reason. The run and donor timeline retain the reason and author; the
+restriction and consent remain unchanged.
+
+Default ADOPTED, pending ct: unique durable provider claims and mail exports
+count across channels in the organization's calendar year, once per
+kind/run/original donor. Preparation does not count. Unknown outcomes count;
+a definitive SMS 4xx rejection releases that count. After merge, original
+restrictions and ask histories are evaluated as a union. Only the owner, admin
+or assigned relationship manager can replace or clear an existing restriction,
+including resolving inherited restrictions. These are conservative defaults,
+not a claim that DONOR-015 is complete.
+
+Current LGL, Bloomerang and configured NXT export imports retain sourced
+restriction facts, channel withdrawals, preview mappings and reconciliation,
+with repeat/undo safeguards. Restriction filters in saved lists/reports, bulk
+set/clear, export columns, donor-portal writes and nonannual period choices
+remain unimplemented. The GIVE-006 recovery journey proves restricted-donor
+failed-payment/card-expiry notices, and the DONOR-003 household journey includes
+a restricted head and unchanged solicitation facts. Future provider,
+journey, task, list/report/export/API and importer doors must inherit ask
+classification, restriction checks, limits, audit and custody before shipping.
+Topics and per-channel frequency preferences remain distinct unfinished work
+under COMM-001; annual solicitation limits do not implement them.
+
+## Text messages
+
+Staff record SMS permission with evidence, capture date, current phone and donor
+time zone. SMS and phone answers join the shared append-only channel history;
+SMS send eligibility also requires permission bound to that current phone.
+Owner/admin prepare an appeal, thank-you or own-pledge reminder text, review its
+frozen recipients and message, explicitly approve, then send. Preparation sends
+nothing. A pledge reminder requires an unpaid installment. Appeals exclude
+restricted donors; thank-yous and own-pledge reminders still require current
+SMS consent and active status.
+
+Self-hosted sending requires the Twilio account SID, auth token and sender
+bindings named TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM. The operator
+supplies an already registered sender. Coffer does not manage 10DLC registration.
+Texts are held outside 8 a.m. to 9 p.m. in each donor's recorded time zone. A
+later explicit send releases eligible held recipients; no automatic scheduling
+or morning resumption is implemented. Changed consent, phone, donor or
+restriction versions fence an already approved run.
+
+A durable recipient claim prevents duplicate submission. Twilio acceptance is
+labelled **submitted**, with its returned status separate; it does not prove
+delivery. Lost or ambiguous responses remain **uncertain**, including a claim
+interrupted before its outcome was saved, and are never automatically retried.
+A definitive 4xx refusal reads failed. The signed Twilio form webhook verifies
+the exact request URL and parameters, account and destination. STOP and its
+supported equivalents append withdrawals to the SMS preference and shared
+consent histories once per message, preventing subsequent texts. HELP and
+ordinary reply logging/assignment are not implemented.
+
+Backups preserve SMS runs and histories while leaving credentials out. Pending
+or held runs must be discarded before merge; a submission in progress must be
+reconciled. Merge never transfers SMS permission to the survivor: staff must
+explicitly reconfirm the current phone and donor time zone. Clean undo restores
+original history, while later staff decisions fence undo. Erasure removes
+private phone, identity and message data, including runs that only excluded the
+erased donor. These custody policies remain conservative defaults pending ct.
+
 ## Welcome journeys
 
 Publish thank-you, impact and second-ask messages from Appeals. Only a first
@@ -75,13 +151,17 @@ restart the series. The thank-you is due immediately; impact and ask are due at
 the saved day offsets. The actual Worker minute scheduler runs due steps, and
 **Run due welcome steps** uses the same path. A second gift stops the remaining
 series even if later reversed. Missing consent, erasure and merge cancel pending
-steps. Publication is refused while a journey is active so its messages cannot
+steps. A solicitation restriction skips the ask step while preserving eligible
+thank-you/impact steps. Publication is refused while a journey is active so its messages cannot
 change underneath it. Submission claims and unique message keys prevent repeats;
 uncertain submissions require human investigation.
 
-This implements the first-gift series. Other triggers, branching, inactive and
-deceased statuses, topic preferences and cross-journey frequency caps remain
-outside this implementation. Mango also enforces its own sender and frequency
+This implements the first-gift series with current constituent-status and
+solicitation gates. Other journey triggers, branching, topic preferences and
+cross-journey frequency caps remain outside this implementation. Reviewed
+gift-triggered rules separately create ordinary thank-you calls and first-gift
+tags or submit minimal private fund notices through Slack; they do not provide
+those additional journey triggers. Mango also enforces its own sender and frequency
 rules at approval and handoff.
 
 ## Replies
@@ -104,8 +184,10 @@ tables and exclude connection credentials.
 
 Live Email Routing acceptance requires an installation address and verified
 forward destinations. That account configuration is not supplied by the fleet
-deploy token. The clause remains partial until configured; stop-request
-recognition and proposed withdrawal are also not implemented.
+deploy token. The historical hosted check below did not prove live reply routing. Current
+COMM-005 public-door tests cover explicit email stop withdrawals and staff
+confirmation of ambiguous requests; neither email behavior supplies SMS HELP
+or ordinary text reply tasks.
 
 ## Checks
 
@@ -139,3 +221,21 @@ not supplied; no Mango source or homepage copy was changed.
 Both temporary proof environments were removed after the check. The deploy
 command read back that neither Worker nor any of their D1, R2 or queue resources
 remained.
+
+## Current public-door checks, 22 October 2026
+
+`tests/coffer.test.mjs` — "DONOR-015: ask restrictions preserve transactional contact and deliberate audited exceptions"
+runs solicitationJourney in `tests/solicitation-journey.mjs` through current
+appeal, welcome, receipt, annual-statement, pledge, call and donor doors, with
+native 1440/390 views. "DONOR-015: incumbent restrictions retain source meaning, previews, reconciliation and undo across current CRM doors"
+runs solicitationImportJourney in `tests/solicitation-import-journey.mjs`.
+"DONOR-015: SMS asks honor restrictions while approved thank-yous and pledge reminders retain consent, quiet hours and STOP"
+runs smsJourney in `tests/sms-journey.mjs`: approved Twilio submission, night
+hold and explicit morning release, signed STOP/replay, stale/uncertain holds,
+merge union, permission reconfirmation, restore/undo/erasure and native text
+screens. "STEW-005: reviewed rules act once on live gifts and never on historical imports"
+runs giftRulesJourney in `tests/gift-rules-journey.mjs`, asserting reviewed
+publication, 48-hour non-ask tasks, first-gift tags, historical suppression,
+minimal Slack handoff and native rules at 1440/390. Only paid/network edges are
+faked; these checks establish Coffer's side, with no live Twilio or Slack
+acceptance or delivery claim.
