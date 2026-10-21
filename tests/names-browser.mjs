@@ -11,6 +11,7 @@ export async function namesBrowser(h,{batchId,statementId,donorId}) {
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/app/settings')
    const form=page.locator('form').filter({has:page.locator('input[name="command"][value="settings.update"]')})
+   assert.equal(await form.count(),1,await page.locator('body').innerText())
    const body=await form.getByLabel('Letter',{exact:true}).inputValue()
    assert.ok(body.includes('{{formal_salutation}}'))
    await form.getByLabel('Letter',{exact:true}).fill(body)
