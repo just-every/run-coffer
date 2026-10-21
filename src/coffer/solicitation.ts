@@ -108,7 +108,7 @@ export async function prepareSolicitationRun(c:Context,input:{kind:string;id:str
  if(typeof isAsk!=='boolean')fail('INPUT','Mark the outbound run as an ask or not an ask.',400)
  const states=await solicitationState(c,donorIds),recipients:Row[]=[],excluded:Row[]=[]
  for(const ownState of states) {
-  const state={...ownState,version:ownState.scope_version}
+  const state:Row={...ownState,version:ownState.scope_version}
   const savedException=await one(c,'SELECT * FROM cf_solicitation_inclusions WHERE kind=? AND run_id=? AND donor_id=? AND restriction_version=?',kind,runId,state.donor_id,state.version)
   const exception=explicit.has(state.donor_id)?{donor_id:state.donor_id,restriction_version:state.version,reason:explicit.get(state.donor_id),actor_id:c.actor.id,actor_name:c.actor.name,recorded_at:c.now}:savedException
   const reason=isAsk?await solicitationReason(c,state.donor_id,channel,c.now):null

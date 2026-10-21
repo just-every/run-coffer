@@ -1,4 +1,5 @@
 import { mergeStatements as recognitionMergeStatements } from './recognition'
+import { solicitationCustodyGuards, solicitationMergeCustody } from './solicitation-custody'
 import { reassignmentReason } from './reassignment-reasons'
 import { requireRole } from './auth'
 import { majorGiftMergeStatements } from './major-gifts'
@@ -67,6 +68,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   guard(`(SELECT count(*) FROM cf_donors d WHERE (id=? AND version=? OR id=? AND version=?) AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))=2`, 'VERSION', 'A donor changed or was merged. Review both records again.', source,sourceVersion,target,version),
   ...households.map(h=>guard('EXISTS(SELECT 1 FROM cf_households WHERE id=? AND version=?)','VERSION','A household changed. Review both donor records again.',h.id,h.version)),
   ...quietCommunications(source,target),
+  ...solicitationCustodyGuards(source,target),
   guard(`NOT EXISTS(SELECT 1 FROM cf_employer_matches m JOIN cf_gifts g ON g.id=m.gift_id WHERE (m.employer_donor_id IN (?,?) AND g.donor_id IN (?,?))) AND NOT EXISTS(SELECT 1 FROM cf_employer_matches a JOIN cf_employer_matches b ON a.gift_id=b.gift_id WHERE a.employer_donor_id=? AND b.employer_donor_id=?)`, 'MATCH_CONFLICT', 'Resolve matching-gift promises between these records, or duplicate employer promises, before merging.', source,target,source,target,source,target),
   sql("INSERT INTO cf_donor_merge_journal(id,source_id,target_id,merged_at,merged_by,status) VALUES(?,?,?,?,?,'active')",mergeId,source,target,c.now,c.actor.name),
   ...captureMerge(tables,mergeId,'before'),
@@ -86,6 +88,12 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('UPDATE cf_donors SET version=version+1 WHERE id=?',source),
   sql('UPDATE cf_gifts SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_consents SET donor_id=? WHERE donor_id=?',target,source),
+  // A tag records the first triggering gift. If both identities already carry
+  // it, retain the earlier provenance rather than whichever row SQLite visits.
+  sql(`DELETE FROM cf_donor_rule_tags AS t WHERE t.donor_id=? AND EXISTS(
+   SELECT 1 FROM cf_donor_rule_tags s WHERE s.donor_id=? AND s.tag=t.tag AND s.created_at<t.created_at)`,target,source),
+  sql('DELETE FROM cf_donor_rule_tags WHERE donor_id=? AND tag IN (SELECT tag FROM cf_donor_rule_tags WHERE donor_id=?)',source,target),
+  sql('UPDATE cf_donor_rule_tags SET donor_id=? WHERE donor_id=?',target,source),
   sql('DELETE FROM cf_portfolio_members WHERE donor_id=? AND EXISTS(SELECT 1 FROM cf_portfolio_members WHERE donor_id=?)',source,target),
   sql('UPDATE cf_portfolio_members SET donor_id=? WHERE donor_id=?',target,source),
   sql('DELETE FROM cf_soft_credits WHERE donor_id IN (?,?) AND gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=?)',source,target,target),
@@ -107,6 +115,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql('UPDATE cf_employer_matches SET employer_donor_id=? WHERE employer_donor_id=?',target,source),
   ...recognitionMergeStatements(source,target),...donorDepthMergeStatements(source,target),...majorGiftMergeStatements(source,target),
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',source,target),
+  ...solicitationMergeCustody(c,source,target,mergeId,mergedOn),
   ...householdChanges.flatMap(({household:h,head})=>[
    ...(h.head_donor_id===source&&head===target?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE id=? AND household_id=? AND constituent_kind='person' AND constituent_status<>'deceased' AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))`,'HOUSEHOLD_HEAD','The survivor is no longer eligible to carry headship.',target,h.id)]:[]),
    sql(`UPDATE cf_households SET version=version+1,head_donor_id=?,

@@ -29,6 +29,9 @@ WHEN NOT EXISTS(SELECT 1 FROM cf_donors WHERE id=OLD.donor_id AND erased_at IS N
   WHERE r.kind='consent' AND r.owned=1 AND r.native_id=CAST(OLD.id AS TEXT)
    AND j.state IN ('applying','completed') AND json_extract(j.report,'$.solicitationUndoInProgress')=1
    AND r.snapshot=json_object('id',OLD.id,'donor_id',OLD.donor_id,'channel',OLD.channel,'status',OLD.status,'method',OLD.method,'evidence',OLD.evidence,'captured_on',OLD.captured_on,'recorded_at',OLD.recorded_at,'recorded_by',OLD.recorded_by))
+ AND NOT EXISTS(SELECT 1 FROM cf_donor_merge_journal j JOIN cf_donor_merge_rows a ON a.merge_id=j.id AND a.phase='after' AND a.table_name='cf_consents' AND a.row_key=json_array(OLD.id)
+  WHERE j.status='undoing' AND NOT EXISTS(SELECT 1 FROM cf_donor_merge_rows b WHERE b.merge_id=j.id AND b.phase='before' AND b.table_name=a.table_name AND b.row_key=a.row_key)
+   AND a.value=json_object('id',OLD.id,'donor_id',OLD.donor_id,'channel',OLD.channel,'status',OLD.status,'method',OLD.method,'evidence',OLD.evidence,'captured_on',OLD.captured_on,'recorded_at',OLD.recorded_at,'recorded_by',OLD.recorded_by))
 BEGIN SELECT RAISE(ABORT,'COFFER_CONSENT_APPEND_ONLY'); END;
 INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
  SELECT donor_id,'sms',status,source,evidence||' · Donor time zone: '||timezone,captured_on,recorded_at,recorded_by FROM cf_sms_preferences ORDER BY id;

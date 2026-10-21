@@ -4,6 +4,7 @@ const pair = '((SELECT source FROM merge),(SELECT target FROM merge))'
 const gifts = `SELECT id FROM cf_gifts WHERE donor_id IN ${pair}`
 const pledges = `SELECT id FROM cf_pledges WHERE donor_id IN ${pair}`
 const subscriptions = `SELECT id FROM cf_subscriptions WHERE donor_id IN ${pair}`
+const custodyPair = `(SELECT source FROM merge UNION SELECT target FROM merge UNION SELECT donor_id FROM cf_donor_merges WHERE into_id IN ${pair})`
 type Description = {table:string; keys:string[]; scope:string; restore:boolean; columns:string[]}
 const owned = (table:string,scope=`n.donor_id IN ${pair}`,keys=['id'],restore=true) => ({table,keys,scope,restore})
 // Only these server-owned identifiers may enter generated SQL. Tokens are never
@@ -22,7 +23,18 @@ const descriptions = [
  owned('cf_donor_meetings'), owned('cf_donor_address_history'), owned('cf_record_documents'),
  owned('cf_gift_acknowledgments',`n.gift_id IN (${gifts})`,['gift_id']),
  owned('cf_gifts'), owned('cf_consents'), owned('cf_pledges'), owned('cf_acks'),
- owned('cf_events',`n.donor_id IN ${pair} AND NOT (n.action IN ('donor.merge','donor.unmerge') AND COALESCE(json_extract(n.detail,'$.mergeId'),'')=(SELECT id FROM merge))`),
+ // Original identities retain these records. The same union scope before and
+ // after flattening aliases also fences a later inherited restriction edit.
+ owned('cf_solicitation',`n.donor_id IN ${custodyPair}`,['donor_id'],false),
+ owned('cf_solicitation_history',`n.donor_id IN ${custodyPair}`,['donor_id','version'],false),
+ owned('cf_solicitation_asks',`n.donor_id IN ${custodyPair}`,['kind','run_id','donor_id'],false),
+ owned('cf_solicitation_recipients',`n.donor_id IN ${custodyPair}`,['kind','run_id','donor_id'],false),
+ owned('cf_solicitation_inclusions',`n.donor_id IN ${custodyPair}`,['kind','run_id','donor_id'],false),
+ owned('cf_sms_preferences',`n.donor_id IN ${custodyPair}`),
+ owned('cf_sms_recipients',`n.donor_id IN ${custodyPair}`,['run_id','donor_id'],false),
+ owned('cf_sms_runs',`n.id IN (SELECT run_id FROM cf_sms_recipients WHERE donor_id IN ${custodyPair})`,['id'],false),
+ owned('cf_donor_rule_tags',undefined,['donor_id','tag']),
+ owned('cf_events',`n.donor_id IN ${pair} AND NOT (n.action IN ('donor.merge','donor.unmerge','solicitation.mergeCustody') AND COALESCE(json_extract(n.detail,'$.mergeId'),'')=(SELECT id FROM merge))`),
  owned('cf_soft_credits',`n.donor_id IN ${pair} OR n.gift_id IN (${gifts})`),
  owned('cf_tribute_notifications',`n.gift_id IN (${gifts})`,['id'],false),
  owned('cf_gift_tributes',`n.donor_id IN ${pair} OR n.gift_id IN (${gifts})`,['gift_id']),
