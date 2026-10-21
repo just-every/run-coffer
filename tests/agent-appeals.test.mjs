@@ -130,8 +130,14 @@ test('DEV-009: reconcile five dropped appeal recipients against the frozen audie
   const u=new URL(request.url),path=u.pathname.replace('/3.0',''),raw=request.method==='GET'?'':await request.text(),body=raw?JSON.parse(raw):null
   assert.equal(u.hostname,'us21.api.mailchimp.com')
   if(path==='/lists')return Response.json(fixture.lists??{lists:[{id:'fixture-list',name:'Fixture audience',stats:{member_count:7}}]})
+  if(path==='/lists/fixture-list/merge-fields'&&request.method==='GET')return Response.json({merge_fields:['CF_INFORM','CF_FORMAL','CF_ENVELOP'].map(tag=>({tag,type:'text'})),total_items:3})
   if(path.includes('/members/')&&path.startsWith('/lists/fixture-list')){
    const d=[...contacts.values()].find(x=>x.hash===path.split('/').at(-1))
+   if(request.method==='PATCH'){
+    assert.deepEqual(Object.keys(body),['merge_fields'])
+    if(d)d.merge_fields={...d.merge_fields,...body.merge_fields}
+    return Response.json(d??{...fixture.member_subscribed,email_address:await emailForHash(path.split('/').at(-1)),merge_fields:body.merge_fields})
+   }
    if(request.method==='PUT'){if(d)d.status=body.status;return Response.json(d??fixture.member_unsubscribed)}
    return Response.json(d??{...fixture.member_subscribed,email_address:await emailForHash(path.split('/').at(-1))})
   }

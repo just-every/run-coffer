@@ -2,6 +2,7 @@ import { all, commit, event, fail, one, sql, type Context, type Row } from '../d
 import { settings } from '../settings'
 import { providerTitle, providerContact, captureProviderConsent, restricted, subscribed, suppressProvider } from './provider'
 import { emailConnection, requireConnection } from './connection'
+import { syncMailchimpNames } from './mailchimp'
 
 export async function reconcileDonor(c: Context, donorId: string, capture = false): Promise<Row> {
  const donor = await one(c, `SELECT d.*,k.id AS consent_id,k.status AS consent,k.evidence,k.captured_on FROM cf_donors d
@@ -10,6 +11,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  if (!donor?.email) return { state:'no-address', allowed:false }
  const conn = await requireConnection(c), label = providerTitle(conn.provider)
  let contact = await providerContact(conn, donor.email)
+ if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) contact = await syncMailchimpNames(conn, donor)
  let state = 'pending', note = 'Confirm the donor’s subscription with the email provider before sending.'
  if (contact && restricted(contact) && donor.consent === 'granted') {
   // Never turn a provider opt-out into a grant, or overwrite a newer answer.

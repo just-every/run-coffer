@@ -15,3 +15,11 @@ export function importedOverrides(parts: Row, source: { informal?: string; forma
  const keep = (value: string | undefined, own: string) => value && value !== own ? value : null
  return { informal_salutation: keep(source.informal, computed.informal), formal_salutation: keep(source.formal, computed.formal), envelope_name: keep(source.envelope, computed.envelope) }
 }
+
+/** Template fields use the recipient's frozen addressing, keeping credited donor name parts separate. */
+export const NAME_MERGE_FIELDS = ['prefix', 'first_name', 'middle_name', 'last_name', 'suffix', 'nickname', 'informal_salutation', 'formal_salutation', 'envelope_name']
+export function nameMergeFields(d: Row): Record<string, string> {
+ const names = d.letter_names ?? personNames(d)
+ return { ...Object.fromEntries(['prefix','first_name','middle_name','last_name','suffix','nickname'].map(key => [key, d[key] ?? ''])),
+  informal_salutation: names.informal, formal_salutation: names.formal, envelope_name: d.letter_name ?? names.envelope }
+}

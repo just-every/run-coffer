@@ -12,7 +12,7 @@ export async function letterTemplatesJourney(){
   const save=(input,options)=>h.command('letterTemplate.save',input,options)
   // Each template is checked for the required receipt facts before it can be used.
   assert.equal((await save({kind:'first_gift',name:'First gift',subject:'Welcome',body:body.replace('{{goods_statement}} ','')},{status:400})).error,'TEMPLATE')
-  assert.equal((await save({kind:'first_gift',name:'First gift',subject:'Welcome',body:body+' {{nickname}}'},{status:400})).error,'TEMPLATE')
+  assert.equal((await save({kind:'first_gift',name:'First gift',subject:'Welcome',body:body+' {{unrecognized_field}}'},{status:400})).error,'TEMPLATE')
   await save({kind:'first_gift',name:'First gift',subject:'Welcome',body},{as:member.cookie,status:403})
   const first=await save({kind:'first_gift',name:'First gift',subject:'Welcome, {{donor_name}}',body:'FIRST '+body})
   assert.equal(first.version,1)

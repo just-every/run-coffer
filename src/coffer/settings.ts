@@ -1,3 +1,4 @@
+import { NAME_MERGE_FIELDS, nameMergeFields, personNames } from './person-names'
 import { receiptRuleSettings } from './receipt-rules'
 import { commit, event, fail, guard, integer, longText, one, optional, sql, text, type Context, type Row } from './db'
 import { amount, usd } from './money'
@@ -15,7 +16,7 @@ export async function settings(c: { db: D1Database }): Promise<Settings> {
  return row
 }
 
-export const LETTER = ['date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
+export const LETTER = [...NAME_MERGE_FIELDS, 'date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
 export const LETTER_REQUIRED = ['donor_name', 'amount', 'gift_date', 'goods_statement', 'organization', 'ein']
 const GOODS = ['goods_value', 'goods_description', 'deductible_amount', 'amount']
 const placeholders = (value: string) => [...value.matchAll(/\{\{\s*([a-z_]+)\s*\}\}/g)].map(m => m[1])
@@ -62,10 +63,10 @@ export const goodsStatement = (s: Settings, gift: Row) => gift.receipt_statement
  : s.none_statement)
 
 /** Renders the settings letter, or a reviewed RCPT-007 template chosen for this gift. */
-export function renderLetter(s: Settings, gift: Row, donorName: string, day: string, template?: { subject: string; body: string } | null) {
+export function renderLetter(s: Settings, gift: Row, recipient: Row, day: string, template?: { subject: string; body: string } | null) {
  const wording = template ?? { subject: s.letter_subject, body: s.letter_template }
  if (!s.ein || !/\{\{\s*ein\s*\}\}/.test(wording.body)) fail('RECEIPT_FACTS', 'Review letter settings: a receipt must include the organization’s EIN.', 409)
  const deductible = usd(gift.amount_cents - gift.goods_cents), goods = goodsStatement(s, gift)
- const fields = { date: longDate(day), donor_name: donorName, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
+ const fields = { date: longDate(day), ...nameMergeFields(recipient), donor_name: recipient.letter_salutation ?? personNames(recipient).informal, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
  return { subject: fill(wording.subject, fields), body: fill(wording.body, fields) }
 }

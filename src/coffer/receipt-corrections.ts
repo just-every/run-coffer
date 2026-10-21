@@ -29,7 +29,7 @@ export async function correctReceipt(c: Context, p: Row): Promise<Row> {
   current.receipt_fund = allocations.map((a, i) => `${a.fund}: $${(parts[i] / 100).toFixed(2)}`).join('; ')
  }
  const recipient=await letterRecipient(c,donor)
- const rendered = renderGiftLetter(s, current, recipient.letter_salutation, today(s.timezone, new Date(c.now)), (await giftTemplates(c, [current])).get(gift.id))
+ const rendered = renderGiftLetter(s, current, recipient, today(s.timezone, new Date(c.now)), (await giftTemplates(c, [current])).get(gift.id))
  const batchId = newId(), letterId = newId()
  const letter = { id: letterId, batch_id: batchId, position: 0, gift_id: gift.id, donor_id: donor.id, recipient_name: recipient.letter_name, recipient_email: donor.email, address: recipient.letter_address,
   ...rendered, body: `Corrected receipt replacing ${receiptNumber(original)}.\nWhat changed: ${original.void_reason}. Original contribution $${(original.amount_cents / 100).toFixed(2)}; current contribution $${(gift.net_cents / 100).toFixed(2)}. Use this corrected receipt in place of the original.\n\n${rendered.body}`,

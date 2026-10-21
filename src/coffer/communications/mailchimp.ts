@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { fail, type Row } from '../db'
+import { personNames } from '../person-names'
 import type { Connection } from './connection'
 
 const address = (value: unknown): string => {
@@ -63,12 +64,45 @@ export async function suppressMailchimp(conn: Connection, email: string): Promis
  await request(conn, `${listPath(conn)}/members/${hash(email)}`, 'PUT', {email_address:address(email),status_if_new:'unsubscribed',status:'unsubscribed'})
  if ((await mailchimpContact(conn, email))?.emailStatus !== 'unsubscribed') fail('MAILCHIMP_PREFERENCE', 'Mailchimp has not confirmed this opt-out. Refresh preferences before sending.', 502)
 }
+// Mailchimp audience fields must exist before member values can use their tags.
+// These private text fields do not change the audience's signup form.
+// https://mailchimp.com/developer/marketing/concepts/audiences/merge-fields/
+const NAME_FIELDS = [
+ ['CF_INFORM', 'Coffer informal salutation', 'informal'],
+ ['CF_FORMAL', 'Coffer formal salutation', 'formal'],
+ ['CF_ENVELOP', 'Coffer envelope name', 'envelope'],
+] as const
+async function nameMergeFields(conn: Connection, donor: Row) {
+ const path = `${listPath(conn)}/merge-fields`
+ const data = await request(conn, `${path}?count=1000`)
+ if (!Array.isArray(data?.merge_fields) || !Number.isSafeInteger(data.total_items) || data.total_items !== data.merge_fields.length) fail('MAILCHIMP_RESPONSE', 'Mailchimp did not return the complete audience field definitions.', 502)
+ // Refuse incompatible fields before creating any missing ones; never replace
+ // an existing definition that another integration could be using.
+ for (const [tag] of NAME_FIELDS) {
+  const field = data.merge_fields.find((f: Row) => f.tag === tag)
+  if (field && field.type !== 'text') fail('MAILCHIMP_FIELDS', `Mailchimp audience field ${tag} must be a text field. Review it in Mailchimp before syncing names.`, 409)
+ }
+ for (const [tag, name] of NAME_FIELDS) {
+  if (data.merge_fields.some((f: Row) => f.tag === tag)) continue
+  const field = await request(conn, path, 'POST', { tag, name, type:'text', required:false, public:false })
+  if (field?.tag !== tag || field.type !== 'text') fail('MAILCHIMP_RESPONSE', 'Mailchimp did not confirm the audience name field.', 502)
+ }
+ const names = personNames(donor)
+ return Object.fromEntries(NAME_FIELDS.map(([tag, , key]) => [tag, names[key]]))
+}
+/** A merge-only PATCH preserves a concurrent unsubscribe and never creates a member. */
+export async function syncMailchimpNames(conn: Connection, donor: Row): Promise<Row> {
+ const merge_fields = await nameMergeFields(conn, donor)
+ const data = await request(conn, `${listPath(conn)}/members/${hash(donor.email)}`, 'PATCH', { merge_fields })
+ return contact(data!, donor.email)
+}
 export async function captureMailchimpConsent(conn: Connection, donor: Row, _organisation: string): Promise<Row | null> {
  const existing = await mailchimpContact(conn, donor.email)
  if (existing) return existing
  // Omit status even after a missing-contact read: a concurrent unsubscribe must
  // survive the upsert. Mailchimp sends its double opt-in confirmation for pending.
- const data = await request(conn, `${listPath(conn)}/members/${hash(donor.email)}`, 'PUT', {email_address:address(donor.email),status_if_new:'pending'})
+ const merge_fields = await nameMergeFields(conn, donor)
+ const data = await request(conn, `${listPath(conn)}/members/${hash(donor.email)}`, 'PUT', {email_address:address(donor.email),status_if_new:'pending',merge_fields})
  return contact(data!, donor.email)
 }
 async function verifyRecipient(conn: Connection, segmentId: string, email: string): Promise<void> {

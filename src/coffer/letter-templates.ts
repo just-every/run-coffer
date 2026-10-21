@@ -1,3 +1,4 @@
+import { NAME_MERGE_FIELDS } from './person-names'
 import { all, choice, commit, event, fail, guard, id, integer, longText, newId, one, sql, text, type Context, type Row, type Stmt } from './db'
 import { amount } from './money'
 import { checkTemplate, LETTER, LETTER_REQUIRED, renderLetter, type Settings } from './settings'
@@ -10,12 +11,12 @@ export const TEMPLATE_LABELS: Record<TemplateKind | 'default', string> = {
  campaign: 'Form or campaign', tribute: 'Tribute gift', major_gift: 'Major gift', first_gift: 'First gift', recurring_start: 'Recurring start',
  in_kind: 'In-kind gift', year_end: 'Year-end statement', default: 'Settings letter',
 }
-export const IN_KIND_FIELDS = ['date', 'donor_name', 'gift_date', 'description', 'quantity', 'goods_statement', 'organization', 'ein']
-export const YEAR_END_FIELDS = ['date', 'donor_name', 'year', 'gift_list', 'total', 'goods_total', 'deductible_total', 'goods_statement', 'organization', 'ein']
+export const IN_KIND_FIELDS = [...NAME_MERGE_FIELDS, 'date', 'donor_name', 'gift_date', 'description', 'quantity', 'goods_statement', 'organization', 'ein']
+export const YEAR_END_FIELDS = [...NAME_MERGE_FIELDS, 'date', 'donor_name', 'year', 'gift_list', 'total', 'goods_total', 'deductible_total', 'goods_statement', 'organization', 'ein']
 const FIELDS: Record<'gift' | 'in_kind' | 'year_end', [string[], string[]]> = {
  gift: [LETTER, LETTER_REQUIRED],
  in_kind: [IN_KIND_FIELDS, ['donor_name', 'gift_date', 'description', 'goods_statement', 'organization', 'ein']],
- year_end: [YEAR_END_FIELDS, YEAR_END_FIELDS.filter(f => f !== 'date')],
+ year_end: [YEAR_END_FIELDS, YEAR_END_FIELDS.filter(f => f !== 'date' && !NAME_MERGE_FIELDS.includes(f))],
 }
 export const templateFields = (kind: TemplateKind) => FIELDS[kind === 'in_kind' || kind === 'year_end' ? kind : 'gift']
 
@@ -58,8 +59,8 @@ export async function giftTemplates(c: { db: D1Database }, gifts: Row[]): Promis
 }
 
 /** One gift letter with the template version it used. */
-export function renderGiftLetter(s: Settings, gift: Row, donorName: string, day: string, template: Row | undefined) {
- return { ...renderLetter(s, gift, donorName, day, template as { subject: string; body: string } | undefined), ...templateUse(template, s) }
+export function renderGiftLetter(s: Settings, gift: Row, recipient: Row, day: string, template: Row | undefined) {
+ return { ...renderLetter(s, gift, recipient, day, template as { subject: string; body: string } | undefined), ...templateUse(template, s) }
 }
 
 export async function letterTemplateCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {

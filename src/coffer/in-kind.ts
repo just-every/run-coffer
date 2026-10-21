@@ -1,3 +1,4 @@
+import { nameMergeFields } from './person-names'
 import { letterRecipient } from './organizations'
 import { receiptText } from './receipt-format'
 import { addDays, all, choice, commit, date, event, fail, guard, id, integer, longText, newId, one, optional, sql, today, type Context, type Row } from './db'
@@ -42,7 +43,7 @@ export function inKindReminders(g: Row) {
  return { form8283, form8282, disposalWindowEndsOn: threeYearsAfter(g.original_received_on) }
 }
 
-function renderAcknowledgment(s: Settings, g: Row, donorName: string, on: string, template: Row | null) {
+function renderAcknowledgment(s: Settings, g: Row, recipient: Row, on: string, template: Row | null) {
  // Deliberately independent of monetary letter templates and stated value.
  const goods = g.goods === 'provided'
   ? `In exchange for this contribution, ${s.organisation} provided ${g.goods_description}, with a good faith estimated value of ${usd(g.goods_cents)}.`
@@ -51,13 +52,13 @@ function renderAcknowledgment(s: Settings, g: Row, donorName: string, on: string
    : 'No goods or services were provided in exchange for this contribution.'
  if (template) {
   // RCPT-007: an in-kind template never merges a value; the property, quantity and goods facts stay.
-  const fields = { date: longDate(on), donor_name: donorName, gift_date: longDate(g.received_on), description: g.description, quantity: String(g.quantity), goods_statement: goods, organization: s.organisation, ein: s.ein }
+  const fields = { ...nameMergeFields(recipient), date: longDate(on), donor_name: recipient.letter_salutation, gift_date: longDate(g.received_on), description: g.description, quantity: String(g.quantity), goods_statement: goods, organization: s.organisation, ein: s.ein }
   return { subject: fill(template.subject, fields), body: fill(template.body, fields), ...templateUse(template, s) }
  }
  return {
   ...settingsUse(s),
   subject: `Property contribution acknowledgment from ${s.organisation}`,
-  body: `${longDate(on)}\n\nDear ${donorName},\n\n${s.organisation} acknowledges receipt on ${longDate(g.received_on)} of the following property:\n\n${g.description}\nQuantity: ${g.quantity}\n\n${goods}\n\n${s.organisation}\nEIN ${s.ein}`,
+  body: `${longDate(on)}\n\nDear ${recipient.letter_salutation},\n\n${s.organisation} acknowledges receipt on ${longDate(g.received_on)} of the following property:\n\n${g.description}\nQuantity: ${g.quantity}\n\n${goods}\n\n${s.organisation}\nEIN ${s.ein}`,
  }
 }
 
@@ -101,7 +102,7 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
   const previous = await one(c, 'SELECT * FROM cf_in_kind_acknowledgments WHERE in_kind_id=? ORDER BY property_version DESC LIMIT 1', giftId)
   const correction = previous ? await one(c, 'SELECT reason FROM cf_in_kind_revisions WHERE in_kind_id=? AND property_version=?', giftId, g.property_version) : null
   const recipient=await letterRecipient(c,(await one(c,'SELECT * FROM cf_donors WHERE id=?',donorId))!)
-  const acknowledgmentId = newId(), template = await templateFor(c, 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, recipient.letter_salutation, on, template)
+  const acknowledgmentId = newId(), template = await templateFor(c, 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, recipient, on, template)
   if(recipient.constituent_kind==='organization')letter.body=[recipient.letter_name,...[recipient.address_line1,recipient.address_line2,[recipient.city,recipient.region,recipient.postal_code].filter(Boolean).join(' '),recipient.country].filter(Boolean),'',letter.body].join('\n')
   if (previous) letter.body = `Corrected property acknowledgment replacing ${previous.receipt_year}-${previous.receipt_sequence}. What changed: ${correction?.reason ?? 'Donor reassigned'}. Use this copy in place of the earlier acknowledgment.\n\n${letter.body}`
   await commit(c, [live(donorId), current(giftId, donorId, version),

@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
+import {createHash} from 'node:crypto'
 import {run,donor,archive,restore,installation} from './harness.mjs'
 const recorded=JSON.parse(await readFile(new URL('./fixtures/mango/audience.json',import.meta.url),'utf8'))
 const chimp=JSON.parse(await readFile(new URL('./fixtures/mailchimp/responses.json',import.meta.url),'utf8'))
@@ -29,6 +30,86 @@ const appeal=async h=>{
  await h.command('appeal.approve',{appealId:frozen.id,version:1})
  return frozen
 }
+
+test('DONOR-014: Mailchimp audience names follow parts and typed overrides for subscribed and new pending members without overriding opt-outs',()=>{
+ const definitions=new Map(),members=new Map(),writes=[]
+ const hash=email=>createHash('md5').update(email).digest('hex')
+ const email='robert.smith@example.test'
+ members.set(hash(email),{id:'robert',email_address:email,status:'subscribed'})
+ let unsubscribeOnPatch=false
+ return run(async h=>{
+  const robert=await donor(h,'Robert Smith',{email})
+  const profile=async(d,input)=>h.command('donor.profile',{donorId:d.id,version:(await h.get('/api/coffer/donors/'+d.id)).donor.version,...input})
+  const consent=(d,status)=>h.command('consent.record',{donorIds:[d.id],channel:'email',status,method:'paper form',evidence:'Explicit test permission',capturedOn:'2026-09-01'})
+  await profile(robert,{prefix:'Dr.',firstName:'Robert',middleName:'A.',lastName:'Smith',suffix:'Jr.',nickname:'Bob'})
+  await consent(robert,'granted')
+  await h.command('marketing.connectMailchimp',{apiKey:'coffernames-us21'})
+  await h.command('marketing.chooseAudience',{listId:'fixture-list',fromName:'Library',fromEmail:'library@example.test'})
+  assert.equal((await h.command('marketing.sync')).pending,0)
+  assert.deepEqual(members.get(hash(email)).merge_fields,{CF_INFORM:'Bob',CF_FORMAL:'Dr. Smith',CF_ENVELOP:'Dr. Robert A. Smith Jr.'})
+  assert.equal(definitions.size,3)
+  await profile(robert,{nickname:'Rob',lastName:'Jones',envelopeName:'The Smith Family',formalSalutation:'Doctor Smith'})
+  await h.command('marketing.sync')
+  assert.deepEqual(members.get(hash(email)).merge_fields,{CF_INFORM:'Rob',CF_FORMAL:'Doctor Smith',CF_ENVELOP:'The Smith Family'})
+  assert.equal(members.get(hash(email)).status,'subscribed')
+  const beforeConflict=writes.length
+  definitions.get('CF_FORMAL').type='number'
+  assert.equal((await h.command('marketing.sync')).pending,1,'An incompatible audience definition blocks the name update')
+  assert.equal(writes.length,beforeConflict)
+  assert.equal(definitions.get('CF_FORMAL').type,'number','Sync never replaces another audience field definition')
+  definitions.get('CF_FORMAL').type='text'
+  // An unsubscribe racing the merge-only PATCH must become a local withdrawal.
+  unsubscribeOnPatch=true
+  await h.command('marketing.sync')
+  assert.equal(members.get(hash(email)).status,'unsubscribed')
+  assert.equal((await h.get('/api/coffer/donors/'+robert.id)).current.email.status,'withdrawn')
+  const count=writes.length
+  await h.command('marketing.sync')
+  assert.equal(writes.length,count,'An opted-out contact receives no further name writes')
+  const ana=await donor(h,'Ana Lee',{email:'ana.lee@example.test'})
+  await profile(ana,{prefix:'Ms.',firstName:'Ana',lastName:'Lee',informalSalutation:'Annie',envelopeName:'The Lee Family'})
+  await consent(ana,'granted')
+  await h.command('gift.record',{donorId:ana.id,amount:'25',receivedOn:'2026-09-01',method:'check',goods:'none',fund:'Library'})
+  const batch=await appeal(h)
+  const result=await h.command('appeal.send',{appealId:batch.id,version:2})
+  assert.equal(result.submitted,0,'A new pending member still needs Mailchimp double opt-in')
+  assert.equal(result.suppressed,1)
+  const pending=members.get(hash('ana.lee@example.test'))
+  assert.equal(pending.status,'pending')
+  assert.deepEqual(pending.merge_fields,{CF_INFORM:'Annie',CF_FORMAL:'Ms. Lee',CF_ENVELOP:'The Lee Family'})
+  await consent(ana,'withdrawn')
+  assert.equal(pending.status,'unsubscribed','Coffer withdrawal still suppresses the pending member')
+ },{outbound:async request=>{
+  const u=new URL(request.url),body=request.method==='GET'?null:await request.json()
+  assert.equal(u.origin,'https://us21.api.mailchimp.com')
+  if(u.pathname==='/3.0/lists')return Response.json({lists:[{id:'fixture-list',name:'Names audience',stats:{member_count:members.size}}]})
+  if(u.pathname==='/3.0/lists/fixture-list/merge-fields'){
+   if(request.method==='GET')return Response.json({merge_fields:[...definitions.values()],total_items:definitions.size})
+   assert.equal(request.method,'POST');assert.equal(body.type,'text');assert.equal(body.public,false);assert.equal(body.required,false)
+   assert.equal(definitions.has(body.tag),false,'Existing field definitions are reused')
+   definitions.set(body.tag,body);return Response.json(body)
+  }
+  const match=u.pathname.match(/^\/3.0\/lists\/fixture-list\/members\/([^/]+)$/)
+  assert.ok(match,`Unexpected Mailchimp request ${request.method} ${u.pathname}`)
+  let member=members.get(match[1])
+  if(request.method==='GET')return member?Response.json(member):Response.json({title:'Resource Not Found'},{status:404})
+  if(body.merge_fields){
+   for(const tag of Object.keys(body.merge_fields))assert.equal(definitions.get(tag)?.type,'text','Member values require defined text fields')
+   assert.equal(body.status,undefined,'Name writes never change subscription status')
+   writes.push(body)
+  }
+  if(request.method==='PATCH'){
+   assert.ok(member);assert.deepEqual(Object.keys(body),['merge_fields'])
+   if(unsubscribeOnPatch){member.status='unsubscribed';unsubscribeOnPatch=false}
+  }else{
+   assert.equal(request.method,'PUT')
+   if(!member){member={id:match[1],email_address:body.email_address,status:body.status_if_new};members.set(match[1],member)}
+   if(body.status)member.status=body.status
+  }
+  if(body.merge_fields)member.merge_fields={...member.merge_fields,...body.merge_fields}
+  return Response.json(member)
+ }})
+})
 
 // Faked only at Mango's network edge, with its scoped integration API; Coffer runs its real Worker and D1.
 test('Connect Mango from the page, send an approved appeal to a Mango list, and keep opt-outs in step',()=>{
@@ -191,6 +272,8 @@ test('COMM-008: email appeal results match signed ledger and sender outcomes wit
   assert.equal(u.origin,'https://us21.api.mailchimp.com')
   assert.equal(request.headers.get('authorization'),`Bearer ${apiKey}`)
   if(key==='GET /3.0/lists')return Response.json({lists:[{id:'fixture-list',name:'Fixture audience',stats:{member_count:1}}]})
+  if(key==='GET /3.0/lists/fixture-list/merge-fields')return Response.json({merge_fields:['CF_INFORM','CF_FORMAL','CF_ENVELOP'].map(tag=>({tag,type:'text'})),total_items:3})
+  if(/^PATCH \/3.0\/lists\/fixture-list\/members\//.test(key))return Response.json({...chimp.member_subscribed,merge_fields:(await request.json()).merge_fields})
   if(/^GET \/3.0\/lists\/fixture-list\/members\//.test(key))return Response.json(chimp.member_subscribed)
   if(key==='POST /3.0/lists/fixture-list/segments')return Response.json(chimp.static_segment)
   if(key==='GET /3.0/lists/fixture-list/segments/101/members')return Response.json(chimp.segment_members)

@@ -30,7 +30,7 @@ export async function queueMissingReceipts(c:Context) {
  for(const [key,d] of donors)donors.set(key,await letterRecipient(c,d))
  const tributes=new Map((await all(c,'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))',ids)).map(t=>[t.gift_id,t]))
  const letters=chosen.map((g,position)=>{
-  const d=donors.get(g.donor_id)!,rendered=renderGiftLetter(s,g,d.letter_salutation,today(s.timezone,new Date(c.now)),templates.get(g.id))
+  const d=donors.get(g.donor_id)!,rendered=renderGiftLetter(s,g,d,today(s.timezone,new Date(c.now)),templates.get(g.id))
   return {id:newId(),batch_id:batchId,position,gift_id:g.id,donor_id:d.id,recipient_name:d.letter_name,recipient_email:d.email,address:d.letter_address,subject:rendered.subject,body:[rendered.body,tributeReceiptText(tributes.get(g.id))].filter(Boolean).join('\n\n'),amount_cents:g.amount_cents,received_on:g.received_on,template_kind:rendered.template_kind,template_id:rendered.template_id,template_version:rendered.template_version}
  })
  const hash=await letterHash(s.version,letters),total=chosen.reduce((n,g)=>n+g.amount_cents,0)

@@ -67,7 +67,7 @@ export async function onlineGiving(clock: Clock, s: Settings, donors: Map<string
  const batches: Row[] = [], acks: Row[] = [], approvals: Row[] = []
  for (const g of gifts) {
   const d = donors.get(g.donor_id)!, batchId = `receipt-${g.id}`, sent = g.created_at, fresh = Date.parse(clock.today) - Date.parse(g.received_on) < 3 * 86400000
-  const rendered = renderLetter(s, g, d.name, g.received_on)
+  const rendered = renderLetter(s, g, d, g.received_on)
   const letter = { id: batchId, batch_id: batchId, position: 0, gift_id: g.id, donor_id: d.id, live: 1, recipient_name: d.name, recipient_email: d.email, address: address(d), subject: rendered.subject, body: rendered.body, amount_cents: g.amount_cents, received_on: g.received_on, ...settingsUse(s),
    route: 'email', delivery_status: fresh ? 'submitted' : 'delivered', message_id: `demo-message-${g.id}`, submitted_at: sent, delivered_at: fresh ? null : new Date(Date.parse(sent) + 90000).toISOString() }
   const hash = await letterHash(s.version, [letter])

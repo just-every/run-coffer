@@ -1,7 +1,7 @@
 import { receiptRuleFields } from './receipt-rules'
 import { manager, type Actor } from '../auth'
 import type { Context, Row } from '../db'
-import { settings } from '../settings'
+import { LETTER, settings } from '../settings'
 import { all } from '../db'
 import { letterTemplates } from '../letter-templates'
 import { letterTemplatesBox } from './letter-templates'
@@ -27,7 +27,7 @@ export function morePage(actor: Actor) {
 
 export async function settingsPage(c: Context, saved: boolean) {
  const s = await settings(c), boss = manager(c.actor)
- const help = `<p class="muted">Fields you can use: {{date}}, {{donor_name}}, {{amount}}, {{gift_date}}, {{fund}}, {{goods_statement}}, {{organization}}, {{ein}}, {{deductible_amount}}. The letter must include the donor’s name, amount, gift date, organization, EIN and goods-or-services statement. The wording below is a starting point, not tax advice: review it with your adviser.</p>`
+ const help = `<p class="muted">Fields you can use: ${LETTER.map(name => '{{' + name + '}}').join(', ')}. The letter must include the donor’s name, amount, gift date, organization, EIN and goods-or-services statement. The wording below is a starting point, not tax advice: review it with your adviser.</p>`
  if (!boss) return box('Letter settings', `<p>${e(s.organisation || 'Organization name not set')} · letters for gifts of ${money(s.threshold_cents)} or more within ${s.target_days} days.</p><p class="muted">An owner or admin edits these settings.</p>`)
  return `${saved ? '<p class="notice" role="status">Settings saved.</p>' : ''}${s.reviewed_at ? '' : '<p class="notice">Coffer will not prepare letters until a person has reviewed and saved this page.</p>'}
  ${box('Your organization and letters', form('settings.update', `<div class="fields">${field('Organization name', 'organisation', 'text', s.organisation, 'required maxlength="200"')}${field('EIN', 'ein', 'text', s.ein, 'required placeholder="12-3456789"')}${field('Time zone', 'timezone', 'text', s.timezone, 'required')}${field('Fiscal year start (MM-DD)', 'fiscalYearStart', 'text', s.fiscal_year_start, 'required pattern="[0-9]{2}-[0-9]{2}" placeholder="07-01"')}${field('Acknowledge gifts of at least (USD)', 'threshold', 'text', (s.threshold_cents / 100).toFixed(2), 'required inputmode="decimal"')}${field('Send within (days)', 'targetDays', 'number', s.target_days, 'required min="1" max="365"')}</div>${select('Online gift receipts', 'onlineReceipts', [['automatic', 'Email each online gift’s receipt as soon as it is paid'], ['review', 'Hold online receipts for me to approve in Letters']], s.online_receipts)}<p class="muted">Automatic receipts use the letter wording below and go to the email address the donor typed at checkout, whatever the amount. Gifts entered by hand follow the threshold above and wait in Letters for approval.</p>
