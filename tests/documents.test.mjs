@@ -70,6 +70,8 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   assert.equal(saved[0].objects.length,docs.length+1+browserFiles)
   const fresh=await installation()
   try{
+   const restoredMember=await fresh.person('restored-file-member@example.test')
+   for(const door of ['preview','download'])assert.equal((await fresh.request(`/api/coffer/documents/${otherFile.id}/${door}`,{as:restoredMember.cookie})).status,404,'A member cannot read a real file from a foreign installation')
    await restore(fresh,saved)
    for(const doc of docs){
     const response=await fresh.request(`/api/coffer/documents/${doc.id}/download`)
@@ -79,7 +81,6 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
    const restoredFile=await fresh.api(`/api/coffer/donors/${ada.id}/data-request`,{requestedOn:day,method:'email',reference:'RESTORE-008'})
    assert.deepEqual(Buffer.from(restoredFile.records.record_documents.find(d=>d.id===agreementDoc.id).content_base64,'base64'),pdf)
    for(const as of [member.cookie])assert.equal((await h.request(`/api/coffer/documents/${agreementDoc.id}/preview`,{as})).status,200)
-   const restoredMember=await fresh.person('restored-file-member@example.test')
    await fresh.command('donor.erase',{donorId:ada.id,reason:'donor_request',confirm:'ERASE'})
    await fresh.api(`/api/coffer/donors/${ada.id}/data-request`,{requestedOn:day,method:'email'},{status:404})
    await fresh.api('/api/coffer/documents',{donorId:ada.id,recordRef:'donor:'+ada.id,title:'Erased attachment',fileName:'erased.pdf',mediaType:'application/pdf',contentBase64:pdf.toString('base64')},{as:restoredMember.cookie,status:409})
