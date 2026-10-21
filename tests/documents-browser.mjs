@@ -14,6 +14,7 @@ export async function documentBrowser(h,{constituent,targets},directory){
    await context.addCookies(cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',httpOnly:true,secure:true,sameSite:'Lax'}}))
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
+    await page.goto('about:blank')
     const opened=await page.goto(`${origin}/app/donors/${constituent.id}#documents`)
     assert.equal(opened.status(),200)
     const panel=page.locator('#documents')
