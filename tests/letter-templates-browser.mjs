@@ -36,3 +36,29 @@ export async function letterTemplatesBrowser(h,{batchId,statementId,directory}) 
   await page.close()
  })
 }
+
+
+export async function mergeReviewBrowser(h,{batchId,directory,phase}) {
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  for(const width of [1440,390]) {
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/letters/'+batchId)
+   const review=page.locator('section').filter({has:page.getByRole('heading',{name:'Merge field review',exact:true})})
+   if(phase==='blanks') {
+    await review.getByRole('link',{name:'Dee Review',exact:true}).waitFor()
+    await review.getByRole('link',{name:'Fay Review',exact:true}).waitFor()
+    assert.equal(await review.getByRole('link',{name:'Eli Review',exact:true}).count(),0)
+    assert.ok((await review.innerText()).includes('{{postal_address}}'))
+    await review.getByRole('link',{name:'Dee Review',exact:true}).click()
+    await page.waitForURL('**/app/donors/**')
+    await page.getByRole('heading',{name:'Dee Review',exact:true}).waitFor()
+    await page.goBack()
+   } else await review.getByText('No empty merge fields were found in the checked letters.',{exact:true}).waitFor()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Review fits the viewport')
+   await page.screenshot({path:`${directory}/RCPT-010-merge-review-${phase}-${width}.png`,fullPage:true})
+  }
+  await page.close()
+ })
+}

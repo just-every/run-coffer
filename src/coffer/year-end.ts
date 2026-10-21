@@ -1,4 +1,4 @@
-import { recipientMergeFields } from './template-fields'
+import { recipientMergeFields, renderTemplate } from './template-fields'
 import { letterRecipient } from './organizations'
 import { withReceiptBenefits } from './receipt-rules'
 import { receiptFundLabels } from './gift-splits'
@@ -6,7 +6,7 @@ import { all, commit, event, fail, guard, id, integer, newId, sql, today, type C
 import { letterHash } from './acknowledgements'
 import { tributeReceiptText } from './gift-depth'
 import { usd } from './money'
-import { fill, goodsStatement, longDate, settings, type Settings } from './settings'
+import { goodsStatement, longDate, settings, type Settings } from './settings'
 import { settingsUse, templateFor, templateRevision, templatesUnchanged, templateUse } from './letter-templates'
 
 const MAX_LETTERS = 500
@@ -31,10 +31,10 @@ export function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number
  if (template) {
   // RCPT-007: a reviewed year-end template places the same itemized facts in the charity's own words.
   const fields = { ...recipientMergeFields(donor), date: longDate(day), donor_name: donor.letter_salutation??donor.name, year: String(year), gift_list: items.join('\n'), total: usd(total), goods_total: usd(goods), deductible_total: usd(total - goods), goods_statement: wording.join('\n'), organization: s.organisation, ein: s.ein }
-  return { subject: fill(template.subject, fields), body: fill(template.body, fields), amount_cents: total, ...templateUse(template, s) }
+  return { ...renderTemplate(template as { subject: string; body: string }, fields), amount_cents: total, ...templateUse(template, s) }
  }
  return {
-  ...settingsUse(s),
+  ...settingsUse(s), merge_blanks: '[]',
   subject: `${year} annual giving statement — ${s.organisation}`,
   body: [
    longDate(day), '', `Dear ${donor.letter_salutation??donor.name},`, '',
@@ -114,11 +114,11 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
   'STATEMENT_EXISTS', 'A selected donor already has a statement for this year. Open that batch, or discard it before preparing again. Select a different donor to prepare another statement.', year, donorIds),
   sql(`INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at,kind,statement_year)
    VALUES(?,1,'prepared',?,?,?,?,?,?,?,?,'statement',?)`, batchId, hash, letters.length, total, s.version, c.actor.id, c.actor.name, c.actor.role, c.now, year),
-  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,statement_gifts,template_kind,template_id,template_version)
+  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,statement_gifts,template_kind,template_id,template_version,merge_blanks)
    SELECT json_extract(value,'$.id'),json_extract(value,'$.batch_id'),json_extract(value,'$.position'),json_extract(value,'$.gift_id'),json_extract(value,'$.donor_id'),0,
     json_extract(value,'$.recipient_name'),json_extract(value,'$.recipient_email'),json_extract(value,'$.address'),json_extract(value,'$.subject'),json_extract(value,'$.body'),
     json_extract(value,'$.amount_cents'),json_extract(value,'$.received_on'),json_extract(value,'$.statement_gifts'),
-    json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version') FROM json_each(?)`, JSON.stringify(letters)),
+    json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version'),json_extract(value,'$.merge_blanks') FROM json_each(?)`, JSON.stringify(letters)),
   event(c, 'ack.prepareStatements', 'acknowledgements', batchId, null, { year, letters: letters.length, totalCents: total }),
  ])
  return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash, excluded }

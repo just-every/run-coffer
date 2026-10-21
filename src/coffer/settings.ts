@@ -1,5 +1,5 @@
 import { NAME_MERGE_FIELDS, personNames } from './person-names'
-import { CONTACT_MERGE_FIELDS, fieldPattern, fillFields, recipientMergeFields, templateTokens } from './template-fields'
+import { CONTACT_MERGE_FIELDS, fieldPattern, fillFields, recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
 import { receiptRuleSettings } from './receipt-rules'
 import { commit, event, fail, guard, integer, longText, one, optional, sql, text, type Context, type Row } from './db'
 import { amount, usd } from './money'
@@ -69,5 +69,5 @@ export function renderLetter(s: Settings, gift: Row, recipient: Row, day: string
  if (!s.ein || !placeholders(wording.body).includes('ein')) fail('RECEIPT_FACTS', 'Review letter settings: a receipt must include the organization’s EIN.', 409)
  const deductible = usd(gift.amount_cents - gift.goods_cents), goods = goodsStatement(s, gift)
  const fields = { date: longDate(day), ...recipientMergeFields(recipient), donor_name: recipient.letter_salutation ?? personNames(recipient).informal, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
- return { subject: fill(wording.subject, fields), body: fill(wording.body, fields) }
+ return renderTemplate(wording, fields)
 }

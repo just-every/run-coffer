@@ -85,12 +85,58 @@ export async function letterTemplatesJourney(){
   const settingsPage=await (await h.request('/app/settings')).text()
   assert.ok(settingsPage.includes('Thank-you templates')&&settingsPage.includes('Annual statement')&&settingsPage.includes('$1,000.00 or more'))
   if(process.env.COFFER_RCPT007_BROWSER){const {letterTemplatesBrowser}=await import('./letter-templates-browser.mjs');await letterTemplatesBrowser(h,{batchId:again.id,statementId:statements.id,directory:process.env.COFFER_RCPT007_BROWSER})}
+  // RCPT-010: report every prepared recipient with a blank, deduplicating
+  // repeated tokens across subject/body; absent fields with defaults are safe.
+  const dee=await donor(h,'Dee Review',{email:null,addressLine1:null,city:null,region:null,postalCode:null})
+  const eli=await donor(h,'Eli Review')
+  const fay=await donor(h,'Fay Review',{email:null,household:'Review household'})
+  const reviewBody=body+'\nUn-defaulted contact: {{email}} / {{postal_address}}'
+  await save({templateId:first.id,version:2,name:'First gift',subject:'Thanks {{email}}',body:reviewBody})
+  const reviewGifts=await Promise.all([dee,eli,fay].map(d=>gift(h,d.id,'300','2025-10-01')))
+  const reviewBatch=await h.command('ack.prepare',{giftIds:reviewGifts.map(g=>g.id)})
+  const review=await h.get('/api/coffer/letters/'+reviewBatch.id)
+  assert.deepEqual(review.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})).sort((a,b)=>a.donorId.localeCompare(b.donorId)),[
+   {donorId:dee.id,fields:['email','postal_address']},{donorId:fay.id,fields:['email']},
+  ].sort((a,b)=>a.donorId.localeCompare(b.donorId)))
+  assert.equal(review.mergeReview.find(r=>r.donorId===dee.id).recipientName,'Dee Review')
+  assert.equal(review.mergeReview.find(r=>r.donorId===dee.id).letterId,review.letters.find(l=>l.donor_id===dee.id).id)
+  assert.ok(review.letters.find(l=>l.donor_id===dee.id).body.includes('Un-defaulted contact:  / '))
+  if(process.env.COFFER_RCPT007_BROWSER){const {mergeReviewBrowser}=await import('./letter-templates-browser.mjs');await mergeReviewBrowser(h,{batchId:reviewBatch.id,directory:process.env.COFFER_RCPT007_BROWSER,phase:'blanks'})}
+  // Later donor and template edits cannot rewrite the prepared review or text.
+  await h.command('donor.update',{donorId:dee.id,version:1,name:'Dee Corrected',email:'dee.corrected@example.test'})
+  await save({templateId:first.id,version:3,name:'First gift',subject:'Thanks {{email|Contact not supplied}}',body:body+'\nUn-defaulted contact: {{email|Contact not supplied}} / {{postal_address|Address not supplied}}'})
+  const unchanged=await h.get('/api/coffer/letters/'+reviewBatch.id)
+  assert.deepEqual(unchanged.mergeReview,review.mergeReview)
+  assert.deepEqual(unchanged.letters.map(l=>l.body),review.letters.map(l=>l.body))
+  await h.command('ack.discard',{batchId:reviewBatch.id,version:1})
+  const fixedBatch=await h.command('ack.prepare',{giftIds:reviewGifts.map(g=>g.id)})
+  const fixed=await h.get('/api/coffer/letters/'+fixedBatch.id)
+  assert.deepEqual(fixed.mergeReview,[])
+  assert.ok(fixed.letters.find(l=>l.donor_id===dee.id).body.includes('dee.corrected@example.test / Address not supplied'))
+  assert.ok(fixed.letters.find(l=>l.donor_id===fay.id).body.includes('Contact not supplied'))
+  assert.ok(fixed.letters.find(l=>l.donor_id===eli.id).body.includes('eli.review@example.org'))
+  if(process.env.COFFER_RCPT007_BROWSER){const {mergeReviewBrowser}=await import('./letter-templates-browser.mjs');await mergeReviewBrowser(h,{batchId:fixedBatch.id,directory:process.env.COFFER_RCPT007_BROWSER,phase:'fixed'})}
+  await h.command('ack.approve',{batchId:fixedBatch.id,version:1})
+  // Both individual and household annual statements expose the same review.
+  const annualTemplate=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===yearEnd.id)
+  await save({templateId:yearEnd.id,version:1,name:annualTemplate.name,subject:annualTemplate.subject,body:annualTemplate.body+'\nContact: {{email}}'})
+  const annualReviewBatch=await h.command('ack.prepareStatements',{year:2025,donorId:fay.id})
+  const annualReview=await h.get('/api/coffer/letters/'+annualReviewBatch.id)
+  assert.deepEqual(annualReview.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:fay.id,fields:['email']}])
+  const householdId=(await h.get('/api/coffer/donors/'+fay.id)).donor.household_id
+  const householdBatch=await h.command('ack.prepareStatements',{year:2025,householdId})
+  const householdReview=await h.get('/api/coffer/letters/'+householdBatch.id)
+  assert.deepEqual(householdReview.mergeReview.map(r=>r.fields),[['email']])
   // Templates, their versions and the recorded versions on letters travel with the archive.
   const saved=await archive(h)
   await run(async fresh=>{
    await restore(fresh,saved)
    assert.deepEqual((await fresh.get('/api/coffer/letter-templates')).templates.map(t=>[t.id,t.version]),(await h.get('/api/coffer/letter-templates')).templates.map(t=>[t.id,t.version]))
    assert.deepEqual((await fresh.get('/api/coffer/letters/'+again.id)).letters.map(l=>[l.template_id,l.template_version]),[[major.id,1]])
+   assert.deepEqual((await fresh.get('/api/coffer/letters/'+reviewBatch.id)).mergeReview,review.mergeReview)
+   assert.deepEqual((await fresh.get('/api/coffer/letters/'+annualReviewBatch.id)).mergeReview,annualReview.mergeReview)
+   assert.deepEqual((await fresh.get('/api/coffer/letters/'+householdBatch.id)).mergeReview,householdReview.mergeReview)
+   assert.deepEqual((await fresh.get('/api/coffer/letters/'+fixedBatch.id)).mergeReview,[])
   })
  })
 }

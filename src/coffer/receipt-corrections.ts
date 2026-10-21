@@ -42,8 +42,8 @@ export async function correctReceipt(c: Context, p: Row): Promise<Row> {
   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Receipt settings changed. Prepare again.', s.version), templatesUnchanged(revision),
   sql('UPDATE cf_acks SET live=0 WHERE gift_id=?', gift.id),
   sql("INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,'prepared',?,1,?,?,?,?,?,?)", batchId, hash, gift.net_cents, s.version, c.actor.id, c.actor.name, c.actor.role, c.now),
-  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,template_kind,template_id,template_version,replaces_id)
-   VALUES(?,?,0,?,?,1,?,?,?,?,?,?,?,?,?,?,?)`, letterId,batchId,gift.id,donor.id,letter.recipient_name,letter.recipient_email,letter.address,letter.subject,letter.body,letter.amount_cents,letter.received_on,letter.template_kind,letter.template_id,letter.template_version,original.id),
+  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,template_kind,template_id,template_version,replaces_id,merge_blanks)
+   VALUES(?,?,0,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?)`, letterId,batchId,gift.id,donor.id,letter.recipient_name,letter.recipient_email,letter.address,letter.subject,letter.body,letter.amount_cents,letter.received_on,letter.template_kind,letter.template_id,letter.template_version,original.id,letter.merge_blanks),
   event(c, 'ack.correct', 'acknowledgements', batchId, donor.id, { originalLetterId: original.id, letterId, amountCents: gift.net_cents }),
  ])
  return { id: batchId, version: 1, replacesId: original.id }

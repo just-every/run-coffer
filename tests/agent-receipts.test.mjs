@@ -2,10 +2,11 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {generateKeyPairSync,sign} from 'node:crypto'
 const keys=generateKeyPairSync('ec',{namedCurve:'prime256v1'}),publicKey=keys.publicKey.export({type:'spki',format:'der'}).toString('base64')
-import {run,donor,reviewed} from './harness.mjs'
-test('the agent queues small missing and bounced receipts for review, never sends them unseen, and can undo its batch',async()=>{
+import {run,donor,reviewed,settings} from './harness.mjs'
+test('RCPT-010: the agent queues small missing and bounced receipts for review, never sends them unseen, and can undo its batch',async()=>{
  await run(async h=>{
   await reviewed(h)
+  await h.command('settings.update',{...settings,version:(await h.get('/api/coffer/settings')).version,letterTemplate:settings.letterTemplate+'\nNickname: {{nickname}}'})
   const d=await donor(h,'Lena Brooks')
   const gift=await h.command('gift.record',{donorId:d.id,amount:'25',receivedOn:'2026-01-10',method:'cash',fund:'Reading',goods:'none'})
   let result=await h.api('/api/coffer/agent/receipts/queue',{})
@@ -13,6 +14,7 @@ test('the agent queues small missing and bounced receipts for review, never send
   let b=await h.get('/api/coffer/letters/'+result.id)
   assert.equal(b.batch.status,'prepared')
   assert.equal(b.letters[0].gift_id,gift.id)
+  assert.deepEqual(b.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:d.id,fields:['nickname']}])
   assert.equal(b.letters[0].route,'pending')
   assert.equal(h.messages.length,0)
   assert.equal((await h.api('/api/coffer/agent/receipts/queue',{})).queued,0)
