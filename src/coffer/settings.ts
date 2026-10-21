@@ -1,3 +1,4 @@
+import { contributionReceiptKind, contributionGoodsStatement, renderContributionReceipt } from './contribution-receipts'
 import { NAME_MERGE_FIELDS, personNames } from './person-names'
 import { CONTACT_MERGE_FIELDS, fieldPattern, fillFields, recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
 import { receiptRuleSettings } from './receipt-rules'
@@ -60,12 +61,13 @@ export const longDate = (day: string) => new Intl.DateTimeFormat('en-US', { date
 export const fill = fillFields
 
 /** The charity's reviewed goods-or-services wording for one gift. */
-export const goodsStatement = (s: Settings, gift: Row) => gift.receipt_statement ?? (gift.goods === 'provided'
+export const goodsStatement = (s: Settings, gift: Row) => contributionReceiptKind(gift) ? contributionGoodsStatement(s, gift) : gift.receipt_statement ?? (gift.goods === 'provided'
  ? fill(s.goods_statement, { goods_value: usd(gift.goods_cents), goods_description: gift.goods_description ?? '', deductible_amount: usd(gift.amount_cents - gift.goods_cents), amount: usd(gift.amount_cents) }) + `\nThe deductible contribution for federal income tax purposes is limited to the excess of the payment over the good-faith fair market value of the goods or services: ${usd(gift.amount_cents - gift.goods_cents)}.`
  : s.none_statement)
 
 /** Renders the settings letter, or a reviewed RCPT-007 template chosen for this gift. */
 export function renderLetter(s: Settings, gift: Row, recipient: Row, day: string, template?: { subject: string; body: string } | null) {
+ if (contributionReceiptKind(gift)) return renderContributionReceipt(s, gift, recipient, day, template)
  const wording = template ?? { subject: s.letter_subject, body: s.letter_template }
  if (!s.ein || !placeholders(wording.body).includes('ein')) fail('RECEIPT_FACTS', 'Review letter settings: a receipt must include the organization’s EIN.', 409)
  const deductible = usd(gift.amount_cents - gift.goods_cents), goods = goodsStatement(s, gift)

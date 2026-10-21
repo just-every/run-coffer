@@ -1,3 +1,4 @@
+import { contributionReceiptKind, renderContributionReceipt, withContributionTypes } from './contribution-receipts'
 import { recipientMergeFields } from './template-fields'
 import { letterRecipient } from './organizations'
 import { receiptText } from './receipt-format'
@@ -44,6 +45,7 @@ export function inKindReminders(g: Row) {
 }
 
 function renderAcknowledgment(s: Settings, g: Row, recipient: Row, on: string, template: Row | null) {
+ if (contributionReceiptKind(g) === 'stock') return renderContributionReceipt(s, g, recipient, on, template)
  // Deliberately independent of monetary letter templates and stated value.
  const goods = g.goods === 'provided'
   ? `In exchange for this contribution, ${s.organisation} provided ${g.goods_description}, with a good faith estimated value of ${usd(g.goods_cents)}.`
@@ -94,6 +96,7 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
  const giftId = id(p.inKindId, 'In-kind gift'), version = integer(p.version, 'Version', 1)
  const g = await one(c, 'SELECT g.*,d.name AS donor_name FROM cf_in_kind_current g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id=? AND g.donor_id=? AND d.erased_at IS NULL', giftId, donorId)
  if (!g) fail('NOT_FOUND', 'That property record does not exist on this donor.', 404)
+ await withContributionTypes(c, [g])
  if (command === 'inKind.acknowledge') {
   const on = date(p.acknowledgedOn, 'Acknowledgment date')
   if (on < g.received_on || on > day) fail('INPUT', 'Acknowledgment date must be on or after receipt and no later than today.', 400)
@@ -102,7 +105,7 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
   const previous = await one(c, 'SELECT * FROM cf_in_kind_acknowledgments WHERE in_kind_id=? ORDER BY property_version DESC LIMIT 1', giftId)
   const correction = previous ? await one(c, 'SELECT reason FROM cf_in_kind_revisions WHERE in_kind_id=? AND property_version=?', giftId, g.property_version) : null
   const recipient=await letterRecipient(c,(await one(c,'SELECT * FROM cf_donors WHERE id=?',donorId))!)
-  const acknowledgmentId = newId(), template = await templateFor(c, 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, recipient, on, template)
+  const acknowledgmentId = newId(), template = await templateFor(c, contributionReceiptKind(g) === 'stock' ? 'stock' : 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, recipient, on, template)
   if(recipient.constituent_kind==='organization')letter.body=[recipient.letter_name,...[recipient.address_line1,recipient.address_line2,[recipient.city,recipient.region,recipient.postal_code].filter(Boolean).join(' '),recipient.country].filter(Boolean),'',letter.body].join('\n')
   if (previous) letter.body = `Corrected property acknowledgment replacing ${previous.receipt_year}-${previous.receipt_sequence}. What changed: ${correction?.reason ?? 'Donor reassigned'}. Use this copy in place of the earlier acknowledgment.\n\n${letter.body}`
   await commit(c, [live(donorId), current(giftId, donorId, version),
@@ -134,6 +137,7 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
 
 export async function inKindState(c: { db: D1Database }, donorId?: string) {
  const gifts = await all(c, `SELECT g.*,d.name AS donor_name FROM cf_in_kind_current g JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId ? 'AND g.donor_id=?' : ''} ORDER BY g.received_on DESC,g.created_at,g.id`, ...(donorId ? [donorId] : []))
+ await withContributionTypes(c, gifts)
  const acknowledgments = await all(c, `SELECT a.* FROM cf_in_kind_acknowledgments a JOIN cf_in_kind_gifts g ON g.id=a.in_kind_id JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId ? 'AND g.donor_id=?' : ''} ORDER BY a.created_at,a.id`, ...(donorId ? [donorId] : []))
  const revisions=await all(c,`SELECT r.* FROM cf_in_kind_revisions r JOIN cf_in_kind_gifts g ON g.id=r.in_kind_id JOIN cf_donors d ON d.id=g.donor_id WHERE d.erased_at IS NULL ${donorId?'AND g.donor_id=?':''} ORDER BY r.property_version`,...(donorId?[donorId]:[]))
  return { gifts: gifts.map(g => ({ ...g, corrections:revisions.filter(r=>r.in_kind_id===g.id).map(r=>({...r,snapshot:JSON.parse(r.snapshot)})), reminders: inKindReminders(g), acknowledgments: acknowledgments.filter(a => a.in_kind_id === g.id).map(a => ({ ...a, current: !a.void_reason && a.property_version === g.property_version })) })), totalStatedValueCents: gifts.reduce((sum, g) => sum + g.stated_value_cents, 0) }

@@ -83,26 +83,7 @@ export async function contributionTypeCommand(c: Context, command: string, p: Ro
  return { ...prepared.result, donorId, kind, ...(advisorId ? { advisorDonorId: advisorId, softCreditId: creditId } : {}) }
 }
 
-/** Attach classification before receipt selection/rendering, including a
- * reversal’s original. No advisor identity is merged into sponsor receipts. */
-export async function withContributionTypes(c: { db: D1Database }, gifts: Row[]) {
- if (!gifts.length) return gifts
- const ids = JSON.stringify(gifts.map(g => g.reverses ?? g.property_id ?? g.id))
- const [monetary, stock] = await Promise.all([
-  all(c, 'SELECT * FROM cf_contribution_types WHERE gift_id IN (SELECT value FROM json_each(?))', ids),
-  all(c, 'SELECT * FROM cf_stock_contributions WHERE in_kind_id IN (SELECT value FROM json_each(?))', ids),
- ])
- for (const gift of gifts) {
-  const key = gift.reverses ?? gift.property_id ?? gift.id
-  const facts = monetary.find(r => r.gift_id === key) ?? stock.find(r => r.in_kind_id === key)
-  if (!facts) continue
-  gift.contribution_type = facts.kind ?? 'stock'
-  gift.contribution_details = facts
-  if (facts.kind === 'qcd') gift.qcd_custodian = facts.custodian
-  if (!facts.kind) gift.valuation_basis = 'market_high_low_mean'
- }
- return gifts
-}
+export { withContributionTypes } from './contribution-receipts'
 
 export async function contributionTypeState(c: { db: D1Database }, donorId: string) {
  const [monetary, stocks] = await Promise.all([

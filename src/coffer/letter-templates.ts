@@ -1,3 +1,4 @@
+import { CONTRIBUTION_TEMPLATE_FIELDS, checkContributionTemplate, contributionReceiptKind, renderContributionReceipt, withContributionTypes } from './contribution-receipts'
 import { NAME_MERGE_FIELDS } from './person-names'
 import { CONTACT_MERGE_FIELDS } from './template-fields'
 import { all, choice, commit, event, fail, guard, id, integer, longText, newId, one, sql, text, type Context, type Row, type Stmt } from './db'
@@ -5,10 +6,11 @@ import { amount } from './money'
 import { checkTemplate, LETTER, LETTER_REQUIRED, renderLetter, type Settings } from './settings'
 
 /** Gift-letter kinds in selection precedence: the first that applies wins. */
-export const GIFT_TEMPLATE_KINDS = ['campaign', 'tribute', 'major_gift', 'first_gift', 'recurring_start'] as const
-export const TEMPLATE_KINDS = [...GIFT_TEMPLATE_KINDS, 'in_kind', 'year_end'] as const
+export const GIFT_TEMPLATE_KINDS = ['daf', 'qcd', 'campaign', 'tribute', 'major_gift', 'first_gift', 'recurring_start'] as const
+export const TEMPLATE_KINDS = ['stock', ...GIFT_TEMPLATE_KINDS, 'in_kind', 'year_end'] as const
 export type TemplateKind = typeof TEMPLATE_KINDS[number]
 export const TEMPLATE_LABELS: Record<TemplateKind | 'default', string> = {
+ stock: 'Publicly traded stock', daf: 'DAF sponsor grant', qcd: 'IRA distribution',
  campaign: 'Form or campaign', tribute: 'Tribute gift', major_gift: 'Major gift', first_gift: 'First gift', recurring_start: 'Recurring start',
  in_kind: 'In-kind gift', year_end: 'Year-end statement', default: 'Settings letter',
 }
@@ -19,7 +21,7 @@ const FIELDS: Record<'gift' | 'in_kind' | 'year_end', [string[], string[]]> = {
  in_kind: [IN_KIND_FIELDS, ['donor_name', 'gift_date', 'description', 'goods_statement', 'organization', 'ein']],
  year_end: [YEAR_END_FIELDS, YEAR_END_FIELDS.filter(f => f !== 'date' && !NAME_MERGE_FIELDS.includes(f) && !CONTACT_MERGE_FIELDS.includes(f))],
 }
-export const templateFields = (kind: TemplateKind) => FIELDS[kind === 'in_kind' || kind === 'year_end' ? kind : 'gift']
+export const templateFields = (kind: TemplateKind): [string[], string[]] => kind === 'stock' || kind === 'daf' || kind === 'qcd' ? CONTRIBUTION_TEMPLATE_FIELDS[kind] : FIELDS[kind === 'in_kind' || kind === 'year_end' ? kind : 'gift']
 export const publishedTemplateFields = () => ({ syntax: '{{field}}', defaultSyntax: '{{field|literal default}}', templates: TEMPLATE_KINDS.map(kind => { const [fields, required] = templateFields(kind); return { kind, fields, required } }), settings: { fields: LETTER, required: LETTER_REQUIRED } })
 
 export type TemplateUse = { template_kind: string; template_id: string | null; template_version: number }
@@ -29,7 +31,7 @@ export const templateUse = (t: Row | null | undefined, s: Settings): TemplateUse
 
 export const letterTemplates = (c: { db: D1Database }) => all(c, `SELECT t.*,cp.name AS campaign_name FROM cf_letter_templates t LEFT JOIN cf_campaigns cp ON cp.id=t.campaign_id
  WHERE t.active=1 ORDER BY CASE t.kind ${TEMPLATE_KINDS.map((k, i) => `WHEN '${k}' THEN ${i}`).join(' ')} END,cp.name,t.name`)
-export const templateFor = (c: { db: D1Database }, kind: 'in_kind' | 'year_end') => one(c, 'SELECT * FROM cf_letter_templates WHERE active=1 AND kind=?', kind)
+export const templateFor = (c: { db: D1Database }, kind: 'in_kind' | 'year_end' | 'stock') => one(c, 'SELECT * FROM cf_letter_templates WHERE active=1 AND kind=?', kind)
 
 /** Every save or retirement raises one template's version, so the sum moves on any change. */
 export async function templateRevision(c: { db: D1Database }): Promise<number> {
@@ -38,10 +40,11 @@ export async function templateRevision(c: { db: D1Database }): Promise<number> {
 export const templatesUnchanged = (revision: number): Stmt =>
  guard('(SELECT COALESCE(SUM(version),0) FROM cf_letter_templates)=?', 'TEMPLATES_CHANGED', 'Thank-you templates changed while preparing. Prepare again.', revision)
 
-/** The template each gift's letter uses: its form or campaign, then tribute, major gift
+/** Typed DAF/QCD wording takes precedence; other gifts use form or campaign, then tribute, major gift
  * (amount at or above the template's minimum), the donor's first unreversed gift, and the
  * first installment of a recurring plan. Gifts matching none use the settings letter. */
 export async function giftTemplates(c: { db: D1Database }, gifts: Row[]): Promise<Map<string, Row>> {
+ await withContributionTypes(c, gifts)
  const templates = (await all(c, `SELECT * FROM cf_letter_templates WHERE active=1 AND kind IN (${GIFT_TEMPLATE_KINDS.map(() => '?').join(',')})`, ...GIFT_TEMPLATE_KINDS))
  const chosen = new Map<string, Row>()
  if (!templates.length || !gifts.length) return chosen
@@ -53,6 +56,12 @@ export async function giftTemplates(c: { db: D1Database }, gifts: Row[]): Promis
    EXISTS(SELECT 1 FROM cf_subscription_gifts sg WHERE sg.gift_id=g.id AND NOT EXISTS(SELECT 1 FROM cf_subscription_gifts o JOIN cf_gifts e ON e.id=o.gift_id WHERE o.subscription_id=sg.subscription_id AND ${earlier('e')})) AS recurring_start
   FROM cf_gifts g WHERE g.id IN (SELECT value FROM json_each(?))`, JSON.stringify(gifts.map(g => g.id)))
  for (const f of facts) {
+  const typed = contributionReceiptKind(gifts.find(g => g.id === f.id)!)
+  if (typed) {
+   const selected = templates.find(t => t.kind === typed)
+   if (selected) chosen.set(f.id, selected)
+   continue // Missing typed templates use typed built-in wording, never generic precedence.
+  }
   const applies = (t: Row) => t.kind === 'campaign' ? t.campaign_id === f.campaign_id : t.kind === 'major_gift' ? f.amount_cents >= t.min_cents : !!f[t.kind]
   const match = GIFT_TEMPLATE_KINDS.map(kind => templates.find(t => t.kind === kind && applies(t))).find(Boolean)
   if (match) chosen.set(f.id, match)
@@ -62,6 +71,7 @@ export async function giftTemplates(c: { db: D1Database }, gifts: Row[]): Promis
 
 /** One gift letter with the template version it used. */
 export function renderGiftLetter(s: Settings, gift: Row, recipient: Row, day: string, template: Row | undefined) {
+ if (contributionReceiptKind(gift)) return renderContributionReceipt(s, gift, recipient, day, template)
  return { ...renderLetter(s, gift, recipient, day, template as { subject: string; body: string } | undefined), ...templateUse(template, s) }
 }
 
@@ -91,6 +101,7 @@ export async function letterTemplateCommand(c: Context, command: string, p: Row)
  const [allowed, required] = templateFields(kind)
  checkTemplate(t.subject, 'Template subject', allowed, [])
  checkTemplate(t.body, 'Template', allowed, required)
+ checkContributionTemplate(kind, t.subject, t.body)
  await commit(c, [
   ...(existing ? [current!, sql('UPDATE cf_letter_templates SET min_cents=?,name=?,subject=?,body=?,version=?,reviewed_at=?,reviewed_by=? WHERE id=?', t.min_cents, t.name, t.subject, t.body, t.version, c.now, c.actor.name, t.id)]
    : [guard("NOT EXISTS(SELECT 1 FROM cf_letter_templates WHERE active=1 AND kind=? AND COALESCE(campaign_id,'')=COALESCE(?,''))", 'TEMPLATE_EXISTS', 'An active template of this kind already exists. Edit it, or retire it first.', kind, campaignId),

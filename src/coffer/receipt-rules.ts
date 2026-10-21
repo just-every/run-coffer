@@ -1,3 +1,4 @@
+import { withContributionTypes } from './contribution-receipts'
 import { all, choice, fail, guard, integer, one, sql, text, type Row } from './db'
 import { amount, usd } from './money'
 import type { Settings } from './settings'
@@ -37,6 +38,7 @@ export function benefitStatements(giftId: string, benefit: Row | null, s: Settin
 
 export async function withReceiptBenefits(c: { db: D1Database }, gifts: Row[]) {
  if (!gifts.length) return gifts
+ await withContributionTypes(c, gifts)
  const rows = await all(c, 'SELECT * FROM cf_receipt_benefits WHERE gift_id IN (SELECT value FROM json_each(?))', JSON.stringify(gifts.map(g => g.id)))
  for (const gift of gifts) {
   const benefit = rows.find(r => r.gift_id === gift.id)

@@ -36,7 +36,7 @@ BEGIN SELECT RAISE(ABORT,'COFFER_STOCK_ORIGINAL_IMMUTABLE'); END;
 -- A generic property edit cannot silently diverge from its security valuation.
 CREATE TRIGGER cf_stock_property_correction BEFORE INSERT ON cf_in_kind_revisions
 WHEN EXISTS(SELECT 1 FROM cf_stock_contributions s JOIN cf_in_kind_gifts g ON g.id=s.in_kind_id WHERE s.in_kind_id=NEW.in_kind_id
- AND (json_extract(NEW.snapshot,'$.quantity') IS NOT g.quantity OR json_extract(NEW.snapshot,'$.stated_value_cents') IS NOT s.recorded_value_cents OR json_extract(NEW.snapshot,'$.description') IS NOT g.description))
+ AND (json_extract(NEW.snapshot,'$.quantity') IS NOT g.quantity OR json_extract(NEW.snapshot,'$.stated_value_cents') IS NOT s.recorded_value_cents))
 BEGIN SELECT RAISE(ABORT,'COFFER_STOCK_ORIGINAL_IMMUTABLE'); END;
 CREATE TRIGGER cf_stock_property_sale BEFORE UPDATE OF disposed_on ON cf_in_kind_gifts
 WHEN NEW.disposed_on IS NOT OLD.disposed_on AND EXISTS(SELECT 1 FROM cf_stock_contributions WHERE in_kind_id=NEW.id AND (sold_on IS NULL OR sold_on IS NOT NEW.disposed_on))
