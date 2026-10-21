@@ -15,9 +15,15 @@ CREATE TABLE cf_batch_entries (
  gift_id TEXT UNIQUE REFERENCES cf_gifts(id), created_at TEXT NOT NULL
 );
 CREATE INDEX cf_batch_entries_batch ON cf_batch_entries(batch_id);
-CREATE TRIGGER cf_batch_closed_update BEFORE UPDATE ON cf_gift_batches WHEN OLD.status='closed' BEGIN SELECT RAISE(ABORT,'COFFER_CLOSED_DEPOSIT'); END;
-CREATE TRIGGER cf_batch_closed_entry_update BEFORE UPDATE ON cf_batch_entries WHEN (SELECT status FROM cf_gift_batches WHERE id=OLD.batch_id)='closed' AND (NEW.id<>OLD.id OR NEW.batch_id<>OLD.batch_id OR NEW.amount_cents<>OLD.amount_cents OR NEW.reference IS NOT OLD.reference OR NEW.goods<>OLD.goods OR NEW.goods_cents<>OLD.goods_cents OR NEW.gift_id IS NOT OLD.gift_id) BEGIN SELECT RAISE(ABORT,'COFFER_CLOSED_DEPOSIT'); END;
-CREATE TRIGGER cf_batch_closed_entry_delete BEFORE DELETE ON cf_batch_entries WHEN (SELECT status FROM cf_gift_batches WHERE id=OLD.batch_id)='closed' BEGIN SELECT RAISE(ABORT,'COFFER_CLOSED_DEPOSIT'); END;
+CREATE TRIGGER cf_batch_closed_update BEFORE UPDATE ON cf_gift_batches WHEN OLD.status='closed' BEGIN
+ SELECT RAISE(ABORT,'COFFER_CLOSED_DEPOSIT');
+END;
+CREATE TRIGGER cf_batch_closed_entry_update BEFORE UPDATE ON cf_batch_entries WHEN (SELECT status FROM cf_gift_batches WHERE id=OLD.batch_id)='closed' AND (NEW.id<>OLD.id OR NEW.batch_id<>OLD.batch_id OR NEW.amount_cents<>OLD.amount_cents OR NEW.reference IS NOT OLD.reference OR NEW.goods<>OLD.goods OR NEW.goods_cents<>OLD.goods_cents OR NEW.gift_id IS NOT OLD.gift_id) BEGIN
+ SELECT RAISE(ABORT,'COFFER_CLOSED_DEPOSIT');
+END;
+CREATE TRIGGER cf_batch_closed_entry_delete BEFORE DELETE ON cf_batch_entries WHEN (SELECT status FROM cf_gift_batches WHERE id=OLD.batch_id)='closed' BEGIN
+ SELECT RAISE(ABORT,'COFFER_CLOSED_DEPOSIT');
+END;
 -- Follow the donor ledger's merge/erasure identity, without changing closed money or check facts.
 CREATE TRIGGER cf_batch_donor_custody AFTER UPDATE OF donor_id ON cf_gifts BEGIN
  UPDATE cf_batch_entries SET donor_id=NEW.donor_id,goods_description=CASE WHEN EXISTS(SELECT 1 FROM cf_donors WHERE id=NEW.donor_id AND erased_at IS NOT NULL) THEN NULL ELSE goods_description END WHERE gift_id=NEW.id AND donor_id<>NEW.donor_id;
