@@ -34,15 +34,15 @@ export async function journeyResendBrowser(h,step,directory){
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/app/agent/appeals')
-   const row=page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})})
+   const row=page.locator('li').filter({has:page.locator(`input[name="stepId"][value="${step.id}"]`)})
    await row.getByRole('button',{name:'Check journey sender results',exact:true}).click()
-   await page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})}).getByText('not sent',{exact:true}).waitFor()
-   await page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})}).getByText(step.responses.code,{exact:true}).waitFor()
+   await page.locator('li').filter({has:page.locator(`input[name="stepId"][value="${step.id}"]`)}).getByText('not sent',{exact:true}).waitFor()
+   await page.locator('li').filter({has:page.locator(`input[name="stepId"][value="${step.id}"]`)}).getByText(step.responses.code,{exact:true}).waitFor()
    assert.ok((await row.innerText()).includes('2 responded · 2 gifts · $101.26'))
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    await page.screenshot({path:`${directory}/DEV-009-journey-results-${width}.png`,fullPage:true})
   }
-  await page.locator('li').filter({has:page.getByRole('link',{name:'Jules Ives',exact:true})}).getByRole('button',{name:'Prepare journey resend for approval',exact:true}).click()
+  await page.locator('li').filter({has:page.locator(`input[name="stepId"][value="${step.id}"]`)}).getByRole('button',{name:'Prepare journey resend for approval',exact:true}).click()
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    await page.getByRole('button',{name:'Approve this audience',exact:true}).waitFor()

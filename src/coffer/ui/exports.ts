@@ -23,8 +23,8 @@ export async function exportsPage(c: Context, url: URL, error = '') {
  return `<p><a href="/app/donors">Donors</a></p><p>Download one record type for everyone in a current list. Each file includes their records across all dates.</p>
  ${error?`<p role="alert">${e(error)}</p>`:''}
  ${box('Choose an export',`<form method="get" action="/app/exports"><div class="fields">
-  ${select('List','list',[['search','Current donor search'],['lybunt','LYBUNT'],['sybunt','SYBUNT'],...lists.map(l=>[`saved:${l.id}`,l.name] as [string,string])],list)}
-  ${select('Record type','type',EXPORT_TYPES.map(t=>[t,label(t)] as [string,string]),type)}
+  ${select('List','list',[['search','Current donor search'],['lybunt','LYBUNT'],['sybunt','SYBUNT'],...lists.map(l=>[`saved:${l.id}`,l.name] as [string,string])],list,'aria-label="List"')}
+  ${select('Record type','type',EXPORT_TYPES.map(t=>[t,label(t)] as [string,string]),type,'aria-label="Record type"')}
   ${field('Annual list calendar year','year','number',value('year')||today(m.timezone,new Date(m.asOf)).slice(0,4),'min="1900"')}
   </div><button>Review export</button></form>`)}
  ${list==='search'||list==='lybunt'||list==='sybunt'?box('Filter this list',`<form method="get" action="/app/exports">${formValues({list,type,year:value('year')})}<div class="fields">${filters}</div><button>Apply list filters</button></form>`):'<p>This list uses its saved search filters.</p>'}
