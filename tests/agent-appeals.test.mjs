@@ -177,6 +177,14 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   const resendReport=(await h.get('/api/coffer/appeals/'+renewed.id)).results
   assert.equal(resendReport.gifts,0,'The new resend run code does not steal the original step’s responses')
 
+  const uncertainDonor=await donor(h,'Owen Uncertain')
+  await h.command('consent.record',{donorIds:[uncertainDonor.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic written permission',capturedOn:day})
+  const uncertainGift=await h.command('gift.record',{donorId:uncertainDonor.id,amount:'33',receivedOn:day,method:'cash',goods:'none'})
+  assert.equal((await h.command('welcome.run')).uncertain,1)
+  const uncertainHistory=await h.get('/api/coffer/donors/'+uncertainDonor.id),uncertainAck=uncertainHistory.gifts.find(g=>g.id===uncertainGift.id).acknowledgment
+  assert.equal(uncertainAck.status,'not acknowledged');assert.equal(uncertainAck.outcome_unknown,1)
+  assert.ok(!(await h.get('/api/coffer/agent')).missingReceipts.some(g=>g.id===uncertainGift.id))
+
   // Mango's documented list handoff is held, not inferred to be a send. The
   // preference feed supplies no campaign-bound result, so no result is invented.
   await h.command('marketing.connectMango',{origin:'https://mango.example.test',credential:'synthetic-coffer-2'})
@@ -258,7 +266,7 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   }
   const m=path.match(/^\/campaigns\/([^/]+)(.*)$/)
   if(m){const campaign=campaigns.get(m[1]);assert.ok(campaign,path)
-   if(m[2]==='/actions/send'){campaign.status='sent';sends++;return new Response(null,{status:204})}
+   if(m[2]==='/actions/send'){if(segments.get(campaign.recipients.segment_opts.saved_segment_id)==='owen.uncertain@example.org')return new Response(null,{status:503});campaign.status='sent';sends++;return new Response(null,{status:204})}
    if(request.method==='PATCH')Object.assign(campaign,body)
    return Response.json(campaign)
   }
@@ -273,7 +281,7 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
  }})
  async function emailForHash(hash){
   const {createHash}=await import('node:crypto')
-  const emails=['avery.chen','bill.carter','cora.diaz','dalia.evans','eli.fox','farah.green','grace.hill','grace.changed','jules.ives','kira.jones','lane.king','mira.lake','jules.changed'].map(n=>n+'@example.org')
+  const emails=['avery.chen','bill.carter','cora.diaz','dalia.evans','eli.fox','farah.green','grace.hill','grace.changed','jules.ives','kira.jones','lane.king','mira.lake','jules.changed','owen.uncertain'].map(n=>n+'@example.org')
   return emails.find(e=>createHash('md5').update(e).digest('hex')===hash)
  }
 })
