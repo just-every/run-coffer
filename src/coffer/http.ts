@@ -173,7 +173,7 @@ const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
  const response = await cofferHandler(request, original)
  const path = new URL(request.url).pathname
- const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events'
+ const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/sms/webhook'
  if (response && response.status < 400 && !provider && !response.headers.get('location')?.startsWith('/signin') && ROUTES.test(path)) {
   const env = runtimeBindings(original), auth = await identity(request,env)
   try { await recordRequest({ db:env.DB,actor:auth.actor,authority:auth.authority,now:new Date().toISOString(),env },request,response) }

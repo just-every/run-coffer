@@ -11,7 +11,7 @@ function quiet(timezone:string,at:string){const hour=Number(new Intl.DateTimeFor
 const latest=`(SELECT MAX(id) FROM cf_sms_preferences WHERE donor_id=?)`
 const unpaidPledge=`EXISTS(SELECT 1 FROM cf_pledges p JOIN cf_pledge_balances i ON i.pledge_id=p.id WHERE p.donor_id=? AND i.amount_cents>i.paid_cents)`
 const pledgeEligibility=(purpose:string,donorId:string):Stmt[]=>purpose==='pledge-reminder'?[guard(unpaidPledge,'PLEDGE_CHANGED','This donor has no unpaid pledge installment to remind them about.',donorId)]:[]
-export async function smsPreference(c:Pick<Context,'db'>,donorId:string){
+export async function smsPreference(c:Pick<Context,'db'>,donorId:string):Promise<Row|null>{
  const row=await one(c,"SELECT p.*,(SELECT status FROM cf_consents WHERE donor_id=p.donor_id AND channel='sms' ORDER BY id DESC LIMIT 1) AS current_channel_status FROM cf_sms_preferences p WHERE donor_id=? ORDER BY id DESC LIMIT 1",donorId)
  return row?{...row,status:row.current_channel_status??row.status}:null
 }
