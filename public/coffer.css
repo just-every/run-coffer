@@ -3,7 +3,7 @@
    a cool-white work surface with white cards on hairline lavender-grey borders,
    violet only for the primary action and key figures, amber for what needs a
    person, green for done, soft red only for failures. Base's --rer-* tokens come
-   from /rer-theme.css; the app's own are defined here, once. */
+   from /rer-theme.css and /fonts/fonts.css; the app's own are defined here, once. */
 :root {
   --cf-night: #111b55;
   --cf-night-2: #1c2b73;

@@ -11,14 +11,20 @@ licence beside the files:
 The variable WOFF2 subsets come from Fontsource's distributions
 (`@fontsource-variable/figtree` and `@fontsource-variable/jetbrains-mono` 5.3.0).
 
-Every page links `/fonts/fonts.css` once, outside the temporary dev SSR
-stylesheet, and preloads only the primary Latin Figtree file. Do not import
-this CSS from a component. Every body-font stack uses `--font-body`, including
-the local `Figtree Fallback` before generic fallback fonts; controls inherit it.
-A family is downloaded only by a page that uses it.
+`/rer-theme.css` declares the faces and the metric-matched `Figtree Fallback`,
+so the installer serves them too, and `/site/theme.css` declares the same faces
+for the run site. `fonts.css` sets the page font and carries Base's extra tokens
+(`--rer-font-mono` and the wordmark's weight and tracking), which the theme
+grammar keeps out of `/rer-theme.css`. Every app page links `/fonts/fonts.css`
+once, before the theme and outside the temporary dev SSR stylesheet, and
+preloads only the primary Latin Figtree file. Do not import these files from a
+component. Every body-font stack uses `--font-body`, including the local
+`Figtree Fallback` before generic fallback fonts; controls inherit it. A family
+is downloaded only by a page that uses it.
 
 Fallback scales use Figtree/Arial advance-width ratios over A-Z, a-z and 0-9 at
 weights 400, 500 and 700. Ascent, descent and line gap match Figtree's 950,
 -250 and 0 per 1000 units, divided by each scale. Matching metrics reduces
 layout movement; different glyph designs cannot have identical widths in every
-piece of text. Recalculate the fallback and preload when changing the brand font.
+piece of text. Recalculate the fallback (in both theme files) and the preload
+when changing the brand font.

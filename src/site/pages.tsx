@@ -18,8 +18,9 @@ const COPY = "document.querySelectorAll('.docs-copy').forEach(b=>{b.hidden=false
 
 const SHARE_IMAGE = `${identity.runSite}/site/share.jpg`
 const THEME = '/site/theme.css'
-// Base's Run and not-found pages wear the site's night: its theme, and the town's lights as their floor art.
-const siteIdentity: EditionIdentity = { ...identity, theme: THEME, band: '/site/run-band.webp' }
+// Base's Run and not-found pages wear the site's night: its theme (with the site's own faces and page font, not
+// the app's look in /fonts/fonts.css), and the town's lights as their floor art.
+const siteIdentity: EditionIdentity = { ...identity, theme: THEME, fonts: undefined, band: '/site/run-band.webp' }
 
 export function sitePages({ styles, contract }: SiteContext): SiteBuild {
   const data: RunData = run
