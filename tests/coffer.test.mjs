@@ -104,7 +104,9 @@ test('ACK-001: an agent prepares frozen letters, a person approves, exports and 
  }finally{await fresh.close()}
  if(process.env.COFFER_ACK_BROWSER)await ackBrowser(h,process.env.COFFER_ACK_BROWSER)
  const erased=await h.command('donor.erase',{donorId:ana.id,confirm:'ERASE'})
- assert.equal((await h.get(`/api/coffer/donors/${erased.donorId}`)).gifts[0].acknowledgment.status,'not acknowledged')
+ const anonymous=(await h.get(`/api/coffer/donors/${erased.donorId}`)).gifts[0].acknowledgment
+ assert.equal(anonymous.status,'acknowledged');assert.equal(anonymous.acknowledged_on,sentOn);assert.equal(anonymous.method,'letter')
+ assert.equal(anonymous.link,null);assert.equal(anonymous.batch_id,null);assert.equal(anonymous.letter_id,null);assert.equal(anonymous.reason,null)
 }))
 
 test('an appeal reaches only donors with current consent, and a withdrawal stops it',()=>run(async h=>{
