@@ -67,7 +67,7 @@ export async function donorDepthCommand(c: Context, command: string, p: Row): Pr
  if(p.acknowledgeGift){const parts=String(p.acknowledgeGift).split('|');if(parts.length!==2)fail('INPUT','Choose a gift to thank.',400);p.acknowledgeGiftId=parts[0];p.acknowledgmentVersion=Number(parts[1])}
  const acknowledgeGiftId=optional(p.acknowledgeGiftId,'Gift to acknowledge',100)
  if(acknowledgeGiftId && !['call','meeting','email','note'].includes(kind))fail('INPUT','Record a call, meeting, email or thank-you note to acknowledge a gift.',400)
- const thank=acknowledgeGiftId?await giftAcknowledgmentWrite(c,'gift.acknowledge',{giftId:acknowledgeGiftId,version:p.acknowledgmentVersion,acknowledgedOn:occurred,method:kind==='call'?'phone call':kind==='meeting'?'in person':kind==='email'?'email':'other',...(kind==='note'?{notes}:{interactionId})}):null
+ const thank=acknowledgeGiftId?await giftAcknowledgmentWrite(c,'gift.acknowledge',{giftId:acknowledgeGiftId,version:p.acknowledgmentVersion,acknowledgedOn:occurred,method:kind==='call'?'phone call':kind==='meeting'?'in person':kind==='email'?'email':'other',...(kind==='note'?{recordedNoteId:interactionId}:{interactionId})}):null
  if(thank&&thank.result.donorId!==donorId)fail('ACK_INTERACTION','Choose a gift on this donor.',409)
  const confidential=p.confidential===true || p.confidential===1 || p.confidential==='1'
  if(confidential && (kind!=='note' || !manager(c.actor)))fail('FORBIDDEN','Only the owner or an admin records confidential notes.',403)
