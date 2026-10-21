@@ -1,3 +1,4 @@
+import { UNRESOLVED_THANK_YOU } from './gift-acknowledgments'
 import { blankMergeReview } from './template-fields'
 import { letterRecipient } from './organizations'
 import { receiptNumber, receiptText } from './receipt-format'
@@ -15,6 +16,7 @@ const MAX_LETTERS = 500
 export const DUE_ANY = `g.kind='gift' AND (g.amount_cents>=min(?,25000) OR (g.amount_cents>7500 AND g.goods='provided' AND g.goods_cents>0 AND g.goods_cents<g.amount_cents)) AND d.erased_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
  AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1 AND (a.delivery_status NOT IN ('bounced','rejected','complained') OR a.printed_at IS NOT NULL))
+ AND NOT ${UNRESOLVED_THANK_YOU}
  AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)
  AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND (k.status<>'not acknowledged' OR k.outcome_unknown=1))`
 // An inactive constituent's gifts wait outside the letter list, counted under that reason (DONOR-012).
