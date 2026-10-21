@@ -1,9 +1,10 @@
 /* Coffer's look beyond its theme. /rer-theme.css holds only what Base's theme grammar allows (the --rer-*
    tokens and the faces; the installer reads it), so the rest every app document wears is here: the page
-   font and Base's extra tokens. Base links this file before the theme in the root document, /setup and
-   sign-in (src/base/font-head.ts), the Lobby (the edition identity's fonts) and the hosted demo's gate;
-   the app's pages, its campaign pages and the development sign-in and hand-off pages (src/server.dev.ts)
-   link it too. The run site wears /site/theme.css, which declares its own faces and page font. */
+   font and Base's extra tokens. The root document and /setup (src/base/font-head.ts), the app's pages, the
+   Lobby (the edition identity's fonts) and the hosted demo's gate link this file before the theme; the
+   sign-in pages and the development sign-in and hand-off pages (src/server.dev.ts) add it after their own
+   style (src/base/font-response.ts); the campaign pages link it without the theme. The run site wears
+   /site/theme.css, which declares its own faces and page font. */
 
 /* The page font, form controls included. */
 :root {

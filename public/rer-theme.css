@@ -2,10 +2,10 @@
    confirmation, /setup, the development hand-off page, the Lobby and the app read; the app serves this
    file and its fonts. The installer reads it with Base's theme grammar (only :root --rer-* tokens with
    literal values, and @font-face rules) and checks its colour pairs, so the page font and Base's extra
-   tokens (the mono stack and the wordmark's weight and tracking) are in /fonts/fonts.css, linked before
-   it. Coffer's app look (owner's pick, 17 Oct 2026): a cool-white work surface, deep indigo ink, the
-   purse mark's violet as the one accent, quiet hairline fields, Figtree throughout. The run site's own
-   tokens are in /site/theme.css; the app's extra tokens are in /coffer.css. */
+   tokens (the mono stack and the wordmark's weight and tracking) are in /fonts/fonts.css, which every
+   page that links this file also links. Coffer's app look (owner's pick, 17 Oct 2026): a cool-white work
+   surface, deep indigo ink, the purse mark's violet as the one accent, quiet hairline fields, Figtree
+   throughout. The run site's own tokens are in /site/theme.css; the app's extra tokens are in /coffer.css. */
 :root {
   --rer-font-body: 'Figtree', 'Figtree Fallback', Arial, sans-serif;
   --rer-font-heading: 'Figtree', 'Figtree Fallback', Arial, sans-serif;
