@@ -145,6 +145,7 @@ export async function contributionTypesJourney(){
      }
      await page.goto(origin+'/app/letters/'+batch.id+'/print');await page.getByText(/VOID/).first().waitFor()
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${directory}/GIFT-010-void-receipt-${width}.png`,fullPage:true})
+     await page.goto(origin+'/app/settings');await page.locator('#thank-you-templates').scrollIntoViewIfNeeded();await page.locator('#thank-you-templates').screenshot({path:`${directory}/GIFT-010-templates-${width}.png`})
      await page.goto(origin+'/app/reports/tax?year=2025');await page.getByRole('heading',{name:'Schedule B · contributors',exact:true}).waitFor()
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${directory}/GIFT-010-working-papers-${width}.png`,fullPage:true})
     }

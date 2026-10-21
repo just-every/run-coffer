@@ -53,6 +53,8 @@ export async function solicitationJourney() {
   assert.ok(!tasks.sources.some(s=>s.donorId===stop.id&&s.kind!=='pledge'))
   assert.ok(tasks.excluded['do not solicit']>=1)
   await command('task.generate',{sourceKey:lapse.key,ownerId:owner.id,dueOn:day,isAsk:true},{status:409})
+  const stewardship=await command('task.generate',{sourceKey:lapse.key,ownerId:owner.id,dueOn:day,isAsk:false})
+  assert.equal(stewardship.is_ask,0,'A person can create a stewardship call explicitly marked as not an ask')
 
   const prepare=(channel,name,extra={})=>command('appeal.prepare',{name,channel,...extra})
   const recipientIds=async id=>(await get('/api/coffer/appeals/'+id)).recipients.map(r=>r.donor_id)
@@ -153,7 +155,7 @@ export async function solicitationJourney() {
    await withBrowserWorker(h,async(context,origin)=>{
     await context.setExtraHTTPHeaders({cookie:h.owner,'x-test-now':at})
     const page=await context.newPage()
-    const screens=[['donor','/app/donors/'+stop.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['welcome','/app/appeals'],['import','/app/move-in/crm/journal?id='+imported.id]]
+    const screens=[['donor','/app/donors/'+stop.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
     for(const width of [1440,390])for(const [name,path] of screens){
      await page.setViewportSize({width,height:1000});await page.goto(origin+path)
      if(name==='donor')assert.ok(await page.getByText('Do not solicit',{exact:true}).count())

@@ -156,6 +156,8 @@ export async function smsJourney(){
      await page.getByText('Thank you for supporting the reading room.',{exact:true}).waitFor()
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
      await page.screenshot({path:`${directory}/DONOR-015-texts-${width}.png`,fullPage:true})
+     await page.goto(origin+'/app/texts');await page.getByLabel('Choose donors').waitFor()
+     await page.screenshot({path:`${directory}/DONOR-015-text-entry-${width}.png`,fullPage:true})
      await page.goto(origin+'/app/donors/'+a.id);await page.locator('#sms-permission').scrollIntoViewIfNeeded()
      await page.locator('#sms-permission').screenshot({path:`${directory}/DONOR-015-sms-permission-${width}.png`})
     }
