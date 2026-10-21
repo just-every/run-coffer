@@ -107,7 +107,7 @@ export async function runGiftRules(env: GiftRulesEnv, giftId: string): Promise<v
  for (const rule of notices) {
   let status = 'uncertain'
   try {
-   const response = await fetch(destination(env, rule.provider), { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000), headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: `A new gift includes ${rule.fund}. Total gift: $${(gift.amount_cents / 100).toFixed(2)}. Open Coffer to review gift ${gift.id}.` }) })
+   const response = await fetch(destination(env, rule.provider), { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(10000), headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: `A new gift includes ${rule.fund}. Total gift: $${(gift.amount_cents / 100).toFixed(2)}. Open Coffer to review gift ${gift.id}.` }) })
    status = response.status === 200 && (await response.text()).trim() === 'ok' ? 'submitted' : 'rejected'
   } catch { /* A lost network result is visible and never retried automatically. */ }
   await commit(c, [sql('UPDATE cf_gift_rule_firings SET status=?,completed_at=? WHERE rule_id=? AND gift_id=? AND status=\'sending\'', status, new Date().toISOString(), rule.id, gift.id), event(c, 'giftRule.notification', 'gift_rule', rule.id, gift.donor_id, { giftId: gift.id, status })])

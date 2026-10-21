@@ -344,3 +344,5 @@ test('DONOR-015: incumbent restrictions retain source meaning, previews, reconci
 test('STEW-005: reviewed rules act once on live gifts and never on historical imports',async()=>{const {giftRulesJourney}=await import('./gift-rules-journey.mjs');await giftRulesJourney()})
 
 test('DONOR-015: ask restrictions preserve transactional contact and deliberate audited exceptions',async()=>{const {solicitationJourney}=await import('./solicitation-journey.mjs');await solicitationJourney()})
+
+test('GIFT-010: typed stock, DAF and IRA gifts preserve credit, receipt custody and tax-report totals',async()=>{const {contributionTypesJourney}=await import('./contribution-types-journey.mjs');await contributionTypesJourney()})

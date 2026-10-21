@@ -1,3 +1,4 @@
+import { contributionTypeState } from './contribution-types'
 import { giftRulesState } from './gift-rules'
 import { giftRulesPage } from './ui/gift-rules'
 import { solicitationState } from './solicitation'
@@ -430,6 +431,7 @@ async function api(c: Context, url: URL): Promise<Response> {
   return json(await householdState(c,decodeURIComponent(path.split('/').at(-1)!),{...(year?{year:Number(year)}:{}),basis:basis as 'calendar'|'fiscal'}))
  }
  if(path==='/api/coffer/texts')return json(await smsState(c,url.searchParams.get('runId')??undefined))
+ const typedDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)\/contribution-types$/);if(typedDonor)return json(await contributionTypeState(c,typedDonor[1]))
  const smsDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)\/sms$/);if(smsDonor)return json({preference:await smsPreference(c,smsDonor[1])})
  if(path==='/api/coffer/gift-rules')return json(await giftRulesState(c))
  if(path==='/api/coffer/gift-batches')return json(url.searchParams.has('id')?await giftBatch(c,url.searchParams.get('id')!):{batches:await giftBatches(c)})

@@ -51,6 +51,8 @@ const descriptions = [
  owned('cf_research_results'), owned('cf_volunteering'), owned('cf_in_kind_gifts'),
  owned('cf_in_kind_revisions',`n.in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id IN ${pair})`,['id'],false),
  owned('cf_in_kind_acknowledgments',`n.in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id IN ${pair})`),
+ owned('cf_contribution_types',`n.gift_id IN (${gifts})`,['gift_id']),
+ owned('cf_stock_contributions',`n.in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id IN ${pair})`,['in_kind_id'],false),
  owned('cf_grants'),
  owned('cf_grant_documents',`n.grant_id IN (SELECT id FROM cf_grants WHERE donor_id IN ${pair})`),
  owned('cf_grant_tasks',`n.grant_id IN (SELECT id FROM cf_grants WHERE donor_id IN ${pair})`),

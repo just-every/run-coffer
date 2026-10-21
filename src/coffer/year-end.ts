@@ -10,7 +10,7 @@ import { goodsStatement, longDate, settings, type Settings } from './settings'
 import { settingsUse, templateFor, templateRevision, templatesUnchanged, templateUse } from './letter-templates'
 
 const MAX_LETTERS = 500
-const GIFTS = `g.kind='gift' AND g.received_on>=? AND g.received_on<=?
+const GIFTS = `g.kind='gift' AND NOT EXISTS(SELECT 1 FROM cf_contribution_types t WHERE t.gift_id=g.id AND t.kind='daf') AND g.received_on>=? AND g.received_on<=?
  AND d.erased_at IS NULL AND (? IS NULL OR d.id=?)
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)`
 const ELIGIBLE = `${GIFTS} AND d.constituent_status='active'`
@@ -19,9 +19,10 @@ const ELIGIBLE = `${GIFTS} AND d.constituent_status='active'`
 export function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number, day: string, template: Row | null) {
  const total = gifts.reduce((n, g) => n + g.amount_cents, 0)
  const goods = gifts.reduce((n, g) => n + g.goods_cents, 0)
+ const deductibleTotal=gifts.reduce((n,g)=>n+(g.contribution_type==='qcd'?0:g.amount_cents-g.goods_cents),0)
  const provided = gifts.filter(g => g.goods === 'provided' || g.receipt_statement)
  const items = gifts.map((g, i) => [
-  `${i + 1}. ${longDate(g.received_on)} · ${g.donor_name ? `${g.donor_name} · ` : ''}${g.receipt_fund ?? g.fund} · ${usd(g.amount_cents)} · goods or services: ${g.receipt_statement ? g.receipt_statement : g.goods === 'provided' ? `${g.goods_description} (${usd(g.goods_cents)})` : 'none'} · deductible ${usd(g.amount_cents - g.goods_cents)}`,
+  `${i + 1}. ${longDate(g.received_on)} · ${g.donor_name ? `${g.donor_name} · ` : ''}${g.receipt_fund ?? g.fund} · ${usd(g.amount_cents)} · goods or services: ${g.receipt_statement ? g.receipt_statement : g.goods === 'provided' ? `${g.goods_description} (${usd(g.goods_cents)})` : 'none'}${g.contribution_type==='qcd'?` · IRA distribution via ${g.qcd_custodian}; excluded from deductible portion`:` · deductible ${usd(g.amount_cents - g.goods_cents)}`}`,
   ...(g.tribute ? [`   ${tributeReceiptText(g.tribute)}`] : []),
  ].join('\n'))
  // A mixed year states each gift's own wording; it never inherits the no-goods sentence.
@@ -30,7 +31,7 @@ export function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number
   : [s.none_statement]
  if (template) {
   // RCPT-007: a reviewed year-end template places the same itemized facts in the charity's own words.
-  const fields = { ...recipientMergeFields(donor), date: longDate(day), donor_name: donor.letter_salutation??donor.name, year: String(year), gift_list: items.join('\n'), total: usd(total), goods_total: usd(goods), deductible_total: usd(total - goods), goods_statement: wording.join('\n'), organization: s.organisation, ein: s.ein }
+  const fields = { ...recipientMergeFields(donor), date: longDate(day), donor_name: donor.letter_salutation??donor.name, year: String(year), gift_list: items.join('\n'), total: usd(total), goods_total: usd(goods), deductible_total: usd(deductibleTotal), goods_statement: wording.join('\n'), organization: s.organisation, ein: s.ein }
   return { ...renderTemplate(template as { subject: string; body: string }, fields), amount_cents: total, ...templateUse(template, s) }
  }
  return {
@@ -42,7 +43,7 @@ export function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number
    ...items, '',
    `Total gifts: ${usd(total)}`,
    `Total non-exempt goods or services value: ${usd(goods)}`,
-   `Total deductible portion: ${usd(total - goods)}`, '',
+   `Total deductible portion: ${usd(deductibleTotal)}`, '',
    ...wording, '',
    'With thanks,', s.organisation, ...(s.ein ? [`EIN ${s.ein}`] : []),
   ].join('\n'),

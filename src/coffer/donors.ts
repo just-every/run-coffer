@@ -1,3 +1,4 @@
+import { contributionTypeState } from './contribution-types'
 import { solicitationState } from './solicitation'
 import { smsPreferenceHistory } from './sms'
 import { organizationFields, organizationState } from './organizations'
@@ -139,6 +140,8 @@ export async function donorHistory(c: Context, donorId: string) {
  for(const gift of gifts)gift.recognition=recognitionByGift.get(gift.id)??{anonymous:0,wall_opt_in:0,recognition_name:null}
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
+  contributionTypes:await contributionTypeState(c,donorId),
+  ruleTags:await all(c,'SELECT * FROM cf_donor_rule_tags WHERE donor_id=? ORDER BY tag',donorId),
   solicitation:(await solicitationState(c,[donorId]))[0], smsPreferences:await smsPreferenceHistory(c,donorId), names: personNames(await withNameDefaults(c,donor)), organization:await organizationState(c,donorId), tributeNotifications:await tributeNotifications(c,donorId), receiptTasks:await receiptTasks(c,donorId), recognition:await donorRecognition(c,donorId), timelineSources:await timelineSources(c,donorId), engagement: await donorEngagement(c,donorId), donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: plans, summary,
   volunteering:await volunteering(c,donorId), inKind:await inKindState(c,donorId), depth, giftDepth, plannedGiving:await plannedGiving(c,donorId),
   notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? AND (confidential=0 OR ?=1) ORDER BY occurred_on DESC,recorded_at DESC', donorId,manager(c.actor)?1:0),

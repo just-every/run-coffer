@@ -8,7 +8,7 @@ import { receiptNumber } from './receipt-format'
 import { withReceiptBenefits } from './receipt-rules'
 import { annualLetter } from './year-end'
 
-const scope = `g.received_on>=? AND g.received_on<=? AND g.net_cents>0
+const scope = `NOT EXISTS(SELECT 1 FROM cf_contribution_types t WHERE t.gift_id=g.id AND t.kind='daf') AND g.received_on>=? AND g.received_on<=? AND g.net_cents>0
  AND d.id IN (SELECT value FROM json_each(?)) AND d.erased_at IS NULL`
 
 /** One piece for the household's current members, each hard-credit gift once.

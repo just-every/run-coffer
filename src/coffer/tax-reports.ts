@@ -1,3 +1,4 @@
+import { withContributionTypes } from './contribution-types'
 import { requireRole } from './auth'
 import { addDays, all, choice, commit, date, event, fail, guard, integer, one, sql, today, type Context, type Row } from './db'
 import { fiscalPeriod } from './giving-summary'
@@ -69,6 +70,8 @@ export async function taxReport(c: Context, url: URL) {
    FROM cf_in_kind_current g LEFT JOIN cf_donors d ON d.id=g.donor_id
    WHERE g.received_on>=? AND g.received_on<=? ORDER BY g.received_on,g.id`, start, through),
  ])
+ await withContributionTypes(c,properties)
+ const classifications=await all(c,`SELECT t.kind,COUNT(*) AS giftCount,COALESCE(SUM(l.amount_cents),0) AS monetaryCents FROM cf_monetary_contributions l JOIN cf_contribution_types t ON t.gift_id=COALESCE(l.reverses,l.id) WHERE l.received_on>=? AND l.received_on<=? GROUP BY t.kind`,periods[4].start,through)
  const annual = new Map<string, Annual>()
  const add = (r: Row, monetaryCents: number, noncashStatedCents: number) => {
   const donorId = r.name && !r.erased_at ? String(r.donor_id) : null
@@ -111,10 +114,11 @@ export async function taxReport(c: Context, url: URL) {
  const rows = contributors.filter(d => d.donorId !== null && qualifies(d.workingCents))
  const noncashRows = properties.filter(g => g.received_on >= current.start).map(g => ({
   id: g.id, donorId: g.name && !g.erased_at ? g.donor_id : null, donorName: g.name && !g.erased_at ? g.name : 'Unidentified donor',
+  contributionType:g.contribution_type??'in_kind',valuationBasis:g.valuation_basis??'donor_stated',accountantVerified:false,recordedValueCents:g.stated_value_cents,saleProceedsCents:g.contribution_details?.sale_proceeds_cents??null,
   receivedOn: g.received_on, description: g.description, quantity: g.quantity, statedValueCents: g.stated_value_cents, disposedOn: g.disposed_on,
  }))
- return { year, basis, monthDay, start: current.start, through, asOf, timezone: s.timezone, currentYear, configuration, sources: SOURCES,
-  methodology: 'Received monetary contributions use signed ledger amounts on their entry dates, including refunds; payments count once across splits. Soft credits and unpaid pledges are excluded. All gift sizes are included. Current donor addresses are shown. Property uses current donor-stated internal values separately; it is not a financial-statement valuation. Anonymous or erased identity amounts remain in totals and require accountant review.',
+ return { classifications,year, basis, monthDay, start: current.start, through, asOf, timezone: s.timezone, currentYear, configuration, sources: SOURCES,
+  methodology: 'Received monetary contributions use signed ledger amounts on their entry dates, including refunds; payments count once across splits. Soft credits and unpaid pledges are excluded. All gift sizes are included. Current donor addresses are shown. DAF grants belong only to the sponsor’s hard-credit ledger; advisor soft credits are excluded. IRA distributions count once as monetary gifts. Stock uses the recorded transfer-day high/low mean, without adding sale proceeds. Property values are working recorded amounts, never accountant-verified. Other property uses current donor-stated internal values separately; it is not a financial-statement valuation. Anonymous or erased identity amounts remain in totals and require accountant review.',
   scheduleB: { rule: configuration.rule, rows, contributionTotalCents: current.monetaryCents, noncashStatedCents: current.noncashStatedCents,
    workingContributionCents, denominatorCents: denominator, needsContributionTotal, generalMinimumCents: 500000, twoPercentCents: denominator === null ? null : denominator / 50,
    unidentified: contributors.find(d => d.donorId === null) ?? null,
@@ -123,6 +127,6 @@ export async function taxReport(c: Context, url: URL) {
   scheduleA: { periods, donors, totals, monetaryCents: sum(totals.map(y => y.monetaryCents)), noncashStatedCents: sum(totals.map(y => y.noncashStatedCents)),
    note: 'Current and four preceding years of giving for accountant review. These are inputs to the public-support test, not a computed support percentage. The accountant must apply return accounting, related-contributor grouping, governmental/public-charity exceptions, unusual grants and other support adjustments.' },
   scheduleM: { rows: noncashRows, giftCount: noncashRows.length, statedValueCents: sum(noncashRows.map(g => g.statedValueCents)),
-   valuationBasis: 'Donor-stated internal value; accountant must determine the financial-statement amount, valuation method and property categories for Schedule M. Includes property received in the selected period even when already disposed. Does not include donated services or use of facilities.' },
+   valuationBasis: 'Recorded stock market means and other donor-stated internal values; no amounts are accountant-verified here. Sale proceeds are separate and never a second contribution. The accountant must determine the financial-statement amount, valuation method and property categories for Schedule M. Includes property received in the selected period even when already disposed. Does not include donated services or use of facilities.' },
  }
 }
