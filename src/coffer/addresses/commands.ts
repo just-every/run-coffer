@@ -38,7 +38,7 @@ export async function addressCommand(c:Context,command:string,p:Row):Promise<Row
  const current=await addressProcessing(c)
  if(current.version!==version)fail('VERSION','Address processing changed. Refresh.')
  await commit(c,[guard('COALESCE((SELECT version FROM cf_address_processing WHERE id=1),0)=?','VERSION','Address processing changed. Refresh.',version),
- sql('INSERT INTO cf_address_processing VALUES(1,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,enabled=excluded.enabled,paf_reference=excluded.paf_reference,reviewed_at=excluded.reviewed_at,reviewed_by=excluded.reviewed_by',version+1,enabled?1:0,reference,c.now,c.actor.id),
+ sql('INSERT INTO cf_address_processing VALUES(1,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,enabled=excluded.enabled,paf_reference=excluded.paf_reference,reviewed_at=excluded.reviewed_at,reviewed_by=excluded.reviewed_by',version+1,enabled?1:0,reference,c.now,c.actor.id),
  sql("UPDATE cf_ncoa_runs SET state='cancelled',reason='Address processing configuration changed.' WHERE state IN('queued','processing')"),event(c,command,'address_processing','1',null,{enabled,version:version+1})])
  return {version:version+1,enabled}
 }

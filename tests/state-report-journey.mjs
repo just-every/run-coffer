@@ -178,6 +178,7 @@ export async function addressVerificationJourney(){
      await page.goto(origin+'/app/donors/'+maya.id);await page.locator('#address-verification details').evaluate(el=>el.open=true);await page.locator('#address-verification').screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-move-${width}.png`})
      await page.goto(origin+'/app/donors/'+undeliverable.id);await page.locator('#address-verification').screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-undeliverable-${width}.png`})
      await page.goto(origin+'/app/appeals/'+approved.id);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-mail-${width}.png`,fullPage:true})
+     await page.goto(origin+'/app/donors/'+maya.id);await page.locator('#address-verification').getByRole('button',{name:'Verify current address'}).click();await page.waitForURL('**/app/donors/'+maya.id+'#address-verification');assert.ok(await page.locator('#address-verification').getByText('Address verified',{exact:true}).count())
     }
    })
   }
