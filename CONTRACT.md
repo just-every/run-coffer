@@ -252,6 +252,8 @@ Every way US donors give, entered fast and attributed exactly.
 
 Staff enter a stack of checks or cash as a batch: shared defaults (date, fund, campaign, appeal, method), keyboard-only entry with donor lookup and add-new inline, a running total checked against the expected deposit total, and a batch that closes only when it balances. A closed batch is one bank deposit for `FIN-001`. Each check keeps its check number, searchable and shown on the deposit for bank matching and donor questions. Donor lookup finds a record by name, any email or phone (`DONOR-013`) or the legacy ID every importer keeps (`MOVE-007`), so reply cards printed by the old system still match. A card or bank account written on a reply card is charged from the batch through `GIVE-009`.
 
+Current batches record checks and cash already received. Draft rows do not count as ledger gifts; a balanced close atomically publishes all gifts and the one immutable bank-deposit identity, preserving the defaults and check numbers. Existing importer source IDs remain searchable, including aliases matched to an existing or merged donor. `FIN-001` inherits accounting posting of these closed deposits; `GIVE-009` inherits secure processor-owned collection and charge-to-batch binding before reply-card card/bank charging ships. No card or bank credentials are collected here.
+
 *Acceptance:* A browser journey enters a 12-check batch at 1440 pixels with defaults, is refused closing it while it is $50 off the expected total, corrects it, closes it, and sees one deposit with 12 gifts, each with its check number; searching one check number finds its gift, and a reply card printed with a Bloomerang account number finds its donor by that number in batch lookup.
 
 #### GIFT-003 — Campaign, appeal, fund and channel attribution.
@@ -1292,8 +1294,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 53 | 43 | 32 | 128 |
-| All | 62 | 43 | 32 | 137 |
+| Target and push further | 54 | 43 | 31 | 128 |
+| All | 63 | 43 | 31 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1320,7 +1322,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `DONOR-013` | Several emails, phones and addresses | target | partial | `src/coffer/donors.ts`, `migrations/core/0016_coffer.sql` | A donor has one email (refused if any other record has it), one phone and one postal address; no further contact points, types, primaries, seasonal ranges or email shared within a household. |
 | `DONOR-014` | Name parts, salutations and envelope name | target | done | `src/coffer/person-names.ts`, `src/coffer/person-defaults.ts`, `src/coffer/organizations.ts`, `src/coffer/communications/`, `src/coffer/move-in/`, `src/coffer/ui/print-letters.ts`, `migrations/core/0086_coffer_person_defaults.sql`, `tests/names.test.mjs`, `tests/names-browser.mjs`, `tests/communications.test.mjs`, `tests/agent-appeals.test.mjs`, `tests/soft-credits.test.mjs`, `tests/duplicates.test.mjs` | |
 | `DONOR-015` | Solicitation restrictions | target | missing |  | No solicitation restriction: consent is per channel (email and postal) only, and appeals exclude only on consent and address. |
-| `GIFT-002` | Batch gift entry and deposits | target | missing |  | Gifts are entered one at a time; no batches or deposit totals. |
+| `GIFT-002` | Batch gift entry and deposits | target | done | `tests/coffer.test.mjs` — "GIFT-002: keyboard check batches balance once, preserve defaults and legacy lookup, and create a searchable deposit"; `tests/gift-batches-journey.mjs` — `giftBatchesJourney` (native creation/defaults, 12 keyboard checks and inline donor creation, $50 imbalance refusal, correction, one deposit with check numbers, check search, Bloomerang account lookup, stale/replay/access refusals, archive/restore, 1440/390) | Current check/cash doors are asserted; FIN-001 inherits accounting posting of closed check deposits and GIVE-009 inherits secure charging from reply cards before those doors ship. |
 | `GIFT-003` | Campaign, appeal, fund and channel attribution | target | done | `src/coffer/attribution.ts`, `src/coffer/gifts.ts`, `src/coffer/giving/tracked-link.ts`, `src/coffer/move-in/source-mapping.ts`, `migrations/core/0064_coffer_gift_attribution.sql`, `src/coffer/ui/attribution.ts`, `tests/attribution-journey.mjs` | Clause-named HTTP journey: defined appeals, campaign/appeal/channel on entry, tracked-link form gift, CRM appeal/channel mapping, refusals, and totals by fund, campaign, appeal and channel that each sum to the ledger. |
 | `GIFT-004` | Split gifts | target | done | `src/coffer/gift-splits.ts`, `migrations/core/0039_coffer_gift_splits.sql`, `src/coffer/fund-report.ts`, `tests/split-gifts.test.mjs` |  |
 | `GIFT-005` | Pledges, installments and balances | target | done | `src/coffer/pledges.ts`, `src/coffer/pledge-adjustments.ts`, `src/coffer/ui/pledges.ts`, `migrations/core/0067_coffer_pledge_adjustments.sql`, `tests/pledges.test.mjs`, `tests/pledge-balances-journey.mjs`, `tests/pledge-balances-browser.mjs` | Clause-named public-door proof asserts dated schedules, cash-preserving reductions/write-offs, exact due/overdue and report balances, unchanged issued receipts, recurring allocation/replay/excess, refusals and custody; native forms run at 1440/390. |

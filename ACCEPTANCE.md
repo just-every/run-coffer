@@ -16,8 +16,8 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 53 | 43 | 32 | 128 |
-| All | 62 | 43 | 32 | 137 |
+| Target and push further | 54 | 43 | 31 | 128 |
+| All | 63 | 43 | 31 | 137 |
 
 ## Target
 
@@ -40,7 +40,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 ### Gifts and pledges
 
-21. **`GIFT-002` Batch gift entry and deposits** (missing). A browser journey enters a 12-check batch at 1440 pixels with defaults, is refused closing it while it is $50 off the expected total, corrects it, closes it, and sees one deposit with 12 gifts, each with its check number; searching one check number finds its gift, and a reply card printed with a Bloomerang account number finds its donor by that number in batch lookup.
+21. **`GIFT-002` Batch gift entry and deposits** (done). `tests/coffer.test.mjs` — "GIFT-002: keyboard check batches balance once, preserve defaults and legacy lookup, and create a searchable deposit", via `tests/gift-batches-journey.mjs` (`giftBatchesJourney`), proves every point below at 1440/390 plus inline donor creation, atomic close, access/stale/replay refusals and archive/restore. Current doors are check/cash; FIN-001 inherits accounting posting and GIVE-009 inherits secure reply-card charging before adding those doors. A browser journey enters a 12-check batch at 1440 pixels with defaults, is refused closing it while it is $50 off the expected total, corrects it, closes it, and sees one deposit with 12 gifts, each with its check number; searching one check number finds its gift, and a reply card printed with a Bloomerang account number finds its donor by that number in batch lookup.
 22. **`GIFT-003` Campaign, appeal, fund and channel attribution** (done). An HTTP journey defines funds, a campaign and two appeals, records gifts against them through entry, a form and an import, and reads totals by each dimension that sum to the ledger. The clause-named journey also refuses an undefined appeal, a campaign on another fund, an unknown channel, a duplicate appeal code and a member defining an appeal; reads the tracked-link giving page carrying the defined appeal (and none for an unknown code); maps a CRM move-in's appeal (defining a new one from the import) and channel columns and refuses an unknown channel; counts a reversal under its gift's appeal; and reads the native report page with every dimension.
 23. **`GIFT-004` Split gifts** (done). An HTTP journey splits a $1,000 check $600/$400 across two funds, refuses a split that sums to $999.99, issues one receipt for $1,000 and reads each fund's total.
 24. **`GIFT-005` Pledges, installments and balances** (done). An HTTP journey creates a $12,000 pledge in four quarterly installments, pays two, sees the third overdue on the pledge and the donor page, reduces the balance with a reason, and reads the full history. The GIFT-005 journey also asserts explicit single/monthly/annual schedules, exact due and overdue amounts, latest-first reductions and whole-balance write-offs, stale/role/donor refusals, original cash and commitment preservation, donor/campaign/call-source totals, recurring-payment allocation/replay/excess and reversal, archive/restore, merge/undo and erasure. Native create/reduce/write-off forms run at 1440 and 390 pixels.
