@@ -25,7 +25,7 @@ export type DonorRelationship = {
 }
 export type DonorInteraction = {
  id: string; donor_id: string; kind: InteractionType; occurred_on: string; who: string
- notes: string; next_step: string | null; recorded_at: string; recorded_by: string
+ notes: string; next_step: string | null; open_question: string | null; question_resolved_at: string | null; question_version: number; recorded_at: string; recorded_by: string
 }
 export type DonorDepth = { relationships: DonorRelationship[]; interactions: DonorInteraction[] }
 
@@ -58,6 +58,8 @@ export async function donorDepthCommand(c: Context, command: string, p: Row): Pr
   return { removed: relationshipId, donorId }
  }
  const interactionId = newId(), kind = choice(p.kind, INTERACTION_TYPES, 'conversation type'), occurred = date(p.occurredOn ?? today((await settings(c)).timezone), 'Conversation date')
+ const openQuestion=optional(p.openQuestion,'Questions left open',2000)
+ if(openQuestion && kind!=='meeting')fail('INPUT','Record open questions on a meeting interaction.',400)
  const who = text(p.who ?? c.actor.name, 'Who took part', 500), notes = longText(p.notes, 'Conversation notes'), nextStep = optional(p.nextStep, 'Next step', 2000)
  if (occurred > today((await settings(c)).timezone)) fail('INPUT', 'A conversation cannot be recorded in the future.', 400)
  if(![undefined,false,true,0,1,'0','1'].includes(p.confidential))fail('INPUT','Confidential must be yes or no.',400)
@@ -68,7 +70,7 @@ export async function donorDepthCommand(c: Context, command: string, p: Row): Pr
   return {id:interactionId,donorId,kind,occurredOn:occurred,confidential}
  }
  await commit(c, [liveDonor(donorId),
-  sql('INSERT INTO cf_interactions(id,donor_id,kind,occurred_on,who,notes,next_step,recorded_at,recorded_by,recorded_by_id) VALUES(?,?,?,?,?,?,?,?,?,?)', interactionId, donorId, kind, occurred, who, notes, nextStep, c.now, c.actor.name, c.actor.id),
+  sql('INSERT INTO cf_interactions(id,donor_id,kind,occurred_on,who,notes,next_step,recorded_at,recorded_by,recorded_by_id,open_question) VALUES(?,?,?,?,?,?,?,?,?,?,?)', interactionId, donorId, kind, occurred, who, notes, nextStep, c.now, c.actor.name, c.actor.id,openQuestion),
   event(c, command, 'interaction', interactionId, donorId, { kind, occurredOn: occurred })])
  return { id: interactionId, donorId, kind, occurredOn: occurred }
 }

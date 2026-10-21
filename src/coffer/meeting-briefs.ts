@@ -56,12 +56,14 @@ export async function meetingBrief(c: Context, key: string) {
  if(meeting.cancelled_at)fail('MEETING_CANCELLED','This meeting was cancelled.',409)
  if(!meeting.ready_at)fail('BRIEF_PENDING','The brief becomes available on the scheduler tick 24 hours before the meeting.',409)
  const history=await donorHistory(c,meeting.donor_id),href='/api/coffer/donors/'+encodeURIComponent(meeting.donor_id)
+ const lastMeeting=history.depth.interactions.find(i=>i.kind==='meeting' && i.occurred_on<=meeting.starts_at.slice(0,10) && i.recorded_at<meeting.starts_at)
  const lines: Row[]=[{kind:'giving_summary',facts:history.summary,source:{href,pointer:'/summary'}}]
  const add=(kind:string,rows:Row[],sourceHref:string,pointer:string)=>rows.forEach(row=>lines.push({kind,facts:row,source:{href:sourceHref,pointer,id:row.id}}))
  add('interaction',history.depth.interactions.slice(0,10),href,'/depth/interactions')
+ if(lastMeeting?.open_question&&!lastMeeting.question_resolved_at)add('open_question',[lastMeeting],href,'/depth/interactions')
  add('relationship',history.depth.relationships,href,'/depth/relationships')
  add('pledge',history.pledges.filter((p:Row)=>p.remaining_cents>0),href,'/pledges')
  add('opportunity',(await prospects(c)).filter(p=>p.donor_id===meeting.donor_id&&!p.closed_on),'/api/coffer/prospects','')
  if(manager(c.actor))add('stored_research',(await researchState(c,meeting.donor_id)).results,'/api/coffer/research?donorId='+encodeURIComponent(meeting.donor_id),'/results')
- return {meeting,generatedAt:c.now,delivery:'Available through this API; no brief has been emailed.',lines}
+ return {meeting,donor:{id:history.donor.id,name:history.donor.name},generatedAt:c.now,delivery:'Available here and as a printable brief; no brief has been emailed.',lines}
 }

@@ -113,10 +113,10 @@
     },
     {
       "name": "agent",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:agent"
+        "COFFER_MEETING_BROWSER=.cache/meeting-briefs pnpm run test:agent"
       ]
     },
     {

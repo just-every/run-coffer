@@ -1,3 +1,4 @@
+import { printMeetingBrief } from './ui/meeting-brief'
 import { householdState } from './households'
 import { meetings, meetingBrief } from './meeting-briefs'
 import { documentsResponse } from './documents-http'
@@ -505,6 +506,8 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/giving/setup') return show('Connect Stripe', await givingSetupPage(c))
  if (path === '/app/gifts') return page('Gifts', await giftsPage(c, url), actor, 200, path, { hideTitle: true })
  if (path === '/app/donors') return show('Donors', await donorsPage(c, url))
+ const briefPath=path.match(/^\/app\/meetings\/([^/]+)\/brief$/)
+ if(briefPath)return printMeetingBrief(await meetingBrief(c,decodeURIComponent(briefPath[1])))
  let m = path.match(/^\/app\/donors\/([^/]+)$/)
  if (m) { const view = await donorPage(c, m[1], url); return show(view.title, view.body) }
  if (path === '/app/letters') return show('Acknowledgement letters', await lettersPage(c))
