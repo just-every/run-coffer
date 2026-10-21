@@ -24,10 +24,10 @@ export async function exportsBrowser(h,{listId,headers},directory){
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    await page.screenshot({path:`${directory}/DATA-002a-saved-list-${width}.png`,fullPage:true})
    await page.goto(origin+'/app/exports?list=search&q=synthetic-coffer-3')
-   await page.getByLabel('List name',{exact:true}).fill(`synthetic-coffer-${width}`)
+   await page.getByLabel('List name',{exact:true}).fill(`Autumn volunteer outreach ${width}`)
    await page.getByRole('button',{name:'Save live list',exact:true}).click()
    await page.getByRole('heading',{name:'Review your download',exact:true}).waitFor()
-   assert.ok(await page.getByText(`synthetic-coffer-${width} ·`,{exact:false}).isVisible())
+   assert.ok(await page.getByText(`Autumn volunteer outreach ${width} ·`,{exact:false}).isVisible())
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    await page.screenshot({path:`${directory}/DATA-002a-save-search-${width}.png`,fullPage:true})
   }

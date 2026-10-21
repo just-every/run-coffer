@@ -78,7 +78,7 @@ export async function exportsJourney(){
   const erased=await donor(h,'synthetic-coffer-4 target',{email:'synthetic-coffer-4@example.test'})
   const member=await person('synthetic-coffer-5@example.test'),admin=await person('synthetic-coffer-6@example.test','admin')
   const agent=await command('agent.create',{label:'synthetic-coffer-7'}),asAgent={as:'',headers:{authorization:`Bearer ${agent.token}`}}
-  const save={name:'synthetic-coffer-8',filters:{q:'target'}}
+  const save={name:'Autumn donor follow-up',filters:{q:'target'}}
   await command('list.save',save,{as:'',status:401});await command('list.save',save,{as:member.cookie,status:403});await command('list.save',save,{...asAgent,status:403})
   const list=await command('list.save',save,{as:admin.cookie}),query=new URLSearchParams({list:`saved:${list.id}`})
   assert.deepEqual((await get('/api/coffer/lists')).lists.find(l=>l.id===list.id).filters,{q:'target',relationship:'',relatedTo:'',volunteer:''})
