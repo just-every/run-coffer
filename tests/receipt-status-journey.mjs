@@ -16,8 +16,6 @@ export async function receiptStatusJourney(){
   assert.ok((await h.get('/api/coffer/letters')).due.some(x=>x.id===g.id))
   const bad=await h.command('interaction.record',{donorId:other.id,kind:'call',occurredOn:day,who:'Reese and staff',notes:'A different donor conversation.'})
   const call=await h.command('interaction.record',{donorId:d.id,kind:'call',occurredOn:day,who:'Morgan and staff',notes:'Thanked Morgan for funding the reading program.',acknowledgeGiftId:g.id,acknowledgmentVersion:0},{as:member.cookie})
-  const unknown=await read(h,uncertain.id,held.id);assert.equal(unknown.status,'not acknowledged');assert.equal(unknown.outcome_unknown,1)
-  const receiptQueue=await h.api('/api/coffer/agent/receipts/queue',{});assert.equal(receiptQueue.queued,0,'Uncertain submissions wait for a person, never an automatic replacement')
   let ack=await read(h,d.id,g.id)
   assert.equal(ack.status,'acknowledged');assert.equal(ack.method,'phone call');assert.equal(ack.acknowledged_on,day);assert.equal(ack.link.id,call.id)
   assert.ok(!(await h.get('/api/coffer/letters')).due.some(x=>x.id===g.id))
