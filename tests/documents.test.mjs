@@ -30,7 +30,7 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   const photo=await attach('donor:'+ada.id,{title:'Reading room photo',fileName:'room.png',mediaType:'image/png',contentBase64:png.toString('base64')})
   const otherFile=await h.api('/api/coffer/documents',{donorId:other.id,recordRef:'donor:'+other.id,title:'Other private agreement',fileName:'other.pdf',mediaType:'application/pdf',contentBase64:pdf.toString('base64')})
   const bindings=(await h.get('/api/coffer/documents?donorId='+ada.id)).documents
-  assert.ok(bindings.length>=5)
+  assert.equal(bindings.length,matrix.attachments.length+5)
   for(const [document,kind,recordId] of [[own,'donor',ada.id],[gifts,'gift',gift.id],[opportunity,'opportunity',prospect.id],[agreementDoc,'pledge',pledge.id]]){
    const bound=bindings.find(d=>d.id===document.id)
    assert.deepEqual([bound.record_kind,bound.record_id],[kind,recordId])
@@ -43,9 +43,10 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   }
   assert.equal((await h.request(`/api/coffer/documents/${own.id}/download`,{as:''})).status,401)
   assert.equal((await h.request(`/api/coffer/documents/${own.id}/preview`,{as:'',headers:{authorization:'Bearer '+agent.token}})).status,403)
+  let browserFiles=0
   if(process.env.COFFER_DOCUMENT_BROWSER){
    const {documentBrowser}=await import('./documents-browser.mjs')
-   await documentBrowser(h,process.env.COFFER_DOCUMENT_BROWSER)
+   browserFiles=await documentBrowser(h,process.env.COFFER_DOCUMENT_BROWSER)
   }
   const day=new Date().toISOString().slice(0,10),file=await h.api(`/api/coffer/donors/${ada.id}/data-request`,{requestedOn:day,method:'email',reference:'DOC-008'})
   const docs=(await h.get('/api/coffer/documents?donorId='+ada.id)).documents
@@ -66,7 +67,7 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
   await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'},{as:matrix.admin.cookie})
   assert.equal((await h.get('/api/coffer/documents?donorId='+ada.id)).documents.length,docs.length)
   const saved=await archive(h)
-  assert.ok(saved[0].objects.length>=docs.length+1)
+  assert.equal(saved[0].objects.length,docs.length+1+browserFiles)
   const fresh=await installation()
   try{
    await restore(fresh,saved)

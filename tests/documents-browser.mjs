@@ -6,7 +6,8 @@ import {documentFormats,documentRecords} from './document-fixtures.mjs'
 export async function documentBrowser(h,directory){
  await mkdir(directory,{recursive:true})
  const admin=await h.person('native-document-admin@example.test','admin'),member=await h.person('native-document-member@example.test')
- await withBrowserWorker(h,async(context,origin)=>{
+ return withBrowserWorker(h,async(context,origin)=>{
+  let uploaded=0
   const page=await context.newPage()
   for(const [role,cookie] of [['owner',h.owner],['admin',admin.cookie],['member',member.cookie]]){
    await context.clearCookies()
@@ -37,18 +38,21 @@ export async function documentBrowser(h,directory){
      const stream=await download.createReadStream(),chunks=[]
      for await(const chunk of stream)chunks.push(chunk)
      assert.deepEqual(Buffer.concat(chunks),format.bytes)
-     await link.click()
+     const previewed=await page.goto(origin+preview,{waitUntil:'domcontentloaded'})
+     assert.equal(previewed.status(),200)
      if(format.extension==='txt')assert.ok((await page.locator('body').innerText()).includes('Signed pledge: $1,000'))
      if(format.extension==='png')await page.locator('img').waitFor()
-     if(format.extension==='pdf')await page.locator('embed[type="application/pdf"]').waitFor()
+     if(format.extension==='pdf')assert.match((await previewed.body()).toString(),/type="application\/pdf"/,'Chromium opened its native PDF viewer')
      if(role==='owner'&&kind==='pledge')await page.screenshot({path:`${directory}/DONOR-008-preview-${format.extension}-${width}.png`})
      await page.goto(`${origin}/app/donors/${constituent.id}#documents`)
     }
+    uploaded+=count
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${role} documents fit ${width}`)
     await panel.locator('button').scrollIntoViewIfNeeded()
     await page.screenshot({path:`${directory}/DONOR-008-${role}-uploaded-${width}.png`})
    }
   }
   await page.close()
+  return uploaded
  },{channel:'chromium'})
 }
