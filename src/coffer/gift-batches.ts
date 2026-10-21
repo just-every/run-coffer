@@ -7,7 +7,7 @@ import { settings } from './settings'
 export async function giftBatches(c: Context) {
  return all(c, `SELECT b.*,COALESCE(SUM(e.amount_cents),0) AS total_cents,COUNT(e.id) AS gift_count FROM cf_gift_batches b LEFT JOIN cf_batch_entries e ON e.batch_id=b.id GROUP BY b.id ORDER BY b.created_at DESC,b.id`)
 }
-export async function giftBatch(c: Context, batchId: string) {
+export async function giftBatch(c: Context, batchId: string): Promise<Row & { entries: Row[]; total_cents: number; gift_count: number; depositId: string | null }> {
  const batch = await one(c, 'SELECT * FROM cf_gift_batches WHERE id=?', batchId)
  if (!batch) fail('NOT_FOUND', 'That gift batch does not exist.', 404)
  const entries = await all(c, 'SELECT e.*,d.name AS donor_name FROM cf_batch_entries e JOIN cf_donors d ON d.id=e.donor_id WHERE e.batch_id=? ORDER BY e.created_at,e.id', batchId)
