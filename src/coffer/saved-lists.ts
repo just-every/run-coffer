@@ -14,7 +14,7 @@ export function listFilters(input: unknown = {}): ListFilters {
  return { q, relationship, relatedTo, volunteer }
 }
 
-export async function savedLists(c: Context) {
+export async function savedLists(c: Context):Promise<Row[]> {
  requireRole(c.actor, ['owner','admin'], 'read saved export lists')
  return (await all(c, 'SELECT id,name,version,filters,created_at,updated_at FROM cf_saved_lists ORDER BY lower(name),id'))
   .map(r => ({...r,filters:JSON.parse(r.filters)}))

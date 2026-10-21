@@ -20,8 +20,8 @@ export function exportType(value: string): ExportType {
 export async function exportSnapshot(c: Context, type: ExportType, url: URL) {
  requireRole(c.actor,['owner','admin'],'export donor records')
  const s = await exportSelection(c,url), spec = exportRecords[type]
- const query = `WITH ${s.ctes}, records AS (${spec.query}),
- record_json AS (SELECT ${recordJson(type)} AS data FROM records r),
+ const query = `WITH ${s.ctes}, records AS MATERIALIZED (${spec.query}),
+ record_json AS MATERIALIZED (SELECT ${recordJson(type)} AS data FROM records r),
  totals AS (SELECT count(*) AS row_count,COALESCE(SUM(length(CAST(data AS BLOB))),0) AS byte_count FROM record_json),
  metadata AS (SELECT t.*,? AS as_of,c.timezone,c.name_defaults,c.timezone=? AS calendar_current,
   (SELECT count(*) FROM members) AS member_count,(SELECT version FROM selected_list) AS list_version,

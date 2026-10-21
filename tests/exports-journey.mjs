@@ -24,7 +24,7 @@ function parseCsv(input){
 
 async function download(h,type,query,options={}){
  const response=await h.request(`/api/coffer/exports/${type}.csv?${query}`,{...options,headers:{...headers,...options.headers}})
- const body=await response.text();assert.equal(response.status,200,body)
+ const body=await response.text();assert.equal(response.status,200,`${type} export: ${body}`)
  const rows=parseCsv(body);assert.equal(Number(response.headers.get('x-coffer-row-count')),rows.length)
  assert.ok(Date.parse(response.headers.get('x-coffer-as-of')))
  return {response,body,rows}

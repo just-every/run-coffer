@@ -9,6 +9,9 @@ export async function exportsBrowser(h,{listId,headers},directory){
   const page=await context.newPage()
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/more')
+   await page.getByRole('link',{name:'Export donor records',exact:false}).waitFor()
+   await page.screenshot({path:`${directory}/exports-more-${width}.png`,fullPage:true})
    await page.goto(origin+'/app/exports?list='+encodeURIComponent('saved:'+listId)+'&type=gifts')
    await page.getByRole('heading',{name:'Review your download',exact:true}).waitFor()
    assert.ok(await page.getByText('2 confidential staff notes withheld.',{exact:true}).isVisible())
