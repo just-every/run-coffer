@@ -28,10 +28,11 @@ const audienceRule = (segment: { givenSince?: string | null; minTotalCents?: num
 
 export async function appealPage(c: Context, appealId: string) {
  const {connection:conn}=await emailConnection(c), label=conn?providerTitle(conn.provider):''
- const { appeal: a, recipients, approval, consentChanged, message, messages, results, inclusions } = await appealDetail(c, appealId), boss = manager(c.actor), tz = (await settings(c)).timezone, day = today(tz, new Date(c.now))
+ const { appeal: a, recipients, approval, consentChanged:consentChangedCount, restrictionChanged, message, messages, results, inclusions } = await appealDetail(c, appealId), boss = manager(c.actor), tz = (await settings(c)).timezone, day = today(tz, new Date(c.now))
+ const consentChanged=consentChangedCount+restrictionChanged
  const v = { appealId: a.id, version: a.version }, excluded = Object.entries(JSON.parse(a.excluded) as Record<string, number>).filter(([, n]) => n > 0)
  const complete=Boolean(message)&&recipients.every(r=>r.communication_id)
- const warning = complete && consentChanged ? '<p class="notice">Preferences changed after these submissions. Future appeals use the current answers.</p>' : consentChanged && ['prepared', 'approved'].includes(a.status) ? `<p class="alert" role="alert">${consentChanged} recipients’ consent changed since this audience was prepared. Discard it and prepare it again.</p>` : ''
+ const warning = complete && consentChanged ? '<p class="notice">Preferences changed after these submissions. Future appeals use the current answers.</p>' : consentChanged && ['prepared', 'approved'].includes(a.status) ? `<p class="alert" role="alert">Recipient permission, status or solicitation choices changed since this audience was prepared. Discard it and prepare it again.</p>` : ''
  const waiting=recipients.filter(r=>!r.communication_id).length, batch=conn?sendBatch(conn.provider):0
  const plural=(n:number,word:string)=>`${n} ${word}${n===1?'':'s'}`
  const sendable = boss && a.channel==='email' && message && ['approved','exported','sent'].includes(a.status) && !consentChanged && waiting>0
@@ -42,7 +43,7 @@ export async function appealPage(c: Context, appealId: string) {
  const progress=messages.length?box('Email submissions',`<ul class="list">${messages.map(m=>`<li><a href="/app/donors/${e(m.donor_id)}">${e(m.name)}</a> ${chip(m.remote_status??(m.status==='listed'?'On Mango list':m.status))}<p>${e(m.note)}</p></li>`).join('')}</ul>${boss&&conn?.provider==='mailchimp'?form('marketing.refresh','','Refresh email results'):''}`):''
  const preview=message?box('Approved message',`<h3>${e(message.subject)}</h3><p class="copy" style="white-space:pre-wrap">${e(message.body)}</p>`):''
  const actions = !boss ? '<p class="muted">An owner or admin approves, exports and records appeals.</p>'
-  : a.status === 'prepared' ? `<div class="actions">${form('appeal.approve', '', 'Approve this audience', v)}${form('appeal.discard', '', 'Discard', v, 'secondary')}</div>`
+  : a.status === 'prepared' ? `<div class="actions">${consentChanged?'':form('appeal.approve', '', 'Approve this audience', v)}${form('appeal.discard', '', 'Discard', v, 'secondary')}</div>`
   : a.status === 'approved' && complete ? `<p>${listed?'Every recipient is on the Mango list. Finish the campaign in Mango below.':'Every recipient has a saved submission. Refresh email results below to check the provider’s progress.'}</p>`
   : a.status === 'approved' ? `<p>${message?`Send the saved email${label?` through ${e(label)}`:''}, or export`:'Export'} the audience for your mailing tool.</p><div class="actions">${consentChanged?'':form('appeal.export', '', 'Export audience', v)}${messages.length?'':form('appeal.discard', '', 'Discard', v, 'secondary')}</div>`
   : a.status === 'exported' ? `<p><a class="button" href="/app/appeals/${e(a.id)}/recipients.csv">Download audience (CSV)</a></p>${form('appeal.markSent', field('Sent on', 'sentOn', 'date', day, 'required'), 'Record as sent', v)}`

@@ -121,6 +121,8 @@ export async function solicitationJourney() {
   // A frozen run must not proceed after a recipient’s restriction changes.
   await command('solicitation.set',{donorId:channel.id,version:1,type:'stop',startsOn:day})
   await command('appeal.approve',{appealId:yesEmail.id,version:1},{status:409})
+  assert.equal((await get('/api/coffer/appeals/'+yesEmail.id)).restrictionChanged,1)
+  assert.ok(!(await (await request('/app/appeals/'+yesEmail.id)).text()).includes('name="command" value="appeal.approve"'),'The stale native run directs a person to discard instead of offering an approval that would fail')
   await command('prospect.save',{donorId:stop.id,ownerId:owner.id,stage:'stewardship',askAmount:'1000',expectedCloseOn:dueOn,nextStep:'Share reading-room outcomes without an ask.'})
 
   await command('welcome.publish',{thankSubject:'Thank you {{donor_name}}',thankBody:'Your first gift helps readers. Thank you.',impactSubject:'Reading-room update',impactBody:'Here is our update for supporters.',askSubject:'Help readers again',askBody:'Please consider another gift.',impactDays:1,askDays:2})
@@ -161,7 +163,7 @@ export async function solicitationJourney() {
      if(name==='donor')assert.ok(await page.getByText('Do not solicit',{exact:true}).count())
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${name} fits ${width}`)
      await page.screenshot({path:`${directory}/DONOR-015-${name}-${width}.png`,fullPage:true})
-     if(name==='donor'){await page.locator('#solicitation').screenshot({path:`${directory}/DONOR-015-restriction-${width}.png`})}
+     if(name==='donor'){await page.setViewportSize({width,height:1600});await page.locator('#solicitation').screenshot({path:`${directory}/DONOR-015-restriction-${width}.png`});await page.setViewportSize({width,height:1000})}
     }
    })
   }

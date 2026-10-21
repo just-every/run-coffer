@@ -1,4 +1,4 @@
-import { solicitationReasons, prepareSolicitationRun, solicitationRunGuards, solicitationAskStatements } from './solicitation'
+import { solicitationReasons, solicitationState, prepareSolicitationRun, solicitationRunGuards, solicitationAskStatements } from './solicitation'
 import { frozenNameFields } from './person-names'
 import { letterRecipient } from './organizations'
 import { all, choice, commit, date, event, fail, guard, id, integer, newId, one, sha256, sql, text, today, longText, type Context, type Row } from './db'
@@ -133,5 +133,16 @@ export async function appealDetail(c: { db: D1Database }, appealId: string) {
  if (!appeal) fail('NOT_FOUND', 'That appeal does not exist.', 404)
  const [recipients, approval, changed] = await Promise.all([recipientsOf(c, appealId), one(c, "SELECT * FROM cf_approvals WHERE subject_kind='appeal' AND subject_id=?", appealId),
   one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_appeal_recipients r WHERE r.appeal_id=? AND ${CHANGED}`, appealId, appeal.channel)])
- return { appeal, recipients, approval, inclusions:await all(c,'SELECT * FROM cf_solicitation_inclusions WHERE kind=? AND run_id=?','appeal',appealId), results: await appealResults(c,appealId), message:await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),messages:await all(c,"SELECT m.*,d.name FROM cf_communications m JOIN cf_donors d ON d.id=m.donor_id WHERE m.source_kind='appeal' AND m.source_id=? ORDER BY m.created_at",appealId), consentChanged: changed?.n ?? 0 }
+ const inclusions=await all(c,'SELECT * FROM cf_solicitation_inclusions WHERE kind=? AND run_id=?','appeal',appealId)
+ let restrictionChanged=0
+ if(JSON.parse(appeal.segment).isAsk!==false){
+  const donorIds=recipients.map(r=>r.donor_id),[states,reasons,frozen,submitted]=await Promise.all([
+   solicitationState(c,donorIds),solicitationReasons(c,donorIds,appeal.channel),all(c,'SELECT * FROM cf_solicitation_recipients WHERE kind=? AND run_id=?','appeal',appealId),all(c,'SELECT donor_id FROM cf_solicitation_asks WHERE kind=? AND run_id=?','appeal',appealId),
+  ])
+  const versions=new Map(frozen.map(r=>[r.donor_id,r.restriction_version])),asked=new Set(submitted.map(r=>r.donor_id)),exceptions=new Map(inclusions.map(r=>[r.donor_id,r.restriction_version]))
+  restrictionChanged=states.filter(state=>{
+   return versions.get(state.donor_id)!==state.scope_version||reasons.get(state.donor_id)&&!asked.has(state.donor_id)&&exceptions.get(state.donor_id)!==state.scope_version
+  }).length
+ }
+ return { appeal, recipients, approval, restrictionChanged, inclusions, results: await appealResults(c,appealId), message:await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),messages:await all(c,"SELECT m.*,d.name FROM cf_communications m JOIN cf_donors d ON d.id=m.donor_id WHERE m.source_kind='appeal' AND m.source_id=? ORDER BY m.created_at",appealId), consentChanged: changed?.n ?? 0 }
 }
