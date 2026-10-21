@@ -66,7 +66,7 @@ export async function addressesPage(c: Context): Promise<string> {
   '<p>A Processing Acknowledgement Form (PAF) authorizes the licensed change-of-address provider to process this organization’s donor list. Keep the signed form current with your provider.</p>' +
   '<label><input type="checkbox" name="reviewed" value="yes"> I confirm this account has a current signed PAF and authorize address processing for the organization’s current donors when enabled.</label>',
   'Save address processing', { version: connection.version })
- const runs = state.runs.map(run => {
+ const runs = state.runs.map((run:Row) => {
   const labels: Record<string, [string, string]> = {
    queued: ['Queued', 'info'], processing: ['Processing', 'info'], completed: ['Completed', 'ok'],
    failed: ['Could not complete', 'warn'], uncertain: ['Outcome uncertain', 'warn'], cancelled: ['Cancelled', ''],
@@ -90,7 +90,7 @@ export async function addressPanel(c: Context, donor: Row): Promise<string> {
  const [state, configuration] = await Promise.all([addressState(c, donor.id), settings(c)])
  const enabled = Number(state.connection.enabled) === 1
  const canVerify = ['owner', 'admin', 'member'].includes(c.actor.role)
- const history = (state.history ?? []).map(row => `<li><p>${previousAddress(row)}</p>
+ const history = (state.history ?? []).map((row:Row) => `<li><p>${previousAddress(row)}</p>
   <p>Used before ${e(longDay(row.until_on))} (that date is excluded). Source: ${e(sourceLabel(row.source))}.</p></li>`).join('')
  return box('Postal address verification', checkSummary(state.check ?? null, configuration.timezone) +
   (enabled && canVerify ? form('address.verify', '<p>Check the current postal address with Smarty. A confirmed standardized address replaces the current address and preserves the earlier one in history.</p>', 'Verify current address', { donorId: donor.id, version: donor.version, returnDonorId: donor.id }) :
