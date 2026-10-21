@@ -1,4 +1,5 @@
 import {donor} from './harness.mjs'
+import {readFileSync} from 'node:fs'
 
 export function agreement(){
  const stream='BT /F1 16 Tf 50 740 Td (Pledge agreement) Tj 0 -30 Td (Riverbend literacy project - signed by Avery Chen) Tj ET'
@@ -13,7 +14,7 @@ export function agreement(){
 export function documentFormats(){
  return [
   {extension:'pdf',mediaType:'application/pdf',bytes:agreement()},
-  {extension:'png',mediaType:'image/png',bytes:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVh0AAAAASUVORK5CYII=','base64')},
+  {extension:'png',mediaType:'image/png',bytes:readFileSync(new URL('./fixtures/campaign-page/story.png',import.meta.url))},
   {extension:'txt',mediaType:'text/plain',bytes:Buffer.from('Riverbend Literacy Project\nSigned pledge: $1,000 for the reading room.\nAvery Chen — reviewed agreement.\n')},
  ]
 }

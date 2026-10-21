@@ -43,7 +43,10 @@ export async function documentBrowser(h,directory){
      if(format.extension==='txt')assert.ok((await page.locator('body').innerText()).includes('Signed pledge: $1,000'))
      if(format.extension==='png')await page.locator('img').waitFor()
      if(format.extension==='pdf')assert.match((await previewed.body()).toString(),/type="application\/pdf"/,'Chromium opened its native PDF viewer')
-     if(role==='owner'&&kind==='pledge')await page.screenshot({path:`${directory}/DONOR-008-preview-${format.extension}-${width}.png`})
+     if(role==='owner'&&kind==='pledge'){
+      await page.waitForLoadState('networkidle')
+      await page.screenshot({path:`${directory}/DONOR-008-preview-${format.extension}-${width}.png`})
+     }
      await page.goto(`${origin}/app/donors/${constituent.id}#documents`)
     }
     uploaded+=count

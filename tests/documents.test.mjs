@@ -48,7 +48,7 @@ test('DONOR-008: attach, preview and export record documents, restore their R2 b
    const {documentBrowser}=await import('./documents-browser.mjs')
    browserFiles=await documentBrowser(h,process.env.COFFER_DOCUMENT_BROWSER)
   }
-  const day=new Date().toISOString().slice(0,10),file=await h.api(`/api/coffer/donors/${ada.id}/data-request`,{requestedOn:day,method:'email',reference:'DOC-008'})
+  const day=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date()),file=await h.api(`/api/coffer/donors/${ada.id}/data-request`,{requestedOn:day,method:'email',reference:'DOC-008'})
   const docs=(await h.get('/api/coffer/documents?donorId='+ada.id)).documents
   assert.equal(file.records.record_documents.length,docs.length)
   assert.ok(!file.records.record_documents.some(d=>d.id===otherFile.id))
