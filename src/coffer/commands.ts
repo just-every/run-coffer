@@ -103,7 +103,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
   if (result !== undefined) {
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }
    if(['reply.confirmStop','reply.reverseStop'].includes(command)) result.mango=await syncPreferences(c,[result.donor_id])
-   if(command==='gift.record'||command==='contribution.record'&&result.kind!=='stock')await runGiftRules(c.env!,result.id)
+   if(command==='gift.record'||command==='contribution.record')await runGiftRules(c.env!,result.id)
    if(command==='giftBatch.close')for(const giftId of result.giftIds)await runGiftRules(c.env!,giftId)
    return result
   }

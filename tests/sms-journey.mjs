@@ -111,7 +111,7 @@ export async function smsJourney(){
   // Failed audience preparations write nothing and therefore do not manufacture
   // a later staff edit that would prevent the clean undo below.
   const inheritedMail=await command('appeal.prepare',{name:'Synthetic merged mail exclusion',channel:'mail'},{status:409})
-  assert.equal(inheritedMail.details['do not solicit'],1,'The source’s channel restriction remains effective at the survivor')
+  assert.equal(inheritedMail.details['do not solicit'],3,'The survivor adds its inherited mail restriction to the two other stopped donors')
   const combinedLimit=await command('appeal.prepare',{name:'Synthetic merged annual limit',channel:'email'},{status:409})
   assert.equal(combinedLimit.details['solicitation limit'],1,'The two original ask submissions exhaust the merged annual limit')
   const snapshot=await archive(h)

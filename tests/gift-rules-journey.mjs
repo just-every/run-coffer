@@ -79,6 +79,10 @@ export async function giftRulesJourney() {
   for(const giftId of [firstManual.id,backdated.id])await h.command('gift.reverse',{giftId,reason:'synthetic-coffer-319',reversedOn:receivedOn})
   const afterReversal=await record('1')
   assert.ok(!(await state()).firings.some(f=>f.gift_id===afterReversal.id&&f.action==='first_tag'),'Reversing previous gifts does not make a later gift the first recorded gift')
+  const propertyDonor=await donor(h,'Synthetic Securities Supporter')
+  const stock=await h.command('contribution.record',{donorId:propertyDonor.id,kind:'stock',symbol:'SYN',shares:'100',highPrice:'12',lowPrice:'8',receivedOn,goods:'none',fund:'Unrestricted'})
+  const propertyActions=(await state()).firings.filter(f=>f.gift_id===stock.id)
+  assert.deepEqual(propertyActions.map(f=>f.action).sort(),['amount_call','first_tag'],'New securities use their recorded market value and their own first-gift arrival')
   await h.get('/api/coffer/gift-rules',{as:'',status:401})
   assert.equal((await h.request('/app/gift-rules')).status,200)
   if(process.env.COFFER_STEW005_BROWSER){

@@ -67,26 +67,26 @@ export async function giftRulesCommand(c: Context, command: string, p: Row): Pro
  * invoke this door; revision/source checks also exclude historical imports. */
 export async function runGiftRules(env: GiftRulesEnv, giftId: string): Promise<void> {
  const c: Context = { db: env.DB, env, now: new Date().toISOString(), actor: { id: 'coffer-gift-rules', name: 'Published gift rules', role: 'owner' }, authority: { sql: '1', params: [] } }
- const gift = await one(c, `SELECT g.* FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id
-  WHERE g.id=? AND g.kind='gift' AND g.source IN ('manual','stripe') AND d.erased_at IS NULL AND d.constituent_status='active'
+ const gift = await one(c, `SELECT g.*,CASE WHEN g.kind='in_kind' THEN g.stated_value_cents ELSE g.amount_cents END AS rule_amount_cents FROM cf_contribution_ledger g JOIN cf_donors d ON d.id=g.donor_id
+  WHERE g.id=? AND g.kind IN ('gift','in_kind') AND g.source IN ('manual','stripe','in_kind') AND d.erased_at IS NULL AND d.constituent_status='active'
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)
   AND NOT EXISTS(SELECT 1 FROM cf_import_revisions WHERE kind='gift' AND id=g.id)
   AND NOT EXISTS(SELECT 1 FROM cf_gift_rule_arrivals WHERE gift_id=g.id)`, giftId)
  if (!gift) return
  const [rules, s, otherGift, allocations] = await Promise.all([
   all(c, 'SELECT * FROM cf_gift_rules WHERE published_at IS NOT NULL AND published_at<=? ORDER BY id', gift.created_at), settings(c),
-  one(c, `SELECT id FROM cf_gifts WHERE donor_id=? AND kind='gift' AND id<>?
-   UNION ALL SELECT id FROM cf_in_kind_gifts WHERE donor_id=? LIMIT 1`, gift.donor_id, gift.id, gift.donor_id),
+  one(c, `SELECT id FROM cf_gifts WHERE donor_id=? AND kind='gift' AND rowid<COALESCE((SELECT rowid FROM cf_gifts WHERE id=?),9223372036854775807)
+   UNION ALL SELECT id FROM cf_in_kind_gifts WHERE donor_id=? AND id<>? LIMIT 1`, gift.donor_id, gift.id, gift.donor_id, gift.id),
   all(c, 'SELECT fund FROM cf_gift_allocations WHERE gift_id=?', gift.id),
  ])
  const token = newId(), owns = 'EXISTS(SELECT 1 FROM cf_gift_rule_arrivals WHERE gift_id=? AND token=?)'
- const writes: Stmt[] = [guard("EXISTS(SELECT 1 FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id=? AND d.erased_at IS NULL AND d.constituent_status='active') AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE reverses=?)", 'GIFT_CHANGED', 'The gift or donor changed during rule processing.', gift.id, gift.id), sql('INSERT OR IGNORE INTO cf_gift_rule_arrivals VALUES(?,?,?)', gift.id, token, c.now)]
+ const writes: Stmt[] = [guard("EXISTS(SELECT 1 FROM cf_contribution_ledger g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id=? AND d.erased_at IS NULL AND d.constituent_status='active') AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE reverses=?)", 'GIFT_CHANGED', 'The gift or donor changed during rule processing.', gift.id, gift.id), sql('INSERT OR IGNORE INTO cf_gift_rule_arrivals VALUES(?,?,?)', gift.id, token, c.now)]
  const notices: Row[] = []
  for (const rule of rules) {
-  if (!(rule.kind === 'amount_call' ? gift.amount_cents >= rule.minimum_cents : rule.kind === 'first_tag' ? !otherGift : allocations.length ? allocations.some(a => a.fund === rule.fund) : gift.fund === rule.fund)) continue
+  if (!(rule.kind === 'amount_call' ? gift.rule_amount_cents >= rule.minimum_cents : rule.kind === 'first_tag' ? !otherGift : allocations.length ? allocations.some(a => a.fund === rule.fund) : gift.fund === rule.fund)) continue
   // Recheck first-recorded-gift eligibility in the action transaction too.
-  const ruleOwns = rule.kind === 'first_tag' ? `${owns} AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE donor_id=? AND kind='gift' AND id<>?) AND NOT EXISTS(SELECT 1 FROM cf_in_kind_gifts WHERE donor_id=?)` : owns
-  const ruleParams = rule.kind === 'first_tag' ? [gift.id, token, gift.donor_id, gift.id, gift.donor_id] : [gift.id, token]
+  const ruleOwns = rule.kind === 'first_tag' ? `${owns} AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE donor_id=? AND kind='gift' AND rowid<COALESCE((SELECT rowid FROM cf_gifts WHERE id=?),9223372036854775807)) AND NOT EXISTS(SELECT 1 FROM cf_in_kind_gifts WHERE donor_id=? AND id<>?)` : owns
+  const ruleParams = rule.kind === 'first_tag' ? [gift.id, token, gift.donor_id, gift.id, gift.donor_id, gift.id] : [gift.id, token]
   // Configuration must still be exactly the published human-reviewed version.
   writes.push(guard('EXISTS(SELECT 1 FROM cf_gift_rules WHERE id=? AND version=? AND published_at IS NOT NULL)', 'RULE_CHANGED', 'A published gift rule changed during gift processing.', rule.id, rule.version))
   const taskId = rule.kind === 'amount_call' ? newId() : null
@@ -96,7 +96,7 @@ export async function runGiftRules(env: GiftRulesEnv, giftId: string): Promise<v
   writes.push(sql(`INSERT INTO cf_gift_rule_firings(rule_id,gift_id,rule_version,action,status,task_id,due_at,created_at)
    SELECT ?,?,?,?,?,?,?,? WHERE ${ruleOwns}`, rule.id, gift.id, rule.version, rule.kind, !activeOwner ? 'owner_unavailable' : rule.kind === 'fund_notify' ? 'sending' : 'complete', activeOwner ? taskId : null, taskId ? dueAt : null, c.now, ...ruleParams))
   if (taskId && activeOwner) writes.push(sql(`INSERT INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at,is_ask)
-   SELECT ?,?,?,'gift',?,?,?,?,?,0 WHERE ${ruleOwns} AND EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))`, taskId, gift.donor_id, `gift-rule:${rule.id}:${gift.id}`, `Thank-you call: ${rule.name}. Call deadline: ${dueAt}`, gift.amount_cents, rule.owner_id, today(s.timezone, new Date(dueAt)), c.now, ...ruleParams, rule.owner_id))
+   SELECT ?,?,?,'gift',?,?,?,?,?,0 WHERE ${ruleOwns} AND EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))`, taskId, gift.donor_id, `gift-rule:${rule.id}:${gift.id}`, `Thank-you call: ${rule.name}. Call deadline: ${dueAt}`, gift.rule_amount_cents, rule.owner_id, today(s.timezone, new Date(dueAt)), c.now, ...ruleParams, rule.owner_id))
   if (rule.kind === 'first_tag') writes.push(sql(`INSERT OR IGNORE INTO cf_donor_rule_tags SELECT ?,?,?,?,? WHERE ${ruleOwns}`, gift.donor_id, rule.tag, rule.id, gift.id, c.now, ...ruleParams))
   writes.push(sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,?,?,?,'giftRule.fire','gift_rule',?,?,? WHERE ${ruleOwns}`, c.now, c.actor.id, c.actor.name, c.actor.role, rule.id, gift.donor_id, JSON.stringify({ giftId: gift.id, version: rule.version, kind: rule.kind }), ...ruleParams))
@@ -107,7 +107,7 @@ export async function runGiftRules(env: GiftRulesEnv, giftId: string): Promise<v
  for (const rule of notices) {
   let status = 'uncertain'
   try {
-   const response = await fetch(destination(env, rule.provider), { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(10000), headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: `A new gift includes ${rule.fund}. Total gift: $${(gift.amount_cents / 100).toFixed(2)}. Open Coffer to review gift ${gift.id}.` }) })
+   const response = await fetch(destination(env, rule.provider), { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(10000), headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: `A new gift includes ${rule.fund}. Total gift: $${(gift.rule_amount_cents / 100).toFixed(2)}. Open Coffer to review gift ${gift.id}.` }) })
    status = response.status === 200 && (await response.text()).trim() === 'ok' ? 'submitted' : 'rejected'
   } catch { /* A lost network result is visible and never retried automatically. */ }
   await commit(c, [sql('UPDATE cf_gift_rule_firings SET status=?,completed_at=? WHERE rule_id=? AND gift_id=? AND status=\'sending\'', status, new Date().toISOString(), rule.id, gift.id), event(c, 'giftRule.notification', 'gift_rule', rule.id, gift.donor_id, { giftId: gift.id, status })])

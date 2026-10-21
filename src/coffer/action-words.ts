@@ -3,6 +3,11 @@
 // through here; the API and the audit CSV keep the codes.
 
 const ACTIONS: Record<string, string> = {
+ 'solicitation.set':'Solicitation restriction saved', 'solicitation.include':'One-run inclusion recorded', 'solicitation.import':'Solicitation restriction imported', 'solicitation.resolveMerged':'Original merged restriction resolved', 'solicitation.mergeCustody':'Merged communication choices preserved',
+ 'sms.preference':'Text permission recorded', 'sms.prepare':'Text run prepared', 'sms.approve':'Text run approved', 'sms.discard':'Unsent text run discarded', 'sms.claim':'Text submission started', 'sms.submitted':'Text submitted', 'sms.uncertain':'Text submission uncertain', 'sms.failed':'Text rejected by provider', 'sms.stop':'Text permission withdrawn by STOP',
+ 'giftRule.save':'Gift rule saved unpublished', 'giftRule.publish':'Gift rule reviewed and published', 'giftRule.pause':'Gift rule paused', 'giftRule.fire':'Gift rule action recorded', 'giftRule.notification':'Team notice result recorded',
+ 'contribution.record':'Typed contribution recorded', 'contribution.stockSale':'Stock sale recorded',
+ 'giftBatch.create':'Gift batch opened', 'giftBatch.add':'Gift added to batch', 'giftBatch.edit':'Gift batch entry corrected', 'giftBatch.close':'Balanced gift deposit closed',
  'recognition.donor':'Donor recognition saved', 'recognition.gift':'Gift recognition saved', 'recognition.honorRoll':'Honor roll prepared',
  'ack.prepare': 'Letters prepared', 'ack.prepareStatements': 'Year-end statements prepared', 'ack.approve': 'Letters approved',
  'ack.discard': 'Letters discarded', 'ack.export': 'Letters exported', 'ack.markSent': 'Letters marked sent', 'ack.send': 'Letters emailed',

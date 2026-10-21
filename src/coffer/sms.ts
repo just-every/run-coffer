@@ -16,7 +16,7 @@ export async function smsPreference(c:Pick<Context,'db'>,donorId:string):Promise
  const row=await one(c,"SELECT p.*,(SELECT status FROM cf_consents WHERE donor_id=p.donor_id AND channel='sms' ORDER BY id DESC LIMIT 1) AS current_channel_status FROM cf_sms_preferences p WHERE donor_id=? ORDER BY id DESC LIMIT 1",donorId)
  return row?{...row,status:row.current_channel_status??row.status}:null
 }
-export const smsPreferenceHistory=(c:Pick<Context,'db'>,donorId:string)=>all(c,'SELECT * FROM cf_sms_preferences WHERE donor_id=? ORDER BY id DESC',donorId)
+export const smsPreferenceHistory=(c:Pick<Context,'db'>,donorId:string)=>all(c,'SELECT * FROM cf_sms_preferences WHERE donor_id=? OR donor_id IN (SELECT donor_id FROM cf_donor_merges WHERE into_id=?) ORDER BY id DESC',donorId,donorId)
 export async function smsState(c:Context,runId?:string):Promise<Row>{
  const runs=await all(c,'SELECT * FROM cf_sms_runs ORDER BY prepared_at DESC,id')
  if(!runId)return {runs:runs.map(r=>({...r,excluded:JSON.parse(r.excluded)})),donors:await all(c,"SELECT id,name,phone FROM cf_donors d WHERE erased_at IS NULL AND constituent_status='active' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY name")}

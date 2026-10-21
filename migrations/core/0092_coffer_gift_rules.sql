@@ -10,20 +10,21 @@ CREATE TABLE cf_gift_rule_versions (
  snapshot TEXT NOT NULL, recorded_at TEXT NOT NULL, recorded_by TEXT NOT NULL,
  PRIMARY KEY(rule_id,version)
 );
+-- Gift IDs name an actual monetary or property contribution, checked atomically by the rule processor.
 -- One arrival assessment, including when no rule matched. Later publication
 -- never retroactively enrolls history and two payment doors share this fence.
 CREATE TABLE cf_gift_rule_arrivals (
- gift_id TEXT PRIMARY KEY REFERENCES cf_gifts(id), token TEXT NOT NULL, assessed_at TEXT NOT NULL
+ gift_id TEXT PRIMARY KEY, token TEXT NOT NULL, assessed_at TEXT NOT NULL
 );
 CREATE TABLE cf_gift_rule_firings (
- rule_id TEXT NOT NULL REFERENCES cf_gift_rules(id), gift_id TEXT NOT NULL REFERENCES cf_gifts(id),
+ rule_id TEXT NOT NULL REFERENCES cf_gift_rules(id), gift_id TEXT NOT NULL,
  rule_version INTEGER NOT NULL, action TEXT NOT NULL, status TEXT NOT NULL,
  task_id TEXT, due_at TEXT, created_at TEXT NOT NULL, completed_at TEXT,
  PRIMARY KEY(rule_id,gift_id)
 );
 CREATE TABLE cf_donor_rule_tags (
  donor_id TEXT NOT NULL REFERENCES cf_donors(id) ON DELETE CASCADE, tag TEXT NOT NULL,
- rule_id TEXT NOT NULL REFERENCES cf_gift_rules(id), gift_id TEXT NOT NULL REFERENCES cf_gifts(id), created_at TEXT NOT NULL,
+ rule_id TEXT NOT NULL REFERENCES cf_gift_rules(id), gift_id TEXT NOT NULL, created_at TEXT NOT NULL,
  PRIMARY KEY(donor_id,tag)
 );
 CREATE TRIGGER cf_gift_rule_tag_erasure AFTER UPDATE OF erased_at ON cf_donors
