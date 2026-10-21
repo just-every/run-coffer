@@ -71,7 +71,7 @@ test('dated pledges remind once, match real gifts by fund and donor, and reopen 
  }})
 })
 
-test('GIFT-005 / RCPT-007: quarterly pledge payments, overdue balances, reasoned reductions, write-offs and recurring allocation retain history',async()=>{
+test('GIFT-005 / RCPT-007 / STEW-004: quarterly pledge payments, printable invoices, overdue balances, reasoned reductions, write-offs and recurring allocation retain history',async()=>{
  const {pledgeBalancesJourney}=await import('./pledge-balances-journey.mjs')
  await pledgeBalancesJourney()
 })

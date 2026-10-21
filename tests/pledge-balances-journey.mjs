@@ -18,6 +18,19 @@ export async function pledgeBalancesJourney(){
   const input={donorId:ana.id,amount:'12000',pledgedOn:'2025-01-01',fund:'Library',campaignId:campaign.id,installments:['2025-01-15','2025-04-15','2025-07-15','2025-10-15'].map(dueOn=>({dueOn,amount:'3000'}))}
   const created=await h.command('pledge.create',input)
   const current=async()=> (await h.get('/api/coffer/donors/'+ana.id)).pledges.find(p=>p.id===created.id)
+  const invoicePath='/app/pledges/'+created.id+'/invoice'
+  const invoice=async(installments,total,options={})=>{
+   const response=await h.request(invoicePath,options);assert.equal(response.status,200)
+   const html=await response.text()
+   const rows=[...html.matchAll(/<tr><td>(.*?)<\/tr>/gs)].map(m=>[...('<td>'+m[1]).matchAll(/<td>(.*?)<\/td>/gs)].map(c=>c[1].replace(/<[^>]+>/g,'')))
+   assert.deepEqual(rows,installments)
+   assert.ok(html.includes('<dd class="total">'+total+'</dd>'))
+   assert.ok(html.includes('Riverbend Literacy Project'))
+   assert.ok(html.includes('Dear Ana Quarterly Pledge,'))
+   assert.equal(response.headers.get('cache-control'),'no-store')
+   assert.doesNotMatch(html,/\{\{|<script/)
+   return html
+  }
   const pay=installmentId=>h.command('gift.record',{donorId:ana.id,amount:'3000',receivedOn:'2025-06-01',method:'check',goods:'none',fund:'Library',installmentId})
   let p=await current();assert.equal(p.amount_cents,1200000);assert.equal(p.campaign_id,campaign.id)
   await pay(p.installments[0].id);await pay(p.installments[1].id)
@@ -45,16 +58,27 @@ export async function pledgeBalancesJourney(){
   assert.equal((await h.get('/api/coffer/tasks')).sources.filter(s=>s.kind==='pledge'&&s.donorId===ana.id).reduce((n,s)=>n+s.amountCents,0),450000)
   // All supported cadences are explicit dated schedules; no guessed period length.
   const member=await h.person('pledges.staff@example.test')
+  // STEW-004: a printable request uses remaining cents, excluding paid rows
+  // and reflecting reductions without changing gifts or issuing a receipt.
+  const invoiceRows=[['July 15, 2025','$3,000.00','$0.00','$3,000.00'],['October 15, 2025','$1,500.00','$0.00','$1,500.00']]
+  const beforePrint=await h.get('/api/coffer/donors/'+ana.id)
+  await invoice(invoiceRows,'$4,500.00',{as:member.cookie})
+  assert.deepEqual(await h.get('/api/coffer/donors/'+ana.id),beforePrint)
+  assert.equal((await h.request(invoicePath,{as:''})).status,303)
+  assert.equal((await h.request('/app/pledges/no-such-pledge/invoice')).status,404)
+  if(process.env.COFFER_PLEDGE_BROWSER){const {pledgeInvoiceBrowser}=await import('./pledge-invoices-browser.mjs');await pledgeInvoiceBrowser(h,{donorId:ana.id,pledgeId:created.id,directory:process.env.COFFER_PLEDGE_BROWSER,phase:'reduced',total:'$4,500.00',rows:invoiceRows})}
   for(const dates of [['2025-02-01'],['2025-02-01','2025-03-01'],['2025-02-01','2026-02-01']]){
    const more=await h.command('pledge.create',{donorId:other.id,amount:String(dates.length*10),pledgedOn:'2025-01-01',fund:'Library',installments:dates.map(dueOn=>({dueOn,amount:'10'}))})
    const old=(await h.get('/api/coffer/donors/'+other.id)).pledges.find(p=>p.id===more.id)
    await h.command('pledge.writeOff',{pledgeId:old.id,version:old.version,reason:'Written commitment canceled.'},{as:member.cookie})
    const after=(await h.get('/api/coffer/donors/'+other.id)).pledges.find(p=>p.id===more.id)
    assert.equal(after.remaining_cents,0);assert.equal(after.reduced_cents,dates.length*1000);assert.equal(after.adjustments.every(a=>a.kind==='write_off'),true)
+   const writtenOff=await h.request('/app/pledges/'+more.id+'/invoice');assert.equal(writtenOff.status,200);const noBalance=await writtenOff.text();assert.ok(noBalance.includes('<dd class="total">$0.00</dd>'));assert.ok(!noBalance.includes('<tbody>'))
   }
   const checkout=await h.request('/give/library-pledge/checkout',form({name:'Ana Quarterly Pledge',email:'ana.quarterly.pledge@example.org',amount:'2500',frequency:'monthly',requestId:randomUUID()}));assert.equal(checkout.status,303,await checkout.text())
   await send(h,'evt_pledge_sub','customer.subscription.created','sub_pledge')
   const key=await h.command('agent.create',{label:'Pledge reader'})
+  assert.equal((await h.request(invoicePath,{as:'',headers:{authorization:'Bearer '+key.token}})).status,403)
   await h.command('pledge.linkPlan',{pledgeId:p.id,version:p.version,subscriptionId:'sub_pledge'},{as:'',headers:{authorization:'Bearer '+key.token},status:403})
   const wrong=(await h.get('/api/coffer/donors/'+other.id)).pledges[0]
   await h.command('pledge.linkPlan',{pledgeId:wrong.id,version:wrong.version,subscriptionId:'sub_pledge'},{status:409})
@@ -66,6 +90,8 @@ export async function pledgeBalancesJourney(){
   assert.equal((await current()).remaining_cents,200000)
   edge.invoice='in_pledge_2';await send(h,'evt_pledge_two','invoice.paid',edge.invoice)
   p=await current();assert.equal(p.remaining_cents,0);assert.equal(p.paid_cents,1050000);assert.equal(p.allocations.reduce((n,a)=>n+a.amount_cents,0),1050000);assert.equal((await h.get('/api/coffer/giving/campaigns/'+campaign.id)).pledgedOutstandingCents,0)
+  await invoice([],'$0.00')
+  if(process.env.COFFER_PLEDGE_BROWSER){const {pledgeInvoiceBrowser}=await import('./pledge-invoices-browser.mjs');await pledgeInvoiceBrowser(h,{donorId:ana.id,pledgeId:created.id,directory:process.env.COFFER_PLEDGE_BROWSER,phase:'paid',total:'$0.00',rows:[]})}
   assert.deepEqual((await h.get('/api/coffer/letters/'+receipt.id)).letters,issued,'Pledge adjustments and payments never alter issued gift receipts')
   // RCPT-007: only a plan's first installment uses the recurring-start template.
   const start=await h.command('letterTemplate.save',{kind:'recurring_start',name:'Monthly welcome',subject:'Welcome to monthly giving',body:'MONTHLY Dear {{donor_name}}, {{amount}} on {{gift_date}}. {{goods_statement}} {{organization}} EIN {{ein}}'})
@@ -75,17 +101,20 @@ export async function pledgeBalancesJourney(){
   await h.command('ack.discard',{batchId:monthly.id,version:1})
   const cash=(await h.get('/api/coffer/donors/'+ana.id)).totals.lifetimeCents;assert.equal(cash,1100000)
   const saved=await archive(h)
-  await run(async fresh=>{await restore(fresh,saved);const restored=(await fresh.get('/api/coffer/donors/'+ana.id)).pledges.find(x=>x.id===p.id);assert.deepEqual(restored,p)})
+  await run(async fresh=>{await restore(fresh,saved);const restored=(await fresh.get('/api/coffer/donors/'+ana.id)).pledges.find(x=>x.id===p.id);assert.deepEqual(restored,p);const restoredInvoice=await fresh.request(invoicePath);assert.equal(restoredInvoice.status,200);assert.ok((await restoredInvoice.text()).includes('<dd class="total">$0.00</dd>'))})
   const comparison=await h.get(`/api/coffer/duplicates/compare?source=${ana.id}&target=${other.id}`)
   const merge=await h.command('donor.merge',{sourceDonorId:ana.id,donorId:other.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
   assert.ok((await h.get('/api/coffer/donors/'+other.id)).pledges.some(x=>x.id===p.id&&x.reduced_cents===150000))
+  const mergedInvoice=await h.request(invoicePath);assert.equal(mergedInvoice.status,200);assert.ok((await mergedInvoice.text()).includes('/app/donors/'+other.id+'#pledges'))
   await h.command('donor.unmerge',{mergeId:merge.mergeId,reason:'incorrect_match'})
   assert.equal((await current()).remaining_cents,0)
   const paidGift=(await h.get('/api/coffer/donors/'+ana.id)).gifts.find(g=>g.reference==='in_pledge_1')
   await h.command('gift.reverse',{giftId:paidGift.id,reason:'Returned recurring contribution'})
   assert.equal((await current()).remaining_cents,250000);assert.equal((await current()).reduced_cents,150000)
+  await invoice([['July 15, 2025','$3,000.00','$500.00','$2,500.00']],'$2,500.00')
   if(process.env.COFFER_PLEDGE_BROWSER){const {pledgeBrowser}=await import('./pledge-balances-browser.mjs');await pledgeBrowser(h,process.env.COFFER_PLEDGE_BROWSER)}
   await h.command('donor.erase',{donorId:ana.id,confirm:'ERASE'})
+  assert.equal((await h.request(invoicePath)).status,404)
   const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes('Donor revised the building commitment.'))
  },{bindings:{STRIPE_SECRET_KEY:'sk_test_pledge_edge',STRIPE_WEBHOOK_SECRET:secret},outbound:async request=>{
   const url=new URL(request.url);assert.equal(url.hostname,'api.stripe.com');const params=new URLSearchParams(await request.text());edge.calls++

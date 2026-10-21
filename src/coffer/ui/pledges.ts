@@ -33,6 +33,7 @@ export async function pledgePanel(c: Context, history: Row, day: string, staff: 
  const list = pledges.length ? `<ul class="list">${pledges.map(p => `<li><strong>${money(p.amount_cents)} pledged ${longDay(p.pledged_on)} to ${e(p.fund)}</strong><br>${money(p.paid_cents)} paid · ${money(p.remaining_cents)} still to come
   ${p.installments?.length ? `<ul>${p.installments.map((i: Row) => `<li>${longDay(i.due_on)} · ${money(i.amount_cents)} scheduled · ${money(i.paid_cents)} paid · ${money(i.remaining_cents)} remaining · ${money(i.due_cents)} due · ${money(i.overdue_cents)} overdue ${i.due_on < day && i.remaining_cents > 0 ? chip('Overdue', 'alarm') : ''} ${reminderLabel(i, day)}${i.reminder_note ? `<p class="muted">${e(i.reminder_note)}</p>` : ''}</li>`).join('')}</ul>` : '<p class="muted">This older pledge has no installment schedule.</p>'}
   ${pledgeChanges(p,donorId,history.subscriptions??[],staff)}
+  ${staff ? `<p><a href="/app/pledges/${e(p.id)}/invoice">${p.remaining_cents > 0 ? 'Print pledge invoice' : 'Print pledge balance'}</a></p>` : ''}
   ${staff && !unavailable && p.installments?.some((i: Row) => i.reminder_status === 'pending' && i.remind_on <= day && i.remaining_cents > 0) ? form('pledge.remind', '<p>Send only unpaid installments whose reminder date has arrived and whose donor has email permission.</p>', 'Send due reminders', { donorId, pledgeId: p.id }) : ''}</li>`).join('')}</ul>` : empty('No pledges.')
  const installments = installmentFields(pledges)
  // Explicit matching also supports gifts imported or recorded before the schedule.
