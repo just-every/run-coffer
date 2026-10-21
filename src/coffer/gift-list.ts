@@ -85,7 +85,7 @@ export async function giftProgress(c: Context, year: string) {
 /** The selected donor's panel: totals, card retries, consent, household and the agent's draft. */
 export async function donorPanelData(c: Context, donorId: string) {
  const [donor, totals, consent, household, recovery, draft, ai] = await Promise.all([
-  one(c, 'SELECT d.id,d.name,d.email,d.phone,d.address_line1,d.address_line2,d.city,d.region,d.postal_code,h.name AS household,d.household_id FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id WHERE d.id=?', donorId),
+  one(c, 'SELECT d.id,d.erased_at,d.name,d.email,d.phone,d.address_line1,d.address_line2,d.city,d.region,d.postal_code,h.name AS household,d.household_id FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id WHERE d.id=?', donorId),
   one(c, "SELECT count(*) AS gifts,MIN(received_on) AS first_gift,COALESCE((SELECT SUM(amount_cents) FROM cf_monetary_contributions WHERE donor_id=?),0) AS lifetime_cents FROM cf_gifts WHERE donor_id=? AND kind='gift'", donorId, donorId),
   all(c, 'SELECT channel,status FROM cf_consents k WHERE donor_id=? AND id=(SELECT MAX(id) FROM cf_consents WHERE donor_id=k.donor_id AND channel=k.channel)', donorId),
   one(c, 'SELECT count(*) AS members FROM cf_donors WHERE household_id=(SELECT household_id FROM cf_donors WHERE id=?) AND erased_at IS NULL', donorId),
