@@ -145,6 +145,6 @@ export async function mailchimpResults(conn: Connection, row: Row): Promise<Row>
  if (!Array.isArray(report?.sent_to) || !Number.isSafeInteger(report.total_items) || report.total_items > 1 || report.sent_to.length !== report.total_items) fail('MAILCHIMP_RESPONSE', 'Mailchimp did not confirm the campaign recipient results.', 502)
  return {state:campaign.status,rows:report.sent_to.map((recipient: Row) => {
   if (typeof recipient.email_address !== 'string' || !['sent','hard','soft'].includes(recipient.status)) fail('MAILCHIMP_RESPONSE', 'Mailchimp returned an unknown send result.', 502)
-  return {destination:address(recipient.email_address),disposition:recipient.status === 'sent' ? 'sent' : 'bounced'}
+  return {destination:address(recipient.email_address),disposition:recipient.status === 'sent' ? 'sent' : recipient.status === 'hard' ? 'bounced' : 'deferred'}
  })}
 }

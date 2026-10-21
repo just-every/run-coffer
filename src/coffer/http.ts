@@ -418,7 +418,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  }
  let m = match(/^\/api\/coffer\/donors\/([^/]+)$/)
  if (m) return json(await donorHistory(c, m[1]))
- if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, held: due.held, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, batches: await batches(c) }) }
+ if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, held: due.held, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, softCredits:due.softCredits, batches: await batches(c) }) }
  if ((m = match(/^\/api\/coffer\/letters\/([^/]+)$/))) return json(await batchDetail(c, m[1]))
  if ((m = match(/^\/api\/coffer\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
  if (path === '/api/coffer/welcome') return json(await welcomeState(c))

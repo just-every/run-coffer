@@ -1,3 +1,4 @@
+import { giftAcknowledgmentWrite } from './gift-ack-write'
 import { manager, requireRole } from './auth'
 import { all, choice, commit, date, event, fail, guard, id, longText, newId, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { settings } from './settings'
@@ -63,15 +64,21 @@ export async function donorDepthCommand(c: Context, command: string, p: Row): Pr
  const who = text(p.who ?? c.actor.name, 'Who took part', 500), notes = longText(p.notes, 'Conversation notes'), nextStep = optional(p.nextStep, 'Next step', 2000)
  if (occurred > today((await settings(c)).timezone)) fail('INPUT', 'A conversation cannot be recorded in the future.', 400)
  if(![undefined,false,true,0,1,'0','1'].includes(p.confidential))fail('INPUT','Confidential must be yes or no.',400)
+ if(p.acknowledgeGift){const parts=String(p.acknowledgeGift).split('|');if(parts.length!==2)fail('INPUT','Choose a gift to thank.',400);p.acknowledgeGiftId=parts[0];p.acknowledgmentVersion=Number(parts[1])}
+ const acknowledgeGiftId=optional(p.acknowledgeGiftId,'Gift to acknowledge',100)
+ if(acknowledgeGiftId && !['call','meeting','email','note'].includes(kind))fail('INPUT','Record a call, meeting, email or thank-you note to acknowledge a gift.',400)
+ const thank=acknowledgeGiftId?await giftAcknowledgmentWrite(c,'gift.acknowledge',{giftId:acknowledgeGiftId,version:p.acknowledgmentVersion,acknowledgedOn:occurred,method:kind==='call'?'phone call':kind==='meeting'?'in person':kind==='email'?'email':'other',...(kind==='note'?{notes}:{interactionId})}):null
+ if(thank&&thank.result.donorId!==donorId)fail('ACK_INTERACTION','Choose a gift on this donor.',409)
  const confidential=p.confidential===true || p.confidential===1 || p.confidential==='1'
  if(confidential && (kind!=='note' || !manager(c.actor)))fail('FORBIDDEN','Only the owner or an admin records confidential notes.',403)
  if(kind==='note'||kind==='visit'){
-  await commit(c,[liveDonor(donorId),sql('INSERT INTO cf_donor_notes(id,donor_id,occurred_on,body,source,recorded_at,recorded_by,kind,confidential,who,next_step,recorded_by_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',interactionId,donorId,occurred,notes,'Coffer',c.now,c.actor.name,kind,confidential?1:0,who,nextStep,c.actor.id),event(c,command,'note',interactionId,donorId,{kind,occurredOn:occurred,confidential})])
+  if(thank&&confidential)fail('INPUT','Use an ordinary thank-you note to acknowledge a gift.',400)
+  await commit(c,[liveDonor(donorId),sql('INSERT INTO cf_donor_notes(id,donor_id,occurred_on,body,source,recorded_at,recorded_by,kind,confidential,who,next_step,recorded_by_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',interactionId,donorId,occurred,notes,'Coffer',c.now,c.actor.name,kind,confidential?1:0,who,nextStep,c.actor.id),event(c,command,'note',interactionId,donorId,{kind,occurredOn:occurred,confidential}),...(thank?.statements??[])])
   return {id:interactionId,donorId,kind,occurredOn:occurred,confidential}
  }
  await commit(c, [liveDonor(donorId),
   sql('INSERT INTO cf_interactions(id,donor_id,kind,occurred_on,who,notes,next_step,recorded_at,recorded_by,recorded_by_id,open_question) VALUES(?,?,?,?,?,?,?,?,?,?,?)', interactionId, donorId, kind, occurred, who, notes, nextStep, c.now, c.actor.name, c.actor.id,openQuestion),
-  event(c, command, 'interaction', interactionId, donorId, { kind, occurredOn: occurred })])
+  event(c, command, 'interaction', interactionId, donorId, { kind, occurredOn: occurred }),...(thank?.statements??[])])
  return { id: interactionId, donorId, kind, occurredOn: occurred }
 }
 

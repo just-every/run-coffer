@@ -1,11 +1,11 @@
 import { NAME_MERGE_FIELDS, personNames } from './person-names'
 import { CONTACT_MERGE_FIELDS, fieldPattern, fillFields, recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
 import { receiptRuleSettings } from './receipt-rules'
-import { commit, event, fail, guard, integer, longText, one, optional, sql, text, type Context, type Row } from './db'
+import { choice, commit, event, fail, guard, integer, longText, one, optional, sql, text, type Context, type Row } from './db'
 import { amount, usd } from './money'
 
 export type Settings = {
- name_defaults: string; version: number; organisation: string; ein: string; timezone: string; threshold_cents: number; target_days: number
+ thank_soft_credits: number; name_defaults: string; version: number; organisation: string; ein: string; timezone: string; threshold_cents: number; target_days: number
  letter_subject: string; letter_template: string; none_statement: string; goods_statement: string; reviewed_at: string | null; reviewed_by: string | null
  religious_organization: number; token_year: number | null; token_max_value_cents: number; token_min_gift_cents: number; token_max_cost_cents: number
  fiscal_year_start: string
@@ -46,10 +46,11 @@ export async function settingsCommand(c: Context, p: Row) {
  const fiscalStart = p.fiscalYearStart === undefined ? null : text(p.fiscalYearStart, 'Fiscal year start', 5)
  if (fiscalStart && (!/^\d{2}-\d{2}$/.test(fiscalStart) || Number.isNaN(Date.parse(`2001-${fiscalStart}T00:00:00Z`)) || new Date(`2001-${fiscalStart}T00:00:00Z`).toISOString().slice(5, 10) !== fiscalStart)) fail('INPUT', 'Fiscal year start must be a month and day such as 07-01 (not February 29).', 400)
  const onlineReceipts = p.onlineReceipts === undefined || p.onlineReceipts === '' ? null : p.onlineReceipts === 'review' ? 'review' : p.onlineReceipts === 'automatic' ? 'automatic' : fail('INPUT', 'Choose when online gift receipts go out.', 400)
+ const thankSoftCredits=p.thankSoftCredits===undefined?null:choice(p.thankSoftCredits,['0','1'],'whether to thank soft credits')
  const rules = await receiptRuleSettings(c, p)
  await commit(c, [guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'VERSION', 'Settings changed. Refresh before saving.', version),
-  sql('UPDATE cf_settings SET version=version+1,organisation=?,ein=?,timezone=?,threshold_cents=?,target_days=?,letter_subject=?,letter_template=?,none_statement=?,goods_statement=?,online_receipts=COALESCE(?,online_receipts),fiscal_year_start=COALESCE(?,fiscal_year_start),reviewed_at=?,reviewed_by=? WHERE id=1',
-   organisation, ein, timezone, threshold, targetDays, subject, template, none, goods, onlineReceipts, fiscalStart, c.now, c.actor.name),
+  sql('UPDATE cf_settings SET version=version+1,organisation=?,ein=?,timezone=?,threshold_cents=?,target_days=?,letter_subject=?,letter_template=?,none_statement=?,goods_statement=?,thank_soft_credits=COALESCE(?,thank_soft_credits),online_receipts=COALESCE(?,online_receipts),fiscal_year_start=COALESCE(?,fiscal_year_start),reviewed_at=?,reviewed_by=? WHERE id=1',
+   organisation, ein, timezone, threshold, targetDays, subject, template, none, goods, thankSoftCredits, onlineReceipts, fiscalStart, c.now, c.actor.name),
   sql('UPDATE cf_settings SET religious_organization=?,token_year=?,token_max_value_cents=?,token_min_gift_cents=?,token_max_cost_cents=? WHERE id=1', rules.religious, rules.year, rules.maxValue, rules.minGift, rules.maxCost),
   event(c, 'settings.update', 'settings', '1', null, { version: version + 1, thresholdCents: threshold })])
  return { version: version + 1 }
