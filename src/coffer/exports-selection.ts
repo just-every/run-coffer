@@ -22,9 +22,9 @@ export async function exportSelection(c: Context, url: URL) {
  const ctes = `config AS (SELECT timezone,name_defaults FROM cf_settings WHERE id=1),
  selected_list AS (SELECT id,name,version,filters FROM cf_saved_lists WHERE id=?),
  filters AS (SELECT CASE WHEN ?='saved' THEN (SELECT filters FROM selected_list) ELSE ? END AS definition),
- annual AS (SELECT donor_id,substr(received_on,1,4) AS year,SUM(amount_cents) AS cents
+ annual AS MATERIALIZED (SELECT donor_id,substr(received_on,1,4) AS year,SUM(amount_cents) AS cents
   FROM cf_monetary_contributions WHERE received_on<=? GROUP BY donor_id,substr(received_on,1,4)),
- members AS (SELECT d.id FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id CROSS JOIN filters f
+ members AS MATERIALIZED (SELECT d.id FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id CROSS JOIN filters f
   WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
   AND (?<>'saved' OR (EXISTS(SELECT 1 FROM selected_list) AND d.constituent_status='active'))
   AND (? NOT IN ('lybunt','sybunt') OR (
