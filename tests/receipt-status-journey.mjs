@@ -16,6 +16,8 @@ export async function receiptStatusJourney(){
   assert.ok((await h.get('/api/coffer/letters')).due.some(x=>x.id===g.id))
   const bad=await h.command('interaction.record',{donorId:other.id,kind:'call',occurredOn:day,who:'Reese and staff',notes:'A different donor conversation.'})
   const call=await h.command('interaction.record',{donorId:d.id,kind:'call',occurredOn:day,who:'Morgan and staff',notes:'Thanked Morgan for funding the reading program.',acknowledgeGiftId:g.id,acknowledgmentVersion:0},{as:member.cookie})
+  const unknown=await read(h,uncertain.id,held.id);assert.equal(unknown.status,'not acknowledged');assert.equal(unknown.outcome_unknown,1)
+  const receiptQueue=await h.api('/api/coffer/agent/receipts/queue',{});assert.equal(receiptQueue.queued,0,'Uncertain submissions wait for a person, never an automatic replacement')
   let ack=await read(h,d.id,g.id)
   assert.equal(ack.status,'acknowledged');assert.equal(ack.method,'phone call');assert.equal(ack.acknowledged_on,day);assert.equal(ack.link.id,call.id)
   assert.ok(!(await h.get('/api/coffer/letters')).due.some(x=>x.id===g.id))
@@ -35,6 +37,7 @@ export async function receiptStatusJourney(){
   await h.command('settings.update',{...settings,version:(await h.get('/api/coffer/settings')).version,thankSoftCredits:'1',targetDays:1})
   let queue=await h.get('/api/coffer/letters')
   assert.equal(queue.softCredits.length,1);assert.equal(queue.softCredits[0].donor_id,advisor.id)
+  assert.ok(queue.due.find(x=>x.id===sponsor.id).overdue)
   assert.equal(queue.due.some(x=>[g.id,excluded.id].includes(x.id)),false,'Even after the one-day target only not-acknowledged gifts are due')
   const batch=await h.command('ack.prepare',{giftIds:[sponsor.id]})
   assert.deepEqual((await h.get(`/api/coffer/letters/${batch.id}`)).letters.map(l=>l.donor_id),[other.id],'Recognition credits never create a receipt')
@@ -65,10 +68,12 @@ export async function receiptStatusJourney(){
  const keys=generateKeyPairSync('ec',{namedCurve:'prime256v1'}),sent=[]
  await run(async h=>{
   await reviewed(h)
-  const d=await donor(h,'Casey Reed'),second=await donor(h,'Drew Navarro')
-  const g=await gift(h,d.id,'1000'),g2=await gift(h,second.id,'500')
-  const b=await h.command('ack.prepare');await h.command('ack.approve',{batchId:b.id,version:1});await h.command('ack.send',{batchId:b.id,version:2})
-  assert.equal(sent.length,2)
+  const d=await donor(h,'Casey Reed'),second=await donor(h,'Drew Navarro'),uncertain=await donor(h,'Taylor Ahmed')
+  const g=await gift(h,d.id,'1000'),g2=await gift(h,second.id,'500'),held=await gift(h,uncertain.id,'750')
+  const b=await h.command('ack.prepare');await h.command('gift.doNotAcknowledge',{giftId:g.id,version:0,reason:'A personal thank-you is planned.'});await h.command('ack.approve',{batchId:b.id,version:1});await h.command('ack.send',{batchId:b.id,version:2})
+  assert.equal(sent.length,3)
+  const unknown=await read(h,uncertain.id,held.id);assert.equal(unknown.status,'not acknowledged');assert.equal(unknown.outcome_unknown,1)
+  const receiptQueue=await h.api('/api/coffer/agent/receipts/queue',{});assert.equal(receiptQueue.queued,0,'Uncertain submissions wait for a person, never an automatic replacement')
   let ack=await read(h,d.id,g.id)
   assert.equal(ack.status,'acknowledged');assert.equal(ack.method,'email');assert.equal(ack.delivery,'delivery not confirmed');assert.equal(ack.link.kind,'letter')
   const letters=(await h.get(`/api/coffer/letters/${b.id}`)).letters
@@ -85,5 +90,5 @@ export async function receiptStatusJourney(){
   await event(g.id,'bounce','synthetic-coffer-late-bounce')
   ack=await read(h,d.id,g.id);assert.equal(ack.status,'acknowledged');assert.equal(ack.note_id,later.noteId)
   if(process.env.COFFER_ACK_STATUS_BROWSER){const {receiptDeliveryStatusBrowser}=await import('./receipt-status-browser.mjs');await receiptDeliveryStatusBrowser(h,{donorId:second.id,giftId:g2.id,directory:process.env.COFFER_ACK_STATUS_BROWSER})}
- },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_EVENT_PUBLIC_KEY:keys.publicKey.export({type:'spki',format:'der'}).toString('base64')},outbound:async request=>{assert.equal(new URL(request.url).hostname,'api.sendgrid.com');sent.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':`synthetic-coffer-${sent.length}`}})}})
+ },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_EVENT_PUBLIC_KEY:keys.publicKey.export({type:'spki',format:'der'}).toString('base64')},outbound:async request=>{assert.equal(new URL(request.url).hostname,'api.sendgrid.com');const message=await request.json();sent.push(message);if(message.personalizations[0].to[0].email==='taylor.ahmed@example.org')return new Response(null,{status:202});return new Response(null,{status:202,headers:{'x-message-id':`synthetic-coffer-${sent.length}`}})}})
 }

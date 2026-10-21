@@ -22,8 +22,11 @@ export async function giftAcknowledgmentWrite(c: Context, command: string, p: Ro
    if(!kind)fail('INPUT','Record a thank-you note for this method.',400)
    statements.push(guard('EXISTS(SELECT 1 FROM cf_interactions WHERE id=? AND donor_id=? AND occurred_on=? AND kind=?)','ACK_INTERACTION','Choose a conversation with this donor on the same date and by the same method.',interactionId,gift.donor_id,day,kind))
   }else{
-   const body=longText(p.notes,'Thank-you message');noteId=newId()
-   statements.push(sql('INSERT INTO cf_donor_notes(id,donor_id,occurred_on,body,source,recorded_at,recorded_by) VALUES(?,?,?,?,?,?,?)',noteId,gift.donor_id,day,body,'Coffer gift thank-you',c.now,c.actor.name))
+   noteId=optional(p.recordedNoteId,'Recorded thank-you note',100)
+   if(noteId)statements.push(guard('EXISTS(SELECT 1 FROM cf_donor_notes WHERE id=? AND donor_id=? AND occurred_on=? AND confidential=0)','ACK_NOTE','Choose an ordinary note on this donor and thank-you date.',noteId,gift.donor_id,day))
+   else {const body=longText(p.notes,'Thank-you message');noteId=newId()
+    statements.push(sql('INSERT INTO cf_donor_notes(id,donor_id,occurred_on,body,source,recorded_at,recorded_by) VALUES(?,?,?,?,?,?,?)',noteId,gift.donor_id,day,body,'Coffer gift thank-you',c.now,c.actor.name))}
+
   }
  }else if(status==='do not acknowledge')reason=text(p.reason,'Reason not to acknowledge',1000)
  statements.push(sql(`INSERT INTO cf_gift_acknowledgments(gift_id,version,status,acknowledged_on,method,interaction_id,note_id,reason,source,updated_at,updated_by,updated_by_id,updated_by_role,change_source)
