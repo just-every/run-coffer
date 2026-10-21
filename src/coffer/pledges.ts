@@ -164,3 +164,30 @@ export async function runPledgeReminders(env: Bindings, at = new Date()): Promis
  if (unavailable) return { submitted: 0, unavailable }
  return remind({ db: env.DB, env, now: at.toISOString(), actor: { id: 'coffer-scheduler', name: 'Pledge scheduler', role: 'owner' }, authority: { sql: 'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)', params: [] } }, {})
 }
+
+/** Minute Cron creates one ordinary call task per overdue installment. The
+ * INSERT rechecks the balance, donor and assignee inside the audited transaction;
+ * manual creation and concurrent/replayed ticks share the same unique source. */
+export async function advancePledgeTasks(env: Bindings, at: Date) {
+ const c: Context = { db: env.DB, env, now: at.toISOString(), actor: { id: 'coffer-scheduler', name: 'Pledge scheduler', role: 'owner' }, authority: { sql: 'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)', params: [] } }
+ const day = today((await settings(c)).timezone, at)
+ const current = `FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
+  WHERE i.due_on<? AND i.paid_cents<i.amount_cents AND d.erased_at IS NULL AND d.constituent_status='active'
+  AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
+  AND NOT EXISTS(SELECT 1 FROM cf_call_tasks t WHERE t.source_key='pledge:'||i.id)`
+ const due = await all(c, 'SELECT i.id '+current+' ORDER BY i.due_on,i.id LIMIT 100', day)
+ const owner = `COALESCE((SELECT o.id FROM cf_portfolio_members m JOIN cf_portfolios f ON f.id=m.portfolio_id
+  JOIN oa_operators o ON o.id=f.manager_id WHERE m.donor_id=p.donor_id AND o.status='active' AND o.role IN ('owner','admin','member')),
+  (SELECT id FROM oa_operators WHERE role='owner' AND status='active' ORDER BY id LIMIT 1))`
+ for (const i of due) {
+  const taskId = newId()
+  await commit(c, [
+   sql(`INSERT OR IGNORE INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at)
+    SELECT ?,p.donor_id,'pledge:'||i.id,'pledge','Unpaid '||p.fund||' pledge installment due '||i.due_on||'.',
+    i.amount_cents-i.paid_cents,${owner},date(i.due_on,'+1 day'),? ${current} AND i.id=? AND ${owner} IS NOT NULL`, taskId, c.now, day, i.id),
+   sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
+    SELECT ?,?,?,?,'pledge.overdueTask','task',id,donor_id,? FROM cf_call_tasks WHERE id=?`,
+    c.now, c.actor.id, c.actor.name, c.actor.role, JSON.stringify({ installmentId: i.id }), taskId),
+  ])
+ }
+}

@@ -15,7 +15,7 @@ import { setupStateResponse } from './base/setup-state'
 import { authResponse, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
 import { runAgentJobs } from './coffer/agent/jobs'
-import { runPledgeReminders } from './coffer/pledges'
+import { advancePledgeTasks, runPledgeReminders } from './coffer/pledges'
 import { cofferResponse } from './coffer/http'
 import { seedDemo } from './demo'
 
@@ -39,6 +39,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     const tick=new Date(controller.scheduledTime)
     execution.waitUntil(advanceMeetingBriefs(runtimeBindings(env),tick))
     execution.waitUntil(advanceRecurringTasks(runtimeBindings(env),tick))
+    execution.waitUntil(advancePledgeTasks(runtimeBindings(env),tick))
     if(tick.getUTCHours()===13 && tick.getUTCMinutes()===0) {
       execution.waitUntil(runPledgeReminders(runtimeBindings(env),tick))
       execution.waitUntil(runAgentJobs(runtimeBindings(env),tick))

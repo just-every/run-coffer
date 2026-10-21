@@ -67,3 +67,31 @@ export async function linkPledgeBrowser(h,donorId,campaignId,directory){
   }
  })
 }
+
+
+export async function overduePledgeBrowser(h,task,directory){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage();page.setDefaultTimeout(15000)
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/calls?owner='+task.owner_id)
+   const card=page.getByRole('heading',{name:'Synthetic Quarterly Pledge',exact:true}).locator('..')
+   assert.match(await card.textContent(),/Unpaid Library pledge installment due 2030-03-09/)
+   assert.match(await card.textContent(),/\$60\.00/)
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.screenshot({path:`${directory}/STEW-004-overdue-task-${width}.png`,fullPage:true})
+  }
+  await page.getByRole('heading',{name:'Synthetic Quarterly Pledge',exact:true}).locator('..').getByText('Log call and finish',{exact:true}).click()
+  const form=page.locator('form').filter({has:page.locator('[name=taskId][value="'+task.id+'"]')}).filter({has:page.locator('[name=command][value="task.complete"]')})
+  await form.getByLabel('Call notes',{exact:true}).fill('Synthetic overdue pledge follow-up completed.')
+  await form.getByRole('button',{name:'Log call and mark done',exact:true}).click()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/donors/'+task.donor_id)
+   await page.getByText('connected: Synthetic overdue pledge follow-up completed.',{exact:true}).first().waitFor()
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.screenshot({path:`${directory}/STEW-004-follow-up-timeline-${width}.png`,fullPage:true})
+  }
+ })
+}
