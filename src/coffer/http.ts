@@ -149,6 +149,7 @@ async function formInput(data: FormData) {
   const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
  }
+ if (input.command === 'sms.prepare') input.donorIds=data.getAll('donorIds')
  if (input.command === 'research.screen') input.donorIds=data.getAll('donorIds')
  if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
  if (input.command === 'donor.merge') input.fields = Object.fromEntries([...data].filter(([key])=>key.startsWith('field:')).map(([key,value])=>[key.slice(6),value]))

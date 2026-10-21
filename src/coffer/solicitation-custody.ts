@@ -1,3 +1,4 @@
+import { smsConsentStatement } from './sms-permission'
 import { event, guard, sql, type Context, type Stmt } from './db'
 
 /** Histories stay on their original identities. Existing flattened merge aliases
@@ -14,7 +15,7 @@ export function solicitationCustodyGuards(source:string,target:string):Stmt[] {
 /** Call after the alias and survivor phone updates, before the after snapshot.
  * Appending a withdrawal makes consent re-confirmation explicit, even where a
  * source's later grant would otherwise become the survivor's latest answer.
- * The existing SMS->cf_consents insert trigger mirrors this exactly once.
+ * The composed consent statement records this channel answer exactly once.
  * Undo deletes only this inserted delta; it never re-inserts old preferences. */
 export function solicitationMergeCustody(c:Context,source:string,target:string,mergeId:string,mergedOn:string):Stmt[] {
  return [
@@ -30,6 +31,7 @@ export function solicitationMergeCustody(c:Context,source:string,target:string,m
     OR EXISTS(SELECT 1 FROM cf_donor_merge_rows WHERE merge_id=? AND phase='before' AND table_name='cf_consents'
      AND json_extract(value,'$.donor_id')=? AND json_extract(value,'$.channel')='sms'))`,
    target,target,source,target,`Merge ${mergeId}: SMS permission requires staff re-confirmation; original permission history is retained. Confirm donor time zone before granting permission.`,mergedOn,c.now,c.actor.name,target,source,mergeId,source,mergeId,source),
+  smsConsentStatement(target,`Merge ${mergeId}: SMS permission requires staff re-confirmation; original permission history is retained. Confirm donor time zone before granting permission.`,c.now),
   event(c,'solicitation.mergeCustody','donor',target,target,{mergeId,sourceDonorId:source,restrictionPolicy:'original-identity-union',smsPolicy:'no-grant-transfer'}),
  ]
 }

@@ -35,10 +35,6 @@ WHEN NOT EXISTS(SELECT 1 FROM cf_donors WHERE id=OLD.donor_id AND erased_at IS N
 BEGIN SELECT RAISE(ABORT,'COFFER_CONSENT_APPEND_ONLY'); END;
 INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
  SELECT donor_id,'sms',status,source,evidence||' · Donor time zone: '||timezone,captured_on,recorded_at,recorded_by FROM cf_sms_preferences ORDER BY id;
-CREATE TRIGGER cf_sms_permission_consent AFTER INSERT ON cf_sms_preferences BEGIN
- INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
- VALUES(NEW.donor_id,'sms',NEW.status,NEW.source,NEW.evidence||' · Donor time zone: '||NEW.timezone,NEW.captured_on,NEW.recorded_at,NEW.recorded_by);
-END;
 ALTER TABLE cf_call_tasks ADD COLUMN is_ask INTEGER NOT NULL DEFAULT 1 CHECK(is_ask IN (0,1));
 UPDATE cf_call_tasks SET is_ask=0 WHERE source_kind IN ('pledge','recovery','gift');
 ALTER TABLE cf_recurring_task_series ADD COLUMN is_ask INTEGER NOT NULL DEFAULT 1 CHECK(is_ask IN (0,1));

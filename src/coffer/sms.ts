@@ -1,3 +1,4 @@
+import { smsConsentStatement } from './sms-permission'
 import { all, choice, commit, date, event, fail, guard, id, integer, newId, one, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { settings } from './settings'
 import { prepareSolicitationRun, solicitationAskStatements, solicitationRunGuards } from './solicitation'
@@ -18,7 +19,7 @@ export async function smsPreference(c:Pick<Context,'db'>,donorId:string):Promise
 export const smsPreferenceHistory=(c:Pick<Context,'db'>,donorId:string)=>all(c,'SELECT * FROM cf_sms_preferences WHERE donor_id=? ORDER BY id DESC',donorId)
 export async function smsState(c:Context,runId?:string):Promise<Row>{
  const runs=await all(c,'SELECT * FROM cf_sms_runs ORDER BY prepared_at DESC,id')
- if(!runId)return {runs:runs.map(r=>({...r,excluded:JSON.parse(r.excluded)}))}
+ if(!runId)return {runs:runs.map(r=>({...r,excluded:JSON.parse(r.excluded)})),donors:await all(c,"SELECT id,name,phone FROM cf_donors d WHERE erased_at IS NULL AND constituent_status='active' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY name")}
  const run=runs.find(r=>r.id===runId);if(!run)fail('NOT_FOUND','Text run not found.',404)
  return {run:{...run,excluded:JSON.parse(run.excluded)},recipients:await all(c,'SELECT r.*,d.name FROM cf_sms_recipients r JOIN cf_donors d ON d.id=r.donor_id WHERE run_id=? ORDER BY d.name',runId)}
 }
@@ -39,6 +40,7 @@ export async function smsCommand(c:Context,command:string,p:Row):Promise<Row|und
   await commit(c,[guard(`COALESCE(${latest},0)=?`,'VERSION','SMS permission changed. Refresh before saving.',donorId,version),
    guard('EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.phone=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))','PHONE_CHANGED','Save this phone number on the current donor first.',donorId,number),
    sql("INSERT INTO cf_sms_preferences(donor_id,status,phone,timezone,source,evidence,captured_on,recorded_at,recorded_by) VALUES(?,?,?,?,'person',?,?,?,?)",donorId,status,number,timezone,evidence,capturedOn,c.now,c.actor.name),
+   smsConsentStatement(donorId,evidence,c.now),
    event(c,command,'donor',donorId,donorId,{status,timezone,source:'person',capturedOn}),
   ]);return {donorId,preference:await smsPreference(c,donorId)}
  }
@@ -117,6 +119,7 @@ export async function smsWebhook(request:Request,env:SmsEnv,at=new Date().toISOS
  const day=today((await settings(c)).timezone,new Date(at))
  await commit(c,[...donors.flatMap(d=>[
   sql("INSERT INTO cf_sms_preferences(donor_id,status,phone,timezone,source,evidence,captured_on,recorded_at,recorded_by) SELECT ?,'withdrawn',?,?,'twilio-stop',?,?,?,'Twilio STOP' WHERE NOT EXISTS(SELECT 1 FROM cf_sms_inbound WHERE message_id=?)",d.donor_id,from,d.timezone,messageId,day,at,messageId),
+  smsConsentStatement(d.donor_id,messageId,at,messageId),
   sql("INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) SELECT ?,'twilio-stop','Twilio STOP','owner','sms.stop','donor',?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_sms_inbound WHERE message_id=?)",at,d.donor_id,d.donor_id,JSON.stringify({source:'twilio-stop',messageId}),messageId),
  ]),sql('INSERT OR IGNORE INTO cf_sms_inbound VALUES(?,?)',messageId,at)])
  return new Response('<Response/>',{headers:{'content-type':'text/xml'}})
