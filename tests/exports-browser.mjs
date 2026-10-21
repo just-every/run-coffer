@@ -30,7 +30,7 @@ export async function exportsBrowser(h,{listId,headers},directory){
    const downloaded=await pending;assert.match(downloaded.suggestedFilename(),/interactions.*lifetime/)
    assert.equal(await downloaded.failure(),null)
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
-   await page.screenshot({path:`${directory}/DATA-002a-saved-list-${width}.png`,fullPage:true})
+   await page.screenshot({path:`${directory}/DATA-002-saved-list-${width}.png`,fullPage:true})
    await page.goto(origin+'/app/exports?list=search&q=synthetic-coffer-3')
    await page.getByLabel('Record type',{exact:true}).selectOption('gifts')
    await page.getByRole('button',{name:'Review export',exact:true}).click()
@@ -40,7 +40,7 @@ export async function exportsBrowser(h,{listId,headers},directory){
    await page.getByRole('heading',{name:'Review your download',exact:true}).waitFor()
    assert.ok(await page.getByText(`Autumn volunteer outreach ${width} ·`,{exact:false}).isVisible())
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
-   await page.screenshot({path:`${directory}/DATA-002a-save-search-${width}.png`,fullPage:true})
+   await page.screenshot({path:`${directory}/DATA-002-save-search-${width}.png`,fullPage:true})
   }
   await page.close()
  })

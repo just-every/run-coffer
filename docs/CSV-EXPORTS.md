@@ -109,5 +109,5 @@ updated_at`. Weighted cents round half a cent upward per opportunity as the API
 does. Prospect research, provider estimates and proposal/document bytes stay out.
 
 New fields added by DONOR-005/013/014/015 join the relevant documented column
-set when those capabilities ship. Report-record exports are DATA-002b and do
+set when those capabilities ship. Report-record exports are DATA-004 and do
 not use this donor-lifetime selection.

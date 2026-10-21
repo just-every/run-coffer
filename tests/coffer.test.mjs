@@ -333,4 +333,4 @@ test('DATA-003: a donor’s own file holds every record type for them and nobody
 test('REPORT-008: giving by state assigns each gift to the address on its date and sums to the ledger',stateReportJourney)
 test('GIFT-003: entry, a tracked-link form and a CRM import attribute gifts to funds, a campaign, appeals and channels whose totals sum to the ledger',attributionJourney)
 
-test('DATA-002a: live unpaged list exports reconcile all record types and protect custody',async()=>{const {exportsJourney}=await import('./exports-journey.mjs');await exportsJourney()})
+test('DATA-002: live unpaged list exports reconcile all record types and protect custody',async()=>{const {exportsJourney}=await import('./exports-journey.mjs');await exportsJourney()})
