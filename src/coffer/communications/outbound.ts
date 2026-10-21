@@ -88,7 +88,7 @@ async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConne
 }
 export async function refreshMessages(c:Context,source?:{kind:string;id:string}) {
  const conn=await savedConnection(c)
- if(conn?.provider!=='mailchimp')return {checked:0,...(conn?.provider==='mango'?{unavailable:'Mango’s events API lacks contact-and-campaign-bound sender results. List handoff is not delivery.'}:{})}
+ if(conn?.provider!=='mailchimp')return {checked:0,...(conn?.provider==='mango'?{unavailable:'Mango has no send or delivery result for these saved messages. Check the campaign in Mango.'}:{})}
  const rows=await all(c,`SELECT * FROM cf_communications WHERE provider='mailchimp' AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') AND (? IS NULL OR (source_kind=? AND source_id=?)) ORDER BY COALESCE(checked_at,''),created_at,id LIMIT 8`,source?.kind??null,source?.kind??null,source?.id??null)
  for(const row of rows){
   const report=await providerResults(conn,row)

@@ -11,8 +11,8 @@ export function outcome(m:Row|null) {
  if (m.remote_status==='not_sent'||m.status==='rejected') return {state:'not sent',reason:m.note??'The provider confirmed this message was not sent.',flagged:true,resend:true}
  if (m.remote_status==='delivered') return {state:'delivered',reason:'The provider reports acceptance by the recipient’s mail server, not proof of reading.',flagged:false,resend:false}
  if (m.remote_status==='sent') return {state:'sent',reason:'The provider reports sending to this recipient; delivery is unconfirmed.',flagged:false,resend:false}
- if (['accepted','handed-off'].includes(m.remote_status)||!m.remote_status&&(m.status==='submitted'||m.provider==='mango'&&m.status==='listed')) return {state:'handed off',reason:m.provider==='mango'?'On the Mango list, awaiting the Mango operator. Mango’s events API lacks campaign-bound sender results; delivery remains unknown.':'The provider accepted the request; sending and delivery remain unconfirmed.',flagged:false,resend:false}
- return {state:'unknown',reason:m.provider==='mango'?'Mango’s events API lacks campaign-bound sender results. Unknown results are held.':'No bound final result. Deferred or uncertain results are held for provider review.',flagged:true,resend:false}
+ if (['accepted','handed-off'].includes(m.remote_status)||!m.remote_status&&(m.status==='submitted'||m.provider==='mango'&&m.status==='listed')) return {state:'handed off',reason:m.provider==='mango'?'On the Mango list, awaiting its operator. Sending and delivery are not confirmed in Coffer.':'The provider accepted the request; sending and delivery remain unconfirmed.',flagged:false,resend:false}
+ return {state:'unknown',reason:m.provider==='mango'?'Mango has not provided a result for this message. Check Mango before preparing a resend.':'No bound final result. Deferred or uncertain results are held for provider review.',flagged:true,resend:false}
 }
 
 export async function appealDelivery(c:Context,appealId:string) {
