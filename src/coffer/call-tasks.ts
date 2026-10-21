@@ -1,5 +1,5 @@
 import { prepareSolicitationRun, solicitationRunGuards } from './solicitation'
-import { askFlag, phoneHold, withTaskRestrictions, completedAsk } from './solicitation-tasks'
+import { askFlag, phoneHolds, withTaskRestrictions, completedAsk } from './solicitation-tasks'
 import { all, commit, date, event, fail, guard, id, integer, longText, newId, one, optional, sql, today, type Context, type Row } from './db'
 import { requireRole } from './auth'
 import { settings } from './settings'
@@ -22,10 +22,10 @@ export async function taskCandidates(c: Context, isAsk=true) {
  for (const row of annual.groups.flatMap(g=>g.rows)) if (!sources.some(s=>s.key===row.key)) sources.push(row)
  const candidates = [...sources, ...installments.map(i => ({ key: `pledge:${i.id}`, donorId: i.donorId, name: i.name, kind: 'pledge', amountCents: i.amountCents,
   reason: `Unpaid ${i.fund} pledge installment due ${i.due_on}.`, lastGift: null }))]
- const status = new Map((await all(c, "SELECT id,constituent_status AS status FROM cf_donors WHERE constituent_status<>'active'")).map(r => [r.id as string, r.status as string]))
+ const holds=await phoneHolds(c,candidates.map(s=>s.donorId),isAsk)
  const excluded: Record<string, number> = {}, held = new Map<string, string>(), counted = new Set<string>()
  // Each constituent counts once under their status, however many lapses or pledges would have made a call.
- for (const s of candidates) { const why = status.get(s.donorId)??await phoneHold(c,s.donorId,isAsk&&s.kind!=='pledge'); if (why) { held.set(s.key, why); if (!counted.has(s.donorId)) { counted.add(s.donorId); excluded[why] = (excluded[why] ?? 0) + 1 } } }
+ for (const s of candidates) { const hold=holds.get(s.donorId),why=s.kind==='pledge'&&(hold==='do not solicit'||hold==='solicitation limit')?null:hold; if (why) { held.set(s.key, why); if (!counted.has(s.donorId)) { counted.add(s.donorId); excluded[why] = (excluded[why] ?? 0) + 1 } } }
  return { sources: candidates.filter(s => !held.has(s.key)), excluded, held }
 }
 export const taskSources = async (c: Context) => (await taskCandidates(c)).sources

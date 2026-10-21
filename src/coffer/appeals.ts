@@ -1,4 +1,4 @@
-import { solicitationReason, prepareSolicitationRun, solicitationRunGuards, solicitationAskStatements } from './solicitation'
+import { solicitationReasons, prepareSolicitationRun, solicitationRunGuards, solicitationAskStatements } from './solicitation'
 import { frozenNameFields } from './person-names'
 import { letterRecipient } from './organizations'
 import { all, choice, commit, date, event, fail, guard, id, integer, newId, one, sha256, sql, text, today, longText, type Context, type Row } from './db'
@@ -30,11 +30,13 @@ export async function audience(c: { db: D1Database; now?:string }, channel: 'ema
   ORDER BY lower(d.name),d.id`, channel, segment.givenSince, segment.givenSince, Math.max(1, segment.minTotalCents), segment.fund??null,segment.fund??null)
  const excluded: Record<string, number> = { 'no consent recorded': 0, 'consent withdrawn': 0, 'no email address': 0, 'no postal address': 0 }
  const recipients: Row[] = []
+ const donorIds=segment.donorIds?new Set(segment.donorIds):null,includeIds=new Set(segment.includeIds??[])
+ const reasons=segment.isAsk===false?new Map():await solicitationReasons(c,rows.filter(d=>!donorIds||donorIds.has(d.id)).map(d=>d.id),channel,c.now)
  for (const d of rows) {
-  if (segment.donorIds && !segment.donorIds.includes(d.id)) continue
-  const restricted=segment.isAsk===false?null:await solicitationReason(c,d.id,channel,c.now)
+  if (donorIds && !donorIds.has(d.id)) continue
+  const restricted=reasons.get(d.id)
   if (d.constituent_status !== 'active') countReason(excluded, d.constituent_status)
-  else if (restricted&&!segment.includeIds?.includes(d.id)) countReason(excluded,restricted.reason)
+  else if (restricted&&!includeIds.has(d.id)) countReason(excluded,restricted.reason)
   else if (!d.consent) excluded['no consent recorded']++
   else if (d.consent !== 'granted') excluded['consent withdrawn']++
   else if (channel === 'email' && !d.email) excluded['no email address']++

@@ -161,6 +161,7 @@ export async function solicitationJourney() {
      if(name==='donor')assert.ok(await page.getByText('Do not solicit',{exact:true}).count())
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${name} fits ${width}`)
      await page.screenshot({path:`${directory}/DONOR-015-${name}-${width}.png`,fullPage:true})
+     if(name==='donor'){await page.locator('#solicitation').screenshot({path:`${directory}/DONOR-015-restriction-${width}.png`})}
     }
    })
   }

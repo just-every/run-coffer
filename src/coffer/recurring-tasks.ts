@@ -45,7 +45,7 @@ export async function recurringTaskCommand(c: Context, command: string, p: Row):
   const seriesId=newId(), taskId=newId(),isAsk=askFlag(p)
   const held=donorId?await phoneHold(c,donorId,isAsk):null;if(held)fail('SOLICITATION_RESTRICTED',held)
   const classification=donorId?await prepareSolicitationRun(c,{kind:'repeating-task',id:taskId,channel:'phone',isAsk,donorIds:[donorId]}):null
-  await commit(c,[...(classification?[...classification.statements,...await solicitationRunGuards(c,'repeating-task',taskId,[donorId!],classification)]:[]),live(donorId),guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))",'OWNER_CHANGED','Choose a current team member.',ownerId),
+  await commit(c,[...(donorId?[guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND constituent_status='active')",'DONOR_STATUS','Only active donors receive new repeating tasks.',donorId)]:[]),...(classification?[...classification.statements,...await solicitationRunGuards(c,'repeating-task',taskId,[donorId!],classification)]:[]),live(donorId),guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))",'OWNER_CHANGED','Choose a current team member.',ownerId),
    sql('INSERT INTO cf_recurring_task_series(id,donor_id,title,owner_id,interval_months,anchor_day,created_at,is_ask) VALUES(?,?,?,?,?,?,?,?)',seriesId,donorId,title,ownerId,months,Number(due.slice(8)),c.now,isAsk?1:0),
    sql('INSERT INTO cf_recurring_tasks(id,series_id,due_on,created_at) VALUES(?,?,?,?)',taskId,seriesId,due,c.now),
    event(c,command,'task',taskId,donorId,{seriesId,intervalMonths:months,dueOn:due})])

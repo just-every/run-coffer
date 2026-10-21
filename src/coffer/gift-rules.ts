@@ -23,7 +23,7 @@ function destination(env: GiftRulesEnv | undefined, provider: string): string {
 export async function giftRulesState(c: Context) {
  const [rules, firings, tags, owners] = await Promise.all([
   all(c, 'SELECT * FROM cf_gift_rules ORDER BY created_at,id'),
-  all(c, 'SELECT * FROM cf_gift_rule_firings ORDER BY created_at DESC LIMIT 200'),
+  all(c, `SELECT f.*,COALESCE(g.donor_id,p.donor_id) AS donor_id,p.id IS NOT NULL AS property_gift FROM cf_gift_rule_firings f LEFT JOIN cf_gifts g ON g.id=f.gift_id LEFT JOIN cf_in_kind_gifts p ON p.id=f.gift_id ORDER BY f.created_at DESC LIMIT 200`),
   all(c, 'SELECT t.* FROM cf_donor_rule_tags t JOIN cf_donors d ON d.id=t.donor_id WHERE d.erased_at IS NULL ORDER BY t.created_at DESC LIMIT 200'),
   all(c, "SELECT id,display_name AS name FROM oa_operators WHERE status='active' AND role IN ('owner','admin','member') ORDER BY display_name,id"),
  ])
