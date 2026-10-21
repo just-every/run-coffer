@@ -26,7 +26,8 @@ CREATE TRIGGER cf_batch_closed_entry_delete BEFORE DELETE ON cf_batch_entries WH
 END;
 -- Follow the donor ledger's merge/erasure identity, without changing closed money or check facts.
 CREATE TRIGGER cf_batch_donor_custody AFTER UPDATE OF donor_id ON cf_gifts BEGIN
- UPDATE cf_batch_entries SET donor_id=NEW.donor_id,goods_description=CASE WHEN EXISTS(SELECT 1 FROM cf_donors WHERE id=NEW.donor_id AND erased_at IS NOT NULL) THEN NULL ELSE goods_description END WHERE gift_id=NEW.id AND donor_id<>NEW.donor_id;
+ UPDATE cf_batch_entries SET donor_id=NEW.donor_id WHERE gift_id=NEW.id AND donor_id<>NEW.donor_id;
+ UPDATE cf_batch_entries SET goods_description=NULL WHERE gift_id=NEW.id AND EXISTS(SELECT 1 FROM cf_donors WHERE id=NEW.donor_id AND erased_at IS NOT NULL);
 END;
 
 CREATE TRIGGER cf_batch_draft_erasure BEFORE DELETE ON cf_donors BEGIN
