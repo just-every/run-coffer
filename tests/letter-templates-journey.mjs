@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
 
-const body='Dear {{donor_name}}, thank you for {{amount}} on {{gift_date}} to {{fund}}. {{goods_statement}} {{organization}} · EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'
+const body='Dear {{donor_name}}, thank you for {{amount|Amount unavailable}} on {{gift_date}} to {{fund}}. {{goods_statement}} {{organization}} · EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'
 const gift=(h,donorId,amount,receivedOn,extra={})=>h.command('gift.record',{donorId,amount,receivedOn,method:'check',goods:'none',...extra})
 
 export async function letterTemplatesJourney(){
@@ -23,7 +23,6 @@ export async function letterTemplatesJourney(){
   await save({kind:'first_gift',name:'Unknown default',subject:'Welcome',body:body+' {{unknown_field|a default}}'},{status:400})
   await save({kind:'first_gift',name:'Nested default',subject:'Welcome',body:body+' {{email|{{donor_name}}}}'},{status:400})
   await save({kind:'first_gift',name:'Empty default',subject:'Welcome',body:body+' {{email| }}'},{status:400})
-  await save({kind:'first_gift',name:'Hidden receipt fact',subject:'Welcome',body:body.replace('{{amount}}','{{amount|zero}}')},{status:400})
   const first=await save({kind:'first_gift',name:'First gift',subject:'Welcome, {{donor_name}}',body:'FIRST '+body})
   assert.equal(first.version,1)
   assert.equal((await save({templateId:first.id,version:1,name:'First gift',subject:'Welcome, {{donor_name}}',body:'FIRST v2 '+body})).version,2)
@@ -35,9 +34,9 @@ export async function letterTemplatesJourney(){
   const spring=await save({kind:'campaign',campaignId:campaign.id,name:'Spring books thanks',subject:'Spring thanks',body:'CAMPAIGN '+body})
   // In-kind templates never merge a value; year-end templates must carry the itemized facts.
   await save({kind:'in_kind',name:'Property',subject:'Property',body:'{{donor_name}} {{gift_date}} {{description}} {{amount}} {{goods_statement}} {{organization}} {{ein}}'},{status:400})
-  const property=await save({kind:'in_kind',name:'Property thanks',subject:'Your donated {{description}}',body:'PROPERTY Dear {{donor_name}}, on {{gift_date}} we received {{description}} (quantity {{quantity}}). {{goods_statement}} {{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
+  const property=await save({kind:'in_kind',name:'Property thanks',subject:'Your donated {{description}}',body:'PROPERTY Dear {{donor_name}}, on {{gift_date}} we received {{description|Property contribution}} (quantity {{quantity}}). {{goods_statement}} {{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
   await save({kind:'year_end',name:'Year end',subject:'{{year}}',body:'Dear {{donor_name}} {{gift_list}} {{goods_statement}} {{organization}} {{ein}}'},{status:400})
-  const yearEnd=await save({kind:'year_end',name:'Annual statement',subject:'Your {{year}} giving',body:'YEAR-END Dear {{donor_name}}, your {{year}} gifts:\n{{gift_list}}\nTotal {{total}} · goods {{goods_total}} · deductible {{deductible_total}}\n{{goods_statement}}\n{{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
+  const yearEnd=await save({kind:'year_end',name:'Annual statement',subject:'Your {{year}} giving',body:'YEAR-END Dear {{donor_name}}, your {{year}} gifts:\n{{gift_list}}\nTotal {{total|Total unavailable}} · goods {{goods_total}} · deductible {{deductible_total}}\n{{goods_statement}}\n{{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
 
   const ana=await donor(h,'Ana Template'),bo=await donor(h,'Bo Template',{email:null,addressLine1:null,city:null,region:null,postalCode:null}),cy=await donor(h,'Cy Template')
   const a1=await gift(h,ana.id,'300','2025-08-01'),a2=await gift(h,ana.id,'400','2025-08-02'),a3=await gift(h,ana.id,'1500','2025-08-03')

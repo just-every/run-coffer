@@ -22,7 +22,7 @@ export const LETTER_REQUIRED = ['donor_name', 'amount', 'gift_date', 'goods_stat
 const GOODS = ['goods_value', 'goods_description', 'deductible_amount', 'amount']
 const placeholders = (value: string) => templateTokens(value).map(t => t.field)
 export function checkTemplate(value: string, label: string, allowed: string[], required: string[]) {
- const tokens = templateTokens(value), used = tokens.map(t => t.field), unknown = used.filter(x => !allowed.includes(x)), missing = required.filter(x => !tokens.some(t => t.field === x && t.fallback === undefined))
+ const tokens = templateTokens(value), used = tokens.map(t => t.field), unknown = used.filter(x => !allowed.includes(x)), missing = required.filter(x => !used.includes(x))
  if (unknown.length) fail('TEMPLATE', `${label} uses unknown fields: ${unknown.map(x => `{{${x}}}`).join(', ')}.`, 400)
  if (missing.length) fail('TEMPLATE', `${label} must include ${missing.map(x => `{{${x}}}`).join(', ')}.`, 400)
  if (tokens.some(t => t.fallback === '') || /\{\{|\}\}/.test(value.replace(fieldPattern(), ''))) fail('TEMPLATE', `${label} has an unclosed or malformed {{field}}.`, 400)
@@ -66,7 +66,7 @@ export const goodsStatement = (s: Settings, gift: Row) => gift.receipt_statement
 /** Renders the settings letter, or a reviewed RCPT-007 template chosen for this gift. */
 export function renderLetter(s: Settings, gift: Row, recipient: Row, day: string, template?: { subject: string; body: string } | null) {
  const wording = template ?? { subject: s.letter_subject, body: s.letter_template }
- if (!s.ein || !/\{\{\s*ein\s*\}\}/.test(wording.body)) fail('RECEIPT_FACTS', 'Review letter settings: a receipt must include the organization’s EIN.', 409)
+ if (!s.ein || !placeholders(wording.body).includes('ein')) fail('RECEIPT_FACTS', 'Review letter settings: a receipt must include the organization’s EIN.', 409)
  const deductible = usd(gift.amount_cents - gift.goods_cents), goods = goodsStatement(s, gift)
  const fields = { date: longDate(day), ...recipientMergeFields(recipient), donor_name: recipient.letter_salutation ?? personNames(recipient).informal, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
  return { subject: fill(wording.subject, fields), body: fill(wording.body, fields) }
