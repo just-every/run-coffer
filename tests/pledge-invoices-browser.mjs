@@ -12,7 +12,7 @@ export async function pledgeInvoiceBrowser(h,{donorId,pledgeId,directory,phase,t
    const link=page.locator(`#pledges a[href="/app/pledges/${pledgeId}/invoice"]`)
    await link.scrollIntoViewIfNeeded()
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
-   await page.screenshot({path:`${directory}/STEW-004-donor-${phase}-${width}.png`,fullPage:true})
+   await page.locator('#pledges').screenshot({path:`${directory}/STEW-004-donor-${phase}-${width}.png`})
    await link.click();await page.waitForURL('**/invoice')
    await page.getByRole('heading',{name:rows.length?'Pledge invoice':'Pledge balance',exact:true}).waitFor()
    assert.equal(await page.locator('main dd').last().innerText(),total)
