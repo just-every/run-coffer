@@ -182,9 +182,9 @@ export async function advancePledgeTasks(env: Bindings, at: Date) {
  for (const i of due) {
   const taskId = newId()
   await commit(c, [
-   sql(`INSERT OR IGNORE INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at)
+   sql(`INSERT OR IGNORE INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at,is_ask)
     SELECT ?,p.donor_id,'pledge:'||i.id,'pledge','Unpaid '||p.fund||' pledge installment due '||i.due_on||'.',
-    i.amount_cents-i.paid_cents,${owner},date(i.due_on,'+1 day'),? ${current} AND i.id=? AND ${owner} IS NOT NULL`, taskId, c.now, day, i.id),
+    i.amount_cents-i.paid_cents,${owner},date(i.due_on,'+1 day'),?,0 ${current} AND i.id=? AND ${owner} IS NOT NULL`, taskId, c.now, day, i.id),
    sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
     SELECT ?,?,?,?,'pledge.overdueTask','task',id,donor_id,? FROM cf_call_tasks WHERE id=?`,
     c.now, c.actor.id, c.actor.name, c.actor.role, JSON.stringify({ installmentId: i.id }), taskId),

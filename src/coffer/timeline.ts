@@ -11,6 +11,8 @@ export function timelineFilter(url?:URL){
 /** Current task and delivery sources augment the donor's existing history. */
 export async function timelineSources(c:Context,donorId:string){
  const queries=[
+  "SELECT 'appeal' AS kind,run_id AS id,substr(recorded_at,1,10) AS day,recorded_at AS at,'Deliberate solicitation inclusion' AS title,reason||' · chosen by '||actor_name AS body FROM cf_solicitation_inclusions WHERE donor_id=?",
+  "SELECT 'email' AS kind,r.run_id AS id,substr(r.claimed_at,1,10) AS day,r.claimed_at AS at,'Text message' AS title,u.name||' · '||u.purpose||' · '||r.state AS body FROM cf_sms_recipients r JOIN cf_sms_runs u ON u.id=r.run_id WHERE r.donor_id=? AND r.claimed_at IS NOT NULL",
   "SELECT 'task' AS kind,id,substr(created_at,1,10) AS day,created_at AS at,'Call task' AS title,reason||' · '||status||' · due '||due_on AS body FROM cf_call_tasks WHERE donor_id=?",
   "SELECT 'task' AS kind,t.id,substr(t.created_at,1,10) AS day,t.created_at AS at,'Repeating task' AS title,s.title||' · '||t.status||' · due '||t.due_on AS body FROM cf_recurring_tasks t JOIN cf_recurring_task_series s ON s.id=t.series_id WHERE s.donor_id=?",
   "SELECT 'task' AS kind,t.id,substr(t.created_at,1,10) AS day,t.created_at AS at,'Cultivation task' AS title,t.title||' · '||t.status||' · due '||t.due_on AS body FROM cf_cultivation_tasks t JOIN cf_prospects p ON p.id=t.prospect_id WHERE p.donor_id=?",

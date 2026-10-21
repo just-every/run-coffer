@@ -112,8 +112,8 @@ export async function recoveryAction(c: Context, _env: GivingEnv, input: Row) {
 async function exhaustedTask(c: Context, invoiceId: string, subscriptionId: string) {
  const taskId=newId(), day=today((await cofferSettings(c)).timezone,new Date(c.now))
  const owner=`COALESCE((SELECT o.id FROM cf_portfolio_members m JOIN cf_portfolios p ON p.id=m.portfolio_id JOIN oa_operators o ON o.id=p.manager_id WHERE m.donor_id=s.donor_id AND o.status='active' AND o.role IN ('owner','admin','member')),(SELECT id FROM oa_operators WHERE role='owner' AND status='active' ORDER BY id LIMIT 1))`
- await commit(c,[sql(`INSERT OR IGNORE INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at)
-  SELECT ?,s.donor_id,?,'recovery','Stripe retries exhausted; review the monthly gift with its donor.',s.amount_cents,${owner},?,?
+ await commit(c,[sql(`INSERT OR IGNORE INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at,is_ask)
+  SELECT ?,s.donor_id,?,'recovery','Stripe retries exhausted; review the monthly gift with its donor.',s.amount_cents,${owner},?,?,0
   FROM cf_subscriptions s JOIN cf_donors d ON d.id=s.donor_id WHERE s.id=? AND d.erased_at IS NULL
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id) AND ${owner} IS NOT NULL`,taskId,'recovery:'+invoiceId,day,c.now,subscriptionId),
   sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)

@@ -336,3 +336,7 @@ test('GIFT-003: entry, a tracked-link form and a CRM import attribute gifts to f
 test('DATA-002: live unpaged list exports reconcile all record types and protect custody',async()=>{const {exportsJourney}=await import('./exports-journey.mjs');await exportsJourney()})
 
 test('GIFT-002: keyboard check batches balance once, preserve defaults and legacy lookup, and create a searchable deposit',async()=>{const {giftBatchesJourney}=await import('./gift-batches-journey.mjs');await giftBatchesJourney()})
+
+test('DONOR-015: SMS asks honor restrictions while approved thank-yous and pledge reminders retain consent, quiet hours and STOP',async()=>{const {smsJourney}=await import('./sms-journey.mjs');await smsJourney()})
+
+test('DONOR-015: incumbent restrictions retain source meaning, previews, reconciliation and undo across current CRM doors',async()=>{const {solicitationImportJourney}=await import('./solicitation-import-journey.mjs');await solicitationImportJourney()})

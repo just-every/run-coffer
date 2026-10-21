@@ -1,3 +1,4 @@
+import { sourceRestrictions } from './solicitation-mapping'
 import { normalizeLabel } from './source-columns'
 import { SourceRow } from './source-rows'
 import { acknowledgment } from './acknowledgments'
@@ -126,6 +127,7 @@ function installment(r: SourceRow, out: ParsedImport) {
 }
 export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {
  const kind = r.kind(); r.get('type')
+ if(r.peek('communicationRestrictions'))sourceRestrictions(r,out,input)
  // LGL repeats display names in gift and relationship reports. Only constituent
  // records define donors: labels on referenced records cannot create or rename one.
  if (out.source === 'lgl') {

@@ -1,3 +1,4 @@
+import { prepareSolicitationRun, solicitationReason } from '../solicitation'
 import { NAME_MERGE_FIELDS } from '../person-names'
 import { emailConnection } from './connection'
 import type { Bindings } from '../../auth.server'
@@ -112,6 +113,14 @@ async function run(c: Context): Promise<Row> {
   ORDER BY julianday(s.due_at),CASE s.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END,s.id LIMIT 24`, c.now)
  let submitted = 0, uncertain = 0, cancelled = 0
  for (const row of due) {
+  const queued=await one(c,'SELECT donor_id,step FROM cf_welcome_steps WHERE id=?',row.id)
+  if(!queued)continue
+  const restricted=queued.step==='ask'?await solicitationReason(c,queued.donor_id,'email',c.now):null
+  if(restricted){await commit(c,[sql("UPDATE cf_welcome_steps SET status='cancelled',note=? WHERE id=? AND status='pending'",restricted.reason,row.id),event(c,'welcome.askSkipped','welcome',row.id,queued.donor_id,restricted)]);cancelled++;continue}
+  if(!await one(c,'SELECT 1 FROM cf_solicitation_runs WHERE kind=? AND run_id=?','welcome',row.id)){
+   const classification=await prepareSolicitationRun(c,{kind:'welcome',id:row.id,channel:'email',isAsk:queued.step==='ask',donorIds:[queued.donor_id]})
+   await commit(c,classification.statements)
+  }
   const claim = `Submission claim ${newId()}. Interrupted submissions are not retried automatically.`
   // 'uncertain' is the durable pre-send claim. Only this unique claim holder
   // may submit; a crashed Worker leaves visible uncertainty, never a retry.

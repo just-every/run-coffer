@@ -1,3 +1,4 @@
+import { solicitationAskStatements, solicitationRunGuards } from '../solicitation'
 import { nameMergeFields, frozenNameFields } from '../person-names'
 import { letterRecipient } from '../organizations'
 import { all, commit, event, fail, guard, newId, one, sql, type Context, type Row } from '../db'
@@ -35,7 +36,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  const replyTo=(conn.fromEmail??c.env?.COFFER_REPLY_ADDRESS??'').trim().toLowerCase()
  const allowed=preference.allowed||conn.provider==='mango'&&preference.state==='pending'
  const state=allowed?'preparing':'suppressed'
- await commit(c,[...(allowed?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.email=? AND d.erased_at IS NULL AND d.constituent_status='active' AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s email or consent changed before sending.',d.id,d.email)]:[]),sql(`INSERT OR IGNORE INTO cf_communications(id,message_key,donor_id,source_kind,source_id,provider,status,subject,body,reply_to,created_at,note,recipient_email,name_fields)
+ await commit(c,[...(allowed?await solicitationAskStatements(c,input.sourceKind,input.sourceId,[d.id]):[]),...(allowed?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.email=? AND d.erased_at IS NULL AND d.constituent_status='active' AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s email or consent changed before sending.',d.id,d.email)]:[]),sql(`INSERT OR IGNORE INTO cf_communications(id,message_key,donor_id,source_kind,source_id,provider,status,subject,body,reply_to,created_at,note,recipient_email,name_fields)
  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,row.id,input.key,d.id,input.sourceKind,input.sourceId,conn.provider,state,row.subject,row.body,replyTo,c.now,allowed?'Preparing an email campaign.':preference.note,d.email,input.merge?.name_fields??frozenNameFields(currentNames)),
  event(c,'marketing.prepare',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,state})])
  const claim=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
@@ -52,6 +53,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
    await c.db.prepare("UPDATE cf_communications SET status='suppressed',note='Consent changed before Mailchimp sent it.' WHERE id=?").bind(row.id).run()
    return savedResult(c,row.id,'suppressed')
   }
+  await commit(c,await solicitationRunGuards(c,input.sourceKind,input.sourceId,[d.id]))
   await composeMailchimpCampaign(conn,row,draft)
   await c.db.batch([
    c.db.prepare("UPDATE cf_communications SET status='submitted',submitted_at=?,note='Submitted to the email provider; email handoff is not yet confirmed.' WHERE id=?").bind(c.now,row.id),
@@ -72,6 +74,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
 async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConnection>>,row:Row,d:Row,input:MessageInput):Promise<Row>{
  try {
   const donor=await one(c,`SELECT d.*,k.id AS consent_id,k.evidence,k.captured_on FROM cf_donors d JOIN cf_consents k ON k.id=(SELECT id FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1) WHERE d.id=?`,d.id)
+  await commit(c,await solicitationRunGuards(c,input.sourceKind,input.sourceId,[d.id]))
   const contact=await listInMango(conn,await letterRecipient(c,donor!),(await settings(c)).organisation,input.listName,{donorName:d.name,totalGiven:usd(d.total_cents??0),lastGift:d.last_gift||'',giftCount:Number(d.gift_count??0)})
   const listed=contact.emailStatus==='subscribed'
   const note=listed?`On the Mango list “${input.listName}”. Mango sends once a person approves a campaign for that list in Mango.`:`Mango keeps this address opted out (${contact.emailStatus}). No email will go to it.`

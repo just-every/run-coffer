@@ -1,3 +1,5 @@
+import { solicitationState } from '../solicitation'
+import { solicitationBadge } from './solicitation'
 import { manager, person } from '../auth'
 import { all, today, type Context, type Row } from '../db'
 import { filterOpportunities, opportunityStages, opportunityTotals, prospects } from '../major-gifts'
@@ -48,7 +50,7 @@ function opportunityCard(p: Row, staff: boolean, options: Options, pledges: Row[
  const linked = p.pledge_id ? `<a href="/app/donors/${e(p.donor_id)}#pledges">Linked pledge · ${e(money(pledges.find(r => r.id === p.pledge_id)!.amount_cents))}</a>`
   : p.gift_id ? `<a href="/app/gifts?gift=${e(p.gift_id)}">Linked received gift</a>` : ''
  return `<li id="opportunity-${e(p.id)}" data-opportunity="${e(p.id)}">
- <a href="/app/donors/${e(p.donor_id)}"><strong>${e(p.donor_name)}</strong></a> · ${e(p.label)} ${chip(p.stage_label)}
+ <a href="/app/donors/${e(p.donor_id)}"><strong>${e(p.donor_name)}</strong></a> · ${e(p.label)} ${chip(p.stage_label)} ${solicitationBadge(p.solicitation)}
  <p>${e(money(p.ask_amount_cents))} ask · expected ${e(longDay(p.expected_close_on))}<br>Owner: ${e(p.owner_name)} ${p.owner_status !== 'active' ? chip('Reassign owner', 'warn') : ''}</p>
  <p>${e(money(p.expected_amount_cents))} expected · ${e(p.probability_percent)}% probability · ${e(money(p.forecast_cents))} forecast<br>${e(p.fund)} · ${e(p.campaign_name ?? 'No campaign')}</p>
  ${p.closed_on ? `<p>Closed ${e(longDay(p.closed_on))}. ${linked}</p>` : ''}
@@ -75,6 +77,8 @@ export async function majorGiftsPage(c: Context, url: URL): Promise<string> {
  const stage = url.searchParams.get('stage') ?? '', owner = url.searchParams.get('ownerId') ?? url.searchParams.get('managerId') ?? '', campaign = url.searchParams.get('campaignId') ?? '', view = url.searchParams.get('view') === 'board' ? 'board' : 'list'
  const filtered = filterOpportunities(list, url), totals = opportunityTotals(filtered)
  const ownerOptions: [string, string][] = owners.map(o => [o.id, o.display_name])
+ const restrictions=await solicitationState(c,list.map(p=>p.donor_id))
+ for(const p of list)p.solicitation=restrictions.find(r=>r.donor_id===p.donor_id)
  for (const p of list) if (!ownerOptions.some(([id]) => id === p.owner_id)) ownerOptions.push([p.owner_id, `${p.owner_name} (inactive)`])
  const filter = `<form method="get" action="/app/pipeline" aria-label="Pipeline filters"><div class="fields">${select('Stage', 'stage', [['', 'All stages'], ...stageOptions(policy.stages)], stage)}${select('Owner', 'ownerId', [['', 'All owners'], ...ownerOptions], owner)}
  ${select('Campaign', 'campaignId', [['', 'All campaigns'], ...campaigns.map(c => [c.id, c.name] as [string, string])], campaign)}

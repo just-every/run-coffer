@@ -12,6 +12,9 @@ import { event } from './coffer/db'
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
 
 export interface Bindings {
+ TWILIO_ACCOUNT_SID?: string
+ TWILIO_AUTH_TOKEN?: string
+ TWILIO_FROM?: string
  COFFER_REPLY_ADDRESS?: string
  COFFER_REPLY_DOMAIN?: string
  STRIPE_SECRET_KEY?: string
