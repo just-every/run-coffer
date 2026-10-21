@@ -11,6 +11,7 @@ export function morePage(actor: Actor) {
  const boss = manager(actor)
  return `<ul class="tiles">
   ${boss ? '<li><a href="/app/audit"><strong>Audit log</strong><span>Browse and export changes, approvals, downloads, sign-ins and agent actions.</span></a></li>' : ''}
+  ${boss?'<li><a href="/app/exports"><strong>Export donor records</strong><span>Save live search lists and download CSVs by record type.</span></a></li>':''}
   <li><a href="/app/duplicates"><strong>Possible duplicates</strong><span>Compare donor records, combine their histories and undo a merge.</span></a></li>
   ${boss ? '<li><a href="/app/agent"><strong>Development agent</strong><span>Reconcile gifts, recover monthly gifts, queue receipts and draft stewardship.</span></a></li>' : ''}
   ${boss ? '<li><a href="/app/move-in/crm"><strong>Move in from a CRM</strong><span>Little Green Light, Bloomerang or Raiser’s Edge NXT exports, with totals checked before switching.</span></a></li>' : ''}
