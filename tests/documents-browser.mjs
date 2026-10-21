@@ -28,7 +28,7 @@ export async function documentBrowser(h,directory){
      await link.waitFor()
      assert.equal(await panel.locator('li').count(),++count)
      const preview=await link.getAttribute('href')
-     const bytes=await context.request.get(origin+preview)
+     const bytes=await context.request.get(origin+preview,{headers:{cookie}})
      assert.equal(bytes.status(),200);assert.equal(bytes.headers()['content-type'],format.mediaType)
      assert.deepEqual(await bytes.body(),format.bytes)
      const downloading=page.waitForEvent('download')
