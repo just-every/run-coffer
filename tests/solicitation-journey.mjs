@@ -160,6 +160,7 @@ export async function solicitationJourney() {
     const screens=[['donor','/app/donors/'+stop.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
     for(const width of [1440,390])for(const [name,path] of screens){
      await page.setViewportSize({width,height:1000});await page.goto(origin+path)
+     if(name==='import-entry')await page.getByText('Map organization-specific communication codes',{exact:true}).click()
      if(name==='donor')assert.ok(await page.getByText('Do not solicit',{exact:true}).count())
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${name} fits ${width}`)
      await page.screenshot({path:`${directory}/DONOR-015-${name}-${width}.png`,fullPage:true})

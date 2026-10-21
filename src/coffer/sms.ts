@@ -21,7 +21,8 @@ export async function smsState(c:Context,runId?:string):Promise<Row>{
  const runs=await all(c,'SELECT * FROM cf_sms_runs ORDER BY prepared_at DESC,id')
  if(!runId)return {runs:runs.map(r=>({...r,excluded:JSON.parse(r.excluded)})),donors:await all(c,"SELECT id,name,phone FROM cf_donors d WHERE erased_at IS NULL AND constituent_status='active' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY name")}
  const run=runs.find(r=>r.id===runId);if(!run)fail('NOT_FOUND','Text run not found.',404)
- return {run:{...run,excluded:JSON.parse(run.excluded)},recipients:await all(c,'SELECT r.*,d.name FROM cf_sms_recipients r JOIN cf_donors d ON d.id=r.donor_id WHERE run_id=? ORDER BY d.name',runId)}
+ const excluded=JSON.parse(run.excluded) as Row[],names=new Map((await all(c,'SELECT id,name FROM cf_donors WHERE id IN (SELECT value FROM json_each(?))',JSON.stringify(excluded.map(r=>r.donorId)))).map(d=>[d.id,d.name]))
+ return {run:{...run,excluded:excluded.map(r=>({...r,name:names.get(r.donorId)??'Unavailable donor'}))},recipients:await all(c,'SELECT r.*,d.name FROM cf_sms_recipients r JOIN cf_donors d ON d.id=r.donor_id WHERE run_id=? ORDER BY d.name',runId)}
 }
 const eligibility=(r:Row):Stmt[]=>[live(r.donor_id),guard(`EXISTS(SELECT 1 FROM cf_sms_preferences WHERE id=? AND id=${latest} AND status='granted' AND phone=? AND timezone=? AND (SELECT status FROM cf_consents WHERE donor_id=cf_sms_preferences.donor_id AND channel='sms' ORDER BY id DESC LIMIT 1)='granted') AND EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND phone=?)`,'SMS_CONSENT_CHANGED','The frozen phone, consent or donor changed. Prepare a new text run.',r.preference_id,r.donor_id,r.phone,r.timezone,r.donor_id,r.donor_version,r.phone)]
 // Keep solicitation integration here: the host can replace these wrappers with
