@@ -164,6 +164,8 @@ export async function addressVerificationJourney(){
   await h.command('address.queueNcoa');await tick()
   const approved=await prepare();await h.command('appeal.approve',{appealId:approved.id,version:1});await h.command('appeal.export',{appealId:approved.id,version:2})
   const file=await h.request('/api/coffer/appeals/'+approved.id+'/recipients.csv');assert.equal(file.status,200);assert.match(await file.text(),/9 MOVER ST/)
+  const ownFile=await h.api('/api/coffer/donors/'+maya.id+'/data-request',{requestedOn:new Date().toISOString().slice(0,10),method:'email'})
+  const ownText=JSON.stringify(ownFile);assert.ok(ownText.includes('ncoa')&&ownText.includes('9 MOVER ST'));assert.ok(!ownText.includes('Synthetic Address Rowan')&&!ownText.includes('synthetic-coffer-1000@example.test'),'The donor file contains their address records without other constituents')
   const backup=await archive(h)
   await run(async fresh=>{await restore(fresh,backup);assert.equal((await fresh.get('/api/coffer/donors/'+maya.id+'/addresses')).check.source,'ncoa');assert.equal((await fresh.get('/api/coffer/addresses')).connection.enabled,0)})
   if(process.env.COFFER_ADDRESS_BROWSER){
