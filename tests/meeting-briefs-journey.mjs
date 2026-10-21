@@ -68,7 +68,7 @@ export async function meetingBriefJourney() {
   await tick(due)
   await h.get(route(cancelled.id),{status:409})
   assert.equal((await h.get('/api/coffer/meetings')).find(m=>m.id===cancelled.id).ready_at,null)
-  const dataFile=await h.api(`/api/coffer/donors/${d.id}/data-request`,{requestedOn:new Date().toISOString().slice(0,10),method:'email'})
+  const dataFile=await h.api(`/api/coffer/donors/${d.id}/data-request`,{requestedOn:new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date()),method:'email'})
   assert.ok(dataFile.records.donor_meetings.some(m=>m.id===meeting.id))
   const backup=await archive(h)
   await run(async fresh=>{

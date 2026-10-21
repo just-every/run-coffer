@@ -125,7 +125,7 @@ test('COMM-008: email appeal results match signed ledger and sender outcomes wit
   assert.deepEqual([zero.responded,zero.gifts,zero.dollarsCents,zero.averageGiftCents,zero.returnCents],[0,0,0,null,-2550])
   await h.command('appeal.approve',{appealId:mail.id,version:1})
   await h.command('appeal.export',{appealId:mail.id,version:2})
-  const exported=(await h.get('/api/coffer/appeals/'+mail.id)).appeal.exported_at.slice(0,10)
+  const exported=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date((await h.get('/api/coffer/appeals/'+mail.id)).appeal.exported_at))
   await h.command('appeal.markSent',{appealId:mail.id,version:3,sentOn:exported})
   await h.command('gift.record',{donorId:d.id,amount:'60.01',allocations:[{fund:'Library',amountCents:3000},{fund:'Meals',amountCents:3001}],receivedOn:'2026-09-01',method:'check',goods:'none',appeal:mail.code})
   await h.command('gift.record',{donorId:d.id,amount:'40',receivedOn:'2026-09-01',method:'check',goods:'none',fund:'Library',appeal:mail.code})

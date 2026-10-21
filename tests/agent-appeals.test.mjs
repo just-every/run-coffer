@@ -7,6 +7,7 @@ const fixture=JSON.parse(await readFile(new URL('./fixtures/mailchimp/responses.
 test('DEV-009: reconcile five dropped appeal recipients against the frozen audience and signed gifts, then prepare a human-approved resend',async()=>{
  const segments=new Map(),campaigns=new Map(),contacts=new Map();let sends=0,resultMode='normal'
  await run(async h=>{
+  const day=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date())
   const donors=[]
   for(const name of ['Avery Chen','Bill Carter','Cora Diaz','Dalia Evans','Eli Fox','Farah Green','Grace Hill']){
    const d=await donor(h,name);donors.push(d)
@@ -75,7 +76,7 @@ test('DEV-009: reconcile five dropped appeal recipients against the frozen audie
   for(const name of ['Jules Ives','Kira Jones','Lane King','Mira Lake']){
    const d=await donor(h,name);journeyDonors.push(d)
    await h.command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic journey permission',capturedOn:'2026-01-01'})
-   await h.command('gift.record',{donorId:d.id,amount:'30',receivedOn:new Date().toISOString().slice(0,10),method:'cash',fund:'Food',goods:'none'})
+   await h.command('gift.record',{donorId:d.id,amount:'30',receivedOn:day,method:'cash',fund:'Food',goods:'none'})
   }
   assert.equal((await h.command('welcome.run')).submitted,4)
   const sentBefore=sends
