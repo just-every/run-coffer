@@ -32,5 +32,5 @@ export async function organizationState(c:{db:D1Database},donorId:string) {
 export async function letterRecipient(c:{db:D1Database},d:Row):Promise<Row> {
  const contact=d.constituent_kind==='organization'?await one(c,`SELECT d.* FROM cf_organization_contacts r JOIN cf_donors d ON d.id=r.contact_donor_id WHERE r.organization_donor_id=? AND r.is_primary=1 AND d.erased_at IS NULL AND d.constituent_kind='person'`,d.id):null
  return {...d,letter_name:contact?`${d.name}\nAttn: ${contact.name}`:d.name,letter_salutation:contact?informalName(contact):d.name,
-  letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
+  letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,organization:d.constituent_kind==='organization',...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
 }

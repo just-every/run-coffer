@@ -25,7 +25,7 @@ export async function sendReceipt(env: Bindings, letter: Row): Promise<{ message
  assertReceiptMailAvailable(env)
  const letterId = id(letter.id, 'Receipt letter'), attemptId = id(letter.attempt_id, 'Receipt email attempt')
  if (letter.void_reason) fail('VOID_RECEIPT', 'A voided receipt cannot be sent.')
- const body = receiptText(letter)
+ const body = letter.address&&JSON.parse(letter.address).organization ? `${letter.recipient_name}\n\n${receiptText(letter)}` : receiptText(letter)
  const replyTo = await receiptReplyAddress(env, letter)
  let result
  try {

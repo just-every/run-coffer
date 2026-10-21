@@ -10,7 +10,8 @@ export async function organizationsBrowser(h,directory) {
   const formFor=command=>page.locator('form').filter({has:page.locator(`[name=command][value="${command}"]`)})
   const fits=async name=>{
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'DONOR-002 '+name+' fits')
-   await page.screenshot({path:`${directory}/DONOR-002-${name}.png`,fullPage:true})
+   const target=name.startsWith('create-')?formFor('donor.create'):name.startsWith('organization-')?page.locator('#organization'):name.startsWith('contact-')?page.locator('#timeline'):page.locator('main')
+   await target.screenshot({path:`${directory}/DONOR-002-${name}.png`})
   }
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
@@ -61,7 +62,7 @@ export async function organizationsBrowser(h,directory) {
    await page.getByText('Edit organization',{exact:true}).click()
    await fits('organization-'+width)
    await page.goto(origin+'/app/donors/'+organizationId+'#record')
-   const gift=formFor('gift.record')
+   const gift=page.locator('#record form')
    await gift.getByLabel('Amount (USD)',{exact:true}).fill('10000')
    await gift.getByLabel('Received on',{exact:true}).fill('2026-09-15')
    await gift.locator('[name=method]').selectOption('check')
