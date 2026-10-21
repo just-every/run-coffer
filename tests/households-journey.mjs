@@ -81,6 +81,8 @@ export async function householdsJourney(h) {
  await update({headDonorId:robert.id,informal_override:'  Bob and Jane  ',formal_override:'Dr. Smith and Mr. Smith',addressee_override:'Robert and Jane Smith'},{as:admin.cookie})
  assert.equal((await state()).names.informal,'  Bob and Jane  ')
  await profile(jane,{firstName:'Janet'})
+ for(const credit of beforeJ.credits.creditedGifts)if(credit.credited_donor_name==='Dr. Jane Smith')credit.credited_donor_name='Dr. Janet Smith'
+ assert.equal((await history(h,jane.id)).donor.name,'Dr. Janet Smith')
  assert.deepEqual((await state()).names,{addressee:'Robert and Jane Smith',formal:'Dr. Smith and Mr. Smith',informal:'  Bob and Jane  '})
  assert.deepEqual(facts(await history(h,jane.id)),beforeJ)
  const preview=await h.command('household.defaultsPreview')
@@ -98,7 +100,7 @@ export async function householdsJourney(h) {
  assert.equal(lines.length,4);assert.equal(lines.filter(g=>g.id===C.id).length,1)
  assert.deepEqual(lines.map(g=>g.donor_id).sort(),[robert.id,robert.id,robert.id,jane.id].sort())
  assert.ok(lines.every(g=>g.goods==='none'&&g.goods_cents===0))
- assert.match(piece.body,/Robert Smith/);assert.match(piece.body,/Jane Smith/)
+ assert.match(piece.body,/Robert Smith/);assert.match(piece.body,/Janet Smith/)
  await h.command('ack.approve',{batchId:statement.id,version:1})
  await h.command('ack.export',{batchId:statement.id,version:2})
  await h.command('ack.markSent',{batchId:statement.id,version:3,sentOn:(await state()).totals.asOf,method:'mail'})

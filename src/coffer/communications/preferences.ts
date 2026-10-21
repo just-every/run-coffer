@@ -1,4 +1,5 @@
 import { all, commit, event, fail, one, sql, type Context, type Row } from '../db'
+import { letterRecipient } from '../organizations'
 import { settings } from '../settings'
 import { providerTitle, providerContact, captureProviderConsent, restricted, subscribed, suppressProvider } from './provider'
 import { emailConnection, requireConnection } from './connection'
@@ -9,6 +10,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  LEFT JOIN cf_consents k ON k.id=(SELECT id FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)
  WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`, donorId)
  if (!donor?.email) return { state:'no-address', allowed:false }
+ Object.assign(donor,await letterRecipient(c,donor))
  const conn = await requireConnection(c), label = providerTitle(conn.provider)
  let contact = await providerContact(conn, donor.email)
  if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) contact = await syncMailchimpNames(conn, donor)

@@ -2,7 +2,7 @@
 
 Open **Appeals** to prepare an audience by fund, giving date and amount. Email
 messages accept `{{donor_name}}`, `{{total_given}}`, `{{gift_count}}` and
-`{{last_gift}}`. Preparation freezes the message, recipient names and giving
+`{{last_gift}}`, plus `{{prefix}}`, `{{first_name}}`, `{{middle_name}}`, `{{last_name}}`, `{{suffix}}`, `{{nickname}}`, `{{informal_salutation}}`, `{{formal_salutation}}` and `{{envelope_name}}` (`DONOR-014`). Preparation freezes the message, recipient names and giving
 figures in the approval hash. Approve that exact version, then send it through
 the connected provider (see below). Repeated presses never send twice.
 
@@ -34,6 +34,8 @@ donor, 40 per press. Coffer then shows the subject and message (with
 `{{donor_name}}` rewritten as Mango's `{{displayName | fallback: "Friend"}}`) and
 the list name; a Mango operator approves the campaign for that list and Mango
 sends it and reports each send. Coffer withdrawals go to Mango's suppression API.
+Mango contact fields carry those nine name values. The copy page flags name tokens for the operator to map with Mango’s field picker; Coffer does not claim provider rendering was verified. Mailchimp provisions private text fields CF_PREFIX, CF_FIRST, CF_MIDDLE, CF_LAST, CF_SUFFIX, CF_NICK, CF_INFORM, CF_FORMAL and CF_ENVELOP and never changes subscription state in a name update.
+
 The welcome series lists each step's donors on `Coffer welcome · …` lists the same
 way.
 

@@ -9,7 +9,7 @@ import {run,installation,archive,restore,stripe,imported,reviewed,donor,csvRows,
 import {ackBrowser} from './ack-browser.mjs'
 import {mcpJourney} from './mcp-journey.mjs'
 
-test('DONOR-002: organizations retain their own gifts, two named contacts, addressed receipts and state attribution',organizationsJourney)
+test('DONOR-014 / DONOR-002: organizations retain their own gifts, two named contacts, addressed receipts and state attribution',organizationsJourney)
 
 test('API-004: MCP donor context and preparation retain native keys and human approval',mcpJourney)
 

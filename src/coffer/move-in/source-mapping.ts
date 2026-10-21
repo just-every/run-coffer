@@ -19,7 +19,7 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  const externalId = r.required('donorId'); if (!externalId) return
  // An organization keeps no household: LGL's Is Org, a Bloomerang Organization type, or an organization name alone.
  const organization = /^(yes|true|y|1)$/i.test(r.get('isOrg')) || normalizeLabel(r.peek('type')) === 'organization' || (!!names[1] && !names[2] && !names[4])
- const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], middleName: names[3], lastName: names[4], prefix, suffix, nickname:r.get('nickname'), constituentStatus:sourceStatus(r), deceasedOn:r.peek('deceasedOn')?r.date('deceasedOn'):'', statusReason:r.get('statusReason'), informalName:r.get('informalName'), formalName:r.get('formalName'), envelopeName:r.get('envelopeName'), organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
+ const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], middleName: names[3], lastName: names[4], prefix, suffix, nickname:r.get('nickname'), recognitionName:r.get('recognitionName'), constituentStatus:sourceStatus(r), deceasedOn:r.peek('deceasedOn')?r.date('deceasedOn'):'', statusReason:r.get('statusReason'), informalName:r.get('informalName'), formalName:r.get('formalName'), envelopeName:r.get('envelopeName'), organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
  donor.email = donor.email.toLowerCase()
  if (donor.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donor.email)) r.error('EMAIL', 'Export a single valid primary email address.', 'email')
  if (donor.householdName && !donor.householdKey) r.error('HOUSEHOLD_ID', 'Fill Household ID with this household’s source ID, or clear Household Name if this constituent has no household.', 'householdKey')
@@ -31,7 +31,7 @@ function addDonor(r: SourceRow, out: ParsedImport) {
    if (existing[key] && donor[key] && existing[key] !== donor[key]) r.error('DONOR_CONFLICT', `Conflicting ${key} for source constituent ${externalId}${out.source === 'lgl' ? ' in the constituents report. Correct the constituent rows so this ID has one value' : '. Export one authoritative value'}.`, key)
    else if (!existing[key]) existing[key] = donor[key]??''
   }
-  for (const key of ['prefix','firstName','middleName','lastName','suffix','nickname','constituentStatus','deceasedOn','statusReason','informalName','formalName','envelopeName'] as const) {
+  for (const key of ['prefix','firstName','middleName','lastName','suffix','nickname','recognitionName','constituentStatus','deceasedOn','statusReason','informalName','formalName','envelopeName'] as const) {
    const value=donor[key]
    if (existing[key] && value && existing[key]!==value) r.error('DONOR_CONFLICT',`Conflicting ${key} for source constituent ${externalId}.`,key)
    else if (!existing[key]&&value) existing[key]=value

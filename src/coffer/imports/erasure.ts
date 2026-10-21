@@ -17,6 +17,7 @@ export function donorErasureStatements(donor: { id: string; email: string | null
   return [
     ...[donorId, donor.email,...(donor.emails??[])].filter(Boolean).map(value => sql('INSERT OR IGNORE INTO cf_erasures(hash,erased_at) VALUES(?,?)', erasureHash(value!), now)),
     sql('INSERT INTO cf_donors(id,version,name,source,source_ref,created_at,erased_at) SELECT ?,1,?,source,NULL,?,? FROM cf_donors WHERE id=?', placeholderId, ERASED, now, now, donorId),
+    sql('UPDATE cf_communications SET name_fields=NULL WHERE donor_id=?',donorId),
     // A household snapshot can name a person whose donor ID is not the
     // statement's addressee. Erasure redacts that whole historical piece.
     sql(`UPDATE cf_acks SET household_snapshot=NULL,statement_gifts=NULL,recipient_name=?,recipient_email=NULL,address=NULL,subject='[erased]',body='[erased]',delivery_note=NULL
@@ -48,7 +49,7 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     sql('DELETE FROM cf_pledge_plans WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', donorId),
     sql('UPDATE cf_pledges SET donor_id=? WHERE donor_id=?', placeholderId, donorId),
     sql("UPDATE cf_acks SET donor_id=?,recipient_name=?,recipient_email=NULL,address=NULL,statement_gifts=NULL,delivery_note=NULL,subject='[erased]',body='[erased]' WHERE donor_id=?", placeholderId, ERASED, donorId),
-    sql('UPDATE cf_appeal_recipients SET donor_id=?,name=?,email=NULL,address=NULL WHERE donor_id=?', placeholderId, ERASED, donorId),
+    sql('UPDATE cf_appeal_recipients SET donor_id=?,name=?,email=NULL,address=NULL,name_fields=NULL WHERE donor_id=?', placeholderId, ERASED, donorId),
     sql('UPDATE cf_events SET donor_id=? WHERE donor_id=?', placeholderId, donorId),
     sql("DELETE FROM cf_import_revisions WHERE (kind='donor' AND id=?) OR (kind='gift' AND id IN (SELECT id FROM cf_gifts WHERE donor_id=?)) OR (kind='subscription' AND id IN (SELECT id FROM cf_subscriptions WHERE donor_id=?))", donorId, placeholderId, placeholderId),
     sql('DELETE FROM cf_donors WHERE id=?', donorId),

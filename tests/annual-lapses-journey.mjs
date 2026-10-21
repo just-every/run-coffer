@@ -14,7 +14,7 @@ export async function annualLapsesJourney() {
   if(u.origin==='https://api.stripe.com'&&u.pathname==='/v1/subscriptions/sub_annual')return Response.json(plan)
   assert.equal(u.origin,'https://us21.api.mailchimp.com')
   if(key==='GET /3.0/lists')return Response.json({lists:[{id:'fixture-list',name:'Annual supporters',stats:{member_count:1}}]})
-  if(key==='GET /3.0/lists/fixture-list/merge-fields')return Response.json({merge_fields:['CF_INFORM','CF_FORMAL','CF_ENVELOP'].map(tag=>({tag,type:'text'})),total_items:3})
+  if(key==='GET /3.0/lists/fixture-list/merge-fields')return Response.json({merge_fields:['CF_INFORM','CF_FORMAL','CF_ENVELOP','CF_PREFIX','CF_FIRST','CF_MIDDLE','CF_LAST','CF_SUFFIX','CF_NICK'].map(tag=>({tag,type:'text'})),total_items:9})
   if(/^PATCH \/3.0\/lists\/fixture-list\/members\//.test(key))return Response.json({...member(),merge_fields:(await request.json()).merge_fields})
   if(/^GET \/3.0\/lists\/fixture-list\/members\//.test(key))return Response.json(member())
   if(key==='POST /3.0/lists/fixture-list/segments')return Response.json(chimp.static_segment)

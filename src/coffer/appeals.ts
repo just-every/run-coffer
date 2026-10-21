@@ -1,3 +1,5 @@
+import { frozenNameFields } from './person-names'
+import { letterRecipient } from './organizations'
 import { all, choice, commit, date, event, fail, guard, id, integer, newId, one, sha256, sql, text, today, longText, type Context, type Row } from './db'
 import { amount } from './money'
 import { settings } from './settings'
@@ -11,7 +13,7 @@ const CONSENT = `(SELECT k.id FROM cf_consents k WHERE k.donor_id=r.donor_id AND
 // Every frozen recipient still has the exact consent answer that admitted them.
 const CHANGED = `(${CONSENT} IS NOT r.consent_id OR (SELECT constituent_status FROM cf_donors WHERE id=r.donor_id)<>'active')`
 const UNCHANGED = `NOT EXISTS(SELECT 1 FROM cf_appeal_recipients r WHERE r.appeal_id=? AND ${CHANGED})`
-export const hashOf = (name: string, channel: string, recipients: Row[], message?: Row | null) => sha256(JSON.stringify([name, channel, recipients.map(r => [r.donor_id, r.consent_id, r.name, r.email, r.address, ...(message ? [r.total_cents,r.gift_count,r.last_gift] : [])]), ...(message ? [message.subject,message.body] : [])]))
+export const hashOf = (name: string, channel: string, recipients: Row[], message?: Row | null) => sha256(JSON.stringify([name, channel, recipients.map(r => [r.donor_id, r.consent_id, r.name, r.email, r.address, ...(r.name_fields ? [r.name_fields] : []), ...(message ? [r.total_cents,r.gift_count,r.last_gift] : [])]), ...(message ? [message.subject,message.body] : [])]))
 const postal = (d: Row) => d.address_line1 && d.city && d.postal_code
 
 /** Splits the segment into consenting recipients and counted exclusions. */
@@ -34,7 +36,7 @@ export async function audience(c: { db: D1Database }, channel: 'email' | 'mail',
   else if (d.consent !== 'granted') excluded['consent withdrawn']++
   else if (channel === 'email' && !d.email) excluded['no email address']++
   else if (channel === 'mail' && !postal(d)) excluded['no postal address']++
-  else recipients.push({ donor_id: d.id, consent_id: d.consent_id, name: d.name, total_cents:d.total_cents,gift_count:d.gift_count,last_gift:d.last_gift, email: channel === 'email' ? d.email : null, address: channel === 'mail' ? JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country }) : null })
+  else recipients.push({ donor_id: d.id, consent_id: d.consent_id, name: d.name, name_fields:frozenNameFields(await letterRecipient(c,d)), total_cents:d.total_cents,gift_count:d.gift_count,last_gift:d.last_gift, email: channel === 'email' ? d.email : null, address: channel === 'mail' ? JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country }) : null })
  }
  return { recipients, excluded }
 }
@@ -65,7 +67,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
    sql("INSERT INTO cf_appeals(id,version,name,channel,segment,excluded,status,content_hash,recipients,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,?,?,?,?,'prepared',?,?,?,?,?,?)",
     appealId, name, channel, JSON.stringify({ givenSince, minTotalCents, fund, ...(selection ? {resendOf:selection.resendOf} : {}), ...(annual ? {annualList,listYear:annual.year,listThrough:annual.through} : {}) }), JSON.stringify(excluded), hash, recipients.length, c.actor.id, c.actor.name, c.actor.role, c.now),
    sql('INSERT INTO cf_appeal_runs(appeal_id,code,cost_cents) VALUES(?,?,?)',appealId,code,costCents),
-   sql(`INSERT INTO cf_appeal_recipients(appeal_id,donor_id,consent_id,name,email,address,total_cents,gift_count,last_gift) SELECT ?,json_extract(value,'$.donor_id'),json_extract(value,'$.consent_id'),json_extract(value,'$.name'),json_extract(value,'$.email'),json_extract(value,'$.address'),json_extract(value,'$.total_cents'),json_extract(value,'$.gift_count'),json_extract(value,'$.last_gift') FROM json_each(?)`, appealId, list),
+   sql(`INSERT INTO cf_appeal_recipients(appeal_id,donor_id,consent_id,name,email,address,total_cents,gift_count,last_gift,name_fields) SELECT ?,json_extract(value,'$.donor_id'),json_extract(value,'$.consent_id'),json_extract(value,'$.name'),json_extract(value,'$.email'),json_extract(value,'$.address'),json_extract(value,'$.total_cents'),json_extract(value,'$.gift_count'),json_extract(value,'$.last_gift'),json_extract(value,'$.name_fields') FROM json_each(?)`, appealId, list),
    ...(message ? [sql('INSERT INTO cf_appeal_messages VALUES(?,?,?)',appealId,message.subject,message.body)] : []),
    event(c, 'appeal.prepare', 'appeal', appealId, null, { channel, recipients: recipients.length, excluded })])
   return { id: appealId, code, costCents, version: 1, recipients: recipients.length, excluded, contentHash: hash }
@@ -111,7 +113,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
 export const recipientsOf = (c: { db: D1Database }, appealId: string) => all(c, `SELECT r.*,(SELECT id FROM cf_communications m WHERE m.message_key='appeal:'||r.appeal_id||':'||r.donor_id) AS communication_id FROM cf_appeal_recipients r WHERE appeal_id=? ORDER BY lower(name),donor_id`, appealId)
 export function recipientsCsv(appeal: Row, recipients: Row[]) {
  if (appeal.channel === 'email') return csv(['name', 'email'], recipients.map(r => [r.name, r.email]))
- return csv(['name', 'address_line1', 'address_line2', 'city', 'state', 'zip', 'country'], recipients.map(r => { const a = r.address ? JSON.parse(r.address) : {}; return [r.name, a.line1, a.line2, a.city, a.region, a.postalCode, a.country] }))
+ return csv(['name', 'informal_salutation', 'formal_salutation', 'address_line1', 'address_line2', 'city', 'state', 'zip', 'country'], recipients.map(r => { const a = r.address ? JSON.parse(r.address) : {}; const n=r.name_fields?JSON.parse(r.name_fields):{}; return [n.envelope_name??r.name, n.informal_salutation??r.name, n.formal_salutation??r.name, a.line1, a.line2, a.city, a.region, a.postalCode, a.country] }))
 }
 export async function appeals(c: { db: D1Database }) {
  return all(c, "SELECT * FROM cf_appeals ORDER BY CASE status WHEN 'prepared' THEN 0 WHEN 'approved' THEN 1 WHEN 'exported' THEN 2 ELSE 3 END, prepared_at DESC LIMIT 100")

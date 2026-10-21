@@ -1,4 +1,5 @@
 import { fail, type Row } from '../db'
+import { nameMergeFields } from '../person-names'
 import type { Connection } from './connection'
 
 /** Mango's scoped integration API (Mango → Settings → Integration credentials).
@@ -59,7 +60,7 @@ const consent = (donor: Row, organisation: string) => ({ source: 'Coffer consent
  frequencyDisclosure: 'Occasional appeals and welcome emails', destinationJurisdiction: 'US', consentVersion: `coffer-consent-${donor.consent_id}`, occurredAt: `${donor.captured_on}T00:00:00.000Z` })
 /** Puts one consenting donor on a Coffer list in Mango, carrying Coffer's consent evidence. */
 export async function listInMango(conn: Connection, donor: Row, organisation: string, listName: string, fields: Row = {}): Promise<Row> {
- const data = await request(conn, '/contacts', 'PUT', { email: donor.email, displayName: donor.name, segmentName: listName.slice(0, 160), fields: { cofferDonorId: donor.id, ...fields }, tags: ['coffer'], subscribe: true, consent: consent(donor, organisation) })
+ const data = await request(conn, '/contacts', 'PUT', { email: donor.email, displayName: donor.name, segmentName: listName.slice(0, 160), fields: { cofferDonorId: donor.id, ...fields, ...nameMergeFields(donor) }, tags: ['coffer'], subscribe: true, consent: consent(donor, organisation) })
  if (!data.contact || typeof data.contact.emailStatus !== 'string') fail('MANGO_RESPONSE', 'Mango did not confirm the contact.', 502)
  return data.contact
 }

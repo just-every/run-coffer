@@ -71,6 +71,7 @@ const NAME_FIELDS = [
  ['CF_INFORM', 'Coffer informal salutation', 'informal'],
  ['CF_FORMAL', 'Coffer formal salutation', 'formal'],
  ['CF_ENVELOP', 'Coffer envelope name', 'envelope'],
+ ['CF_PREFIX','Coffer prefix','prefix'], ['CF_FIRST','Coffer first name','first_name'], ['CF_MIDDLE','Coffer middle name','middle_name'], ['CF_LAST','Coffer last name','last_name'], ['CF_SUFFIX','Coffer suffix','suffix'], ['CF_NICK','Coffer nickname','nickname'],
 ] as const
 async function nameMergeFields(conn: Connection, donor: Row) {
  const path = `${listPath(conn)}/merge-fields`
@@ -87,8 +88,8 @@ async function nameMergeFields(conn: Connection, donor: Row) {
   const field = await request(conn, path, 'POST', { tag, name, type:'text', required:false, public:false })
   if (field?.tag !== tag || field.type !== 'text') fail('MAILCHIMP_RESPONSE', 'Mailchimp did not confirm the audience name field.', 502)
  }
- const names = personNames(donor)
- return Object.fromEntries(NAME_FIELDS.map(([tag, , key]) => [tag, names[key]]))
+ const names = {...(donor.letter_names ?? personNames(donor)),...(donor.letter_name?{envelope:donor.letter_name}:{})}
+ return Object.fromEntries(NAME_FIELDS.map(([tag, , key]) => [tag, key in names ? names[key as keyof typeof names] : donor[key] ?? '']))
 }
 /** A merge-only PATCH preserves a concurrent unsubscribe and never creates a member. */
 export async function syncMailchimpNames(conn: Connection, donor: Row): Promise<Row> {

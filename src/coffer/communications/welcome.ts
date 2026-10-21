@@ -1,3 +1,4 @@
+import { NAME_MERGE_FIELDS } from '../person-names'
 import { emailConnection } from './connection'
 import type { Bindings } from '../../auth.server'
 import { requireRole } from '../auth'
@@ -22,7 +23,7 @@ function content(value: unknown, label: string, body = false) {
  const valueText = body ? longText(value, label) : text(value, label, 200)
  if (!body && /[\r\n]/.test(valueText)) fail('INPUT', `${label} must be one line.`, 400)
  for (const token of valueText.matchAll(/{{\s*([^{}]+)\s*}}/g)) {
-  if (!['donor_name', 'total_given', 'last_gift', 'gift_count'].includes(token[1].trim())) fail('INPUT', `${label} has an unsupported merge field: ${token[0]}.`, 400)
+  if (![...NAME_MERGE_FIELDS, 'donor_name', 'total_given', 'last_gift', 'gift_count'].includes(token[1].trim())) fail('INPUT', `${label} has an unsupported merge field: ${token[0]}.`, 400)
  }
  return valueText
 }

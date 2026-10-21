@@ -4,7 +4,7 @@ import {readFile,mkdir} from 'node:fs/promises'
 import {run,donor} from './harness.mjs'
 const fixture=JSON.parse(await readFile(new URL('./fixtures/mailchimp/responses.json',import.meta.url),'utf8'))
 
-test('DEV-009: reconcile five dropped appeal recipients against the frozen audience and signed gifts, then prepare a human-approved resend',async()=>{
+test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the frozen audience and signed gifts, then prepare a human-approved resend',async()=>{
  const segments=new Map(),campaigns=new Map(),contacts=new Map();let sends=0,resultMode='normal'
  await run(async h=>{
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date())
@@ -71,14 +71,16 @@ test('DEV-009: reconcile five dropped appeal recipients against the frozen audie
   const subset=await h.api('/api/coffer/agent/appeals/prepare',{appealId:unsent.id})
   assert.equal((await h.get('/api/coffer/appeals/'+subset.id)).recipients.length,6,'New resend excludes current opt-outs')
   // DEV-009 native journey: real published steps and provider calls, no seeded database rows.
-  await h.command('welcome.publish',{thankSubject:'Thank you {{donor_name}}',thankBody:'Your first gift helps our pantry.',impactSubject:'Pantry impact',impactBody:'Meals delivered.',askSubject:'Next gift',askBody:'Help again.',impactDays:7,askDays:21})
+  await h.command('welcome.publish',{thankSubject:'Thank you {{informal_salutation}}',thankBody:'{{prefix}} {{first_name}} {{middle_name}} {{last_name}} {{suffix}} {{nickname}} | {{formal_salutation}} | {{envelope_name}}',impactSubject:'Pantry impact',impactBody:'Meals delivered.',askSubject:'Next gift',askBody:'Help again.',impactDays:7,askDays:21})
   const journeyDonors=[]
   for(const name of ['Jules Ives','Kira Jones','Lane King','Mira Lake']){
    const d=await donor(h,name);journeyDonors.push(d)
+   await h.command('donor.profile',{donorId:d.id,version:1,prefix:'Dr.',firstName:name.split(' ')[0],lastName:name.split(' ')[1],nickname:'Friend '+name.split(' ')[0],envelopeName:'Household '+name})
    await h.command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic journey permission',capturedOn:'2026-01-01'})
    await h.command('gift.record',{donorId:d.id,amount:'30',receivedOn:day,method:'cash',fund:'Food',goods:'none'})
   }
   assert.equal((await h.command('welcome.run')).submitted,4)
+  for(const d of journeyDonors){const history=await h.get('/api/coffer/donors/'+d.id),m=history.communications.find(m=>m.source_kind==='welcome');assert.equal(m.subject,'Thank you Friend '+history.donor.first_name);assert.ok(m.body.includes('Dr. '+history.donor.last_name+' | Household '+history.donor.first_name+' '+history.donor.last_name));assert.ok(!m.body.includes('{{'))}
   const sentBefore=sends
   let journey=(await h.get('/api/coffer/agent/appeals')).journey
   assert.equal(journey.length,4)
@@ -106,7 +108,7 @@ test('DEV-009: reconcile five dropped appeal recipients against the frozen audie
   assert.equal(draft.appeal.status,'prepared');assert.equal(draft.approval,null)
   assert.equal(draft.appeal.prepared_by_role,'agent')
   assert.deepEqual(draft.recipients.map(r=>[r.donor_id,r.email]),[[jules.id,'jules.changed@example.org']])
-  assert.deepEqual([draft.message.subject,draft.message.body],['Thank you Jules Ives','Your first gift helps our pantry.'])
+  assert.deepEqual([draft.message.subject,draft.message.body],['Thank you Friend Jules','Dr. Jules  Ives  Friend Jules | Dr. Ives | Household Jules Ives'])
   assert.equal((await h.api('/api/coffer/agent/appeals/journey/prepare',{stepId:droppedStep.id})).id,resend.id)
   await h.command('appeal.send',{appealId:resend.id,version:1},{status:409})
   assert.equal(sends,sentBefore,'Reconciliation and proposals send nothing')
@@ -130,7 +132,7 @@ test('DEV-009: reconcile five dropped appeal recipients against the frozen audie
   const u=new URL(request.url),path=u.pathname.replace('/3.0',''),raw=request.method==='GET'?'':await request.text(),body=raw?JSON.parse(raw):null
   assert.equal(u.hostname,'us21.api.mailchimp.com')
   if(path==='/lists')return Response.json(fixture.lists??{lists:[{id:'fixture-list',name:'Fixture audience',stats:{member_count:7}}]})
-  if(path==='/lists/fixture-list/merge-fields'&&request.method==='GET')return Response.json({merge_fields:['CF_INFORM','CF_FORMAL','CF_ENVELOP'].map(tag=>({tag,type:'text'})),total_items:3})
+  if(path==='/lists/fixture-list/merge-fields'&&request.method==='GET')return Response.json({merge_fields:['CF_INFORM','CF_FORMAL','CF_ENVELOP','CF_PREFIX','CF_FIRST','CF_MIDDLE','CF_LAST','CF_SUFFIX','CF_NICK'].map(tag=>({tag,type:'text'})),total_items:9})
   if(path.includes('/members/')&&path.startsWith('/lists/fixture-list')){
    const d=[...contacts.values()].find(x=>x.hash===path.split('/').at(-1))
    if(request.method==='PATCH'){

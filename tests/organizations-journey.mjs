@@ -7,7 +7,7 @@ export async function organizationsJourney() {
   await reviewed(h)
   const org=await donor(h,'Lakeside Community Foundation',{constituentKind:'organization',organizationType:'foundation',website:'https://lakeside.example.org',ein:'12-9876543',region:'Minnesota'})
   const maya=await donor(h,'Dr. Maya Chen',{region:'CA'}),owen=await donor(h,'Owen Carter',{region:'NY'})
-  await h.command('donor.profile',{donorId:maya.id,version:1,firstName:'Maya',informalSalutation:'Maya'})
+  await h.command('donor.profile',{donorId:maya.id,version:1,prefix:'Dr.',firstName:'Maya',lastName:'Chen',informalSalutation:'Maya'})
   await h.command('organization.contact',{donorId:org.id,version:1,contactDonorId:maya.id,role:'Program director',primary:true})
   await h.command('organization.contact',{donorId:org.id,version:2,contactDonorId:owen.id,role:'Grants officer'})
   await h.command('organization.contact',{donorId:org.id,version:2,contactDonorId:owen.id,role:'Old edit'},{status:409})
@@ -31,8 +31,8 @@ export async function organizationsJourney() {
   for(const [input,expected] of [
    [{informalSalutation:null,nickname:'May'},'May'],
    [{nickname:null},'Maya'],
-   [{firstName:null},'Dr. Maya Chen'],
-   [{informalSalutation:'Maya'},'Maya'],
+   [{firstName:null},'Dr. Chen'],
+   [{firstName:'Maya',informalSalutation:'Maya'},'Maya'],
   ]) {
    const current=(await h.get('/api/coffer/donors/'+maya.id)).donor
    await h.command('donor.profile',{donorId:maya.id,version:current.version,...input})
@@ -40,6 +40,11 @@ export async function organizationsJourney() {
    assert.ok((await h.get('/api/coffer/letters/'+temporary.id)).letters[0].body.includes('Dear '+expected+','))
    await h.command('ack.discard',{batchId:temporary.id,version:1})
   }
+  await h.command('consent.record',{donorIds:[org.id],channel:'mail',status:'granted',method:'paper form',evidence:'Organization postal permission',capturedOn:'2026-09-01'})
+  const namedMail=await h.command('appeal.prepare',{name:'Organization salutation',channel:'mail'})
+  await h.command('appeal.approve',{appealId:namedMail.id,version:1});await h.command('appeal.export',{appealId:namedMail.id,version:2})
+  const frozenRecipient=(await h.get('/api/coffer/appeals/'+namedMail.id)).recipients.find(r=>r.donor_id===org.id)
+  assert.equal(JSON.parse(frozenRecipient.name_fields).informal_salutation,'Maya')
   const batch=await h.command('ack.prepare',{giftIds:[gift.id]})
   const letter=(await h.get('/api/coffer/letters/'+batch.id)).letters[0]
   assert.equal(letter.donor_id,org.id);assert.equal(letter.recipient_name,'Lakeside Community Foundation\nAttn: Dr. Maya Chen')
@@ -84,6 +89,7 @@ export async function organizationsJourney() {
   if(process.env.COFFER_ORGANIZATION_BROWSER){const {organizationsBrowser}=await import('./organizations-browser.mjs');await organizationsBrowser(h,process.env.COFFER_ORGANIZATION_BROWSER)}
   await h.command('donor.erase',{donorId:maya.id,confirm:'ERASE',reason:'donor_request'})
   assert.equal((await detail()).organization.contacts.length,1)
+  assert.equal((await h.get('/api/coffer/appeals/'+namedMail.id)).recipients.find(r=>r.donor_id===org.id).name_fields,null)
   assert.equal((await h.get('/api/coffer/letters/'+batch.id)).letters[0].body,'[erased]')
   assert.ok(!(await (await h.request('/api/coffer/in-kind-acknowledgments/'+propertyAck.acknowledgmentId+'/download')).text()).includes('Maya'))
  },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic_organization_mail',MAIL_FROM:'receipts@example.test'},outbound:async request=>{

@@ -1,3 +1,4 @@
+import { form } from './ui/common'
 import { printMeetingBrief } from './ui/meeting-brief'
 import { householdState } from './households'
 import { meetings, meetingBrief } from './meeting-briefs'
@@ -340,6 +341,8 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
  if (command === 'agent.revoke') return redirect('/app/data')
  if (command === 'dashboard.goal') return redirect('/app/reports/dashboard?year='+encodeURIComponent(String(input.year))+'#goals')
+ if(command==='person.defaultsPreview')return page('Review name defaults',`<p>${result.changed} person records will change. Overrides and prepared documents are preserved.</p>${form('person.defaults','<p>Save these defaults for existing and new people.</p>','Save name defaults',result)}<p><a href="/app/settings">Back to settings</a></p>`,actor)
+ if(command==='person.defaults')return redirect('/app/settings?saved=1')
  if (command === 'settings.update') return redirect('/app/settings?saved=1')
  if (command.startsWith('letterTemplate.')) return redirect('/app/settings?saved=1#thank-you-templates')
  if (command === 'donor.create') return redirect(`/app/donors/${result.id}`)
@@ -520,7 +523,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
   if (!['approved','exported','sent'].includes(batch.status)) fail('NOT_APPROVED', 'Approve these letters before printing.')
   if (!(await c.db.prepare(`SELECT CASE WHEN (${currentLetterGiftsCondition}) THEN 1 ELSE 0 END AS ok`).bind(m[1]).first<{ok:number}>())?.ok) fail('GIFT_CHANGED', 'A statement gift changed. Prepare an updated statement before printing.')
   const selected = letters.filter(l => (!url.searchParams.has('letter') || l.id === url.searchParams.get('letter')) && (!url.searchParams.has('pending') || (l.route === 'print' && !l.printed_at)))
-  return printLetters(selected, (await settings(c)).organisation)
+  return printLetters(selected, (await settings(c)).organisation, url.searchParams.get('labels')==='1')
  }
  if ((m = path.match(/^\/app\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
  if (path === '/app/appeals') return show('Appeals', await appealsPage(c, null, url))

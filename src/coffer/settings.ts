@@ -4,7 +4,7 @@ import { commit, event, fail, guard, integer, longText, one, optional, sql, text
 import { amount, usd } from './money'
 
 export type Settings = {
- version: number; organisation: string; ein: string; timezone: string; threshold_cents: number; target_days: number
+ name_defaults: string; version: number; organisation: string; ein: string; timezone: string; threshold_cents: number; target_days: number
  letter_subject: string; letter_template: string; none_statement: string; goods_statement: string; reviewed_at: string | null; reviewed_by: string | null
  religious_organization: number; token_year: number | null; token_max_value_cents: number; token_min_gift_cents: number; token_max_cost_cents: number
  fiscal_year_start: string

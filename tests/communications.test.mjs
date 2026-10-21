@@ -43,14 +43,14 @@ test('DONOR-014: Mailchimp audience names follow parts and typed overrides for s
   const consent=(d,status)=>h.command('consent.record',{donorIds:[d.id],channel:'email',status,method:'paper form',evidence:'Explicit test permission',capturedOn:'2026-09-01'})
   await profile(robert,{prefix:'Dr.',firstName:'Robert',middleName:'A.',lastName:'Smith',suffix:'Jr.',nickname:'Bob'})
   await consent(robert,'granted')
-  await h.command('marketing.connectMailchimp',{apiKey:'coffernames-us21'})
+  await h.command('marketing.connectMailchimp',{apiKey:'synthetic-us21'})
   await h.command('marketing.chooseAudience',{listId:'fixture-list',fromName:'Library',fromEmail:'library@example.test'})
   assert.equal((await h.command('marketing.sync')).pending,0)
-  assert.deepEqual(members.get(hash(email)).merge_fields,{CF_INFORM:'Bob',CF_FORMAL:'Dr. Smith',CF_ENVELOP:'Dr. Robert A. Smith Jr.'})
-  assert.equal(definitions.size,3)
+  assert.deepEqual(members.get(hash(email)).merge_fields,{CF_INFORM:'Bob',CF_FORMAL:'Dr. Smith',CF_ENVELOP:'Dr. Robert A. Smith Jr.',CF_PREFIX:'Dr.',CF_FIRST:'Robert',CF_MIDDLE:'A.',CF_LAST:'Smith',CF_SUFFIX:'Jr.',CF_NICK:'Bob'})
+  assert.equal(definitions.size,9)
   await profile(robert,{nickname:'Rob',lastName:'Jones',envelopeName:'The Smith Family',formalSalutation:'Doctor Smith'})
   await h.command('marketing.sync')
-  assert.deepEqual(members.get(hash(email)).merge_fields,{CF_INFORM:'Rob',CF_FORMAL:'Doctor Smith',CF_ENVELOP:'The Smith Family'})
+  assert.deepEqual(members.get(hash(email)).merge_fields,{CF_INFORM:'Rob',CF_FORMAL:'Doctor Smith',CF_ENVELOP:'The Smith Family',CF_PREFIX:'Dr.',CF_FIRST:'Robert',CF_MIDDLE:'A.',CF_LAST:'Jones',CF_SUFFIX:'Jr.',CF_NICK:'Rob'})
   assert.equal(members.get(hash(email)).status,'subscribed')
   const beforeConflict=writes.length
   definitions.get('CF_FORMAL').type='number'
@@ -70,13 +70,17 @@ test('DONOR-014: Mailchimp audience names follow parts and typed overrides for s
   await profile(ana,{prefix:'Ms.',firstName:'Ana',lastName:'Lee',informalSalutation:'Annie',envelopeName:'The Lee Family'})
   await consent(ana,'granted')
   await h.command('gift.record',{donorId:ana.id,amount:'25',receivedOn:'2026-09-01',method:'check',goods:'none',fund:'Library'})
-  const batch=await appeal(h)
+  const batch=await h.command('appeal.prepare',{name:'Named appeal',channel:'email',fund:'Library',subject:'Hello {{formal_salutation}}',body:'{{prefix}} {{first_name}} {{middle_name}} {{last_name}} {{suffix}} {{nickname}} | {{informal_salutation}} | {{envelope_name}}'})
+  await h.command('appeal.approve',{appealId:batch.id,version:1})
+  await profile(ana,{nickname:'Changed after approval'})
   const result=await h.command('appeal.send',{appealId:batch.id,version:2})
   assert.equal(result.submitted,0,'A new pending member still needs Mailchimp double opt-in')
   assert.equal(result.suppressed,1)
+  const message=(await h.get('/api/coffer/donors/'+ana.id)).communications.find(m=>m.source_id===batch.id)
+  assert.equal(message.subject,'Hello Ms. Lee');assert.equal(message.body,'Ms. Ana  Lee   | Annie | The Lee Family','Approved appeal name fields stay frozen after profile changes')
   const pending=members.get(hash('ana.lee@example.test'))
   assert.equal(pending.status,'pending')
-  assert.deepEqual(pending.merge_fields,{CF_INFORM:'Annie',CF_FORMAL:'Ms. Lee',CF_ENVELOP:'The Lee Family'})
+  assert.deepEqual(pending.merge_fields,{CF_INFORM:'Annie',CF_FORMAL:'Ms. Lee',CF_ENVELOP:'The Lee Family',CF_PREFIX:'Ms.',CF_FIRST:'Ana',CF_MIDDLE:'',CF_LAST:'Lee',CF_SUFFIX:'',CF_NICK:'Changed after approval'})
   await consent(ana,'withdrawn')
   assert.equal(pending.status,'unsubscribed','Coffer withdrawal still suppresses the pending member')
  },{outbound:async request=>{
@@ -112,11 +116,12 @@ test('DONOR-014: Mailchimp audience names follow parts and typed overrides for s
 })
 
 // Faked only at Mango's network edge, with its scoped integration API; Coffer runs its real Worker and D1.
-test('Connect Mango from the page, send an approved appeal to a Mango list, and keep opt-outs in step',()=>{
+test('DONOR-014: Connect Mango from the page, send an approved appeal to a Mango list, and keep opt-outs in step',()=>{
  // A synthetic credential: Mango is faked at its network edge.
  const contacts=new Map(),lists=new Map(),suppressions=[],credential=`coffer-test-${process.pid}`
  return run(async h=>{
   const [avery,jordan]=await consenting(h,['Avery Chen','Jordan Brooks'])
+  await h.command('donor.profile',{donorId:avery.id,version:(await h.get('/api/coffer/donors/'+avery.id)).donor.version,prefix:'Dr.',firstName:'Avery',lastName:'Chen',nickname:'Ave',envelopeName:'The Chen Family'})
   const frozen=await appeal(h)
   // Not connected: the page leads to the connect page, never a 503.
   const before=await (await h.request(`/app/appeals/${frozen.id}`)).text()
@@ -136,6 +141,7 @@ test('Connect Mango from the page, send an approved appeal to a Mango list, and 
   assert.match(page,/all 2 approved recipients/)
   const sent=await h.command('appeal.send',{appealId:frozen.id,version:2})
   assert.deepEqual([sent.listed,sent.remaining],[2,0])
+  assert.deepEqual(Object.fromEntries(['prefix','first_name','last_name','nickname','informal_salutation','formal_salutation','envelope_name'].map(k=>[k,contacts.get(recorded.contacts[0].email).fields[k]])),{prefix:'Dr.',first_name:'Avery',last_name:'Chen',nickname:'Ave',informal_salutation:'Ave',formal_salutation:'Dr. Chen',envelope_name:'The Chen Family'})
   const list=lists.get('Coffer appeal · Library renewal · '+(await h.get(`/api/coffer/appeals/${frozen.id}`)).appeal.prepared_at.slice(0,10))
   assert.deepEqual([...list].sort(),[recorded.contacts[0].email,recorded.contacts[1].email].sort())
   const finish=await (await h.request(`/app/appeals/${frozen.id}`)).text()
@@ -161,7 +167,7 @@ test('Connect Mango from the page, send an approved appeal to a Mango list, and 
    if(!body.email)return Response.json({error:'invalid_request'},{status:400})
    assert.equal(body.subscribe,true);assert.match(body.consent.evidence,/Synthetic explicit opt-in/)
    const fixture=recorded.contacts.find(c=>c.email===body.email),contact=contacts.get(body.email)??{...fixture,emailStatus:'subscribed'}
-   contacts.set(body.email,contact)
+   contact.fields=body.fields;contacts.set(body.email,contact)
    if(!lists.has(body.segmentName))lists.set(body.segmentName,new Set())
    lists.get(body.segmentName).add(body.email)
    return Response.json({contact:{...contact,segmentIds:[body.segmentName]}})
@@ -272,7 +278,7 @@ test('COMM-008: email appeal results match signed ledger and sender outcomes wit
   assert.equal(u.origin,'https://us21.api.mailchimp.com')
   assert.equal(request.headers.get('authorization'),`Bearer ${apiKey}`)
   if(key==='GET /3.0/lists')return Response.json({lists:[{id:'fixture-list',name:'Fixture audience',stats:{member_count:1}}]})
-  if(key==='GET /3.0/lists/fixture-list/merge-fields')return Response.json({merge_fields:['CF_INFORM','CF_FORMAL','CF_ENVELOP'].map(tag=>({tag,type:'text'})),total_items:3})
+  if(key==='GET /3.0/lists/fixture-list/merge-fields')return Response.json({merge_fields:['CF_INFORM','CF_FORMAL','CF_ENVELOP','CF_PREFIX','CF_FIRST','CF_MIDDLE','CF_LAST','CF_SUFFIX','CF_NICK'].map(tag=>({tag,type:'text'})),total_items:9})
   if(/^PATCH \/3.0\/lists\/fixture-list\/members\//.test(key))return Response.json({...chimp.member_subscribed,merge_fields:(await request.json()).merge_fields})
   if(/^GET \/3.0\/lists\/fixture-list\/members\//.test(key))return Response.json(chimp.member_subscribed)
   if(key==='POST /3.0/lists/fixture-list/segments')return Response.json(chimp.static_segment)
