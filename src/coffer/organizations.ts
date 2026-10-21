@@ -1,8 +1,9 @@
 import { computedHouseholdNames, householdDefaults, householdMembers } from './household-names'
+import { personNames } from './person-names'
 import { all, commit, event, fail, guard, id, integer, newId, one, optional, sql, text, type Context, type Row } from './db'
 
 export const ORGANIZATION_TYPES = ['business','foundation','church','school','government body','donor-advised fund sponsor'] as const
-export const informalName = (d:Row) => d.informal_salutation || d.nickname || d.first_name || d.name
+export const informalName = (d:Row) => personNames(d).informal
 export function organizationFields(p:Row,d:Row={}) {
  const kind=p.constituentKind??d.constituent_kind??'person'
  const value=(key:string,column=key)=>p[key]===undefined?d[column]??null:optional(p[key],key,200)
@@ -33,7 +34,8 @@ export async function organizationState(c:{db:D1Database},donorId:string) {
 export async function letterRecipient(c:{db:D1Database},d:Row):Promise<Row> {
  if(d.constituent_status==='deceased'&&d.constituent_kind!=='organization')return {...d,...await survivorAddressing(c,d)}
  const contact=d.constituent_kind==='organization'?await one(c,`SELECT d.* FROM cf_organization_contacts r JOIN cf_donors d ON d.id=r.contact_donor_id WHERE r.organization_donor_id=? AND r.is_primary=1 AND d.erased_at IS NULL AND d.constituent_kind='person'`,d.id):null
- return {...d,letter_name:contact?`${d.name}\nAttn: ${contact.name}`:d.name,letter_salutation:contact?informalName(contact):d.name,
+ const names=personNames(d)
+ return {...d,letter_name:contact?`${d.name}\nAttn: ${contact.name}`:names.envelope,letter_salutation:contact?informalName(contact):d.constituent_kind==='organization'?d.name:names.informal,
   letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,organization:d.constituent_kind==='organization',...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
 }
 /** A receipt for a gift on a deceased constituent's record goes to the surviving household or the estate, never to the deceased. */
