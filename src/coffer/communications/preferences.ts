@@ -1,5 +1,5 @@
 import { all, commit, event, fail, one, sql, type Context, type Row } from '../db'
-import { letterRecipient } from '../organizations'
+import { profileRecipient } from './profile-fields'
 import { settings } from '../settings'
 import { providerTitle, providerContact, captureProviderConsent, restricted, subscribed, suppressProvider } from './provider'
 import { emailConnection, requireConnection } from './connection'
@@ -10,7 +10,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  LEFT JOIN cf_consents k ON k.id=(SELECT id FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)
  WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`, donorId)
  if (!donor?.email) return { state:'no-address', allowed:false }
- Object.assign(donor,await letterRecipient(c,donor))
+ Object.assign(donor,await profileRecipient(c,donor))
  const conn = await requireConnection(c), label = providerTitle(conn.provider)
  let contact = await providerContact(conn, donor.email)
  if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) contact = await syncMailchimpNames(conn, donor)
@@ -37,7 +37,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  await commit(c, [sql(`INSERT INTO cf_preference_sync(donor_id,email,consent_id,remote_status,state,checked_at,note) VALUES(?,?,?,?,?,?,?)
  ON CONFLICT(donor_id) DO UPDATE SET email=excluded.email,consent_id=excluded.consent_id,remote_status=excluded.remote_status,state=excluded.state,checked_at=excluded.checked_at,note=excluded.note`,
  donor.id,donor.email,donor.consent_id,contact?.emailStatus ?? contact?.email_status ?? null,state,c.now,note)])
- return { state, allowed:state==='subscribed', note }
+ return { state, allowed:state==='subscribed', note,contact }
 }
 export async function syncPreferences(c: Context, donorIds?: string[]): Promise<Row> {
  const { unavailable } = await emailConnection(c)

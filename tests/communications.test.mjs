@@ -82,6 +82,43 @@ test('DONOR-014: Mailchimp audience names follow parts and typed overrides for s
   const pending=members.get(hash('ana.lee@example.test'))
   assert.equal(pending.status,'pending')
   assert.deepEqual(pending.merge_fields,{CF_INFORM:'Annie',CF_FORMAL:'Ms. Lee',CF_ENVELOP:'The Lee Family',CF_PREFIX:'Ms.',CF_FIRST:'Ana',CF_MIDDLE:'Ms. Lee',CF_LAST:'Lee',CF_SUFFIX:'Ms. Lee',CF_NICK:'Changed after approval'})
+  // RCPT-010: explicit, versioned selection shares only reviewed profile fields.
+  const casey={...await donor(h,'Synthetic Casey',{email:'synthetic-coffer-1501@example.test'}),email:'synthetic-coffer-1501@example.test'}
+  members.set(hash(casey.email),{id:'synthetic-coffer-1501',email_address:casey.email,status:'subscribed'})
+  await consent(casey,'granted')
+  await h.command('gift.record',{donorId:casey.id,amount:'100',receivedOn:'2026-09-01',method:'check',goods:'none',fund:'Library'})
+  await h.command('custom.define',{key:'profile_interest',label:'Profile interest',kind:'constituent',type:'text'})
+  await h.command('custom.set',{key:'profile_interest',recordId:casey.id,value:'Books',source:'Synthetic reviewed preference'})
+  let selection=await h.get('/api/coffer/provider-fields')
+  assert.deepEqual(selection.fields,[],'Extra fields start off')
+  await h.command('marketing.fields',{version:selection.version,fields:'{{email}}'},{status:400})
+  await h.command('marketing.fields',{version:selection.version,fields:'{{unknown_field}}',confirm:'yes'},{status:400})
+  const selected='{{custom.profile_interest}}\n{{total_given}}\n{{email}}'
+  const beforeSelection=writes.length
+  await h.command('marketing.fields',{version:selection.version,fields:selected,confirm:'yes'})
+  assert.equal(writes.length,beforeSelection,'Saving consent sends no profile')
+  await h.command('marketing.fields',{version:selection.version,fields:selected,confirm:'yes'},{status:409})
+  await h.command('marketing.sync')
+  const extraTag=key=>[...definitions.values()].find(f=>f.name==='Coffer '+key)?.tag
+  assert.equal(members.get(hash(casey.email)).merge_fields[extraTag('custom.profile_interest')],'Books')
+  assert.equal(members.get(hash(casey.email)).merge_fields[extraTag('total_given')],'$100.00')
+  assert.equal(members.get(hash(casey.email)).merge_fields[extraTag('email')],casey.email)
+  const dana={...await donor(h,'Synthetic Dana',{email:'synthetic-coffer-1502@example.test'}),email:'synthetic-coffer-1502@example.test'}
+  members.set(hash(dana.email),{id:'synthetic-coffer-1502',email_address:dana.email,status:'subscribed'})
+  await consent(dana,'granted')
+  assert.ok((await h.command('marketing.sync')).pending>0)
+  assert.equal(members.get(hash(dana.email)).merge_fields,undefined,'A missing selected value prevents every member-value write')
+  selection=await h.get('/api/coffer/provider-fields')
+  await h.command('marketing.fields',{version:selection.version,fields:selected.replace('custom.profile_interest}}','custom.profile_interest|Supporter}}'),confirm:'yes'})
+  await h.command('marketing.sync')
+  assert.equal(members.get(hash(dana.email)).merge_fields[extraTag('custom.profile_interest')],'Supporter')
+  const member=await h.person('synthetic-coffer-1503@example.test')
+  selection=await h.get('/api/coffer/provider-fields')
+  await h.command('marketing.fields',{version:selection.version,fields:'',confirm:'yes'},{as:member.cookie,status:403})
+  await h.command('marketing.fields',{version:selection.version,fields:'',confirm:'yes'})
+  await h.command('custom.set',{key:'profile_interest',recordId:casey.id,value:'Music',version:1,source:'Synthetic later preference'})
+  await h.command('marketing.sync')
+  assert.equal(members.get(hash(casey.email)).merge_fields[extraTag('custom.profile_interest')],'Books','Clearing stops fresh field reads without silently deleting provider history')
   await consent(ana,'withdrawn')
   assert.equal(pending.status,'unsubscribed','Coffer withdrawal still suppresses the pending member')
  },{outbound:async request=>{
@@ -148,6 +185,21 @@ test('DONOR-014: Connect Mango from the page, send an approved appeal to a Mango
   const finish=await (await h.request(`/app/appeals/${frozen.id}`)).text()
   assert.match(finish,/Finish in Mango/);assert.match(finish,/displayName \| fallback/)
   assert.equal((await h.command('appeal.send',{appealId:frozen.id,version:2})).listed,0,'Pressing again lists nobody twice')
+  await h.command('custom.define',{key:'profile_interest',label:'Profile interest',kind:'constituent',type:'text'})
+  await h.command('custom.set',{key:'profile_interest',recordId:avery.id,value:'Books',source:'Synthetic reviewed preference'})
+  const selection=await h.get('/api/coffer/provider-fields'),beforeFields=JSON.stringify([...contacts]),beforeLists=lists.size
+  await h.command('marketing.fields',{version:selection.version,fields:'{{custom.profile_interest|Supporter}}\n{{total_given}}\n{{email}}',confirm:'yes'})
+  assert.equal(JSON.stringify([...contacts]),beforeFields);assert.equal(lists.size,beforeLists,'Selection alone creates no list or subscription')
+  contacts.get(recorded.contacts[0].email).fields.external='kept'
+  await h.command('marketing.sync')
+  assert.equal(contacts.get(recorded.contacts[0].email).fields['custom.profile_interest'],undefined,'Preference reads never create a Mango membership')
+  const next=await appeal(h)
+  assert.equal((await h.command('appeal.send',{appealId:next.id,version:2})).listed,2)
+  const shared=contacts.get(recorded.contacts[0].email).fields
+  assert.equal(shared['custom.profile_interest'],'Books');assert.equal(shared.total_given,'$250.00');assert.equal(shared.email,recorded.contacts[0].email);assert.equal(shared.external,'kept')
+  assert.equal(contacts.get(recorded.contacts[1].email).fields['custom.profile_interest'],'Supporter')
+  if(process.env.COFFER_PROVIDER_FIELDS_BROWSER){await providerFieldsBrowser(h,selection.version+1)}
+  async function providerFieldsBrowser(h,expectedVersion){const directory=process.env.COFFER_PROVIDER_FIELDS_BROWSER;const {mkdir}=await import('node:fs/promises');const {withBrowserWorker}=await import('./browser-worker.mjs');await mkdir(directory,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals/connect');const panel=page.locator('#provider-merge-fields');await panel.locator('select[name=fieldKey]').selectOption('custom.profile_interest');await panel.getByRole('button',{name:'Insert merge field',exact:true}).click();await page.getByRole('heading',{name:'Shared field draft',exact:true}).waitFor();assert.match(await page.locator('textarea[name=fields]').inputValue(),/custom\.profile_interest/);assert.equal((await h.get('/api/coffer/provider-fields')).version,expectedVersion,'Insertion only drafts');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/RCPT-010-provider-fields-'+width+'.png',fullPage:true})}await page.close()})}
   // A Mango unsubscribe becomes a Coffer withdrawal; a Coffer withdrawal becomes a Mango suppression.
   contacts.get(recorded.contacts[0].email).emailStatus='unsubscribed'
   await h.command('marketing.sync')

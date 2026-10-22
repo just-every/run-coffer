@@ -1,3 +1,5 @@
+import { savedConnection } from './communications/connection'
+import { profileFieldsPanel } from './communications/profile-fields'
 import { pledgeTemplatePanel } from './ui/pledge-template'
 import { pledgeTemplateFields, pledgeTemplate, pledgeMergeReview } from './pledge-templates'
 import { welcomePanel } from './communications/welcome-ui'
@@ -272,6 +274,13 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if ((path === '/api/coffer/commands' || path === '/app/actions') && request.method === 'POST') {
    const data = path === '/app/actions' ? await formInput(await formBody(request, 400000)) : await jsonBody(request), command = String(data.command), input = data.input ?? data
+   if(!isApi&&command==='marketing.fields'&&input.insertField==='yes'){
+    if(!manager(actor))fail('FORBIDDEN','Only an owner or admin chooses shared fields.',403)
+    const conn=await savedConnection(c);if(!conn)fail('EMAIL_NOT_CONNECTED','Connect email marketing first.',409)
+    const field=String(input.fieldKey),allowed=(await publishedTemplateFields(c)).settings.fields
+    if(!allowed.includes(field))fail('TEMPLATE','Choose a published field.',400)
+    return page('Shared field draft',await profileFieldsPanel(c,conn,String(input.fields??'')+(input.fields?'\n':'')+'{{'+field+'}}'),actor,200,'/app/appeals')
+   }
    if(!isApi&&command==='pledgeTemplate.save'&&input.insertField==='yes'){
     if(!manager(actor))fail('FORBIDDEN','Only an owner or admin edits reminder wording.',403)
     const fields=await pledgeTemplateFields(c),field=String(input.fieldKey),target=input.fieldTarget==='subject'?'subject':'body'
@@ -380,7 +389,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  return { erased: donorId, donorId: placeholder, receiptId: result.receiptId ?? result.id }
 }
 
-const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
+const CONNECT = new Set(['marketing.fields','marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
  if(command==='pledgeTemplate.save')return redirect('/app/settings?saved=1#pledge-template')
  if(command==='custom.define')return redirect('/app/settings?saved=1#custom-field-definitions')
@@ -462,6 +471,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if(url.pathname==='/api/coffer/provider-fields'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages shared provider fields.',403);const conn=await savedConnection(c);return json({provider:conn?.provider??null,version:conn?.mergeVersion??1,fields:conn?.mergeSelection??[]})}
  const members=url.pathname.match(/^\/api\/coffer\/lists\/([^/]+)\/members$/);if(members){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reads a saved list.',403);return json({donorIds:(await listMembers(c,decodeURIComponent(members[1]))).ids})}
  if(url.pathname==='/api/coffer/pledge-template'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reads reminder wording.',403);return json(await pledgeTemplate(c))}
  if(url.pathname==='/api/coffer/pledge-reminders/review'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reviews all reminders.',403);return json({recipients:await pledgeMergeReview(c)})}

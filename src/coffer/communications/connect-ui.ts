@@ -1,3 +1,4 @@
+import { profileFieldsPanel } from './profile-fields'
 import { manager } from '../auth'
 import type { Context } from '../db'
 import { settings } from '../settings'
@@ -28,5 +29,5 @@ export async function connectPage(c: Context, error = '') {
  const lists = conn?.provider === 'mailchimp' ? await mailchimpLists(conn.credential).catch((err: Error) => { error ||= err.message; return [] }) : []
  const audience = conn?.provider === 'mailchimp' && lists.length ? form('marketing.chooseAudience', `${select('Audience', 'listId', lists.map(l => [l.id, `${l.name} (${l.members} contacts)`] as [string, string]), conn.listId ?? '')}${field('Sender name donors see', 'fromName', 'text', conn.fromName ?? '', 'required maxlength="100"')}${field('Reply-to email address', 'fromEmail', 'email', conn.fromEmail ?? '', 'required')}<p class="muted">Use an address on a domain you have verified in Mailchimp.</p>`, 'Use this audience') : ''
  const mailchimp = box('Or connect Mailchimp', `<p>Each approved appeal goes out as a Mailchimp campaign to a saved segment holding exactly its consenting donors. Mailchimp asks new contacts to confirm their subscription first.</p>${mailchimpSteps}${form('marketing.connectMailchimp', field('Mailchimp API key', 'apiKey', 'password', '', 'required autocomplete="off"'), 'Save Mailchimp key')}${audience}`, 'mailchimp')
- return `${alert || (error ? `<p class="alert" role="alert">${e(error)}</p>` : '')}<p>Send approved email appeals and welcome emails through your own email marketing tool. Receipts never depend on this: they go through Coffer’s own mail.</p><div class="grid wide"><div>${mango}${mailchimp}</div><div>${status}<p><a href="${guide('appeals')}">Email marketing guide</a></p></div></div>`
+ return `${alert || (error ? `<p class="alert" role="alert">${e(error)}</p>` : '')}<p>Send approved email appeals and welcome emails through your own email marketing tool. Receipts never depend on this: they go through Coffer’s own mail.</p><div class="grid wide"><div>${mango}${mailchimp}</div><div>${status}${conn&&state.connection?await profileFieldsPanel(c,conn):''}<p><a href="${guide('appeals')}">Email marketing guide</a></p></div></div>`
 }

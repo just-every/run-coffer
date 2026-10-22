@@ -1,3 +1,4 @@
+import { selectedProfileFields } from './profile-fields'
 import { createHash } from 'node:crypto'
 import { fail, type Row } from '../db'
 import { nameMergeFields as recipientNameFields } from '../person-names'
@@ -74,11 +75,15 @@ const NAME_FIELDS = [
  ['CF_PREFIX','Coffer prefix','prefix'], ['CF_FIRST','Coffer first name','first_name'], ['CF_MIDDLE','Coffer middle name','middle_name'], ['CF_LAST','Coffer last name','last_name'], ['CF_SUFFIX','Coffer suffix','suffix'], ['CF_NICK','Coffer nickname','nickname'],
 ] as const
 async function nameMergeFields(conn: Connection, donor: Row) {
+ const selected=selectedProfileFields(conn,donor),extra=Object.keys(selected).filter(key=>!['prefix','first_name','middle_name','last_name','suffix','nickname','informal_salutation','formal_salutation','envelope_name'].includes(key)).map(key=>({key,tag:'CX'+createHash('sha256').update(key).digest('hex').slice(0,8).toUpperCase(),name:('Coffer '+key).slice(0,50)}))
+ if(new Set(extra.map(f=>f.tag)).size!==extra.length)fail('MAILCHIMP_FIELDS','Selected field tags conflict.',409)
+ if(conn.mergeSelection?.length)await conn.checkFields?.()
  const path = `${listPath(conn)}/merge-fields`
  const data = await request(conn, `${path}?count=1000`)
  if (!Array.isArray(data?.merge_fields) || !Number.isSafeInteger(data.total_items) || data.total_items !== data.merge_fields.length) fail('MAILCHIMP_RESPONSE', 'Mailchimp did not return the complete audience field definitions.', 502)
  // Refuse incompatible fields before creating any missing ones; never replace
  // an existing definition that another integration could be using.
+ for(const field of extra){const existing=data.merge_fields.find((f:Row)=>f.tag===field.tag);if(existing&&(existing.type!=='text'||existing.name!==field.name))fail('MAILCHIMP_FIELDS','An audience field conflicts with '+field.key+'. No profile values were written.',409)}
  for (const [tag] of NAME_FIELDS) {
   const field = data.merge_fields.find((f: Row) => f.tag === tag)
   if (field && field.type !== 'text') fail('MAILCHIMP_FIELDS', `Mailchimp audience field ${tag} must be a text field. Review it in Mailchimp before syncing names.`, 409)
@@ -88,12 +93,14 @@ async function nameMergeFields(conn: Connection, donor: Row) {
   const field = await request(conn, path, 'POST', { tag, name, type:'text', required:false, public:false })
   if (field?.tag !== tag || field.type !== 'text') fail('MAILCHIMP_RESPONSE', 'Mailchimp did not confirm the audience name field.', 502)
  }
+ for(const field of extra){if(data.merge_fields.some((f:Row)=>f.tag===field.tag))continue;const saved=await request(conn,path,'POST',{tag:field.tag,name:field.name,type:'text',required:false,public:false});if(saved?.tag!==field.tag||saved.type!=='text')fail('MAILCHIMP_RESPONSE','Mailchimp did not confirm a private field definition.',502)}
  const names=recipientNameFields(donor),aliases:Record<string,string>={informal:'informal_salutation',formal:'formal_salutation',envelope:'envelope_name'}
- return Object.fromEntries(NAME_FIELDS.map(([tag, , key]) => [tag,names[aliases[key]??key]]))
+ return {...Object.fromEntries(NAME_FIELDS.map(([tag, , key]) => [tag,names[aliases[key]??key]])),...Object.fromEntries(extra.map(field=>[field.tag,selected[field.key]]))}
 }
 /** A merge-only PATCH preserves a concurrent unsubscribe and never creates a member. */
 export async function syncMailchimpNames(conn: Connection, donor: Row): Promise<Row> {
  const merge_fields = await nameMergeFields(conn, donor)
+ if(conn.mergeSelection?.length)await conn.checkFields?.()
  const data = await request(conn, `${listPath(conn)}/members/${hash(donor.email)}`, 'PATCH', { merge_fields })
  return contact(data!, donor.email)
 }
@@ -103,6 +110,7 @@ export async function captureMailchimpConsent(conn: Connection, donor: Row, _org
  // Omit status even after a missing-contact read: a concurrent unsubscribe must
  // survive the upsert. Mailchimp sends its double opt-in confirmation for pending.
  const merge_fields = await nameMergeFields(conn, donor)
+ if(conn.mergeSelection?.length)await conn.checkFields?.()
  const data = await request(conn, `${listPath(conn)}/members/${hash(donor.email)}`, 'PUT', {email_address:address(donor.email),status_if_new:'pending',merge_fields})
  return contact(data!, donor.email)
 }

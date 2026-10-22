@@ -1,3 +1,4 @@
+import { profileRecipient, selectedProfileFields } from './profile-fields'
 import { solicitationAskStatements, solicitationRunGuards } from '../solicitation'
 import { nameMergeFields, frozenNameFields } from '../person-names'
 import { letterRecipient } from '../organizations'
@@ -31,7 +32,8 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  const excludedStatus=d.constituent_status!=='active'?d.constituent_status:null
  if(input.expectedEmail!==undefined && input.expectedEmail!==d.email)fail('RECIPIENT_CHANGED','The donor’s email changed after approval. Prepare a new appeal audience.',409)
  const preference=excludedStatus?{allowed:false,state:'excluded',note:`The constituent is ${excludedStatus}; no email was sent.`}:await reconcileDonor(c,d.id,conn.provider==='mailchimp')
- const currentNames=await letterRecipient(c,d)
+ const currentNames=await profileRecipient(c,d)
+ if(preference.allowed||conn.provider==='mango'&&preference.state==='pending')selectedProfileFields(conn,currentNames)
  const row={id:newId(),email:d.email,name:d.name,subject:input.rendered?.subject??mergeMessage(input.subject,input.merge??currentNames),body:input.rendered?.body??mergeMessage(input.body,input.merge??currentNames)}
  const replyTo=(conn.fromEmail??c.env?.COFFER_REPLY_ADDRESS??'').trim().toLowerCase()
  const allowed=preference.allowed||conn.provider==='mango'&&preference.state==='pending'
@@ -42,7 +44,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  const claim=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
  if(claim?.id!==row.id) return claim!
  if(!allowed) return savedResult(c,row.id,'suppressed')
- if(conn.provider==='mango') return listMessage(c,conn,row,d,input)
+ if(conn.provider==='mango') return listMessage(c,conn,row,d,input,preference.contact?.fields)
  try {
   // Persist the returned draft before composition/approval. A lost create answer
   // stays uncertain and is never submitted again automatically.
@@ -71,11 +73,11 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  }
 }
 /** Mango: the donor joins the appeal's list with Coffer's consent evidence; a person approves the campaign in Mango. */
-async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConnection>>,row:Row,d:Row,input:MessageInput):Promise<Row>{
+async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConnection>>,row:Row,d:Row,input:MessageInput,existingFields?:Row):Promise<Row>{
  try {
   const donor=await one(c,`SELECT d.*,k.id AS consent_id,k.evidence,k.captured_on FROM cf_donors d JOIN cf_consents k ON k.id=(SELECT id FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1) WHERE d.id=?`,d.id)
   await commit(c,await solicitationRunGuards(c,input.sourceKind,input.sourceId,[d.id]))
-  const contact=await listInMango(conn,await letterRecipient(c,donor!),(await settings(c)).organisation,input.listName,{donorName:d.name,totalGiven:usd(d.total_cents??0),lastGift:d.last_gift||'',giftCount:Number(d.gift_count??0)})
+  const contact=await listInMango(conn,{...await profileRecipient(c,donor!),remote_profile_fields:existingFields},(await settings(c)).organisation,input.listName,{donorName:d.name,totalGiven:usd(d.total_cents??0),lastGift:d.last_gift||'',giftCount:Number(d.gift_count??0)})
   const listed=contact.emailStatus==='subscribed'
   const note=listed?`On the Mango list “${input.listName}”. Mango sends once a person approves a campaign for that list in Mango.`:`Mango keeps this address opted out (${contact.emailStatus}). No email will go to it.`
   await commit(c,[sql('UPDATE cf_communications SET status=?,campaign_id=?,submitted_at=?,note=? WHERE id=?',listed?'listed':'suppressed',(contact.segmentIds??[]).join(',')||null,c.now,note,row.id),
