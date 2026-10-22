@@ -17,7 +17,7 @@ export async function canonicalDonor(c: { db: D1Database }, donorId: string): Pr
 /** Shared household addresses need a person, never SQLite's first result. */
 export async function lookupEmailDonor(c:{db:D1Database}, email:string, name?:string):Promise<Row|null> {
  const rows = await all(c,`SELECT DISTINCT owner.* FROM (
-  SELECT id AS donor_id,email FROM cf_donors UNION SELECT donor_id,email FROM cf_donor_aliases
+  SELECT id AS donor_id,email FROM cf_donors UNION SELECT donor_id,email FROM cf_donor_aliases UNION SELECT donor_id,value AS email FROM cf_contact_points WHERE kind='email' AND active=1
  ) a LEFT JOIN cf_donor_merges m ON m.donor_id=a.donor_id
  JOIN cf_donors owner ON owner.id=COALESCE(m.into_id,a.donor_id)
  WHERE a.email=? AND owner.erased_at IS NULL`,email.trim().toLowerCase())
@@ -96,6 +96,10 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
    SELECT 1 FROM cf_donor_rule_tags s WHERE s.donor_id=? AND s.tag=t.tag AND s.created_at<t.created_at)`,target,source),
   sql('DELETE FROM cf_donor_rule_tags WHERE donor_id=? AND tag IN (SELECT tag FROM cf_donor_rule_tags WHERE donor_id=?)',source,target),
   sql('UPDATE cf_donor_rule_tags SET donor_id=? WHERE donor_id=?',target,source),
+  sql('DELETE FROM cf_donor_tags WHERE donor_id=? AND tag IN(SELECT tag FROM cf_donor_tags WHERE donor_id=?)',source,target),
+  sql('UPDATE cf_donor_tags SET donor_id=? WHERE donor_id=?',target,source),
+  sql('UPDATE cf_contact_points SET is_primary=0,version=version+1,updated_at=? WHERE donor_id=? AND is_primary=1',c.now,source),
+  sql('UPDATE cf_contact_points SET donor_id=? WHERE donor_id=?',target,source),
   sql('UPDATE cf_custom_values SET donor_id=? WHERE donor_id=?',target,source),
   sql('UPDATE cf_custom_value_history SET donor_id=? WHERE donor_id=?',target,source),
   sql('DELETE FROM cf_portfolio_members WHERE donor_id=? AND EXISTS(SELECT 1 FROM cf_portfolio_members WHERE donor_id=?)',source,target),
@@ -150,7 +154,9 @@ export async function undoMerge(c:Context,p:Row):Promise<Row> {
   // Restoring the survivor's address is not a move: drop the rows the trigger
   // writes during the restore, so the journal's exact address history returns.
   sql("INSERT OR REPLACE INTO cf_address_moves(donor_id,effective_on,source) VALUES(?,?,'undo')",merge.target_id,c.now.slice(0,10)),
+  sql('INSERT INTO cf_contact_edit VALUES(1)'),
   ...restoreMerge(tables,mergeId),
+  sql('DELETE FROM cf_contact_edit'),
   sql("DELETE FROM cf_donor_address_history WHERE donor_id IN (?,?) AND source='undo'",merge.source_id,merge.target_id),
   sql('DELETE FROM cf_address_moves WHERE donor_id=?',merge.target_id),
   ...advanceEarlierMergeVersions(tables,mergeId),

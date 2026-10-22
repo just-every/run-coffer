@@ -28,10 +28,12 @@ export async function giftDepthCommand(c: Context, command: string, p: Row): Pro
  if (command === 'tribute.record') {
   const giftId = id(p.giftId, 'Gift'), kind = choice(p.kind, ['honor', 'memory'] as const, 'tribute type'), honoree = text(p.honoree, 'Honoree')
   const notifiedName = optional(p.notifiedName, 'Notified person name'), notifiedEmail = email(p.notifiedEmail, 'Notified person email'), donorId = optional(p.donorId, 'Honoree donor', 100)
+  const notificationDonorId=optional(p.notificationDonorId,'Family contact',100)
   if (notifiedEmail && !notifiedName) fail('INPUT', 'Enter the notified person’s name with their email.', 400)
-  await commit(c, [giftGuard(giftId), ...(donorId ? [donorGuard(donorId)] : []),
+  await commit(c, [giftGuard(giftId),...(notificationDonorId?[donorGuard(notificationDonorId)]:[]), ...(donorId ? [donorGuard(donorId)] : []),
    guard(`NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE (a.live=1 OR b.kind='statement') AND b.status<>'discarded' AND (a.gift_id=? OR EXISTS(SELECT 1 FROM json_each(a.statement_gifts) j WHERE json_extract(j.value,'$.id')=?)))`, 'IN_ACKNOWLEDGEMENT', 'A receipt already holds this gift. Discard an unsent batch before changing its tribute.', giftId, giftId),
    sql(`INSERT INTO cf_gift_tributes(gift_id,version,kind,honoree,notified_name,notified_email,donor_id,created_at,created_by,notified_address) VALUES(?,1,?,?,?,?,?,?,?,?) ON CONFLICT(gift_id) DO UPDATE SET version=version+1,kind=excluded.kind,honoree=excluded.honoree,notified_name=excluded.notified_name,notified_email=excluded.notified_email,donor_id=excluded.donor_id,created_at=excluded.created_at,created_by=excluded.created_by,notified_address=excluded.notified_address,amount_permission=0,group_key=NULL,source_group=NULL`, giftId, kind, honoree, notifiedName, notifiedEmail, donorId, c.now, c.actor.name, optional(p.notifiedAddress,'Notification postal address',1000)),
+   sql('UPDATE cf_gift_tributes SET notification_donor_id=? WHERE gift_id=?',notificationDonorId,giftId),
    event(c, command, 'gift', giftId, donorId, { kind })])
   return { giftId }
  }

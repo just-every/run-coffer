@@ -27,6 +27,7 @@ import { canonicalDonor } from './donor-merge'
 import { donorDepth } from './donor-depth'
 import { donorGiftDepth } from './gift-depth'
 import { pledgeHistory } from './pledges'
+import { contactPoints } from './contact-points'
 import { subscriptions } from './giving/campaigns'
 import { settings } from './settings'
 
@@ -69,6 +70,7 @@ export async function donorCommand(c: Context, command: string, p: Row): Promise
   await commit(c,[])
   const checked=await enteredAddress(c,entryRow(donorId,name,current.constituent_kind,a)),verified=checked.donor
   const membership=await membershipChange(c,donorId,current?.household_id??null,optional(p.household,'Household'),p)
+  for(const [kind,missing] of [['email',!mail],['phone',!a.phone],['address',!a.line1]] as const)if(missing&&await one(c,'SELECT id FROM cf_contact_points WHERE donor_id=? AND kind=? AND active=1 AND is_primary=0',donorId,kind))fail('PRIMARY_REQUIRED','Choose another primary contact before clearing this kind.',409)
   const movedOn = await addressMove(c, p.addressEffectiveOn)
   await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND ${LIVE})`, 'VERSION', 'This donor changed or was erased. Refresh before saving.', donorId, version), ...membership.before, ...h.statements,
    ...stageAddressMove(donorId, movedOn, checked.statements.length?'smarty':'staff'),
@@ -110,11 +112,11 @@ export async function listDonors(c: { db: D1Database }, query: { q?: string | nu
    (SELECT MAX(received_on) FROM cf_monetary_contributions g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
    ${CURRENT('email')} AS email_consent, ${CURRENT('mail')} AS mail_consent
   FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id CROSS JOIN (SELECT ? AS choice,? AS day) sf
-  WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR d.phone LIKE ? ESCAPE '\\' OR d.source_ref LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cf_donor_aliases a WHERE a.donor_id=d.id AND a.email LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.kind='donor' AND r.source_key=? AND (r.native_id=d.id OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=r.native_id AND m.into_id=d.id))) OR lower(h.name) LIKE ? ESCAPE '\\')
+  WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR d.phone LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cf_contact_points cp WHERE cp.donor_id=d.id AND cp.active=1 AND lower(cp.value) LIKE ? ESCAPE '\\') OR d.source_ref LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cf_donor_aliases a WHERE a.donor_id=d.id AND a.email LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.kind='donor' AND r.source_key=? AND (r.native_id=d.id OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=r.native_id AND m.into_id=d.id))) OR lower(h.name) LIKE ? ESCAPE '\\')
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id OR r.related_donor_id=d.id) AND r.type=?))
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id AND r.related_donor_id=?) OR (r.related_donor_id=d.id AND r.donor_id=?)))
   AND (?='' OR (d.erased_at IS NULL AND EXISTS(SELECT 1 FROM cf_volunteering v WHERE v.donor_id=d.id) AND (?<>'never-given' OR NOT EXISTS(SELECT 1 FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind IN ('gift','in_kind')))))
-  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, restriction,day,q, ...nameTerms, like, like, like, like, legacyKey, like, relationship, relationship, relatedTo, relatedTo, relatedTo, volunteer, volunteer, PAGE + 1, page * PAGE)
+  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, restriction,day,q, ...nameTerms, like, like, like, like, like, legacyKey, like, relationship, relationship, relatedTo, relatedTo, relatedTo, volunteer, volunteer, PAGE + 1, page * PAGE)
  const count = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_donors WHERE ${LIVE} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=cf_donors.id)`)
  return { donors: rows.slice(0, PAGE), more: rows.length > PAGE, page, q, total: count?.n ?? 0 }
 }
@@ -150,8 +152,9 @@ export async function donorHistory(c: Context, donorId: string) {
  for(const gift of gifts)gift.recognition=recognitionByGift.get(gift.id)??{anonymous:0,wall_opt_in:0,recognition_name:null}
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
+  contactPoints:await contactPoints(c,donorId),contactHistory:await all(c,'SELECT * FROM cf_contact_history WHERE donor_id=? ORDER BY recorded_at,point_id,version',donorId),
   contributionTypes:await contributionTypeState(c,donorId),
-  ruleTags:await all(c,'SELECT * FROM cf_donor_rule_tags WHERE donor_id=? ORDER BY tag',donorId),
+  ruleTags:await all(c,'SELECT donor_id,tag,created_at FROM cf_donor_rule_tags WHERE donor_id=? UNION SELECT donor_id,tag,created_at FROM cf_donor_tags WHERE donor_id=? ORDER BY tag',donorId,donorId),
   solicitation:(await solicitationState(c,[donorId]))[0], smsPreferences:await smsPreferenceHistory(c,donorId), names: personNames(await withNameDefaults(c,donor)), organization:await organizationState(c,donorId), tributeNotifications:await tributeNotifications(c,donorId), receiptTasks:await receiptTasks(c,donorId), recognition:await donorRecognition(c,donorId), timelineSources:await timelineSources(c,donorId), engagement: await donorEngagement(c,donorId), donor, household, gifts, pledges, consents, letters, appeals, events, communications:await communicationHistory(c,donorId),welcome:await one(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=?',donorId),marketingPreference:await one(c,'SELECT * FROM cf_preference_sync WHERE donor_id=?',donorId), subscriptions: plans, summary,
   volunteering:await volunteering(c,donorId), inKind:await inKindState(c,donorId), depth, giftDepth, plannedGiving:await plannedGiving(c,donorId),
   notes: await all(c, 'SELECT * FROM cf_donor_notes WHERE donor_id=? AND (confidential=0 OR ?=1) ORDER BY occurred_on DESC,recorded_at DESC', donorId,manager(c.actor)?1:0),

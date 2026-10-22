@@ -98,7 +98,7 @@ export async function erase(db: D1Database, actor: ImportActor, donorId: string,
   // Stripe objects name a donor by customer id or email: the customer record
   // itself, and every charge that points at the customer or carries the email.
   const linked = await db.prepare('SELECT customer_id FROM cf_subscriptions WHERE donor_id=? UNION SELECT customer_id FROM cf_giving_customers WHERE donor_id=?').bind(donorId, donorId).all<{customer_id:string}>()
-  const aliases = await db.prepare('SELECT email FROM cf_donor_aliases WHERE donor_id=?').bind(donorId).all<{email:string}>()
+  const aliases = await db.prepare("SELECT email FROM cf_donor_aliases WHERE donor_id=? UNION SELECT value AS email FROM cf_contact_points WHERE donor_id=? AND kind='email' UNION SELECT json_extract(snapshot,'$.value') AS email FROM cf_contact_history WHERE donor_id=? AND json_extract(snapshot,'$.kind')='email'").bind(donorId,donorId,donorId).all<{email:string}>()
   const ids = new Set([donor.source_ref, ...linked.results.map(r => r.customer_id)].filter(Boolean) as string[]), emails = new Set([donor.email,...aliases.results.map(a=>a.email)].filter(Boolean).map(e=>e!.toLowerCase()))
   const names = (p: SnapshotObject) => {
     const billing = (p.billing_details ?? {}) as SnapshotObject

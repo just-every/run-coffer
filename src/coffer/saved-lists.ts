@@ -1,18 +1,19 @@
+import { ADVANCED_FILTERS, advancedFilters } from './list-filters'
 import { solicitationFilter } from './solicitation-filter'
 import { requireRole } from './auth'
 import { all, choice, commit, event, fail, guard, id, integer, newId, object, sql, text, type Context, type Row } from './db'
 import { RELATIONSHIP_TYPES } from './donor-depth'
 
-export type ListFilters = { q: string; relationship: string; relatedTo: string; volunteer: string; solicitation: string }
+export type ListFilters = Record<string,string> & { q: string; relationship: string; relatedTo: string; volunteer: string; solicitation: string }
 /** Saved definitions use exactly the current search's supported fields. */
 export function listFilters(input: unknown = {}): ListFilters {
  const p = object(input, 'List filters')
- if (Object.keys(p).some(k => !['q','relationship','relatedTo','volunteer','solicitation'].includes(k))) fail('INPUT', 'Choose supported donor-search filters.', 400)
+ if (Object.keys(p).some(k => !['q','relationship','relatedTo','volunteer','solicitation',...ADVANCED_FILTERS].includes(k))) fail('INPUT', 'Choose supported donor-search filters.', 400)
  const q = p.q == null || p.q === '' ? '' : text(p.q, 'Search', 100).toLowerCase().replace(/\s+/g, ' ')
  const relationship = choice(p.relationship || '', ['',...RELATIONSHIP_TYPES], 'relationship')
  const relatedTo = p.relatedTo ? id(p.relatedTo, 'Connected donor') : ''
  const volunteer = choice(p.volunteer || '', ['','all','never-given'], 'volunteer list')
- return { q, relationship, relatedTo, volunteer, solicitation:solicitationFilter(p.solicitation) }
+ return { ...advancedFilters(p),q, relationship, relatedTo, volunteer, solicitation:solicitationFilter(p.solicitation) }
 }
 
 export async function savedLists(c: Context):Promise<Row[]> {
@@ -28,7 +29,7 @@ export async function savedListCommand(c: Context, command: string, p: Row): Pro
  const listId = p.listId ? id(p.listId, 'List') : newId(), name = text(p.name, 'List name', 100)
  let input: unknown = p.filters
  if (typeof input === 'string') { try { input = JSON.parse(input) } catch { fail('INPUT', 'List filters must be a JSON object.', 400) } }
- const filters = listFilters(input ?? {q:p.q,relationship:p.relationship,relatedTo:p.relatedTo,volunteer:p.volunteer,solicitation:p.solicitation})
+ const filters = listFilters(input ?? Object.fromEntries(['q','relationship','relatedTo','volunteer','solicitation',...ADVANCED_FILTERS].map(k=>[k,p[k]])))
  const version = p.listId ? integer(Number(p.version), 'List version', 1) : 0
  await commit(c, [
   ...(p.listId ? [guard('EXISTS(SELECT 1 FROM cf_saved_lists WHERE id=? AND version=?)','VERSION','This list changed. Refresh before saving.',listId,version),

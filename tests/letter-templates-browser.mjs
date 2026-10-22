@@ -78,10 +78,10 @@ export async function customMergeBrowser(h,{batchId,directory}) {
    await add.getByLabel('Template name',{exact:true}).fill('Unsaved insertion check')
    await add.getByLabel('Subject',{exact:true}).fill('Hello')
    await add.getByLabel('Letter',{exact:true}).fill('Board: ')
-   await add.getByLabel('Merge field',{exact:true}).selectOption('custom.board_term')
+   await add.locator('select[name=fieldKey]').selectOption('custom.board_term')
    await add.getByRole('button',{name:'Insert merge field',exact:true}).click()
    await page.getByRole('heading',{name:'Template draft',exact:true}).waitFor()
-   assert.equal(await page.getByLabel('Letter',{exact:true}).inputValue(),'Board: {{custom.board_term}}')
+   assert.equal(await page.locator('textarea[name=body]').inputValue(),'Board: {{custom.board_term}}')
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    await page.screenshot({path:`${directory}/RCPT-010-insert-${width}.png`,fullPage:true})
    await page.goto(origin+'/app/letters/'+batchId)
@@ -92,4 +92,14 @@ export async function customMergeBrowser(h,{batchId,directory}) {
   }
   await page.close()
  })
+}
+
+export async function propertyMergeReviewBrowser(h,{donorId,directory}){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/donors/'+donorId+'#in-kind')
+  const panel=page.locator('#in-kind');await panel.getByText('Approve property acknowledgment',{exact:true}).first().click();await panel.getByRole('button',{name:'Review merge fields',exact:true}).click()
+  await page.getByRole('heading',{name:'Property merge review',exact:true}).waitFor();assert.ok((await page.locator('main').innerText()).includes('custom.stewardship_phrase'));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  await page.screenshot({path:directory+'/RCPT-010-property-review-'+width+'.png',fullPage:true})
+ }await page.close()})
 }

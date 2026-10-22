@@ -7,6 +7,7 @@ const body='Dear {{donor_name}}, thank you for {{amount|Amount unavailable}} on 
 const gift=(h,donorId,amount,receivedOn,extra={})=>h.command('gift.record',{donorId,amount,receivedOn,method:'check',goods:'none',...extra})
 
 export async function letterTemplatesJourney(){
+ await mergePreapprovalJourney()
  await run(async h=>{
   await reviewed(h)
   const catalog=await h.get('/api/coffer/template-fields')
@@ -204,4 +205,35 @@ export async function letterTemplatesJourney(){
 
   })
  })
+}
+
+async function mergePreapprovalJourney(){
+ const {recognitionEdges,giveRecognition}=await import('./recognition-edge.mjs'),edge=recognitionEdges()
+ await run(async h=>{
+  await reviewed(h)
+  await h.command('custom.define',{key:'stewardship_phrase',label:'Stewardship phrase',kind:'constituent',type:'text'})
+  const {settings}=await import('./harness.mjs')
+  await h.command('settings.update',{...settings,version:(await h.get('/api/coffer/settings')).version,letterTemplate:settings.letterTemplate+'\n{{custom.stewardship_phrase}}'})
+  await h.api('/api/coffer/giving/campaigns',{name:'Autumn reading',slug:'autumn-reading',description:'Books for readers.',fund:'Reading',goal:'1000'})
+  await giveRecognition(h,{name:'Synthetic Merge Donor',email:'synthetic-coffer-1001@example.test',amount:'25.00'})
+  const d=(await h.get('/api/coffer/donors?q=synthetic-coffer-1001')).donors[0],history=await h.get('/api/coffer/donors/'+d.id),g=history.gifts[0]
+  const batch=await h.get('/api/coffer/letters/receipt-'+g.id)
+  assert.equal(batch.batch.status,'prepared','Automatic receipt with blanks waits before any approval or outbound submission')
+  assert.equal(batch.approval,null);assert.equal(edge.messages.length,0)
+  assert.deepEqual(batch.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:d.id,fields:['custom.stewardship_phrase']}])
+  await h.command('ack.approve',{batchId:batch.batch.id,version:1});await h.command('ack.send',{batchId:batch.batch.id,version:2})
+  assert.equal(edge.messages.length,1,'Only the explicit human approval permits this receipt submission')
+  const template=await h.command('letterTemplate.save',{kind:'in_kind',name:'Property review',subject:'Property for {{custom.stewardship_phrase}}',body:'{{donor_name}} {{gift_date}} {{description}} {{goods_statement}} {{organization}} {{ein}} {{custom.stewardship_phrase}}'})
+  const property=await h.command('inKind.save',{donorId:d.id,description:'Synthetic donated books',quantity:'2',statedValue:'30',receivedOn:'2025-08-01',goods:'none'})
+  const input={donorId:d.id,inKindId:property.id,version:1,acknowledgedOn:'2025-08-02'}
+  const review=await h.command('inKind.review',input)
+  assert.deepEqual(review.fields,['custom.stewardship_phrase']);assert.equal(review.recipientName,'Synthetic Merge Donor')
+  const refusal=await h.command('inKind.acknowledge',input,{status:409});assert.equal(refusal.error,'MERGE_BLANKS');assert.deepEqual(refusal.details.fields,review.fields)
+  assert.equal((await h.get('/api/coffer/in-kind?donorId='+d.id)).gifts[0].acknowledgments.length,0)
+  if(process.env.COFFER_RCPT007_BROWSER){const {propertyMergeReviewBrowser}=await import('./letter-templates-browser.mjs');await propertyMergeReviewBrowser(h,{donorId:d.id,directory:process.env.COFFER_RCPT007_BROWSER})}
+  await h.command('letterTemplate.save',{templateId:template.id,version:1,name:'Property review',subject:'Property for {{custom.stewardship_phrase|our supporters}}',body:'{{donor_name}} {{gift_date}} {{description}} {{goods_statement}} {{organization}} {{ein}} {{custom.stewardship_phrase|our supporters}}'})
+  assert.deepEqual((await h.command('inKind.review',input)).fields,[])
+  const approved=await h.command('inKind.acknowledge',input)
+  const file=await h.request('/api/coffer/in-kind-acknowledgments/'+approved.acknowledgmentId+'/download');assert.equal(file.status,200);assert.match(await file.text(),/our supporters/)
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1002',MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1003',MAIL_FROM:'receipts@example.test'},outbound:edge.outbound})
 }

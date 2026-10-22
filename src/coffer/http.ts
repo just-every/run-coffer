@@ -12,6 +12,8 @@ import { exportsResponse } from './exports-http'
 import { savedLists } from './saved-lists'
 import { exportsPage } from './ui/exports'
 import { form } from './ui/common'
+import { appealPieces } from './mail-pieces'
+import { listMembers } from './list-members'
 import { templateForm } from './ui/letter-templates'
 import { customFields } from './custom-fields'
 import { publishedTemplateFields } from './letter-templates'
@@ -331,7 +333,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const donor = await c.db.prepare('SELECT id,email FROM cf_donors WHERE id=? AND erased_at IS NULL').bind(donorId).first<{ id: string; email: string | null }>()
  if (!donor) fail('NOT_FOUND', 'That donor does not exist or was already erased.', 404)
  const checkpoint = await imports.portabilityCheckpoint(c.db)
- const aliases = await c.db.prepare('SELECT email FROM cf_donor_aliases WHERE donor_id=?').bind(donorId).all<{email:string}>()
+ const aliases = await c.db.prepare("SELECT email FROM cf_donor_aliases WHERE donor_id=? UNION SELECT value AS email FROM cf_contact_points WHERE donor_id=? AND kind='email' UNION SELECT json_extract(snapshot,'$.value') AS email FROM cf_contact_history WHERE donor_id=? AND json_extract(snapshot,'$.kind')='email'").bind(donorId,donorId,donorId).all<{email:string}>()
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now)
  const givingErasure = [
   { sql: "UPDATE cf_in_kind_acknowledgments SET subject='[erased]',body='[erased]' WHERE in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id=?)", params: [donorId] },
@@ -342,6 +344,9 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   { sql: 'DELETE FROM cf_donor_merges WHERE donor_id=?', params: [donorId] },
   { sql: 'UPDATE cf_pledge_installments SET recipient_email=NULL,message_id=NULL,attempt_id=NULL WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', params: [placeholder] },
   { sql: 'DELETE FROM cf_donor_tokens WHERE donor_id=?', params: [donorId] },
+  {sql:"DELETE FROM cf_appeal_pieces WHERE EXISTS(SELECT 1 FROM json_each(members) WHERE value=?)",params:[donorId]},
+  {sql:'DELETE FROM cf_donor_tags WHERE donor_id=?',params:[donorId]},
+  {sql:'DELETE FROM cf_list_bulk_rows WHERE donor_id=?',params:[donorId]},
   {sql:'DELETE FROM cf_custom_value_history WHERE donor_id=?',params:[donorId]},
   {sql:'DELETE FROM cf_custom_values WHERE donor_id=?',params:[donorId]},
   { sql: 'DELETE FROM cf_giving_customers WHERE donor_id=?', params: [donorId] },
@@ -357,6 +362,9 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
+ if(command==='inKind.review')return page('Property merge review',`<h2>${esc(result.recipientName)}</h2>${result.fields.length?'<p>Empty fields to correct before approval:</p><ul>'+result.fields.map((f:string)=>'<li>'+esc(f)+'</li>').join('')+'</ul>':'<p>No empty merge fields.</p>'}<h3>${esc(result.subject)}</h3><pre>${esc(result.body)}</pre><p><a href="/app/donors/${encodeURIComponent(result.donorId)}#in-kind">Return to the property record</a></p>`,actor,200,'/app/donors')
+ if(command==='contact.save')return redirect('/app/donors/'+encodeURIComponent(result.donorId)+'#contact-points')
+ if(command==='list.bulk')return page('Bulk list change',`<p>${esc(result.changed)} constituents changed.</p><p><a href="/app/exports?list=saved:${esc(result.listId)}">Return to live list</a></p><form method="post" action="/app/actions"><input type="hidden" name="command" value="list.undo"><input type="hidden" name="jobId" value="${esc(result.id)}"><input type="hidden" name="version" value="1"><button>Undo this bulk change</button></form>`,actor,200,'/app/exports')
  if(command.startsWith('sms.'))return redirect(command==='sms.preference'?'/app/donors/'+encodeURIComponent(input.donorId)+'#sms-permission':'/app/texts?runId='+encodeURIComponent(result.id??input.runId))
  if(command.startsWith('address.'))return redirect(input.returnDonorId?'/app/donors/'+encodeURIComponent(input.returnDonorId)+'#address-verification':'/app/addresses')
  if(command==='solicitation.set')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#solicitation')
@@ -429,6 +437,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ const members=url.pathname.match(/^\/api\/coffer\/lists\/([^/]+)\/members$/);if(members){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reads a saved list.',403);return json({donorIds:(await listMembers(c,decodeURIComponent(members[1]))).ids})}
  if(url.pathname==='/api/coffer/custom-fields'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages custom fields.',403);return json({fields:await customFields(c)})}
  if(url.pathname==='/api/coffer/lists')return json({lists:await savedLists(c)})
  if(url.pathname==='/api/coffer/template-fields')return json(await publishedTemplateFields(c))
@@ -521,7 +530,7 @@ async function recipientsFile(c: Context, appealId: string) {
  if (!manager(c.actor)) fail('manager_required', 'Only the owner or an admin downloads an audience.', 403)
  const { appeal } = await appealDetail(c, appealId)
  if (!['exported', 'sent'].includes(appeal.status)) fail('NOT_EXPORTED', 'Export the approved audience first.')
- return download(recipientsCsv(appeal, await recipientsOf(c, appealId)), `coffer-appeal-${appeal.prepared_at.slice(0, 10)}`)
+ return download(recipientsCsv(appeal, await recipientsOf(c, appealId),await appealPieces(c,appealId)), `coffer-appeal-${appeal.prepared_at.slice(0, 10)}`)
 }
 
 async function screen(c: Context, url: URL, request: Request): Promise<Response> {

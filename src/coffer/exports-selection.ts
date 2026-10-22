@@ -1,3 +1,4 @@
+import { ADVANCED_FILTERS, advancedListSql } from './list-filters'
 import { solicitationFilterSql } from './solicitation-filter'
 import { choice, fail, integer, one, today, type Context } from './db'
 import { listFilters } from './saved-lists'
@@ -12,7 +13,7 @@ export async function exportSelection(c: Context, url: URL) {
  const savedId = value.startsWith('saved:') ? value.slice(6) : null
  if (savedId !== null && (!savedId || savedId.length > 100)) fail('INPUT','Choose a saved list.',400)
  const source = savedId === null ? choice(value,['search','lybunt','sybunt'] as const,'donor list') : 'saved'
- const filters = listFilters(Object.fromEntries(['q','relationship','relatedTo','volunteer','solicitation'].map(k=>[k,url.searchParams.get(k)||''])))
+ const filters = listFilters(Object.fromEntries(['q','relationship','relatedTo','volunteer','solicitation',...ADVANCED_FILTERS].map(k=>[k,url.searchParams.get(k)||''])))
  if (source === 'saved' && Object.values(filters).some(Boolean)) fail('INPUT','A saved list uses its saved filters. Open the current search to choose other filters.',400)
  const timezone = String((await one(c,'SELECT timezone FROM cf_settings WHERE id=1'))!.timezone)
  const day = today(timezone,new Date(c.now)), currentYear = Number(day.slice(0,4))
@@ -27,10 +28,11 @@ export async function exportSelection(c: Context, url: URL) {
   FROM cf_monetary_contributions WHERE received_on<=? GROUP BY donor_id,substr(received_on,1,4)),
  members AS MATERIALIZED (SELECT d.id FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id CROSS JOIN filters f
   WHERE ${solicitationFilterSql('d.id',"json_extract(f.definition,'$.solicitation')","'"+day+"'")} AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
-  AND (?<>'saved' OR (EXISTS(SELECT 1 FROM selected_list) AND d.constituent_status='active'))
+  AND (?<>'saved' OR (EXISTS(SELECT 1 FROM selected_list) AND (COALESCE(json_extract(f.definition,'$.status'),'')='all' OR d.constituent_status=COALESCE(NULLIF(json_extract(f.definition,'$.status'),''),'active'))))
   AND (? NOT IN ('lybunt','sybunt') OR (
    COALESCE((SELECT cents FROM annual a WHERE a.donor_id=d.id AND a.year=?),0)<=0
    AND EXISTS(SELECT 1 FROM annual a WHERE a.donor_id=d.id AND a.year<? AND a.cents>0 AND (?='sybunt' OR a.year=?))))
+  AND ${advancedListSql('f.definition')}
   AND (json_extract(f.definition,'$.q')='' OR
    NOT EXISTS(SELECT 1 FROM json_each(replace(json_array(json_extract(f.definition,'$.q')),' ','","')) term
     WHERE lower(d.name) NOT LIKE ${pattern('term.value')} ESCAPE char(92))

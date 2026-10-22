@@ -14,7 +14,7 @@ export function templateForm(t: Row | null, campaigns: Row[], allowed: string[] 
   : `${select('Template kind', 'kind', TEMPLATE_KINDS.map(k => [k, TEMPLATE_LABELS[k]] as [string, string]),t?.kind)}${campaigns.length ? select('Form or campaign (form or campaign templates only)', 'campaignId', [['', 'Not a form or campaign template'], ...campaigns.map(c => [c.id, c.name] as [string, string])]) : ''}`
  const min = !t || t.kind === 'major_gift' ? field('Major gift minimum (USD; major gift templates only)', 'minAmount', 'text', t?.min_cents ? (t.min_cents / 100).toFixed(2) : '', 'inputmode="decimal"') : ''
  return form('letterTemplate.save', `<div class="fields">${kind}${field('Template name', 'name', 'text', t?.name ?? '', 'required maxlength="100"')}${min}${field('Subject', 'subject', 'text', t?.subject ?? '', 'required maxlength="200"')}</div>${area('Letter', 'body', t?.body ?? '', 'required rows="10"')}${select('Merge field','fieldKey',allowed)}${select('Insert into','fieldTarget',[['body','Letter'],['subject','Subject']])}<button name="insertField" value="yes" formnovalidate>Insert merge field</button>`,
-  t?.id ? 'Save template' : 'Add template', t?.id ? { templateId: t.id, version: t.version } : {})
+  t?.id ? 'Save template' : 'Add template', t?.id ? { templateId: t.id, version: t.version, kind:t.kind } : {})
 }
 
 export function letterTemplatesBox(templates: Row[], campaigns: Row[], custom: string[] = []) {

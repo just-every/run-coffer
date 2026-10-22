@@ -350,3 +350,7 @@ test('DONOR-015: ask restrictions preserve transactional contact and deliberate 
 test('GIFT-010: typed stock, DAF and IRA gifts preserve credit, receipt custody and tax-report totals',async()=>{const {contributionTypesJourney}=await import('./contribution-types-journey.mjs');await contributionTypesJourney()})
 
 test('DONOR-009: verified entry and licensed scheduled address passes preserve moves and exclude undeliverable mail',async()=>{const {addressVerificationJourney}=await import('./state-report-journey.mjs');await addressVerificationJourney()})
+
+test('DONOR-007: saved giving and consent lists stay live in appeals, retention and exports; audited bulk tags and managers undo atomically',async()=>{const {savedListsJourney}=await import('./saved-lists-journey.mjs');await savedListsJourney()})
+
+test('DONOR-013: typed contact points, atomic primary receipts, all-contact lookup, household consent and custody',async()=>{const {contactPointsJourney}=await import('./contact-points-journey.mjs');await contactPointsJourney()})

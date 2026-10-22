@@ -1,0 +1,1 @@
+CREATE TABLE cf_appeal_pieces(appeal_id TEXT NOT NULL REFERENCES cf_appeals(id),id TEXT NOT NULL,name TEXT NOT NULL,address TEXT NOT NULL,names TEXT NOT NULL,members TEXT NOT NULL,household_id TEXT,household_version INTEGER,snapshot TEXT NOT NULL,PRIMARY KEY(appeal_id,id));

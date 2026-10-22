@@ -1,0 +1,3 @@
+CREATE TABLE cf_donor_tags(donor_id TEXT NOT NULL REFERENCES cf_donors(id),tag TEXT NOT NULL,created_at TEXT NOT NULL,created_by TEXT NOT NULL,PRIMARY KEY(donor_id,tag));
+CREATE TABLE cf_list_bulk_jobs(id TEXT PRIMARY KEY,list_id TEXT NOT NULL,list_version INTEGER NOT NULL,version INTEGER NOT NULL DEFAULT 1,reason TEXT NOT NULL,created_at TEXT NOT NULL,created_by TEXT NOT NULL,undone_at TEXT);
+CREATE TABLE cf_list_bulk_rows(job_id TEXT NOT NULL REFERENCES cf_list_bulk_jobs(id),donor_id TEXT NOT NULL,donor_version INTEGER NOT NULL,before_state TEXT NOT NULL,after_state TEXT NOT NULL,PRIMARY KEY(job_id,donor_id));

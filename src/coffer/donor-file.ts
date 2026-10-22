@@ -30,7 +30,7 @@ export const NOT_IN_FILE: Record<string, string> = {
  cf_erased_stripe_customers: 'Only erased placeholders appear here.',
 }
 // Contact details of a third party the donor named (a tribute's notified person).
-const THIRD_PARTY: Record<string, string[]> = { cf_gift_tributes: ['notified_name', 'notified_email', 'notified_address'], cf_giving_tributes:['notified_name','notified_email','notified_address'], cf_tribute_notifications:['recipient_name','recipient_email','recipient_address','body'] }
+const THIRD_PARTY: Record<string, string[]> = { cf_gift_tributes: ['notified_name', 'notified_email', 'notified_address'], cf_giving_tributes:['notified_name','notified_email','notified_address'], cf_tribute_notifications:['recipient_name','recipient_email','recipient_address','body','contact_snapshot'] }
 const LABELS: Record<string, string> = {
  research_results: 'WealthEngine estimates from prospect research: provider ranges, never verified wealth or an exact appraisal.',
  donor_notes: 'Staff notes about this donor. Confidential staff notes are withheld from this file; `withheld` states how many.',

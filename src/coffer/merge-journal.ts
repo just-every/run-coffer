@@ -12,6 +12,8 @@ const owned = (table:string,scope=`n.donor_id IN ${pair}`,keys=['id'],restore=tr
 const descriptions = [
  owned('cf_donor_recognition',undefined,['donor_id']), owned('cf_gift_recognition',`n.gift_id IN (SELECT id FROM cf_contribution_ledger WHERE donor_id IN ${pair})`,['gift_id']),
  owned('cf_organization_contacts',`n.organization_donor_id IN ${pair} OR n.contact_donor_id IN ${pair}`),
+ owned('cf_contact_points'),owned('cf_contact_history',undefined,['point_id','version'],false),
+ owned('cf_donor_tags',undefined,['donor_id','tag']),
  owned('cf_custom_values',undefined,['field_key','record_id']), owned('cf_custom_value_history',undefined,['field_key','record_id','version']),
  owned('cf_donors',`n.id IN ${pair}`),
  // Include original households after a contact-field choice moves the survivor.
@@ -39,7 +41,7 @@ const descriptions = [
  owned('cf_events',`n.donor_id IN ${pair} AND NOT (n.action IN ('donor.merge','donor.unmerge','solicitation.mergeCustody') AND COALESCE(json_extract(n.detail,'$.mergeId'),'')=(SELECT id FROM merge))`),
  owned('cf_soft_credits',`n.donor_id IN ${pair} OR n.gift_id IN (${gifts})`),
  owned('cf_tribute_notifications',`n.gift_id IN (${gifts})`,['id'],false),
- owned('cf_gift_tributes',`n.donor_id IN ${pair} OR n.gift_id IN (${gifts})`,['gift_id']),
+ owned('cf_gift_tributes',`n.donor_id IN ${pair} OR n.notification_donor_id IN ${pair} OR n.gift_id IN (${gifts})`,['gift_id']),
  owned('cf_giving_customers',undefined,['customer_id']), owned('cf_giving_intents'),
  owned('cf_recurring_task_series'),
  owned('cf_recurring_tasks',`n.series_id IN (SELECT id FROM cf_recurring_task_series WHERE donor_id IN ${pair})`),

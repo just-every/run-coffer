@@ -1,3 +1,4 @@
+import { selectedContacts } from './contact-points'
 import { customMerge } from './custom-fields'
 import { computedHouseholdNames, householdDefaults, householdMembers } from './household-names'
 import { withNameDefaults } from './person-defaults'
@@ -33,7 +34,8 @@ export async function organizationState(c:{db:D1Database},donorId:string) {
  return {contacts,organizations,relatedGifts}
 }
 /** Address and greeting are separate from the constituent credited by the ledger. */
-export async function letterRecipient(c:{db:D1Database},d:Row):Promise<Row> {
+export async function letterRecipient(c:{db:D1Database},d:Row,options:{day?:string;emailType?:string;addressType?:string}={}):Promise<Row> {
+ d=await selectedContacts(c,d,options)
  d={...d,merge_fields:{...await customMerge(c,'constituent',d.id)},greeting:(await one(c,'SELECT greeting FROM cf_settings WHERE id=1'))?.greeting}
  if(d.constituent_status==='deceased'&&d.constituent_kind!=='organization')return {...d,...await survivorAddressing(c,d)}
  const contact=d.constituent_kind==='organization'?await one(c,`SELECT d.* FROM cf_organization_contacts r JOIN cf_donors d ON d.id=r.contact_donor_id WHERE r.organization_donor_id=? AND r.is_primary=1 AND d.erased_at IS NULL AND d.constituent_kind='person'`,d.id):null
@@ -41,7 +43,7 @@ export async function letterRecipient(c:{db:D1Database},d:Row):Promise<Row> {
  if(contact)contact.name_defaults=d.name_defaults
  const names=personNames(d), greeting=contact?personNames(contact):names
  return {...d,letter_names:greeting,letter_name:contact?`${d.name}\nAttn: ${contact.name}`:names.envelope,letter_salutation:contact?informalName(contact):d.constituent_kind==='organization'?d.name:names.informal,
-  letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,organization:d.constituent_kind==='organization',...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
+  letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,emailContactId:d.selected_email_contact_id,addressContactId:d.selected_address_contact_id,organization:d.constituent_kind==='organization',...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
 }
 /** A receipt for a gift on a deceased constituent's record goes to the surviving household or the estate, never to the deceased. */
 async function survivorAddressing(c:{db:D1Database},d:Row) {

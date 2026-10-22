@@ -49,7 +49,8 @@ export async function receiptCorrectionsJourney() {
  }
  await run(async h=>{
   await reviewed(h)
-  await h.command('settings.update',{...settings,version:(await h.get('/api/coffer/settings')).version,letterTemplate:settings.letterTemplate+'\nNickname: {{nickname}}'})
+  await h.command('custom.define',{key:'correction_note',label:'Correction note',kind:'constituent',type:'text'})
+  await h.command('settings.update',{...settings,version:(await h.get('/api/coffer/settings')).version,letterTemplate:settings.letterTemplate+'\nNote: {{custom.correction_note}}'})
   const {person,gift,charge}=await paid(h,'receipt-original')
   const original=await issue(h,gift.id), old=original.letters[0]
   assert.ok(old.receipt_year && old.receipt_sequence,'Every issued cash receipt has a reserved annual identity')
@@ -74,7 +75,7 @@ export async function receiptCorrectionsJourney() {
   await h.command('ack.correct',{letterId:old.id},{as:member.cookie,status:403})
   const replacement=await h.command('ack.correct',{letterId:old.id})
   const correctedBatch=await detail(h,replacement.id)
-  assert.deepEqual(correctedBatch.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:person.id,fields:['nickname']}])
+  assert.deepEqual(correctedBatch.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:person.id,fields:['custom.correction_note']}])
   let corrected=correctedBatch.letters[0]
   assert.equal(corrected.receipt_sequence,statement.receipt_sequence+1,'A half-refund correction reserves the next number')
   assert.equal(corrected.replaces_id,old.id);assert.equal(corrected.amount_cents,17500)
