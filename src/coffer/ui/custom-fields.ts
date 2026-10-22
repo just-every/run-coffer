@@ -3,7 +3,7 @@ import { customFields } from '../custom-fields'
 import { all, type Context, type Row } from '../db'
 import { area, box, e, field, form, money, select } from './common'
 
-const entryValue=(f:Row,v:any)=>{if(v==null)return '';if(f.type!=='currency')return String(v);const cents=BigInt(String(v)),absolute=cents<0n?-cents:cents;return `${cents<0n?'-':''}${absolute/100n}.${String(absolute%100n).padStart(2,'0')}`} 
+const entryValue=(f:Row,v:any)=>{if(v==null)return '';if(f.type!=='currency')return String(v);const cents=BigInt(String(v)),absolute=cents<0n?-cents:cents;return `${cents<0n?'-':''}${absolute/100n}.${String(absolute%100n).padStart(2,'0')}`}
 export async function customDefinitionsPanel(c:Context){
  if(!manager(c.actor))return ''
  const definitions=await customFields(c)
