@@ -79,6 +79,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)
   if (recipients.length > MAX_RECIPIENTS) fail('TOO_MANY', `An appeal holds at most ${MAX_RECIPIENTS} recipients. Narrow the segment.`, 400)
   const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, grouping=channel==='mail'?await prepareAppealPieces(c,appealId,recipients,p.onePiecePer):null, hash = await hashOf(name, channel, recipients,message,grouping?.pieces), list = JSON.stringify(recipients)
+  if(grouping&&!grouping.pieces.length)fail('NO_GIFTS','No positive-balance gifts were found for gift-based mail pieces. Choose constituent or household pieces.',409)
   const addressSnapshot=await mailSnapshot(c,appealId,addressPass,recipients)
   const restriction=await prepareSolicitationRun(c,{kind:'appeal',id:appealId,channel,isAsk,donorIds:recipients.map(r=>r.donor_id),includes})
   await commit(c, [...restriction.statements,

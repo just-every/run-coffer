@@ -31,6 +31,7 @@ export async function householdMailJourney(){await run(async h=>{
  const single=await prepare('household'),singleDetail=await h.get('/api/coffer/appeals/'+single.id)
  assert.equal(single.pieceCount,1);assert.match(singleDetail.mailPieces[0].name,/Alex Household/);assert.doesNotMatch(singleDetail.mailPieces[0].name,/Blake|The Household Family/)
  assert.equal(single.excluded['consent withdrawn'],1)
+ assert.equal(JSON.parse(singleDetail.mailPieces[0].snapshot).gifts.reduce((n,g)=>n+g.amountCents,0),60000,'Withdrawal changes the addressee, never the household hard-credit money')
  // Current-address grouping gives the distant member their own piece.
  await consent(b)
  const bd=(await h.get('/api/coffer/donors/'+b.id)).donor

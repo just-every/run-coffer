@@ -47,6 +47,7 @@ export async function contactPointsJourney(){await run(async h=>{
  await h.command('consent.record',{donorId:a.id,channel:'email',status:'withdrawn',method:'paper form',evidence:'synthetic-coffer-805',capturedOn:'2025-01-01'})
  await h.command('consent.record',{donorId:b.id,channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-806',capturedOn:'2025-01-01'})
  assert.equal((await h.get('/api/coffer/donors/'+b.id)).current.email.status,'granted')
+ await donor(h,'Unrelated Additional Contact',{email:'synthetic-coffer-803@example.test'},{status:409})
  const unrelated=await donor(h,'Unrelated Contacts',{email:'synthetic-coffer-807@example.test'})
  await h.command('contact.save',{donorId:unrelated.id,donorVersion:1,kind:'email',type:'other',value:'synthetic-coffer-803@example.test'},{status:409})
  const exported=await h.request('/api/coffer/exports/constituents.csv?q=Alex%20Contacts');assert.equal(exported.status,200);const text=await exported.text();assert.match(text,/synthetic-coffer-803/);assert.match(text,/synthetic-coffer-804/);assert.match(text,/20 Lake Road/)

@@ -344,7 +344,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   { sql: 'DELETE FROM cf_donor_merges WHERE donor_id=?', params: [donorId] },
   { sql: 'UPDATE cf_pledge_installments SET recipient_email=NULL,message_id=NULL,attempt_id=NULL WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', params: [placeholder] },
   { sql: 'DELETE FROM cf_donor_tokens WHERE donor_id=?', params: [donorId] },
-  {sql:"DELETE FROM cf_appeal_pieces WHERE EXISTS(SELECT 1 FROM json_each(members) WHERE value=?)",params:[donorId]},
+  {sql:"DELETE FROM cf_appeal_pieces WHERE EXISTS(SELECT 1 FROM json_each(members) WHERE value=?) OR EXISTS(SELECT 1 FROM json_each(snapshot,'$.gifts') g WHERE json_extract(g.value,'$.donorId')=?)",params:[donorId,donorId]},
   {sql:'DELETE FROM cf_donor_tags WHERE donor_id=?',params:[donorId]},
   {sql:'DELETE FROM cf_list_bulk_rows WHERE donor_id=?',params:[donorId]},
   {sql:'DELETE FROM cf_custom_value_history WHERE donor_id=?',params:[donorId]},
