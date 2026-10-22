@@ -274,6 +274,12 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if ((path === '/api/coffer/commands' || path === '/app/actions') && request.method === 'POST') {
    const data = path === '/app/actions' ? await formInput(await formBody(request, 400000)) : await jsonBody(request), command = String(data.command), input = data.input ?? data
+   if(!isApi&&command==='appeal.prepare'&&input.insertField==='yes'){
+    if(!manager(actor))fail('FORBIDDEN','Only an owner or admin edits an appeal draft.',403)
+    const field=String(input.fieldKey),fields=(await publishedTemplateFields(c)).messages.find(m=>m.kind==='appeal')!.fields,target=input.fieldTarget==='subject'?'subject':'body'
+    if(!fields.includes(field))fail('TEMPLATE','Choose a published field.',400)
+    return page('Appeal draft',await appealsPage(c,{error:'',values:{...input,[target]:String(input[target]??'')+'{{'+field+'}}'}}),actor,200,'/app/appeals')
+   }
    if(!isApi&&command==='marketing.fields'&&input.insertField==='yes'){
     if(!manager(actor))fail('FORBIDDEN','Only an owner or admin chooses shared fields.',403)
     const conn=await savedConnection(c);if(!conn)fail('EMAIL_NOT_CONNECTED','Connect email marketing first.',409)

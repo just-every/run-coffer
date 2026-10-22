@@ -26,7 +26,7 @@ export async function marketingCommand(c:Context,command:string,p:Row):Promise<R
  const waiting=recipients.filter(r=>!r.communication_id),pending=waiting.slice(0,sendBatch(conn.provider))
  let submitted=0,listed=0,suppressed=0,uncertain=0
  for(const r of pending){
-  const result=await submitMessage(c,{key:`appeal:${appealId}:${r.donor_id}`,donorId:r.donor_id,sourceKind:'appeal',sourceId:appealId,listName:appealListName(appeal),subject:message.subject,body:message.body,merge:r,expectedEmail:r.email,emailType:JSON.parse(appeal.segment).emailType,expectedContactId:r.email_contact_id,expectedContactVersion:r.email_contact_version})
+  const result=await submitMessage(c,{key:`appeal:${appealId}:${r.donor_id}`,donorId:r.donor_id,sourceKind:'appeal',sourceId:appealId,listName:appealListName(appeal),subject:message.subject,body:message.body,merge:r,...(r.rendered_subject!==null&&r.rendered_subject!==undefined?{rendered:{subject:r.rendered_subject,body:r.rendered_body}}:{}),expectedEmail:r.email,emailType:JSON.parse(appeal.segment).emailType,expectedContactId:r.email_contact_id,expectedContactVersion:r.email_contact_version})
   if(result.status==='submitted')submitted++;else if(result.status==='listed')listed++;else if(result.status==='suppressed')suppressed++;else uncertain++
  }
  return {id:appealId,provider:conn.provider,submitted,listed,suppressed,uncertain,remaining:waiting.length-pending.length}

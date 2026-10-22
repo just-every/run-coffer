@@ -49,7 +49,7 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     sql('DELETE FROM cf_pledge_plans WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', donorId),
     sql('UPDATE cf_pledges SET donor_id=? WHERE donor_id=?', placeholderId, donorId),
     sql("UPDATE cf_acks SET donor_id=?,recipient_name=?,recipient_email=NULL,address=NULL,statement_gifts=NULL,delivery_note=NULL,subject='[erased]',body='[erased]' WHERE donor_id=?", placeholderId, ERASED, donorId),
-    sql('UPDATE cf_appeal_recipients SET donor_id=?,name=?,email=NULL,address=NULL,name_fields=NULL,email_contact_id=NULL,email_contact_version=NULL WHERE donor_id=?', placeholderId, ERASED, donorId),
+    sql('UPDATE cf_appeal_recipients SET donor_id=?,name=?,email=NULL,address=NULL,name_fields=NULL,email_contact_id=NULL,email_contact_version=NULL,merge_fields=NULL,merge_blanks=NULL,rendered_subject=NULL,rendered_body=NULL WHERE donor_id=?', placeholderId, ERASED, donorId),
     sql('UPDATE cf_events SET donor_id=? WHERE donor_id=?', placeholderId, donorId),
     sql("DELETE FROM cf_import_revisions WHERE (kind='donor' AND id=?) OR (kind='gift' AND id IN (SELECT id FROM cf_gifts WHERE donor_id=?)) OR (kind='subscription' AND id IN (SELECT id FROM cf_subscriptions WHERE donor_id=?))", donorId, placeholderId, placeholderId),
     sql('DELETE FROM cf_donors WHERE id=?', donorId),

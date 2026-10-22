@@ -1,3 +1,4 @@
+import { fillFields } from '../template-fields'
 import { profileRecipient, selectedProfileFields } from './profile-fields'
 import { solicitationAskStatements, solicitationRunGuards } from '../solicitation'
 import { nameMergeFields, frozenNameFields } from '../person-names'
@@ -19,7 +20,7 @@ async function savedResult(c: Context, messageId: string, disposition: string) {
 export type MessageInput = { key:string; donorId:string; subject:string; body:string; sourceKind:'appeal'|'welcome'; sourceId:string; listName:string; expectedEmail?:string;emailType?:string;expectedContactId?:string;expectedContactVersion?:number; merge?:Row; rendered?:{subject:string;body:string} }
 export function mergeMessage(template: string, values: Row) {
  const fields: Row = {...(values.name_fields ? JSON.parse(values.name_fields) : nameMergeFields(values)),donor_name:values.name,total_given:usd(values.total_cents??0),last_gift:values.last_gift||'No gift recorded',gift_count:String(values.gift_count??0)}
- return template.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (token,key) => { if (!(key in fields)) fail('MERGE_FIELD', `Unknown merge field ${token}.`,400); return fields[key] })
+ return fillFields(template,{...fields,...(typeof values.merge_fields==='string'?JSON.parse(values.merge_fields):values.merge_fields??{})})
 }
 export async function submitMessage(c: Context,input:MessageInput):Promise<Row> {
  const previous=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
