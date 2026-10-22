@@ -88,7 +88,7 @@ export async function letterTemplatesJourney(){
   const statements=await h.command('ack.prepareStatements',{year:2025,donorId:bo.id})
   const statement=(await h.get('/api/coffer/letters/'+statements.id)).letters[0]
   assert.deepEqual([statement.template_kind,statement.template_id,statement.template_version],['year_end',yearEnd.id,1])
-  assert.equal(statement.subject,'Your 2025 giving');assert.ok(statement.body.startsWith('Household: Individual donor / Individual greeting / Individual formal greeting\n'));assert.match(statement.body,/YEAR-END Dear Bo Template, your 2025 gifts:\n1\. August 6, 2025 · [^\n]* · \$1,000\.00 · goods or services: none · deductible \$1,000\.00\nTotal \$1,000\.00 · goods \$0\.00 · deductible \$1,000\.00/)
+  assert.equal(statement.subject,'Your 2025 giving');assert.ok(statement.body.startsWith('Household: Individual donor / Individual greeting / Individual formal greeting\n'));assert.match(statement.body.split('\n').slice(1).join('\n'),/^YEAR-END Dear Bo Template, your 2025 gifts:\n1\. August 6, 2025 · [^\n]* · \$1,000\.00 · goods or services: none · deductible \$1,000\.00\nTotal \$1,000\.00 · goods \$0\.00 · deductible \$1,000\.00/)
 
   assert.ok(issued.body.includes('Email: '+(await h.get('/api/coffer/donors/'+ana.id)).donor.email))
   assert.ok(statement.body.includes('Email: No email recorded'))
