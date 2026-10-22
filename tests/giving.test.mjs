@@ -42,6 +42,7 @@ function stripeEdge() {
    assert.equal(params.get('login_page[enabled]'),'false')
    return Response.json({id:'bpc_card_only'})
   }
+  if(url.pathname==='/v1/billing_portal/configurations/bpc_card_only'&&request.method==='GET')return Response.json({id:'bpc_card_only',active:true,features:{payment_method_update:{enabled:true},customer_update:{enabled:false},invoice_history:{enabled:false},subscription_cancel:{enabled:false},subscription_update:{enabled:false}},login_page:{enabled:false}})
   if(url.pathname==='/v1/billing_portal/sessions'&&request.method==='POST') {
    assert.equal(params.get('customer'),'cus_monthly')
    assert.equal(params.get('configuration'),'bpc_card_only')
