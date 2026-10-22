@@ -6,6 +6,7 @@ export const SOLICITATION_CHANNELS = ['email','mail','sms','phone'] as const
 export type SolicitationChannel = typeof SOLICITATION_CHANNELS[number]
 type ReadContext = Pick<Context,'db'>
 export type SolicitationReason = { reason: 'do not solicit' | 'solicitation limit'; lastAskOn: string | null }
+export type SolicitationState = Row & { asOf: string; lastAskOn: string | null }
 const canonical=(column:string)=>`COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=${column}),${column})`
 const ownVersion = `COALESCE((SELECT version FROM cf_solicitation WHERE donor_id=?),0)`
 const assigned = `EXISTS(SELECT 1 FROM cf_portfolio_members m JOIN cf_portfolios p ON p.id=m.portfolio_id JOIN oa_operators o ON o.id=p.manager_id WHERE m.donor_id=? AND o.id=? AND o.status='active' AND o.role IN ('owner','admin','member'))`
@@ -19,16 +20,20 @@ async function calendarDay(c:ReadContext,at?:string) {
 }
 
 /** Array includes an explicit version-zero/none state for every requested ID. */
-export async function solicitationState(c:ReadContext,donorIds:string[],at?:string):Promise<Row[]> {
+export async function solicitationState(c:ReadContext,donorIds:string[],at?:string):Promise<SolicitationState[]> {
  if(!donorIds.length)return []
- const rows=await all(c,`SELECT s.*,${canonical('s.donor_id')} AS canonical_id FROM cf_solicitation s WHERE ${canonical('s.donor_id')} IN (SELECT value FROM json_each(?))`,JSON.stringify([...new Set(donorIds)]))
- const day=await calendarDay(c,at),groups=new Map<string,Row[]>()
+ const day=await calendarDay(c,at),ids=JSON.stringify([...new Set(donorIds)])
+ const [rows,asks]=await Promise.all([
+  all(c,`SELECT s.*,${canonical('s.donor_id')} AS canonical_id FROM cf_solicitation s WHERE ${canonical('s.donor_id')} IN (SELECT value FROM json_each(?))`,ids),
+  all(c,`SELECT ${canonical('a.donor_id')} AS canonical_id,MAX(a.asked_on) AS last FROM cf_solicitation_asks a WHERE ${canonical('a.donor_id')} IN (SELECT value FROM json_each(?)) AND a.asked_on<=? GROUP BY ${canonical('a.donor_id')}`,ids,day),
+ ])
+ const lastAsks=new Map(asks.map(row=>[row.canonical_id,row.last])),groups=new Map<string,Row[]>()
  for(const row of rows){const group=groups.get(row.canonical_id);if(group)group.push(row);else groups.set(row.canonical_id,[row])}
  return [...new Set(donorIds)].map(donorId=>{
   const group=groups.get(donorId)??[],row=group.find(r=>r.donor_id===donorId)
   const active=(r:Row)=>r.type!=='none'&&r.starts_on<=day&&(!r.ends_on||r.ends_on>=day)
   const inherited=group.filter(r=>r.donor_id!==donorId).map(r=>({...r,channels:JSON.parse(r.channels),active:active(r)}))
-  return {...(row?{...row,channels:JSON.parse(row.channels),active:active(row)}:{donor_id:donorId,version:0,type:'none',channels:[],active:false,period:'calendar-year'}),asOf:day,scope_version:group.reduce((n,r)=>n+r.version,0),inherited}
+  return {...(row?{...row,channels:JSON.parse(row.channels),active:active(row)}:{donor_id:donorId,version:0,type:'none',channels:[],active:false,period:'calendar-year'}),asOf:day,lastAskOn:lastAsks.get(donorId)??null,scope_version:group.reduce((n,r)=>n+r.version,0),inherited}
 
  })
 }

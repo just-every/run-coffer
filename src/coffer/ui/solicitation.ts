@@ -8,7 +8,7 @@ export function solicitationBadge(state:Row|undefined):string {
  const inherited=(state.inherited??[]).filter((r:Row)=>r.active).map((r:Row)=>solicitationBadge(r)).join(' ')
  if(state.type==='none'||!state.active)return inherited
  const label=state.type==='stop'?'Do not solicit':state.type==='channels'?`No ${state.channels.join(', ')} appeals`:`At most ${state.max_asks} ask${state.max_asks===1?'':'s'} per ${SOLICITATION_PERIOD_LABELS[state.period as SolicitationPeriod].toLowerCase()}`
- return chip(label,'warn')+' '+inherited
+ return chip(label,'warn')+(state.type==='limit'&&state.lastAskOn?` <span class="muted">Last ask ${e(state.lastAskOn)}</span>`:'')+' '+inherited
 }
 
 export async function solicitationPanel(c:Context,donorId:string):Promise<string> {
@@ -31,5 +31,6 @@ export async function solicitationPanel(c:Context,donorId:string):Promise<string
   field('Source date','sourceOn','date',state.source_on??state.asOf,'required')+
   '<p>Only an owner, admin or assigned relationship manager can replace or clear a restriction. Saving replaces the choices for all original records merged into this donor; their prior answers remain in history.</p>',
   'Save restriction',{donorId,version:state.version,returnDonorId:donorId}):''
- return box('Solicitation restriction',explanation+current+(state.inherited?.length?`<p>Restrictions retained from merged original records: ${solicitationBadge({...state,type:'none'})||'none active'}.</p>`:'')+editor,'solicitation')
+ const lastAsk=`<p>Last ask across all channels: ${state.lastAskOn?e(state.lastAskOn):'None recorded'} (as of ${e(state.asOf)}).</p>`
+ return box('Solicitation restriction',explanation+current+lastAsk+(state.inherited?.length?`<p>Restrictions retained from merged original records: ${solicitationBadge({...state,type:'none'})||'none active'}.</p>`:'')+editor,'solicitation')
 }

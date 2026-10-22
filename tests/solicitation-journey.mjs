@@ -114,6 +114,13 @@ export async function solicitationJourney() {
   await command('appeal.export',{appealId:once.id,version:exported.version})
   const second=await prepare('email','Second annual supporter appeal')
   assert.ok(!(await recipientIds(second.id)).includes(annual.id));assert.ok(second.excluded['solicitation limit']>=1)
+  assert.equal((await get('/api/coffer/donors/'+annual.id)).solicitation.lastAskOn,day)
+  assert.equal(JSON.parse((await get('/api/coffer/appeals/'+second.id)).appeal.segment).lastAskDates[day],1)
+  const limitedPage=await (await request('/app/appeals/'+second.id)).text();assert.ok(limitedPage.includes('Last ask '+day))
+  await command('sms.preference',{donorId:annual.id,status:'granted',phone:'+12025550123',timezone,evidence:'synthetic-coffer-527',capturedOn:day,version:0})
+  const limitedText=await command('sms.prepare',{name:'Synthetic exhausted calendar limit',purpose:'appeal',donorIds:[annual.id],body:'Please support the reading room again.'})
+  assert.equal(limitedText.excluded.find(r=>r.donorId===annual.id).lastAskOn,day)
+
   const channel=await create('Eli Rivera','synthetic-coffer-507@example.test')
   await grant(channel)
   await command('solicitation.set',{donorId:channel.id,version:0,type:'channels',channels:['mail'],startsOn:day})
@@ -213,7 +220,7 @@ export async function solicitationJourney() {
    await withBrowserWorker(h,async(context,origin)=>{
     await context.setExtraHTTPHeaders({cookie:h.owner,'x-test-now':at})
     const page=await context.newPage()
-    const screens=[['donor','/app/donors/'+stop.id],['limit-periods','/app/donors/'+monthly.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
+    const screens=[['donor','/app/donors/'+stop.id],['limit-periods','/app/donors/'+monthly.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['limit-exclusion','/app/appeals/'+second.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
     for(const width of [1440,390])for(const [name,path] of screens){
      await page.setViewportSize({width,height:1000});await page.goto(origin+path)
      if(name==='import-entry')await page.getByText('Map organization-specific communication codes',{exact:true}).click()
