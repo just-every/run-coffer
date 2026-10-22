@@ -65,3 +65,6 @@ export async function selectedContacts(c:{db:D1Database},d:Row,options:{day?:str
  const emailPoint=select('email',options.emailType),addressPoint=select('address',options.addressType),a=addressPoint?JSON.parse(addressPoint.value):null
  return {...d,...(emailPoint?{email:emailPoint.value}:{}),...(a?{address_line1:a.line1,address_line2:a.line2,city:a.city,region:a.region,postal_code:a.postalCode,country:a.country}:{}),selected_email_contact_id:emailPoint?.id??null,selected_address_contact_id:addressPoint?.id??null}
 }
+
+/** Search values, never JSON property names, through every current contact point. */
+export function contactSearchSql(donor:string,pattern:string){return `EXISTS(SELECT 1 FROM cf_contact_points cp WHERE cp.donor_id=${donor} AND cp.active=1 AND lower(CASE WHEN cp.kind='address' THEN COALESCE(json_extract(cp.value,'$.line1'),'')||' '||COALESCE(json_extract(cp.value,'$.line2'),'')||' '||COALESCE(json_extract(cp.value,'$.city'),'')||' '||COALESCE(json_extract(cp.value,'$.region'),'')||' '||COALESCE(json_extract(cp.value,'$.postalCode'),'')||' '||COALESCE(json_extract(cp.value,'$.country'),'') ELSE cp.value END) LIKE ${pattern} ESCAPE char(92))`}

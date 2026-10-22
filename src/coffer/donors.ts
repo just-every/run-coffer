@@ -27,7 +27,7 @@ import { canonicalDonor } from './donor-merge'
 import { donorDepth } from './donor-depth'
 import { donorGiftDepth } from './gift-depth'
 import { pledgeHistory } from './pledges'
-import { contactPoints } from './contact-points'
+import { contactPoints,contactSearchSql } from './contact-points'
 import { subscriptions } from './giving/campaigns'
 import { settings } from './settings'
 
@@ -112,7 +112,7 @@ export async function listDonors(c: { db: D1Database }, query: { q?: string | nu
    (SELECT MAX(received_on) FROM cf_monetary_contributions g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
    ${CURRENT('email')} AS email_consent, ${CURRENT('mail')} AS mail_consent
   FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id CROSS JOIN (SELECT ? AS choice,? AS day) sf
-  WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR d.phone LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cf_contact_points cp WHERE cp.donor_id=d.id AND cp.active=1 AND lower(cp.value) LIKE ? ESCAPE '\\') OR d.source_ref LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cf_donor_aliases a WHERE a.donor_id=d.id AND a.email LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.kind='donor' AND r.source_key=? AND (r.native_id=d.id OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=r.native_id AND m.into_id=d.id))) OR lower(h.name) LIKE ? ESCAPE '\\')
+  WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR d.phone LIKE ? ESCAPE '\\' OR ${contactSearchSql('d.id','?')} OR d.source_ref LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cf_donor_aliases a WHERE a.donor_id=d.id AND a.email LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.kind='donor' AND r.source_key=? AND (r.native_id=d.id OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=r.native_id AND m.into_id=d.id))) OR lower(h.name) LIKE ? ESCAPE '\\')
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id OR r.related_donor_id=d.id) AND r.type=?))
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id AND r.related_donor_id=?) OR (r.related_donor_id=d.id AND r.donor_id=?)))
   AND (?='' OR (d.erased_at IS NULL AND EXISTS(SELECT 1 FROM cf_volunteering v WHERE v.donor_id=d.id) AND (?<>'never-given' OR NOT EXISTS(SELECT 1 FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind IN ('gift','in_kind')))))

@@ -1,3 +1,4 @@
+import { contactSearchSql } from './contact-points'
 import { ADVANCED_FILTERS, advancedListSql } from './list-filters'
 import { solicitationFilterSql } from './solicitation-filter'
 import { choice, fail, integer, one, today, type Context } from './db'
@@ -37,6 +38,9 @@ export async function exportSelection(c: Context, url: URL) {
    NOT EXISTS(SELECT 1 FROM json_each(replace(json_array(json_extract(f.definition,'$.q')),' ','","')) term
     WHERE lower(d.name) NOT LIKE ${pattern('term.value')} ESCAPE char(92))
    OR lower(d.email) LIKE ${pattern("json_extract(f.definition,'$.q')")} ESCAPE char(92)
+   OR ${contactSearchSql('d.id',pattern("json_extract(f.definition,'$.q')"))}
+   OR lower(d.phone) LIKE ${pattern("json_extract(f.definition,'$.q')")} ESCAPE char(92)
+   OR EXISTS(SELECT 1 FROM cf_donor_aliases a WHERE a.donor_id=d.id AND lower(a.email) LIKE ${pattern("json_extract(f.definition,'$.q')")} ESCAPE char(92))
    OR lower(h.name) LIKE ${pattern("json_extract(f.definition,'$.q')")} ESCAPE char(92))
   AND (json_extract(f.definition,'$.relationship')='' OR EXISTS(SELECT 1 FROM cf_relationships r
    WHERE (r.donor_id=d.id OR r.related_donor_id=d.id) AND r.type=json_extract(f.definition,'$.relationship')))
