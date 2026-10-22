@@ -7,14 +7,14 @@ export function fiscalPeriod(day: string, start: string) {
  return { start: `${year}-${start}`, end: `${year + 1}-${start}`, previousStart: `${year - 1}-${start}` }
 }
 
-export async function givingSummary(c: { db: D1Database }, donorId: string, history: {
+export async function givingSummary(c: { db: D1Database; now?: string }, donorId: string, history: {
  gifts: Row[]; pledges: Row[]; subscriptions: Row[]; recognitionCents: number
 }) {
  const [s, balances] = await Promise.all([
   settings(c),
   all(c, 'SELECT * FROM cf_gift_balances WHERE donor_id=? AND net_cents>0 ORDER BY received_on,created_at,id', donorId),
  ])
- const day = today(s.timezone), period = fiscalPeriod(day, s.fiscal_year_start)
+ const day = today(s.timezone,c.now?new Date(c.now):new Date()), period = fiscalPeriod(day, s.fiscal_year_start)
  const total = (from: string, to: string) => history.gifts.filter(g => g.received_on >= from && g.received_on < to).reduce((n, g) => n + g.amount_cents, 0)
  const years = new Map<number, number>()
  for (const gift of history.gifts) {

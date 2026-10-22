@@ -3,7 +3,7 @@ import {run,donor,reviewed,archive,restore} from './harness.mjs'
 
 const householdFields=['household_addressee','household_informal_salutation','household_formal_salutation']
 const householdLine='Household: {{household_addressee|Individual donor}} / {{household_informal_salutation|Individual greeting}} / {{household_formal_salutation|Individual formal greeting}}'
-const body='Dear {{donor_name}}, thank you for {{amount|Amount unavailable}} on {{gift_date}} to {{fund}}. {{goods_statement}} {{organization}} · EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'
+const body='Dear {{donor_name}}, thank you for {{amount|Amount unavailable}} on {{gift_date}} to {{fund}}. {{goods_statement}} {{organization}} · EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}\nGiving: {{total_given}} / {{gift_count}} / {{first_gift_amount|No first gift}} / {{largest_gift_amount|No largest gift}} / {{last_gift_amount|No last gift}}\nRecognition: {{recognition_name|Supporter}}'
 const gift=(h,donorId,amount,receivedOn,extra={})=>h.command('gift.record',{donorId,amount,receivedOn,method:'check',goods:'none',...extra})
 
 export async function letterTemplatesJourney(){
@@ -44,7 +44,7 @@ export async function letterTemplatesJourney(){
   const major=await save({kind:'major_gift',name:'Major gift',minAmount:'1000',subject:'With gratitude',body:'MAJOR '+body})
   const tribute=await save({kind:'tribute',name:'Tribute',subject:'In tribute',body:'TRIBUTE '+body})
   const campaign=await h.api('/api/coffer/giving/campaigns',{name:'Spring books',slug:'spring-books-templates',description:'Books and tutoring for our spring readers.',fund:'Reading',goal:'5000'})
-  const spring=await save({kind:'campaign',campaignId:campaign.id,name:'Spring books thanks',subject:'Spring thanks',body:'CAMPAIGN '+body+'\n'+householdLine})
+  const spring=await save({kind:'campaign',campaignId:campaign.id,name:'Spring books thanks',subject:'Spring thanks',body:'CAMPAIGN '+body+'\n'+householdLine+'\nCampaign: {{campaign}}; appeal: {{appeal|No appeal}}'})
   // In-kind templates never merge a value; year-end templates must carry the itemized facts.
   await save({kind:'in_kind',name:'Property',subject:'Property',body:'{{donor_name}} {{gift_date}} {{description}} {{amount}} {{goods_statement}} {{organization}} {{ein}}'},{status:400})
   const property=await save({kind:'in_kind',name:'Property thanks',subject:'Your donated {{description}}',body:'PROPERTY Dear {{donor_name}}, on {{gift_date}} we received {{description|Property contribution}} (quantity {{quantity}}). {{goods_statement}} {{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
@@ -52,8 +52,10 @@ export async function letterTemplatesJourney(){
   const yearEnd=await save({kind:'year_end',name:'Annual statement',subject:'Your {{year}} giving',body:householdLine+'\nYEAR-END Dear {{donor_name}}, your {{year}} gifts:\n{{gift_list}}\nTotal {{total|Total unavailable}} · goods {{goods_total}} · deductible {{deductible_total}}\n{{goods_statement}}\n{{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
 
   const ana=await donor(h,'Ana Template'),bo=await donor(h,'Bo Template',{email:null,addressLine1:null,city:null,region:null,postalCode:null}),cy=await donor(h,'Cy Template')
+  await h.command('recognition.donor',{donorId:ana.id,version:0,recognitionName:'Reading circle',honorRollOptIn:false})
+  await h.command('appealCode.define',{code:'READERS',name:'Readers appeal'})
   const a1=await gift(h,ana.id,'300','2025-08-01'),a2=await gift(h,ana.id,'400','2025-08-02'),a3=await gift(h,ana.id,'1500','2025-08-03')
-  const a4=await gift(h,ana.id,'2000','2025-08-04',{fund:'Reading',campaignId:campaign.id}),a5=await gift(h,ana.id,'1200','2025-08-05')
+  const a4=await gift(h,ana.id,'2000','2025-08-04',{fund:'Reading',campaignId:campaign.id,appeal:'READERS'}),a5=await gift(h,ana.id,'1200','2025-08-05')
   await h.command('tribute.record',{giftId:a5.id,kind:'memory',honoree:'Leela Template'})
   const b1=await gift(h,bo.id,'1000','2025-08-06'),c1=await gift(h,cy.id,'999.99','2025-08-07')
   const batch=await h.command('ack.prepare',{})
@@ -61,13 +63,13 @@ export async function letterTemplatesJourney(){
   // Precedence: form or campaign, tribute, major gift (inclusive minimum), first gift, then the settings letter.
   assert.deepEqual([a1,a2,a3,a4,a5,b1,c1].map(g=>[of(g).template_kind,of(g).template_id,of(g).template_version]),[
    ['first_gift',first.id,2],['default',null,settingsVersion],['major_gift',major.id,1],['campaign',spring.id,1],['tribute',tribute.id,1],['major_gift',major.id,1],['first_gift',first.id,2]])
-  assert.equal(of(a1).subject,'Welcome, Ana Template');assert.match(of(a1).body,/^FIRST v2 Dear Ana Template, thank you for \$300\.00 on August 1, 2025/)
+  assert.match(of(a1).body,/Recognition: Reading circle/);assert.match(of(a1).body,/Giving: \$5,400\.00 \/ 5 \/ \$300\.00 \/ \$2,000\.00 \/ \$1,200\.00/);assert.equal(of(a1).subject,'Welcome, Ana Template');assert.match(of(a1).body,/^FIRST v2 Dear Ana Template, thank you for \$300\.00 on August 1, 2025/)
   assert.match(of(a1).body,/EIN 12-3456789/);assert.match(of(a1).body,/No goods or services/)
   assert.ok(of(a1).body.includes('Email: '+(await h.get('/api/coffer/donors/'+ana.id)).donor.email))
   assert.ok(of(b1).body.includes('Email: No email recorded'))
   assert.ok(of(b1).body.includes('Address: No postal address recorded'))
   assert.ok(of(a1).body.includes('Address: 1 Main Street\nSpringfield\nIL\n62701'))
-  assert.doesNotMatch(of(a2).body,/^(FIRST|MAJOR|CAMPAIGN|TRIBUTE)/)
+  assert.match(of(a4).body,/Campaign: Spring books; appeal: Readers appeal/);assert.doesNotMatch(of(a2).body,/^(FIRST|MAJOR|CAMPAIGN|TRIBUTE)/)
   assert.match(of(a4).body,/^CAMPAIGN /);assert.match(of(a5).body,/^TRIBUTE [\s\S]*memory of Leela Template/)
   const page=await (await h.request('/app/letters/'+batch.id)).text()
   assert.ok(page.includes('First gift template v2')&&page.includes('Settings letter template v'+settingsVersion)&&page.includes('Form or campaign template v1'))
@@ -157,6 +159,10 @@ export async function letterTemplatesJourney(){
   await h.command('custom.define',{key:'board_term',label:'No permission',kind:'constituent',type:'text',version:1},{as:member.cookie,status:403})
   const customCatalog=await h.get('/api/coffer/template-fields')
   for(const entry of [customCatalog.settings,...customCatalog.templates])assert.ok(entry.fields.includes('custom.board_term'))
+  await h.command('custom.define',{key:'gift_value',label:'Internal gift value',kind:'gift',type:'currency',entry:'free-form'})
+  const valueCatalog=await h.get('/api/coffer/template-fields')
+  for(const kind of ['stock','in_kind']){const entry=valueCatalog.templates.find(t=>t.kind===kind);assert.ok(!entry.fields.includes('custom.gift_value'));await h.command('letterTemplate.save',{kind,name:'Refused value '+kind,subject:'Property',body:entry.required.map(f=>'{{'+f+'}}').join(' ')+' {{custom.gift_value}}'},{status:400})}
+  assert.ok(valueCatalog.settings.fields.includes('custom.gift_value'))
   const own=await donor(h,'Sage Custom'),missing=await donor(h,'Robin Custom',{email:null,addressLine1:null})
   await h.command('donor.profile',{donorId:own.id,version:1,firstName:'Sage',lastName:'Custom',formalSalutation:'Dr. Custom',informalSalutation:'',envelopeName:'Sage Custom'})
   await h.command('custom.set',{key:'board_term',recordId:own.id,value:'2025–2027',source:'Reviewed board record'})

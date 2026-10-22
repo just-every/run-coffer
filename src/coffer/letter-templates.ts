@@ -1,3 +1,5 @@
+import { giftFacts } from './merge-facts'
+import { GIVING_MERGE_FIELDS, RECOGNITION_MERGE_FIELDS } from './merge-field-catalog'
 import { customAllowed, customMerge } from './custom-fields'
 import { CONTRIBUTION_TEMPLATE_FIELDS, checkContributionTemplate, contributionReceiptKind, renderContributionReceipt, withContributionTypes } from './contribution-receipts'
 import { NAME_MERGE_FIELDS } from './person-names'
@@ -15,15 +17,15 @@ export const TEMPLATE_LABELS: Record<TemplateKind | 'default', string> = {
  campaign: 'Form or campaign', tribute: 'Tribute gift', major_gift: 'Major gift', first_gift: 'First gift', recurring_start: 'Recurring start',
  in_kind: 'In-kind gift', year_end: 'Year-end statement', default: 'Settings letter',
 }
-export const IN_KIND_FIELDS = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'gift_date', 'description', 'quantity', 'goods_statement', 'organization', 'ein']
-export const YEAR_END_FIELDS = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'year', 'gift_list', 'total', 'goods_total', 'deductible_total', 'goods_statement', 'organization', 'ein']
+export const IN_KIND_FIELDS = [...RECOGNITION_MERGE_FIELDS,...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'gift_date', 'description', 'quantity', 'goods_statement', 'organization', 'ein']
+export const YEAR_END_FIELDS = [...GIVING_MERGE_FIELDS,...RECOGNITION_MERGE_FIELDS,...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'year', 'gift_list', 'total', 'goods_total', 'deductible_total', 'goods_statement', 'organization', 'ein']
 const FIELDS: Record<'gift' | 'in_kind' | 'year_end', [string[], string[]]> = {
  gift: [LETTER, LETTER_REQUIRED],
  in_kind: [IN_KIND_FIELDS, ['donor_name', 'gift_date', 'description', 'goods_statement', 'organization', 'ein']],
- year_end: [YEAR_END_FIELDS, YEAR_END_FIELDS.filter(f => f !== 'date' && !NAME_MERGE_FIELDS.includes(f) && !CONTACT_MERGE_FIELDS.includes(f) && !HOUSEHOLD_MERGE_FIELDS.includes(f))],
+ year_end: [YEAR_END_FIELDS, ['donor_name','year','gift_list','total','goods_total','deductible_total','goods_statement','organization','ein']],
 }
 export const templateFields = (kind: TemplateKind): [string[], string[]] => kind === 'stock' || kind === 'daf' || kind === 'qcd' ? CONTRIBUTION_TEMPLATE_FIELDS[kind] : FIELDS[kind === 'in_kind' || kind === 'year_end' ? kind : 'gift']
-export const publishedTemplateFields = async (c:{db:D1Database}) => { const custom=await customAllowed(c,[]); return ({ syntax: '{{field}}', defaultSyntax: '{{field|literal default}}', templates: TEMPLATE_KINDS.map(kind => { const [fields, required] = templateFields(kind); return { kind, fields:[...fields,...custom], required } }), settings: { fields:[...LETTER,...custom], required: LETTER_REQUIRED } }) }
+export const publishedTemplateFields = async (c:{db:D1Database}) => ({ syntax:'{{field}}',defaultSyntax:'{{field|literal default}}',templates:await Promise.all(TEMPLATE_KINDS.map(async kind=>{const [fields,required]=templateFields(kind);return {kind,fields:await customAllowed(c,fields,{currency:kind!=='stock'&&kind!=='in_kind'}),required}})),settings:{fields:await customAllowed(c,LETTER),required:LETTER_REQUIRED} })
 
 export type TemplateUse = { template_kind: string; template_id: string | null; template_version: number }
 /** No reviewed template applies: the settings letter (or built-in statement) at the settings version. */
@@ -47,6 +49,7 @@ export const templatesUnchanged = (revision: number): Stmt =>
 export async function giftTemplates(c: { db: D1Database }, gifts: Row[]): Promise<Map<string, Row>> {
  await withContributionTypes(c, gifts)
  for(const gift of gifts)gift.merge_fields=await customMerge(c,'gift',gift.id)
+ await giftFacts(c,gifts)
  const templates = (await all(c, `SELECT * FROM cf_letter_templates WHERE active=1 AND kind IN (${GIFT_TEMPLATE_KINDS.map(() => '?').join(',')})`, ...GIFT_TEMPLATE_KINDS))
  const chosen = new Map<string, Row>()
  if (!templates.length || !gifts.length) return chosen
@@ -101,8 +104,8 @@ export async function letterTemplateCommand(c: Context, command: string, p: Row)
   name: text(p.name, 'Template name', 100), subject: text(p.subject, 'Subject', 200), body: longText(p.body, 'Letter', 8000),
  }
  const [allowed, required] = templateFields(kind)
- checkTemplate(t.subject, 'Template subject', await customAllowed(c,allowed), [])
- checkTemplate(t.body, 'Template', await customAllowed(c,allowed), required)
+ checkTemplate(t.subject, 'Template subject', await customAllowed(c,allowed,{currency:kind!=='stock'&&kind!=='in_kind'}), [])
+ checkTemplate(t.body, 'Template', await customAllowed(c,allowed,{currency:kind!=='stock'&&kind!=='in_kind'}), required)
  checkContributionTemplate(kind, t.subject, t.body)
  await commit(c, [
   ...(existing ? [current!, sql('UPDATE cf_letter_templates SET min_cents=?,name=?,subject=?,body=?,version=?,reviewed_at=?,reviewed_by=? WHERE id=?', t.min_cents, t.name, t.subject, t.body, t.version, c.now, c.actor.name, t.id)]

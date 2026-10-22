@@ -1,3 +1,4 @@
+import { GIVING_MERGE_FIELDS, GIFT_DETAIL_MERGE_FIELDS, RECOGNITION_MERGE_FIELDS } from './merge-field-catalog'
 import { contributionReceiptKind, contributionGoodsStatement, renderContributionReceipt } from './contribution-receipts'
 import { customAllowed } from './custom-fields'
 import { NAME_MERGE_FIELDS, personNames } from './person-names'
@@ -19,7 +20,7 @@ export async function settings(c: { db: D1Database }): Promise<Settings> {
  return row
 }
 
-export const LETTER = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
+export const LETTER = [...GIVING_MERGE_FIELDS,...GIFT_DETAIL_MERGE_FIELDS,...RECOGNITION_MERGE_FIELDS,...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
 export const LETTER_REQUIRED = ['donor_name', 'amount', 'gift_date', 'goods_statement', 'organization', 'ein']
 const GOODS = ['goods_value', 'goods_description', 'deductible_amount', 'amount']
 const placeholders = (value: string) => templateTokens(value).map(t => t.field)

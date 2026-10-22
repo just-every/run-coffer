@@ -4,7 +4,7 @@ import { usd } from './money'
 
 export const customFields = (c:{db:D1Database}) => all(c,'SELECT * FROM cf_custom_fields ORDER BY key')
 export async function customFieldNames(c:{db:D1Database}) { return (await customFields(c)).map(f=>'custom.'+f.key) }
-export async function customAllowed(c:{db:D1Database},fields:string[]) { return [...fields,...await customFieldNames(c)] }
+export async function customAllowed(c:{db:D1Database},fields:string[],options:{currency?:boolean}={}) { return [...fields,...(await customFields(c)).filter(f=>options.currency!==false||f.type!=='currency').map(f=>'custom.'+f.key)] }
 export function customValue(field:Row,input:unknown):string {
  const scalar=(v:unknown):string=>{
   if(field.type==='checkbox') { if(v!==true&&v!==false&&v!=='true'&&v!=='false')fail('INPUT','Choose true or false.',400);return String(v) }
