@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {generateKeyPairSync,sign} from 'node:crypto'
 import {run,donor,reviewed,settings,archive,restore} from './harness.mjs'
 
-const day=new Date(Date.now()-86400000*2).toISOString().slice(0,10)
+const day=new Intl.DateTimeFormat('en-CA',{timeZone:settings.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()-86400000*2))
 const gift=(h,donorId,amount)=>h.command('gift.record',{donorId,amount,receivedOn:day,method:'check',goods:'none'})
 const read=async(h,donorId,giftId)=>(await h.get(`/api/coffer/donors/${donorId}`)).gifts.find(g=>g.id===giftId).acknowledgment
 
