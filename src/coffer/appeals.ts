@@ -16,13 +16,13 @@ import { countReason } from './status'
 const MAX_RECIPIENTS = 10000
 const CONSENT = `(SELECT k.id FROM cf_consents k WHERE k.donor_id=r.donor_id AND k.channel=? ORDER BY k.id DESC LIMIT 1)`
 // Every frozen recipient still has the exact consent answer that admitted them.
-const CHANGED = `(${CONSENT} IS NOT r.consent_id OR (SELECT constituent_status FROM cf_donors WHERE id=r.donor_id)<>'active')`
+const CHANGED = `(${CONSENT} IS NOT r.consent_id OR (SELECT constituent_status FROM cf_donors WHERE id=r.donor_id)<>'active' OR (r.email_contact_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.id=r.email_contact_id AND p.donor_id=r.donor_id AND p.kind='email' AND p.active=1 AND p.version=r.email_contact_version AND p.value=r.email)))`
 const UNCHANGED = `NOT EXISTS(SELECT 1 FROM cf_appeal_recipients r WHERE r.appeal_id=? AND ${CHANGED})`
-export const hashOf = (name: string, channel: string, recipients: Row[], message?: Row | null,pieces?:Row[]) => sha256(JSON.stringify([name, channel, recipients.map(r => [r.donor_id, r.consent_id, r.name, r.email, r.address, ...(r.name_fields ? [r.name_fields] : []), ...(message ? [r.total_cents,r.gift_count,r.last_gift] : [])]), ...(message ? [message.subject,message.body] : []),...(pieces?.length?[pieces.map(p=>[p.id,p.name,p.address,p.names,p.members,p.household_id,p.household_version,p.snapshot]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))]:[])]))
+export const hashOf = (name: string, channel: string, recipients: Row[], message?: Row | null,pieces?:Row[]) => sha256(JSON.stringify([name, channel, recipients.map(r => [r.donor_id, r.consent_id, r.name, r.email, r.address, ...(r.name_fields ? [r.name_fields] : []),...(r.email_contact_id?[r.email_contact_id,r.email_contact_version]:[]), ...(message ? [r.total_cents,r.gift_count,r.last_gift] : [])]), ...(message ? [message.subject,message.body] : []),...(pieces?.length?[pieces.map(p=>[p.id,p.name,p.address,p.names,p.members,p.household_id,p.household_version,p.snapshot]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))]:[])]))
 const postal = (d: Row) => d.address_line1 && d.city && d.postal_code
 
 /** Splits the segment into consenting recipients and counted exclusions. */
-export async function audience(c: { db: D1Database; now?:string }, channel: 'email' | 'mail', segment: { givenSince: string | null; minTotalCents: number; fund?: string | null; donorIds?: string[]; isAsk?: boolean; includeIds?: string[];addressType?:string }) {
+export async function audience(c: { db: D1Database; now?:string }, channel: 'email' | 'mail', segment: { givenSince: string | null; minTotalCents: number; fund?: string | null; donorIds?: string[]; isAsk?: boolean; includeIds?: string[];addressType?:string;emailType?:string }) {
  const rawRows = await all(c, `SELECT d.*,k.id AS consent_id,k.status AS consent,
   (SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
   (SELECT COUNT(*) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS gift_count,
@@ -32,7 +32,7 @@ export async function audience(c: { db: D1Database; now?:string }, channel: 'ema
   AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_fund_ledger g WHERE g.donor_id=d.id AND g.fund=? GROUP BY g.fund HAVING SUM(g.amount_cents)>0))
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
   ORDER BY lower(d.name),d.id`, channel, segment.givenSince, segment.givenSince, Math.max(1, segment.minTotalCents), segment.fund??null,segment.fund??null)
- const rows=await mailContactRows(c,rawRows,{addressType:segment.addressType})
+ const rows=await mailContactRows(c,rawRows,{addressType:segment.addressType,emailType:segment.emailType})
  const excluded: Record<string, number> = { 'no consent recorded': 0, 'consent withdrawn': 0, 'no email address': 0, 'no postal address': 0 }
  const sharedEmails=new Set<string>()
  const recipients: Row[] = [], lastAskDates:Record<string,number> = {}
@@ -50,7 +50,7 @@ export async function audience(c: { db: D1Database; now?:string }, channel: 'ema
   else if (channel === 'mail' && !postal(d)) excluded['no postal address']++
   else if (channel === 'mail' && addressHolds.has(d.id)) countReason(excluded,addressHolds.get(d.id).reason)
   else if(channel==='email'&&sharedEmails.has(String(d.email).toLowerCase()))countReason(excluded,'shared email duplicate')
-  else {if(channel==='email')sharedEmails.add(String(d.email).toLowerCase());recipients.push({ donor_id: d.id, consent_id: d.consent_id, name: d.name, name_fields:frozenNameFields(await letterRecipient(c,d)), total_cents:d.total_cents,gift_count:d.gift_count,last_gift:d.last_gift, email: channel === 'email' ? d.email : null, address: channel === 'mail' ? JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country,addressContactId:d.selected_address_contact_id,addressContactVersion:d.selected_address_contact_version }) : null })}
+  else {if(channel==='email')sharedEmails.add(String(d.email).toLowerCase());recipients.push({ donor_id: d.id, consent_id: d.consent_id, name: d.name, name_fields:frozenNameFields(await letterRecipient(c,d,{emailType:channel==='email'?segment.emailType:undefined})), total_cents:d.total_cents,gift_count:d.gift_count,last_gift:d.last_gift, email: channel === 'email' ? d.email : null,email_contact_id:channel==='email'?d.selected_email_contact_id:null,email_contact_version:channel==='email'?d.selected_email_contact_version:null, address: channel === 'mail' ? JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country,addressContactId:d.selected_address_contact_id,addressContactVersion:d.selected_address_contact_version }) : null })}
  }
  return { recipients, excluded, lastAskDates }
 }
@@ -62,6 +62,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   if(c.actor.role==='member'&&!includes.length)fail('FORBIDDEN','Prepare a one-run inclusion from an assigned donor record.',403)
   await deliberateInclusionGuards(c,includes.map(x=>x.donorId))
   const name = text(p.name, 'Appeal name', 200), channel = choice(p.channel, ['email', 'mail'] as const, 'channel')
+  if(p.emailType)choice(p.emailType,['personal','work','other'],'email contact type')
   if(purpose==='newsletter'&&channel!=='email')fail('INPUT','The newsletter topic uses email.',400)
   const givenSince = p.givenSince ? date(p.givenSince, 'Gave since') : null
   const minTotalCents = givenSince && (p.minTotal || p.minTotalCents) ? amount(p, 'minTotal', 'Minimum given') : 0
@@ -77,7 +78,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  const message = written ? {subject:text(p.subject,'Email subject',250),body:longText(p.body,'Email message',12000)} : null
   if(message){ const {mergeMessage}=await import('./communications/outbound'); mergeMessage(message.subject,{name:'Donor'});mergeMessage(message.body,{name:'Donor'}) }
   const addressPass=channel==='mail'?await mailPreflight(c,p.addressType||''):null
-  const { recipients, excluded, lastAskDates } = await audience(c, channel, { givenSince, minTotalCents, fund, donorIds: c.actor.role==='member'?includes.map(x=>x.donorId):selection?.donorIds ?? donorIds, isAsk,addressType:p.addressType||'', includeIds:includes.map(x=>x.donorId) })
+  const { recipients, excluded, lastAskDates } = await audience(c, channel, { givenSince, minTotalCents, fund, donorIds: c.actor.role==='member'?includes.map(x=>x.donorId):selection?.donorIds ?? donorIds, isAsk,addressType:p.addressType||'',emailType:channel==='email'?p.emailType||'':undefined, includeIds:includes.map(x=>x.donorId) })
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)
   if (recipients.length > MAX_RECIPIENTS) fail('TOO_MANY', `An appeal holds at most ${MAX_RECIPIENTS} recipients. Narrow the segment.`, 400)
   const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, grouping=channel==='mail'?await prepareAppealPieces(c,appealId,recipients,p.onePiecePer,{addressType:p.addressType||''}):null, hash = await hashOf(name, channel, recipients,message,grouping?.pieces), list = JSON.stringify(recipients)
@@ -87,11 +88,12 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   await commit(c, [...(saved?.guards??[]),...restriction.statements,
    ...(selection?[guard("NOT EXISTS(SELECT 1 FROM cf_appeals WHERE json_extract(segment,'$.resendOf')=? AND status<>'discarded')",'RESEND_EXISTS','A resend was prepared concurrently. Refresh to review it.',selection.resendOf)]:[]),
    guard(`NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE (SELECT k.id FROM cf_consents k WHERE k.donor_id=json_extract(j.value,'$.donor_id') AND k.channel=? ORDER BY k.id DESC LIMIT 1) IS NOT json_extract(j.value,'$.consent_id'))`, 'CONSENT_CHANGED', 'A donor’s consent changed while preparing. Prepare again.', list, channel),
+   guard(`NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.email_contact_id') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.id=json_extract(j.value,'$.email_contact_id') AND p.donor_id=json_extract(j.value,'$.donor_id') AND p.active=1 AND p.kind='email' AND p.version=json_extract(j.value,'$.email_contact_version') AND p.value=json_extract(j.value,'$.email')))`,'CONTACT_CHANGED','An email contact changed. Prepare the audience again.',list),
    sql("INSERT INTO cf_appeal_codes(code,name,origin,created_at) VALUES(?,?,'staff',?)",code,name,c.now),
    sql("INSERT INTO cf_appeals(id,version,name,channel,segment,excluded,status,content_hash,recipients,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,?,?,?,?,'prepared',?,?,?,?,?,?)",
-    appealId, name, channel, JSON.stringify({ ...(p.addressType?{addressType:p.addressType}:{}),...(grouping?{onePiecePer:grouping.basis,pieceCount:grouping.pieces.length,postagePerPieceCents:p.postagePerPiece?amount(p,'postagePerPiece','Postage per piece',{allowZero:true}):null}:{}),...(saved?{listId:p.listId}:{}),givenSince, minTotalCents, fund, purpose, isAsk, lastAskDates, ...(selection ? {resendOf:selection.resendOf} : {}), ...(annual ? {annualList,listYear:annual.year,listThrough:annual.through} : {}) }), JSON.stringify(excluded), hash, recipients.length, c.actor.id, c.actor.name, c.actor.role, c.now),
+    appealId, name, channel, JSON.stringify({ ...(p.emailType&&channel==='email'?{emailType:p.emailType}:{}),...(p.addressType?{addressType:p.addressType}:{}),...(grouping?{onePiecePer:grouping.basis,pieceCount:grouping.pieces.length,postagePerPieceCents:p.postagePerPiece?amount(p,'postagePerPiece','Postage per piece',{allowZero:true}):null}:{}),...(saved?{listId:p.listId}:{}),givenSince, minTotalCents, fund, purpose, isAsk, lastAskDates, ...(selection ? {resendOf:selection.resendOf} : {}), ...(annual ? {annualList,listYear:annual.year,listThrough:annual.through} : {}) }), JSON.stringify(excluded), hash, recipients.length, c.actor.id, c.actor.name, c.actor.role, c.now),
    sql('INSERT INTO cf_appeal_runs(appeal_id,code,cost_cents) VALUES(?,?,?)',appealId,code,costCents),
-   sql(`INSERT INTO cf_appeal_recipients(appeal_id,donor_id,consent_id,name,email,address,total_cents,gift_count,last_gift,name_fields) SELECT ?,json_extract(value,'$.donor_id'),json_extract(value,'$.consent_id'),json_extract(value,'$.name'),json_extract(value,'$.email'),json_extract(value,'$.address'),json_extract(value,'$.total_cents'),json_extract(value,'$.gift_count'),json_extract(value,'$.last_gift'),json_extract(value,'$.name_fields') FROM json_each(?)`, appealId, list),
+   sql(`INSERT INTO cf_appeal_recipients(appeal_id,donor_id,consent_id,name,email,address,total_cents,gift_count,last_gift,name_fields,email_contact_id,email_contact_version) SELECT ?,json_extract(value,'$.donor_id'),json_extract(value,'$.consent_id'),json_extract(value,'$.name'),json_extract(value,'$.email'),json_extract(value,'$.address'),json_extract(value,'$.total_cents'),json_extract(value,'$.gift_count'),json_extract(value,'$.last_gift'),json_extract(value,'$.name_fields'),json_extract(value,'$.email_contact_id'),json_extract(value,'$.email_contact_version') FROM json_each(?)`, appealId, list),
    ...addressSnapshot,...(grouping?.statements??[]),
    ...(message ? [sql('INSERT INTO cf_appeal_messages VALUES(?,?,?)',appealId,message.subject,message.body)] : []),
    event(c, 'appeal.prepare', 'appeal', appealId, null, { channel, recipients: recipients.length, excluded })])

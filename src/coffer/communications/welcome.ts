@@ -9,7 +9,7 @@ import { prepareSolicitationRun, solicitationReason } from '../solicitation'
 import { emailConnection } from './connection'
 import type { Bindings } from '../../auth.server'
 import { requireRole } from '../auth'
-import { all, commit, event, fail, guard, integer, longText, newId, one, sql, text, type Context, type Row, type Stmt } from '../db'
+import { all, choice, commit, event, fail, guard, integer, longText, newId, one, sql, text, type Context, type Row, type Stmt } from '../db'
 import { submitMessage } from './outbound'
 import { settings } from '../settings'
 import { today } from '../db'
@@ -34,10 +34,10 @@ async function content(c:Context,value:unknown,label:string,body=false){
  checkTemplate(valueText,label,await customAllowed(c,WELCOME_FIELDS),[])
  return valueText
 }
-async function stepMessage(c:Context,step:Row){
+async function stepMessage(c:Context,step:Row,options:{emailType?:string}={}){
  const d=await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',step.donor_id)
  if(!d)fail('DONOR_CHANGED','The welcome recipient is no longer available.')
- const [recipient,s,gift]=await Promise.all([letterRecipient(c,d),settings(c),one(c,'SELECT * FROM cf_gift_balances WHERE id=? AND donor_id=? AND net_cents>0',step.first_gift_id,d.id)])
+ const [recipient,s,gift]=await Promise.all([letterRecipient(c,d,options),settings(c),one(c,'SELECT * FROM cf_gift_balances WHERE id=? AND donor_id=? AND net_cents>0',step.first_gift_id,d.id)])
  const giftFields:Row={}
  if(gift){gift.merge_fields=await customMerge(c,'gift',gift.id);await giftFacts(c,[gift]);Object.assign(giftFields,gift.merge_fields,{amount:usd(gift.net_cents),gift_date:longDate(gift.received_on),fund:gift.fund})
   if(gift.goods!=='unknown'&&gift.goods_cents<=gift.net_cents)Object.assign(giftFields,{goods_statement:goodsStatement(s,{...gift,amount_cents:gift.net_cents}),deductible_amount:usd(gift.net_cents-gift.goods_cents)})}
@@ -48,7 +48,7 @@ async function stepMessage(c:Context,step:Row){
 export async function welcomeCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
  if (!['welcome.publish', 'welcome.run','list.welcome'].includes(command)) return undefined
  requireRole(c.actor, ['owner', 'admin'], 'manage the welcome series')
- if (command === 'welcome.run') return run(c)
+ if (command === 'welcome.run') return run(c,{emailType:p.emailType?choice(p.emailType,['personal','work','other'],'email contact type'):undefined})
  if(command==='list.welcome'){
   if(p.confirm!=='yes')fail('CONSENT','Confirm enrollment in the published welcome series. Its previously approved messages may submit on a later run.',400)
   const listId=text(p.listId,'Saved list',100),list=await one(c,'SELECT version FROM cf_saved_lists WHERE id=?',listId)
@@ -129,7 +129,7 @@ async function stop(c: Context) {
  ])
 }
 
-async function run(c: Context): Promise<Row> {
+async function run(c: Context,options:{emailType?:string}={}): Promise<Row> {
  const {unavailable}=await emailConnection(c); if(unavailable) return {unavailable,submitted:0}
  if (!await one(c, "SELECT id FROM cf_welcome WHERE id='welcome'")) return { published: false, submitted: 0, uncertain: 0, cancelled: 0 }
  await enroll(c)
@@ -143,7 +143,9 @@ async function run(c: Context): Promise<Row> {
   if(!queued)continue
   const restricted=queued.step==='ask'?await solicitationReason(c,queued.donor_id,'email',c.now):null
   if(restricted){await commit(c,[sql("UPDATE cf_welcome_steps SET status='cancelled',note=? WHERE id=? AND status='pending'",restricted.reason+(restricted.reason==='solicitation limit'&&restricted.lastAskOn?' · Last ask '+restricted.lastAskOn:''),row.id),event(c,'welcome.askSkipped','welcome',row.id,queued.donor_id,restricted)]);cancelled++;continue}
-  const rendered=await stepMessage(c,queued),blanks:string[]=JSON.parse(rendered.merge_blanks)
+  const rendered=await stepMessage(c,queued,options),blanks:string[]=JSON.parse(rendered.merge_blanks)
+  if(!rendered.recipient.email&&!blanks.includes('email'))blanks.push('email')
+  rendered.merge_blanks=JSON.stringify(blanks)
   if(blanks.length){await commit(c,[sql("UPDATE cf_welcome_steps SET merge_blanks=?,merge_checked_at=?,note=? WHERE id=? AND status='pending'",rendered.merge_blanks,c.now,'Missing merge fields: '+blanks.join(', ')+'. No provider handoff; fill the values before running again.',row.id)]);held.push({donorId:queued.donor_id,stepId:queued.id,fields:blanks});continue}
   if(!await one(c,'SELECT 1 FROM cf_solicitation_runs WHERE kind=? AND run_id=?','welcome',row.id)){
    const classification=await prepareSolicitationRun(c,{kind:'welcome',id:row.id,channel:'email',isAsk:queued.step==='ask',donorIds:[queued.donor_id]})
@@ -153,10 +155,10 @@ async function run(c: Context): Promise<Row> {
   // 'uncertain' is the durable pre-send claim. Only this unique claim holder
   // may submit; a crashed Worker leaves visible uncertainty, never a retry.
   await commit(c, [sql(`UPDATE cf_welcome_steps SET status='uncertain',note=?,merge_blanks='[]',merge_checked_at=? WHERE id=? AND status='pending'
-   AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.version=? AND d.email=?) AND julianday(due_at)<=julianday(?) AND ${allowed}
+   AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.version=? AND (d.email=? OR EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id=d.id AND p.id=? AND p.version=? AND p.active=1 AND p.kind='email' AND p.value=?))) AND julianday(due_at)<=julianday(?) AND ${allowed}
    AND NOT EXISTS(SELECT 1 FROM cf_welcome_steps prior WHERE prior.donor_id=cf_welcome_steps.donor_id
     AND prior.status='pending' AND CASE prior.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END
-     <CASE cf_welcome_steps.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END)`, claim,c.now,row.id,queued.donor_id,rendered.version,rendered.recipient.email,c.now)])
+     <CASE cf_welcome_steps.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END)`, claim,c.now,row.id,queued.donor_id,rendered.version,rendered.recipient.email,rendered.recipient.selected_email_contact_id,rendered.recipient.selected_email_contact_version,rendered.recipient.email,c.now)])
   const step = await one(c, `SELECT s.*,
    COALESCE(v.subject,CASE s.step WHEN 'thank' THEN w.thank_subject WHEN 'impact' THEN w.impact_subject ELSE w.ask_subject END) AS subject,
    COALESCE(v.body,CASE s.step WHEN 'thank' THEN w.thank_body WHEN 'impact' THEN w.impact_body ELSE w.ask_body END) AS body,v.list_name
@@ -171,7 +173,7 @@ async function run(c: Context): Promise<Row> {
   }
   let state = 'uncertain', note = 'Submission could not be confirmed. Check the message history before contacting this donor. No automatic resend.'
   try {
-   const result = await submitMessage(c, { key: step.message_key, donorId: step.donor_id, subject: step.subject, body: step.body, sourceKind: 'welcome', sourceId: step.id, rendered, expectedEmail:rendered.recipient.email, listName: step.list_name ?? `Coffer welcome · ${step.step === 'thank' ? '1 Thank you' : step.step === 'impact' ? '2 Impact' : '3 Next gift'}` })
+   const result = await submitMessage(c, { key: step.message_key, donorId: step.donor_id, subject: step.subject, body: step.body, sourceKind: 'welcome', sourceId: step.id, rendered, expectedEmail:rendered.recipient.email,emailType:options.emailType,expectedContactId:rendered.recipient.selected_email_contact_id,expectedContactVersion:rendered.recipient.selected_email_contact_version, listName: step.list_name ?? `Coffer welcome · ${step.step === 'thank' ? '1 Thank you' : step.step === 'impact' ? '2 Impact' : '3 Next gift'}` })
    state = ['submitted', 'listed'].includes(result.status) ? 'submitted' : result.status === 'suppressed' ? 'cancelled' : 'uncertain'
    note = state === 'submitted' ? 'Submitted; delivery is not confirmed.' : state === 'cancelled' ? 'Message suppressed; no email was sent.' : note
   } catch (error) {

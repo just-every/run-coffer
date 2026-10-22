@@ -112,7 +112,7 @@ async function findCommunication(message: ForwardableEmailMessage, env: Bindings
  const destination = address(message.to), fixed = address(config.COFFER_REPLY_ADDRESS ?? '')
  const point=`SELECT cp.value FROM cf_contact_points cp WHERE cp.id=c.email_contact_id AND cp.donor_id=d.id AND cp.kind='email' AND cp.active=1 AND cp.version=c.email_contact_version AND cp.value=c.recipient_email`
  const live = `SELECT c.*,d.email AS donor_email,(${point}) AS contact_email FROM (
-  SELECT id,donor_id,subject,reply_to,source_kind,source_id,created_at,'communication' AS source_type,recipient_email,json_extract(name_fields,'$._emailContact') AS email_contact_id,json_extract(name_fields,'$._emailContactVersion') AS email_contact_version
+  SELECT id,donor_id,subject,reply_to,source_kind,source_id,created_at,'communication' AS source_type,recipient_email,COALESCE(recipient_contact_id,json_extract(name_fields,'$._emailContact')) AS email_contact_id,COALESCE(recipient_contact_version,json_extract(name_fields,'$._emailContactVersion')) AS email_contact_version
   FROM cf_communications WHERE status IN ('submitted','uncertain')
   UNION ALL
   SELECT a.id,a.donor_id,a.subject,a.reply_to,

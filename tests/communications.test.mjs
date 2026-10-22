@@ -198,7 +198,29 @@ test('DONOR-014: Connect Mango from the page, send an approved appeal to a Mango
   const shared=contacts.get(recorded.contacts[0].email).fields
   assert.equal(shared['custom.profile_interest'],'Books');assert.equal(shared.total_given,'$250.00');assert.equal(shared.email,recorded.contacts[0].email);assert.equal(shared.external,'kept')
   assert.equal(contacts.get(recorded.contacts[1].email).fields['custom.profile_interest'],'Supporter')
-  if(process.env.COFFER_PROVIDER_FIELDS_BROWSER){await providerFieldsBrowser(h,selection.version+1)}
+  // DONOR-013: a run chooses a nonprimary work point and retains its identity.
+  const workEmail='synthetic-coffer-1510@example.test',beforeWork=(await h.get('/api/coffer/donors/'+avery.id)).donor
+  const work=await h.command('contact.save',{donorId:avery.id,donorVersion:beforeWork.version,kind:'email',type:'work',value:workEmail,source:'Synthetic documented work address'})
+  contacts.set(workEmail,{id:'synthetic-coffer-1510',email:workEmail,emailStatus:'subscribed',fields:{external:'work-only'}})
+  const selectedAppeal=()=>h.command('appeal.prepare',{name:'Synthetic work contact',channel:'email',emailType:'work',subject:'Hello {{formal_salutation}}',body:'Thank you for {{total_given}}.'})
+  const chosen=await selectedAppeal(),chosenDetail=await h.get('/api/coffer/appeals/'+chosen.id)
+  assert.equal(chosen.recipients,1,'A missing chosen type is excluded rather than falling back to a personal address')
+  assert.equal(chosenDetail.recipients[0].email,workEmail);assert.equal(chosenDetail.recipients[0].email_contact_id,work.id);assert.equal(chosenDetail.recipients[0].email_contact_version,1)
+  await h.command('appeal.approve',{appealId:chosen.id,version:1})
+  assert.equal((await h.command('appeal.send',{appealId:chosen.id,version:2})).listed,1)
+  assert.equal((await h.command('appeal.send',{appealId:chosen.id,version:2})).listed,0,'The same chosen contact is not handed off twice')
+  let chosenMessage=(await h.get('/api/coffer/donors/'+avery.id)).communications.find(m=>m.source_id===chosen.id)
+  assert.equal(chosenMessage.recipient_email,workEmail);assert.equal(chosenMessage.recipient_contact_id,work.id);assert.equal(chosenMessage.recipient_contact_version,1)
+  assert.equal(contacts.get(workEmail).fields.email,workEmail);assert.equal(contacts.get(workEmail).fields.external,'work-only')
+  assert.equal((await h.get('/api/coffer/donors/'+avery.id)).donor.email,recorded.contacts[0].email,'Run selection never changes the primary')
+  const staleContact=await selectedAppeal()
+  await h.command('contact.save',{donorId:avery.id,donorVersion:(await h.get('/api/coffer/donors/'+avery.id)).donor.version,contactId:work.id,version:1,kind:'email',type:'work',value:workEmail,source:'Synthetic source correction'})
+  await h.command('appeal.approve',{appealId:staleContact.id,version:1},{status:409})
+  chosenMessage=(await h.get('/api/coffer/donors/'+avery.id)).communications.find(m=>m.source_id===chosen.id)
+  assert.equal(chosenMessage.recipient_contact_version,1,'Historical submissions retain their exact original contact version')
+  if(process.env.COFFER_PROVIDER_FIELDS_BROWSER){await providerFieldsBrowser(h,selection.version+1);await appealContactBrowser(h)}
+  async function appealContactBrowser(h){const directory=process.env.COFFER_PROVIDER_FIELDS_BROWSER;const {withBrowserWorker}=await import('./browser-worker.mjs');await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals');const editor=page.locator('form').filter({has:page.locator('input[name=command][value="appeal.prepare"]')});await editor.getByLabel('Appeal name',{exact:true}).fill('Synthetic work email '+width);await editor.locator('select[name=emailType]').selectOption('work');await editor.getByRole('button',{name:'Prepare audience',exact:true}).click();await page.waitForURL('**/app/appeals/**');assert.ok((await page.locator('main').innerText()).includes(workEmail));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/DONOR-013-appeal-contact-'+width+'.png',fullPage:true})}await page.close()})}
+
   async function providerFieldsBrowser(h,expectedVersion){const directory=process.env.COFFER_PROVIDER_FIELDS_BROWSER;const {mkdir}=await import('node:fs/promises');const {withBrowserWorker}=await import('./browser-worker.mjs');await mkdir(directory,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals/connect');const panel=page.locator('#provider-merge-fields');await panel.locator('select[name=fieldKey]').selectOption('custom.profile_interest');await panel.getByRole('button',{name:'Insert merge field',exact:true}).click();await page.getByRole('heading',{name:'Shared field draft',exact:true}).waitFor();assert.match(await page.locator('textarea[name=fields]').inputValue(),/custom\.profile_interest/);assert.equal((await h.get('/api/coffer/provider-fields')).version,expectedVersion,'Insertion only drafts');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/RCPT-010-provider-fields-'+width+'.png',fullPage:true})}await page.close()})}
   // A Mango unsubscribe becomes a Coffer withdrawal; a Coffer withdrawal becomes a Mango suppression.
   contacts.get(recorded.contacts[0].email).emailStatus='unsubscribed'
@@ -378,13 +400,20 @@ test('RCPT-010: welcome fields share the receipt catalog, hold missing recipient
   await h.command('custom.set',{key:'board_note',recordId:d.id,value:'Board {{not_a_field}}',source:'synthetic-coffer-1104'})
   const current=(await h.get('/api/coffer/donors/'+d.id)).donor
   await h.command('donor.update',{donorId:d.id,version:current.version,name:current.name,email:current.email,addressLine1:'12 Reading Road',city:'Springfield',region:'IL',postalCode:'62701'})
-  const resumed=await h.command('welcome.run',{}, {headers:{'x-test-now':'2026-01-02T12:02:00Z'}})
+  const missingContact=await h.command('welcome.run',{emailType:'work'}, {headers:{'x-test-now':'2026-01-02T12:01:30Z'}})
+  assert.equal(missingContact.submitted,0);assert.deepEqual(missingContact.held[0].fields,['email'],'A missing chosen contact holds before any submission claim')
+  const work=await h.command('contact.save',{donorId:d.id,donorVersion:(await h.get('/api/coffer/donors/'+d.id)).donor.version,kind:'email',type:'work',value:'synthetic-coffer-1110@example.test',source:'Synthetic explicit work address'})
+  const resumed=await h.command('welcome.run',{emailType:'work'}, {headers:{'x-test-now':'2026-01-02T12:02:00Z'}})
   assert.equal(resumed.submitted,1);assert.deepEqual(resumed.held,[])
   const communication=(await h.get('/api/coffer/donors/'+d.id)).communications[0]
+  assert.equal(communication.recipient_email,'synthetic-coffer-1110@example.test');assert.equal(communication.recipient_contact_id,work.id);assert.equal(communication.recipient_contact_version,1)
+  assert.equal((await h.get('/api/coffer/donors/'+d.id)).donor.email,'synthetic-coffer-1102@example.test','Welcome run selection leaves the primary unchanged')
   assert.equal(communication.status,'listed');assert.match(communication.subject,/Board \{\{not_a_field\}\}/,'Stored values are literal text, never a second template')
   assert.match(communication.body,/\$25\.00 · thanks · 12 Reading Road\nSpringfield\nIL\n62701\nUnited States · \$25\.00 · Board \{\{not_a_field\}\}/)
   assert.equal((await h.get('/api/coffer/welcome')).mergeReview.length,0)
   assert.equal((await h.command('welcome.run',{}, {headers:{'x-test-now':'2026-01-02T12:03:00Z'}})).submitted,0,'The resumed step is handed off once')
+  if(directory){await welcomeContactBrowser(h)}
+  async function welcomeContactBrowser(h){const {withBrowserWorker}=await import('./browser-worker.mjs');await withBrowserWorker(h,async(context,origin)=>{await context.setExtraHTTPHeaders({'x-test-now':'2026-01-02T12:03:00Z'});const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals');const editor=page.locator('form').filter({has:page.locator('input[name=command][value="welcome.run"]')});await editor.locator('select[name=emailType]').selectOption('work');const prior=handoffs.length;await editor.getByRole('button',{name:'Run due welcome steps',exact:true}).click();await page.waitForURL('**/app/appeals');assert.equal(handoffs.length,prior,'The native chosen-contact run never repeats a completed step');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/DONOR-013-welcome-contact-'+width+'.png',fullPage:true})}await page.close()})}
   await h.command('donor.erase',{donorId:d.id,confirm:'ERASE'});assert.doesNotMatch(JSON.stringify(await archive(h)),/Board \{\{not_a_field\}\}|12 Reading Road/)
  },{entry:'tests/engagement-worker.ts',outbound:async request=>{
   const u=new URL(request.url);assert.equal(u.origin,'https://mango.example.test');const path=u.pathname.replace('/api/integrations/v1',''),body=request.method==='GET'?null:await request.json()

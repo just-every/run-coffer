@@ -5,12 +5,13 @@ import { providerTitle, providerContact, captureProviderConsent, restricted, sub
 import { emailConnection, requireConnection } from './connection'
 import { syncMailchimpNames } from './mailchimp'
 
-export async function reconcileDonor(c: Context, donorId: string, capture = false): Promise<Row> {
+export async function reconcileDonor(c: Context, donorId: string, capture = false,options:{emailType?:string}={}): Promise<Row> {
  const donor = await one(c, `SELECT d.*,k.id AS consent_id,k.status AS consent,k.evidence,k.captured_on FROM cf_donors d
  LEFT JOIN cf_consents k ON k.id=(SELECT id FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)
  WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`, donorId)
- if (!donor?.email) return { state:'no-address', allowed:false }
- Object.assign(donor,await profileRecipient(c,donor))
+ if (!donor) return { state:'no-address', allowed:false }
+ Object.assign(donor,await profileRecipient(c,donor,options))
+ if(!donor.email)return {state:'no-address',allowed:false,note:'The chosen email contact is missing.'}
  const conn = await requireConnection(c), label = providerTitle(conn.provider)
  let contact = await providerContact(conn, donor.email)
  if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) contact = await syncMailchimpNames(conn, donor)

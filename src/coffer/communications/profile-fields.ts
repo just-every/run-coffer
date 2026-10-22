@@ -7,7 +7,7 @@ import { recipientMergeFields, templateTokens, fieldPattern } from '../template-
 import { requireConnection, type Connection } from './connection'
 import { area, box, e, form, select } from '../ui/common'
 export type ProfileField={field:string;fallback?:string}
-export async function profileRecipient(c:Pick<Context,'db'>&{now?:string},donor:Row){const recipient=await letterRecipient(c,donor),s=await settings(c);return {...recipient,profile_fields:{...recipientMergeFields(recipient),donor_name:recipient.letter_salutation??recipient.name,date:longDate(today(s.timezone,new Date(c.now??new Date().toISOString()))),organization:s.organisation,ein:s.ein}}}
+export async function profileRecipient(c:Pick<Context,'db'>&{now?:string},donor:Row,options:{emailType?:string}={}):Promise<Row>{const recipient=await letterRecipient(c,donor,options),s=await settings(c);return {...recipient,profile_fields:{...recipientMergeFields(recipient),donor_name:recipient.letter_salutation??recipient.name,date:longDate(today(s.timezone,new Date(c.now??new Date().toISOString()))),organization:s.organisation,ein:s.ein}}}
 /** Default off; only audited, owner-selected scalar values cross this boundary. */
 export function selectedProfileFields(conn:Connection,donor:Row):Record<string,string>{
  const values=donor.profile_fields??recipientMergeFields(donor),fields:Record<string,string>={},missing:string[]=[]
