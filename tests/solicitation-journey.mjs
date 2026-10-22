@@ -93,6 +93,7 @@ export async function solicitationJourney() {
   assert.equal(newsletterMessage.status,'listed','A Mango list handoff is recorded honestly rather than claiming a send')
 
   const includeReason='Maya requested this one reading-room appeal during our recorded conversation.'
+  await command('appeal.prepare',{name:'Synthetic unauthorized exception',channel:'email',includes:[{donorId:stop.id,reason:includeReason}]},{as:member,status:403})
   const included=await prepare('email','One requested appeal',{includes:[{donorId:stop.id,reason:includeReason}]})
   assert.ok((await recipientIds(included.id)).includes(stop.id))
   const inclusion=(await get('/api/coffer/appeals/'+included.id)).inclusions.find(i=>i.donor_id===stop.id)

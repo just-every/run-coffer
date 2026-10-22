@@ -132,7 +132,7 @@ export async function prepareSolicitationRun(c:Context,input:{kind:string;id:str
  const {kind,id:runId,channel,isAsk,donorIds}=input
  const selectedIds=new Set(donorIds)
  const explicit=new Map((input.includes??[]).map(x=>[id(x.donorId,'Included donor'),text(x.reason,'Reason for including this donor',1000)]))
- if(explicit.size&&!['owner','admin','member'].includes(c.actor.role))fail('FORBIDDEN','Only a staff person deliberately includes a restricted donor in this run.',403)
+ if(explicit.size&&!['owner','admin'].includes(c.actor.role))fail('FORBIDDEN','Only an owner or admin deliberately includes a restricted donor in this run.',403)
  if([...explicit.keys()].some(x=>!selectedIds.has(x)))fail('INPUT','An included donor must be in the selected segment.',400)
  id(kind,'Run kind');id(runId,'Run');choice(channel,SOLICITATION_CHANNELS,'ask channel')
  if(typeof isAsk!=='boolean')fail('INPUT','Mark the outbound run as an ask or not an ask.',400)
