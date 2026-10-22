@@ -1,10 +1,11 @@
 // Acknowledgement letters and appeals at every stage, frozen exactly as Coffer
 // freezes them: letters rendered from the reviewed wording with renderLetter and
-// hashed with letterHash, audiences chosen by audience() with each recipient's
+// hashed with letterHash, historical postal snapshots and current email audiences with each recipient's
 // consent row and hashed with hashOf. A visitor can approve, export and record
-// the waiting ones, and the content checks pass.
+// the waiting email/letter work; unverified postal history stays held.
 import { address, letterHash, lettersCsv } from '../acknowledgements'
 import { audience, hashOf, recipientsCsv } from '../appeals'
+import { postalHistory } from './postal-history'
 import { sha256, type Row } from '../db'
 import { renderLetter, type Settings } from '../settings'
 import { settingsUse } from '../letter-templates'
@@ -74,7 +75,7 @@ export async function appeals(clock: Clock, db: D1Database, plan: AppealSeed[], 
  const rows: Row[] = [], recipients: Row[] = [], approvals: Row[] = [], events: AuditEvent[] = []
  for (const a of plan) {
   const appealId = `demo-appeal-${a.key}`, segment = { givenSince: a.givenSince ? dayOf(clock, a.givenSince) : null, minTotalCents: a.minTotalCents ?? 0 }, stage = a.stage
-  const found = await audience({ db }, a.channel, segment)
+  const found = a.channel==='mail'?await postalHistory(db,segment):await audience({ db }, a.channel, segment)
   // Past appeals went only to people who were already donors then.
   const list = found.recipients.filter(r => (since.get(r.donor_id) ?? 0) > stage.prepared)
   const hash = await hashOf(a.name, a.channel, list), preparedAt = timeOf(clock, stage.prepared, 10)
