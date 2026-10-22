@@ -47,6 +47,11 @@ export async function organizationsJourney() {
   await h.command('appeal.approve',{appealId:namedMail.id,version:1});await h.command('appeal.export',{appealId:namedMail.id,version:2})
   const frozenRecipient=(await h.get('/api/coffer/appeals/'+namedMail.id)).recipients.find(r=>r.donor_id===org.id)
   assert.equal(JSON.parse(frozenRecipient.name_fields).informal_salutation,'Maya')
+  await h.command('consent.record',{donorIds:[org.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic organization email permission',capturedOn:'2026-09-01'})
+  const namedEmail=await h.command('appeal.prepare',{name:'Organization frozen email',channel:'email',subject:'Hello {{informal_salutation}}',body:'Envelope {{envelope_name}}'})
+  const frozenEmail=(await h.get('/api/coffer/appeals/'+namedEmail.id)).recipients.find(r=>r.donor_id===org.id)
+  assert.ok(frozenEmail.rendered_body.includes('Dr. Maya Chen'),'The real prepared appeal contains its chosen named contact')
+  await h.command('appeal.approve',{appealId:namedEmail.id,version:1})
   const batch=await h.command('ack.prepare',{giftIds:[gift.id]})
   const letter=(await h.get('/api/coffer/letters/'+batch.id)).letters[0]
   assert.equal(letter.donor_id,org.id);assert.equal(letter.recipient_name,'Lakeside Community Foundation\nAttn: Dr. Maya Chen')
@@ -86,6 +91,7 @@ export async function organizationsJourney() {
   const own=await h.api('/api/coffer/donors/'+org.id+'/data-request',{requestedOn:'2026-09-20',method:'email'})
   assert.ok(own.records.organization_contacts.every(r=>r.contact_donor_id.startsWith('counterpart-')))
   assert.ok(!JSON.stringify(own).includes('Dr. Maya Chen'))
+  const ownAppeal=own.records.appeal_recipients.find(r=>r.appeal_id===namedEmail.id);for(const key of ['merge_fields','rendered_subject','rendered_body'])assert.equal(ownAppeal[key],'[third party withheld]','Every frozen appeal projection withholds the organization contact')
   const saved=await archive(h),copy=await installation()
   try{await restore(copy,saved);assert.deepEqual((await copy.get('/api/coffer/donors/'+org.id)).organization,(await detail()).organization)}finally{await copy.close()}
   if(process.env.COFFER_ORGANIZATION_BROWSER){const {organizationsBrowser}=await import('./organizations-browser.mjs');await organizationsBrowser(h,process.env.COFFER_ORGANIZATION_BROWSER)}
@@ -93,8 +99,12 @@ export async function organizationsJourney() {
   assert.equal((await detail()).organization.contacts.length,1)
   assert.equal((await h.get('/api/coffer/appeals/'+namedMail.id)).recipients.find(r=>r.donor_id===org.id).name_fields,null)
   assert.equal((await h.get('/api/coffer/letters/'+batch.id)).letters[0].body,'[erased]')
+  const erasedEmail=(await h.get('/api/coffer/appeals/'+namedEmail.id)).recipients.find(r=>r.donor_id===org.id);for(const key of ['merge_fields','merge_blanks','rendered_subject','rendered_body'])assert.equal(erasedEmail[key],null,'Contact erasure removes all newly frozen appeal fields')
+  await h.command('marketing.connectMango',{origin:'https://mango.example.test',credential:'synthetic-coffer-1701'})
+  assert.equal((await h.command('appeal.send',{appealId:namedEmail.id,version:2},{status:409})).error,'CONTENT_CHANGED','Erased wording cannot silently render differently under the old approval')
   assert.ok(!(await (await h.request('/api/coffer/in-kind-acknowledgments/'+propertyAck.acknowledgmentId+'/download')).text()).includes('Maya'))
  },{verifiedMail:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic_organization_mail',MAIL_FROM:'receipts@example.test'},outbound:async request=>{
+  const u=new URL(request.url);if(u.hostname==='mango.example.test'){if(u.pathname.endsWith('/segments'))return Response.json({segments:[]});if(u.pathname.endsWith('/events'))return Response.json({events:[],nextCursor:0});assert.deepEqual(await request.json(),{},'Contact erasure prevents every provider profile or campaign write');return Response.json({error:'invalid'},{status:400})}
   assert.equal(new URL(request.url).hostname,'api.sendgrid.com')
   submitted.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'organization-'+submitted.length}})
  }})

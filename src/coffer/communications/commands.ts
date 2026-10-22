@@ -1,5 +1,5 @@
 import { fail, id, integer, one, type Context, type Row } from '../db'
-import { appealDetail } from '../appeals'
+import { appealDetail, hashOf } from '../appeals'
 import { submitMessage, refreshMessages } from './outbound'
 import { syncPreferences } from './preferences'
 import { requireConnection } from './connection'
@@ -16,13 +16,14 @@ export async function marketingCommand(c:Context,command:string,p:Row):Promise<R
  if(command!=='appeal.send')return undefined
  const conn=await requireConnection(c)
  const appealId=id(p.appealId,'Appeal'),version=integer(Number(p.version),'Version',1)
- const {appeal,recipients,consentChanged}=await appealDetail(c,appealId)
+ const {appeal,recipients,consentChanged,mailPieces}=await appealDetail(c,appealId)
  if(appeal.channel!=='email')fail('CHANNEL','Postal appeals use the mailing export.',409)
  if(appeal.version!==version)fail('VERSION','This appeal changed. Refresh before sending.',409)
  if(!['approved','exported','sent'].includes(appeal.status))fail('NOT_APPROVED','A person must approve the appeal before sending.',409)
  if(consentChanged)fail('CONSENT_CHANGED','A recipient’s consent changed. Prepare a new audience.',409)
  const message=await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId)
  if(!message)fail('NO_MESSAGE','This appeal has no email subject and message. Prepare it again with both to send by email.',409)
+ if(await hashOf(appeal.name,appeal.channel,recipients,message,mailPieces)!==appeal.content_hash)fail('CONTENT_CHANGED','The approved audience or frozen wording changed. Prepare and approve a fresh audience before sending.',409)
  const waiting=recipients.filter(r=>!r.communication_id),pending=waiting.slice(0,sendBatch(conn.provider))
  let submitted=0,listed=0,suppressed=0,uncertain=0
  for(const r of pending){
