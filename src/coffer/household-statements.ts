@@ -42,7 +42,7 @@ export async function prepareHouseholdStatement(c: Context, year: number, househ
  const snapshot = { members: members.map(m => ({ id: m.id, name: m.name })), names, headStatus: state.headStatus, overridesReview: !!household.overrides_review, asOf: day }
  // A stable member order supplies delivery contact details, independently of headship.
  const contact = members.find(m => m.constituent_status !== 'deceased') ?? members[0], batchId = newId(), letterId = newId()
- const rendered = annualLetter(s, { ...contact, name: names.formal, letter_address: address(contact), letter_name: names.addressee, letter_names: { informal: names.informal, formal: names.formal, envelope: names.addressee } }, gifts, year, day, template)
+ const rendered = annualLetter(s, { ...contact, name: names.formal, letter_household_names: names, letter_address: address(contact), letter_name: names.addressee, letter_names: { informal: names.informal, formal: names.formal, envelope: names.addressee } }, gifts, year, day, template)
  const basis = `Household statement — current members as of ${day}: ${members.map(m => m.name).join('; ')}. Each gift is listed under its hard-credit donor.`
  const body = `${basis}\n\n${rendered.body}`
  const letter = {

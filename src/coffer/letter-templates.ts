@@ -1,6 +1,6 @@
 import { CONTRIBUTION_TEMPLATE_FIELDS, checkContributionTemplate, contributionReceiptKind, renderContributionReceipt, withContributionTypes } from './contribution-receipts'
 import { NAME_MERGE_FIELDS } from './person-names'
-import { CONTACT_MERGE_FIELDS } from './template-fields'
+import { HOUSEHOLD_MERGE_FIELDS, CONTACT_MERGE_FIELDS } from './template-fields'
 import { all, choice, commit, event, fail, guard, id, integer, longText, newId, one, sql, text, type Context, type Row, type Stmt } from './db'
 import { amount } from './money'
 import { checkTemplate, LETTER, LETTER_REQUIRED, renderLetter, type Settings } from './settings'
@@ -14,12 +14,12 @@ export const TEMPLATE_LABELS: Record<TemplateKind | 'default', string> = {
  campaign: 'Form or campaign', tribute: 'Tribute gift', major_gift: 'Major gift', first_gift: 'First gift', recurring_start: 'Recurring start',
  in_kind: 'In-kind gift', year_end: 'Year-end statement', default: 'Settings letter',
 }
-export const IN_KIND_FIELDS = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, 'date', 'donor_name', 'gift_date', 'description', 'quantity', 'goods_statement', 'organization', 'ein']
-export const YEAR_END_FIELDS = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, 'date', 'donor_name', 'year', 'gift_list', 'total', 'goods_total', 'deductible_total', 'goods_statement', 'organization', 'ein']
+export const IN_KIND_FIELDS = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'gift_date', 'description', 'quantity', 'goods_statement', 'organization', 'ein']
+export const YEAR_END_FIELDS = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'year', 'gift_list', 'total', 'goods_total', 'deductible_total', 'goods_statement', 'organization', 'ein']
 const FIELDS: Record<'gift' | 'in_kind' | 'year_end', [string[], string[]]> = {
  gift: [LETTER, LETTER_REQUIRED],
  in_kind: [IN_KIND_FIELDS, ['donor_name', 'gift_date', 'description', 'goods_statement', 'organization', 'ein']],
- year_end: [YEAR_END_FIELDS, YEAR_END_FIELDS.filter(f => f !== 'date' && !NAME_MERGE_FIELDS.includes(f) && !CONTACT_MERGE_FIELDS.includes(f))],
+ year_end: [YEAR_END_FIELDS, YEAR_END_FIELDS.filter(f => f !== 'date' && !NAME_MERGE_FIELDS.includes(f) && !CONTACT_MERGE_FIELDS.includes(f) && !HOUSEHOLD_MERGE_FIELDS.includes(f))],
 }
 export const templateFields = (kind: TemplateKind): [string[], string[]] => kind === 'stock' || kind === 'daf' || kind === 'qcd' ? CONTRIBUTION_TEMPLATE_FIELDS[kind] : FIELDS[kind === 'in_kind' || kind === 'year_end' ? kind : 'gift']
 export const publishedTemplateFields = () => ({ syntax: '{{field}}', defaultSyntax: '{{field|literal default}}', templates: TEMPLATE_KINDS.map(kind => { const [fields, required] = templateFields(kind); return { kind, fields, required } }), settings: { fields: LETTER, required: LETTER_REQUIRED } })

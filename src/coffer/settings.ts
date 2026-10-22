@@ -1,6 +1,6 @@
 import { contributionReceiptKind, contributionGoodsStatement, renderContributionReceipt } from './contribution-receipts'
 import { NAME_MERGE_FIELDS, personNames } from './person-names'
-import { CONTACT_MERGE_FIELDS, fieldPattern, fillFields, recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
+import { HOUSEHOLD_MERGE_FIELDS, CONTACT_MERGE_FIELDS, fieldPattern, fillFields, recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
 import { receiptRuleSettings } from './receipt-rules'
 import { choice, commit, event, fail, guard, integer, longText, one, optional, sql, text, type Context, type Row } from './db'
 import { amount, usd } from './money'
@@ -18,7 +18,7 @@ export async function settings(c: { db: D1Database }): Promise<Settings> {
  return row
 }
 
-export const LETTER = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, 'date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
+export const LETTER = [...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'amount', 'gift_date', 'fund', 'goods_statement', 'organization', 'ein', 'deductible_amount']
 export const LETTER_REQUIRED = ['donor_name', 'amount', 'gift_date', 'goods_statement', 'organization', 'ein']
 const GOODS = ['goods_value', 'goods_description', 'deductible_amount', 'amount']
 const placeholders = (value: string) => templateTokens(value).map(t => t.field)

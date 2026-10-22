@@ -8,10 +8,12 @@ export const templateTokens = (value: string) => [...value.matchAll(fieldPattern
 export const fillFields = (value: string, fields: Record<string, string>) => value.replace(fieldPattern(), (_, name, fallback) => fields[name]?.trim() ? fields[name] : fallback?.trim() ?? '')
 
 export const CONTACT_MERGE_FIELDS = ['email', 'postal_address']
+export const HOUSEHOLD_MERGE_FIELDS = ['household_addressee', 'household_informal_salutation', 'household_formal_salutation']
 /** Today's primary contact, using the same frozen delivery address as the letter. */
 export function recipientMergeFields(d: Row): Record<string, string> {
  const a = d.letter_address ? JSON.parse(d.letter_address) : { line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country }
- return { ...nameMergeFields(d), email: d.email ?? '', postal_address: a?.line1 ? [a.line1, a.line2, a.city, a.region, a.postalCode, a.country].filter(Boolean).join('\n') : '' }
+ const household = d.letter_household_names
+ return { ...nameMergeFields(d), household_addressee: household?.addressee ?? '', household_informal_salutation: household?.informal ?? '', household_formal_salutation: household?.formal ?? '', email: d.email ?? '', postal_address: a?.line1 ? [a.line1, a.line2, a.city, a.region, a.postalCode, a.country].filter(Boolean).join('\n') : '' }
 }
 
 /** Freeze the fields that actually rendered blank, alongside the exact wording.

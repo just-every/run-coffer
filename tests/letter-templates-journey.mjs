@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
 
+const householdFields=['household_addressee','household_informal_salutation','household_formal_salutation']
+const householdLine='Household: {{household_addressee|Individual donor}} / {{household_informal_salutation|Individual greeting}} / {{household_formal_salutation|Individual formal greeting}}'
 const body='Dear {{donor_name}}, thank you for {{amount|Amount unavailable}} on {{gift_date}} to {{fund}}. {{goods_statement}} {{organization}} · EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'
 const gift=(h,donorId,amount,receivedOn,extra={})=>h.command('gift.record',{donorId,amount,receivedOn,method:'check',goods:'none',...extra})
 
@@ -11,6 +13,7 @@ export async function letterTemplatesJourney(){
   assert.equal((await h.request('/api/coffer/template-fields',{as:''})).status,401)
   for(const entry of [catalog.settings,...catalog.templates]) {
    assert.ok(entry.fields.includes('email')&&entry.fields.includes('postal_address'))
+   assert.ok(householdFields.every(field=>entry.fields.includes(field)))
    assert.ok(entry.required.every(field=>entry.fields.includes(field)))
   }
   const settingsVersion=(await h.get('/api/coffer/settings')).version
@@ -23,6 +26,15 @@ export async function letterTemplatesJourney(){
   await save({kind:'first_gift',name:'Unknown default',subject:'Welcome',body:body+' {{unknown_field|a default}}'},{status:400})
   await save({kind:'first_gift',name:'Nested default',subject:'Welcome',body:body+' {{email|{{donor_name}}}}'},{status:400})
   await save({kind:'first_gift',name:'Empty default',subject:'Welcome',body:body+' {{email| }}'},{status:400})
+  // All current RCPT-007 kinds accept household tokens without changing required receipt facts.
+  for(const {kind,required} of catalog.templates) {
+   const sample={kind,name:'Household fields '+kind,subject:'Thank you {{household_formal_salutation|Supporter}}',body:required.map(f=>'{{'+f+'}}').join(' ')+'\n'+householdLine,...(kind==='major_gift'?{minAmount:'1000'}:{})}
+   if(kind==='campaign')continue // The real campaign template below proves the same fields.
+   const saved=await save(sample)
+   const stored=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===saved.id)
+   assert.ok(stored.body.includes('{{household_addressee|Individual donor}}'))
+   await h.command('letterTemplate.retire',{templateId:saved.id,version:1})
+  }
   const first=await save({kind:'first_gift',name:'First gift',subject:'Welcome, {{donor_name}}',body:'FIRST '+body})
   assert.equal(first.version,1)
   assert.equal((await save({templateId:first.id,version:1,name:'First gift',subject:'Welcome, {{donor_name}}',body:'FIRST v2 '+body})).version,2)
@@ -31,12 +43,12 @@ export async function letterTemplatesJourney(){
   const major=await save({kind:'major_gift',name:'Major gift',minAmount:'1000',subject:'With gratitude',body:'MAJOR '+body})
   const tribute=await save({kind:'tribute',name:'Tribute',subject:'In tribute',body:'TRIBUTE '+body})
   const campaign=await h.api('/api/coffer/giving/campaigns',{name:'Spring books',slug:'spring-books-templates',description:'Books and tutoring for our spring readers.',fund:'Reading',goal:'5000'})
-  const spring=await save({kind:'campaign',campaignId:campaign.id,name:'Spring books thanks',subject:'Spring thanks',body:'CAMPAIGN '+body})
+  const spring=await save({kind:'campaign',campaignId:campaign.id,name:'Spring books thanks',subject:'Spring thanks',body:'CAMPAIGN '+body+'\n'+householdLine})
   // In-kind templates never merge a value; year-end templates must carry the itemized facts.
   await save({kind:'in_kind',name:'Property',subject:'Property',body:'{{donor_name}} {{gift_date}} {{description}} {{amount}} {{goods_statement}} {{organization}} {{ein}}'},{status:400})
   const property=await save({kind:'in_kind',name:'Property thanks',subject:'Your donated {{description}}',body:'PROPERTY Dear {{donor_name}}, on {{gift_date}} we received {{description|Property contribution}} (quantity {{quantity}}). {{goods_statement}} {{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
   await save({kind:'year_end',name:'Year end',subject:'{{year}}',body:'Dear {{donor_name}} {{gift_list}} {{goods_statement}} {{organization}} {{ein}}'},{status:400})
-  const yearEnd=await save({kind:'year_end',name:'Annual statement',subject:'Your {{year}} giving',body:'YEAR-END Dear {{donor_name}}, your {{year}} gifts:\n{{gift_list}}\nTotal {{total|Total unavailable}} · goods {{goods_total}} · deductible {{deductible_total}}\n{{goods_statement}}\n{{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
+  const yearEnd=await save({kind:'year_end',name:'Annual statement',subject:'Your {{year}} giving',body:householdLine+'\nYEAR-END Dear {{donor_name}}, your {{year}} gifts:\n{{gift_list}}\nTotal {{total|Total unavailable}} · goods {{goods_total}} · deductible {{deductible_total}}\n{{goods_statement}}\n{{organization}} EIN {{ein}}\nEmail: {{email|No email recorded}}\nAddress: {{postal_address|No postal address recorded}}'})
 
   const ana=await donor(h,'Ana Template'),bo=await donor(h,'Bo Template',{email:null,addressLine1:null,city:null,region:null,postalCode:null}),cy=await donor(h,'Cy Template')
   const a1=await gift(h,ana.id,'300','2025-08-01'),a2=await gift(h,ana.id,'400','2025-08-02'),a3=await gift(h,ana.id,'1500','2025-08-03')
@@ -76,7 +88,7 @@ export async function letterTemplatesJourney(){
   const statements=await h.command('ack.prepareStatements',{year:2025,donorId:bo.id})
   const statement=(await h.get('/api/coffer/letters/'+statements.id)).letters[0]
   assert.deepEqual([statement.template_kind,statement.template_id,statement.template_version],['year_end',yearEnd.id,1])
-  assert.equal(statement.subject,'Your 2025 giving');assert.match(statement.body,/^YEAR-END Dear Bo Template, your 2025 gifts:\n1\. August 6, 2025 · [^\n]* · \$1,000\.00 · goods or services: none · deductible \$1,000\.00\nTotal \$1,000\.00 · goods \$0\.00 · deductible \$1,000\.00/)
+  assert.equal(statement.subject,'Your 2025 giving');assert.ok(statement.body.startsWith('Household: Individual donor / Individual greeting / Individual formal greeting\n'));assert.match(statement.body,/YEAR-END Dear Bo Template, your 2025 gifts:\n1\. August 6, 2025 · [^\n]* · \$1,000\.00 · goods or services: none · deductible \$1,000\.00\nTotal \$1,000\.00 · goods \$0\.00 · deductible \$1,000\.00/)
 
   assert.ok(issued.body.includes('Email: '+(await h.get('/api/coffer/donors/'+ana.id)).donor.email))
   assert.ok(statement.body.includes('Email: No email recorded'))
@@ -124,9 +136,19 @@ export async function letterTemplatesJourney(){
   const annualReview=await h.get('/api/coffer/letters/'+annualReviewBatch.id)
   assert.deepEqual(annualReview.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:fay.id,fields:['email']}])
   const householdId=(await h.get('/api/coffer/donors/'+fay.id)).donor.household_id
+  const family=await h.get('/api/coffer/households/'+householdId)
+  await h.command('household.update',{householdId,version:family.household.version,addressee_override:'The Review Family',informal_override:'Review friends',formal_override:'The Review Household'})
   const householdBatch=await h.command('ack.prepareStatements',{year:2025,householdId})
   const householdReview=await h.get('/api/coffer/letters/'+householdBatch.id)
   assert.deepEqual(householdReview.mergeReview.map(r=>r.fields),[['email']])
+  const frozenHousehold=householdReview.letters[0]
+  assert.ok(frozenHousehold.body.includes('Household: The Review Family / Review friends / The Review Household'))
+  assert.equal(frozenHousehold.recipient_name,'The Review Family')
+  if(process.env.COFFER_RCPT007_BROWSER){const {mergeReviewBrowser}=await import('./letter-templates-browser.mjs');await mergeReviewBrowser(h,{batchId:householdBatch.id,directory:process.env.COFFER_RCPT007_BROWSER,phase:'household'})}
+  const householdState=await h.get('/api/coffer/households/'+householdId)
+  await h.command('household.update',{householdId,version:householdState.household.version,addressee_override:'Later household name',informal_override:'Later friends',formal_override:'Later formal name'})
+  assert.deepEqual((await h.get('/api/coffer/letters/'+householdBatch.id)).letters[0],frozenHousehold,'Prepared household merge fields stay frozen after name changes')
+  assert.equal((await h.command('ack.approve',{batchId:householdBatch.id,version:1},{status:409})).error,'HOUSEHOLD_CHANGED')
   // Templates, their versions and the recorded versions on letters travel with the archive.
   const saved=await archive(h)
   await run(async fresh=>{
@@ -136,6 +158,7 @@ export async function letterTemplatesJourney(){
    assert.deepEqual((await fresh.get('/api/coffer/letters/'+reviewBatch.id)).mergeReview,review.mergeReview)
    assert.deepEqual((await fresh.get('/api/coffer/letters/'+annualReviewBatch.id)).mergeReview,annualReview.mergeReview)
    assert.deepEqual((await fresh.get('/api/coffer/letters/'+householdBatch.id)).mergeReview,householdReview.mergeReview)
+   assert.equal((await fresh.get('/api/coffer/letters/'+householdBatch.id)).letters[0].body,frozenHousehold.body)
    assert.deepEqual((await fresh.get('/api/coffer/letters/'+fixedBatch.id)).mergeReview,[])
   })
  })

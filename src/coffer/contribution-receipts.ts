@@ -1,12 +1,12 @@
 import { all, fail, type Row } from './db'
 import { NAME_MERGE_FIELDS } from './person-names'
-import { CONTACT_MERGE_FIELDS, recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
+import { HOUSEHOLD_MERGE_FIELDS, CONTACT_MERGE_FIELDS, recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
 import { usd } from './money'
 import type { Settings } from './settings'
 
 export const CONTRIBUTION_TEMPLATE_KINDS = ['stock','daf','qcd'] as const
 export type ContributionTemplateKind = typeof CONTRIBUTION_TEMPLATE_KINDS[number]
-const COMMON = [...NAME_MERGE_FIELDS,...CONTACT_MERGE_FIELDS,'date','donor_name','gift_date','goods_statement','organization','ein']
+const COMMON = [...NAME_MERGE_FIELDS,...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS,'date','donor_name','gift_date','goods_statement','organization','ein']
 const REQUIRED = ['donor_name','gift_date','goods_statement','organization','ein']
 export const CONTRIBUTION_TEMPLATE_FIELDS: Record<ContributionTemplateKind,[string[],string[]]> = {
  stock:[[...COMMON,'description','quantity','stock_symbol','stock_shares'],[...REQUIRED,'description','stock_symbol','stock_shares']],

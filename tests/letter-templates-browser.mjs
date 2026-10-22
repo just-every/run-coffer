@@ -55,6 +55,10 @@ export async function mergeReviewBrowser(h,{batchId,directory,phase}) {
     await page.waitForURL('**/app/donors/**')
     await page.getByRole('heading',{name:'Dee Review',exact:true}).waitFor()
     await page.goBack()
+   } else if(phase==='household') {
+    await page.getByText('Household: The Review Family / Review friends / The Review Household',{exact:false}).waitFor()
+    await review.getByRole('link',{name:'The Review Family',exact:true}).waitFor()
+    assert.equal(await review.locator('code').filter({hasText:'{{household_addressee}}'}).count(),0,'Populated household fields are absent from the blank review')
    } else await review.getByText('No empty merge fields were found in the checked letters.',{exact:true}).waitFor()
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Review fits the viewport')
    await page.screenshot({path:`${directory}/RCPT-010-merge-review-${phase}-${width}.png`,fullPage:true})
