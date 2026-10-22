@@ -2,6 +2,7 @@
 export const tables = {
  household: { table: 'cf_households', key: 'id', columns: ['id','version','name','created_at','head_donor_id','addressee_override','formal_override','informal_override','overrides_review','head_source','head_imported_at'] },
  donor: { table: 'cf_donors', key: 'id', columns: ['id','version','name','prefix','first_name','middle_name','last_name','suffix','nickname','constituent_kind','constituent_status','informal_salutation','formal_salutation','envelope_name','status_reason','deceased_on','status_changed_at','status_changed_by','email','phone','address_line1','address_line2','city','region','postal_code','country','household_id','source','source_ref','created_at','erased_at'] },
+ contact: { table:'cf_contact_points',key:'id',columns:['id','donor_id','kind','type','value','active','is_primary','starts_on','ends_on','version','source','source_on','updated_at'] },
  solicitation: { table:'cf_solicitation',key:'donor_id',columns:['period','donor_id','version','type','starts_on','ends_on','channels','max_asks','source','source_ref','source_on','recorded_at','recorded_by_id','recorded_by_name'] },
  consent: { table:'cf_consents',key:'id',columns:['id','donor_id','channel','status','method','evidence','captured_on','recorded_at','recorded_by'] },
  recognition: { table:'cf_donor_recognition',key:'donor_id',columns:['donor_id','anonymous','recognition_name','honor_roll_opt_in','version'] },

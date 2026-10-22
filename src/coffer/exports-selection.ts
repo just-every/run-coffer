@@ -28,7 +28,7 @@ export async function exportSelection(c: Context, url: URL) {
  const scoreFilters=saved?JSON.parse(saved.filters):filters
  await validateCustomFilter(c,scoreFilters)
  const needsScore=Boolean(scoreFilters.minScore||scoreFilters.maxScore||scoreFilters.lapsed)
- const revision=needsScore?baseRevision:null
+ const revision=needsScore||savedId?baseRevision:null
  const scores=needsScore?(await engagementScores(c)).donors.filter(d=>(!scoreFilters.minScore||d.engagement.score>=Number(scoreFilters.minScore))&&(!scoreFilters.maxScore||d.engagement.score<=Number(scoreFilters.maxScore))&&(!scoreFilters.lapsed||d.engagement.retentionRisk.status===scoreFilters.lapsed)).map(d=>d.donorId):null
  const scoreCurrentSql=revision===null?'1':`(SELECT revision FROM cf_score_clock WHERE id=1)=${revision}`
  const ctes = `config AS (SELECT timezone,name_defaults,${scoreCurrentSql} AS selection_current FROM cf_settings WHERE id=1),

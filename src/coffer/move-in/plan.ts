@@ -25,7 +25,7 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
+const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
@@ -33,7 +33,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const source = parsed.source
  const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
- const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
+ const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
  const existing = new Map(mappings.map(m=>[`${m.kind}:${m.source_key}`,m]))
  const merges = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'into_id',into_id) AS snapshot FROM cf_donor_merges ORDER BY donor_id`)
@@ -52,7 +52,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const defaults = (await readSet(c,plan,`SELECT json_object('addressee',addressee,'formal',formal,'informal',informal,'version',version) AS snapshot FROM cf_household_defaults WHERE id=1`))[0]
  const personDefaults=(await readSet(c,plan,`SELECT json_object('name_defaults',name_defaults,'version',version) AS snapshot FROM cf_settings WHERE id=1`))[0]
  const donorNativeIds=await Promise.all(parsed.donors.map(d=>nativeId(source,'donor',d.externalId)))
- const erased = await readSet(c,plan,`SELECT json_object('hash',hash) AS snapshot FROM cf_erasures WHERE hash IN (SELECT value FROM json_each(?)) ORDER BY hash`,[JSON.stringify([...parsed.donors.flatMap(d=>[erasureHash(d.email),erasureHash(`${source}:${d.externalId}`)]),...donorNativeIds.map(erasureHash)])])
+ const erased = await readSet(c,plan,`SELECT json_object('hash',hash) AS snapshot FROM cf_erasures WHERE hash IN (SELECT value FROM json_each(?)) ORDER BY hash`,[JSON.stringify([...parsed.donors.flatMap(d=>[erasureHash(d.email),...(d.contacts??[]).filter(p=>p.kind==='email').map(p=>erasureHash(p.value)),erasureHash(`${source}:${d.externalId}`)]),...donorNativeIds.map(erasureHash)])])
  const suppressed = new Set(erased.map(r=>r.hash))
  const giftBalances=await readSet(c,plan,`SELECT json_object('id',id,'net_cents',net_cents) AS snapshot FROM cf_gift_balances WHERE id IN (SELECT value FROM json_each(?)) ORDER BY id`,[JSON.stringify(mappings.filter(m=>m.kind==='gift').map(m=>m.native_id))])
  const reference = (g: ParsedImport['gifts'][number]) => `${source}:${g.externalId}${g.checkReference?` / ${g.checkReference}`:''}`
@@ -90,9 +90,11 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  for (const d of parsed.donors) {
   const prior = existing.get(`donor:${await sourceKey(d.externalId)}`)
   if (prior) { plan.donorIds.set(d.externalId,await add('donor',d,{})); continue }
-  if (suppressed.has(erasureHash(d.email)) || suppressed.has(erasureHash(`${source}:${d.externalId}`)) || suppressed.has(erasureHash(await nativeId(source,'donor',d.externalId)))) diagnostic(`Donor ${d.externalId} was erased from Coffer. Remove this constituent and its linked rows from the exports; erased records cannot be restored.`,d.location)
+  if ((d.contacts??[]).some(p=>p.kind==='email'&&suppressed.has(erasureHash(p.value))) || suppressed.has(erasureHash(d.email)) || suppressed.has(erasureHash(`${source}:${d.externalId}`)) || suppressed.has(erasureHash(await nativeId(source,'donor',d.externalId)))) diagnostic(`Donor ${d.externalId} was erased from Coffer. Remove this constituent and its linked rows from the exports; erased records cannot be restored.`,d.location)
   const matching = donorRows.filter(r=>r.source_ref===`${source}:${d.externalId}` || (d.email && r.email===d.email) || emailAliases.some(a=>a.email===d.email&&canonical(a.donor_id)===r.id))
-  const matches = [...new Map(matching.map(r=>{const id=canonical(r.id);return [id,donorRows.find(d=>d.id===id)??r]})).values()]
+  const sourceHouseholdId=d.householdKey?(households.get(d.householdKey)||existing.get(`household:${await sourceKey(d.householdKey)}`)?.native_id):null
+  const eligibleMatches=matching.filter(r=>!sourceHouseholdId||r.household_id!==sourceHouseholdId||r.source_ref===`${source}:${d.externalId}`)
+  const matches = [...new Map(eligibleMatches.map(r=>{const id=canonical(r.id);return [id,donorRows.find(d=>d.id===id)??r]})).values()]
   if (matches.some(r=>r.erased_at) || new Set(matches.map(r=>r.id)).size>1) diagnostic(`Donor ${d.externalId} has conflicting existing matches. Open the matching donor records in Coffer and merge the records for the same person, or correct this constituent's Email in the export so it identifies only the intended donor.`,d.location,'error','MOVE_IN_MAPPING','Email')
   const match=matches[0]
   if(match) diagnostic(`Constituent ${d.externalId} (${d.name}) is ${match.name} already in Coffer${match.email&&match.email===d.email?`, with the same email ${d.email}`:''}. The gifts join that donor; Coffer keeps the donor’s own details and household.`,d.location,'warning','MATCHED_DONOR')
@@ -101,6 +103,19 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   const id=await add('donor',d,{version:1,name:d.name,prefix:d.prefix||null,first_name:d.firstName||null,middle_name:d.middleName||null,last_name:d.lastName||null,suffix:d.suffix||null,nickname:d.nickname||null,constituent_kind:d.organization?'organization':'person',constituent_status:d.constituentStatus||'active',...overrides,status_reason:d.constituentStatus==='inactive'?d.statusReason||`Imported as inactive from ${source}`:null,deceased_on:d.constituentStatus==='deceased'?d.deceasedOn||null:null,status_changed_at:d.constituentStatus&&d.constituentStatus!=='active'?c.now:null,status_changed_by:d.constituentStatus&&d.constituentStatus!=='active'?`${source} move-in`:null,email:d.email||null,phone:d.phone||null,address_line1:d.addressLine1||null,address_line2:d.addressLine2||null,city:d.city||null,region:d.region||null,postal_code:d.postalCode||null,country:d.country||null,household_id:match||d.organization?null:await householdOf(d.householdKey)||null,source:'manual',source_ref:`${source}:${d.externalId}`,created_at:c.now,erased_at:null},match?.id)
   if(d.recognitionName&&!match)await add('recognition',{...d,externalId:d.externalId},{donor_id:id,anonymous:0,recognition_name:d.recognitionName,honor_roll_opt_in:0,version:1},undefined,id)
   plan.donorIds.set(d.externalId,id)
+ }
+ const contactEmails=parsed.donors.flatMap(d=>(d.contacts??[]).filter(p=>p.kind==='email').map(p=>p.value))
+ const contactOwners=contactEmails.length?await readSet(c,plan,`SELECT json_object('id',p.id,'donor_id',p.donor_id,'value',p.value,'version',p.version,'household_id',d.household_id) AS snapshot FROM cf_contact_points p JOIN cf_donors d ON d.id=p.donor_id WHERE p.kind='email' AND p.active=1 AND d.erased_at IS NULL AND p.value IN(SELECT value FROM json_each(?)) AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY p.id`,[JSON.stringify(contactEmails)]):[]
+ for(const d of parsed.donors){
+  const donorId=plan.donorIds.get(d.externalId)!
+  const ownedDonor=plan.effects.find(e=>e.kind==='donor'&&e.owned&&e.nativeId===donorId),owned=!!ownedDonor
+  for(const email of (d.contacts??[]).filter(p=>p.kind==='email'))if(contactOwners.some(o=>o.value===email.value&&o.donor_id!==donorId&&(!ownedDonor?.row.household_id||o.household_id!==ownedDonor.row.household_id)))diagnostic('An unrelated existing constituent uses a contact email from '+d.externalId+'. Review duplicates before importing.',d.location,'error','SHARED_EMAIL','Email')
+  // Existing identities retain their current contacts, as all other profile fields do.
+  for(const point of d.contacts??[]){
+   const prior=existing.get(`contact:${await sourceKey(point.externalId)}`)
+   if(!owned&&!prior)continue
+   await add('contact',{...point,location:d.location},{donor_id:donorId,kind:point.kind,type:point.type,value:point.value,active:1,is_primary:point.primary?1:0,starts_on:point.startsOn,ends_on:point.endsOn,version:1,source:source+' move-in',source_on:c.now.slice(0,10),updated_at:c.now},undefined,donorId)
+  }
  }
  await planSolicitationImports(c,parsed,plan,existing,add,readSet)
  // Source headship is set only after all source identities have resolved. A

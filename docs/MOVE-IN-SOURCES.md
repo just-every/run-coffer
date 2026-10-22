@@ -126,3 +126,12 @@ row grants permission to disclose a gift amount in a family notification.
   import recipe's configured headings; Coffer does not claim that every NXT export
   uses them. Custom tribute types need an explicit source choice; descriptions are
   never guessed. [Blackbaud tribute guide](https://webfiles-sc1.blackbaud.com/files/support/guides/re7ent/trib_gift.pdf).
+
+
+### Typed contact columns
+
+For Little Green Light, Bloomerang and configured NXT constituent CSV reports, add separate columns for `Email`, `Email 2`, `Email 3`, with `Email Type`, `Email 2 Type`, `Email 3 Type` and optional `Email N Primary` (`Yes` or `No`). Types are personal, work and other. One explicit primary wins; with none, the first nonempty value is primary. More than one explicit primary is refused. This is a configurable report shape; it is not a claim about each vendor's default export.
+
+Phone columns follow the same pattern through `Phone 3`, with mobile, home or work types. The original Address/City/State/ZIP/Country columns may have `Address Type`. A second address uses `Address 2 Street`, `Address 2 Street 2`, `Address 2 City`, `Address 2 State`, `Address 2 Postal Code`, `Address 2 Country`, `Address 2 Type` and optional `Address 2 Primary`. Types are home, work, vacation, seasonal and other. Seasonal addresses need `Address N From` and `Address N Through`, as yearly MM-DD dates.
+
+Review lists every typed contact and primary before applying. Newly imported constituents retain the complete set with source and import date. Existing matched people keep their current contact details; differences do not overwrite staff edits. Replay uses stable source-contact mappings. Undo refuses newer contact changes, and erasure prevents an older import restoring contacts. Spouses linked in the source household keep their shared emails as separate people, with separate consent; unrelated shared emails are refused under the current identity rule. These columns do not authorize a provider send or address-processing connection.

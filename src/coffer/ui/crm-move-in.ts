@@ -1,3 +1,4 @@
+import type { ParsedContact } from '../move-in/types'
 import type { Row } from '../db'
 import { area, box, chip, e, empty, field, guide, hidden, longDay, money, select, when } from './common'
 import { exportSteps } from './crm-export-steps'
@@ -77,7 +78,7 @@ export function crmReviewPage(job:Row,list:Row,today:string) {
  ${box('2. Check totals before switching',`<p>“Your files” counts every gift row exactly as exported. “Coffer” counts the gifts Coffer will hold after the move-in. Pledges and soft credits are promises and recognition, so they are not counted as money received. If you exported a totals report, its numbers are checked too.</p>${totals(r.reconciliation)}`)}
  ${box('Columns left out',leftOutColumns(r.leftOut),'left-out')}
  ${r.solicitCodes?box('Reviewed communication codes',`<ul>${Object.entries(r.solicitCodes).map(([code,rule])=>`<li>${e(code)}: ${e(codeMeaning(rule))}</li>`).join('')}</ul>`):''}
- ${records('Donors',r.counts.donors,s.donors,d=>`<strong>${e(d.name)}</strong> · ${e(d.externalId)}${d.householdName?` · ${e(d.householdName)}`:''}`)}
+ ${records('Donors',r.counts.donors,s.donors,d=>`<strong>${e(d.name)}</strong> · ${e(d.externalId)}${d.householdName?` · ${e(d.householdName)}`:''}${d.contacts?.length?`<ul>${d.contacts.map((p:ParsedContact)=>`<li>${e(p.kind)} · ${e(p.type)}${p.primary?' · primary':''}: ${e(p.kind==='address'?Object.values(JSON.parse(p.value)).filter(Boolean).join(', '):p.value)}${p.startsOn?` · ${e(p.startsOn)} through ${e(p.endsOn)}`:''}</li>`).join('')}</ul>`:''}`)}
  ${records('Households',r.counts.households,s.households,h=>`${e(h.name)} · ${e(h.externalId.startsWith('members:')?`linked as spouses or at one address`:h.externalId)}`)}
  ${records('Gifts',r.counts.gifts,s.gifts,g=>`${e(g.externalId)} · donor ${e(g.donorExternalId)} · ${longDay(g.receivedOn)} · ${money(g.amountCents)} · ${e(g.fund)}${g.campaign?` · ${e(g.campaign)}`:''}`)}
  ${records('Relationships',r.counts.relationships,s.relationships,x=>`${e(x.donorExternalId)} → ${e(x.relatedDonorExternalId)} · ${e(x.type)}`)}

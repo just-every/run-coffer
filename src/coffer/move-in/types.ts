@@ -5,8 +5,9 @@ export type SourceLocation = { file: string; sheet: string; row: number }
 export type Diagnostic = Partial<SourceLocation> & { severity: 'error' | 'warning'; code: string; message: string; column?: string }
 export type UnmappedValue = SourceLocation & { column: string; value: string; reason: string }
 export type Located = { location: SourceLocation }
+export type ParsedContact={externalId:string;kind:'email'|'phone'|'address';type:string;value:string;primary:boolean;startsOn:string|null;endsOn:string|null}
 export type ParsedDonor = Located & {
- externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
+ contacts?:ParsedContact[]; externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
  city: string; region: string; postalCode: string; country: string; householdKey: string; householdName: string
  firstName: string; lastName: string; prefix?: string; middleName?: string; suffix?: string; nickname?: string; constituentStatus?: string; deceasedOn?: string; statusReason?: string; informalName?: string; formalName?: string; envelopeName?: string; recognitionName?: string; organization: boolean
 }

@@ -31,7 +31,8 @@ export async function preview(c: Context,input: ParseInput) {
  await settledEmails(c,parsed)
  const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null})
  const id=fileFingerprint.slice(0,40)
- const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
+ const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
+ if(prior?.redacted)parsed.diagnostics.push({severity:'error',code:'MOVE_IN_ERASED',message:'An imported constituent was erased. This move-in cannot restore their contact or history.'})
  const parts=stageParts(parsed)
  // A bad source row must not hide independent conflicts elsewhere in the files.
  if(!prior || ['reviewed','undone'].includes(prior.state)) {
@@ -141,6 +142,12 @@ export async function recheck(c: Context,id:string) {
 
 function writeKind(writes:Stmt[],plan:Plan,kind:Kind,source:string,jobId:string) {
  const effects=plan.effects.filter(e=>e.kind===kind);if(!effects.length)return
+ if(kind==='contact'){
+  const donorIds=[...new Set(effects.filter(e=>e.owned).map(e=>e.donorId))]
+  // Only newly owned donors have contact effects. Replace the automatically
+  // mirrored primary rows before inserting the complete reviewed contact set.
+  writes.push(sql('DELETE FROM cf_contact_history WHERE donor_id IN(SELECT value FROM json_each(?))',JSON.stringify(donorIds)),sql('DELETE FROM cf_contact_points WHERE donor_id IN(SELECT value FROM json_each(?))',JSON.stringify(donorIds)))
+ }
  const t=tables[kind], rows=JSON.stringify(effects.map(e=>({...e.row,_owned:e.owned?1:0})))
  writes.push(sql(`INSERT INTO ${t.table}(${t.columns.join(',')}) SELECT ${t.columns.map(k=>kind==='household'&&['head_donor_id','head_source','head_imported_at'].includes(k)?'NULL':`json_extract(value,'$.${k}')`).join(',')} FROM json_each(?) WHERE json_extract(value,'$._owned')=1`,rows))
  const records=JSON.stringify(effects.map(e=>({sourceKey:e.sourceKey,contentHash:e.contentHash,nativeId:e.nativeId,owned:e.owned?1:0,donorId:e.donorId,relatedId:e.relatedId})))
@@ -171,7 +178,7 @@ export async function undo(c: Context,id:string) {
  }
  writes.push(importHouseholdUndoFence(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
- writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id))
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1) AND p.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='contact' AND owned=1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id,id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
   ['cf_custom_values','donor_id','donor',null,'record_id'],['cf_donor_tags','donor_id','donor',null,'donor_id'],['cf_gift_tributes','notification_donor_id','donor',null,'gift_id'],
   ['cf_acks','household_id','household',null,'id'],
@@ -215,7 +222,7 @@ function contents(part: ParsedImport) {
  const rows=part[main].map(x=>x.location), files=[...new Set(rows.map(l=>l.file))]
  return `${part[main].length} ${kindName[main]} from ${files.map(f=>{const r=rows.filter(l=>l.file===f).map(l=>l.row);return `${f} rows ${Math.min(...r)}–${Math.max(...r)}`}).join(', ')}`
 }
-const label=(kind: Kind)=>({solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
+const label=(kind: Kind)=>({contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
 /** Unique indexes that commit() reports by name. */
 const UNIQUE_CODES: Record<string,[string,string[]]> = {DUPLICATE_EMAIL:['cf_donors',['email']],DUPLICATE_REFERENCE:['cf_gifts',['source','reference']],DUPLICATE_HOUSEHOLD:['cf_households',['name']]}
 /** A database refusal names its part, the rows behind it and the reason, never only "the operation failed". */

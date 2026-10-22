@@ -2,20 +2,15 @@ import type { ParsedImport, SourceLocation } from './types'
 
 const at = (l: SourceLocation) => `${l.file} row ${l.row}`
 
-/** Coffer keeps one primary email per donor. Two people in one household who share an
- * address move in as two donors: the first keeps the email, the second gets a note.
- * Any other shared email blocks, naming both rows. */
-export function sharedEmails(out: ParsedImport) {
- const owner = new Map<string, (typeof out.donors)[number]>()
- for (const d of out.donors) {
-  if (!d.email) continue
-  const first = owner.get(d.email)
-  if (!first || first.externalId === d.externalId) { owner.set(d.email, d); continue }
-  if (first.householdKey && first.householdKey === d.householdKey) {
-   out.diagnostics.push({ ...d.location, severity: 'warning', code: 'SHARED_EMAIL_HOUSEHOLD', column: 'email', message: `${d.name} (${d.externalId}) shares ${d.email} with ${first.name} (${first.externalId}, ${at(first.location)}) in ${d.householdName}. Both move in, in that household; the email stays on ${first.name}, and ${d.name} gets a note with it.` })
-   out.notes.push({ location: d.location, externalId: `shared-email:${d.externalId}`, donorExternalId: d.externalId, text: `Shares the email address ${d.email} with ${first.name} in the source CRM.`, date: '', type: '' })
-   d.email = ''
-  } else out.diagnostics.push({ ...d.location, severity: 'error', code: 'SHARED_EMAIL', column: 'email', message: `Constituents ${first.externalId} (${at(first.location)}) and ${d.externalId} have the same email ${d.email} but are not one household. Coffer keeps one email per donor: clear it on one of them, or link them as spouses, and upload again.` })
+/** Household sharing preserves each person's address and independent consent.
+ * Unrelated sharing remains a source error under published DONOR-001. */
+export function sharedEmails(out:ParsedImport){
+ const owner=new Map<string,ParsedImport['donors'][number]>()
+ for(const d of out.donors)for(const email of new Set([d.email,...(d.contacts??[]).filter(p=>p.kind==='email').map(p=>p.value)].filter(Boolean))){
+  const first=owner.get(email)
+  if(!first||first.externalId===d.externalId){owner.set(email,d);continue}
+  if(first.householdKey&&first.householdKey===d.householdKey)out.diagnostics.push({...d.location,severity:'warning',code:'SHARED_EMAIL_HOUSEHOLD',column:'email',message:`${d.name} (${d.externalId}) shares ${email} with ${first.name} (${at(first.location)}) in ${d.householdName}. Both retain the address and remain separate constituents with independent consent.`})
+  else out.diagnostics.push({...d.location,severity:'error',code:'SHARED_EMAIL',column:'email',message:`Constituents ${first.externalId} (${at(first.location)}) and ${d.externalId} share ${email} outside a household. Review their identity or remove the conflicting address before importing.`})
  }
 }
 

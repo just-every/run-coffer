@@ -1,3 +1,4 @@
+import { sourceContacts } from './contacts'
 import { sourceRestrictions } from './solicitation-mapping'
 import { normalizeLabel } from './source-columns'
 import { SourceRow } from './source-rows'
@@ -21,11 +22,13 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  // An organization keeps no household: LGL's Is Org, a Bloomerang Organization type, or an organization name alone.
  const organization = /^(yes|true|y|1)$/i.test(r.get('isOrg')) || normalizeLabel(r.peek('type')) === 'organization' || (!!names[1] && !names[2] && !names[4])
  const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], middleName: names[3], lastName: names[4], prefix, suffix, nickname:r.get('nickname'), recognitionName:r.get('recognitionName'), constituentStatus:sourceStatus(r), deceasedOn:r.peek('deceasedOn')?r.date('deceasedOn'):'', statusReason:r.get('statusReason'), informalName:r.get('informalName'), formalName:r.get('formalName'), envelopeName:r.get('envelopeName'), organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
+ sourceContacts(r,donor)
  donor.email = donor.email.toLowerCase()
  if (donor.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donor.email)) r.error('EMAIL', 'Export a single valid primary email address.', 'email')
  if (donor.householdName && !donor.householdKey) r.error('HOUSEHOLD_ID', 'Fill Household ID with this household’s source ID, or clear Household Name if this constituent has no household.', 'householdKey')
  if (donor.householdKey && !donor.householdName) r.error('HOUSEHOLD_NAME', 'Fill Household Name for this Household ID, or clear Household ID if this constituent has no household.', 'householdName')
  const existing = out.donors.find(d => d.externalId === externalId)
+ if(existing&&donor.contacts){if(existing.contacts&&JSON.stringify(existing.contacts)!==JSON.stringify(donor.contacts))r.error('CONTACT_CONFLICT','Contact exports for this constituent disagree. Export one authoritative contact set.','email');else existing.contacts=donor.contacts}
  if (!existing) out.donors.push(donor)
  else {
   for (const key of ['name', ...donorFields] as const) {
