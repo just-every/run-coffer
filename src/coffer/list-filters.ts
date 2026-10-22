@@ -1,3 +1,4 @@
+import { centsDecimal } from './money'
 import { customValue } from './custom-fields'
 import { choice, date, fail, one, optional, text, type Row, type Context } from './db'
 
@@ -40,7 +41,7 @@ export function advancedListSql(definition:string,donor='d') {
  AND (${f('tag')}='' OR EXISTS(SELECT 1 FROM (SELECT donor_id,tag FROM cf_donor_rule_tags UNION SELECT donor_id,tag FROM cf_donor_tags) WHERE donor_id=${donor}.id AND tag=${f('tag')}))
  AND (${f('managerId')}='' OR EXISTS(SELECT 1 FROM cf_portfolio_members pm JOIN cf_portfolios pp ON pp.id=pm.portfolio_id WHERE pm.donor_id=${donor}.id AND pp.manager_id=${f('managerId')}))
  AND (${f('ackStatus')}='' OR EXISTS(SELECT 1 FROM cf_gift_balances gb LEFT JOIN cf_gift_acknowledgments ga ON ga.gift_id=gb.id WHERE gb.donor_id=${donor}.id AND gb.net_cents>0 AND COALESCE(ga.status,'not acknowledged')=${f('ackStatus')}))
- AND (${f('customKey')}='' OR EXISTS(SELECT 1 FROM cf_custom_values cv JOIN cf_custom_fields cf ON cf.key=cv.field_key WHERE cv.record_id=${donor}.id AND cf.kind='constituent' AND cf.key=${f('customKey')} AND ((CASE WHEN cf.type='currency' THEN json_extract(cv.value,'$')=CAST(round(CAST(${f('customValue')} AS REAL)*100) AS INTEGER) ELSE CAST(json_extract(cv.value,'$') AS TEXT)=${f('customValue')} END) OR EXISTS(SELECT 1 FROM json_each(cv.value) j WHERE CAST(j.value AS TEXT)=${f('customValue')}))))`
+ AND (${f('customKey')}='' OR EXISTS(SELECT 1 FROM cf_custom_values cv JOIN cf_custom_fields cf ON cf.key=cv.field_key WHERE cv.record_id=${donor}.id AND cf.kind='constituent' AND cf.key=${f('customKey')} AND EXISTS(SELECT 1 FROM json_each(cv.value) j WHERE CASE WHEN cf.type='currency' THEN CAST(j.value AS INTEGER)=CAST(replace(${f('customValue')},'.','') AS INTEGER) ELSE CAST(j.value AS TEXT)=${f('customValue')} END)))`
 }
 
 /** Keep public filter units identical to entry units, including USD currency. */
@@ -49,5 +50,5 @@ export async function validateCustomFilter(c:Pick<Context,'db'>,filters:Record<s
  const field=await one(c,"SELECT * FROM cf_custom_fields WHERE key=? AND kind='constituent'",filters.customKey)
  if(!field)fail('INPUT','Choose a defined constituent custom field.',400)
  const normalized=JSON.parse(customValue({...field,entry:field.entry==='pick-many'?'pick-one':field.entry},filters.customValue))
- filters.customValue=field.type==='currency'?(Number(normalized)/100).toFixed(2):String(normalized)
+ filters.customValue=field.type==='currency'?centsDecimal(String(normalized)):String(normalized)
 }

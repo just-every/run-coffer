@@ -16,3 +16,8 @@ export function amount(input: Row, name: string, label: string, { allowZero = fa
  return result
 }
 export const usd = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((value ?? 0) / 100)
+
+/** Exact decimal spelling for stored integer cents, including custom fields at
+ * the safe-integer boundary. Division through Number can lose the last cent. */
+export function centsDecimal(value:string):string {const cents=BigInt(value),absolute=cents<0n?-cents:cents;return `${cents<0n?'-':''}${absolute/100n}.${String(absolute%100n).padStart(2,'0')}`}
+export function exactUsd(value:string):string {const cents=BigInt(value),absolute=cents<0n?-cents:cents;return `${cents<0n?'-':''}$${(absolute/100n).toLocaleString('en-US')}.${String(absolute%100n).padStart(2,'0')}`}

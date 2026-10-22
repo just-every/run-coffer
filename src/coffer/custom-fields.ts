@@ -1,6 +1,6 @@
 import { requireRole } from './auth'
 import { all, choice, commit, date, event, fail, guard, id, integer, one, sql, text, type Context, type Row } from './db'
-import { usd } from './money'
+import { exactUsd } from './money'
 
 export const customFields = (c:{db:D1Database}) => all(c,'SELECT * FROM cf_custom_fields ORDER BY key')
 export async function customFieldNames(c:{db:D1Database}) { return (await customFields(c)).map(f=>'custom.'+f.key) }
@@ -57,5 +57,5 @@ export async function customFieldCommand(c:Context,command:string,p:Row):Promise
 }
 export async function customMerge(c:{db:D1Database},kind:string,recordId:string):Promise<Record<string,string>> {
  const values=await all(c,'SELECT f.key,f.type,v.value FROM cf_custom_fields f JOIN cf_custom_values v ON v.field_key=f.key JOIN cf_donors d ON d.id=v.donor_id WHERE f.kind=? AND v.record_id=? AND d.erased_at IS NULL',kind,recordId)
- return Object.fromEntries(values.filter(v=>v.value!=='null').map(v=>{const value=JSON.parse(v.value),render=(s:string)=>v.type==='currency'?usd(Number(s)):s;return ['custom.'+v.key,Array.isArray(value)?value.map(render).join(', '):render(value)]}))
+ return Object.fromEntries(values.filter(v=>v.value!=='null').map(v=>{const value=JSON.parse(v.value),render=(s:string)=>v.type==='currency'?exactUsd(s):s;return ['custom.'+v.key,Array.isArray(value)?value.map(render).join(', '):render(value)]}))
 }

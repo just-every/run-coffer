@@ -106,6 +106,18 @@ export async function savedListsJourney(){await run(async h=>{
  const budget=await h.command('list.save',{name:'Twelve dollar budget',filters:{customKey:'list_budget',customValue:'12.50'}})
  assert.deepEqual(await ids(budget.id),[a.id],'Custom currency filtering uses the same USD unit as entry')
  await h.command('list.save',{name:'Invalid currency',filters:{customKey:'list_budget',customValue:'not a number'}},{status:400})
+ await h.command('custom.set',{key:'list_budget',recordId:a.id,value:'90071992547409.91',version:1})
+ await h.command('custom.set',{key:'list_budget',recordId:b.id,value:'90071992547409.90'})
+ const exactBudget=await h.command('list.save',{name:'Exact high-cent budget',filters:{customKey:'list_budget',customValue:'90071992547409.91'}})
+ assert.deepEqual(await ids(exactBudget.id),[a.id],'Currency list filters retain the last cent at the safe-integer boundary')
+ await h.command('custom.define',{key:'budget_choices',label:'Budget choices',kind:'constituent',type:'currency',entry:'pick-many',choices:['0','12.50']})
+ await h.command('custom.set',{key:'budget_choices',recordId:a.id,value:['0','12.50']})
+ await h.command('custom.set',{key:'budget_choices',recordId:b.id,value:['12.50']})
+ const zeroChoice=await h.command('list.save',{name:'Zero budget choice',filters:{customKey:'budget_choices',customValue:'0'}})
+ assert.deepEqual(await ids(zeroChoice.id),[a.id],'A currency pick-many comparison matches its exact value, not an array cast to zero')
+ const nonzeroChoice=await h.command('list.save',{name:'Nonzero budget choice',filters:{customKey:'budget_choices',customValue:'12.5'}})
+ assert.deepEqual((await ids(nonzeroChoice.id)).sort(),[a.id,b.id].sort(),'Currency pick-many filters use the same USD units as entry')
+
  await give(a,'100','2026-10-01')
  const scoreRows=(await h.get('/api/coffer/engagement')).donors
  const aScore=scoreRows.find(d=>d.donorId===a.id).engagement.score

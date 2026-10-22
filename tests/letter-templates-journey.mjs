@@ -181,7 +181,9 @@ export async function letterTemplatesJourney(){
   const preview=await h.command('person.defaultsPreview',{informal:'nickname-only',formal:'prefix-last',envelope:'initial'})
   await h.command('person.defaults',preview)
   const originalCustomTemplate=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===first.id)
-  const customBody=body+'\nCustom {{custom.board_term|our board}} / {{custom.gift_reference|no gift reference}}\nNames {{informal_salutation}} {{envelope_name}} {{household_addressee|Individual}}\nUnfilled {{custom.call_topic}}\nInternal gift field {{custom.gift_value|No custom value}}\nMembership {{custom.membership|Friend of the library}}'
+  await h.command('custom.define',{key:'large_budget',label:'Large budget',kind:'constituent',type:'currency'})
+  await h.command('custom.set',{key:'large_budget',recordId:own.id,value:'90071992547409.91'})
+  const customBody=body+'\nCustom {{custom.board_term|our board}} / {{custom.gift_reference|no gift reference}}\nNames {{informal_salutation}} {{envelope_name}} {{household_addressee|Individual}}\nUnfilled {{custom.call_topic}}\nInternal gift field {{custom.gift_value|No custom value}}\nMembership {{custom.membership|Friend of the library}}\nLarge budget {{custom.large_budget|Not recorded}}'
   await save({templateId:first.id,version:originalCustomTemplate.version,name:'Custom receipt',subject:'Thank you {{informal_salutation}}',body:customBody})
   await save({kind:'recurring_start',name:'Unknown custom',subject:'Thanks',body:body+'{{custom.unregistered|unknown}}'},{status:400})
   const customGifts=await Promise.all([own,missing].map(d=>gift(h,d.id,'300','2025-09-15')))
@@ -191,6 +193,7 @@ export async function letterTemplatesJourney(){
   const customBatch=await h.command('ack.prepare',{giftIds:customGifts.map(g=>g.id)})
   const customReview=await h.get('/api/coffer/letters/'+customBatch.id)
   const customLetter=customReview.letters.find(l=>l.donor_id===own.id),defaultLetter=customReview.letters.find(l=>l.donor_id===missing.id)
+  assert.ok(customLetter.body.includes('Large budget $90,071,992,547,409.91'),'Currency custom merges retain the final cent at the safe-integer boundary')
   assert.match(customLetter.body,/Custom 2025–2027 \/ Reviewed reference/);assert.match(customLetter.body,/Internal gift field \$125\.25/)
   assert.match(customLetter.subject,/Dr\. Custom/,'Empty informal salutation follows the formal fallback')
   assert.match(defaultLetter.body,/Custom our board \/ no gift reference/)
