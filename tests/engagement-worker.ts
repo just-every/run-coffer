@@ -3,7 +3,7 @@
 import worker from './worker'
 import { receiveReply } from '../src/coffer/communications/replies'
 const RealDate=Date
-export default {async fetch(request:Request,env:any) {
+export default {scheduled:worker.scheduled,async fetch(request:Request,env:any) {
  const value=request.headers.get('x-test-now'),instant=value?RealDate.parse(value):RealDate.now()
  globalThis.Date=class extends RealDate {constructor(...args:any[]){super(...(args.length?args:[instant]) as [any])}static now(){return instant}} as DateConstructor
  try {

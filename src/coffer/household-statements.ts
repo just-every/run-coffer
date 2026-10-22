@@ -14,7 +14,7 @@ const scope = `NOT EXISTS(SELECT 1 FROM cf_contribution_types t WHERE t.gift_id=
 
 /** One piece for the household's current members, each hard-credit gift once.
  * No head, soft credit, pledge or property value determines legal gift identity. */
-export async function householdStatementPlan(c:Context,year:number,householdId:string,original?:Row,target?:{batchId:string;position:number}) {
+export async function householdStatementPlan(c:Context,year:number,householdId:string,original?:Row,target?:{batchId?:string;position?:number;emailType?:string;addressType?:string}) {
  const s = await settings(c), day = today(s.timezone, new Date(c.now))
  if (!s.reviewed_at || !s.organisation || !s.ein) fail('SETTINGS_UNREVIEWED', 'Review organization and receipt settings before preparing statements.')
  const state = await householdState(c, householdId, { year, basis: 'calendar' })
@@ -44,7 +44,7 @@ export async function householdStatementPlan(c:Context,year:number,householdId:s
  // A stable member order supplies delivery contact details, independently of headship.
  const member=members.find(m=>m.constituent_status==='active')
  if(!member)fail('DONOR_STATUS','No active household member can receive this statement.',409)
- const contact=await letterRecipient(c,member),batchId=target?.batchId??newId(),letterId=newId()
+ const contact=await letterRecipient(c,member,{day,emailType:target?.emailType,addressType:target?.addressType}),batchId=target?.batchId??newId(),letterId=newId()
  const rendered = annualLetter(s, { ...contact, name: names.formal, letter_household_names: names, letter_address: contact.letter_address, letter_name: names.addressee, letter_names: { informal: names.informal, formal: names.formal, envelope: names.addressee } }, gifts, year, day, template)
  const basis = `Household statement — current members as of ${day}: ${members.map(m => m.name).join('; ')}. Each gift is listed under its hard-credit donor.`
  const body = `${basis}\n\n${rendered.body}`
@@ -72,8 +72,8 @@ export async function householdStatementPlan(c:Context,year:number,householdId:s
  return {s,letter,hash,batchId,letterId,household,checks}
 }
 
-export async function prepareHouseholdStatement(c:Context,year:number,householdId:string,original?:Row):Promise<Row>{
- const {s,letter,hash,batchId,letterId,household,checks}=await householdStatementPlan(c,year,householdId,original)
+export async function prepareHouseholdStatement(c:Context,year:number,householdId:string,original?:Row,options:{emailType?:string;addressType?:string}={}):Promise<Row>{
+ const {s,letter,hash,batchId,letterId,household,checks}=await householdStatementPlan(c,year,householdId,original,options)
  await commit(c,[...checks,
   sql(`INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at,kind,statement_year,one_piece_per)
    VALUES(?,1,'prepared',?,1,?,?,?,?,?,?,'statement',?,'household')`, batchId, hash, letter.amount_cents, s.version, c.actor.id, c.actor.name, c.actor.role, c.now, year),

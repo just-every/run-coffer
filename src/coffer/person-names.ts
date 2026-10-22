@@ -33,5 +33,5 @@ export function nameMergeFields(d: Row): Record<string, string> {
 /** Internal contact marker stays out of provider fields; it carries existing erasure/export custody. */
 export function frozenNameFields(d:Row) {
  const address=d.letter_address?JSON.parse(d.letter_address):null
- return JSON.stringify({...nameMergeFields(d),...(address?.attentionDonorId?{_attention:address.attentionDonorId}:{})})
+ return JSON.stringify({...nameMergeFields(d),...(d.selected_email_contact_id?{_emailContact:d.selected_email_contact_id,_emailContactVersion:d.selected_email_contact_version??null}:{}),...(d.selected_address_contact_id?{_addressContact:d.selected_address_contact_id}:{}),...(address?.attentionDonorId?{_attention:address.attentionDonorId}:{})})
 }

@@ -43,7 +43,7 @@ export async function letterRecipient(c:{db:D1Database},d:Row,options:{day?:stri
  if(contact)contact.name_defaults=d.name_defaults
  const names=personNames(d), greeting=contact?personNames(contact):names
  return {...d,letter_names:greeting,letter_name:contact?`${d.name}\nAttn: ${contact.name}`:names.envelope,letter_salutation:contact?informalName(contact):d.constituent_kind==='organization'?d.name:names.informal,
-  letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,emailContactId:d.selected_email_contact_id,addressContactId:d.selected_address_contact_id,organization:d.constituent_kind==='organization',...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
+  letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,emailContactId:d.selected_email_contact_id,emailContactVersion:d.selected_email_contact_version,addressContactId:d.selected_address_contact_id,addressContactVersion:d.selected_address_contact_version,organization:d.constituent_kind==='organization',...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
 }
 /** A receipt for a gift on a deceased constituent's record goes to the surviving household or the estate, never to the deceased. */
 async function survivorAddressing(c:{db:D1Database},d:Row) {

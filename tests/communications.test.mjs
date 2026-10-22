@@ -78,10 +78,10 @@ test('DONOR-014: Mailchimp audience names follow parts and typed overrides for s
   assert.equal(result.submitted,0,'A new pending member still needs Mailchimp double opt-in')
   assert.equal(result.suppressed,1)
   const message=(await h.get('/api/coffer/donors/'+ana.id)).communications.find(m=>m.source_id===batch.id)
-  assert.equal(message.subject,'Hello Ms. Lee');assert.equal(message.body,'Ms. Ana  Lee   | Annie | The Lee Family','Approved appeal name fields stay frozen after profile changes')
+  assert.equal(message.subject,'Hello Ms. Lee');assert.equal(message.body,'Ms. Ana Ms. Lee Lee Ms. Lee Ms. Lee | Annie | The Lee Family','RCPT-010 missing name parts use the formal fallback and approved fields stay frozen after profile changes')
   const pending=members.get(hash('ana.lee@example.test'))
   assert.equal(pending.status,'pending')
-  assert.deepEqual(pending.merge_fields,{CF_INFORM:'Annie',CF_FORMAL:'Ms. Lee',CF_ENVELOP:'The Lee Family',CF_PREFIX:'Ms.',CF_FIRST:'Ana',CF_MIDDLE:'',CF_LAST:'Lee',CF_SUFFIX:'',CF_NICK:'Changed after approval'})
+  assert.deepEqual(pending.merge_fields,{CF_INFORM:'Annie',CF_FORMAL:'Ms. Lee',CF_ENVELOP:'The Lee Family',CF_PREFIX:'Ms.',CF_FIRST:'Ana',CF_MIDDLE:'Ms. Lee',CF_LAST:'Lee',CF_SUFFIX:'Ms. Lee',CF_NICK:'Changed after approval'})
   await consent(ana,'withdrawn')
   assert.equal(pending.status,'unsubscribed','Coffer withdrawal still suppresses the pending member')
  },{outbound:async request=>{

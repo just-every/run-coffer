@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { fail, type Row } from '../db'
-import { personNames } from '../person-names'
+import { nameMergeFields as recipientNameFields } from '../person-names'
 import type { Connection } from './connection'
 
 const address = (value: unknown): string => {
@@ -88,8 +88,8 @@ async function nameMergeFields(conn: Connection, donor: Row) {
   const field = await request(conn, path, 'POST', { tag, name, type:'text', required:false, public:false })
   if (field?.tag !== tag || field.type !== 'text') fail('MAILCHIMP_RESPONSE', 'Mailchimp did not confirm the audience name field.', 502)
  }
- const names = {...(donor.letter_names ?? personNames(donor)),...(donor.letter_name?{envelope:donor.letter_name}:{})}
- return Object.fromEntries(NAME_FIELDS.map(([tag, , key]) => [tag, key in names ? names[key as keyof typeof names] : donor[key] ?? '']))
+ const names=recipientNameFields(donor),aliases:Record<string,string>={informal:'informal_salutation',formal:'formal_salutation',envelope:'envelope_name'}
+ return Object.fromEntries(NAME_FIELDS.map(([tag, , key]) => [tag,names[aliases[key]??key]]))
 }
 /** A merge-only PATCH preserves a concurrent unsubscribe and never creates a member. */
 export async function syncMailchimpNames(conn: Connection, donor: Row): Promise<Row> {

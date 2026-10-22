@@ -24,6 +24,8 @@ test('dated pledges remind once, match real gifts by fund and donor, and reopen 
   assert.equal(first.submitted+second.submitted,1)
   assert.equal(messages.length,1)
   assert.equal(messages[0].personalizations[0].to[0].email,'ana.pledge@example.org')
+  const reminder=(await history()).pledges.find(p=>p.id===pledge.id).installments[0],emailPoint=(await history()).contactPoints.find(p=>p.kind==='email'&&p.is_primary)
+  assert.equal(reminder.recipient_contact_id,emailPoint.id);assert.equal(reminder.recipient_contact_version,emailPoint.version)
   assert.match(messages[0].content[0].value,/\$100\.00/)
   assert.match(messages[0].content[0].value,/Library/)
   const wrong=await h.command('gift.record',{donorId:ana.id,amount:'100',receivedOn,method:'check',goods:'none',fund:'Other'})

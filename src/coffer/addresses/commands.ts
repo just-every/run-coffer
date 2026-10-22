@@ -1,37 +1,41 @@
+import { mailContactRows } from '../mail-contacts'
+import { CONTACT_TYPES } from '../contact-points'
 import { settings } from '../settings'
 import { requireRole } from '../auth'
-import { all, commit, date, event, fail, guard, integer, newId, one, sql, text, today, type Context, type Row } from '../db'
+import { all, choice, commit, date, event, fail, guard, integer, newId, one, sql, text, today, type Context, type Row } from '../db'
 import { verifyExistingAddress } from './entry'
 import { addressFingerprint, addressProcessing } from './state'
 
-export async function ncoaCandidates(c:Context) {
- const rows=await all(c,`SELECT * FROM cf_donors d WHERE erased_at IS NULL AND constituent_status='active' AND trim(COALESCE(address_line1,''))<>'' AND trim(COALESCE(city,''))<>'' AND trim(COALESCE(region,''))<>'' AND trim(COALESCE(postal_code,''))<>'' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND upper(country) IN('US','USA','UNITED STATES','UNITED STATES OF AMERICA') ORDER BY id`)
+export async function ncoaCandidates(c:Context,addressType='') {
+ const rawRows=await all(c,`SELECT * FROM cf_donors d WHERE erased_at IS NULL AND constituent_status='active' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY id`)
+ const rows=(await mailContactRows(c,rawRows,{addressType,pass:true})).filter(d=>d.address_line1&&d.city&&d.region&&d.postal_code&&['US','USA','UNITED STATES','UNITED STATES OF AMERICA'].includes(String(d.country).toUpperCase()))
  const groups=new Map<string,number>(),members=[]
  for(const d of rows){
   const fingerprint=await addressFingerprint(d),key=await addressFingerprint({...d,name:d.name.trim().toUpperCase(),...Object.fromEntries(Object.entries(d).filter(([k])=>['address_line1','address_line2','city','region','postal_code','country'].includes(k)).map(([k,v])=>[k,typeof v==='string'?v.trim().toUpperCase():v])),country:'US'})
   if(!groups.has(key))groups.set(key,groups.size)
-  members.push({donorId:d.id,fingerprint,ordinal:groups.get(key)!})
+  members.push({donorId:d.id,fingerprint,contactId:d.selected_address_contact_id,contactVersion:d.selected_address_contact_version,ordinal:groups.get(key)!})
  }
  return {members,total:groups.size}
 }
-export async function queueNcoa(c:Context) {
+export async function queueNcoa(c:Context,addressType='') {
+ choice(addressType,['',...CONTACT_TYPES.address],'postal contact type')
  const connection=await addressProcessing(c)
  if(!connection.enabled||!connection.paf_reference)fail('NCOA_NOT_CONNECTED','An owner must enable Smarty and the licensed NCOA account with its current signed PAF first.')
- const active=await one(c,"SELECT id,state FROM cf_ncoa_runs WHERE state IN('queued','processing') ORDER BY created_at DESC LIMIT 1")
- if(active)return {...active,queued:false}
- const {members,total}=await ncoaCandidates(c)
+ const active=await one(c,"SELECT id,state,address_type FROM cf_ncoa_runs WHERE state IN('queued','processing') ORDER BY created_at DESC LIMIT 1")
+ if(active){if(active.address_type!==addressType)fail('NCOA_OTHER_PASS','A pass for another address choice is already queued. Review it before preparing another.',409);return {...active,queued:false}}
+ const {members,total}=await ncoaCandidates(c,addressType)
  if(total<100)fail('NCOA_LIST_TOO_SMALL','The NCOA licensee requires at least 100 genuine unique names and addresses. No records were submitted or fabricated.',409,{uniqueNamesAndAddresses:total})
  const runId=newId()
  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_address_processing WHERE id=1 AND version=? AND enabled=1)','ADDRESS_CONNECTION_CHANGED','Address processing changed; prepare the pass again.',connection.version),guard("NOT EXISTS(SELECT 1 FROM cf_ncoa_runs WHERE state IN('queued','processing'))",'NCOA_ALREADY_QUEUED','Another pass was queued. Refresh.'),
- sql("INSERT INTO cf_ncoa_runs(id,state,total,processed,created_at,actor_id,actor_name,connection_version) VALUES(?,'queued',?,0,?,?,?,?)",runId,total,c.now,c.actor.id,c.actor.name,connection.version),
- sql("INSERT INTO cf_ncoa_members(run_id,donor_id,fingerprint,ordinal) SELECT ?,json_extract(value,'$.donorId'),json_extract(value,'$.fingerprint'),json_extract(value,'$.ordinal') FROM json_each(?)",runId,JSON.stringify(members)),event(c,'address.queueNcoa','ncoa_run',runId,null,{uniqueNamesAndAddresses:total})])
+ sql("INSERT INTO cf_ncoa_runs(id,state,total,processed,created_at,actor_id,actor_name,connection_version,address_type) VALUES(?,'queued',?,0,?,?,?,?,?)",runId,total,c.now,c.actor.id,c.actor.name,connection.version,addressType),
+ sql("INSERT INTO cf_ncoa_members(run_id,donor_id,fingerprint,ordinal,contact_id,contact_version) SELECT ?,json_extract(value,'$.donorId'),json_extract(value,'$.fingerprint'),json_extract(value,'$.ordinal'),json_extract(value,'$.contactId'),json_extract(value,'$.contactVersion') FROM json_each(?)",runId,JSON.stringify(members)),event(c,'address.queueNcoa','ncoa_run',runId,null,{uniqueNamesAndAddresses:total})])
  return {id:runId,state:'queued',queued:true,total}
 }
 export async function addressCommand(c:Context,command:string,p:Row):Promise<Row|undefined> {
  if(!['address.processing','address.verify','address.queueNcoa'].includes(command))return undefined
  if(command==='address.verify')return verifyExistingAddress(c,p)
  requireRole(c.actor,['owner','admin'],'manage address processing')
- if(command==='address.queueNcoa')return queueNcoa(c)
+ if(command==='address.queueNcoa')return queueNcoa(c,p.addressType||'')
  const version=integer(Number(p.version),'Version',0),enabled=p.enabled===true||p.enabled==='yes'
  const reference=enabled?text(p.pafReference,'Signed current PAF reference',200):null
  const signer=enabled?text(p.pafSigner,'PAF signer',200):null,licensee=enabled?text(p.pafLicensee,'PAF licensee',200):null

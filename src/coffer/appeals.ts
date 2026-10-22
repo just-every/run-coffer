@@ -1,3 +1,4 @@
+import { mailContactRows } from './mail-contacts'
 import { appealPieces, householdPieceGuard, prepareAppealPieces } from './mail-pieces'
 import { listMembers } from './list-members'
 import { mailPreflight, mailEligibility, mailSnapshot, mailRunGuards, mailAddressChanged } from './addresses/mail'
@@ -21,8 +22,8 @@ export const hashOf = (name: string, channel: string, recipients: Row[], message
 const postal = (d: Row) => d.address_line1 && d.city && d.postal_code
 
 /** Splits the segment into consenting recipients and counted exclusions. */
-export async function audience(c: { db: D1Database; now?:string }, channel: 'email' | 'mail', segment: { givenSince: string | null; minTotalCents: number; fund?: string | null; donorIds?: string[]; isAsk?: boolean; includeIds?: string[] }) {
- const rows = await all(c, `SELECT d.*,k.id AS consent_id,k.status AS consent,
+export async function audience(c: { db: D1Database; now?:string }, channel: 'email' | 'mail', segment: { givenSince: string | null; minTotalCents: number; fund?: string | null; donorIds?: string[]; isAsk?: boolean; includeIds?: string[];addressType?:string }) {
+ const rawRows = await all(c, `SELECT d.*,k.id AS consent_id,k.status AS consent,
   (SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
   (SELECT COUNT(*) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS gift_count,
   (SELECT MAX(received_on) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS last_gift FROM cf_donors d
@@ -31,6 +32,7 @@ export async function audience(c: { db: D1Database; now?:string }, channel: 'ema
   AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_fund_ledger g WHERE g.donor_id=d.id AND g.fund=? GROUP BY g.fund HAVING SUM(g.amount_cents)>0))
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
   ORDER BY lower(d.name),d.id`, channel, segment.givenSince, segment.givenSince, Math.max(1, segment.minTotalCents), segment.fund??null,segment.fund??null)
+ const rows=await mailContactRows(c,rawRows,{addressType:segment.addressType})
  const excluded: Record<string, number> = { 'no consent recorded': 0, 'consent withdrawn': 0, 'no email address': 0, 'no postal address': 0 }
  const sharedEmails=new Set<string>()
  const recipients: Row[] = [], lastAskDates:Record<string,number> = {}
@@ -48,7 +50,7 @@ export async function audience(c: { db: D1Database; now?:string }, channel: 'ema
   else if (channel === 'mail' && !postal(d)) excluded['no postal address']++
   else if (channel === 'mail' && addressHolds.has(d.id)) countReason(excluded,addressHolds.get(d.id).reason)
   else if(channel==='email'&&sharedEmails.has(String(d.email).toLowerCase()))countReason(excluded,'shared email duplicate')
-  else {if(channel==='email')sharedEmails.add(String(d.email).toLowerCase());recipients.push({ donor_id: d.id, consent_id: d.consent_id, name: d.name, name_fields:frozenNameFields(await letterRecipient(c,d)), total_cents:d.total_cents,gift_count:d.gift_count,last_gift:d.last_gift, email: channel === 'email' ? d.email : null, address: channel === 'mail' ? JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country }) : null })}
+  else {if(channel==='email')sharedEmails.add(String(d.email).toLowerCase());recipients.push({ donor_id: d.id, consent_id: d.consent_id, name: d.name, name_fields:frozenNameFields(await letterRecipient(c,d)), total_cents:d.total_cents,gift_count:d.gift_count,last_gift:d.last_gift, email: channel === 'email' ? d.email : null, address: channel === 'mail' ? JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country,addressContactId:d.selected_address_contact_id,addressContactVersion:d.selected_address_contact_version }) : null })}
  }
  return { recipients, excluded, lastAskDates }
 }
@@ -74,11 +76,11 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (written && !String(p.body ?? '').trim()) fail('INPUT', 'Write the email message donors will receive, or clear the subject to export the list instead.', 400)
  const message = written ? {subject:text(p.subject,'Email subject',250),body:longText(p.body,'Email message',12000)} : null
   if(message){ const {mergeMessage}=await import('./communications/outbound'); mergeMessage(message.subject,{name:'Donor'});mergeMessage(message.body,{name:'Donor'}) }
-  const addressPass=channel==='mail'?await mailPreflight(c):null
-  const { recipients, excluded, lastAskDates } = await audience(c, channel, { givenSince, minTotalCents, fund, donorIds: c.actor.role==='member'?includes.map(x=>x.donorId):selection?.donorIds ?? donorIds, isAsk, includeIds:includes.map(x=>x.donorId) })
+  const addressPass=channel==='mail'?await mailPreflight(c,p.addressType||''):null
+  const { recipients, excluded, lastAskDates } = await audience(c, channel, { givenSince, minTotalCents, fund, donorIds: c.actor.role==='member'?includes.map(x=>x.donorId):selection?.donorIds ?? donorIds, isAsk,addressType:p.addressType||'', includeIds:includes.map(x=>x.donorId) })
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)
   if (recipients.length > MAX_RECIPIENTS) fail('TOO_MANY', `An appeal holds at most ${MAX_RECIPIENTS} recipients. Narrow the segment.`, 400)
-  const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, grouping=channel==='mail'?await prepareAppealPieces(c,appealId,recipients,p.onePiecePer):null, hash = await hashOf(name, channel, recipients,message,grouping?.pieces), list = JSON.stringify(recipients)
+  const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, grouping=channel==='mail'?await prepareAppealPieces(c,appealId,recipients,p.onePiecePer,{addressType:p.addressType||''}):null, hash = await hashOf(name, channel, recipients,message,grouping?.pieces), list = JSON.stringify(recipients)
   if(grouping&&!grouping.pieces.length)fail('NO_GIFTS','No positive-balance gifts were found for gift-based mail pieces. Choose constituent or household pieces.',409)
   const addressSnapshot=await mailSnapshot(c,appealId,addressPass,recipients)
   const restriction=await prepareSolicitationRun(c,{kind:'appeal',id:appealId,channel,isAsk,donorIds:recipients.map(r=>r.donor_id),includes})
@@ -87,7 +89,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
    guard(`NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE (SELECT k.id FROM cf_consents k WHERE k.donor_id=json_extract(j.value,'$.donor_id') AND k.channel=? ORDER BY k.id DESC LIMIT 1) IS NOT json_extract(j.value,'$.consent_id'))`, 'CONSENT_CHANGED', 'A donor’s consent changed while preparing. Prepare again.', list, channel),
    sql("INSERT INTO cf_appeal_codes(code,name,origin,created_at) VALUES(?,?,'staff',?)",code,name,c.now),
    sql("INSERT INTO cf_appeals(id,version,name,channel,segment,excluded,status,content_hash,recipients,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,?,?,?,?,'prepared',?,?,?,?,?,?)",
-    appealId, name, channel, JSON.stringify({ ...(grouping?{onePiecePer:grouping.basis,pieceCount:grouping.pieces.length,postagePerPieceCents:p.postagePerPiece?amount(p,'postagePerPiece','Postage per piece',{allowZero:true}):null}:{}),...(saved?{listId:p.listId}:{}),givenSince, minTotalCents, fund, purpose, isAsk, lastAskDates, ...(selection ? {resendOf:selection.resendOf} : {}), ...(annual ? {annualList,listYear:annual.year,listThrough:annual.through} : {}) }), JSON.stringify(excluded), hash, recipients.length, c.actor.id, c.actor.name, c.actor.role, c.now),
+    appealId, name, channel, JSON.stringify({ ...(p.addressType?{addressType:p.addressType}:{}),...(grouping?{onePiecePer:grouping.basis,pieceCount:grouping.pieces.length,postagePerPieceCents:p.postagePerPiece?amount(p,'postagePerPiece','Postage per piece',{allowZero:true}):null}:{}),...(saved?{listId:p.listId}:{}),givenSince, minTotalCents, fund, purpose, isAsk, lastAskDates, ...(selection ? {resendOf:selection.resendOf} : {}), ...(annual ? {annualList,listYear:annual.year,listThrough:annual.through} : {}) }), JSON.stringify(excluded), hash, recipients.length, c.actor.id, c.actor.name, c.actor.role, c.now),
    sql('INSERT INTO cf_appeal_runs(appeal_id,code,cost_cents) VALUES(?,?,?)',appealId,code,costCents),
    sql(`INSERT INTO cf_appeal_recipients(appeal_id,donor_id,consent_id,name,email,address,total_cents,gift_count,last_gift,name_fields) SELECT ?,json_extract(value,'$.donor_id'),json_extract(value,'$.consent_id'),json_extract(value,'$.name'),json_extract(value,'$.email'),json_extract(value,'$.address'),json_extract(value,'$.total_cents'),json_extract(value,'$.gift_count'),json_extract(value,'$.last_gift'),json_extract(value,'$.name_fields') FROM json_each(?)`, appealId, list),
    ...addressSnapshot,...(grouping?.statements??[]),
@@ -106,7 +108,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (command === 'appeal.approve') {
   if (appeal.status !== 'prepared') fail('NOT_PREPARED', 'Only a prepared appeal can be approved.')
   if (await hashOf(appeal.name, appeal.channel, await recipientsOf(c, appealId),await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),(await appealPieces(c,appealId))) !== appeal.content_hash) fail('CONTENT_CHANGED', 'This audience no longer matches what was prepared. Discard it and prepare again.')
-  await commit(c, [at(['prepared']), consent,householdPieceGuard(appealId), ...mailRunGuards(c,appealId), ...await solicitationRunGuards(c,'appeal',appealId),
+  await commit(c, [at(['prepared']), consent,householdPieceGuard(appealId), ...await mailRunGuards(c,appealId), ...await solicitationRunGuards(c,'appeal',appealId),
    sql('INSERT INTO cf_approvals VALUES(?,?,?,?,?,?,?,?,?,?,?)', newId(), 'appeal', appealId, appeal.content_hash, appeal.prepared_by_id, appeal.prepared_by_name, appeal.prepared_by_role, c.actor.id, c.actor.name, c.actor.role, c.now),
    bump('approved'), event(c, 'appeal.approve', 'appeal', appealId, null, { recipients: appeal.recipients, preparedBy: appeal.prepared_by_role })])
   return { id: appealId, version: version + 1, status: 'approved' }
@@ -121,7 +123,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   if (!['approved', 'exported', 'sent'].includes(appeal.status)) fail('NOT_APPROVED', 'A person must approve this audience before it is exported.')
   if (appeal.status !== 'approved') return { id: appealId, version, status: appeal.status, exportHash: appeal.export_hash }
   const hash = await sha256(recipientsCsv(appeal, await recipientsOf(c, appealId),await appealPieces(c,appealId)))
-  await commit(c, [at(['approved']), consent,householdPieceGuard(appealId), ...mailRunGuards(c,appealId), ...await solicitationAskStatements(c,'appeal',appealId), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'appeal.export', 'appeal', appealId, null, { recipients: appeal.recipients })])
+  await commit(c, [at(['approved']), consent,householdPieceGuard(appealId), ...await mailRunGuards(c,appealId), ...await solicitationAskStatements(c,'appeal',appealId), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'appeal.export', 'appeal', appealId, null, { recipients: appeal.recipients })])
   return { id: appealId, version: version + 1, status: 'exported', exportHash: hash }
  }
  const sentOn = date(p.sentOn, 'Sent on')

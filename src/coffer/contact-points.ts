@@ -26,7 +26,10 @@ export async function contactCommand(c:Context,command:string,p:Row):Promise<Row
   let a=p.value??{line1:p.addressLine1,line2:p.addressLine2,city:p.city,region:p.region,postalCode:p.postalCode,country:p.country};if(typeof a==='string'){try{a=JSON.parse(a)}catch{fail('INPUT','Address must be a JSON object.',400)}}
   if(!a||typeof a!=='object'||Array.isArray(a))fail('INPUT','Enter a postal address.',400)
   const address={line1:text(a.line1,'Address line 1'),line2:optional(a.line2,'Address line 2'),city:text(a.city,'City',100),region:text(a.region,'State',100),postalCode:text(a.postalCode,'ZIP code',20),country:optional(a.country,'Country',100)??'United States'}
-  value=JSON.stringify(address)
+  await commit(c,[])
+  const checked=await enteredAddress(c,{...donor,address_line1:address.line1,address_line2:address.line2,city:address.city,region:address.region,postal_code:address.postalCode,country:address.country}),d=checked.donor
+  value=JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country})
+  verified=checked.statements
  }
  const points=await contactPoints(c,donorId),primary=points.find(r=>r.kind===kind&&r.is_primary),makePrimary=p.primary===true||p.primary==='yes'||existing?.is_primary===1||!primary
  const startsOn=type==='seasonal'?annualDay(p.startsOn,'Season starts (MM-DD)'):null,endsOn=type==='seasonal'?annualDay(p.endsOn,'Season ends (MM-DD)'):null
@@ -40,30 +43,34 @@ export async function contactCommand(c:Context,command:string,p:Row):Promise<Row
   writes.push(sql('INSERT INTO cf_contact_edit VALUES(1)'))
   if(kind==='email'||kind==='phone')writes.push(sql(`UPDATE cf_donors SET ${kind}=? WHERE id=?`,value,donorId))
   else {
-   await commit(c,[])
-   const a=JSON.parse(value),entry=await enteredAddress(c,{...donor,address_line1:a.line1,address_line2:a.line2,city:a.city,region:a.region,postal_code:a.postalCode,country:a.country}),d=entry.donor
+   const a=JSON.parse(value),d={address_line1:a.line1,address_line2:a.line2,city:a.city,region:a.region,postal_code:a.postalCode,country:a.country}
    // Postal verification is independent of NCOA campaign passes, following DONOR-009.
    value=JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country})
    // Keep one history revision: normalize before the point write executes.
    const point=writes.find(s=>s.sql.startsWith('INSERT INTO cf_contact_points'));if(point)point.params[4]=value
    const update=writes.find(s=>s.sql.startsWith('UPDATE cf_contact_points SET type='));if(update)update.params[1]=value
-   writes.push(...stageAddressMove(donorId,await addressMove(c,null),'staff'),sql('UPDATE cf_donors SET address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=? WHERE id=?',d.address_line1,d.address_line2,d.city,d.region,d.postal_code,d.country,donorId),sql('DELETE FROM cf_address_moves WHERE donor_id=?',donorId),...entry.statements)
+   writes.push(...stageAddressMove(donorId,await addressMove(c,null),'staff'),sql('UPDATE cf_donors SET address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=? WHERE id=?',d.address_line1,d.address_line2,d.city,d.region,d.postal_code,d.country,donorId),sql('DELETE FROM cf_address_moves WHERE donor_id=?',donorId),...verified)
   }
   writes.push(sql('DELETE FROM cf_contact_edit'))
  }
- await commit(c,[current(donorId,donorVersion),...writes,sql('UPDATE cf_donors SET version=version+1 WHERE id=?',donorId),event(c,command,'contact',contactId,donorId,{kind,type,primary:makePrimary,version:version+1})])
+ await commit(c,[current(donorId,donorVersion),...(!makePrimary?verified:[]),...writes,sql('UPDATE cf_donors SET version=version+1 WHERE id=?',donorId),event(c,command,'contact',contactId,donorId,{kind,type,primary:makePrimary,version:version+1})])
  return {id:contactId,donorId,version:version+1,donorVersion:donorVersion+1}
 }
 
 /** A chosen type never silently chooses between two contact points. */
-export async function selectedContacts(c:{db:D1Database},d:Row,options:{day?:string;emailType?:string;addressType?:string}={}){
- const points=await contactPoints(c,d.id),day=options.day??today((await settings(c)).timezone)
+export async function selectedContacts(c:{db:D1Database;now?:string},d:Row,options:{day?:string;emailType?:string;addressType?:string}={}){
+ const points=await contactPoints(c,d.id),day=options.day??today((await settings(c)).timezone,c.now?new Date(c.now):new Date())
+ return contactSelection(d,points,day,options)
+}
+export function contactSelection(d:Row,points:Row[],day:string,options:{emailType?:string;addressType?:string}={}):Row{
+ if(options.emailType)choice(options.emailType,CONTACT_TYPES.email,'email contact type')
+ if(options.addressType)choice(options.addressType,CONTACT_TYPES.address,'postal contact type')
  const select=(kind:'email'|'address',type?:string)=>{
-  if(type){const selected=points.filter(p=>p.kind===kind&&p.type===type);if(selected.length>1)fail('CONTACT_AMBIGUOUS','Choose a type with one contact point. Review this donor’s contacts.');return selected[0]??null}
-  return kind==='address'?points.find(p=>p.kind===kind&&p.type==='seasonal'&&inRange(day.slice(5,10),p.starts_on,p.ends_on))??points.find(p=>p.kind===kind&&p.is_primary):points.find(p=>p.kind===kind&&p.is_primary)
+  if(type){const selected=points.filter(p=>p.kind===kind&&p.type===type&&(type!=='seasonal'||inRange(day.slice(5,10),p.starts_on,p.ends_on)));if(selected.length>1)fail('CONTACT_AMBIGUOUS','Choose a type with one contact point. Review this donor’s contacts.');return selected[0]??null}
+  return kind==='address'?points.find(p=>p.kind===kind&&p.type==='seasonal'&&inRange(day.slice(5,10),p.starts_on,p.ends_on))??points.find(p=>p.kind===kind&&p.is_primary&&(p.type!=='seasonal'||inRange(day.slice(5,10),p.starts_on,p.ends_on))):points.find(p=>p.kind===kind&&p.is_primary)
  }
  const emailPoint=select('email',options.emailType),addressPoint=select('address',options.addressType),a=addressPoint?JSON.parse(addressPoint.value):null
- return {...d,...(emailPoint?{email:emailPoint.value}:{}),...(a?{address_line1:a.line1,address_line2:a.line2,city:a.city,region:a.region,postal_code:a.postalCode,country:a.country}:{}),selected_email_contact_id:emailPoint?.id??null,selected_address_contact_id:addressPoint?.id??null}
+ return {...d,...(emailPoint?{email:emailPoint.value}:options.emailType?{email:null}:{}),...(a?{address_line1:a.line1,address_line2:a.line2,city:a.city,region:a.region,postal_code:a.postalCode,country:a.country}:options.addressType||points.some(p=>p.kind==='address')?{address_line1:null,address_line2:null,city:null,region:null,postal_code:null}:{}),selected_email_contact_id:emailPoint?.id??null,selected_email_contact_version:emailPoint?.version??null,selected_address_contact_id:addressPoint?.id??null,selected_address_contact_version:addressPoint?.version??null,selected_address_is_primary:addressPoint?.is_primary??0,selected_address_type:addressPoint?.type??null}
 }
 
 /** Search values, never JSON property names, through every current contact point. */

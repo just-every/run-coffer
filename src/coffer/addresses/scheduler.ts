@@ -1,3 +1,4 @@
+import { mailContactRows } from '../mail-contacts'
 import type { Bindings } from '../../auth.server'
 import { all, commit, event, guard, one, sql, today, type Context, type Row, type Stmt } from '../db'
 import { stageAddressMove } from '../address-history'
@@ -21,10 +22,11 @@ export async function advanceNcoa(env:Bindings,at:Date) {
  const run=await one(c,"SELECT * FROM cf_ncoa_runs WHERE state='queued' ORDER BY created_at,id LIMIT 1")
  if(!run)return {processed:0}
  if(run.connection_version!==connection.version){await finish(c,run.id,'cancelled','Address processing changed.');return {processed:0}}
- const members=await all(c,`SELECT m.*,d.* FROM cf_ncoa_members m JOIN cf_donors d ON d.id=m.donor_id WHERE m.run_id=? AND m.ordinal>=? AND m.ordinal<? ORDER BY m.ordinal,d.id`,run.id,run.processed,run.processed+100)
+ const rawMembers=await all(c,`SELECT m.*,d.* FROM cf_ncoa_members m JOIN cf_donors d ON d.id=m.donor_id WHERE m.run_id=? AND m.ordinal>=? AND m.ordinal<? ORDER BY m.ordinal,d.id`,run.id,run.processed,run.processed+100)
+ const members=await mailContactRows(c,rawMembers,{addressType:run.address_type,pass:true})
  if(!members.length){await finish(c,run.id,'failed','The address list is no longer complete.');return {processed:0}}
  const fingerprints=await Promise.all(members.map(addressFingerprint))
- if(members.some((m,i)=>m.erased_at||m.fingerprint!==fingerprints[i]||m.constituent_status!=='active')||await one(c,'SELECT 1 FROM cf_donor_merges WHERE donor_id IN (SELECT donor_id FROM cf_ncoa_members WHERE run_id=?) LIMIT 1',run.id)){
+ if(members.some((m,i)=>m.erased_at||m.contact_id!==m.selected_address_contact_id||m.contact_version!==m.selected_address_contact_version||m.fingerprint!==fingerprints[i]||m.constituent_status!=='active')||await one(c,'SELECT 1 FROM cf_donor_merges WHERE donor_id IN (SELECT donor_id FROM cf_ncoa_members WHERE run_id=?) LIMIT 1',run.id)){
   await finish(c,run.id,'failed','A donor or address changed after the pass was prepared. Prepare a new pass.');return {processed:0}
  }
  const unique=new Map<number,Row>()
@@ -46,9 +48,15 @@ export async function advanceNcoa(env:Bindings,at:Date) {
    statements.push(isLive(d.id,d.version))
    const address=verified?.status==='verified'?verified.address:undefined
    const updated=address?{...d,address_line1:address.street,address_line2:address.street2??null,city:address.city,region:address.state,postal_code:address.postalCode,country:address.country}:d
-   if(address&&await addressFingerprint(updated)!==await addressFingerprint(d))statements.push(...stageAddressMove(d.id,day,'ncoa'),sql('UPDATE cf_donors SET version=version+1,address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=? WHERE id=?',updated.address_line1,updated.address_line2,updated.city,updated.region,updated.postal_code,updated.country,d.id),sql('DELETE FROM cf_address_moves WHERE donor_id=?',d.id))
+   const changed=!!address&&await addressFingerprint(updated)!==await addressFingerprint(d)
+   if(d.selected_address_contact_id)statements.push(guard('EXISTS(SELECT 1 FROM cf_contact_points WHERE id=? AND donor_id=? AND version=? AND active=1)','ADDRESS_CHANGED','The selected contact changed during the pass.',d.selected_address_contact_id,d.id,d.selected_address_contact_version))
+   if(changed){
+    if(d.selected_address_contact_id)statements.push(sql("UPDATE cf_contact_points SET value=?,version=version+1,source='ncoa',source_on=?,updated_at=? WHERE id=?",JSON.stringify({line1:updated.address_line1,line2:updated.address_line2,city:updated.city,region:updated.region,postalCode:updated.postal_code,country:updated.country}),day,c.now,d.selected_address_contact_id))
+    if(d.selected_address_is_primary){statements.push(sql('INSERT INTO cf_contact_edit VALUES(1)'),...stageAddressMove(d.id,day,'ncoa'),sql('UPDATE cf_donors SET version=version+1,address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=? WHERE id=?',updated.address_line1,updated.address_line2,updated.city,updated.region,updated.postal_code,updated.country,d.id),sql('DELETE FROM cf_address_moves WHERE donor_id=?',d.id),sql('DELETE FROM cf_contact_edit'))}
+    else statements.push(sql('UPDATE cf_donors SET version=version+1 WHERE id=?',d.id))
+   }
    const check=r.status==='undeliverable'?{status:'undeliverable' as const,reason:'no_match' as const,providerCodes:r.providerCodes}:verified??{status:'unverified' as const,reason:'incomplete_confirmation' as const,providerCodes:r.providerCodes}
-   statements.push(checkStatement(d.id,await addressFingerprint(updated),check,c.now,'ncoa',r.moveEffectiveMonth??null),sql('UPDATE cf_ncoa_members SET processed_at=?,result=?,fingerprint=? WHERE run_id=? AND donor_id=?',c.now,r.status,await addressFingerprint(updated),run.id,d.id),event(c,'address.ncoa','donor',d.id,d.id,{result:r.status,source:'ncoa',moveEffectiveMonth:r.moveEffectiveMonth??null,observedOn:day}))
+   statements.push(checkStatement(d.id,await addressFingerprint(updated),check,c.now,'ncoa',r.moveEffectiveMonth??null),sql('UPDATE cf_ncoa_members SET processed_at=?,result=?,fingerprint=?,contact_version=? WHERE run_id=? AND donor_id=?',c.now,r.status,await addressFingerprint(updated),d.selected_address_contact_version===null?null:d.selected_address_contact_version+(changed?1:0),run.id,d.id),event(c,'address.ncoa','donor',d.id,d.id,{result:r.status,source:'ncoa',moveEffectiveMonth:r.moveEffectiveMonth??null,observedOn:day}))
   }
  }
  const processed=run.processed+unique.size,completed=processed===run.total

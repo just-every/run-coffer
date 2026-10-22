@@ -110,25 +110,26 @@ const threadSubject = (value: string) => subject(value).replace(/^(?:(?:re|fw|fw
 async function findCommunication(message: ForwardableEmailMessage, env: Bindings, raw: Uint8Array): Promise<Row | null> {
  const config = env as Bindings & { COFFER_REPLY_DOMAIN?: string; COFFER_REPLY_ADDRESS?: string }
  const destination = address(message.to), fixed = address(config.COFFER_REPLY_ADDRESS ?? '')
- const live = `SELECT c.*,d.email AS donor_email FROM (
-  SELECT id,donor_id,subject,reply_to,source_kind,source_id,created_at,'communication' AS source_type
+ const point=`SELECT cp.value FROM cf_contact_points cp WHERE cp.id=c.email_contact_id AND cp.donor_id=d.id AND cp.kind='email' AND cp.active=1 AND cp.version=c.email_contact_version AND cp.value=c.recipient_email`
+ const live = `SELECT c.*,d.email AS donor_email,(${point}) AS contact_email FROM (
+  SELECT id,donor_id,subject,reply_to,source_kind,source_id,created_at,'communication' AS source_type,recipient_email,json_extract(name_fields,'$._emailContact') AS email_contact_id,json_extract(name_fields,'$._emailContactVersion') AS email_contact_version
   FROM cf_communications WHERE status IN ('submitted','uncertain')
   UNION ALL
   SELECT a.id,a.donor_id,a.subject,a.reply_to,
    CASE WHEN b.kind='statement' THEN 'statement' WHEN a.id LIKE 'receipt-%' THEN 'receipt' ELSE 'acknowledgment' END,
-   a.id,b.prepared_at,'letter' FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id
+   a.id,b.prepared_at,'letter',a.recipient_email,json_extract(a.address,'$.emailContactId'),json_extract(a.address,'$.emailContactVersion') FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id
   WHERE a.route='email' AND a.attempt_id IS NOT NULL AND a.delivery_status IN ('submitted','delivered','bounced','complained','uncertain','sending')
  ) c JOIN cf_donors d ON d.id=c.donor_id WHERE d.erased_at IS NULL
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`
  if (fixed && destination === fixed) {
   const senders = [...new Set([address(message.from), authenticatedFrom(raw)].filter(Boolean))]
-  const candidates = await all({ db: env.DB }, `${live} AND lower(trim(d.email)) IN (SELECT value FROM json_each(?)) AND lower(trim(c.reply_to))=? ORDER BY c.created_at DESC,c.id DESC`, JSON.stringify(senders), destination)
+  const candidates = await all({ db: env.DB }, `${live} AND (lower(trim(d.email)) IN (SELECT value FROM json_each(?)) OR lower(trim((${point}))) IN(SELECT value FROM json_each(?))) AND lower(trim(c.reply_to))=? ORDER BY c.created_at DESC,c.id DESC`, JSON.stringify(senders),JSON.stringify(senders), destination)
   return candidates.find(c => threadSubject(c.subject) === threadSubject(message.headers.get('subject') ?? '')) ?? null
  }
  const match = /^coffer\+((?:receipt-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@([^@\s]+)$/.exec(destination)
  if (!config.COFFER_REPLY_DOMAIN || !match || match[2] !== address(config.COFFER_REPLY_DOMAIN)) return null
  const communication = await one({ db: env.DB }, `${live} AND lower(trim(c.reply_to))=?`, destination)
- return communication && address(communication.reply_to ?? '') === destination && [address(message.from), authenticatedFrom(raw)].includes(address(communication.donor_email ?? '')) ? communication : null
+ return communication && address(communication.reply_to ?? '') === destination && [address(message.from),authenticatedFrom(raw)].some(sender=>sender&&[address(communication.donor_email??''),address(communication.contact_email??'')].includes(sender)) ? communication : null
 }
 
 async function recordState(db: D1Database, taskId: string, attempt: string, state: string, note: string, at: string) {

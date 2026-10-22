@@ -13,7 +13,7 @@ export function checkStatement(donorId:string,fingerprint:string,result:SmartyRe
 }
 export async function addressState(c:Context,donorId?:string):Promise<Row> {
  const connection=await addressProcessing(c)
- const runs=await all(c,'SELECT id,state,total,processed,created_at,completed_at,reason FROM cf_ncoa_runs ORDER BY created_at DESC LIMIT 20')
+ const runs=await all(c,'SELECT id,state,total,processed,created_at,completed_at,reason,address_type FROM cf_ncoa_runs ORDER BY created_at DESC LIMIT 20')
  if(!donorId){
   const day=today((await settings(c)).timezone,new Date(c.now))
   const signed=connection.paf_signed_on

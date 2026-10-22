@@ -46,7 +46,7 @@ function updateRow(table:string,row:Row,keys:string[]):Stmt {
  const cols=Object.keys(row).filter(k=>!keys.includes(k)&&k!=='version')
  return sql(`UPDATE ${table} SET ${cols.map(k=>k+'=?').join(',')}${'version' in row?',version=version+1':''} WHERE ${keys.map(k=>k+'=?').join(' AND ')}`,...cols.map(k=>row[k]),...keys.map(k=>row[k]))
 }
-export async function profileBulkCommand(c:Context,command:string,p:Row):Promise<Row|undefined> {
+export async function profileBulkCommand(c:Context,command:string,p:Row,options:{maxRows?:number;auditAction?:'list.solicitation'}={}):Promise<Row|undefined> {
  if(!['list.profile','list.profileUndo'].includes(command))return
  requireRole(c.actor,['owner','admin'],'change live-list profiles')
  if(command==='list.profileUndo'){
@@ -66,7 +66,8 @@ export async function profileBulkCommand(c:Context,command:string,p:Row):Promise
     writes.push(sql('UPDATE cf_custom_values SET value=?,version=?,source=?,updated_at=? WHERE field_key=? AND record_id=?',value,next,'bulk undo '+jobId,c.now,current.field_key,row.donor_id),sql('INSERT INTO cf_custom_value_history VALUES(?,?,?,?,?,?,?,?)',current.field_key,row.donor_id,row.donor_id,next,value,'bulk undo '+jobId,c.now,c.actor.id))
    }
    if(job.kind==='status'){
-    writes.push(sql(`UPDATE cf_donors SET ${profileColumns.map(k=>k+'=?').join(',')} WHERE id=?`,...profileColumns.map(k=>before.profile![k]),row.donor_id))
+    const restored:Row={...before.profile,...(before.profile!.constituent_status!==after.profile!.constituent_status?{status_changed_at:c.now,status_changed_by:c.actor.name}:{})}
+    writes.push(sql(`UPDATE cf_donors SET ${profileColumns.map(k=>k+'=?').join(',')} WHERE id=?`,...profileColumns.map(k=>restored[k]),row.donor_id))
     for(const [table,values,keys] of [['cf_call_tasks',before.calls,['id']],['cf_recurring_tasks',before.series,['id']],['cf_welcome_enrollments',before.enrollments,['donor_id']],['cf_welcome_steps',before.steps,['id']]] as [string,Row[],string[]][])for(const value of values)writes.push(updateRow(table,value,keys))
    }
    if(job.kind==='solicitation')for(const current of after.restrictions){
@@ -74,7 +75,7 @@ export async function profileBulkCommand(c:Context,command:string,p:Row):Promise
     const value:Row={...current,...(prior??{type:'none',channels:'[]',max_asks:null}),version:next,source:'person',source_ref:'bulk undo '+jobId,recorded_at:c.now,recorded_by_id:c.actor.id,recorded_by_name:c.actor.name}
     writes.push(updateRow('cf_solicitation',value,['donor_id']),sql('INSERT INTO cf_solicitation_history VALUES(?,?,?)',current.donor_id,next,JSON.stringify({type:value.type,channels:JSON.parse(value.channels),source:'person',sourceRef:value.source_ref,sourceOn:value.source_on,actorId:c.actor.id,actorName:c.actor.name,at:c.now,undoOf:jobId})))
    }
-   writes.push(sql('UPDATE cf_donors SET version=version+1 WHERE id=?',row.donor_id),event(c,'list.profileUndo','donor',row.donor_id,row.donor_id,{jobId,kind:job.kind}))
+   writes.push(sql('UPDATE cf_donors SET version=version+1 WHERE id=?',row.donor_id),event(c,'list.profileUndo','donor',row.donor_id,row.donor_id,{jobId,kind:job.kind,...(job.kind==='status'?{from:after.profile!.constituent_status,to:before.profile!.constituent_status}:{})}))
   }
   await commit(c,[guard('EXISTS(SELECT 1 FROM cf_list_bulk_jobs WHERE id=? AND version=? AND undone_at IS NULL)','VERSION','This action changed.',jobId,version),...writes,sql('UPDATE cf_list_bulk_jobs SET version=version+1,undone_at=? WHERE id=?',c.now,jobId),event(c,command,'list_bulk',jobId,null,{count:rows.length,kind:job.kind,restorePending:p.restorePending==='yes'})])
   return {id:jobId,version:version+1,undone:rows.length}
@@ -83,7 +84,8 @@ export async function profileBulkCommand(c:Context,command:string,p:Row):Promise
  const list=await one(c,'SELECT version FROM cf_saved_lists WHERE id=?',listId)
  if(!list||list.version!==version)fail('VERSION','This saved list changed.')
  const {ids,selection,guards}=await listMembers(c,listId)
- if(!ids.length||ids.length>100)fail('INPUT','A profile bulk action needs 1–100 constituents. Narrow the live list.',400)
+ const maxRows=options.maxRows??100
+ if(!ids.length||ids.length>maxRows)fail('INPUT',`A profile bulk action needs 1–${maxRows} constituents. Narrow the live list.`,400)
  const jobId=newId(),writes:Stmt[]=[],beforeStates:Snapshot[]=[],donorVersions:number[]=[]
  let field:Row|null=null,value:string|null=null
  if(kind==='custom'){
@@ -119,6 +121,6 @@ export async function profileBulkCommand(c:Context,command:string,p:Row):Promise
  }
  const receipts:Stmt[]=[]
  for(const [i,donorId] of ids.entries())receipts.push(sql(`INSERT INTO cf_list_bulk_rows(job_id,donor_id,donor_version,before_state,after_state) SELECT ?,?,?,?,${snapshotSql(donorId)}`,jobId,donorId,donorVersions[i]+1,JSON.stringify(beforeStates[i])))
- await commit(c,[...guards,guard('EXISTS(SELECT 1 FROM cf_saved_lists WHERE id=? AND version=?)','VERSION','The list changed.',listId,version),guard(`(WITH ${selection.ctes} SELECT (SELECT COUNT(*) FROM members)=? AND NOT EXISTS(SELECT 1 FROM members WHERE id NOT IN(SELECT value FROM json_each(?))))`,'LIST_CHANGED','Live membership changed. Review it again.',...selection.params,ids.length,JSON.stringify(ids)),sql('INSERT INTO cf_list_bulk_jobs(id,list_id,list_version,reason,created_at,created_by,kind) VALUES(?,?,?,?,?,?,?)',jobId,listId,version,reason,c.now,c.actor.id,kind),...writes,...receipts,event(c,command,'list_bulk',jobId,null,{listId,count:ids.length,kind,reasonRecorded:true})])
+ await commit(c,[...guards,guard('EXISTS(SELECT 1 FROM cf_saved_lists WHERE id=? AND version=?)','VERSION','The list changed.',listId,version),guard(`(WITH ${selection.ctes} SELECT (SELECT COUNT(*) FROM members)=? AND NOT EXISTS(SELECT 1 FROM members WHERE id NOT IN(SELECT value FROM json_each(?))))`,'LIST_CHANGED','Live membership changed. Review it again.',...selection.params,ids.length,JSON.stringify(ids)),sql('INSERT INTO cf_list_bulk_jobs(id,list_id,list_version,reason,created_at,created_by,kind) VALUES(?,?,?,?,?,?,?)',jobId,listId,version,reason,c.now,c.actor.id,kind),...writes,...receipts,event(c,options.auditAction??command,options.auditAction?'saved_list':'list_bulk',options.auditAction?listId:jobId,null,{jobId,listId,count:ids.length,kind,type:kind==='solicitation'?p.type:undefined,reasonRecorded:true})])
  return {id:jobId,listId,version:1,changed:ids.length,kind}
 }

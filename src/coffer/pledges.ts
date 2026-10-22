@@ -126,12 +126,12 @@ async function remind(c: Context, p: Row): Promise<Row> {
  let submitted = 0, uncertain = 0, rejected = 0
  for (const row of due) {
   const attempt = newId()
-  await commit(c, [sql(`UPDATE cf_pledge_installments SET reminder_status='sending',attempt_id=?,attempt_started_at=?,recipient_email=(SELECT d.email FROM cf_pledges p JOIN cf_donors d ON d.id=p.donor_id WHERE p.id=pledge_id)
+  await commit(c, [sql(`UPDATE cf_pledge_installments SET reminder_status='sending',attempt_id=?,attempt_started_at=?,recipient_email=(SELECT d.email FROM cf_pledges p JOIN cf_donors d ON d.id=p.donor_id WHERE p.id=pledge_id),recipient_contact_id=(SELECT cp.id FROM cf_contact_points cp JOIN cf_pledges p ON p.donor_id=cp.donor_id WHERE p.id=pledge_id AND cp.kind='email' AND cp.active=1 AND cp.is_primary=1),recipient_contact_version=(SELECT cp.version FROM cf_contact_points cp JOIN cf_pledges p ON p.donor_id=cp.donor_id WHERE p.id=pledge_id AND cp.kind='email' AND cp.active=1 AND cp.is_primary=1)
    WHERE id=? AND reminder_status='pending' AND EXISTS(SELECT 1 FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
    WHERE i.id=cf_pledge_installments.id AND i.remind_on<=? AND i.paid_cents<i.amount_cents AND ${eligible})`, attempt, c.now, row.id, day)])
   const i = await one(c, `SELECT i.*,p.donor_id,p.fund,d.name,d.email FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id WHERE i.id=? AND i.attempt_id=? AND i.reminder_status='sending' AND ${eligible}`, row.id, attempt)
   if (!i || i.paid_cents >= i.amount_cents || i.email !== i.recipient_email) {
-   await c.db.prepare("UPDATE cf_pledge_installments SET reminder_status='skipped',recipient_email=NULL,reminder_note='The balance or recipient changed before submission. No email was sent.' WHERE id=? AND attempt_id=? AND reminder_status='sending'").bind(row.id, attempt).run()
+   await c.db.prepare("UPDATE cf_pledge_installments SET reminder_status='skipped',recipient_email=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL,reminder_note='The balance or recipient changed before submission. No email was sent.' WHERE id=? AND attempt_id=? AND reminder_status='sending'").bind(row.id, attempt).run()
    continue
   }
   let state: string = 'uncertain', messageId: string | null = null

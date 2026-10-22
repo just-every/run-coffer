@@ -75,7 +75,7 @@ export async function addressesPage(c: Context): Promise<string> {
    failed: ['Could not complete', 'warn'], uncertain: ['Outcome uncertain', 'warn'], cancelled: ['Cancelled', ''],
   }
   const [label, tone] = labels[run.state] ?? ['Needs review', 'warn']
-  return `<li><h3>Prepared ${e(moment(run.created_at, configuration.timezone))}</h3><p>${chip(label, tone)} · ${e(run.processed)} of ${e(run.total)} unique names and addresses processed.</p>
+  return `<li><h3>Prepared ${e(moment(run.created_at, configuration.timezone))}</h3><p>${chip(label, tone)} · ${e(run.processed)} of ${e(run.total)} unique names and addresses processed. Address choice: ${e(run.address_type||'primary or active seasonal')}.</p>
    ${run.completed_at ? `<p>Finished ${e(moment(run.completed_at, configuration.timezone))}.</p>` : ''}
    ${run.reason ? `<p>${e(reasons[run.reason] ?? run.reason)}</p>` : ''}
    ${['failed', 'uncertain'].includes(run.state) ? '<p>This pass will not retry automatically. Review the provider’s job and the reason above before preparing another pass.</p>' : ''}</li>`
@@ -84,7 +84,7 @@ export async function addressesPage(c: Context): Promise<string> {
   <p>When enabled, Coffer standardizes US addresses as they are entered, checks addresses before postal mail and queues a National Change of Address (NCOA) pass before a postal appeal. Earlier addresses remain in the donor’s history.</p>
   <p>Connect Smarty and Melissa SmartMover privately on this installation before enabling processing. Provider credentials are never entered on this page.</p>${connection.renewalDueOn?`<p>${chip(connection.renewalDue?'PAF renewal due':'PAF renewal scheduled',connection.renewalDue?'warn':'')} · ${e(connection.renewalDueOn)} (12 months after signing). Recorded signer: ${e(connection.paf_signer)}; licensee: ${e(connection.paf_licensee)}. The licensee decides whether the PAF is accepted; a refusal disables processing without changing addresses.</p>`:''}${editor}`, 'address-processing') +
   box('Prepare an address pass', '<p>Melissa requires at least 100 genuine unique names and addresses. Coffer never pads a list or submits fabricated records. Only eligible active donors with complete US addresses enter the pass.</p><p>The minute scheduler processes one batch of up to 100 unique names and addresses at a time. Refresh this page to see progress. Failed or uncertain outcomes are never automatically retried.</p>' +
-   (enabled ? form('address.queueNcoa', '', 'Prepare address pass') : empty('Enable address processing with a current signed PAF before preparing a pass.'))) +
+   (enabled ? form('address.queueNcoa',select('Address choice','addressType',[['','Primary or active seasonal'],['home','Home'],['work','Work'],['vacation','Vacation'],['seasonal','Active seasonal'],['other','Other']])+'<p>Where a chosen type is absent, the pass checks that constituent’s current mailing address. A mailing choosing a type still excludes people without it.</p>', 'Prepare address pass') : empty('Enable address processing with a current signed PAF before preparing a pass.'))) +
   box('Recent address passes', runs ? `<ul class="list">${runs}</ul>` : empty('No address passes have been prepared yet.'), 'address-passes')
 }
 

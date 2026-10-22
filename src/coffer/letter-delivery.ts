@@ -6,7 +6,7 @@ import { batchLetters, letterHash, currentLetterGifts } from './acknowledgements
 import { all, commit, event, fail, guard, id, integer, newId, one, sql, type Context, type Row } from './db'
 import { assertReceiptMailAvailable, mailSuppressed, sendReceipt, verifySendgridEvents } from './receipt-mail'
 
-const eligible = `d.erased_at IS NULL AND d.email IS NOT NULL AND d.email=a.recipient_email
+const eligible = `d.erased_at IS NULL AND d.email IS NOT NULL AND (d.email=a.recipient_email OR EXISTS(SELECT 1 FROM cf_contact_points point WHERE point.id=json_extract(a.address,'$.emailContactId') AND point.donor_id=d.id AND point.kind='email' AND point.active=1 AND point.value=a.recipient_email AND point.version=json_extract(a.address,'$.emailContactVersion')))
  AND NOT EXISTS(SELECT 1 FROM cf_acks bad WHERE bad.donor_id=d.id AND bad.recipient_email=d.email AND bad.delivery_status IN ('bounced','complained'))`
 
 export async function deliveryCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {

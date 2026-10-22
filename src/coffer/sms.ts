@@ -61,7 +61,7 @@ export async function smsCommand(c:Context,command:string,p:Row):Promise<Row|und
   excluded.push(...classification.excluded)
   const accepted=new Set(classification.recipients.map((r:Row)=>r.donor_id)),recipients=candidates.filter(d=>accepted.has(d.id))
   await commit(c,[...classification.statements,sql("INSERT INTO cf_sms_runs VALUES(?,1,?,?,?,'prepared',?,?,?,NULL,NULL)",runId,name,purpose,body,JSON.stringify(excluded),c.now,c.actor.name),
-   ...recipients.flatMap(d=>{const r={donor_id:d.id,preference_id:d.preference.id,phone:d.phone,timezone:d.preference.timezone,donor_version:d.version};return [...eligibility(r),...pledgeEligibility(purpose,d.id),sql("INSERT INTO cf_sms_recipients VALUES(?,?,?,?,?,?,'pending',NULL,NULL,NULL)",runId,d.id,d.phone,d.preference.timezone,d.preference.id,d.version)]}),
+   ...recipients.flatMap(d=>{const r={donor_id:d.id,preference_id:d.preference.id,phone:d.phone,timezone:d.preference.timezone,donor_version:d.version};return [...eligibility(r),...pledgeEligibility(purpose,d.id),sql("INSERT INTO cf_sms_recipients(run_id,donor_id,phone,timezone,preference_id,donor_version,state,claimed_at,provider_id,provider_status,phone_contact_id,phone_contact_version) VALUES(?,?,?,?,?,?,'pending',NULL,NULL,NULL,(SELECT id FROM cf_contact_points WHERE donor_id=? AND kind='phone' AND active=1 AND is_primary=1),(SELECT version FROM cf_contact_points WHERE donor_id=? AND kind='phone' AND active=1 AND is_primary=1))",runId,d.id,d.phone,d.preference.timezone,d.preference.id,d.version,d.id,d.id)]}),
    event(c,command,'sms',runId,null,{purpose,recipients:recipients.length,excluded}),
   ]);return {id:runId,version:1,recipients:recipients.length,excluded}
  }

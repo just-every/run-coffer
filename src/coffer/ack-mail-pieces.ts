@@ -8,7 +8,7 @@ import { receiptText } from './receipt-format'
 
 export const ackMailPieces=(c:{db:D1Database},batchId:string)=>all(c,'SELECT * FROM cf_ack_mail_pieces WHERE batch_id=? ORDER BY position',batchId)
 const addressKey=(value:string|null)=>{const a=value?JSON.parse(value):{};return ['line1','line2','city','region','postalCode','country'].map(k=>String(a[k]??'').trim().replace(/\s+/g,' ').toLowerCase()).join('|')}
-export async function prepareAckMailPieces(c:Context,batchId:string,letters:Row[],gifts:Row[],templates:Map<string,Row>,requested:unknown){
+export async function prepareAckMailPieces(c:Context,batchId:string,letters:Row[],gifts:Row[],templates:Map<string,Row>,requested:unknown,options:{emailType?:string;addressType?:string}={}){
  const basis=choice(requested,['gift','constituent','household'] as const,'one piece per'),s=await settings(c),day=today(s.timezone,new Date(c.now))
  const donors=await all(c,'SELECT * FROM cf_donors WHERE id IN(SELECT value FROM json_each(?))',JSON.stringify([...new Set(letters.map(l=>l.donor_id))]))
  const tributes=await all(c,'SELECT * FROM cf_gift_tributes WHERE gift_id IN(SELECT value FROM json_each(?))',JSON.stringify(gifts.map(g=>g.id)))
@@ -17,7 +17,7 @@ export async function prepareAckMailPieces(c:Context,batchId:string,letters:Row[
  const pieces:Row[]=[],checks:Stmt[]=[]
  for(const group of groups.values()){
   const first=group[0],donor=donors.find(d=>d.id===first.donor_id)!,state=basis==='household'&&donor.household_id?await householdState(c,donor.household_id):null
-  const contact=await letterRecipient(c,donor),names=state?.names
+  const contact=await letterRecipient(c,donor,options),names=state?.names
   const recipient=state?{...contact,letter_name:names!.addressee,letter_salutation:names!.formal,letter_names:{informal:names!.informal,formal:names!.formal,envelope:names!.addressee},letter_household_names:names}:contact
   const content=group.map(letter=>{
    const gift=gifts.find(g=>g.id===letter.gift_id)!,rendered=renderGiftLetter(s,gift,recipient,day,templates.get(gift.id))

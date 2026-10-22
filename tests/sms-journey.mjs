@@ -43,6 +43,8 @@ export async function smsJourney(){
   assert.equal(sent.submitted,1);assert.equal(requests.length,1)
   assert.equal(requests[0].Body,'Thank you for supporting the reading room.')
   assert.equal((await get(thanks.id)).recipients[0].provider_status,'queued')
+  const phonePoint=(await h.get('/api/coffer/donors/'+a.id)).contactPoints.find(p=>p.kind==='phone'&&p.is_primary)
+  assert.equal((await get(thanks.id)).recipients[0].phone_contact_id,phonePoint.id);assert.equal((await get(thanks.id)).recipients[0].phone_contact_version,phonePoint.version)
   assert.equal((await command('sms.send',{runId:thanks.id,version:approved.version})).submitted,0)
   assert.equal(requests.length,1,'Repeated human send cannot submit the same text twice')
   const stale=await prepare('thank-you',[b.id]);await command('sms.approve',{runId:stale.id,version:1})
