@@ -44,7 +44,8 @@ main{max-width:8.5in;margin:auto}
 
 /** Printable snapshots, whether a single receipt or an entire batch. */
 export function printLetters(letters: Row[], organisation: string, labels = false): Response {
- const title = labels ? 'Print address labels' : letters.length === 1 ? 'Print letter' : 'Print letters'
+ const pieces=letters.some(l=>l.mail_piece)
+ const title = labels ? 'Print address labels' : pieces?'Print mailing pieces' : letters.length === 1 ? 'Print letter' : 'Print letters'
  const content = labels ? letters.map(letter=>`<address class="label">${postalAddress(letter)}</address>`).join('') : letters.map((letter, index) => `<article class="letter" aria-labelledby="subject-${index}">
  <div class="letterhead">${e(organisation)}</div>
  <address class="recipient">${postalAddress(letter)}</address>
@@ -52,7 +53,7 @@ export function printLetters(letters: Row[], organisation: string, labels = fals
  <div class="letter-body">${e(receiptText(letter))}</div>
  </article>`).join('')
  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · ${e(organisation)}</title><style>${styles}${labels ? '.label{display:inline-block;vertical-align:top;width:2.625in;min-height:1in;padding:.1in;overflow-wrap:anywhere;font-style:normal;background:white;break-inside:avoid}@media screen and (max-width:600px){main{padding:16px}.label{max-width:100%}}@media print{@page{margin:.5in .1875in}main{display:grid;grid-template-columns:repeat(3,2.625in);column-gap:.125in}.label{margin:0}}' : ''}</style></head><body>
- <header class="print-help"><h1>${title}</h1><p>${letters.length} ${letters.length === 1 ? 'letter' : 'letters'} · ${e(organisation)}</p><p>Use your browser’s Print menu to print or save as PDF. Choose US Letter paper, 100% scale, and turn off browser headers and footers. ${labels ? 'Use 30-per-sheet labels (three columns, 2⅝ × 1 inch). Check a test sheet before loading labels.' : 'Check the print preview and a test sheet against your window envelope before mailing.'}</p><a href="/app/letters">Back to letters</a></header>
+ <header class="print-help"><h1>${title}</h1><p>${letters.length} ${pieces?'mailing pieces':letters.length === 1 ? 'letter' : 'letters'} · ${e(organisation)}</p><p>Use your browser’s Print menu to print or save as PDF. Choose US Letter paper, 100% scale, and turn off browser headers and footers. ${labels ? 'Use 30-per-sheet labels (three columns, 2⅝ × 1 inch). Check a test sheet before loading labels.' : 'Check the print preview and a test sheet against your window envelope before mailing.'}</p><a href="/app/letters">Back to letters</a></header>
  <main aria-label="Letters">${content || '<p>No letters to print.</p>'}</main></body></html>`, {
   headers: {
    'content-type': 'text/html; charset=utf-8',

@@ -2,15 +2,16 @@ import { recipientMergeFields, renderTemplate } from './template-fields'
 import { letterRecipient } from './organizations'
 import { withReceiptBenefits } from './receipt-rules'
 import { receiptFundLabels } from './gift-splits'
-import { all, commit, event, fail, guard, id, integer, newId, sql, today, type Context, type Row } from './db'
+import { all, choice, commit, event, fail, guard, id, integer, newId, sql, today, type Context, type Row, type Stmt } from './db'
 import { letterHash } from './acknowledgements'
 import { tributeReceiptText } from './gift-depth'
+import { amount } from './money'
 import { usd } from './money'
 import { goodsStatement, longDate, settings, type Settings } from './settings'
 import { settingsUse, templateFor, templateRevision, templatesUnchanged, templateUse } from './letter-templates'
 
 const MAX_LETTERS = 500
-const GIFTS = `g.kind='gift' AND NOT EXISTS(SELECT 1 FROM cf_contribution_types t WHERE t.gift_id=g.id AND t.kind='daf') AND g.received_on>=? AND g.received_on<=?
+const GIFTS = `g.net_cents>0 AND g.kind='gift' AND NOT EXISTS(SELECT 1 FROM cf_contribution_types t WHERE t.gift_id=g.id AND t.kind='daf') AND g.received_on>=? AND g.received_on<=?
  AND d.erased_at IS NULL AND (? IS NULL OR d.id=?)
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)`
 const ELIGIBLE = `${GIFTS} AND d.constituent_status='active'`
@@ -64,16 +65,16 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  if (!s.reviewed_at || !s.organisation || !s.ein) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')
  const scope = [`${year}-01-01`, `${year}-12-31`, donorId, donorId]
  const donors = await all(c, `SELECT d.* FROM cf_donors d WHERE EXISTS(
-  SELECT 1 FROM cf_gifts g WHERE g.donor_id=d.id AND ${ELIGIBLE})
+  SELECT 1 FROM cf_gift_balances g WHERE g.donor_id=d.id AND ${ELIGIBLE})
   ORDER BY lower(d.name),d.id LIMIT ${MAX_LETTERS + 1}`, ...scope)
  if (donors.length > MAX_LETTERS) fail('TOO_MANY_LETTERS', 'This year has more than 500 donor statements. Select one donor to prepare their statement.')
  // Inactive and deceased constituents get no statement; they are counted under that reason.
- const held = await all(c, `SELECT d.constituent_status AS status,count(DISTINCT d.id) AS n FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE ${GIFTS} AND d.constituent_status<>'active' GROUP BY d.constituent_status`, ...scope)
+ const held = await all(c, `SELECT d.constituent_status AS status,count(DISTINCT d.id) AS n FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${GIFTS} AND d.constituent_status<>'active' GROUP BY d.constituent_status`, ...scope)
  const excluded = Object.fromEntries(held.map(r => [r.status, r.n]))
  if (!donors.length) fail('NOTHING_DUE', 'No unreversed gifts from active constituents were found for this calendar year and donor selection.', 409, { excluded })
  const donorIds = JSON.stringify(donors.map(d => d.id))
- const gifts = await all(c, `SELECT g.id,g.version,g.donor_id,g.received_on,g.amount_cents,g.fund,g.goods,g.goods_cents,g.goods_description
-  FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id
+ const gifts = await all(c, `SELECT g.id,g.version,g.donor_id,g.received_on,g.net_cents AS amount_cents,g.fund,g.goods,g.goods_cents,g.goods_description
+  FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id
   WHERE ${ELIGIBLE} AND d.id IN (SELECT value FROM json_each(?)) ORDER BY g.received_on,g.id`, ...scope, donorIds)
  if (gifts.some(g => g.goods === 'unknown')) fail('GOODS_UNKNOWN', 'A gift in this year still needs its goods or services answer. Open the donor’s gift history, record that answer, then prepare the statement again.')
  const tributes = new Map((await all(c, 'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))', JSON.stringify(gifts.map(g=>g.id)))).map(t=>[t.gift_id,t]))
@@ -82,7 +83,7 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  for (const gift of gifts) gift.tribute = tributes.get(gift.id) ?? null
  const batchId = newId(), template = await templateFor(c, 'year_end'), revision = await templateRevision(c)
  for(let i=0;i<donors.length;i++)donors[i]=await letterRecipient(c,donors[i])
- const letters = donors.map((d, position) => {
+ let letters:Row[] = donors.map((d, position) => {
   const selected = gifts.filter(g => g.donor_id === d.id)
   if (!selected.length) fail('GIFTS_CHANGED', 'Gifts changed while preparing the statements. Prepare again.')
   return {
@@ -92,19 +93,37 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
    statement_gifts: JSON.stringify(selected),
   }
  })
+ const basis=choice(p.onePiecePer??(donorId?'constituent':'household'),['household','constituent','gift'] as const,'one piece per')
+ const postage=p.postagePerPiece?amount(p,'postagePerPiece','Postage per piece',{allowZero:true}):null
+ const householdChecks:Stmt[]=[]
+ if(basis==='gift')letters=gifts.map((gift,position)=>{
+  const donor=donors.find(d=>d.id===gift.donor_id)!,rendered=annualLetter(s,donor,[gift],year,day,template)
+  return {id:newId(),batch_id:batchId,position,gift_id:gift.id,donor_id:donor.id,recipient_name:donor.letter_name,recipient_email:donor.email,address:donor.letter_address,...rendered,body:'Gift statement — one piece per gift. This piece covers only the gift listed below.\n\n'+rendered.body,received_on:`${year}-12-31`,statement_gifts:JSON.stringify([gift])}
+ })
+ if(letters.length>MAX_LETTERS)fail('TOO_MANY_LETTERS','A statement run holds at most 500 pieces. Select a donor or choose constituent or household pieces.',400)
+ if(basis==='household'){
+  const households=[...new Set(donors.map(d=>d.household_id).filter(Boolean))]
+  const {householdStatementPlan}=await import('./household-statements')
+  letters=letters.filter(l=>!donors.find(d=>d.id===l.donor_id)?.household_id)
+  for(const householdId of households){
+   const plan=await householdStatementPlan(c,year,householdId,undefined,{batchId,position:letters.length})
+   letters.push(plan.letter);householdChecks.push(...plan.checks)
+  }
+ }
+ letters=letters.map((l,position)=>({...l,position}))
  const total = letters.reduce((n, l) => n + l.amount_cents, 0), hash = await letterHash(s.version, letters)
  const snapshots = JSON.stringify(gifts.map(g => ({ ...g, donor_version: donors.find(d => d.id === g.donor_id)!.version })))
- await commit(c, [
+ await commit(c, [...householdChecks,
   guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE COALESCE((SELECT version FROM cf_gift_tributes WHERE gift_id=json_extract(j.value,'$.giftId')),0)<>json_extract(j.value,'$.version'))", 'TRIBUTE_CHANGED', 'A tribute changed while preparing. Prepare the statements again.', JSON.stringify(gifts.map(g=>({giftId:g.id,version:tributes.get(g.id)?.version??0})))),
   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version), templatesUnchanged(revision),
   // The count covers the entire requested scope, including donors added since
   // selection. Exact rows and donor versions also fence reversals and erasure.
-  guard(`(SELECT count(*) FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE ${ELIGIBLE})=?
+  guard(`(SELECT count(*) FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${ELIGIBLE})=?
    AND NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE NOT EXISTS(
-    SELECT 1 FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id
+    SELECT 1 FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id
     WHERE ${ELIGIBLE} AND g.id=json_extract(j.value,'$.id')
      AND g.version=json_extract(j.value,'$.version') AND g.donor_id=json_extract(j.value,'$.donor_id')
-     AND g.received_on=json_extract(j.value,'$.received_on') AND g.amount_cents=json_extract(j.value,'$.amount_cents')
+     AND g.received_on=json_extract(j.value,'$.received_on') AND g.net_cents=json_extract(j.value,'$.amount_cents')
      AND g.fund=json_extract(j.value,'$.fund') AND g.goods=json_extract(j.value,'$.goods')
      AND g.goods_cents=json_extract(j.value,'$.goods_cents') AND g.goods_description IS json_extract(j.value,'$.goods_description')
      AND d.version=json_extract(j.value,'$.donor_version')))`,
@@ -113,14 +132,14 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
    WHERE b.kind='statement' AND b.statement_year=? AND b.status<>'discarded'
     AND a.donor_id IN (SELECT value FROM json_each(?)))`,
   'STATEMENT_EXISTS', 'A selected donor already has a statement for this year. Open that batch, or discard it before preparing again. Select a different donor to prepare another statement.', year, donorIds),
-  sql(`INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at,kind,statement_year)
-   VALUES(?,1,'prepared',?,?,?,?,?,?,?,?,'statement',?)`, batchId, hash, letters.length, total, s.version, c.actor.id, c.actor.name, c.actor.role, c.now, year),
-  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,statement_gifts,template_kind,template_id,template_version,merge_blanks)
+  sql(`INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at,kind,statement_year,one_piece_per,postage_per_piece_cents)
+   VALUES(?,1,'prepared',?,?,?,?,?,?,?,?,'statement',?,?,?)`, batchId, hash, letters.length, total, s.version, c.actor.id, c.actor.name, c.actor.role, c.now, year,basis,postage),
+  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,statement_gifts,template_kind,template_id,template_version,merge_blanks,household_id,household_version,household_snapshot)
    SELECT json_extract(value,'$.id'),json_extract(value,'$.batch_id'),json_extract(value,'$.position'),json_extract(value,'$.gift_id'),json_extract(value,'$.donor_id'),0,
     json_extract(value,'$.recipient_name'),json_extract(value,'$.recipient_email'),json_extract(value,'$.address'),json_extract(value,'$.subject'),json_extract(value,'$.body'),
     json_extract(value,'$.amount_cents'),json_extract(value,'$.received_on'),json_extract(value,'$.statement_gifts'),
-    json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version'),json_extract(value,'$.merge_blanks') FROM json_each(?)`, JSON.stringify(letters)),
+    json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version'),json_extract(value,'$.merge_blanks'),json_extract(value,'$.household_id'),json_extract(value,'$.household_version'),json_extract(value,'$.household_snapshot') FROM json_each(?)`, JSON.stringify(letters)),
   event(c, 'ack.prepareStatements', 'acknowledgements', batchId, null, { year, letters: letters.length, totalCents: total }),
  ])
- return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash, excluded }
+ return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash, excluded,onePiecePer:basis,pieceCount:letters.length,estimatedPostageCents:postage===null?null:postage*letters.length }
 }

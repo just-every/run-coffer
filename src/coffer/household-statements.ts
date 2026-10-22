@@ -1,5 +1,6 @@
+import { letterRecipient } from './organizations'
 import { address, letterHash } from './acknowledgements'
-import { all, commit, event, fail, guard, newId, sql, today, type Context, type Row } from './db'
+import { all, commit, event, fail, guard, newId, sql, today, type Context, type Row, type Stmt } from './db'
 import { allocateCents, allGiftAllocations } from './gift-splits'
 import { householdState } from './households'
 import { settings } from './settings'
@@ -13,7 +14,7 @@ const scope = `NOT EXISTS(SELECT 1 FROM cf_contribution_types t WHERE t.gift_id=
 
 /** One piece for the household's current members, each hard-credit gift once.
  * No head, soft credit, pledge or property value determines legal gift identity. */
-export async function prepareHouseholdStatement(c: Context, year: number, householdId: string, original?: Row): Promise<Row> {
+export async function householdStatementPlan(c:Context,year:number,householdId:string,original?:Row,target?:{batchId:string;position:number}) {
  const s = await settings(c), day = today(s.timezone, new Date(c.now))
  if (!s.reviewed_at || !s.organisation || !s.ein) fail('SETTINGS_UNREVIEWED', 'Review organization and receipt settings before preparing statements.')
  const state = await householdState(c, householdId, { year, basis: 'calendar' })
@@ -41,19 +42,21 @@ export async function prepareHouseholdStatement(c: Context, year: number, househ
  }
  const snapshot = { members: members.map(m => ({ id: m.id, name: m.name })), names, headStatus: state.headStatus, overridesReview: !!household.overrides_review, asOf: day }
  // A stable member order supplies delivery contact details, independently of headship.
- const contact = members.find(m => m.constituent_status !== 'deceased') ?? members[0], batchId = newId(), letterId = newId()
- const rendered = annualLetter(s, { ...contact, name: names.formal, letter_household_names: names, letter_address: address(contact), letter_name: names.addressee, letter_names: { informal: names.informal, formal: names.formal, envelope: names.addressee } }, gifts, year, day, template)
+ const member=members.find(m=>m.constituent_status==='active')
+ if(!member)fail('DONOR_STATUS','No active household member can receive this statement.',409)
+ const contact=await letterRecipient(c,member),batchId=target?.batchId??newId(),letterId=newId()
+ const rendered = annualLetter(s, { ...contact, name: names.formal, letter_household_names: names, letter_address: contact.letter_address, letter_name: names.addressee, letter_names: { informal: names.informal, formal: names.formal, envelope: names.addressee } }, gifts, year, day, template)
  const basis = `Household statement — current members as of ${day}: ${members.map(m => m.name).join('; ')}. Each gift is listed under its hard-credit donor.`
  const body = `${basis}\n\n${rendered.body}`
  const letter = {
-  id: letterId, batch_id: batchId, position: 0, gift_id: gifts[0].id, donor_id: contact.id, live: 0,
-  recipient_name: names.addressee, recipient_email: contact.email, address: address(contact), ...rendered,
+  id: letterId, batch_id: batchId, position: target?.position??0, gift_id: gifts[0].id, donor_id: contact.id, live: 0,
+  recipient_name: names.addressee, recipient_email: contact.email, address: contact.letter_address, ...rendered,
   body: original ? `Corrected statement replacing ${receiptNumber(original)}.\nWhat changed: ${original.void_reason}. Use this corrected statement in place of the original.\n\n${body}` : body,
   received_on: `${year}-12-31`, statement_gifts: JSON.stringify(gifts), household_id: householdId,
   household_version: household.version, household_snapshot: JSON.stringify(snapshot), replaces_id: original?.id ?? null,
  }
  const hash = await letterHash(s.version, [letter])
- await commit(c, [
+ const checks:Stmt[]=[
   guard('EXISTS(SELECT 1 FROM cf_households WHERE id=? AND version=?)', 'HOUSEHOLD_CHANGED', 'This household changed. Prepare the statement again.', householdId, household.version),
   guard(`(SELECT count(*) FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${scope})=?
    AND NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE NOT EXISTS(SELECT 1 FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id
@@ -64,9 +67,16 @@ export async function prepareHouseholdStatement(c: Context, year: number, househ
   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Receipt settings changed. Prepare again.', s.version), templatesUnchanged(revision),
   guard(`NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.household_id=? AND b.statement_year=? AND b.status<>'discarded' AND (?=0 OR a.void_reason IS NULL))`,
    'STATEMENT_EXISTS', 'This household already has a statement for this year. Open its batch to discard or correct it.', householdId, year, original ? 1 : 0),
-  ...(original ? [guard('EXISTS(SELECT 1 FROM cf_acks WHERE id=? AND void_reason IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE replaces_id=?)', 'RECEIPT_CHANGED', 'This statement already has a replacement. Open its batch.', original.id, original.id)] : []),
-  sql(`INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at,kind,statement_year)
-   VALUES(?,1,'prepared',?,1,?,?,?,?,?,?,'statement',?)`, batchId, hash, letter.amount_cents, s.version, c.actor.id, c.actor.name, c.actor.role, c.now, year),
+  ...(original ? [guard('EXISTS(SELECT 1 FROM cf_acks WHERE id=? AND void_reason IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE replaces_id=?)', 'RECEIPT_CHANGED', 'This statement already has a replacement. Open its batch.', original.id, original.id)] : [])
+ ]
+ return {s,letter,hash,batchId,letterId,household,checks}
+}
+
+export async function prepareHouseholdStatement(c:Context,year:number,householdId:string,original?:Row):Promise<Row>{
+ const {s,letter,hash,batchId,letterId,household,checks}=await householdStatementPlan(c,year,householdId,original)
+ await commit(c,[...checks,
+  sql(`INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at,kind,statement_year,one_piece_per)
+   VALUES(?,1,'prepared',?,1,?,?,?,?,?,?,'statement',?,'household')`, batchId, hash, letter.amount_cents, s.version, c.actor.id, c.actor.name, c.actor.role, c.now, year),
   sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,statement_gifts,template_kind,template_id,template_version,household_id,household_version,household_snapshot,replaces_id,merge_blanks)
    VALUES(?,?,0,?,?,0,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, letterId, batchId, letter.gift_id, letter.donor_id, letter.recipient_name, letter.recipient_email, letter.address, letter.subject, letter.body, letter.amount_cents, letter.received_on, letter.statement_gifts, letter.template_kind, letter.template_id, letter.template_version, householdId, household.version, letter.household_snapshot, letter.replaces_id, letter.merge_blanks),
   event(c, original ? 'ack.correct' : 'ack.prepareStatements', 'acknowledgements', batchId, null, { householdId, householdVersion: household.version, year, letters: 1, totalCents: letter.amount_cents, ...(original ? { originalLetterId: original.id, letterId } : {}) }),

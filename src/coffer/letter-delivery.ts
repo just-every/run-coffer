@@ -1,3 +1,4 @@
+import { ackMailPieces } from './ack-mail-pieces'
 import { receiptAcceptance } from './gift-ack-receipt'
 import { readReceiptDelivery } from './receipt-activity'
 import type { Bindings } from '../auth.server'
@@ -28,13 +29,13 @@ export async function deliveryCommand(c: Context, command: string, p: Row): Prom
  }
  if(b.status==='sent')fail('ALREADY_SENT','This batch was recorded as sent. Its frozen letters remain available as copies.')
  const frozen = await batchLetters(c, batchId)
- if (await letterHash(b.settings_version, frozen) !== b.content_hash) fail('CONTENT_CHANGED', 'These letters changed. Discard and prepare them again.')
+ if (await letterHash(b.settings_version, frozen,await ackMailPieces(c,b.id)) !== b.content_hash) fail('CONTENT_CHANGED', 'These letters changed. Discard and prepare them again.')
  if (command === 'ack.printed') {
   await commit(c, [at(), currentLetterGifts(batchId), sql("UPDATE cf_acks SET route='print',delivery_status=CASE WHEN route='pending' THEN 'print' ELSE delivery_status END,printed_at=? WHERE batch_id=? AND route IN ('pending','print') AND printed_at IS NULL", c.now, batchId), sql('UPDATE cf_ack_batches SET version=version+1 WHERE id=?', batchId), event(c, command, 'acknowledgements', batchId, null)])
   return { id: batchId, version: version + 1 }
  }
  const letters = await batchLetters(c, batchId)
- if (await letterHash(b.settings_version, letters) !== b.content_hash) fail('CONTENT_CHANGED', 'These letters changed. Discard and prepare them again.')
+ if (await letterHash(b.settings_version, letters,await ackMailPieces(c,b.id)) !== b.content_hash) fail('CONTENT_CHANGED', 'These letters changed. Discard and prepare them again.')
  // Read availability before making any change; Managed never pretends to send.
  if (!c.env) fail('MAIL_UNAVAILABLE', 'Email sending is not available yet.', 503)
  // Local and demo mode switch email off (README): emailed letters are marked, never claimed as sent.

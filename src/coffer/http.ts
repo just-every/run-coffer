@@ -1,3 +1,4 @@
+import { ackMailPieces,printableAckPieces } from './ack-mail-pieces'
 import { contributionTypeState } from './contribution-types'
 import { addressState } from './addresses/state'
 import { addressesPage } from './ui/addresses'
@@ -346,6 +347,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   { sql: 'DELETE FROM cf_donor_tokens WHERE donor_id=?', params: [donorId] },
   {sql:"DELETE FROM cf_appeal_pieces WHERE EXISTS(SELECT 1 FROM json_each(members) WHERE value=?) OR EXISTS(SELECT 1 FROM json_each(snapshot,'$.gifts') g WHERE json_extract(g.value,'$.donorId')=?)",params:[donorId,donorId]},
   {sql:'DELETE FROM cf_donor_tags WHERE donor_id=?',params:[donorId]},
+  {sql:"DELETE FROM cf_ack_mail_pieces WHERE EXISTS(SELECT 1 FROM json_each(members) WHERE value=?)",params:[donorId]},
   {sql:"UPDATE cf_list_bulk_jobs SET reason='' WHERE id IN(SELECT job_id FROM cf_list_bulk_rows WHERE donor_id=?)",params:[donorId]},
   {sql:'DELETE FROM cf_list_bulk_rows WHERE donor_id=?',params:[donorId]},
   {sql:'DELETE FROM cf_custom_value_history WHERE donor_id=?',params:[donorId]},
@@ -527,7 +529,7 @@ async function lettersFile(c: Context, batchId: string) {
  if (!manager(c.actor)) fail('manager_required', 'Only the owner or an admin downloads letters.', 403)
  const { batch } = await batchDetail(c, batchId)
  if (!['exported', 'sent'].includes(batch.status)) fail('NOT_EXPORTED', 'Export the approved letters first.')
- return download(lettersCsv(await batchLetters(c, batchId)), `coffer-letters-${batch.prepared_at.slice(0, 10)}`)
+ return download(lettersCsv(await batchLetters(c, batchId),await ackMailPieces(c,batchId)), `coffer-letters-${batch.prepared_at.slice(0, 10)}`)
 }
 async function recipientsFile(c: Context, appealId: string) {
  if (!manager(c.actor)) fail('manager_required', 'Only the owner or an admin downloads an audience.', 403)
@@ -593,7 +595,8 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
   if (!['approved','exported','sent'].includes(batch.status)) fail('NOT_APPROVED', 'Approve these letters before printing.')
   if (!(await c.db.prepare(`SELECT CASE WHEN (${currentLetterGiftsCondition}) THEN 1 ELSE 0 END AS ok`).bind(m[1]).first<{ok:number}>())?.ok) fail('GIFT_CHANGED', 'A statement gift changed. Prepare an updated statement before printing.')
   const selected = letters.filter(l => (!url.searchParams.has('letter') || l.id === url.searchParams.get('letter')) && (!url.searchParams.has('pending') || (l.route === 'print' && !l.printed_at)))
-  return printLetters(selected, (await settings(c)).organisation, url.searchParams.get('labels')==='1')
+  const pieces=!url.searchParams.has('letter')?await ackMailPieces(c,m[1]):[]
+  return printLetters(pieces.length?printableAckPieces(pieces,selected):selected, (await settings(c)).organisation, url.searchParams.get('labels')==='1')
  }
  if ((m = path.match(/^\/app\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
  if (path === '/app/appeals') return show('Appeals', await appealsPage(c, null, url))

@@ -1,3 +1,5 @@
+import { ackMailPieces,ackMailPieceGuard,prepareAckMailPieces,printableAckPieces } from './ack-mail-pieces'
+import { amount } from './money'
 import { UNRESOLVED_THANK_YOU } from './gift-acknowledgments'
 import { blankMergeReview } from './template-fields'
 import { letterRecipient } from './organizations'
@@ -37,7 +39,7 @@ export async function dueGifts(c: { db: D1Database }) {
 }
 
 export const address = (d: Row) => JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country })
-export const letterHash = (s: number, letters: Row[]) => sha256(JSON.stringify([s, letters.map(l => [l.gift_id, l.donor_id, l.recipient_name, l.recipient_email, l.address, l.subject, l.body, l.amount_cents, l.received_on, ...(l.statement_gifts ? [l.statement_gifts] : []), ...(l.household_id ? [l.household_id, l.household_version, l.household_snapshot] : []), ...(l.merge_blanks && l.merge_blanks !== '[]' ? [l.merge_blanks] : [])])]))
+export const letterHash = (s: number, letters: Row[],pieces?:Row[]) => sha256(JSON.stringify([s, letters.map(l => [l.gift_id, l.donor_id, l.recipient_name, l.recipient_email, l.address, l.subject, l.body, l.amount_cents, l.received_on, ...(l.statement_gifts ? [l.statement_gifts] : []), ...(l.household_id ? [l.household_id, l.household_version, l.household_snapshot] : []), ...(l.merge_blanks && l.merge_blanks !== '[]' ? [l.merge_blanks] : [])]),...(pieces?.length?[pieces.map(p=>[p.id,p.recipient_name,p.address,p.household_id,p.household_version,p.members,p.letter_ids,p.content,p.snapshot,p.merge_blanks])]:[])]))
 export const batchLetters = (c: { db: D1Database }, batchId: string) => all(c, 'SELECT * FROM cf_acks WHERE batch_id=? ORDER BY position', batchId)
 
 export async function ackCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
@@ -57,18 +59,20 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
    const d = donors.get(g.donor_id)!, rendered = renderGiftLetter(s, g, d, day, templates.get(g.id))
    return { id: newId(), batch_id: batchId, position, gift_id: g.id, donor_id: d.id, recipient_name: d.letter_name, recipient_email: d.email, address: d.letter_address, subject: rendered.subject, body: [rendered.body, tributeReceiptText(tributes.get(g.id))].filter(Boolean).join('\n\n'), amount_cents: g.amount_cents, received_on: g.received_on, template_kind: rendered.template_kind, template_id: rendered.template_id, template_version: rendered.template_version, merge_blanks: rendered.merge_blanks }
   })
-  const hash = await letterHash(s.version, letters), total = letters.reduce((n, l) => n + l.amount_cents, 0)
-  await commit(c, [
+  const mail=p.onePiecePer?await prepareAckMailPieces(c,batchId,letters,chosen,templates,p.onePiecePer):null,postage=p.postagePerPiece?amount(p,'postagePerPiece','Postage per piece',{allowZero:true}):null
+  const hash = await letterHash(s.version, letters,mail?.pieces), total = letters.reduce((n, l) => n + l.amount_cents, 0)
+  await commit(c, [...(mail?.checks??[]),
    guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE NOT EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=json_extract(j.value,'$.id') AND g.net_cents=json_extract(j.value,'$.amount_cents') AND g.version=json_extract(j.value,'$.version')))", 'GIFT_CHANGED', 'A gift balance changed. Prepare again.', JSON.stringify(chosen)),
    guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version), templatesUnchanged(revision),
    guard(`(SELECT count(*) FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id IN (SELECT value FROM json_each(?)) AND g.goods<>'unknown' AND ${DUE})=?`, 'NOT_DUE', 'A gift changed while preparing. Prepare again.', JSON.stringify(letters.map(l => l.gift_id)), s.threshold_cents, letters.length),
    guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE COALESCE((SELECT version FROM cf_gift_tributes WHERE gift_id=json_extract(j.value,'$.giftId')),0)<>json_extract(j.value,'$.version'))", 'TRIBUTE_CHANGED', 'A tribute changed while preparing. Prepare the letters again.', JSON.stringify(chosen.map(g => ({ giftId: g.id, version: tributes.get(g.id)?.version ?? 0 })))),
    sql("UPDATE cf_acks SET live=0 WHERE gift_id IN (SELECT value FROM json_each(?)) AND live=1 AND delivery_status IN ('bounced','rejected','complained') AND printed_at IS NULL",JSON.stringify(chosen.map(g=>g.id))),
-   sql("INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,'prepared',?,?,?,?,?,?,?,?)", batchId, hash, letters.length, total, s.version, c.actor.id, c.actor.name, c.actor.role, c.now),
+   sql("INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at,one_piece_per,postage_per_piece_cents) VALUES(?,1,'prepared',?,?,?,?,?,?,?,?,?,?)", batchId, hash, letters.length, total, s.version, c.actor.id, c.actor.name, c.actor.role, c.now,mail?.basis??'gift',postage),
    sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,template_kind,template_id,template_version,merge_blanks)
     SELECT json_extract(value,'$.id'),json_extract(value,'$.batch_id'),json_extract(value,'$.position'),json_extract(value,'$.gift_id'),json_extract(value,'$.donor_id'),1,json_extract(value,'$.recipient_name'),json_extract(value,'$.recipient_email'),json_extract(value,'$.address'),json_extract(value,'$.subject'),json_extract(value,'$.body'),json_extract(value,'$.amount_cents'),json_extract(value,'$.received_on'),json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version'),json_extract(value,'$.merge_blanks') FROM json_each(?)`, JSON.stringify(letters)),
+   ...(mail?.writes??[]),
    event(c, 'ack.prepare', 'acknowledgements', batchId, null, { letters: letters.length, totalCents: total })])
-  return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash }
+  return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash,onePiecePer:mail?.basis??'gift',pieceCount:mail?.pieces.length??letters.length,estimatedPostageCents:postage===null?null:postage*(mail?.pieces.length??letters.length) }
  }
  if (!['ack.approve', 'ack.discard', 'ack.export', 'ack.markSent'].includes(command)) return undefined
  const batchId = id(p.batchId, 'Acknowledgement batch'), version = integer(typeof p.version === 'string' ? Number(p.version) : p.version, 'Version', 1)
@@ -80,8 +84,8 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
  if (command === 'ack.approve') {
   if (batch.status !== 'prepared') fail('NOT_PREPARED', 'Only a prepared batch can be approved.')
   const letters = await batchLetters(c, batchId)
-  if (await letterHash(batch.settings_version, letters) !== batch.content_hash) fail('CONTENT_CHANGED', 'These letters no longer match what was prepared. Discard the batch and prepare again.')
-  await commit(c, [at(['prepared']),
+  if (await letterHash(batch.settings_version, letters,await ackMailPieces(c,batchId)) !== batch.content_hash) fail('CONTENT_CHANGED', 'These letters no longer match what was prepared. Discard the batch and prepare again.')
+  await commit(c, [at(['prepared']),ackMailPieceGuard(batchId),
    guard('NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.batch_id=? AND a.household_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cf_households h WHERE h.id=a.household_id AND h.version=a.household_version))', 'HOUSEHOLD_CHANGED', 'A household changed after these statements were prepared. Discard this batch and prepare it again before approval.', batchId),
    currentLetterGifts(batchId),
    guard("NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.batch_id=? AND (EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=a.gift_id) OR EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=a.donor_id AND d.erased_at IS NOT NULL)))", 'GIFT_CHANGED', 'A gift in this batch was reversed or its donor erased. Discard the batch and prepare again.', batchId),
@@ -98,8 +102,8 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
  if (command === 'ack.export') {
   if (!['approved', 'exported', 'sent'].includes(batch.status)) fail('NOT_APPROVED', 'A person must approve these letters before they are exported.')
   if (batch.status !== 'approved') return { id: batchId, version, status: batch.status, exportHash: batch.export_hash }
-  const file = lettersCsv(await batchLetters(c, batchId)), hash = await sha256(file)
-  await commit(c, [at(['approved']), currentLetterGifts(batchId), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'ack.export', 'acknowledgements', batchId, null, { letters: batch.letters })])
+  const file = lettersCsv(await batchLetters(c, batchId),await ackMailPieces(c,batchId)), hash = await sha256(file)
+  await commit(c, [at(['approved']),ackMailPieceGuard(batchId), currentLetterGifts(batchId), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'ack.export', 'acknowledgements', batchId, null, { letters: batch.letters })])
   return { id: batchId, version: version + 1, status: 'exported', exportHash: hash }
  }
  const sentOn = date(p.sentOn, 'Sent on'), method = choice(p.method, ['mail', 'email', 'mail and email'] as const, 'how the letters went out')
@@ -114,7 +118,8 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
  return { id: batchId, version: version + 1, status: 'sent' }
 }
 
-export function lettersCsv(letters: Row[]) {
+export function lettersCsv(letters:Row[],pieces?:Row[]) {
+ if(pieces?.length)return csv(['piece','addressee','address_line1','address_line2','city','state','zip','country','receipt_count','receipt_text'],printableAckPieces(pieces,letters).map((p,i)=>{const a=p.address?JSON.parse(p.address):{};return [i+1,p.recipient_name,a.line1,a.line2,a.city,a.region,a.postalCode,a.country,JSON.parse(pieces[i].letter_ids).length,p.body]}))
  return csv(['letter', 'donor_name', 'email', 'address_line1', 'address_line2', 'city', 'state', 'zip', 'country', 'gift_date', 'amount', 'subject', 'letter_text'],
   letters.map(l => { const a = l.address ? JSON.parse(l.address) : {}; return [receiptNumber(l), l.recipient_name, l.recipient_email, a.line1, a.line2, a.city, a.region, a.postalCode, a.country, l.received_on, (l.amount_cents / 100).toFixed(2), l.subject, receiptText(l)] }))
 }
@@ -126,11 +131,12 @@ export async function batchDetail(c: { db: D1Database }, batchId: string) {
  const batch = await one(c, 'SELECT * FROM cf_ack_batches WHERE id=?', batchId)
  if (!batch) fail('NOT_FOUND', 'That acknowledgement batch does not exist.', 404)
  const [letters, approval, events, deliveryEvents] = await Promise.all([batchLetters(c, batchId), one(c, "SELECT * FROM cf_approvals WHERE subject_kind='acknowledgements' AND subject_id=?", batchId), all(c, "SELECT * FROM cf_events WHERE subject_kind='acknowledgements' AND subject_id=? ORDER BY id", batchId), all(c, 'SELECT e.* FROM cf_letter_events e JOIN cf_acks a ON a.id=e.letter_id WHERE a.batch_id=? ORDER BY e.occurred_at', batchId)])
- return { batch, letters, approval, events, deliveryEvents, mergeReview: blankMergeReview(letters) }
+ const mailPieces=await ackMailPieces(c,batchId)
+ return { batch, letters, approval, events, deliveryEvents, mailPieces,mergeReview: [...blankMergeReview(letters),...blankMergeReview(mailPieces.map(p=>({...p,donor_id:JSON.parse(p.content)[0]?.donorId})))] }
 }
 
 /** Annual statements freeze the complete calendar year, including late gifts. */
 export const currentLetterGiftsCondition = `NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.batch_id=? AND a.void_reason IS NULL AND b.kind='statement' AND (
- (a.household_id IS NULL AND (SELECT count(*) FROM cf_gifts g WHERE g.donor_id=a.donor_id AND g.kind='gift' AND substr(g.received_on,1,4)=CAST(b.statement_year AS TEXT) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id))<>json_array_length(a.statement_gifts))
- OR EXISTS(SELECT 1 FROM json_each(a.statement_gifts) j WHERE NOT EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=json_extract(j.value,'$.id') AND g.version=json_extract(j.value,'$.version') AND (a.household_id IS NULL OR (g.donor_id=json_extract(j.value,'$.donor_id') AND g.net_cents=json_extract(j.value,'$.amount_cents'))) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)))))`
+ (a.household_id IS NULL AND (SELECT count(*) FROM cf_gift_balances g WHERE g.net_cents>0 AND g.donor_id=a.donor_id AND g.kind='gift' AND substr(g.received_on,1,4)=CAST(b.statement_year AS TEXT) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id))<>CASE WHEN b.one_piece_per='gift' THEN (SELECT COUNT(DISTINCT json_extract(j.value,'$.id')) FROM cf_acks other,json_each(other.statement_gifts) j WHERE other.batch_id=a.batch_id AND other.donor_id=a.donor_id) ELSE json_array_length(a.statement_gifts) END)
+ OR EXISTS(SELECT 1 FROM json_each(a.statement_gifts) j WHERE NOT EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=json_extract(j.value,'$.id') AND g.version=json_extract(j.value,'$.version') AND (a.household_id IS NULL OR g.donor_id=json_extract(j.value,'$.donor_id')) AND g.net_cents=json_extract(j.value,'$.amount_cents') AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)))))`
 export const currentLetterGifts = (batchId: string) => guard(`(${currentLetterGiftsCondition}) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE batch_id=? AND void_reason IS NOT NULL)`, 'GIFT_CHANGED', 'A receipt or statement gift changed. Open its voided copy and prepare a correction.', batchId, batchId)
