@@ -43,3 +43,12 @@ pledge. The donor’s pledge form can select an email type and that donor’s
 interaction for a manual run; scheduled reminders use the primary email and no
 interaction context. Each submitted reminder freezes its wording, template
 version and exact contact point. Later wording or value changes never rewrite it.
+
+Current email appeals also use the catalog, literal defaults and field insertion.
+Preparation retains only used field values, rendered wording and distinct blank
+keys per recipient. The unpaged review names every affected donor before the
+existing human approval decision. Later profile edits do not rewrite that text.
+On the provider connection page, extra profile fields start off and require an
+explicit owner/admin selection. A missing profile-context value needs a literal
+default or refuses transfer. Saving the selection sends nothing. See
+[appeal setup](appeals.md) and [declared data flows](data-flows.md).

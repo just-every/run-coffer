@@ -6,9 +6,13 @@ On **Appeals**, an owner or admin fills in **Prepare an appeal**:
 
 - **Appeal name**, such as "Spring 2026 appeal".
 - **Channel**: email or postal mail.
+- **Email contact choice**: primary, personal, work or other. A missing chosen type is excluded; an ambiguous one is refused. Choosing a type never changes the primary or grants consent.
+- **Postal address choice**, **one piece per** household/constituent/gift, and an optional USD postage-per-piece estimate. Household grouping uses consenting members at the same address, with each hard-credit gift counted once.
 - **Gave since** (optional): only donors with a gift on or after this date.
 - **At least this much since then** (optional, with **Gave since**): only donors whose gifts since that date add up to this amount or more.
 - **Email subject** and **Email message**: needed to send the appeal by email through Mango or Mailchimp. Leave both blank to download the list instead. If you fill in one, Coffer asks for the other on the same page.
+
+The **Merge field** picker inserts into the subject or message without preparing a run. The authenticated published catalog includes names, chosen contact details, own-ledger giving figures and defined custom fields. Literal defaults use `{{custom.board_term|our board}}`. Fields needing a particular gift or interaction remain empty without that context; use a neutral default. Unknown or malformed fields are refused. Preparation freezes only the used fields and rendered wording for each recipient. **Empty appeal fields** lists every affected recipient before approval; discard and prepare again to use corrected values. Later edits never rewrite the prepared wording.
 
 **Prepare audience** shows who is included and how many were left out, by reason: no consent recorded, consent withdrawn, no email address or no postal address. An agent with a key can prepare an audience too; it cannot approve one.
 
@@ -29,7 +33,7 @@ Open **Appeals → Connect Mango or Mailchimp**. You need to do this once.
 2. Copy the credential straight away: Mango shows it only once.
 3. In Coffer, paste Mango's address (as your browser shows it) and the credential, then press **Connect Mango**. Coffer checks both with Mango before saving them. They stay in Coffer's own database; you do not change any deploy settings.
 
-On an approved email appeal, **Add recipients to Mango** puts every consenting donor on a Mango list named after the appeal, with the consent they gave. Coffer then shows **Finish in Mango**: start a campaign in Mango for that list, paste the subject and message Coffer shows, approve it and choose a time. Mango sends it and lists every send under the campaign's results. Mango fills in each donor's name; it cannot fill in giving figures, so Coffer tells you which sentences to rewrite.
+On an approved email appeal, **Add recipients to Mango** puts every consenting donor on a Mango list named after the appeal, with the consent they gave. Coffer then shows **Finish in Mango**: start a campaign in Mango for that list, paste the subject and message Coffer shows, approve it and choose a time. Mango sends it and lists every send under the campaign's results. Mango uses its own field syntax and missing-value fallbacks. Coffer lists every remaining Coffer token that needs mapping or replacement in Mango before approval. Review the actual values in Mango; Coffer does not claim to have verified Mango rendering or delivery.
 
 **Mailchimp**: in Mailchimp open **Profile → Extras → API keys**, create a key and paste it into Coffer. Coffer lists your audiences: pick one and enter the sender name and reply-to address. **Send through Mailchimp** then sends each recipient the approved message as a Mailchimp campaign to a saved segment holding just that donor. Mailchimp asks new contacts to confirm before they receive appeals.
 
@@ -38,3 +42,9 @@ Until a provider is connected, the send button on an approved appeal leads to th
 ## When consent changes
 
 If any recipient's consent changes before approval or export, Coffer refuses and says how many changed. Discard the audience and prepare it again, so nobody who said no is ever sent an appeal.
+
+## Choose shared profile fields
+
+On the connection page, an owner or admin may explicitly confirm a versioned selection from the published catalog. Extra fields start off; saving or inserting fields sends no profile or email. Mailchimp uses private text audience fields during existing consenting-member checks, while Mango carries selected fields only during an already authorized list handoff. Missing values need literal defaults or refuse the transfer. Unknown fields, incompatible definitions, stale versions and provider limits are refused. Opt-outs are retained.
+
+Clearing stops fresh transfers and does not delete earlier provider data. Changing provider, audience or credential clears the selection; archives exclude the connection and selection. Manual welcome runs can choose an email type; missing contacts remain pending before any submission claim. Scheduled runs use the primary. Appeals and welcome messages retain each actual contact ID/version and never repeat a completed handoff.
