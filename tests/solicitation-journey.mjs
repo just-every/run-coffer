@@ -104,7 +104,7 @@ export async function solicitationJourney() {
   assert.ok(timeline.includes(includeReason)&&timeline.includes(owner.displayName))
   assert.equal((await history()).solicitation.type,'stop','One explicit inclusion preserves the restriction')
 
-  const annual=await create('Leila Brooks','synthetic-coffer-506@example.test')
+  const annual=await create('Leila Brooks','synthetic-coffer-506@example.test',{phone:'+12025550123'})
   await grant(annual)
   await command('solicitation.set',{donorId:annual.id,version:0,type:'limit',maxAsks:1,startsOn:`${year}-01-01`})
   assert.equal((await get('/api/coffer/donors/'+annual.id)).solicitation.period,'calendar-year','An omitted period retains the annual limit semantics')
