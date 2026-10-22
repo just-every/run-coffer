@@ -3,7 +3,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {createHash} from 'node:crypto'
-import {run,donor,archive,restore,installation} from './harness.mjs'
+import {run,donor,reviewed,archive,restore,installation} from './harness.mjs'
 const recorded=JSON.parse(await readFile(new URL('./fixtures/mango/audience.json',import.meta.url),'utf8'))
 const chimp=JSON.parse(await readFile(new URL('./fixtures/mailchimp/responses.json',import.meta.url),'utf8'))
 const form=(h,fields)=>h.request('/app/actions',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(fields).toString()})
@@ -294,5 +294,53 @@ test('COMM-008: email appeal results match signed ledger and sender outcomes wit
   if(key==='POST /3.0/campaigns/fixture-campaign/actions/send')return new Response(null,{status:204})
   if(key==='GET /3.0/reports/fixture-campaign/sent-to')return Response.json(chimp.sent_to)
   assert.fail(`Unexpected Mailchimp request ${key}`)
+ }})
+})
+
+test('RCPT-010: welcome fields share the receipt catalog, hold missing recipients before handoff and resume with literal custom values',async()=>{
+ const contacts=new Map(),handoffs=[]
+ await run(async h=>{
+  await reviewed(h)
+  await h.command('marketing.connectMango',{origin:'https://mango.example.test',credential:'synthetic-coffer-1101'})
+  await h.command('custom.define',{key:'board_note',label:'Board note',kind:'constituent',type:'text'})
+  await h.command('custom.define',{key:'gift_note',label:'Gift note',kind:'gift',type:'text'})
+  const catalog=await h.get('/api/coffer/template-fields'),welcome=catalog.messages.find(m=>m.kind==='welcome')
+  for(const key of ['custom.board_note','custom.gift_note','email','postal_address','first_gift_amount','campaign'])assert.ok(welcome.fields.includes(key))
+  const input={thankSubject:'Thanks {{formal_salutation}} {{custom.board_note}}',thankBody:'{{donor_name}} · {{amount}} · {{custom.gift_note|thanks}} · {{postal_address}} · {{total_given}} · {{custom.board_note}}',impactSubject:'Impact',impactBody:'{{custom.gift_note|Your support}} helped.',askSubject:'Next gift',askBody:'Please give again.',impactDays:7,askDays:21}
+  await h.command('welcome.publish',{...input,thankBody:'{{unknown|fallback}}'},{status:400})
+  await h.command('welcome.publish',{...input,thankBody:'{{custom.board_note|{{donor_name}}}}'},{status:400})
+  const directory=process.env.COFFER_WELCOME_MERGE_BROWSER
+  if(directory){const {mkdir}=await import('node:fs/promises');const {withBrowserWorker}=await import('./browser-worker.mjs');await mkdir(directory,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals');const editor=page.locator('form').filter({has:page.locator('input[name=command][value="welcome.publish"]')});await editor.locator('textarea[name=thankBody]').fill('Board: ');await editor.locator('select[name=fieldKey]').selectOption('custom.board_note');await editor.locator('select[name=fieldTarget]').selectOption('thankBody');await editor.getByRole('button',{name:'Insert merge field',exact:true}).click();await page.getByRole('heading',{name:'Welcome template draft',exact:true}).waitFor();assert.equal(await page.locator('textarea[name=thankBody]').inputValue(),'Board: {{custom.board_note}}');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/RCPT-010-welcome-insert-'+width+'.png',fullPage:true})}await page.close()})}
+  await h.command('welcome.publish',input,{headers:{'x-test-now':'2026-01-01T12:00:00Z'}})
+  const d=await donor(h,'Synthetic Welcome Recipient',{email:'synthetic-coffer-1102@example.test',addressLine1:null,city:null,region:null,postalCode:null},{headers:{'x-test-now':'2026-01-02T11:00:00Z'}})
+  await h.command('consent.record',{donorId:d.id,channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-1103',capturedOn:'2026-01-02'})
+  await h.command('gift.record',{donorId:d.id,amount:'25',receivedOn:'2026-01-02',method:'check',goods:'none'},{headers:{'x-test-now':'2026-01-02T12:00:00Z'}})
+  const handoffsBefore=handoffs.filter(x=>x.segmentName.startsWith('Coffer welcome')).length
+  const held=await h.command('welcome.run',{}, {headers:{'x-test-now':'2026-01-02T12:01:00Z'}})
+  assert.equal(held.submitted,0);assert.deepEqual(held.held.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:d.id,fields:['custom.board_note','postal_address']}])
+  assert.equal(handoffs.filter(x=>x.segmentName.startsWith('Coffer welcome')).length,handoffsBefore)
+  let state=await h.get('/api/coffer/welcome');assert.equal(state.enrollments[0].steps.find(s=>s.step==='thank').status,'pending');assert.equal(state.mergeReview[0].donorId,d.id)
+  assert.equal((await h.get('/api/coffer/donors/'+d.id)).communications.length,0,'No blank message was claimed or exposed to a provider')
+  if(directory){const {withBrowserWorker}=await import('./browser-worker.mjs');await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals');await page.getByRole('heading',{name:'Empty welcome fields',exact:true}).waitFor();assert.ok((await page.locator('main').innerText()).includes('{{custom.board_note}}'));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/RCPT-010-welcome-held-'+width+'.png',fullPage:true})}await page.close()})}
+  await h.command('custom.set',{key:'board_note',recordId:d.id,value:'Board {{not_a_field}}',source:'synthetic-coffer-1104'})
+  const current=(await h.get('/api/coffer/donors/'+d.id)).donor
+  await h.command('donor.update',{donorId:d.id,version:current.version,name:current.name,email:current.email,addressLine1:'12 Reading Road',city:'Springfield',region:'IL',postalCode:'62701'})
+  const resumed=await h.command('welcome.run',{}, {headers:{'x-test-now':'2026-01-02T12:02:00Z'}})
+  assert.equal(resumed.submitted,1);assert.deepEqual(resumed.held,[])
+  const communication=(await h.get('/api/coffer/donors/'+d.id)).communications[0]
+  assert.equal(communication.status,'listed');assert.match(communication.subject,/Board \{\{not_a_field\}\}/,'Stored values are literal text, never a second template')
+  assert.match(communication.body,/\$25\.00 · thanks · 12 Reading Road\nSpringfield\nIL\n62701\nUnited States · \$25\.00 · Board \{\{not_a_field\}\}/)
+  assert.equal((await h.get('/api/coffer/welcome')).mergeReview.length,0)
+  assert.equal((await h.command('welcome.run',{}, {headers:{'x-test-now':'2026-01-02T12:03:00Z'}})).submitted,0,'The resumed step is handed off once')
+  await h.command('donor.erase',{donorId:d.id,confirm:'ERASE'});assert.doesNotMatch(JSON.stringify(await archive(h)),/Board \{\{not_a_field\}\}|12 Reading Road/)
+ },{entry:'tests/engagement-worker.ts',outbound:async request=>{
+  const u=new URL(request.url);assert.equal(u.origin,'https://mango.example.test');const path=u.pathname.replace('/api/integrations/v1',''),body=request.method==='GET'?null:await request.json()
+  if(path==='/segments')return Response.json({segments:[]})
+  if(path==='/events')return Response.json({events:[],nextCursor:0})
+  if(path.endsWith('/send'))return Response.json({error:'invalid'},{status:400})
+  if(path==='/contacts'&&request.method==='PUT'){if(!body.email)return Response.json({error:'invalid'},{status:400});handoffs.push(body);const contact={id:'synthetic-coffer-1105',email:body.email,emailStatus:'subscribed',segmentIds:['synthetic-coffer-1106']};contacts.set(body.email,contact);return Response.json({contact})}
+  if(path==='/contacts')return Response.json({contacts:contacts.has(u.searchParams.get('email'))?[contacts.get(u.searchParams.get('email'))]:[]})
+  assert.fail(request.method+' '+path)
  }})
 })

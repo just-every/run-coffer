@@ -15,7 +15,7 @@ async function savedResult(c: Context, messageId: string, disposition: string) {
  return message
 }
 
-export type MessageInput = { key:string; donorId:string; subject:string; body:string; sourceKind:'appeal'|'welcome'; sourceId:string; listName:string; expectedEmail?:string; merge?:Row }
+export type MessageInput = { key:string; donorId:string; subject:string; body:string; sourceKind:'appeal'|'welcome'; sourceId:string; listName:string; expectedEmail?:string; merge?:Row; rendered?:{subject:string;body:string} }
 export function mergeMessage(template: string, values: Row) {
  const fields: Row = {...(values.name_fields ? JSON.parse(values.name_fields) : nameMergeFields(values)),donor_name:values.name,total_given:usd(values.total_cents??0),last_gift:values.last_gift||'No gift recorded',gift_count:String(values.gift_count??0)}
  return template.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (token,key) => { if (!(key in fields)) fail('MERGE_FIELD', `Unknown merge field ${token}.`,400); return fields[key] })
@@ -32,7 +32,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  if(input.expectedEmail!==undefined && input.expectedEmail!==d.email)fail('RECIPIENT_CHANGED','The donor’s email changed after approval. Prepare a new appeal audience.',409)
  const preference=excludedStatus?{allowed:false,state:'excluded',note:`The constituent is ${excludedStatus}; no email was sent.`}:await reconcileDonor(c,d.id,conn.provider==='mailchimp')
  const currentNames=await letterRecipient(c,d)
- const row={id:newId(),email:d.email,name:d.name,subject:mergeMessage(input.subject,input.merge??currentNames),body:mergeMessage(input.body,input.merge??currentNames)}
+ const row={id:newId(),email:d.email,name:d.name,subject:input.rendered?.subject??mergeMessage(input.subject,input.merge??currentNames),body:input.rendered?.body??mergeMessage(input.body,input.merge??currentNames)}
  const replyTo=(conn.fromEmail??c.env?.COFFER_REPLY_ADDRESS??'').trim().toLowerCase()
  const allowed=preference.allowed||conn.provider==='mango'&&preference.state==='pending'
  const state=allowed?'preparing':'suppressed'

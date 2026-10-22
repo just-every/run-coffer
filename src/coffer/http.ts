@@ -1,3 +1,4 @@
+import { welcomePanel } from './communications/welcome-ui'
 import { ackMailPieces,printableAckPieces } from './ack-mail-pieces'
 import { contributionTypeState } from './contribution-types'
 import { addressState } from './addresses/state'
@@ -268,6 +269,13 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if ((path === '/api/coffer/commands' || path === '/app/actions') && request.method === 'POST') {
    const data = path === '/app/actions' ? await formInput(await formBody(request, 400000)) : await jsonBody(request), command = String(data.command), input = data.input ?? data
+   if(!isApi&&command==='welcome.publish'&&input.insertField==='yes'){
+    if(!manager(actor))fail('FORBIDDEN','Only an owner or admin edits welcome messages.',403)
+    if((await welcomeState(c)).activeCount)fail('WELCOME_ACTIVE','Finish active journeys before changing the published messages.')
+    const fields=(await publishedTemplateFields(c)).messages.find(m=>m.kind==='welcome')!.fields,field=String(input.fieldKey),target=String(input.fieldTarget)
+    if(!fields.includes(field)||!['thankSubject','thankBody','impactSubject','impactBody','askSubject','askBody'].includes(target))fail('TEMPLATE','Choose a published field and welcome message.',400)
+    return page('Welcome template draft',await welcomePanel(c,{...input,[target]:String(input[target]??'')+'{{'+field+'}}'}),actor,200,'/app/appeals')
+   }
    if(!isApi&&command==='letterTemplate.save'&&input.insertField==='yes'){
     if(!manager(actor))fail('FORBIDDEN','Only an owner or admin edits templates.',403)
     const catalog=await publishedTemplateFields(c),entry=catalog.templates.find(t=>t.kind===input.kind),field=String(input.fieldKey)

@@ -1,6 +1,11 @@
+import { customAllowed, customMerge } from '../custom-fields'
+import { LETTER, checkTemplate, longDate, goodsStatement } from '../settings'
+import { recipientMergeFields, renderTemplate } from '../template-fields'
+import { giftFacts } from '../merge-facts'
+import { letterRecipient } from '../organizations'
+import { usd } from '../money'
 import { listMembers } from '../list-members'
 import { prepareSolicitationRun, solicitationReason } from '../solicitation'
-import { NAME_MERGE_FIELDS } from '../person-names'
 import { emailConnection } from './connection'
 import type { Bindings } from '../../auth.server'
 import { requireRole } from '../auth'
@@ -22,13 +27,22 @@ const allowed = `EXISTS(SELECT 1 FROM cf_welcome_enrollments e JOIN cf_donors d 
  AND ${firstStillValid} AND NOT ${gaveAgain})`
 const stepNames = ['thank', 'impact', 'ask'] as const
 
-function content(value: unknown, label: string, body = false) {
- const valueText = body ? longText(value, label) : text(value, label, 200)
- if (!body && /[\r\n]/.test(valueText)) fail('INPUT', `${label} must be one line.`, 400)
- for (const token of valueText.matchAll(/{{\s*([^{}]+)\s*}}/g)) {
-  if (![...NAME_MERGE_FIELDS, 'donor_name', 'total_given', 'last_gift', 'gift_count'].includes(token[1].trim())) fail('INPUT', `${label} has an unsupported merge field: ${token[0]}.`, 400)
- }
+export const WELCOME_FIELDS=[...LETTER,'last_gift']
+async function content(c:Context,value:unknown,label:string,body=false){
+ const valueText=body?longText(value,label):text(value,label,200)
+ if(!body&&/[\r\n]/.test(valueText))fail('INPUT',`${label} must be one line.`,400)
+ checkTemplate(valueText,label,await customAllowed(c,WELCOME_FIELDS),[])
  return valueText
+}
+async function stepMessage(c:Context,step:Row){
+ const d=await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',step.donor_id)
+ if(!d)fail('DONOR_CHANGED','The welcome recipient is no longer available.')
+ const [recipient,s,gift]=await Promise.all([letterRecipient(c,d),settings(c),one(c,'SELECT * FROM cf_gift_balances WHERE id=? AND donor_id=? AND net_cents>0',step.first_gift_id,d.id)])
+ const giftFields:Row={}
+ if(gift){gift.merge_fields=await customMerge(c,'gift',gift.id);await giftFacts(c,[gift]);Object.assign(giftFields,gift.merge_fields,{amount:usd(gift.net_cents),gift_date:longDate(gift.received_on),fund:gift.fund})
+  if(gift.goods!=='unknown'&&gift.goods_cents<=gift.net_cents)Object.assign(giftFields,{goods_statement:goodsStatement(s,{...gift,amount_cents:gift.net_cents}),deductible_amount:usd(gift.net_cents-gift.goods_cents)})}
+ const fields={...giftFields,...recipientMergeFields(recipient),date:longDate(today(s.timezone,new Date(c.now))),donor_name:recipient.letter_salutation??d.name,organization:s.organisation,ein:s.ein,last_gift:recipient.merge_fields?.last_gift_date||'No gift recorded'}
+ return {recipient,version:d.version,...renderTemplate({subject:step.subject,body:step.body},fields)}
 }
 
 export async function welcomeCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
@@ -46,9 +60,9 @@ export async function welcomeCommand(c: Context, command: string, p: Row): Promi
   const enrolled=await one(c,"SELECT COUNT(*) AS n FROM cf_welcome_enrollments WHERE status='active' AND donor_id IN(SELECT value FROM json_each(?))",JSON.stringify(members.ids))
   return {listId,active:enrolled!.n,excluded:members.ids.length-enrolled!.n,submitted:0}
  }
- const thankSubject = content(p.thankSubject, 'Thank-you subject'), thankBody = content(p.thankBody, 'Thank-you message', true)
- const impactSubject = content(p.impactSubject, 'Impact subject'), impactBody = content(p.impactBody, 'Impact message', true)
- const askSubject = content(p.askSubject, 'Second-ask subject'), askBody = content(p.askBody, 'Second-ask message', true)
+ const thankSubject = await content(c,p.thankSubject, 'Thank-you subject'), thankBody = await content(c,p.thankBody, 'Thank-you message', true)
+ const impactSubject = await content(c,p.impactSubject, 'Impact subject'), impactBody = await content(c,p.impactBody, 'Impact message', true)
+ const askSubject = await content(c,p.askSubject, 'Second-ask subject'), askBody = await content(c,p.askBody, 'Second-ask message', true)
  const impactDays = integer(Number(p.impactDays), 'Impact days after first gift', 1, 365)
  const askDays = integer(Number(p.askDays), 'Second-ask days after first gift', impactDays + 1, 730)
  const publicationId = newId()
@@ -122,13 +136,15 @@ async function run(c: Context): Promise<Row> {
  await stop(c)
  const due = await all(c, `SELECT s.id FROM cf_welcome_steps s JOIN cf_welcome_enrollments e ON e.donor_id=s.donor_id
   WHERE s.status='pending' AND e.status='active' AND julianday(s.due_at)<=julianday(?)
-  ORDER BY julianday(s.due_at),CASE s.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END,s.id LIMIT 24`, c.now)
- let submitted = 0, uncertain = 0, cancelled = 0
+  ORDER BY COALESCE(s.merge_checked_at,''),julianday(s.due_at),CASE s.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END,s.id LIMIT 24`, c.now)
+ let submitted = 0, uncertain = 0, cancelled = 0;const held:Row[]=[]
  for (const row of due) {
-  const queued=await one(c,'SELECT donor_id,step FROM cf_welcome_steps WHERE id=?',row.id)
+  const queued=await one(c,`SELECT s.*,e.first_gift_id,COALESCE(v.subject,CASE s.step WHEN 'thank' THEN w.thank_subject WHEN 'impact' THEN w.impact_subject ELSE w.ask_subject END) AS subject,COALESCE(v.body,CASE s.step WHEN 'thank' THEN w.thank_body WHEN 'impact' THEN w.impact_body ELSE w.ask_body END) AS body FROM cf_welcome_steps s JOIN cf_welcome_enrollments e ON e.donor_id=s.donor_id JOIN cf_welcome w ON w.id='welcome' LEFT JOIN cf_journey_step_publications v ON v.code=s.response_code WHERE s.id=?`,row.id)
   if(!queued)continue
   const restricted=queued.step==='ask'?await solicitationReason(c,queued.donor_id,'email',c.now):null
   if(restricted){await commit(c,[sql("UPDATE cf_welcome_steps SET status='cancelled',note=? WHERE id=? AND status='pending'",restricted.reason+(restricted.reason==='solicitation limit'&&restricted.lastAskOn?' · Last ask '+restricted.lastAskOn:''),row.id),event(c,'welcome.askSkipped','welcome',row.id,queued.donor_id,restricted)]);cancelled++;continue}
+  const rendered=await stepMessage(c,queued),blanks:string[]=JSON.parse(rendered.merge_blanks)
+  if(blanks.length){await commit(c,[sql("UPDATE cf_welcome_steps SET merge_blanks=?,merge_checked_at=?,note=? WHERE id=? AND status='pending'",rendered.merge_blanks,c.now,'Missing merge fields: '+blanks.join(', ')+'. No provider handoff; fill the values before running again.',row.id)]);held.push({donorId:queued.donor_id,stepId:queued.id,fields:blanks});continue}
   if(!await one(c,'SELECT 1 FROM cf_solicitation_runs WHERE kind=? AND run_id=?','welcome',row.id)){
    const classification=await prepareSolicitationRun(c,{kind:'welcome',id:row.id,channel:'email',isAsk:queued.step==='ask',donorIds:[queued.donor_id]})
    await commit(c,classification.statements)
@@ -136,11 +152,11 @@ async function run(c: Context): Promise<Row> {
   const claim = `Submission claim ${newId()}. Interrupted submissions are not retried automatically.`
   // 'uncertain' is the durable pre-send claim. Only this unique claim holder
   // may submit; a crashed Worker leaves visible uncertainty, never a retry.
-  await commit(c, [sql(`UPDATE cf_welcome_steps SET status='uncertain',note=? WHERE id=? AND status='pending'
-   AND julianday(due_at)<=julianday(?) AND ${allowed}
+  await commit(c, [sql(`UPDATE cf_welcome_steps SET status='uncertain',note=?,merge_blanks='[]',merge_checked_at=? WHERE id=? AND status='pending'
+   AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.version=? AND d.email=?) AND julianday(due_at)<=julianday(?) AND ${allowed}
    AND NOT EXISTS(SELECT 1 FROM cf_welcome_steps prior WHERE prior.donor_id=cf_welcome_steps.donor_id
     AND prior.status='pending' AND CASE prior.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END
-     <CASE cf_welcome_steps.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END)`, claim, row.id, c.now)])
+     <CASE cf_welcome_steps.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END)`, claim,c.now,row.id,queued.donor_id,rendered.version,rendered.recipient.email,c.now)])
   const step = await one(c, `SELECT s.*,
    COALESCE(v.subject,CASE s.step WHEN 'thank' THEN w.thank_subject WHEN 'impact' THEN w.impact_subject ELSE w.ask_subject END) AS subject,
    COALESCE(v.body,CASE s.step WHEN 'thank' THEN w.thank_body WHEN 'impact' THEN w.impact_body ELSE w.ask_body END) AS body,v.list_name
@@ -155,7 +171,7 @@ async function run(c: Context): Promise<Row> {
   }
   let state = 'uncertain', note = 'Submission could not be confirmed. Check the message history before contacting this donor. No automatic resend.'
   try {
-   const result = await submitMessage(c, { key: step.message_key, donorId: step.donor_id, subject: step.subject, body: step.body, sourceKind: 'welcome', sourceId: step.id, listName: step.list_name ?? `Coffer welcome · ${step.step === 'thank' ? '1 Thank you' : step.step === 'impact' ? '2 Impact' : '3 Next gift'}` })
+   const result = await submitMessage(c, { key: step.message_key, donorId: step.donor_id, subject: step.subject, body: step.body, sourceKind: 'welcome', sourceId: step.id, rendered, expectedEmail:rendered.recipient.email, listName: step.list_name ?? `Coffer welcome · ${step.step === 'thank' ? '1 Thank you' : step.step === 'impact' ? '2 Impact' : '3 Next gift'}` })
    state = ['submitted', 'listed'].includes(result.status) ? 'submitted' : result.status === 'suppressed' ? 'cancelled' : 'uncertain'
    note = state === 'submitted' ? 'Submitted; delivery is not confirmed.' : state === 'cancelled' ? 'Message suppressed; no email was sent.' : note
   } catch (error) {
@@ -172,7 +188,7 @@ async function run(c: Context): Promise<Row> {
  await stop(c)
  await commit(c, [sql(`UPDATE cf_welcome_enrollments SET status='completed',stopped_at=? WHERE status='active'
   AND NOT EXISTS(SELECT 1 FROM cf_welcome_steps s WHERE s.donor_id=cf_welcome_enrollments.donor_id AND s.status='pending')`, c.now)])
- return { published: true, submitted, uncertain, cancelled }
+ return { published: true, submitted, uncertain, cancelled, held }
 }
 
 async function outcome(c: Context, stepId: string, claim: string, state: string, note: string) {
@@ -187,7 +203,7 @@ export async function runWelcome(env: Bindings, at: Date): Promise<Row> {
 }
 
 export async function welcomeState(c: Context): Promise<Row> {
- const [journey, enrollments, steps, counts, publications] = await Promise.all([
+ const [journey, enrollments, steps, counts, publications, held] = await Promise.all([
   one(c, "SELECT * FROM cf_welcome WHERE id='welcome'"),
   all(c, `SELECT e.*,d.name,d.email FROM cf_welcome_enrollments e JOIN cf_donors d ON d.id=e.donor_id
    WHERE ${liveDonor} ORDER BY e.enrolled_at DESC,e.donor_id LIMIT 100`),
@@ -196,6 +212,7 @@ export async function welcomeState(c: Context): Promise<Row> {
    ORDER BY s.due_at,CASE s.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END`),
   one(c, "SELECT COUNT(*) AS active FROM cf_welcome_enrollments WHERE status='active'"),
   all(c, 'SELECT v.* FROM cf_journey_step_publications v JOIN cf_welcome w ON w.publication_id=v.publication_id ORDER BY CASE v.step WHEN \'thank\' THEN 0 WHEN \'impact\' THEN 1 ELSE 2 END'),
+  all(c,`SELECT s.id,s.donor_id,s.merge_blanks,d.name FROM cf_welcome_steps s JOIN cf_donors d ON d.id=s.donor_id WHERE ${liveDonor} AND s.status='pending' AND s.merge_blanks IS NOT NULL AND s.merge_blanks<>'[]' ORDER BY lower(d.name),s.due_at,s.id`),
  ])
- return { journey, publications, activeCount: counts?.active ?? 0, enrollments: enrollments.map(e => ({ ...e, steps: steps.filter(s => s.donor_id === e.donor_id) })) }
+ return { journey,publications,mergeReview:held.map(s=>({donorId:s.donor_id,recipientName:s.name,stepId:s.id,fields:JSON.parse(s.merge_blanks)})),activeCount: counts?.active ?? 0, enrollments: enrollments.map(e => ({ ...e, steps: steps.filter(s => s.donor_id === e.donor_id) })) }
 }
