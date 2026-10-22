@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
-import {run,donor,reviewed} from './harness.mjs'
+import {run,donor,reviewed,archive} from './harness.mjs'
 import {recognitionMember} from './recognition-edge.mjs'
 import {solicitationEdges} from './solicitation-edge.mjs'
 
@@ -105,6 +105,7 @@ export async function solicitationJourney() {
   const annual=await create('Leila Brooks','synthetic-coffer-506@example.test')
   await grant(annual)
   await command('solicitation.set',{donorId:annual.id,version:0,type:'limit',maxAsks:1,startsOn:`${year}-01-01`})
+  assert.equal((await get('/api/coffer/donors/'+annual.id)).solicitation.period,'calendar-year','An omitted period retains the annual limit semantics')
   const once=await prepare('email','Annual supporter appeal')
   assert.ok((await recipientIds(once.id)).includes(annual.id))
   await command('appeal.approve',{appealId:once.id,version:1})
@@ -150,6 +151,60 @@ export async function solicitationJourney() {
   await command('solicitation.set',{donorId:importedDonor.id,version:1,type:'limit',maxAsks:1,startsOn:day})
   await h.api('/api/coffer/move-in/undo',{id:imported.id},options({status:409}))
 
+  // Advance through historical local boundaries so the native seven-day login
+  // remains valid. UTC has already crossed midnight before New York resets.
+  const savedAt=at,periodYear=priorYear,periodFund='Synthetic calendar-period appeals'
+  at=`${periodYear}-02-01T04:59:59.000Z`
+  assert.equal(localDay(at),`${periodYear}-01-31`)
+  const monthly=await create('Synthetic Monthly Supporter','synthetic-coffer-521@example.test'),quarterly=await create('Synthetic Quarterly Supporter','synthetic-coffer-522@example.test'),periodControl=await create('Synthetic Period Control','synthetic-coffer-523@example.test')
+  for(const d of [monthly,quarterly,periodControl]){
+   for(const channel of ['email','mail'])await command('consent.record',{donorIds:[d.id],channel,status:'granted',method:'paper form',evidence:'synthetic-coffer-524',capturedOn:localDay(at)})
+   await command('gift.record',{donorId:d.id,amount:'1',receivedOn:localDay(at),method:'check',fund:periodFund,goods:'none'})
+  }
+  for(const [d,period] of [[monthly,'calendar-month'],[quarterly,'calendar-quarter']]){
+   const choice=await command('solicitation.set',{donorId:d.id,version:0,type:'limit',maxAsks:1,period,startsOn:`${periodYear}-01-01`,source:'person',sourceRef:'synthetic-coffer-525'})
+   assert.equal(choice.period,period)
+  }
+  const periodAppeal=(channel,name)=>prepare(channel,name,{fund:periodFund})
+  const issue=async run=>{const approved=await command('appeal.approve',{appealId:run.id,version:run.version});return command('appeal.export',{appealId:run.id,version:approved.version})}
+  const january=await periodAppeal('mail','Synthetic January period ask'),competing=await periodAppeal('email','Synthetic competing January ask')
+  assert.ok((await recipientIds(january.id)).includes(monthly.id));assert.ok((await recipientIds(january.id)).includes(quarterly.id))
+  await command('appeal.approve',{appealId:competing.id,version:competing.version})
+  const januaryExport=await issue(january)
+  await command('appeal.export',{appealId:january.id,version:januaryExport.version})
+  const atomicHold=await command('appeal.export',{appealId:competing.id,version:competing.version+1},{status:409})
+  assert.equal(atomicHold.error,'SOLICITATION_RESTRICTED','A competing approved run rechecks the live period count inside its export transaction')
+  const januaryAgain=await periodAppeal('email','Synthetic January cross-channel hold')
+  assert.deepEqual(await recipientIds(januaryAgain.id),[periodControl.id],'Mail asks consume the same monthly and quarterly allowances as email asks')
+  at=`${periodYear}-02-01T05:00:00.000Z`
+  assert.equal(localDay(at),`${periodYear}-02-01`)
+  const february=await periodAppeal('email','Synthetic February reset')
+  assert.ok((await recipientIds(february.id)).includes(monthly.id));assert.ok(!(await recipientIds(february.id)).includes(quarterly.id),'A new month does not reset the quarter')
+  await issue(february)
+  at=`${periodYear}-04-01T03:59:59.000Z`
+  assert.equal(localDay(at),`${periodYear}-03-31`)
+  const march=await periodAppeal('mail','Synthetic last March ask')
+  assert.ok((await recipientIds(march.id)).includes(monthly.id));assert.ok(!(await recipientIds(march.id)).includes(quarterly.id))
+  await issue(march)
+  const beforeQuarter=await periodAppeal('email','Synthetic before local quarter boundary')
+  assert.deepEqual(await recipientIds(beforeQuarter.id),[periodControl.id],'Neither period resets at UTC midnight')
+  at=`${periodYear}-04-01T04:00:00.000Z`
+  assert.equal(localDay(at),`${periodYear}-04-01`)
+  const april=await periodAppeal('email','Synthetic April period reset'),periodFrozen=await periodAppeal('mail','Synthetic frozen before period edit')
+  assert.ok((await recipientIds(april.id)).includes(monthly.id));assert.ok((await recipientIds(april.id)).includes(quarterly.id))
+  await issue(april)
+  const oldMonthly=(await get('/api/coffer/donors/'+monthly.id)).solicitation
+  await command('solicitation.set',{donorId:monthly.id,version:oldMonthly.version,type:'limit',maxAsks:2,period:'calendar-quarter',startsOn:`${periodYear}-01-01`,source:'person',sourceRef:'synthetic-coffer-526'})
+  const changedMonthly=(await get('/api/coffer/donors/'+monthly.id)).solicitation
+  assert.equal(changedMonthly.version,oldMonthly.version+1);assert.equal(changedMonthly.period,'calendar-quarter')
+  await command('appeal.approve',{appealId:periodFrozen.id,version:periodFrozen.version},{status:409})
+  const periodAudit=(await get('/api/coffer/audit?action=solicitation.set&record='+monthly.id)).rows
+  assert.ok(periodAudit.some(e=>e.actor_id===owner.id&&JSON.parse(e.detail).period==='calendar-quarter'&&JSON.parse(e.detail).sourceRef==='synthetic-coffer-526'))
+  const periodArchive=await archive(h)
+  const periodHistory=periodArchive.filter(r=>r.kind==='part').flatMap(r=>r.items).filter(r=>r.kind==='row'&&r.table==='cf_solicitation_history'&&r.row.donor_id===monthly.id).map(r=>JSON.parse(r.row.answer))
+  assert.deepEqual(periodHistory.map(a=>a.period).sort(),['calendar-month','calendar-quarter'],'The original and replacement period choices remain in immutable history')
+  at=savedAt
+
   if(process.env.COFFER_SOLICITATION_BROWSER){
    const directory=process.env.COFFER_SOLICITATION_BROWSER
    await mkdir(directory,{recursive:true})
@@ -157,14 +212,15 @@ export async function solicitationJourney() {
    await withBrowserWorker(h,async(context,origin)=>{
     await context.setExtraHTTPHeaders({cookie:h.owner,'x-test-now':at})
     const page=await context.newPage()
-    const screens=[['donor','/app/donors/'+stop.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
+    const screens=[['donor','/app/donors/'+stop.id],['limit-periods','/app/donors/'+monthly.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
     for(const width of [1440,390])for(const [name,path] of screens){
      await page.setViewportSize({width,height:1000});await page.goto(origin+path)
      if(name==='import-entry')await page.getByText('Map organization-specific communication codes',{exact:true}).click()
      if(name==='donor')assert.ok(await page.getByText('Do not solicit',{exact:true}).count())
+     if(name==='limit-periods')assert.equal(await page.locator('#solicitation select[name="period"]').inputValue(),'calendar-quarter')
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${name} fits ${width}`)
      await page.screenshot({path:`${directory}/DONOR-015-${name}-${width}.png`,fullPage:true})
-     if(name==='donor'){await page.setViewportSize({width,height:1600});await page.locator('#solicitation').screenshot({path:`${directory}/DONOR-015-restriction-${width}.png`});await page.setViewportSize({width,height:1000})}
+     if(name==='donor'||name==='limit-periods'){await page.setViewportSize({width,height:1600});await page.locator('#solicitation').screenshot({path:`${directory}/DONOR-015-${name==='donor'?'restriction':'limit-period-restriction'}-${width}.png`});await page.setViewportSize({width,height:1000})}
     }
    })
   }

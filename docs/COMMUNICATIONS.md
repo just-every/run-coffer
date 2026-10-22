@@ -78,7 +78,7 @@ call list excludes restricted ask candidates while allowing explicitly non-ask
 stewardship calls. A gift-triggered thank-you task is also a non-ask.
 
 Solicitation restrictions are versioned facts separate from consent: do not
-solicit, no asks on selected channels, or an annual ask allowance. Preparation
+solicit, no asks on selected channels, or an allowance per organization-local calendar month, quarter or year. Preparation
 counts exclusions as “do not solicit” or “solicitation limit”; approval and
 submission recheck frozen restriction versions and the current allowance. An
 owner or admin can deliberately include a selected restricted donor in one run
@@ -86,7 +86,7 @@ with a reason. The run and donor timeline retain the reason and author; the
 restriction and consent remain unchanged.
 
 Default ADOPTED, pending ct: unique durable provider claims and mail exports
-count across channels in the organization's calendar year, once per
+count across channels in the selected organization-local calendar period, once per
 kind/run/original donor. Preparation does not count. Unknown outcomes count;
 a definitive SMS 4xx rejection releases that count. After merge, original
 restrictions and ask histories are evaluated as a union. Only the owner, admin
@@ -97,14 +97,15 @@ not a claim that DONOR-015 is complete.
 Current LGL, Bloomerang and configured NXT export imports retain sourced
 restriction facts, channel withdrawals, preview mappings and reconciliation,
 with repeat/undo safeguards. Restriction filters in saved lists/reports, bulk
-set/clear, export columns, donor-portal writes and nonannual period choices
-remain unimplemented. The GIVE-006 recovery journey proves restricted-donor
+set/clear and export columns remain unimplemented. Month, quarter and year
+allowances now reset on their organization-local calendar boundaries; existing
+and imported answers retain their annual meaning. The GIVE-006 recovery journey proves restricted-donor
 failed-payment/card-expiry notices, and the DONOR-003 household journey includes
 a restricted head and unchanged solicitation facts. Future provider,
 journey, task, list/report/export/API and importer doors must inherit ask
 classification, restriction checks, limits, audit and custody before shipping.
 Topics and per-channel frequency preferences remain distinct unfinished work
-under COMM-001; annual solicitation limits do not implement them.
+under COMM-001; calendar solicitation limits do not implement them.
 
 ## Text messages
 
@@ -239,3 +240,74 @@ publication, 48-hour non-ask tasks, first-gift tags, historical suppression,
 minimal Slack handoff and native rules at 1440/390. Only paid/network edges are
 faked; these checks establish Coffer's side, with no live Twilio or Slack
 acceptance or delivery claim.
+
+## Postal address checks and mailing passes
+
+On Addresses, an owner or administrator can enable connected address processing
+with a current signed Processing Acknowledgement Form (PAF) reference and an
+explicit reviewed authorization for current donors. The installation privately
+supplies SMARTY_AUTH_ID, SMARTY_AUTH_TOKEN and MELISSA_SMARTMOVER_KEY; the page
+never asks staff to enter provider keys. Provider credentials alone do not
+authorize processing. Restoring a backup retains address history and check/pass
+records but leaves processing disabled until an administrator authorizes it.
+
+When enabled, manual US address entry and Verify current address use Smarty.
+Mail preparation waits for a completed National Change of Address pass through
+Melissa SmartMover. Preparing a pass queues work; the actual minute scheduler
+processes one batch of up to 100 unique names and addresses per tick. The
+licensed list must contain at least 100 genuine unique names and addresses.
+Coffer never pads it or fabricates records to meet that minimum. Progress and
+failed/uncertain reasons appear on Addresses. Failed or uncertain work is never
+automatically retried; review the provider job before preparing another pass.
+
+The pass verifies confirmed moves through Smarty before applying changes.
+Earlier addresses retain the NCOA source and the observed change date; earlier
+gifts remain attributed to their earlier state. A provider-reported move month
+is retained separately. The history uses the organization-calendar day the
+change was observed rather than inventing an exact day within that month.
+Malformed, mismatched or missing provider results refuse the batch; a provider
+failure never becomes an undeliverable flag.
+
+An enabled mail appeal consumes one fresh completed pass and freezes each
+recipient’s verified address fingerprint and check version in its reviewed
+content. A changed check or address stops approval/export and requires a new
+pass. A current matching known-undeliverable result is excluded with the reason
+“undeliverable address” even if processing is subsequently disabled.
+
+DONOR-009 remains partial. With processing disabled, the legacy mail CSV door
+still permits unverified addresses without an NCOA pass. The full legacy
+verification gate remains unproved. Default ADOPTED, pending ct: new provider
+processing requires owner/admin authorization under a current signed PAF;
+unknown move days stay unknown, history uses the observed organization day,
+provider errors never imply undeliverability and existing matching known
+undeliverables remain excluded. The privacy/consent activation boundary needs
+ct’s ruling. These defaults do not narrow the target requirement to verify
+addresses and process movers before each mail appeal.
+
+`tests/coffer.test.mjs` — "DONOR-009: verified entry and licensed scheduled address passes preserve moves and exclude undeliverable mail"
+runs addressVerificationJourney in `tests/state-report-journey.mjs`. It proves
+standardized entry, the genuine 100-constituent scheduled pass, moved and
+undeliverable results, mail exclusions/export, sourced history and earlier-gift
+state attribution, malformed/outage refusal, replay/changed-check fences,
+donor-file privacy, restore-disabled custody and erasure. Native address-pass,
+mover/history, undeliverable and mail-review screens run at 1440/390. The Smarty
+and Melissa network edges are faked; no live provider delivery or acceptance is
+claimed. Root’s recorded run is 20261021T235854381977Z-heavy-slot-c1263138;
+final candidate validation follows integration.
+
+The authenticated giving portal includes a deliberately narrow donation-request
+door. The donor may add an indefinite do-not-solicit choice on their own record,
+never clear a staff/imported choice, resolve merged originals or grant channel
+consent. Its versioned history records portal source, an opaque request reference
+and a donor audit role. The same hashed unexpired session and current identity
+are checked in the write transaction. An email shared by several current donors
+is refused for this write. These conservative identity/consent defaults remain
+pending ct; broader preferences stay with GIVE-005 and COMM-001.
+
+The existing recurring/portal journey in `tests/giving.test.mjs` also proves
+this source, forged-target/stale/clear refusals, unchanged consent, ongoing
+card/cancellation access, shared-email denial and erasure. Native entry and
+saved states run at 1440/390. The solicitationJourney additionally exercises
+month and quarter resets across UTC and New York midnight, cross-channel
+counting, competing approved exports, versioned period changes and native
+period controls.

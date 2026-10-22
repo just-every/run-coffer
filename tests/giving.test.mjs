@@ -174,6 +174,40 @@ test('CAMP-001: recurring campaign progress; a failed monthly donation recovers 
   assert.equal((await summary()).raised_cents,2500)
   assert.equal(h.messages.length,messagesBeforeReplay)
 
+  // DONOR-015: the authenticated donor can request a stronger restriction,
+  // never clear one or grant consent, and cannot name somebody else's record.
+  const preferences=await h.request('/giving/portal/preferences',{as:donorCookie});assert.equal(preferences.status,200)
+  assert.equal((await h.request('/giving/portal/preferences',{as:''})).status,303)
+  const other=await donor(h,'Synthetic Portal Other',{email:'synthetic-coffer-1201@example.test'})
+  const askPrefs=(values,extra={})=>h.request('/giving/portal/preferences',{...form(values,donorCookie),...extra})
+  assert.equal((await askPrefs({version:'0',type:'stop',confirm:'yes',donorId:other.id})).status,403)
+  const consentBefore=(await history()).consents
+  const savedRequest=await askPrefs({version:'0',type:'stop',confirm:'yes'});assert.equal(savedRequest.status,303,await savedRequest.text())
+  const restricted=await history()
+  assert.equal(restricted.solicitation.type,'stop');assert.equal(restricted.solicitation.source,'portal')
+  assert.equal(restricted.solicitation.recorded_by_id,'donor:'+known.id)
+  assert.ok(restricted.events.some(e=>e.action==='solicitation.set'&&e.actor_role==='donor'))
+  assert.deepEqual(restricted.consents,consentBefore,'A donor request does not grant or withdraw channel permission')
+  assert.equal((await askPrefs({version:'0',type:'stop',confirm:'yes'})).status,409,'A stale form cannot replace a later decision')
+  assert.equal((await askPrefs({version:'1',type:'none',confirm:'yes'})).status,400,'The portal cannot resume asks or clear a staff restriction')
+  assert.equal((await history()).solicitation.type,'stop');assert.equal((await h.get('/api/coffer/donors/'+other.id)).solicitation.type,'none')
+  const noAsk=await h.command('appeal.prepare',{name:'Synthetic portal request exclusion',channel:'email'},{status:409});assert.equal(noAsk.details['do not solicit'],1)
+  const stillCard=await h.request('/giving/portal/card',form({subscription:'sub_monthly'},donorCookie));assert.equal(stillCard.status,303)
+  if(process.env.COFFER_PORTAL_RESTRICTION_BROWSER){
+   const {mkdir}=await import('node:fs/promises');await mkdir(process.env.COFFER_PORTAL_RESTRICTION_BROWSER,{recursive:true})
+   const {withBrowserWorker}=await import('./browser-worker.mjs')
+   await withBrowserWorker(h,async(context,origin)=>{
+    await context.clearCookies();await context.addCookies(donorCookie.split('; ').map(v=>{const at=v.indexOf('=');return {name:v.slice(0,at),value:v.slice(at+1),domain:'127.0.0.1',path:'/',secure:true,httpOnly:true,sameSite:'Lax'}}))
+    const page=await context.newPage()
+    for(const width of [1440,390]){
+     await page.setViewportSize({width,height:1000});await page.goto(origin+'/giving/portal');await page.getByRole('link',{name:'Manage donation requests'}).click()
+     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${process.env.COFFER_PORTAL_RESTRICTION_BROWSER}/DONOR-015-portal-${width}.png`,fullPage:true})
+     await page.getByRole('checkbox',{name:'Do not ask me for donations.'}).check();await page.getByRole('button',{name:'Save do not solicit'}).click();await page.waitForURL('**/giving/portal/preferences?saved=1')
+     assert.ok(await page.getByRole('status').count());await page.screenshot({path:`${process.env.COFFER_PORTAL_RESTRICTION_BROWSER}/DONOR-015-portal-saved-${width}.png`,fullPage:true})
+    }
+   })
+  }
+
   const cancellation=await h.request('/giving/portal/cancel?subscription=sub_monthly',{as:donorCookie})
   assert.equal(cancellation.status,200)
   const cancelled=await h.request('/giving/portal/cancel',form({subscription:'sub_monthly',confirm:'yes'},donorCookie))
@@ -182,7 +216,12 @@ test('CAMP-001: recurring campaign progress; a failed monthly donation recovers 
   assert.equal((await history()).subscriptions[0].cancel_at_period_end,1)
   assert.equal((await history()).gifts.length,1,'Cancellation preserves the recovered gift')
   assert.equal((await summary()).recurring_donors,0)
+  const contact=(await history()).donor
+  await h.command('donor.update',{donorId:known.id,version:contact.version,name:contact.name,email:contact.email,phone:contact.phone,addressLine1:contact.address_line1,addressLine2:contact.address_line2,city:contact.city,region:contact.region,postalCode:contact.postal_code,country:contact.country,household:'Synthetic portal household'})
+  await donor(h,'Synthetic Portal Spouse',{email:contact.email,household:'Synthetic portal household'})
+  assert.equal((await h.request('/giving/portal/preferences',{as:donorCookie})).status,403,'A shared email does not authenticate one donor for preference writes')
   await h.command('donor.erase',{donorId:known.id,confirm:'ERASE'})
+  assert.equal((await h.request('/giving/portal/preferences',{as:donorCookie})).status,303)
   const expiredPortal=await h.request('/giving/portal',{as:donorCookie})
   assert.equal(expiredPortal.status,200)
   assert.doesNotMatch(await expiredPortal.text(),/name="subscription" value="sub_monthly"/)

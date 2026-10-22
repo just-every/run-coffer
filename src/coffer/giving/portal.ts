@@ -1,3 +1,4 @@
+import { donorRequestPage, saveDonorRequest } from './portal-preferences'
 import { runtimeBindings } from '../../auth.server'
 import { operatorMail } from '../../mail.server.mjs'
 import { all, email, fail, one, sha256 } from '../db'
@@ -7,7 +8,7 @@ import { cancellationPage, confirmationPage, invalidLinkPage, requestedPage, req
 
 const LINK_LIFETIME = 30 * 60_000, SESSION_LIFETIME = 60 * 60_000
 const TOKEN = /^[a-f0-9]{64}$/
-const routes = new Set(['/giving/portal', '/giving/portal/request', '/giving/portal/confirm', '/giving/portal/card', '/giving/portal/cancel'])
+const routes = new Set(['/giving/portal', '/giving/portal/request', '/giving/portal/confirm', '/giving/portal/card', '/giving/portal/cancel', '/giving/portal/preferences'])
 type Donor = { id: string; name: string; email: string | null }
 type Subscription = PortalSubscription & { customer_id: string; donor_id: string }
 type StripeSubscription = { id: string; customer: string | { id: string }; status: string; cancel_at_period_end: boolean }
@@ -103,7 +104,7 @@ async function session(request: Request, env: GivingEnv) {
  if (cookies.length !== 1) return null
  const token = cookies[0].slice(cookieName(env).length + 1)
  if (!TOKEN.test(token)) return null
- return one<Donor>(context(env), `SELECT d.id,d.name,d.email FROM cf_donor_tokens t JOIN cf_donors d ON d.id=t.donor_id
+ return one<Donor & {sessionHash:string}>(context(env), `SELECT d.id,d.name,d.email,t.token_hash AS sessionHash FROM cf_donor_tokens t JOIN cf_donors d ON d.id=t.donor_id
   WHERE t.token_hash=? AND t.kind='session' AND t.used_at IS NULL AND t.expires_at>? AND d.erased_at IS NULL`, await sha256(token), Date.now())
 }
 
@@ -227,6 +228,11 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
  if (path === '/giving/portal/confirm') return confirm(request, env, read ? url.searchParams.get('token') ?? '' : (await form(request)).get('token') ?? '')
  const donor = await session(request, env)
  if (!donor) return read && path === '/giving/portal' ? requestPage() : redirect('/giving/portal')
+ if (path === '/giving/portal/preferences') {
+  if(read)return donorRequestPage(env,donor,url.searchParams.get('saved')==='1')
+  await saveDonorRequest(env,donor,await form(request))
+  return redirect('/giving/portal/preferences?saved=1')
+ }
  if (path === '/giving/portal') {
   if (!read) fail('method_not_allowed', 'Use the portal buttons.', 405)
   return subscriptionsPage(donor.name, await all<Subscription>(context(env), `${subscriptionQuery} WHERE s.donor_id=? ORDER BY c.name,s.id`, donor.id), url.searchParams.get('cancelled') === '1')

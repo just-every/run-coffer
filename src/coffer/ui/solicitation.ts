@@ -1,12 +1,13 @@
 import { all, type Context, type Row } from '../db'
 import { solicitationState } from '../solicitation'
+import { SOLICITATION_PERIODS, SOLICITATION_PERIOD_LABELS, solicitationPeriodWindows, type SolicitationPeriod } from '../solicitation-periods'
 import { box, chip, e, field, form, select } from './common'
 
 export function solicitationBadge(state:Row|undefined):string {
  if(!state)return ''
  const inherited=(state.inherited??[]).filter((r:Row)=>r.active).map((r:Row)=>solicitationBadge(r)).join(' ')
  if(state.type==='none'||!state.active)return inherited
- const label=state.type==='stop'?'Do not solicit':state.type==='channels'?`No ${state.channels.join(', ')} appeals`:`At most ${state.max_asks} ask${state.max_asks===1?'':'s'} per calendar year`
+ const label=state.type==='stop'?'Do not solicit':state.type==='channels'?`No ${state.channels.join(', ')} appeals`:`At most ${state.max_asks} ask${state.max_asks===1?'':'s'} per ${SOLICITATION_PERIOD_LABELS[state.period as SolicitationPeriod].toLowerCase()}`
  return chip(label,'warn')+' '+inherited
 }
 
@@ -15,14 +16,16 @@ export async function solicitationPanel(c:Context,donorId:string):Promise<string
  const interactions=await all(c,'SELECT id,kind,occurred_on,notes FROM cf_interactions WHERE donor_id=? ORDER BY occurred_on DESC,recorded_at DESC',donorId)
  const request=interactions.find(i=>i.id===state.source_ref)
  const sourceName=({person:'Recorded by a person',portal:'Donor portal',interaction:'Logged donor request',import:'CRM import'} as Record<string,string>)[state.source]??state.source
- const explanation='<p>Restrictions apply to asks. Receipts, statements, pledge reminders and other transactional messages still go. Annual limits count asks across every channel from January 1 through December 31 in the organization’s time zone.</p>'
+ const windows=solicitationPeriodWindows(state.asOf)
+ const explanation='<p>Restrictions apply to asks. Receipts, statements, pledge reminders and other transactional messages still go. Limits count asks across every channel in the organization’s time zone and reset at the start of the chosen calendar period.</p>'+`<p>Current periods (both dates included): ${SOLICITATION_PERIODS.map(period=>`${e(SOLICITATION_PERIOD_LABELS[period])}: ${e(windows[period].start)} through ${e(windows[period].through)}`).join('; ')}.</p>`
  const current=state.version?`<p>${solicitationBadge(state)||e(state.type==='none'?'No solicitation restriction':'Restriction outside its active dates')}. From ${e(state.starts_on)}${state.ends_on?` through ${e(state.ends_on)}`:''}. Source: ${e(sourceName)}${state.source_ref?` · ${e(state.source==='interaction'?(request?request.kind+' request on '+request.occurred_on:'Earlier logged request'):state.source_ref)}`:''}, ${e(state.source_on)}. Recorded by ${e(state.recorded_by_name)}.</p>`:'<p>No solicitation restriction recorded.</p>'
  const editor=['owner','admin','member'].includes(c.actor.role)?form('solicitation.set',
-  select('Restriction','type',[['none','No restriction'],['stop','Do not solicit'],['channels','No asks on chosen channels'],['limit','Limit asks per calendar year']],state.type)+
+  select('Restriction','type',[['none','No restriction'],['stop','Do not solicit'],['channels','No asks on chosen channels'],['limit','Limit asks per calendar period']],state.type)+
   field('Start date','startsOn','date',state.starts_on??state.asOf,'required')+
   field('End date (optional)','endsOn','date',state.ends_on??'')+
   field('Restricted channels (email, mail, sms, phone)','channels','text',state.channels.join(', '))+
-  field('Maximum asks per calendar year','maxAsks','number',state.max_asks??1,'min="1" max="10000"')+
+  select('Limit period','period',SOLICITATION_PERIODS.map(period=>[period,SOLICITATION_PERIOD_LABELS[period]] as [string,string]),state.period)+
+  field('Maximum asks per calendar period','maxAsks','number',state.max_asks??1,'min="1" max="10000"')+
   select('Source','source',[['person','Recorded by a person'],['interaction','Donor request logged as an interaction']],'person')+
   select('Logged donor request','sourceRef',[['','Choose a request when the source is an interaction'],...interactions.map(i=>[i.id,`${i.occurred_on} · ${i.kind} · ${String(i.notes).slice(0,80)}`] as [string,string])],state.source==='interaction'?state.source_ref:'')+
   field('Source date','sourceOn','date',state.source_on??state.asOf,'required')+
