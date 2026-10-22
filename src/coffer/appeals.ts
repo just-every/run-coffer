@@ -80,6 +80,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (written && !String(p.body ?? '').trim()) fail('INPUT', 'Write the email message donors will receive, or clear the subject to export the list instead.', 400)
  const message = written ? {subject:text(p.subject,'Email subject',250),body:longText(p.body,'Email message',12000)} : null
   if(message){const fields=await customAllowed(c,[...LETTER,'last_gift']);checkTemplate(message.subject,'Appeal subject',fields,[]);checkTemplate(message.body,'Appeal message',fields,[])}
+  if(message&&templateTokens(message.subject+'\n'+message.body).some(t=>t.field.startsWith('custom.'))&&!['owner','admin'].includes(c.actor.role))fail('FORBIDDEN','Only an owner or admin chooses custom-data fields for a new appeal. Use an owner-reviewed template door for approved custom wording.',403)
   const addressPass=channel==='mail'?await mailPreflight(c,p.addressType||''):null
   const { recipients, excluded, lastAskDates } = await audience(c, channel, { givenSince, minTotalCents, fund, donorIds: c.actor.role==='member'?includes.map(x=>x.donorId):selection?.donorIds ?? donorIds, isAsk,addressType:p.addressType||'',emailType:channel==='email'?p.emailType||'':undefined, includeIds:includes.map(x=>x.donorId) })
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)

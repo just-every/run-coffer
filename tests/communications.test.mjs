@@ -201,6 +201,8 @@ test('DONOR-014: Connect Mango from the page, send an approved appeal to a Mango
   assert.equal(contacts.get(recorded.contacts[1].email).fields['custom.profile_interest'],'Supporter')
   const catalog=await h.get('/api/coffer/template-fields');assert.ok(catalog.messages.find(m=>m.kind==='appeal').fields.includes('custom.profile_interest'))
   const mergeInput={name:'Synthetic merged appeal',channel:'email',subject:'{{formal_salutation}} · {{custom.profile_interest|Supporter}}',body:'{{total_given}} · {{email}} · {{custom.profile_interest|Supporter}}'}
+  const customAgent=await h.command('agent.create',{label:'Synthetic custom-data boundary'})
+  await h.command('appeal.prepare',mergeInput,{as:'',headers:{authorization:'Bearer '+customAgent.token},status:403})
   await h.command('appeal.prepare',{...mergeInput,body:'{{unknown_field|fallback}}'},{status:400})
   await h.command('appeal.prepare',{...mergeInput,body:'{{custom.profile_interest|{{donor_name}}}}'},{status:400})
   const merged=await h.command('appeal.prepare',mergeInput),mergeDetail=await h.get('/api/coffer/appeals/'+merged.id)
