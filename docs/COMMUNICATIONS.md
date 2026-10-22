@@ -268,28 +268,37 @@ change was observed rather than inventing an exact day within that month.
 Malformed, mismatched or missing provider results refuse the batch; a provider
 failure never becomes an undeliverable flag.
 
-An enabled mail appeal consumes one fresh completed pass and freezes each
-recipient’s verified address fingerprint and check version in its reviewed
+Every new mail appeal requires an enabled reviewed address connection and a
+fresh completed unconsumed NCOA pass. Preparation consumes the pass and freezes
+each recipient’s verified address fingerprint and check version in its reviewed
 content. A changed check or address stops approval/export and requires a new
-pass. A current matching known-undeliverable result is excluded with the reason
-“undeliverable address” even if processing is subsequently disabled.
+pass. Older prepared or approved mail without address-check snapshots cannot be
+approved or first exported; already exported historical downloads remain
+available. Disconnected and restore-disabled installations cannot prepare new
+postal mail. Current matching known-undeliverable results remain excluded.
 
-DONOR-009 remains partial. With processing disabled, the legacy mail CSV door
-still permits unverified addresses without an NCOA pass. The full legacy
-verification gate remains unproved. Default ADOPTED, pending ct: new provider
-processing requires owner/admin authorization under a current signed PAF;
-unknown move days stay unknown, history uses the observed organization day,
-provider errors never imply undeliverability and existing matching known
-undeliverables remain excluded. The privacy/consent activation boundary needs
-ct’s ruling. These defaults do not narrow the target requirement to verify
-addresses and process movers before each mail appeal.
+DONOR-009 remains partial strictly pending ct’s ruling on the PAF
+privacy/consent activation boundary and observed-date move-day semantics.
+Default ADOPTED, pending ct: new provider processing requires owner/admin
+authorization under a current signed PAF; unknown move days stay unknown,
+history uses the observed organization day, provider errors never imply
+undeliverability and matching known-undeliverable addresses remain excluded.
+Manual entry while processing is disabled remains honestly unverified until
+provider processing is enabled. Future every-entry and importer doors,
+including DONOR-013 and MOVE-001 to MOVE-006/MOVE-008 expansions, inherit
+verification, sourced address history and before-mail pass/check obligations
+before shipping. No unproved entry/import behavior is claimed; these defaults
+do not narrow the original target or acceptance.
 
 `tests/coffer.test.mjs` — "DONOR-009: verified entry and licensed scheduled address passes preserve moves and exclude undeliverable mail"
 runs addressVerificationJourney in `tests/state-report-journey.mjs`. It proves
 standardized entry, the genuine 100-constituent scheduled pass, moved and
 undeliverable results, mail exclusions/export, sourced history and earlier-gift
 state attribution, malformed/outage refusal, replay/changed-check fences,
-donor-file privacy, restore-disabled custody and erasure. Native address-pass,
+donor-file privacy, disconnected/restore-disabled mail refusals and erasure.
+`tests/demo.test.mjs` — "the demo preserves frozen work, holds unverified postal mail and sends no invitation"
+asserts that an older approved mail appeal cannot first export without verified
+address snapshots. Native address-pass,
 mover/history, undeliverable and mail-review screens run at 1440/390. The Smarty
 and Melissa network edges are faked; no live provider delivery or acceptance is
 claimed. Root’s recorded run is 20261021T235854381977Z-heavy-slot-c1263138;

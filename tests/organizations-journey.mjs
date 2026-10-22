@@ -74,12 +74,12 @@ export async function organizationsJourney() {
   const propertyText=await (await h.request('/api/coffer/in-kind-acknowledgments/'+propertyAck.acknowledgmentId+'/download')).text()
   assert.match(propertyText,/Lakeside Community Foundation\nAttn: Dr. Maya Chen/);assert.match(propertyText,/Dear Maya,/)
   // Primary replacement is atomic; old prepared documents remain exact.
-  await h.command('organization.contact',{donorId:org.id,version:3,contactDonorId:owen.id,role:'Grants officer',primary:true})
+  await h.command('organization.contact',{donorId:org.id,version:(await detail()).donor.version,contactDonorId:owen.id,role:'Grants officer',primary:true})
   state=await detail();assert.deepEqual(state.organization.contacts.filter(r=>r.is_primary).map(r=>r.contact_donor_id),[owen.id])
   assert.equal((await h.get('/api/coffer/letters/'+batch.id)).letters[0].body,letter.body)
   // Contacts follow exact merge/undo custody without becoming financial credits.
   const duplicate=await donor(h,'Owen Duplicate')
-  const merged=await h.command('donor.merge',{donorId:duplicate.id,version:1,sourceDonorId:owen.id,sourceVersion:1,reason:'duplicate_record'})
+  const merged=await h.command('donor.merge',{donorId:duplicate.id,version:(await h.get('/api/coffer/donors/'+duplicate.id)).donor.version,sourceDonorId:owen.id,sourceVersion:(await h.get('/api/coffer/donors/'+owen.id)).donor.version,reason:'duplicate_record'})
   assert.equal((await detail()).organization.contacts.find(r=>r.is_primary).contact_donor_id,duplicate.id)
   await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'})
   assert.equal((await detail()).organization.contacts.find(r=>r.is_primary).contact_donor_id,owen.id)

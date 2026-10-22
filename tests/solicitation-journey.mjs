@@ -148,7 +148,7 @@ export async function solicitationJourney() {
   assert.equal(imported.canApply,true,JSON.stringify(imported.diagnostics))
   let job=await h.api('/api/coffer/move-in/apply',{id:imported.id,fingerprint:imported.fingerprint,acknowledged:'no'},options({}))
   while(job.state==='applying')job=await h.api('/api/coffer/move-in/continue',{id:imported.id},options({}))
-  const importedDonor=(await get('/api/coffer/donors')).donors.find(d=>d.name==='Rowan Ellis')
+  const importedDonor=(await get('/api/coffer/donors?q=Rowan%20Ellis')).donors.find(d=>d.name==='Rowan Ellis')
   await command('solicitation.set',{donorId:importedDonor.id,version:1,type:'limit',maxAsks:1,startsOn:day})
   await h.api('/api/coffer/move-in/undo',{id:imported.id},options({status:409}))
 
