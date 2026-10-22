@@ -220,7 +220,7 @@ acceptance or delivery claim.
 ## Postal address checks and mailing passes
 
 On Addresses, an owner or administrator can enable connected address processing
-with a current signed Processing Acknowledgement Form (PAF) reference and an
+with the signed Processing Acknowledgement Form (PAF) signer, signing date, licensee and reference, and an
 explicit reviewed authorization for current donors. The installation privately
 supplies SMARTY_AUTH_ID, SMARTY_AUTH_TOKEN and MELISSA_SMARTMOVER_KEY; the page
 never asks staff to enter provider keys. Provider credentials alone do not
@@ -245,7 +245,7 @@ Malformed, mismatched or missing provider results refuse the batch; a provider
 failure never becomes an undeliverable flag.
 
 Every new mail appeal requires an enabled reviewed address connection and a
-fresh completed unconsumed NCOA pass. Preparation consumes the pass and freezes
+completed unconsumed NCOA pass no older than 95 days at first export. Receipts, acknowledgments and statements never wait for address processing. Preparation consumes the pass and freezes
 each recipient’s verified address fingerprint and check version in its reviewed
 content. A changed check or address stops approval/export and requires a new
 pass. Older prepared or approved mail without address-check snapshots cannot be
@@ -253,18 +253,11 @@ approved or first exported; already exported historical downloads remain
 available. Disconnected and restore-disabled installations cannot prepare new
 postal mail. Current matching known-undeliverable results remain excluded.
 
-DONOR-009 remains partial strictly pending ct’s ruling on the PAF
-privacy/consent activation boundary and observed-date move-day semantics.
-Default ADOPTED, pending ct: new provider processing requires owner/admin
-authorization under a current signed PAF; unknown move days stay unknown,
-history uses the observed organization day, provider errors never imply
-undeliverability and matching known-undeliverable addresses remain excluded.
-Manual entry while processing is disabled remains honestly unverified until
-provider processing is enabled. Future every-entry and importer doors,
-including DONOR-013 and MOVE-001 to MOVE-006/MOVE-008 expansions, inherit
-verification, sourced address history and before-mail pass/check obligations
-before shipping. No unproved entry/import behavior is claimed; these defaults
-do not narrow the original target or acceptance.
+Ruled (ct 22 Oct): an owner or admin authorizes processing by recording the PAF's signer, signing date and licensee. Coffer shows the renewal as due 12 months after signing, and a licensee's PAF refusal stops processing without changing any address. Every new mail appeal needs a completed pass that it alone consumes, finished no more than 95 days before export. Receipts, acknowledgments and statements never wait on address processing. A move starts on the organization day it was observed. The provider's move month is shown beside it, and the by-state report counts gifts dated between the start of that month and the observed day. Errors and uncertain results never mark an address undeliverable.
+
+Legacy enabled connections are disabled by the upgrade until an owner/admin records these PAF fields. Renewals are due on the signing anniversary (February 29 clamps to February 28); a due label alone never claims that the licensee rejected the PAF. Melissa SE25–SE29 refusals stop processing without changing the batch’s addresses or checks. The completion bound is exactly 95 × 24 hours, inclusive, using UTC instants; future completion timestamps are refused. A previously exported historical download remains available. Distinct gift counts in move windows are appended to the state report and CSV, without changing monetary state attribution. Earlier observations lacking an explicit observed day use their audit timestamp in the organization time zone.
+
+Disabled entry remains honestly unverified. Future every-entry and importer doors, including DONOR-013 and MOVE-001 to MOVE-006/MOVE-008 expansions, inherit verification, sourced old-address history and before-mail pass/check obligations before shipping.
 
 `tests/coffer.test.mjs` — "DONOR-009: verified entry and licensed scheduled address passes preserve moves and exclude undeliverable mail"
 runs addressVerificationJourney in `tests/state-report-journey.mjs`. It proves

@@ -35,6 +35,8 @@ export async function runMelissaSmartMover(input: SmartMoverRequest, fetcher?: P
  if ('error' in response) return error(response.error)
  const body = object(response.value)
  if (!body || typeof body.TransmissionResults !== 'string') return error('invalid_response')
+ // Melissa documents SE25–SE29 as expired, missing, unmatched or unconfirmed PAF.
+ if(body.TransmissionResults.split(',').some(code=>['SE25','SE26','SE27','SE28','SE29'].includes(code.trim())))return error('paf_required')
  if (body.TransmissionResults.trim()) return error('provider_error')
  if (body.TransmissionReference !== input.transmissionReference || !Array.isArray(body.Records)) return error('invalid_response')
  const records = body.Records.map(object)
@@ -45,6 +47,7 @@ export async function runMelissaSmartMover(input: SmartMoverRequest, fetcher?: P
   if (!record || typeof record.RecordID !== 'string' || !ids.has(record.RecordID) || seen.has(record.RecordID)) return error('invalid_response')
   const codes = resultCodes(record.Results)
   if (!codes?.length) return error('invalid_response')
+  if(codes.some(code=>['SE25','SE26','SE27','SE28','SE29'].includes(code)))return error('paf_required')
   if (codes.some(code => code.startsWith('SE') || code.startsWith('GE'))) return error('provider_error')
   // Requested code fields must remain strings; never persist their raw values.
   if (record.MoveReturnCode !== undefined && typeof record.MoveReturnCode !== 'string') return error('invalid_response')

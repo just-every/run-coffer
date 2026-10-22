@@ -38,11 +38,11 @@ export function sourceRestrictions(r:SourceRow,out:ParsedImport,input:ParseInput
    else mapping.channels.forEach(c=>restricted.add(c))
   }
   if(mapping.type==='limit') {
-   if(!Number.isSafeInteger(mapping.maxAsks)||mapping.maxAsks!<1||mapping.maxAsks!>10000)r.error('SOLICITATION_MAPPING',`Annual limit for “${code}” must be a positive whole number up to 10,000.`)
+   if(!Number.isSafeInteger(mapping.maxAsks)||mapping.maxAsks!<1||mapping.maxAsks!>10000)r.error('SOLICITATION_MAPPING',`Rolling 12-month limit for “${code}” must be a positive whole number up to 10,000.`)
    else limit=limit===null?mapping.maxAsks!:Math.min(limit,mapping.maxAsks!)
   }
  }
- if(!stop&&restricted.size&&limit!==null){r.error('SOLICITATION_COMBINATION','A channel restriction plus an annual limit needs a staff review; one must not silently replace the other.');return}
+ if(!stop&&restricted.size&&limit!==null){r.error('SOLICITATION_COMBINATION','A channel restriction plus a rolling 12-month limit needs a staff review; one must not silently replace the other.');return}
  out.solicitations??=[];out.channelWithdrawals??=[]
  if(stop||restricted.size||limit!==null) {
   const row:ParsedSolicitation={location:r.location,externalId:`solicitation:${donorExternalId}`,donorExternalId,type:stop?'stop':restricted.size?'channels':'limit',channels:stop?[]:[...restricted].sort(),maxAsks:stop||restricted.size?null:limit,sourceOn,codes}

@@ -40,7 +40,7 @@ export async function prepareVerifiedMail(h,{headers={}}={}) {
  }
  let state=await h.get('/api/coffer/addresses',options)
  if(!state.connection.enabled){
-  await h.command('address.processing',{version:state.connection.version,enabled:'yes',pafReference:'synthetic-coffer-4',reviewed:'yes'},options)
+  await h.command('address.processing',{version:state.connection.version,enabled:'yes',pafSigner:'Synthetic Coffer Signer',pafSignedOn:'2025-01-01',pafLicensee:'Melissa',pafReference:'synthetic-coffer-4',reviewed:'yes'},options)
  }
  const queued=await h.command('address.queueNcoa',{},options)
  state=await h.get('/api/coffer/addresses',options)

@@ -100,7 +100,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (command === 'appeal.approve') {
   if (appeal.status !== 'prepared') fail('NOT_PREPARED', 'Only a prepared appeal can be approved.')
   if (await hashOf(appeal.name, appeal.channel, await recipientsOf(c, appealId),await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId)) !== appeal.content_hash) fail('CONTENT_CHANGED', 'This audience no longer matches what was prepared. Discard it and prepare again.')
-  await commit(c, [at(['prepared']), consent, ...mailRunGuards(appealId), ...await solicitationRunGuards(c,'appeal',appealId),
+  await commit(c, [at(['prepared']), consent, ...mailRunGuards(c,appealId), ...await solicitationRunGuards(c,'appeal',appealId),
    sql('INSERT INTO cf_approvals VALUES(?,?,?,?,?,?,?,?,?,?,?)', newId(), 'appeal', appealId, appeal.content_hash, appeal.prepared_by_id, appeal.prepared_by_name, appeal.prepared_by_role, c.actor.id, c.actor.name, c.actor.role, c.now),
    bump('approved'), event(c, 'appeal.approve', 'appeal', appealId, null, { recipients: appeal.recipients, preparedBy: appeal.prepared_by_role })])
   return { id: appealId, version: version + 1, status: 'approved' }
@@ -115,7 +115,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   if (!['approved', 'exported', 'sent'].includes(appeal.status)) fail('NOT_APPROVED', 'A person must approve this audience before it is exported.')
   if (appeal.status !== 'approved') return { id: appealId, version, status: appeal.status, exportHash: appeal.export_hash }
   const hash = await sha256(recipientsCsv(appeal, await recipientsOf(c, appealId)))
-  await commit(c, [at(['approved']), consent, ...mailRunGuards(appealId), ...await solicitationAskStatements(c,'appeal',appealId), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'appeal.export', 'appeal', appealId, null, { recipients: appeal.recipients })])
+  await commit(c, [at(['approved']), consent, ...mailRunGuards(c,appealId), ...await solicitationAskStatements(c,'appeal',appealId), bump('exported', ',export_hash=?,exported_at=?,exported_by=?', hash, c.now, c.actor.name), event(c, 'appeal.export', 'appeal', appealId, null, { recipients: appeal.recipients })])
   return { id: appealId, version: version + 1, status: 'exported', exportHash: hash }
  }
  const sentOn = date(p.sentOn, 'Sent on')

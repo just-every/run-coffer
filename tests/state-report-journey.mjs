@@ -36,10 +36,10 @@ export async function stateReportJourney() {
   const r = await report(), row = label => r.rows.find(x => x.label === label || x.state === label)
   assert.deepEqual(r.rows.map(x => x.state ?? x.label), ['CA', 'IL', 'MN', 'NY', 'WI', 'Outside the United States', 'Unknown address'])
   // Moe's March gift and its later reversal stay in Illinois; the move day and later count in New York.
-  assert.deepEqual(row('IL'), { state: 'IL', label: 'Illinois', donors: 2, gifts: 3, amountCents: 10000 + 2000 })
-  assert.deepEqual(row('NY'), { state: 'NY', label: 'New York', donors: 1, gifts: 2, amountCents: 9000 })
-  assert.deepEqual(row('CA'), { state: 'CA', label: 'California', donors: 1, gifts: 2, amountCents: 2500 })
-  assert.deepEqual(row('WI'), { state: 'WI', label: 'Wisconsin', donors: 1, gifts: 2, amountCents: 30000 })
+  assert.deepEqual(row('IL'), { state: 'IL', label: 'Illinois', donors: 2, gifts: 3, amountCents: 10000 + 2000, moveWindowGifts: 0 })
+  assert.deepEqual(row('NY'), { state: 'NY', label: 'New York', donors: 1, gifts: 2, amountCents: 9000, moveWindowGifts: 0 })
+  assert.deepEqual(row('CA'), { state: 'CA', label: 'California', donors: 1, gifts: 2, amountCents: 2500, moveWindowGifts: 0 })
+  assert.deepEqual(row('WI'), { state: 'WI', label: 'Wisconsin', donors: 1, gifts: 2, amountCents: 30000, moveWindowGifts: 0 })
   assert.equal(row('MN').amountCents, 50000, 'an organization counts by its own address')
   assert.deepEqual([row('Outside the United States').amountCents, row('Unknown address').amountCents], [4000, 3000])
   // Rows sum to the ledger: the fund report for the same period agrees to the cent.
@@ -65,9 +65,9 @@ export async function stateReportJourney() {
   const csv = await h.request('/api/coffer/reports/states.csv?year=2026')
   assert.match(csv.headers.get('content-disposition'), /coffer-giving-by-state\.csv/)
   const lines = csvRows(await csv.text())
-  assert.equal(lines[0], '"State","State name","Donors","Gifts","Amount USD"')
-  assert.ok(lines.includes('"NY","New York","1","2","90.00"'))
-  assert.equal(lines.at(-1), `"","Total (ledger)","","","${(ledger / 100).toFixed(2)}"`)
+  assert.equal(lines[0], '"State","State name","Donors","Gifts","Amount USD","Gifts in observed move windows"')
+  assert.ok(lines.includes('"NY","New York","1","2","90.00","0"'))
+  assert.equal(lines.at(-1), `"","Total (ledger)","","","${(ledger / 100).toFixed(2)}","0"`)
   assert.match(await (await h.request('/app/reports/states?year=2026')).text(), /Giving by state[\s\S]*New York/)
 
   // Custody: history survives backup/restore and merge/undo exactly; erasure removes it.
@@ -97,7 +97,8 @@ export async function stateReportJourney() {
  * Smarty and licensed NCOA HTTP edges are faked. The list has 100 genuine test
  * constituents, rather than production padding to evade a provider minimum. */
 export async function addressVerificationJourney(){
- const smarty=[],ncoa=[];let rejectSmarty=false,malformedNcoa=false,failNcoa=false,moverId,badId
+ const smarty=[],ncoa=[];let rejectSmarty=false,malformedNcoa=false,failNcoa=false,pafRefused=false,alreadyMoved=false,moverId,badId
+ let at=new Date().toISOString()
  const edge=async request=>{
   const host=new URL(request.url).hostname,body=await request.json()
   if(host==='us-street.api.smarty.com'){
@@ -107,19 +108,30 @@ export async function addressVerificationJourney(){
   }
   assert.equal(host,'smartmover.melissadata.net');assert.equal(request.method,'POST');ncoa.push(body)
   assert.equal(body.Actions,'NCOA');assert.equal(body.CustomerID,'synthetic-coffer-903');assert.equal(body.Records.length,100)
+  if(pafRefused)return Response.json({TransmissionResults:'SE25',TransmissionReference:body.TransmissionReference,TotalRecords:'0',Records:[]})
   if(failNcoa)return new Response('unavailable',{status:503})
-  const records=body.Records.map(r=>({...r,CountryCode:'US',Plus4:'1234',Results:r.RecordID===badId?'AE04':r.RecordID===moverId?'AS01,CS01':'AS01',MoveReturnCode:r.RecordID===moverId?'A':'00',...(r.RecordID===moverId?{AddressLine1:'9 MOVER ST',City:'ALBANY',State:'NY',PostalCode:'12207',MoveEffectiveDate:'202609'}:{})}))
+  const records=body.Records.map(r=>({...r,CountryCode:'US',Plus4:'1234',Results:r.RecordID===badId?'AE04':r.RecordID===moverId&&!alreadyMoved?'AS01,CS01':'AS01',MoveReturnCode:r.RecordID===moverId&&!alreadyMoved?'A':'00',...(r.RecordID===moverId&&!alreadyMoved?{AddressLine1:'9 MOVER ST',City:'ALBANY',State:'NY',PostalCode:'12207',MoveEffectiveDate:'202609'}:{})}))
   if(malformedNcoa)records[1].RecordID=records[0].RecordID
   return Response.json({TransmissionResults:'',TransmissionReference:body.TransmissionReference,TotalRecords:String(records.length),Records:records})
  }
- await run(async h=>{
+ await run(async base=>{
+  const withClock=options=>({...options,headers:{...options?.headers,'x-test-now':at}})
+  const h={...base,command:(name,input,options)=>base.command(name,input,withClock(options)),get:(path,options)=>base.get(path,withClock(options)),request:(path,options)=>base.request(path,withClock(options)),api:(path,input,options)=>base.api(path,input,withClock(options))}
+
   await reviewed(h)
   const member=await h.person('synthetic-coffer-904@example.test'),getAddress=id=>h.get('/api/coffer/donors/'+id+'/addresses')
-  const processing=version=>h.command('address.processing',{version,enabled:'yes',pafReference:'synthetic-coffer-905',reviewed:'yes'})
-  await h.command('address.processing',{version:0,enabled:'yes',pafReference:'synthetic-coffer-905',reviewed:'yes'},{as:member.cookie,status:403})
+  const processing=version=>h.command('address.processing',{version,enabled:'yes',pafSigner:'Synthetic Coffer Signer',pafSignedOn:'2025-01-01',pafLicensee:'Melissa',pafReference:'synthetic-coffer-905',reviewed:'yes'})
+  await h.command('address.processing',{version:0,enabled:'yes',pafSigner:'Synthetic Coffer Signer',pafSignedOn:'2025-01-01',pafLicensee:'Melissa',pafReference:'synthetic-coffer-905',reviewed:'yes'},{as:member.cookie,status:403})
   await h.get('/api/coffer/addresses',{as:member.cookie,status:403});await h.get('/api/coffer/addresses',{as:'',status:401})
   assert.equal((await h.command('appeal.prepare',{name:'Unconnected mailing',channel:'mail'},{status:409})).error,'NCOA_NOT_CONNECTED')
+  const paf={version:0,enabled:'yes',pafSigner:'Synthetic Coffer Signer',pafSignedOn:'2025-01-01',pafLicensee:'Melissa',pafReference:'synthetic-coffer-905',reviewed:'yes'}
+  for(const key of ['pafSigner','pafSignedOn','pafLicensee'])await h.command('address.processing',{...paf,[key]:''},{status:400})
+  await h.command('address.processing',{...paf,pafSignedOn:'2999-01-01'},{status:400})
   await processing(0)
+  const connection=(await h.get('/api/coffer/addresses')).connection
+  assert.deepEqual([connection.paf_signer,connection.paf_signed_on,connection.paf_licensee,connection.renewalDueOn,connection.renewalDue],['Synthetic Coffer Signer','2025-01-01','Melissa','2026-01-01',true])
+  assert.match(await (await h.request('/app/addresses')).text(),/PAF renewal due/)
+
   const maya=await donor(h,'Synthetic Address Maya',{email:'synthetic-coffer-906@example.test',addressLine1:'1 maple street'});moverId=maya.id
   let history=await h.get('/api/coffer/donors/'+maya.id)
   assert.equal(history.donor.address_line1,'1 MAPLE ST');assert.equal(history.donor.postal_code,'62701-1234')
@@ -129,6 +141,7 @@ export async function addressVerificationJourney(){
   const permission=d=>h.command('consent.record',{donorIds:[d.id],channel:'mail',status:'granted',method:'paper form',evidence:'synthetic-coffer-908',capturedOn:'2025-01-01'})
   await permission(maya);await permission(undeliverable)
   await h.command('gift.record',{donorId:maya.id,amount:'100',receivedOn:'2025-01-01',method:'check',goods:'none'})
+  await h.command('gift.record',{donorId:maya.id,amount:'25',receivedOn:'2026-09-15',method:'check',goods:'none'})
   const short=await h.command('address.queueNcoa',{}, {status:409});assert.equal(short.error,'NCOA_LIST_TOO_SMALL');assert.equal(ncoa.length,0)
   for(let i=0;i<98;i++)await donor(h,'Synthetic Address Supporter '+i,{email:`synthetic-coffer-${1000+i}@example.test`,addressLine1:`${i+10} maple street`})
   rejectSmarty=true
@@ -138,9 +151,9 @@ export async function addressVerificationJourney(){
   const prepare=()=>h.command('appeal.prepare',{name:'Autumn address-reviewed mailing',channel:'mail'})
   const queued=await h.command('appeal.prepare',{name:'Autumn address-reviewed mailing',channel:'mail'},{status:409})
   assert.equal(queued.error,'NCOA_PENDING');assert.equal(ncoa.length,0,'Preparing a pass sends no unreviewed mailing or immediate NCOA request')
-  const tick=async()=>{const response=await h.mf.dispatchFetch(h.origin+'/cdn-cgi/local/scheduled?time='+Date.now()+'&format=json');assert.equal(response.status,200,await response.text())}
+  const tick=async()=>{at=new Date(Date.parse(at)+1000).toISOString();const response=await h.request('/cdn-cgi/local/scheduled?time='+Date.parse(at)+'&format=json');assert.equal(response.status,200,await response.text())}
   await tick();await tick()
-  assert.equal(ncoa.length,1,'The actual minute scheduler processes this pass once')
+  assert.equal(ncoa.length,1,'The actual minute scheduler processes this pass once');alreadyMoved=true
   assert.equal((await h.get('/api/coffer/addresses')).runs[0].state,'completed')
   history=await h.get('/api/coffer/donors/'+maya.id)
   assert.equal(history.donor.region,'NY');assert.equal(history.donor.address_line1,'9 MOVER ST')
@@ -149,6 +162,11 @@ export async function addressVerificationJourney(){
   assert.ok(move.history.some(r=>r.region==='IL'&&r.source==='ncoa'),'The mover retains the original Illinois address with NCOA provenance')
   assert.equal((await getAddress(undeliverable.id)).check.status,'undeliverable')
   const report=await h.get('/api/coffer/reports/states?year=2025');assert.equal(report.rows.find(r=>r.state==='IL').amountCents,10000);assert.ok(!report.rows.some(r=>r.state==='NY'),'Earlier gifts remain in the earlier state')
+  const moveWindow=await h.get('/api/coffer/reports/states?year=2026')
+  assert.equal(moveWindow.moveWindowGiftCount,1)
+  assert.equal(moveWindow.rows.find(r=>r.state==='IL').moveWindowGifts,1,'The September gift is counted in the move window while retaining its earlier Illinois state')
+  assert.equal(moveWindow.totalCents,2500)
+  const windowCsv=await (await h.request('/api/coffer/reports/states.csv?year=2026')).text();assert.match(windowCsv,/Gifts in observed move windows/);assert.match(windowCsv,/"IL","Illinois","1","1","25.00","1"/)
   const appeal=await prepare();assert.equal(appeal.recipients,1);assert.equal(appeal.excluded['undeliverable address'],1)
   await h.command('appeal.approve',{appealId:appeal.id,version:1})
   // Re-verification invalidates a frozen check even if the address stays valid.
@@ -165,6 +183,37 @@ export async function addressVerificationJourney(){
   await h.command('address.queueNcoa');await tick()
   const approved=await prepare();await h.command('appeal.approve',{appealId:approved.id,version:1});await h.command('appeal.export',{appealId:approved.id,version:2})
   const file=await h.request('/api/coffer/appeals/'+approved.id+'/recipients.csv');assert.equal(file.status,200);assert.match(await file.text(),/9 MOVER ST/)
+  const savedAt=at
+  // Create and approve through real public doors under the historical clock,
+  // then first export at day 96. No database timestamp injection is used.
+  at=new Date(Date.parse(savedAt)-96*86400000).toISOString()
+  await h.command('address.queueNcoa');await tick()
+  const stale=await prepare();await h.command('appeal.approve',{appealId:stale.id,version:1})
+  const stalePass=(await h.get('/api/coffer/addresses')).runs.filter(r=>r.state==='completed'&&r.completed_at<savedAt).sort((a,b)=>a.completed_at.localeCompare(b.completed_at))[0]
+  at=new Date(Date.parse(stalePass.completed_at)+95*86400000).toISOString()
+  assert.equal((await h.get('/api/coffer/appeals/'+stale.id)).addressChanged,false,'The completed pass remains valid exactly 95 days later')
+  at=savedAt
+  assert.equal((await h.command('appeal.export',{appealId:stale.id,version:2},{status:409})).error,'NCOA_STALE')
+  assert.equal((await h.get('/api/coffer/appeals/'+stale.id)).appeal.status,'approved','A stale pass exports nothing')
+  await h.command('appeal.discard',{appealId:stale.id,version:2})
+  at=new Date(Date.parse(savedAt)-95*86400000-1000).toISOString()
+  await h.command('address.queueNcoa');await tick()
+  const boundary=await prepare();await h.command('appeal.approve',{appealId:boundary.id,version:1})
+  at=savedAt
+  assert.equal((await h.command('appeal.export',{appealId:boundary.id,version:2})).status,'exported','First export is allowed exactly 95 days after completion')
+  const beforePaf=(await h.get('/api/coffer/donors/'+maya.id)).donor,beforePafCheck=(await getAddress(maya.id)).check
+  await h.command('address.queueNcoa');pafRefused=true;await tick();pafRefused=false
+  assert.equal((await h.get('/api/coffer/addresses')).connection.enabled,0,'A licensee PAF refusal disables further processing')
+  assert.equal((await h.get('/api/coffer/addresses')).runs[0].reason,'paf_required')
+  assert.deepEqual((await h.get('/api/coffer/donors/'+maya.id)).donor,beforePaf)
+  assert.deepEqual((await getAddress(maya.id)).check,beforePafCheck,'PAF refusal changes neither addresses nor deliverability')
+  const disabledStatement=await h.command('ack.prepareStatements',{year:2025,donorId:maya.id});assert.ok(disabledStatement.id,'Year-end statements never wait for address processing')
+  const disabledGift=await h.command('gift.record',{donorId:maya.id,amount:'300',receivedOn:at.slice(0,10),method:'check',goods:'none'})
+  const disabledAck=await h.command('ack.prepare',{giftIds:[disabledGift.id]});assert.ok(disabledAck.id,'Acknowledgments and receipts never wait for address processing')
+  await h.command('ack.approve',{batchId:disabledAck.id,version:1})
+  const calls=ncoa.length;await tick();assert.equal(ncoa.length,calls,'Disabled processing does not retry the refused pass')
+  assert.equal((await h.request('/api/coffer/appeals/'+approved.id+'/recipients.csv')).status,200,'Already exported historical downloads stay available')
+  await processing((await h.get('/api/coffer/addresses')).connection.version)
   const ownFile=await h.api('/api/coffer/donors/'+maya.id+'/data-request',{requestedOn:new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),method:'email'})
   const ownText=JSON.stringify(ownFile);assert.ok(ownText.includes('ncoa')&&ownText.includes('9 MOVER ST'));assert.ok(!ownText.includes('Synthetic Address Rowan')&&!ownText.includes('synthetic-coffer-1000@example.test'),'The donor file contains their address records without other constituents')
   const backup=await archive(h)
@@ -176,6 +225,7 @@ export async function addressVerificationJourney(){
     const page=await context.newPage()
     for(const width of [1440,390]){
      await page.setViewportSize({width,height:1500});await page.goto(origin+'/app/addresses');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-passes-${width}.png`,fullPage:true})
+     await page.goto(origin+'/app/reports/states?year=2026');assert.ok(await page.getByRole('columnheader',{name:'Gifts in move windows'}).count());assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-move-window-${width}.png`,fullPage:true})
      await page.goto(origin+'/app/donors/'+maya.id);await page.locator('#address-verification details').evaluate(el=>el.open=true);await page.locator('#address-verification').screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-move-${width}.png`})
      await page.goto(origin+'/app/donors/'+undeliverable.id);await page.locator('#address-verification').screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-undeliverable-${width}.png`})
      await page.goto(origin+'/app/appeals/'+approved.id);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${process.env.COFFER_ADDRESS_BROWSER}/DONOR-009-mail-${width}.png`,fullPage:true})
@@ -185,5 +235,5 @@ export async function addressVerificationJourney(){
   }
   await h.command('donor.erase',{donorId:maya.id,confirm:'ERASE'})
   const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes('Synthetic Address Maya')&&!erased.includes('9 MOVER ST'))
- },{triggerHandlers:true,bindings:{SMARTY_AUTH_ID:'synthetic-coffer-901',SMARTY_AUTH_TOKEN:'synthetic-coffer-902',MELISSA_SMARTMOVER_KEY:'synthetic-coffer-903'},outbound:edge})
+ },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,bindings:{SMARTY_AUTH_ID:'synthetic-coffer-901',SMARTY_AUTH_TOKEN:'synthetic-coffer-902',MELISSA_SMARTMOVER_KEY:'synthetic-coffer-903'},outbound:edge})
 }

@@ -5,8 +5,8 @@ import { exportSteps } from './crm-export-steps'
 export const sources: [string,string][]=[['lgl','Little Green Light'],['bloomerang','Bloomerang'],['re-nxt',"Raiser's Edge NXT"]]
 const name=(source:string)=>sources.find(([key])=>key===source)?.[1]||source
 const sourceGuide=guide('move-in-crm')
-const codeMeaning=(rule:any)=>rule.type==='stop'?'Do not solicit':rule.type==='ignore'?'Ordinary tag, ignored':rule.type==='channels'?'No '+rule.channels.join(', ')+' appeals':`At most ${rule.maxAsks} asks per calendar year`
-const restrictionMapping=()=>`<details><summary>Map organization-specific communication codes</summary><p>For each code in your exports, write one line: <strong>code = stop</strong>, <strong>code = no mail</strong> (or email, phone, sms), <strong>code = limit 1</strong> (annual asks), or <strong>code = ignore</strong> for an ordinary tag. NXT codes always need this review. Known LGL and Bloomerang Do Not Contact flags retain their channel consent meaning automatically. Your last completed mapping is reused for the same CRM.</p>${area('Code meanings','solicitCodes','','placeholder="Annual appeal only = limit 1&#10;No fundraising = stop"')}</details>`
+const codeMeaning=(rule:any)=>rule.type==='stop'?'Do not solicit':rule.type==='ignore'?'Ordinary tag, ignored':rule.type==='channels'?'No '+rule.channels.join(', ')+' appeals':`At most ${rule.maxAsks} asks per rolling 12 months`
+const restrictionMapping=()=>`<details><summary>Map organization-specific communication codes</summary><p>For each code in your exports, write one line: <strong>code = stop</strong>, <strong>code = no mail</strong> (or email, phone, sms), <strong>code = limit 1</strong> (asks per rolling 12 months), or <strong>code = ignore</strong> for an ordinary tag. NXT codes always need this review. Known LGL and Bloomerang Do Not Contact flags retain their channel consent meaning automatically. Your last completed mapping is reused for the same CRM.</p>${area('Code meanings','solicitCodes','','placeholder="Annual appeal only = limit 1&#10;No fundraising = stop"')}</details>`
 
 
 export function crmMoveInPage(jobs:Row[],tz:string) {

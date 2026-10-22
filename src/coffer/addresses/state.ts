@@ -1,4 +1,5 @@
-import { all, one, sha256, sql, type Context, type Row, type Stmt } from '../db'
+import { settings } from '../settings'
+import { all, one, today, sha256, sql, type Context, type Row, type Stmt } from '../db'
 import type { PostalAddress, SmartyResult } from './providers/types'
 
 export const postalAddress=(d:Row):PostalAddress=>({street:d.address_line1??'',street2:d.address_line2??'',city:d.city??'',state:d.region??'',postalCode:d.postal_code??'',country:d.country??'United States'})
@@ -13,7 +14,14 @@ export function checkStatement(donorId:string,fingerprint:string,result:SmartyRe
 export async function addressState(c:Context,donorId?:string):Promise<Row> {
  const connection=await addressProcessing(c)
  const runs=await all(c,'SELECT id,state,total,processed,created_at,completed_at,reason FROM cf_ncoa_runs ORDER BY created_at DESC LIMIT 20')
- if(!donorId)return {connection,runs}
+ if(!donorId){
+  const day=today((await settings(c)).timezone,new Date(c.now))
+  const signed=connection.paf_signed_on
+  const renewalYear=signed?Number(signed.slice(0,4))+1:0,month=signed?Number(signed.slice(5,7)):1
+  const renewalDay=signed?Math.min(Number(signed.slice(8)),new Date(Date.UTC(renewalYear,month,0)).getUTCDate()):1
+  const renewalDueOn=signed?new Date(Date.UTC(renewalYear,month-1,renewalDay)).toISOString().slice(0,10):null
+  return {connection:{...connection,renewalDueOn,renewalDue:Boolean(renewalDueOn&&day>=renewalDueOn)},runs}
+ }
  const [donor,check,history]=await Promise.all([
  one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=cf_donors.id)',donorId),
  one(c,'SELECT * FROM cf_address_checks WHERE donor_id=?',donorId),

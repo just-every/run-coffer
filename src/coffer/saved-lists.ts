@@ -50,6 +50,6 @@ async function bulkSolicitation(c:Context,p:Row){
  if(!rows.length||rows.length>500)fail('INPUT','A bulk restriction action needs 1–500 active constituents. Narrow the saved list.',400)
  const writes=[]
  for(const row of rows)writes.push(...(await solicitationWriteStatements(c,{...p,donorId:row.id,version:row.version,source:'person',sourceRef:reason})).statements)
- await commit(c,[guard('EXISTS(SELECT 1 FROM cf_saved_lists WHERE id=? AND version=?)','VERSION','The saved list changed.',listId,version),...writes,event(c,'list.solicitation','saved_list',listId,null,{version,count:rows.length,reason,type:p.type})])
+ await commit(c,[guard('EXISTS(SELECT 1 FROM cf_saved_lists WHERE id=? AND version=?)','VERSION','The saved list changed.',listId,version),guard(`(WITH ${selection.ctes} SELECT (SELECT COUNT(*) FROM members)=? AND NOT EXISTS(SELECT 1 FROM members WHERE id NOT IN(SELECT value FROM json_each(?))))`,'LIST_CHANGED','List membership changed. Refresh before the bulk action.',...selection.params,rows.length,JSON.stringify(rows.map(r=>r.id))),...writes,event(c,'list.solicitation','saved_list',listId,null,{version,count:rows.length,reason,type:p.type})])
  return {id:listId,changed:rows.length}
 }

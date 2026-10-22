@@ -1,5 +1,6 @@
+import { settings } from '../settings'
 import { requireRole } from '../auth'
-import { all, commit, event, fail, guard, integer, newId, one, sql, text, type Context, type Row } from '../db'
+import { all, commit, date, event, fail, guard, integer, newId, one, sql, text, today, type Context, type Row } from '../db'
 import { verifyExistingAddress } from './entry'
 import { addressFingerprint, addressProcessing } from './state'
 
@@ -33,12 +34,15 @@ export async function addressCommand(c:Context,command:string,p:Row):Promise<Row
  if(command==='address.queueNcoa')return queueNcoa(c)
  const version=integer(Number(p.version),'Version',0),enabled=p.enabled===true||p.enabled==='yes'
  const reference=enabled?text(p.pafReference,'Signed current PAF reference',200):null
+ const signer=enabled?text(p.pafSigner,'PAF signer',200):null,licensee=enabled?text(p.pafLicensee,'PAF licensee',200):null
+ const signedOn=enabled?date(p.pafSignedOn,'PAF signing date'):null
+ if(signedOn&&signedOn>today((await settings(c)).timezone,new Date(c.now)))fail('INPUT','PAF signing date cannot be in the future.',400)
  if(enabled&&p.reviewed!=='yes')fail('INPUT','Confirm that this account has a current signed Processing Acknowledgement Form and authorize processing these constituents.',400)
  if(enabled&&(!c.env?.SMARTY_AUTH_ID||!c.env.SMARTY_AUTH_TOKEN||!c.env.MELISSA_SMARTMOVER_KEY))fail('ADDRESS_CREDENTIALS','Configure the private Smarty and Melissa SmartMover credentials before enabling address processing.',409)
  const current=await addressProcessing(c)
  if(current.version!==version)fail('VERSION','Address processing changed. Refresh.')
  await commit(c,[guard('COALESCE((SELECT version FROM cf_address_processing WHERE id=1),0)=?','VERSION','Address processing changed. Refresh.',version),
- sql('INSERT INTO cf_address_processing VALUES(1,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,enabled=excluded.enabled,paf_reference=excluded.paf_reference,reviewed_at=excluded.reviewed_at,reviewed_by=excluded.reviewed_by',version+1,enabled?1:0,reference,c.now,c.actor.id),
- sql("UPDATE cf_ncoa_runs SET state='cancelled',reason='Address processing configuration changed.' WHERE state IN('queued','processing')"),event(c,command,'address_processing','1',null,{enabled,version:version+1})])
+ sql('INSERT INTO cf_address_processing(id,version,enabled,paf_reference,reviewed_at,reviewed_by,paf_signer,paf_signed_on,paf_licensee) VALUES(1,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,enabled=excluded.enabled,paf_reference=COALESCE(excluded.paf_reference,paf_reference),reviewed_at=excluded.reviewed_at,reviewed_by=excluded.reviewed_by,paf_signer=COALESCE(excluded.paf_signer,paf_signer),paf_signed_on=COALESCE(excluded.paf_signed_on,paf_signed_on),paf_licensee=COALESCE(excluded.paf_licensee,paf_licensee)',version+1,enabled?1:0,reference,c.now,c.actor.id,signer,signedOn,licensee),
+ sql("UPDATE cf_ncoa_runs SET state='cancelled',reason='Address processing configuration changed.' WHERE state IN('queued','processing')"),event(c,command,'address_processing','1',null,{enabled,version:version+1,paf:enabled?{signer,signedOn,licensee,reference}:null})])
  return {version:version+1,enabled}
 }

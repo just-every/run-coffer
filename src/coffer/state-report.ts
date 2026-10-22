@@ -47,17 +47,21 @@ export async function stateReport(c: Context, url: URL) {
   FROM e JOIN cf_donors d ON d.id=e.donor_id CROSS JOIN (SELECT ? AS choice,? AS day) sf
   LEFT JOIN cf_donor_address_history h ON h.id=(SELECT x.id FROM cf_donor_address_history x WHERE x.donor_id=e.donor_id AND x.until_on>e.gift_on ORDER BY x.until_on,x.id LIMIT 1) WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')}`,
   period.start, period.end, fund, fund, campaignId, campaignId, channel, channel, formId, formId,solicitation,asOf)
- const groups = new Map<string, { donors: Set<string>; gifts: Set<string>; cents: number }>()
+ const observations=await all(c,"SELECT donor_id,at,json_extract(detail,'$.moveEffectiveMonth') AS month,json_extract(detail,'$.observedOn') AS observed FROM cf_events WHERE action='address.ncoa' AND json_extract(detail,'$.result')='moved' AND json_extract(detail,'$.moveEffectiveMonth') IS NOT NULL")
+ const windows=new Map<string,{start:string;through:string}[]>()
+ for(const o of observations){const group=windows.get(o.donor_id)??[];group.push({start:o.month+'-01',through:o.observed??today(s.timezone,new Date(o.at))});windows.set(o.donor_id,group)}
+ const inMoveWindow=(e:Row)=>(windows.get(e.donor_id)??[]).some(w=>e.gift_on>=w.start&&e.gift_on<=w.through)
+ const groups = new Map<string, { donors: Set<string>; gifts: Set<string>; moveWindowGifts:Set<string>; cents: number }>()
  for (const e of entries) {
-  const key = stateOf(e.region, e.country), g = groups.get(key) ?? { donors: new Set(), gifts: new Set(), cents: 0 }
-  g.donors.add(e.donor_id); g.gifts.add(e.gift_id); g.cents += Number(e.amount_cents); groups.set(key, g)
+  const key = stateOf(e.region, e.country), g = groups.get(key) ?? { donors: new Set(), gifts: new Set(), moveWindowGifts:new Set(), cents: 0 }
+  g.donors.add(e.donor_id); g.gifts.add(e.gift_id);if(inMoveWindow(e))g.moveWindowGifts.add(e.gift_id); g.cents += Number(e.amount_cents); groups.set(key, g)
  }
  const order = (k: string) => k === FOREIGN ? 'zz1' : k === UNKNOWN ? 'zz2' : STATES[k]
  const rows: Row[] = [...groups].sort(([a], [b]) => order(a).localeCompare(order(b))).map(([key, g]) => ({
-  state: STATES[key] ? key : null, label: STATES[key] ?? key, donors: g.donors.size, gifts: g.gifts.size, amountCents: g.cents }))
+  state: STATES[key] ? key : null, label: STATES[key] ?? key, donors: g.donors.size, gifts: g.gifts.size,moveWindowGifts:g.moveWindowGifts.size, amountCents: g.cents }))
  return {
   basis, year, start: period.start, through: year === current ? asOf : addDay(period.end, -1), filters: { fund, campaignId, formId, channel, solicitation },
-  rows, totalCents: rows.reduce((sum, r) => sum + r.amountCents, 0),
+  rows,moveWindowGiftCount:new Set(entries.filter(inMoveWindow).map(e=>e.gift_id)).size, totalCents: rows.reduce((sum, r) => sum + r.amountCents, 0),
   campaigns: await all(c, 'SELECT id,name,slug FROM cf_campaigns ORDER BY lower(name)'), funds: (await all(c, 'SELECT DISTINCT fund FROM cf_fund_ledger ORDER BY fund')).map(r => r.fund),
  }
 }
@@ -65,7 +69,7 @@ const addDay = (day: string, n: number) => new Date(Date.parse(day + 'T00:00:00Z
 
 export function stateReportCsv(report: Awaited<ReturnType<typeof stateReport>>) {
  const cell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
- const lines = [['State', 'State name', 'Donors', 'Gifts', 'Amount USD'], ...report.rows.map(r => [r.state ?? '', r.label, r.donors, r.gifts, dollars(r.amountCents)]),
-  ['', 'Total (ledger)', '', '', dollars(report.totalCents)]]
+ const lines = [['State', 'State name', 'Donors', 'Gifts', 'Amount USD','Gifts in observed move windows'], ...report.rows.map(r => [r.state ?? '', r.label, r.donors, r.gifts, dollars(r.amountCents),r.moveWindowGifts]),
+  ['', 'Total (ledger)', '', '', dollars(report.totalCents),report.moveWindowGiftCount]]
  return lines.map(r => r.map(cell).join(',')).join('\r\n') + '\r\n'
 }

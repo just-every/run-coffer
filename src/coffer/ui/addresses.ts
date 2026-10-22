@@ -62,6 +62,9 @@ export async function addressesPage(c: Context): Promise<string> {
  const connection = state.connection, enabled = Number(connection.enabled) === 1
  const editor = form('address.processing',
   select('Address processing', 'enabled', [['no', 'Disabled'], ['yes', 'Enabled']], enabled ? 'yes' : 'no') +
+  field('PAF signer','pafSigner','text',connection.paf_signer??'','maxlength="200"')+
+  field('PAF signing date','pafSignedOn','date',connection.paf_signed_on??'')+
+  field('PAF licensee','pafLicensee','text',connection.paf_licensee??'','maxlength="200"')+
   field('Current signed PAF reference', 'pafReference', 'text', connection.paf_reference ?? '', 'maxlength="200"') +
   '<p>A Processing Acknowledgement Form (PAF) authorizes the licensed change-of-address provider to process this organization’s donor list. Keep the signed form current with your provider.</p>' +
   '<label><input type="checkbox" name="reviewed" value="yes"> I confirm this account has a current signed PAF and authorize address processing for the organization’s current donors when enabled.</label>',
@@ -79,7 +82,7 @@ export async function addressesPage(c: Context): Promise<string> {
  }).join('')
  return box('Address processing', `<p>${chip(enabled ? 'Enabled' : 'Disabled', enabled ? 'ok' : '')}</p>
   <p>When enabled, Coffer standardizes US addresses as they are entered, checks addresses before postal mail and queues a National Change of Address (NCOA) pass before a postal appeal. Earlier addresses remain in the donor’s history.</p>
-  <p>Connect Smarty and Melissa SmartMover privately on this installation before enabling processing. Provider credentials are never entered on this page.</p>${editor}`, 'address-processing') +
+  <p>Connect Smarty and Melissa SmartMover privately on this installation before enabling processing. Provider credentials are never entered on this page.</p>${connection.renewalDueOn?`<p>${chip(connection.renewalDue?'PAF renewal due':'PAF renewal scheduled',connection.renewalDue?'warn':'')} · ${e(connection.renewalDueOn)} (12 months after signing). Recorded signer: ${e(connection.paf_signer)}; licensee: ${e(connection.paf_licensee)}. The licensee decides whether the PAF is accepted; a refusal disables processing without changing addresses.</p>`:''}${editor}`, 'address-processing') +
   box('Prepare an address pass', '<p>Melissa requires at least 100 genuine unique names and addresses. Coffer never pads a list or submits fabricated records. Only eligible active donors with complete US addresses enter the pass.</p><p>The minute scheduler processes one batch of up to 100 unique names and addresses at a time. Refresh this page to see progress. Failed or uncertain outcomes are never automatically retried.</p>' +
    (enabled ? form('address.queueNcoa', '', 'Prepare address pass') : empty('Enable address processing with a current signed PAF before preparing a pass.'))) +
   box('Recent address passes', runs ? `<ul class="list">${runs}</ul>` : empty('No address passes have been prepared yet.'), 'address-passes')

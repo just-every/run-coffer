@@ -96,8 +96,8 @@ export async function solicitationWriteStatements(c:Context,p:Row,trustedSource?
  if(!Array.isArray(channels))fail('INPUT','Choose restricted channels.',400)
  const selected=[...new Set(channels.map(v=>choice(v,SOLICITATION_CHANNELS,'restricted channel')))].sort()
  if(type==='channels'&&!selected.length)fail('INPUT','Choose at least one restricted channel.',400)
- const period=choice(p.period??'rolling-12-months',SOLICITATION_PERIODS,'calendar limit period')
- const maxAsks=type==='limit'?integer(Number(p.maxAsks),'Asks per calendar period',1,10000):null
+ const period=choice(p.period??'rolling-12-months',SOLICITATION_PERIODS,'limit period')
+ const maxAsks=type==='limit'?integer(Number(p.maxAsks),'Asks per period',1,10000):null
  const source=choice(p.source??'person',['person','portal','interaction','import'] as const,'restriction source')
  const sourceRef=optional(p.sourceRef,'Source reference',500),sourceOn=date(p.sourceOn??await calendarDay(c),'Source date')
  // Portal/import provenance must be supplied by those trusted adapters, never
