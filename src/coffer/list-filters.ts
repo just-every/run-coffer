@@ -12,7 +12,7 @@ export function advancedFilters(p:Row):Record<string,string>{
  choice(result.ackStatus,['','not acknowledged','acknowledged','do not acknowledge'],'acknowledgment status')
  choice(result.status,['','active','inactive','deceased','all'],'constituent status')
  if(Boolean(result.customKey)!==Boolean(result.customValue))fail('INPUT','Choose a custom field key and value together.',400)
- return result
+ return Object.fromEntries(Object.entries(result).filter(([,value])=>value!==''))
 }
 /** SQL identifiers below are fixed by our caller; all filter values are JSON parameters. */
 export function advancedListSql(definition:string,donor='d') {
@@ -21,7 +21,7 @@ export function advancedListSql(definition:string,donor='d') {
  const sum=`COALESCE((SELECT SUM(amount_cents) FROM (${history})),0)`
  const last=`(SELECT MAX(received_on) FROM cf_gift_balances WHERE donor_id=${donor}.id AND net_cents>0)`
  const consent=(channel:string)=>`(${f(channel+'Consent')}='' OR COALESCE((SELECT status FROM cf_consents WHERE donor_id=${donor}.id AND channel='${channel}' ORDER BY id DESC LIMIT 1),'unknown')=${f(channel+'Consent')})`
- return `(${f('minGiven')}='' OR ${sum}>=CAST(round(CAST(${f('minGiven')} AS REAL)*100) AS INTEGER))
+ return `(${f('status')}='' OR ${f('status')}='all' OR ${donor}.constituent_status=${f('status')}) AND (${f('minGiven')}='' OR ${sum}>=CAST(round(CAST(${f('minGiven')} AS REAL)*100) AS INTEGER))
  AND (${f('maxGiven')}='' OR ${sum}<=CAST(round(CAST(${f('maxGiven')} AS REAL)*100) AS INTEGER))
  AND (${f('fund')}='' AND ${f('campaignId')}='' OR EXISTS(${history}))
  AND (${f('lastGiftFrom')}='' OR ${last}>=${f('lastGiftFrom')}) AND (${f('lastGiftThrough')}='' OR ${last}<=${f('lastGiftThrough')})
