@@ -1,3 +1,5 @@
+import { pledgeTemplatePanel } from './ui/pledge-template'
+import { pledgeTemplateFields, pledgeTemplate, pledgeMergeReview } from './pledge-templates'
 import { welcomePanel } from './communications/welcome-ui'
 import { ackMailPieces,printableAckPieces } from './ack-mail-pieces'
 import { contributionTypeState } from './contribution-types'
@@ -270,6 +272,12 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if ((path === '/api/coffer/commands' || path === '/app/actions') && request.method === 'POST') {
    const data = path === '/app/actions' ? await formInput(await formBody(request, 400000)) : await jsonBody(request), command = String(data.command), input = data.input ?? data
+   if(!isApi&&command==='pledgeTemplate.save'&&input.insertField==='yes'){
+    if(!manager(actor))fail('FORBIDDEN','Only an owner or admin edits reminder wording.',403)
+    const fields=await pledgeTemplateFields(c),field=String(input.fieldKey),target=input.fieldTarget==='subject'?'subject':'body'
+    if(!fields.includes(field))fail('TEMPLATE','Choose a published reminder field.',400)
+    return page('Pledge reminder draft',await pledgeTemplatePanel(c,{...input,[target]:String(input[target]??'')+'{{'+field+'}}'}),actor,200,'/app/settings')
+   }
    if(!isApi&&command==='welcome.publish'&&input.insertField==='yes'){
     if(!manager(actor))fail('FORBIDDEN','Only an owner or admin edits welcome messages.',403)
     if((await welcomeState(c)).activeCount)fail('WELCOME_ACTIVE','Finish active journeys before changing the published messages.')
@@ -352,7 +360,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   { sql: 'INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_giving_customers WHERE donor_id=?', params: [placeholder, donorId] },
   { sql: "INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT source_ref,? FROM cf_donors WHERE id=? AND source='stripe' AND source_ref IS NOT NULL", params: [placeholder, donorId] },
   { sql: 'DELETE FROM cf_donor_merges WHERE donor_id=?', params: [donorId] },
-  { sql: 'UPDATE cf_pledge_installments SET recipient_email=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL,message_id=NULL,attempt_id=NULL WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', params: [placeholder] },
+  { sql: 'UPDATE cf_pledge_installments SET reminder_subject=NULL,reminder_body=NULL,reminder_template_version=NULL,reminder_merge_blanks=NULL,reminder_merge_checked_at=NULL,recipient_email=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL,message_id=NULL,attempt_id=NULL WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', params: [placeholder] },
   { sql: 'DELETE FROM cf_donor_tokens WHERE donor_id=?', params: [donorId] },
   {sql:"DELETE FROM cf_appeal_pieces WHERE EXISTS(SELECT 1 FROM json_each(members) WHERE value=?) OR EXISTS(SELECT 1 FROM json_each(snapshot,'$.gifts') g WHERE json_extract(g.value,'$.donorId')=?)",params:[donorId,donorId]},
   {sql:'DELETE FROM cf_donor_tags WHERE donor_id=?',params:[donorId]},
@@ -374,6 +382,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
+ if(command==='pledgeTemplate.save')return redirect('/app/settings?saved=1#pledge-template')
  if(command==='custom.define')return redirect('/app/settings?saved=1#custom-field-definitions')
  if(command==='custom.set'||command==='custom.clear')return redirect('/app/donors/'+encodeURIComponent(result.donorId)+'?customRecord='+encodeURIComponent(input.recordId)+'#custom-fields')
  if(command==='inKind.review')return page('Property merge review',`<h2>${esc(result.recipientName)}</h2>${result.fields.length?'<p>Empty fields to correct before approval:</p><ul>'+result.fields.map((f:string)=>'<li>'+esc(f)+'</li>').join('')+'</ul>':'<p>No empty merge fields.</p>'}<h3>${esc(result.subject)}</h3><pre>${esc(result.body)}</pre><p><a href="/app/donors/${encodeURIComponent(result.donorId)}#in-kind">Return to the property record</a></p>`,actor,200,'/app/donors')
@@ -454,6 +463,8 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 
 async function api(c: Context, url: URL): Promise<Response> {
  const members=url.pathname.match(/^\/api\/coffer\/lists\/([^/]+)\/members$/);if(members){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reads a saved list.',403);return json({donorIds:(await listMembers(c,decodeURIComponent(members[1]))).ids})}
+ if(url.pathname==='/api/coffer/pledge-template'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reads reminder wording.',403);return json(await pledgeTemplate(c))}
+ if(url.pathname==='/api/coffer/pledge-reminders/review'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reviews all reminders.',403);return json({recipients:await pledgeMergeReview(c)})}
  if(url.pathname==='/api/coffer/custom-fields'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages custom fields.',403);return json({fields:await customFields(c)})}
  if(url.pathname==='/api/coffer/lists')return json({lists:await savedLists(c)})
  if(url.pathname==='/api/coffer/template-fields')return json(await publishedTemplateFields(c))

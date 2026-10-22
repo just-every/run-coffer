@@ -171,3 +171,60 @@ test('STEW-004: scheduled overdue pledge tasks use local dates, current managers
  await tick(h,'2030-06-20T12:00:00Z')
  assert.equal((await tasks(h)).some(t=>t.donor_id===main.id),false)
 },{triggerHandlers:true}))
+
+test('RCPT-010 / DONOR-013: reviewed pledge templates hold blanks, freeze literal wording and use the chosen current email once',async()=>{
+ const messages=[]
+ const reminders=()=>messages.filter(m=>m.subject.startsWith('Reminder '))
+ await run(async h=>{
+  await reviewed(h)
+  const {recognitionMember}=await import('./recognition-edge.mjs'),member=await recognitionMember(h,{messages},'synthetic-coffer-1402@example.test')
+  await h.command('custom.define',{key:'pledge_phrase',label:'Pledge phrase',kind:'constituent',type:'text'})
+  await h.command('custom.define',{key:'contact_reason',label:'Contact reason',kind:'interaction',type:'text'})
+  const catalog=await h.get('/api/coffer/template-fields'),entry=catalog.messages.find(m=>m.kind==='pledge')
+  for(const key of ['custom.pledge_phrase','installment_amount','due_date','email','pledge_balance'])assert.ok(entry.fields.includes(key))
+  const current=await h.get('/api/coffer/pledge-template');assert.equal(current.version,1);assert.equal(current.reviewed_at,null)
+  const body='Dear {{donor_name}}, {{installment_amount}} for {{fund}} is due {{due_date}} to {{organization}}. {{custom.pledge_phrase}} · {{custom.contact_reason|Your commitment}} · {{email}} · balance {{pledge_balance}}.'
+  const input={version:1,subject:'Reminder {{custom.pledge_phrase}}',body}
+  await h.command('pledgeTemplate.save',{...input,body:body+' {{unknown|fallback}}'},{status:400})
+  await h.command('pledgeTemplate.save',{...input,body:body.replace('{{due_date}}','')},{status:400})
+  await h.command('pledgeTemplate.save',input,{as:member,status:403})
+  await h.get('/api/coffer/pledge-template',{as:'',status:401})
+  const directory=process.env.COFFER_PLEDGE_MERGE_BROWSER
+  if(directory){const {mkdir}=await import('node:fs/promises');const {withBrowserWorker}=await import('./browser-worker.mjs');await mkdir(directory,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/settings#pledge-template');const editor=page.locator('#pledge-template form');await editor.locator('select[name=fieldKey]').selectOption('custom.pledge_phrase');await editor.locator('select[name=fieldTarget]').selectOption('subject');await editor.getByRole('button',{name:'Insert merge field',exact:true}).click();await page.getByRole('heading',{name:'Pledge reminder draft',exact:true}).waitFor();assert.match(await page.locator('input[name=subject]').inputValue(),/\{\{custom\.pledge_phrase\}\}$/);assert.equal((await h.get('/api/coffer/pledge-template')).version,1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/RCPT-010-pledge-insert-'+width+'.png',fullPage:true})}await page.close()})}
+  assert.equal((await h.command('pledgeTemplate.save',input)).version,2)
+  await h.command('pledgeTemplate.save',input,{status:409})
+  const d=await donor(h,'Synthetic Pledge Merge',{email:'synthetic-coffer-1404@example.test'})
+  const work=await h.command('contact.save',{donorId:d.id,donorVersion:1,kind:'email',type:'work',value:'synthetic-coffer-1405@example.test',source:'synthetic-coffer-1406'})
+  await h.command('consent.record',{donorId:d.id,channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-1407',capturedOn:'2025-01-01'})
+  const interaction=await h.command('interaction.record',{donorId:d.id,kind:'call',occurredOn:'2025-08-10',notes:'Synthetic planning conversation'})
+  await h.command('custom.set',{key:'contact_reason',recordId:interaction.id,value:'Planning call'})
+  const create=amount=>h.command('pledge.create',{donorId:d.id,amount,pledgedOn:'2025-01-01',fund:'Library',installments:[{dueOn:day(2),amount}]})
+  const pledge=await create('50'),history=()=>h.get('/api/coffer/donors/'+d.id)
+  const held=await h.command('pledge.remind',{pledgeId:pledge.id,emailType:'work'})
+  assert.equal(held.submitted,0);assert.deepEqual(held.held[0].fields,['custom.pledge_phrase']);assert.equal(reminders().length,0)
+  let installment=(await history()).pledges.find(p=>p.id===pledge.id).installments[0]
+  assert.equal(installment.reminder_status,'pending');assert.equal(installment.attempt_id,null);assert.equal(installment.reminder_body,null)
+  const review=await h.get('/api/coffer/pledge-reminders/review');assert.equal(review.recipients[0].donorId,d.id);assert.deepEqual(review.recipients[0].fields,['custom.pledge_phrase'])
+  if(directory){const {withBrowserWorker}=await import('./browser-worker.mjs');await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/settings#pledge-template');await page.getByRole('heading',{name:'Empty reminder fields',exact:true}).waitFor();assert.equal(await page.locator('#pledge-template').getByRole('link',{name:'Synthetic Pledge Merge',exact:true}).count(),1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.locator('#pledge-template').screenshot({path:directory+'/RCPT-010-pledge-held-'+width+'.png'})}await page.close()})}
+  await h.command('custom.set',{key:'pledge_phrase',recordId:d.id,value:'Thank you {{literal}}',source:'synthetic-coffer-1408'})
+  assert.equal((await h.command('pledge.remind',{pledgeId:pledge.id,emailType:'work',interactionId:interaction.id})).submitted,1)
+  assert.equal(reminders().length,1);const sent=reminders()[0]
+  installment=(await history()).pledges.find(p=>p.id===pledge.id).installments[0]
+  assert.equal(installment.recipient_email,'synthetic-coffer-1405@example.test');assert.equal(installment.recipient_contact_id,work.id);assert.equal(installment.reminder_template_version,2)
+  assert.equal(sent.personalizations[0].to[0].email,'synthetic-coffer-1405@example.test');assert.equal(sent.subject,installment.reminder_subject);assert.equal(sent.content[0].value,installment.reminder_body)
+  assert.match(sent.subject,/Thank you \{\{literal\}\}/);assert.match(sent.content[0].value,/\$50\.00/);assert.match(sent.content[0].value,/Planning call · synthetic-coffer-1405@example.test · balance \$50\.00/)
+  assert.equal((await history()).donor.email,'synthetic-coffer-1404@example.test')
+  assert.equal((await h.command('pledge.remind',{pledgeId:pledge.id,emailType:'work'})).submitted,0)
+  assert.deepEqual((await h.get('/api/coffer/pledge-reminders/review')).recipients,[])
+  await h.command('custom.set',{key:'pledge_phrase',recordId:d.id,version:1,value:'After preparation'})
+  const replacement={version:2,subject:'Reminder {{custom.pledge_phrase|Supporter}}',body:body.replaceAll('{{custom.pledge_phrase}}','{{custom.pledge_phrase|Supporter}}')}
+  await h.command('pledgeTemplate.save',replacement)
+  assert.equal((await history()).pledges.find(p=>p.id===pledge.id).installments[0].reminder_body,installment.reminder_body,'Later field and template changes preserve the exact submitted wording')
+  await h.command('custom.clear',{key:'pledge_phrase',recordId:d.id,version:2})
+  const second=await create('30');assert.equal((await h.command('pledge.remind',{pledgeId:second.id})).submitted,1)
+  assert.equal(reminders().at(-1).subject,'Reminder Supporter');assert.equal(reminders().at(-1).personalizations[0].to[0].email,'synthetic-coffer-1404@example.test')
+  if(directory){const {withBrowserWorker}=await import('./browser-worker.mjs');await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){const native=await create('10');await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/donors/'+d.id+'#pledge-'+native.id);let panel=page.locator('#pledge-'+native.id);const send=panel.locator('form').filter({has:page.locator('input[name=command][value="pledge.remind"]')});await send.locator('select[name=emailType]').selectOption('work');await send.locator('select[name=interactionId]').selectOption(interaction.id);await send.getByRole('button',{name:'Send due reminders',exact:true}).click();await page.waitForURL('**/app/donors/**');panel=page.locator('#pledge-'+native.id);await panel.getByText('Read reminder wording · version 3',{exact:true}).click();assert.ok((await panel.innerText()).includes('Supporter · Planning call'));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.locator('#pledges').screenshot({path:directory+'/DONOR-013-pledge-contact-'+width+'.png'});const saved=(await history()).pledges.find(p=>p.id===native.id).installments[0];assert.equal(saved.recipient_contact_id,work.id);assert.equal(saved.reminder_status,'submitted')}await page.close()})}
+  const saved=await archive(h)
+  await run(async fresh=>{await restore(fresh,saved);assert.equal((await fresh.get('/api/coffer/pledge-template')).version,3);const copy=(await fresh.get('/api/coffer/donors/'+d.id)).pledges.find(p=>p.id===pledge.id).installments[0];assert.equal(copy.reminder_body,installment.reminder_body);assert.equal(copy.reminder_template_version,2);await fresh.command('donor.erase',{donorId:d.id,confirm:'ERASE'});assert.doesNotMatch(JSON.stringify(await archive(fresh)),/synthetic-coffer-1404|synthetic-coffer-1405|Thank you \{\{literal\}\}|After preparation/)})
+ },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1401',MAIL_FROM:'reminders@example.test'},outbound:async request=>{const u=new URL(request.url);assert.equal(u.origin,'https://api.sendgrid.com');assert.equal(u.pathname,'/v3/mail/send');messages.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-1403-'+messages.length}})}})
+})

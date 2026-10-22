@@ -3,6 +3,7 @@
 // through here; the API and the audit CSV keep the codes.
 
 const ACTIONS: Record<string, string> = {
+ 'pledgeTemplate.save':'Pledge reminder wording reviewed',
  'contact.save':'Contact point saved', 'custom.define':'Custom field defined', 'custom.set':'Custom value saved', 'custom.clear':'Custom value cleared',
  'list.save':'Live list saved', 'list.bulk':'List tags and manager changed', 'list.undo':'List changes undone', 'list.profile':'List profiles changed', 'list.profileUndo':'List profile changes undone', 'list.tasks':'List call tasks created', 'list.welcome':'List welcome enrollment reviewed', 'list.solicitation':'List solicitation restrictions changed',
  'solicitation.set':'Solicitation restriction saved', 'solicitation.include':'One-run inclusion recorded', 'solicitation.import':'Solicitation restriction imported', 'solicitation.resolveMerged':'Original merged restriction resolved', 'solicitation.mergeCustody':'Merged communication choices preserved',

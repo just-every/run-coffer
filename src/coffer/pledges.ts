@@ -1,3 +1,4 @@
+import { renderPledgeReminder } from './pledge-templates'
 import { adjustPledge, linkPledgePlan } from './pledge-adjustments'
 import type { Bindings } from '../auth.server'
 import { sendSendGrid, SendGridSendError } from '../modules/mail/src/sendgrid-email/index.mjs'
@@ -110,51 +111,46 @@ const eligible = `(SELECT status FROM cf_consents k WHERE k.donor_id=d.id AND k.
  AND d.erased_at IS NULL AND d.constituent_status='active' AND d.email IS NOT NULL
  AND NOT EXISTS(SELECT 1 FROM cf_acks bad WHERE bad.donor_id=d.id AND bad.recipient_email=d.email AND bad.delivery_status IN ('bounced','complained'))`
 
-async function remind(c: Context, p: Row): Promise<Row> {
- const unavailable = pledgeMailUnavailable(c.env)
- if (unavailable) fail('mail_unavailable', unavailable, 503)
- const donorId = optional(p.donorId, 'Donor', 100), pledgeId = optional(p.pledgeId, 'Pledge', 100)
- const s = await settings(c), day = today(s.timezone, new Date(c.now))
- // A terminated Worker may have submitted its claimed email. Never reclaim it.
- await commit(c, [sql("UPDATE cf_pledge_installments SET reminder_status='uncertain',reminder_note='Submission was interrupted. Check SendGrid before contacting the donor. No automatic resend.' WHERE reminder_status='sending' AND attempt_started_at<=?", new Date(Date.parse(c.now) - 15 * 60_000).toISOString())])
- const due = await all(c, `SELECT i.id FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id
-  JOIN cf_donors d ON d.id=p.donor_id WHERE i.reminder_status='pending' AND i.remind_on<=? AND i.paid_cents<i.amount_cents
-  AND (? IS NULL OR p.donor_id=?) AND (? IS NULL OR p.id=?) AND ${eligible} ORDER BY i.remind_on,i.id LIMIT 8`, day, donorId, donorId, pledgeId, pledgeId)
- // Counted under their reason; a restored constituent's reminder is still pending and resumes.
- const held = await all(c, `SELECT d.constituent_status AS status,count(*) AS n FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
-  WHERE i.reminder_status='pending' AND i.remind_on<=? AND i.paid_cents<i.amount_cents AND (? IS NULL OR p.donor_id=?) AND (? IS NULL OR p.id=?) AND d.constituent_status<>'active' AND d.erased_at IS NULL GROUP BY d.constituent_status`, day, donorId, donorId, pledgeId, pledgeId)
- let submitted = 0, uncertain = 0, rejected = 0
- for (const row of due) {
-  const attempt = newId()
-  await commit(c, [sql(`UPDATE cf_pledge_installments SET reminder_status='sending',attempt_id=?,attempt_started_at=?,recipient_email=(SELECT d.email FROM cf_pledges p JOIN cf_donors d ON d.id=p.donor_id WHERE p.id=pledge_id),recipient_contact_id=(SELECT cp.id FROM cf_contact_points cp JOIN cf_pledges p ON p.donor_id=cp.donor_id WHERE p.id=pledge_id AND cp.kind='email' AND cp.active=1 AND cp.is_primary=1),recipient_contact_version=(SELECT cp.version FROM cf_contact_points cp JOIN cf_pledges p ON p.donor_id=cp.donor_id WHERE p.id=pledge_id AND cp.kind='email' AND cp.active=1 AND cp.is_primary=1)
+async function remind(c:Context,p:Row):Promise<Row>{
+ const unavailable=pledgeMailUnavailable(c.env);if(unavailable)fail('mail_unavailable',unavailable,503)
+ const donorId=optional(p.donorId,'Donor',100),pledgeId=optional(p.pledgeId,'Pledge',100)
+ if(p.interactionId&&!donorId&&!pledgeId)fail('INPUT','Choose one donor or pledge when selecting an interaction.',400)
+ const s=await settings(c),day=today(s.timezone,new Date(c.now))
+ await commit(c,[sql("UPDATE cf_pledge_installments SET reminder_status='uncertain',reminder_note='Submission was interrupted. Check SendGrid before contacting the donor. No automatic resend.' WHERE reminder_status='sending' AND attempt_started_at<=?",new Date(Date.parse(c.now)-15*60_000).toISOString())])
+ const due=await all(c,`SELECT i.*,p.donor_id FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
+  WHERE i.reminder_status='pending' AND i.remind_on<=? AND i.paid_cents<i.amount_cents AND (? IS NULL OR p.donor_id=?) AND (? IS NULL OR p.id=?) AND ${eligible}
+  ORDER BY COALESCE(i.reminder_merge_checked_at,''),i.remind_on,i.id LIMIT 8`,day,donorId,donorId,pledgeId,pledgeId)
+ const heldStatus=await all(c,`SELECT d.constituent_status AS status,count(*) AS n FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id WHERE i.reminder_status='pending' AND i.remind_on<=? AND i.paid_cents<i.amount_cents AND (? IS NULL OR p.donor_id=?) AND (? IS NULL OR p.id=?) AND d.constituent_status<>'active' AND d.erased_at IS NULL GROUP BY d.constituent_status`,day,donorId,donorId,pledgeId,pledgeId)
+ let submitted=0,uncertain=0,rejected=0;const held:Row[]=[]
+ for(const row of due){
+  const rendered=await renderPledgeReminder(c,row,{emailType:p.emailType||undefined,interactionId:p.interactionId||undefined}),r=rendered.recipient,blanks:string[]=JSON.parse(rendered.merge_blanks)
+  if(rendered.settingsVersion!==s.version)fail('SETTINGS_CHANGED','The organization calendar changed. Run reminders again.')
+  const bounced=r.email?await one(c,"SELECT 1 FROM cf_acks WHERE donor_id=? AND recipient_email=? AND delivery_status IN ('bounced','complained')",row.donor_id,r.email):null
+  if(blanks.length||!r.email||!r.selected_email_contact_id||bounced){
+   const note=blanks.length?'Missing merge fields: '+blanks.join(', ')+'. No email was submitted.':bounced?'The selected email has bounced or complained. No email was submitted.':'No selected email contact. No email was submitted.'
+   await commit(c,[sql("UPDATE cf_pledge_installments SET reminder_merge_blanks=?,reminder_merge_checked_at=?,reminder_note=? WHERE id=? AND reminder_status='pending'",rendered.merge_blanks,c.now,note,row.id)])
+   held.push({donorId:row.donor_id,installmentId:row.id,fields:blanks,reason:note});continue
+  }
+  const attempt=newId()
+  await commit(c,[sql(`UPDATE cf_pledge_installments SET reminder_status='sending',attempt_id=?,attempt_started_at=?,recipient_email=?,recipient_contact_id=?,recipient_contact_version=?,reminder_subject=?,reminder_body=?,reminder_template_version=?,reminder_merge_blanks='[]',reminder_merge_checked_at=?
    WHERE id=? AND reminder_status='pending' AND EXISTS(SELECT 1 FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
-   WHERE i.id=cf_pledge_installments.id AND i.remind_on<=? AND i.paid_cents<i.amount_cents AND ${eligible})`, attempt, c.now, row.id, day)])
-  const i = await one(c, `SELECT i.*,p.donor_id,p.fund,d.name,d.email FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id WHERE i.id=? AND i.attempt_id=? AND i.reminder_status='sending' AND ${eligible}`, row.id, attempt)
-  if (!i || i.paid_cents >= i.amount_cents || i.email !== i.recipient_email) {
-   await c.db.prepare("UPDATE cf_pledge_installments SET reminder_status='skipped',recipient_email=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL,reminder_note='The balance or recipient changed before submission. No email was sent.' WHERE id=? AND attempt_id=? AND reminder_status='sending'").bind(row.id, attempt).run()
-   continue
+    WHERE i.id=cf_pledge_installments.id AND i.remind_on<=? AND i.paid_cents<i.amount_cents AND ${eligible} AND d.version=? AND i.amount_cents-i.paid_cents=?
+    AND EXISTS(SELECT 1 FROM cf_contact_points cp WHERE cp.id=? AND cp.version=? AND cp.value=? AND cp.donor_id=d.id AND cp.kind='email' AND cp.active=1))
+   AND EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?) AND EXISTS(SELECT 1 FROM cf_pledge_template WHERE id=1 AND version=?)`,attempt,c.now,r.email,r.selected_email_contact_id,r.selected_email_contact_version,rendered.subject,rendered.body,rendered.templateVersion,c.now,row.id,day,rendered.donorVersion,rendered.remainingCents,r.selected_email_contact_id,r.selected_email_contact_version,r.email,rendered.settingsVersion,rendered.templateVersion)])
+  const i=await one(c,`SELECT i.*,p.donor_id,p.fund FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id WHERE i.id=? AND i.attempt_id=? AND i.reminder_status='sending' AND ${eligible}
+   AND EXISTS(SELECT 1 FROM cf_contact_points cp WHERE cp.id=i.recipient_contact_id AND cp.version=i.recipient_contact_version AND cp.value=i.recipient_email AND cp.active=1)`,row.id,attempt)
+  if(!i||i.amount_cents-i.paid_cents!==rendered.remainingCents||i.recipient_email!==r.email){
+   await c.db.prepare("UPDATE cf_pledge_installments SET reminder_status='skipped',recipient_email=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL,reminder_note='The balance or recipient changed before submission. No email was sent.' WHERE id=? AND attempt_id=? AND reminder_status='sending'").bind(row.id,attempt).run();continue
   }
-  let state: string = 'uncertain', messageId: string | null = null
-  try {
-   const sent = await sendSendGrid({ apiKey: c.env!.MAIL_API_KEY!, message: { deliveryId: attempt, from: c.env!.MAIL_FROM!, to: [i.recipient_email],
-    subject: `Pledge reminder from ${s.organisation || 'your organization'}`,
-    text: `Dear ${i.name},\n\nThis is a reminder of your ${usd(i.amount_cents - i.paid_cents)} pledge installment to ${s.organisation || 'our organization'} for ${i.fund}, due ${longDate(i.due_on)}.\n\nIf you have already sent your gift, thank you. Please contact us if your plans have changed.`,
-    customArgs: { coffer_installment_id: i.id, coffer_attempt_id: attempt } } })
-   messageId = sent.providerMessageId ?? null
-   state = messageId ? 'submitted' : 'uncertain'
-  } catch (error) {
-   if (error instanceof SendGridSendError && ['rejected', 'rate_limited'].includes(error.outcome)) state = 'rejected'
-  }
-  const note = state === 'submitted' ? 'Accepted by SendGrid; delivery is not confirmed.' : state === 'rejected' ? 'SendGrid did not accept this reminder. No automatic resend.' : 'Email submission could not be confirmed. Check SendGrid before contacting the donor. No automatic resend.'
-  // The claim already authorized this submission. Persist its outcome even if
-  // that person's session is revoked while SendGrid is answering.
-  const outcome = [sql("UPDATE cf_pledge_installments SET reminder_status=?,message_id=?,submitted_at=?,reminder_note=? WHERE id=? AND attempt_id=? AND reminder_status='sending'", state, messageId, c.now, note, i.id, attempt), event(c, 'pledge.reminder', 'pledge', i.pledge_id, i.donor_id, { installmentId: i.id, state })]
-  await c.db.batch(outcome.map(s => c.db.prepare(s.sql).bind(...s.params)))
-  if (state === 'submitted') submitted++
-  else if (state === 'rejected') rejected++
-  else uncertain++
+  let state='uncertain',messageId:string|null=null
+  try{const sent=await sendSendGrid({apiKey:c.env!.MAIL_API_KEY!,message:{deliveryId:attempt,from:c.env!.MAIL_FROM!,to:[i.recipient_email],subject:i.reminder_subject,text:i.reminder_body,customArgs:{coffer_installment_id:i.id,coffer_attempt_id:attempt,coffer_template_version:String(i.reminder_template_version)}}});messageId=sent.providerMessageId??null;state=messageId?'submitted':'uncertain'}
+  catch(error){if(error instanceof SendGridSendError&&['rejected','rate_limited'].includes(error.outcome))state='rejected'}
+  const note=state==='submitted'?'Accepted by SendGrid; delivery is not confirmed.':state==='rejected'?'SendGrid did not accept this reminder. No automatic resend.':'Email submission could not be confirmed. Check SendGrid before contacting the donor. No automatic resend.'
+  const outcome=[sql("UPDATE cf_pledge_installments SET reminder_status=?,message_id=?,submitted_at=?,reminder_note=? WHERE id=? AND attempt_id=? AND reminder_status='sending'",state,messageId,c.now,note,i.id,attempt),event(c,'pledge.reminder','pledge',i.pledge_id,i.donor_id,{installmentId:i.id,state,templateVersion:i.reminder_template_version})]
+  await c.db.batch(outcome.map(s=>c.db.prepare(s.sql).bind(...s.params)))
+  if(state==='submitted')submitted++;else if(state==='rejected')rejected++;else uncertain++
  }
- return { submitted, uncertain, rejected, excluded: Object.fromEntries(held.map(r => [r.status, r.n])) }
+ return {submitted,uncertain,rejected,held,excluded:Object.fromEntries(heldStatus.map(r=>[r.status,r.n]))}
 }
 
 /** Real Worker scheduled handler calls this; failures stay visible to the host.

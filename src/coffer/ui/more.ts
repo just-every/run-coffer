@@ -1,3 +1,4 @@
+import { pledgeTemplatePanel } from './pledge-template'
 import { customDefinitionsPanel } from './custom-fields'
 import { customFieldNames } from '../custom-fields'
 import { receiptRuleFields } from './receipt-rules'
@@ -40,7 +41,7 @@ export async function settingsPage(c: Context, saved: boolean) {
   ${field('Default greeting','greeting','text',s.greeting,'required maxlength="100"')}${field('Letter subject', 'letterSubject', 'text', s.letter_subject, 'required')}${area('Letter', 'letterTemplate', s.letter_template, 'required rows="14"')}${area('When no goods or services were provided', 'noneStatement', s.none_statement, 'required rows="2"')}${area('When goods or services were provided', 'goodsStatement', s.goods_statement, 'required rows="4"')}${receiptRuleFields(s)}${help}`, 'Save settings', { version: s.version }))}
  ${s.reviewed_at ? `<p class="muted">Last reviewed by ${e(s.reviewed_by)} on ${e(when(s.reviewed_at, s.timezone))}.</p>` : ''}
  ${box('Personal name defaults',form('person.defaultsPreview',select('Informal salutation','informal',[['nickname-first','Nickname, else first name'],['nickname-only','Nickname only, else formal salutation'],['first','First name'],['full','Full name']],names.informal??'nickname-first')+select('Formal salutation','formal',[['prefix-last','Prefix and last name, else first and last'],['first-last','First and last name'],['full','Full name']],names.formal??'prefix-last')+select('Envelope name','envelope',[['initial','Prefix, first, middle initial, last and suffix'],['full','Full name with full middle name'],['no-prefix','First, middle initial, last and suffix']],names.envelope??'initial')+'<p>Preview the number of changed people before saving. Overrides and prepared documents stay as typed.</p>','Preview name changes'))}
- ${letterTemplatesBox(await letterTemplates(c), await all(c, 'SELECT id,name FROM cf_campaigns ORDER BY name'),await customFieldNames(c))}${await customDefinitionsPanel(c)}`
+ ${letterTemplatesBox(await letterTemplates(c), await all(c, 'SELECT id,name FROM cf_campaigns ORDER BY name'),await customFieldNames(c))}${await customDefinitionsPanel(c)}${await pledgeTemplatePanel(c)}`
 }
 
 export function dataPage(actor: Actor, keys: Row[], people: Row[], view: { local: boolean; invited: string | null; now: number; timeZone: string }) {

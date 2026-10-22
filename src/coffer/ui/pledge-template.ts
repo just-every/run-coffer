@@ -1,0 +1,10 @@
+import { manager } from '../auth'
+import type { Context, Row } from '../db'
+import { pledgeMergeReview, pledgeTemplate, pledgeTemplateFields } from '../pledge-templates'
+import { area, box, e, field, form, select } from './common'
+
+export async function pledgeTemplatePanel(c:Context,draft?:Row){
+ if(!manager(c.actor))return ''
+ const [current,fields,review]=await Promise.all([pledgeTemplate(c),pledgeTemplateFields(c),pledgeMergeReview(c)]),t=draft?{...current,...draft}:current
+ return box('Pledge reminder wording',`<p>${draft?'Unsaved draft; insertion has not changed or sent anything.':current.reviewed_at?'Reviewed wording, version '+e(current.version)+'.':'Built-in wording, version '+e(current.version)+'.'}</p><p>Saving reviews this wording for due reminders. Each recipient is checked before sending; missing fields stay pending and are listed below. Amount and installment amount mean the unpaid installment balance; due date is its scheduled date. A reminder is a balance request, not a gift receipt.</p>${form('pledgeTemplate.save',field('Reminder subject','subject','text',t.subject,'required maxlength="200"')+area('Reminder message','body',t.body,'required rows="8" maxlength="8000"')+select('Merge field','fieldKey',fields)+select('Insert into','fieldTarget',[['body','Reminder message'],['subject','Reminder subject']])+'<button name="insertField" value="yes" formnovalidate>Insert merge field</button><p class="muted">Required fields: {{donor_name}}, {{installment_amount}}, {{due_date}}, {{fund}} and {{organization}}. Optional fields may use a literal default. Gift or interaction fields without a selected context stay empty. <a href="/api/coffer/template-fields">Published field list</a></p>','Save reminder wording',{version:current.version})}${review.length?`<h3>Empty reminder fields</h3><ul>${review.map(r=>`<li><a href="/app/donors/${e(r.donorId)}#pledge-${e(r.pledgeId)}">${e(r.recipientName)}</a>: ${r.fields.map((f:string)=>`<code>{{${e(f)}}}</code>`).join(', ')}</li>`).join('')}</ul>`:'<p>No checked pending reminder has empty fields.</p>'}`,'pledge-template')
+}

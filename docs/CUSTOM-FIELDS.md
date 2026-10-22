@@ -35,3 +35,11 @@ an exact integer-cent decimal string within that JSON object. Pick-many values
 remain arrays and cleared values may be null. Definitions and value history
 travel with the owner's archive. Donor erasure removes the values and history
 and redacts prepared personal text under the ordinary erasure rules.
+
+Pledge reminders use reviewed wording under **Letter settings → Pledge reminder
+wording**. The same catalog and literal defaults apply. A missing value holds the
+reminder before any submission claim, and the settings review links to its exact
+pledge. The donor’s pledge form can select an email type and that donor’s
+interaction for a manual run; scheduled reminders use the primary email and no
+interaction context. Each submitted reminder freezes its wording, template
+version and exact contact point. Later wording or value changes never rewrite it.
