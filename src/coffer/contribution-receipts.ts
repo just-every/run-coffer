@@ -1,4 +1,4 @@
-import { RECOGNITION_MERGE_FIELDS } from './merge-field-catalog'
+import { GIVING_MERGE_FIELDS, GIVING_DESCRIPTIVE_FIELDS, GIFT_DETAIL_MERGE_FIELDS, RECOGNITION_MERGE_FIELDS } from './merge-field-catalog'
 import { all, fail, type Row } from './db'
 import { NAME_MERGE_FIELDS } from './person-names'
 import { HOUSEHOLD_MERGE_FIELDS, CONTACT_MERGE_FIELDS, recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
@@ -7,12 +7,12 @@ import type { Settings } from './settings'
 
 export const CONTRIBUTION_TEMPLATE_KINDS = ['stock','daf','qcd'] as const
 export type ContributionTemplateKind = typeof CONTRIBUTION_TEMPLATE_KINDS[number]
-const COMMON = [...RECOGNITION_MERGE_FIELDS,...NAME_MERGE_FIELDS,...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS,'date','donor_name','gift_date','goods_statement','organization','ein']
+const COMMON = [...GIFT_DETAIL_MERGE_FIELDS,...GIVING_DESCRIPTIVE_FIELDS,...RECOGNITION_MERGE_FIELDS,...NAME_MERGE_FIELDS,...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS,'date','donor_name','gift_date','goods_statement','organization','ein']
 const REQUIRED = ['donor_name','gift_date','goods_statement','organization','ein']
 export const CONTRIBUTION_TEMPLATE_FIELDS: Record<ContributionTemplateKind,[string[],string[]]> = {
  stock:[[...COMMON,'description','quantity','stock_symbol','stock_shares'],[...REQUIRED,'description','stock_symbol','stock_shares']],
- daf:[[...COMMON,'amount','fund'],[...REQUIRED,'amount']],
- qcd:[[...COMMON,'amount','fund','qcd_custodian'],[...REQUIRED,'amount','qcd_custodian']],
+ daf:[[...COMMON,...GIVING_MERGE_FIELDS,'amount','fund'],[...REQUIRED,'amount']],
+ qcd:[[...COMMON,...GIVING_MERGE_FIELDS,'amount','fund','qcd_custodian'],[...REQUIRED,'amount','qcd_custodian']],
 }
 export const contributionReceiptKind = (gift:Row):ContributionTemplateKind|null => CONTRIBUTION_TEMPLATE_KINDS.includes(gift.contribution_type) ? gift.contribution_type : null
 

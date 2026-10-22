@@ -7,3 +7,6 @@ export const GIVING_MERGE_FIELDS = ['total_given','gift_count','first_gift_amoun
 
 export const PLEDGE_CONTEXT_FIELDS=['installment_amount','due_date','pledged_amount','pledge_balance','installment_number','pledge_date']
 export const PLEDGE_REQUIRED=['donor_name','installment_amount','due_date','fund','organization']
+
+/** Counts and dates assign no monetary value to donated property. */
+export const GIVING_DESCRIPTIVE_FIELDS=['gift_count','first_gift_date','last_gift_date','largest_gift_date','consecutive_giving_years','recurring_plan_count']

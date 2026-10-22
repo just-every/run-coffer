@@ -1,6 +1,6 @@
 import { PLEDGE_CONTEXT_FIELDS, PLEDGE_REQUIRED } from './merge-field-catalog'
 import { giftFacts } from './merge-facts'
-import { GIVING_MERGE_FIELDS, RECOGNITION_MERGE_FIELDS } from './merge-field-catalog'
+import { GIVING_MERGE_FIELDS, GIVING_DESCRIPTIVE_FIELDS, GIFT_DETAIL_MERGE_FIELDS, RECOGNITION_MERGE_FIELDS } from './merge-field-catalog'
 import { customAllowed, customMerge } from './custom-fields'
 import { CONTRIBUTION_TEMPLATE_FIELDS, checkContributionTemplate, contributionReceiptKind, renderContributionReceipt, withContributionTypes } from './contribution-receipts'
 import { NAME_MERGE_FIELDS } from './person-names'
@@ -18,7 +18,7 @@ export const TEMPLATE_LABELS: Record<TemplateKind | 'default', string> = {
  campaign: 'Form or campaign', tribute: 'Tribute gift', major_gift: 'Major gift', first_gift: 'First gift', recurring_start: 'Recurring start',
  in_kind: 'In-kind gift', year_end: 'Year-end statement', default: 'Settings letter',
 }
-export const IN_KIND_FIELDS = [...RECOGNITION_MERGE_FIELDS,...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'gift_date', 'description', 'quantity', 'goods_statement', 'organization', 'ein']
+export const IN_KIND_FIELDS = [...GIFT_DETAIL_MERGE_FIELDS,...GIVING_DESCRIPTIVE_FIELDS,...RECOGNITION_MERGE_FIELDS,...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'gift_date', 'description', 'quantity', 'goods_statement', 'organization', 'ein']
 export const YEAR_END_FIELDS = [...GIVING_MERGE_FIELDS,...RECOGNITION_MERGE_FIELDS,...NAME_MERGE_FIELDS, ...CONTACT_MERGE_FIELDS, ...HOUSEHOLD_MERGE_FIELDS, 'date', 'donor_name', 'year', 'gift_list', 'total', 'goods_total', 'deductible_total', 'goods_statement', 'organization', 'ein']
 const FIELDS: Record<'gift' | 'in_kind' | 'year_end', [string[], string[]]> = {
  gift: [LETTER, LETTER_REQUIRED],

@@ -52,7 +52,9 @@ export async function contributionTypesJourney(){
   for(const kind of ['stock','daf','qcd']){
    const definition=catalog.templates.find(t=>t.kind===kind)
    assert.ok(definition?.required.length,kind+' exposes its required receipt facts')
-   const body='Synthetic '+kind+' receipt\n'+definition.required.map(f=>'{{'+f+'}}').join('\n')
+   for(const key of ['gift_count','first_gift_date','last_gift_date','largest_gift_date','consecutive_giving_years','recurring_plan_count','campaign','appeal','tribute_name'])assert.ok(definition.fields.includes(key),kind+' exposes compatible context '+key)
+   if(kind==='stock'){assert.ok(!definition.fields.includes('total_given'));assert.ok(!definition.fields.includes('deductible_amount'))}else assert.ok(definition.fields.includes('total_given'))
+   const body='Synthetic '+kind+' receipt\n'+definition.required.map(f=>'{{'+f+'}}').join('\n')+'\nHistory {{gift_count}} / {{first_gift_date}} / {{campaign|No campaign}}'+(kind==='stock'?'':'\nOwn giving {{total_given}}')
    await command('letterTemplate.save',{kind,name:'Incomplete '+kind,subject:'Contribution acknowledgment',body:body.replace('{{'+definition.required[0]+'}}','')},{status:400})
    if(kind==='stock')await command('letterTemplate.save',{kind,name:'Stock with money',subject:'Stock',body:body+'\n{{amount}}'},{status:400})
    const saved=await command('letterTemplate.save',{kind,name:'Reviewed '+kind,subject:'Contribution acknowledgment',body})
@@ -67,7 +69,7 @@ export async function contributionTypesJourney(){
   await command('inKind.acknowledge',{donorId:owner.id,inKindId:stock.id,version:correctedProperty.version,acknowledgedOn:'2025-06-05'})
   const correctedStock=(await propertyState()).acknowledgments.find(a=>a.replaces_id===originalStock.id)
   assert.ok(correctedStock);assert.equal(correctedStock.template_id,templates.stock.id);assert.equal(correctedStock.template_version,templates.stock.version)
-  assert.match(correctedStock.body,/Synthetic stock receipt/);assert.match(correctedStock.body,/transfer description corrected/)
+  assert.match(correctedStock.body,/History 4 \/ 2021-06-01 \/ No campaign/);assert.match(correctedStock.body,/Synthetic stock receipt/);assert.match(correctedStock.body,/transfer description corrected/)
   assert.doesNotMatch(correctedStock.body,/\$|5,?000|4,?800|deductib/i)
   assert.ok(correctedStock.body.includes(`${originalStock.receipt_year}-${originalStock.receipt_sequence}`))
   assert.ok(correctedStock.receipt_sequence>originalStock.receipt_sequence)
@@ -83,7 +85,7 @@ export async function contributionTypesJourney(){
   }
   const documents=[originalStock,...builtinLetters,correctedStock,...custom]
   assert.equal(new Set(documents.map(l=>`${l.receipt_year}-${l.receipt_sequence}`)).size,documents.length,'All property and monetary documents share annual numbering without reuse')
-  assert.doesNotMatch(customDaf.body,/deductib/i);assert.ok(customQcd.body.includes('Synthetic IRA Custodian'));assert.match(customQcd.body,/No goods or services/i)
+  assert.match(customDaf.body,/Own giving \$6,000\.00/);assert.match(customQcd.body,/Own giving \$7,000\.00/);assert.doesNotMatch(customDaf.body,/deductib/i);assert.ok(customQcd.body.includes('Synthetic IRA Custodian'));assert.match(customQcd.body,/No goods or services/i)
   const frozen=custom.map(l=>({id:l.id,body:l.body,template_id:l.template_id,template_version:l.template_version}))
   const qcdDef=catalog.templates.find(t=>t.kind==='qcd')
   await command('letterTemplate.save',{templateId:templates.qcd.id,version:templates.qcd.version,name:'Future QCD receipt',subject:'Future contribution acknowledgment',body:'FUTURE COPY\n'+qcdDef.required.map(f=>'{{'+f+'}}').join('\n')})

@@ -164,6 +164,7 @@ export async function letterTemplatesJourney(){
   const valueCatalog=await h.get('/api/coffer/template-fields')
   for(const kind of ['stock','in_kind']){const entry=valueCatalog.templates.find(t=>t.kind===kind);assert.ok(!entry.fields.includes('custom.gift_value'));await h.command('letterTemplate.save',{kind,name:'Refused value '+kind,subject:'Property',body:entry.required.map(f=>'{{'+f+'}}').join(' ')+' {{custom.gift_value}}'},{status:400})}
   assert.ok(valueCatalog.settings.fields.includes('custom.gift_value'))
+  for(const kind of ['stock','in_kind']){const entry=valueCatalog.templates.find(t=>t.kind===kind);for(const key of ['gift_count','first_gift_date','last_gift_date','largest_gift_date','consecutive_giving_years','recurring_plan_count','campaign','appeal','tribute_name'])assert.ok(entry.fields.includes(key),kind+' publishes compatible descriptive context');assert.ok(!entry.fields.includes('total_given'),'A property acknowledgment never gains a cash total')}
   const own=await donor(h,'Sage Custom'),missing=await donor(h,'Robin Custom',{email:null,addressLine1:null})
   await h.command('donor.profile',{donorId:own.id,version:1,firstName:'Sage',lastName:'Custom',formalSalutation:'Dr. Custom',informalSalutation:'',envelopeName:'Sage Custom'})
   await h.command('custom.define',{key:'membership',label:'Membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer']})
