@@ -352,6 +352,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if(command.startsWith('giftRule.'))return redirect('/app/gift-rules')
  if(command.startsWith('giftBatch.'))return redirect('/app/gifts/batches?id='+encodeURIComponent(result.id))
  if(command==='donor.create' && input.returnBatchId)return redirect('/app/gifts/batches?id='+encodeURIComponent(input.returnBatchId)+'&donor='+encodeURIComponent(result.id))
+ if(command==='list.solicitation')return redirect('/app/exports?list=saved:'+encodeURIComponent(result.id))
  if(command==='list.save')return redirect('/app/exports?list=saved:'+encodeURIComponent(result.id))
  if (command === 'donor.merge' || command === 'donor.unmerge') return redirect('/app/audit?record='+encodeURIComponent(result.donorId))
  if (CONNECT.has(command)) return redirect('/app/appeals/connect')
@@ -442,7 +443,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  const smsDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)\/sms$/);if(smsDonor)return json({preference:await smsPreference(c,smsDonor[1])})
  if(path==='/api/coffer/gift-rules')return json(await giftRulesState(c))
  if(path==='/api/coffer/gift-batches')return json(url.searchParams.has('id')?await giftBatch(c,url.searchParams.get('id')!):{batches:await giftBatches(c)})
- if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo'), volunteer:url.searchParams.get('volunteer') }))
+ if (path === '/api/coffer/donors') return json(await listDonors(c, { q: url.searchParams.get('q'), page: Number(url.searchParams.get('page') ?? 0) || 0, relationship: url.searchParams.get('relationship'), relatedTo: url.searchParams.get('relatedTo'), volunteer:url.searchParams.get('volunteer'), solicitation:url.searchParams.get('solicitation') }))
  const noteMatch=match(/^\/api\/coffer\/notes\/([^/]+)$/)
  if(noteMatch){
   const note=await c.db.prepare('SELECT * FROM cf_donor_notes WHERE id=?').bind(noteMatch[1]).first<any>()

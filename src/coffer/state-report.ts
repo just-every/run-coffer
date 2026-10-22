@@ -1,3 +1,4 @@
+import { solicitationFilter, solicitationFilterSql } from './solicitation-filter'
 import { all, choice, fail, id, integer, today, type Context, type Row } from './db'
 import { fiscalPeriod } from './giving-summary'
 import { METHODS } from './gifts'
@@ -33,6 +34,7 @@ export async function stateReport(c: Context, url: URL) {
  const raw = q.get('year') ?? String(current)
  if (!/^\d{4}$/.test(raw)) fail('INPUT', 'Choose a four-digit report year.', 400)
  const year = integer(Number(raw), 'Report year', 1004, current), period = fiscalPeriod(`${year}-${monthDay}`, monthDay)
+ const solicitation=solicitationFilter(q.get('solicitation'))
  const fund = q.get('fund') || null, campaignId = q.get('campaignId') ? id(q.get('campaignId'), 'Campaign') : null, formId = q.get('formId') ? id(q.get('formId'), 'Form') : null
  const channel = q.get('channel') ? choice(q.get('channel'), METHODS, 'channel') : null
  // Every monetary ledger entry in the period (gifts, reversals and refunds), each
@@ -42,9 +44,9 @@ export async function stateReport(c: Context, url: URL) {
    WHERE l.received_on>=? AND l.received_on<? AND (? IS NULL OR l.fund=?) AND (? IS NULL OR l.campaign_id=?) AND (? IS NULL OR l.method=?)
     AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_campaign_gifts cg WHERE cg.gift_id=l.gift_id AND cg.campaign_id=?)))
   SELECT e.*,CASE WHEN h.id IS NULL THEN d.region ELSE h.region END AS region,CASE WHEN h.id IS NULL THEN d.country ELSE h.country END AS country
-  FROM e JOIN cf_donors d ON d.id=e.donor_id
-  LEFT JOIN cf_donor_address_history h ON h.id=(SELECT x.id FROM cf_donor_address_history x WHERE x.donor_id=e.donor_id AND x.until_on>e.gift_on ORDER BY x.until_on,x.id LIMIT 1)`,
-  period.start, period.end, fund, fund, campaignId, campaignId, channel, channel, formId, formId)
+  FROM e JOIN cf_donors d ON d.id=e.donor_id CROSS JOIN (SELECT ? AS choice,? AS day) sf
+  LEFT JOIN cf_donor_address_history h ON h.id=(SELECT x.id FROM cf_donor_address_history x WHERE x.donor_id=e.donor_id AND x.until_on>e.gift_on ORDER BY x.until_on,x.id LIMIT 1) WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')}`,
+  period.start, period.end, fund, fund, campaignId, campaignId, channel, channel, formId, formId,solicitation,asOf)
  const groups = new Map<string, { donors: Set<string>; gifts: Set<string>; cents: number }>()
  for (const e of entries) {
   const key = stateOf(e.region, e.country), g = groups.get(key) ?? { donors: new Set(), gifts: new Set(), cents: 0 }
@@ -54,7 +56,7 @@ export async function stateReport(c: Context, url: URL) {
  const rows: Row[] = [...groups].sort(([a], [b]) => order(a).localeCompare(order(b))).map(([key, g]) => ({
   state: STATES[key] ? key : null, label: STATES[key] ?? key, donors: g.donors.size, gifts: g.gifts.size, amountCents: g.cents }))
  return {
-  basis, year, start: period.start, through: year === current ? asOf : addDay(period.end, -1), filters: { fund, campaignId, formId, channel },
+  basis, year, start: period.start, through: year === current ? asOf : addDay(period.end, -1), filters: { fund, campaignId, formId, channel, solicitation },
   rows, totalCents: rows.reduce((sum, r) => sum + r.amountCents, 0),
   campaigns: await all(c, 'SELECT id,name,slug FROM cf_campaigns ORDER BY lower(name)'), funds: (await all(c, 'SELECT DISTINCT fund FROM cf_fund_ledger ORDER BY fund')).map(r => r.fund),
  }

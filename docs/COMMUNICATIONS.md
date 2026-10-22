@@ -77,35 +77,11 @@ retains each door's separate consent and constituent-status checks. The current
 call list excludes restricted ask candidates while allowing explicitly non-ask
 stewardship calls. A gift-triggered thank-you task is also a non-ask.
 
-Solicitation restrictions are versioned facts separate from consent: do not
-solicit, no asks on selected channels, or an allowance per organization-local calendar month, quarter or year. Preparation
-counts exclusions as “do not solicit” or “solicitation limit”; approval and
-submission recheck frozen restriction versions and the current allowance. An
-owner or admin can deliberately include a selected restricted donor in one run
-with a reason. The run and donor timeline retain the reason and author; the
-restriction and consent remain unchanged.
+Ruled (ct 22 Oct): an ask counts when it is durably submitted, exported or completed as an ask call, never when it is prepared. Each kind/run/original donor counts once, and an unknown outcome counts until a definitive refusal releases it. Limits use a rolling 12 months, calendar or fiscal month, quarter or year. 'Once a year', from staff or from an import that names no period, means rolling 12 months. A one-run deliberate inclusion may be made by the owner, an admin or the donor's assigned relationship manager. It needs a reason and is audited, and it never grants channel consent or changes the restriction. After a merge, histories are unioned and SMS permission is reconfirmed. The authenticated donor portal may only strengthen a restriction: a full stop, no asks on chosen channels, or a limit of at most N asks in a period. It never loosens or clears one.
 
-Default ADOPTED, pending ct: unique durable provider claims and mail exports
-count across channels in the selected organization-local calendar period, once per
-kind/run/original donor. Preparation does not count. Unknown outcomes count;
-a definitive SMS 4xx rejection releases that count. After merge, original
-restrictions and ask histories are evaluated as a union. Only the owner, admin
-or assigned relationship manager can replace or clear an existing restriction,
-including resolving inherited restrictions. These are conservative defaults,
-not a claim that DONOR-015 is complete.
+Rolling windows exclude asks on the 12-month anniversary and include today. Fiscal boundaries follow the saved fiscal start, clamping its day in shorter months; prior calendar-year answers migrate to the ruled rolling default, with immutable answers retained. The portal retains earlier starts and every merged original; replacing a channel restriction requires a superset, and tightening a limit requires the same period and no higher maximum. Current donor search, saved lists and by-state reporting filter active restrictions including merged originals. Owner/admin list.solicitation atomically sets or clears up to 500 current saved-list constituents with a reason and per-record history; constituent CSVs carry every original restriction.
 
-Current LGL, Bloomerang and configured NXT export imports retain sourced
-restriction facts, channel withdrawals, preview mappings and reconciliation,
-with repeat/undo safeguards. Restriction filters in saved lists/reports, bulk
-set/clear and export columns remain unimplemented. Month, quarter and year
-allowances now reset on their organization-local calendar boundaries; existing
-and imported answers retain their annual meaning. The GIVE-006 recovery journey proves restricted-donor
-failed-payment/card-expiry notices, and the DONOR-003 household journey includes
-a restricted head and unchanged solicitation facts. Future provider,
-journey, task, list/report/export/API and importer doors must inherit ask
-classification, restriction checks, limits, audit and custody before shipping.
-Topics and per-channel frequency preferences remain distinct unfinished work
-under COMM-001; calendar solicitation limits do not implement them.
+Future doors in COMM-003/004/007, STEW-001/003, DEV-005, DONOR-007, REPORT-004, DATA-002, API-001 and MOVE-004 to MOVE-008 inherit the same ask classification, exclusions, audit, limit and custody obligations; wider TEAM-001 roles inherit the authority matrix before shipping. Topics and per-channel frequency preferences stay with COMM-001.
 
 ## Text messages
 
@@ -304,14 +280,7 @@ and Melissa network edges are faked; no live provider delivery or acceptance is
 claimed. Root’s recorded run is 20261021T235854381977Z-heavy-slot-c1263138;
 final candidate validation follows integration.
 
-The authenticated giving portal includes a deliberately narrow donation-request
-door. The donor may add an indefinite do-not-solicit choice on their own record,
-never clear a staff/imported choice, resolve merged originals or grant channel
-consent. Its versioned history records portal source, an opaque request reference
-and a donor audit role. The same hashed unexpired session and current identity
-are checked in the write transaction. An email shared by several current donors
-is refused for this write. These conservative identity/consent defaults remain
-pending ct; broader preferences stay with GIVE-005 and COMM-001.
+The authenticated giving portal supports a full stop, no asks on chosen channels and an ask limit. It only strengthens existing choices, retains merged originals and channel consent, and rejects removing channels, raising limits or changing an existing limit's period. The hashed unexpired session, own current identity and unambiguous email are checked in the write transaction. Histories retain the donor audit role, source and opaque request reference.
 
 The existing recurring/portal journey in `tests/giving.test.mjs` also proves
 this source, forged-target/stale/clear refusals, unchanged consent, ongoing

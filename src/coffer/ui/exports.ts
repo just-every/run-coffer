@@ -1,3 +1,4 @@
+import { SOLICITATION_FILTERS } from '../solicitation-filter'
 import { requireRole } from '../auth'
 import { today, type Context } from '../db'
 import { EXPORT_TYPES, exportSnapshot, exportType } from '../exports'
@@ -15,11 +16,11 @@ export async function exportsPage(c: Context, url: URL, error = '') {
  const list=value('list')||'search',query=new URLSearchParams(url.searchParams)
  query.delete('type')
  const download=`/api/coffer/exports/${type}.csv?${query.toString()}`
- const filters=`${field('Search name, email or household','q','search',value('q'),'maxlength="100"')}
+ const filters=`${select('Solicitation restriction','solicitation',SOLICITATION_FILTERS,value('solicitation'))}${field('Search name, email or household','q','search',value('q'),'maxlength="100"')}
   ${select('Relationship','relationship',[['','Any relationship'],...RELATIONSHIP_TYPES.map(t=>[t,RELATIONSHIP_LABELS[t].outgoing] as [string,string])],value('relationship'))}
   ${field('Connected donor ID','relatedTo','text',value('relatedTo'),'maxlength="100"')}
   ${select('Volunteers','volunteer',[['','All constituents'],['all','All volunteers'],['never-given','Volunteers who have never given']],value('volunteer'))}`
- const save=list==='search'?box('Save this search',form('list.save',`${field('List name','name','text','','required maxlength="100"')}<p>The saved search stays current. It includes active constituents.</p>`,'Save live list',Object.fromEntries(['q','relationship','relatedTo','volunteer'].map(k=>[k,value(k)])))):''
+ const save=list==='search'?box('Save this search',form('list.save',`${field('List name','name','text','','required maxlength="100"')}<p>The saved search stays current. It includes active constituents.</p>`,'Save live list',Object.fromEntries(['q','relationship','relatedTo','volunteer','solicitation'].map(k=>[k,value(k)])))):''
  return `<p><a href="/app/donors">Donors</a></p><p>Download one record type for everyone in a current list. Each file includes their records across all dates.</p>
  ${error?`<p role="alert">${e(error)}</p>`:''}
  ${box('Choose an export',`<form method="get" action="/app/exports"><div class="fields">
@@ -30,5 +31,5 @@ export async function exportsPage(c: Context, url: URL, error = '') {
  ${box('Review your download',`<p>${m.listName?`${e(m.listName)} · `:''}${m.memberCount} constituents · ${m.rowCount} ${e(type)} rows.</p>
   <p>${e(m.withheld.statement)}.</p><p>Reviewed as of ${e(m.asOf)} UTC. Dates use ${e(m.timezone)}.</p>
   <p>The download uses the list’s membership when you download it. Coffer records who downloaded it and the row count.</p>
-  <p><a href="${e(download)}">Download ${e(type)} CSV</a></p><p>Credentials, payment-method details and prospect research are excluded. This download is separate from a donor’s data request.</p>`)}${save}`
+  <p><a href="${e(download)}">Download ${e(type)} CSV</a></p><p>Credentials, payment-method details and prospect research are excluded. This download is separate from a donor’s data request.</p>`)}${save}${list.startsWith('saved:')?box('Set or clear list restrictions',form('list.solicitation',select('Restriction','type',[['stop','Do not solicit'],['none','Clear restriction']])+field('Reason','reason','text','','required maxlength="1000"')+'<p>Applies to every active constituent in this live list, up to 500. Each record retains its versioned history and audit. Channel consent is unchanged.</p>','Apply to this list',{listId:m.listId,version:m.listVersion})):''}`
 }

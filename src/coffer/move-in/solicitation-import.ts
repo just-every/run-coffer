@@ -21,7 +21,7 @@ export async function planSolicitationImports(c:Context,parsed:ParsedImport,plan
  for(const r of restrictions) {
   const donorId=plan.donorIds.get(r.donorExternalId)??'', held=current.find(s=>s.donor_id===donorId), prior=previous('solicitation',donorId)
   if(held&&(!prior||JSON.stringify(held)!==prior.snapshot))conflict(r,`Constituent ${r.donorExternalId} has a staff-edited or separately recorded restriction. The import cannot replace it; resolve the source and current restriction explicitly.`)
-  await add('solicitation',r,{donor_id:donorId,version:1,type:r.type,starts_on:r.sourceOn||day,ends_on:null,channels:JSON.stringify(r.channels),max_asks:r.maxAsks,source:'import',source_ref:`${parsed.source}:${r.donorExternalId}`,source_on:r.sourceOn||day,recorded_at:c.now,recorded_by_id:c.actor.id,recorded_by_name:c.actor.name},undefined,donorId)
+  await add('solicitation',r,{donor_id:donorId,version:1,type:r.type,period:'rolling-12-months',starts_on:r.sourceOn||day,ends_on:null,channels:JSON.stringify(r.channels),max_asks:r.maxAsks,source:'import',source_ref:`${parsed.source}:${r.donorExternalId}`,source_on:r.sourceOn||day,recorded_at:c.now,recorded_by_id:c.actor.id,recorded_by_name:c.actor.name},undefined,donorId)
  }
  let next=Number(sequence[0].id)
  for(const r of withdrawals) {
@@ -36,7 +36,7 @@ export async function planSolicitationImports(c:Context,parsed:ParsedImport,plan
 export function solicitationImportHistory(c:Context,effects:Effect[],source:string,jobId:string):Stmt[] {
  return effects.filter(e=>e.owned&&(e.kind==='solicitation'||e.kind==='consent')).flatMap(e=>{
   const r=e.row
-  const answer={type:r.type,startsOn:r.starts_on,endsOn:r.ends_on,channels:r.channels?JSON.parse(r.channels):[],maxAsks:r.max_asks,period:r.type==='limit'?'calendar-year':null,source:'import',sourceRef:r.source_ref,sourceOn:r.source_on,actorId:c.actor.id,actorName:c.actor.name,at:c.now}
+  const answer={type:r.type,startsOn:r.starts_on,endsOn:r.ends_on,channels:r.channels?JSON.parse(r.channels):[],maxAsks:r.max_asks,period:r.type==='limit'?'rolling-12-months':null,source:'import',sourceRef:r.source_ref,sourceOn:r.source_on,actorId:c.actor.id,actorName:c.actor.name,at:c.now}
   return [...(e.kind==='solicitation'?[sql('INSERT INTO cf_solicitation_history VALUES(?,?,?)',r.donor_id,r.version,JSON.stringify(answer))]:[]),event(c,e.kind==='solicitation'?'solicitation.import':'consent.import','donor',r.donor_id,r.donor_id,{jobId,source,version:r.version??null,channel:r.channel??null,sourceOn:r.source_on??r.captured_on,importedAt:c.now})]
  })
 }

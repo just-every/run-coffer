@@ -23,8 +23,8 @@ const pledgePaid = `COALESCE((SELECT SUM(g.amount_cents-CASE WHEN g.kind='revers
  COALESCE((SELECT SUM(i.paid_cents) FROM cf_pledge_balances i WHERE i.pledge_id=p.id),0)`
 
 export const exportRecords: Record<ExportType, RecordSpec> = {
- constituents: {columns:[...constituentColumns,'computed_informal_salutation','computed_formal_salutation','computed_envelope_name'],
-  query:`SELECT ${constituentColumns.map(k=>`d.${k}`).join(',')},NULL AS computed_informal_salutation,NULL AS computed_formal_salutation,NULL AS computed_envelope_name
+ constituents: {columns:[...constituentColumns,'solicitation_restrictions','computed_informal_salutation','computed_formal_salutation','computed_envelope_name'],
+  query:`SELECT ${constituentColumns.map(k=>`d.${k}`).join(',')},(SELECT json_group_array(json_object('original_donor_id',s.donor_id,'type',s.type,'starts_on',s.starts_on,'ends_on',s.ends_on,'channels',json(s.channels),'max_asks',s.max_asks,'period',s.period,'source',s.source,'source_on',s.source_on,'version',s.version)) FROM cf_solicitation s WHERE s.type<>'none' AND (s.donor_id=d.id OR EXISTS(SELECT 1 FROM cf_donor_merges sm WHERE sm.donor_id=s.donor_id AND sm.into_id=d.id))) AS solicitation_restrictions,NULL AS computed_informal_salutation,NULL AS computed_formal_salutation,NULL AS computed_envelope_name
    FROM cf_donors d JOIN members m ON m.id=d.id`},
  gifts: {columns:giftColumns,query:`SELECT g.id,g.donor_id,'gift' AS kind,g.received_on,${netGift} AS amount_cents,
   COALESCE(ir.gross_cents,g.amount_cents) AS gross_cents,

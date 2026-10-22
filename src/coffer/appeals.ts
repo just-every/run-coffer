@@ -1,5 +1,5 @@
 import { mailPreflight, mailEligibility, mailSnapshot, mailRunGuards, mailAddressChanged } from './addresses/mail'
-import { solicitationReasons, solicitationState, prepareSolicitationRun, solicitationRunGuards, solicitationAskStatements } from './solicitation'
+import { deliberateInclusionGuards, solicitationReasons, solicitationState, prepareSolicitationRun, solicitationRunGuards, solicitationAskStatements } from './solicitation'
 import { frozenNameFields } from './person-names'
 import { letterRecipient } from './organizations'
 import { all, choice, commit, date, event, fail, guard, id, integer, newId, one, sha256, sql, text, today, longText, type Context, type Row } from './db'
@@ -53,7 +53,8 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (command === 'appeal.prepare') {
   const purpose=choice(p.purpose??'appeal',['appeal','newsletter'] as const,'run purpose'),isAsk=purpose==='appeal'
   const includes: {donorId:string;reason:string}[] = p.includeDonorId ? [{donorId:id(p.includeDonorId,'Included donor'),reason:text(p.includeReason,'Reason for including this donor',1000)}] : Array.isArray(p.includes)?p.includes.map((x:Row)=>({donorId:id(x.donorId,'Included donor'),reason:text(x.reason,'Reason for including this donor',1000)})):[]
-  if(includes.length&&!['owner','admin'].includes(c.actor.role))fail('FORBIDDEN','Only an owner or admin deliberately includes a restricted donor.',403)
+  if(c.actor.role==='member'&&!includes.length)fail('FORBIDDEN','Prepare a one-run inclusion from an assigned donor record.',403)
+  await deliberateInclusionGuards(c,includes.map(x=>x.donorId))
   const name = text(p.name, 'Appeal name', 200), channel = choice(p.channel, ['email', 'mail'] as const, 'channel')
   if(purpose==='newsletter'&&channel!=='email')fail('INPUT','The newsletter topic uses email.',400)
   const givenSince = p.givenSince ? date(p.givenSince, 'Gave since') : null
@@ -69,7 +70,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  const message = written ? {subject:text(p.subject,'Email subject',250),body:longText(p.body,'Email message',12000)} : null
   if(message){ const {mergeMessage}=await import('./communications/outbound'); mergeMessage(message.subject,{name:'Donor'});mergeMessage(message.body,{name:'Donor'}) }
   const addressPass=channel==='mail'?await mailPreflight(c):null
-  const { recipients, excluded, lastAskDates } = await audience(c, channel, { givenSince, minTotalCents, fund, donorIds: selection?.donorIds ?? donorIds, isAsk, includeIds:includes.map(x=>x.donorId) })
+  const { recipients, excluded, lastAskDates } = await audience(c, channel, { givenSince, minTotalCents, fund, donorIds: c.actor.role==='member'?includes.map(x=>x.donorId):selection?.donorIds ?? donorIds, isAsk, includeIds:includes.map(x=>x.donorId) })
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)
   if (recipients.length > MAX_RECIPIENTS) fail('TOO_MANY', `An appeal holds at most ${MAX_RECIPIENTS} recipients. Narrow the segment.`, 400)
   const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, hash = await hashOf(name, channel, recipients,message), list = JSON.stringify(recipients)

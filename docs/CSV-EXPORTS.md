@@ -6,7 +6,7 @@ file. `GET /api/coffer/exports/preview?type={type}` returns its current counts,
 organization time zone, as-of UTC timestamp and withheld-note statement.
 
 `list` is `search`, `lybunt`, `sybunt` or `saved:{list-id}`. Search supports `q`,
-`relationship`, `relatedTo` and `volunteer` (`all` or `never-given`); annual
+`relationship`, `relatedTo`, `solicitation` and `volunteer` (`all` or `never-given`); annual
 lists also accept a calendar `year`. Each CSV selects live, unpaged membership
 in one database statement, then every chosen-type record of those constituents
 across all dates. Annual membership uses signed calendar-year giving through
@@ -16,8 +16,8 @@ records, as the current donor-search door does. Saved searches default to active
 constituents under DONOR-012. Erased and merged-away identities never export;
 records moved by a merge export under their survivor.
 
-`list.save` accepts `name` and a `filters` object with those four search fields.
-For a form it also accepts the four flat fields. Updating needs `listId` and
+`list.save` accepts `name` and a `filters` object with those five search fields.
+For a form it also accepts the five flat fields. Updating needs `listId` and
 the current `version`; a stale version returns 409. `GET /api/coffer/lists`
 lists these definitions. Definitions are backed up, never frozen member IDs;
 membership is evaluated from the saved definition inside the export statement.
@@ -111,3 +111,5 @@ does. Prospect research, provider estimates and proposal/document bytes stay out
 New fields added by DONOR-005/013/014/015 join the relevant documented column
 set when those capabilities ship. Report-record exports are DATA-004 and do
 not use this donor-lifetime selection.
+
+The `solicitation` filter is `any`, `none`, `stop`, `channels` or `limit`; it evaluates active restrictions in the organization day, including merged originals. Constituent files add `solicitation_restrictions`, a JSON array of original donor id, type, dates, channels, maximum, period, source, source date and version. This array retains inactive/future restrictions with their dates. Owner/admin `list.solicitation` requires listId, version, type and reason, applies through the same live membership selection (1–500 records), and preserves per-record version/history/audit. General undoable bulk actions remain DONOR-007.

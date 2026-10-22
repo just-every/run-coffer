@@ -94,6 +94,13 @@ export async function solicitationJourney() {
 
   const includeReason='Maya requested this one reading-room appeal during our recorded conversation.'
   await command('appeal.prepare',{name:'Synthetic unauthorized exception',channel:'email',includes:[{donorId:stop.id,reason:includeReason}]},{as:member,status:403})
+  const manager=(await get('/auth/session',{as:member})).operator
+  const portfolio=await command('portfolio.save',{name:'Synthetic assigned relationship manager',managerId:manager.id,untouchedDays:30})
+  await command('portfolio.assign',{donorId:stop.id,portfolioId:portfolio.id})
+  const managerRun=await command('appeal.prepare',{name:'Synthetic manager deliberate inclusion',channel:'email',includes:[{donorId:stop.id,reason:includeReason}]},{as:member})
+  assert.deepEqual(await recipientIds(managerRun.id),[stop.id],'An assigned manager prepares only the explicitly selected own donor')
+  assert.equal((await get('/api/coffer/appeals/'+managerRun.id)).inclusions[0].actor_id,manager.id)
+  await command('appeal.prepare',{name:'Synthetic other constituent refusal',channel:'email',includes:[{donorId:control.id,reason:includeReason}]},{as:member,status:403})
   const included=await prepare('email','One requested appeal',{includes:[{donorId:stop.id,reason:includeReason}]})
   assert.ok((await recipientIds(included.id)).includes(stop.id))
   const inclusion=(await get('/api/coffer/appeals/'+included.id)).inclusions.find(i=>i.donor_id===stop.id)
@@ -107,7 +114,7 @@ export async function solicitationJourney() {
   const annual=await create('Leila Brooks','synthetic-coffer-506@example.test',{phone:'+12025550123'})
   await grant(annual)
   await command('solicitation.set',{donorId:annual.id,version:0,type:'limit',maxAsks:1,startsOn:`${year}-01-01`})
-  assert.equal((await get('/api/coffer/donors/'+annual.id)).solicitation.period,'calendar-year','An omitted period retains the annual limit semantics')
+  assert.equal((await get('/api/coffer/donors/'+annual.id)).solicitation.period,'rolling-12-months','An omitted period means rolling 12 months under ct’s ruling')
   const once=await prepare('email','Annual supporter appeal')
   assert.ok((await recipientIds(once.id)).includes(annual.id))
   await command('appeal.approve',{appealId:once.id,version:1})
@@ -163,6 +170,24 @@ export async function solicitationJourney() {
   await command('solicitation.set',{donorId:importedDonor.id,version:1,type:'limit',maxAsks:1,startsOn:day})
   await h.api('/api/coffer/move-in/undo',{id:imported.id},options({status:409}))
 
+  const list=await command('list.save',{name:'Synthetic restricted Maya list',filters:{q:'Maya Chen',solicitation:'stop'}})
+  assert.equal((await get('/api/coffer/lists')).lists.find(l=>l.id===list.id).filters.solicitation,'stop')
+  const listExport=await request('/api/coffer/exports/constituents.csv?list=saved:'+list.id)
+  assert.equal(listExport.status,200);const exportText=await listExport.text()
+  assert.match(exportText,/solicitation_restrictions/);assert.ok(exportText.includes(stop.id)&&exportText.includes('stop')&&!exportText.includes(control.id))
+  assert.deepEqual((await get('/api/coffer/donors?solicitation=stop&q=Maya')).donors.map(d=>d.id),[stop.id])
+  assert.ok((await get('/api/coffer/reports/states?year='+priorYear+'&solicitation=stop')).rows.some(r=>r.amountCents===18000))
+  await command('list.solicitation',{listId:list.id,version:1,type:'none',reason:'Synthetic staff-requested bulk clear'},{as:member,status:403})
+  assert.equal((await command('list.solicitation',{listId:list.id,version:1,type:'none',reason:'Synthetic staff-requested bulk clear'})).changed,1)
+  assert.equal((await history()).solicitation.type,'none')
+  const emptyExport=await request('/api/coffer/exports/constituents.csv?list=saved:'+list.id);assert.ok(!(await emptyExport.text()).includes(stop.id),'A saved restriction filter stays live after clearing')
+  const allMaya=await command('list.save',{name:'Synthetic Maya list',filters:{q:'Maya Chen'}})
+  assert.equal((await command('list.solicitation',{listId:allMaya.id,version:1,type:'stop',reason:'Synthetic staff-requested bulk stop'})).changed,1)
+  assert.equal((await history()).solicitation.type,'stop')
+  const bulkAudit=(await get('/api/coffer/audit?action=list.solicitation')).rows
+  assert.equal(bulkAudit.filter(r=>JSON.parse(r.detail).count===1).length,2)
+  await command('list.solicitation',{listId:allMaya.id,version:2,type:'none',reason:'Synthetic stale list refusal'},{status:409})
+
   // Advance through historical local boundaries so the native seven-day login
   // remains valid. UTC has already crossed midnight before New York resets.
   const savedAt=at,periodYear=priorYear,periodFund='Synthetic calendar-period appeals'
@@ -215,6 +240,41 @@ export async function solicitationJourney() {
   const periodArchive=await archive(h)
   const periodHistory=periodArchive.filter(r=>r.kind==='part').flatMap(r=>r.items).filter(r=>r.kind==='row'&&r.table==='cf_solicitation_history'&&r.row.donor_id===monthly.id).map(r=>JSON.parse(r.row.answer))
   assert.deepEqual(periodHistory.map(a=>a.period).sort(),['calendar-month','calendar-quarter'],'The original and replacement period choices remain in immutable history')
+  // The annual default spans New Year and releases on the 12-month anniversary.
+  const rolling=await create('Synthetic Rolling Supporter','synthetic-coffer-540@example.test')
+  for(const channel of ['email','mail'])await command('consent.record',{donorIds:[rolling.id],channel,status:'granted',method:'paper form',evidence:'synthetic-coffer-541',capturedOn:`${periodYear}-01-01`})
+  await command('gift.record',{donorId:rolling.id,amount:'1',receivedOn:`${periodYear}-01-01`,method:'check',fund:'Synthetic rolling period',goods:'none'})
+  await command('solicitation.set',{donorId:rolling.id,version:0,type:'limit',maxAsks:1,startsOn:`${periodYear-1}-01-01`})
+  at=`${periodYear-1}-12-15T17:00:00.000Z`
+  const december=await prepare('email','Synthetic December rolling ask',{fund:'Synthetic rolling period'});await issue(december)
+  at=`${periodYear}-01-10T17:00:00.000Z`
+  const januaryHold=await command('appeal.prepare',{name:'Synthetic January rolling hold',channel:'email',fund:'Synthetic rolling period'},{status:409})
+  assert.equal(januaryHold.details['solicitation limit'],1)
+  at=`${periodYear}-12-15T17:00:00.000Z`
+  const anniversary=await prepare('email','Synthetic rolling anniversary',{fund:'Synthetic rolling period'})
+  assert.deepEqual(await recipientIds(anniversary.id),[rolling.id])
+
+  const s=await get('/api/coffer/settings')
+  const {settings:settingsInput}=await import('./harness.mjs')
+  await command('settings.update',{...settingsInput,version:s.version,fiscalYearStart:'07-15'})
+  // A mid-month fiscal anchor distinguishes fiscal from calendar periods.
+  at=`${periodYear}-12-31T17:00:00.000Z`
+  const fiscal=[]
+  for(const [i,period] of ['fiscal-month','fiscal-quarter','fiscal-year'].entries()){
+   const d=await create('Synthetic Fiscal '+period,`synthetic-coffer-${542+i}@example.test`);fiscal.push(d)
+   await command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-545',capturedOn:`${periodYear}-01-01`})
+   await command('gift.record',{donorId:d.id,amount:'1',receivedOn:`${periodYear}-01-01`,method:'check',fund:'Synthetic fiscal periods',goods:'none'})
+   await command('solicitation.set',{donorId:d.id,version:0,type:'limit',maxAsks:1,period,startsOn:`${periodYear}-01-01`})
+  }
+  const fy=await prepare('email','Synthetic fiscal December ask',{fund:'Synthetic fiscal periods'}),fyCompeting=await prepare('email','Synthetic competing fiscal ask',{fund:'Synthetic fiscal periods'})
+  await command('appeal.approve',{appealId:fyCompeting.id,version:1});await issue(fy)
+  assert.equal((await command('appeal.export',{appealId:fyCompeting.id,version:2},{status:409})).error,'SOLICITATION_RESTRICTED')
+  at=`${periodYear+1}-01-14T17:00:00.000Z`
+  assert.equal((await command('appeal.prepare',{name:'Synthetic fiscal before January boundary',channel:'email',fund:'Synthetic fiscal periods'},{status:409})).details['solicitation limit'],3)
+  at=`${periodYear+1}-01-15T17:00:00.000Z`
+  assert.deepEqual(new Set(await recipientIds((await prepare('email','Synthetic fiscal January boundary',{fund:'Synthetic fiscal periods'})).id)),new Set(fiscal.slice(0,2).map(d=>d.id)))
+  at=`${periodYear+1}-07-15T17:00:00.000Z`
+  assert.deepEqual(new Set(await recipientIds((await prepare('email','Synthetic fiscal year boundary',{fund:'Synthetic fiscal periods'})).id)),new Set(fiscal.map(d=>d.id)))
   at=savedAt
 
   if(process.env.COFFER_SOLICITATION_BROWSER){
@@ -224,7 +284,7 @@ export async function solicitationJourney() {
    await withBrowserWorker(h,async(context,origin)=>{
     await context.setExtraHTTPHeaders({cookie:h.owner,'x-test-now':at})
     const page=await context.newPage()
-    const screens=[['donor','/app/donors/'+stop.id],['limit-periods','/app/donors/'+monthly.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['limit-exclusion','/app/appeals/'+second.id],['sms-limit-exclusion','/app/texts?runId='+limitedText.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
+    const screens=[['saved-list','/app/exports?list=saved:'+list.id],['bulk-action','/app/exports?list=saved:'+allMaya.id],['donor-filter','/app/donors?solicitation=stop'],['report-filter','/app/reports/states?year='+priorYear+'&solicitation=stop'],['donor','/app/donors/'+stop.id],['limit-periods','/app/donors/'+monthly.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['limit-exclusion','/app/appeals/'+second.id],['sms-limit-exclusion','/app/texts?runId='+limitedText.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
     for(const width of [1440,390])for(const [name,path] of screens){
      await page.setViewportSize({width,height:1000});await page.goto(origin+path)
      if(name==='import-entry')await page.getByText('Map organization-specific communication codes',{exact:true}).click()

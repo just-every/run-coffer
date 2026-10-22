@@ -1,3 +1,4 @@
+import { solicitationFilter, solicitationFilterSql } from './solicitation-filter'
 import { enteredAddress } from './addresses/entry'
 import { contributionTypeState } from './contribution-types'
 import { solicitationState } from './solicitation'
@@ -95,24 +96,25 @@ export async function donorCommand(c: Context, command: string, p: Row): Promise
 
 const CURRENT = (channel: string) => `(SELECT status FROM cf_consents k WHERE k.donor_id=d.id AND k.channel='${channel}' ORDER BY k.id DESC LIMIT 1)`
 export const PAGE = 50
-export async function listDonors(c: { db: D1Database }, query: { q?: string | null; page?: number; relationship?: string | null; relatedTo?: string | null; volunteer?: string | null } = {}) {
+export async function listDonors(c: { db: D1Database }, query: { q?: string | null; page?: number; relationship?: string | null; relatedTo?: string | null; volunteer?: string | null; solicitation?: string | null } = {}) {
  const q = (query.q ?? '').trim().toLowerCase().slice(0, 100), page = Math.max(0, Math.min(query.page ?? 0, 10000))
  const pattern = (value: string) => `%${value.replace(/[%_\\]/g, x => `\\${x}`)}%`
  const legacyKey = await sha256((query.q??'').trim())
  const like = pattern(q), nameTerms = q.split(/\s+/).map(pattern)
  const nameSearch = nameTerms.map(() => "lower(d.name) LIKE ? ESCAPE '\\'").join(' AND ')
+ const restriction=solicitationFilter(query.solicitation),day=today((await settings(c)).timezone,new Date('now' in c?String(c.now):Date.now()))
  const relationship = query.relationship ?? '', relatedTo = query.relatedTo ?? '', volunteer=query.volunteer??''
  if(!['','all','never-given'].includes(volunteer))fail('INPUT','Choose all volunteers or volunteers who have never given.',400)
  const rows = await all(c, `SELECT d.id,d.version,d.name,d.email,d.city,d.region,d.source,d.erased_at,h.name AS household,
    (SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
    (SELECT MAX(received_on) FROM cf_monetary_contributions g WHERE g.donor_id=d.id AND g.kind='gift') AS last_gift,
    ${CURRENT('email')} AS email_consent, ${CURRENT('mail')} AS mail_consent
-  FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id
-  WHERE NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR d.phone LIKE ? ESCAPE '\\' OR d.source_ref LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cf_donor_aliases a WHERE a.donor_id=d.id AND a.email LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.kind='donor' AND r.source_key=? AND (r.native_id=d.id OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=r.native_id AND m.into_id=d.id))) OR lower(h.name) LIKE ? ESCAPE '\\')
+  FROM cf_donors d LEFT JOIN cf_households h ON h.id=d.household_id CROSS JOIN (SELECT ? AS choice,? AS day) sf
+  WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) AND (?='' OR (${nameSearch}) OR d.email LIKE ? ESCAPE '\\' OR d.phone LIKE ? ESCAPE '\\' OR d.source_ref LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cf_donor_aliases a WHERE a.donor_id=d.id AND a.email LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.kind='donor' AND r.source_key=? AND (r.native_id=d.id OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=r.native_id AND m.into_id=d.id))) OR lower(h.name) LIKE ? ESCAPE '\\')
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id OR r.related_donor_id=d.id) AND r.type=?))
   AND (?='' OR EXISTS(SELECT 1 FROM cf_relationships r WHERE (r.donor_id=d.id AND r.related_donor_id=?) OR (r.related_donor_id=d.id AND r.donor_id=?)))
   AND (?='' OR (d.erased_at IS NULL AND EXISTS(SELECT 1 FROM cf_volunteering v WHERE v.donor_id=d.id) AND (?<>'never-given' OR NOT EXISTS(SELECT 1 FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind IN ('gift','in_kind')))))
-  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, q, ...nameTerms, like, like, like, like, legacyKey, like, relationship, relationship, relatedTo, relatedTo, relatedTo, volunteer, volunteer, PAGE + 1, page * PAGE)
+  ORDER BY d.erased_at IS NOT NULL, lower(d.name), d.id LIMIT ? OFFSET ?`, restriction,day,q, ...nameTerms, like, like, like, like, legacyKey, like, relationship, relationship, relatedTo, relatedTo, relatedTo, volunteer, volunteer, PAGE + 1, page * PAGE)
  const count = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_donors WHERE ${LIVE} AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=cf_donors.id)`)
  return { donors: rows.slice(0, PAGE), more: rows.length > PAGE, page, q, total: count?.n ?? 0 }
 }

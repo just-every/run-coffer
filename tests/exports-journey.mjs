@@ -81,7 +81,7 @@ export async function exportsJourney(){
   const save={name:'Autumn donor follow-up',filters:{q:'target'}}
   await command('list.save',save,{as:'',status:401});await command('list.save',save,{as:member.cookie,status:403});await command('list.save',save,{...asAgent,status:403})
   const list=await command('list.save',save,{as:admin.cookie}),query=new URLSearchParams({list:`saved:${list.id}`})
-  assert.deepEqual((await get('/api/coffer/lists')).lists.find(l=>l.id===list.id).filters,{q:'target',relationship:'',relatedTo:'',volunteer:''})
+  assert.deepEqual((await get('/api/coffer/lists')).lists.find(l=>l.id===list.id).filters,{q:'target',relationship:'',relatedTo:'',volunteer:'',solicitation:''})
   await command('list.save',{...save,listId:list.id,version:0},{status:400})
   const revised=await command('list.save',{...save,listId:list.id,version:1})
   await command('list.save',{...save,listId:list.id,version:1},{status:409})
