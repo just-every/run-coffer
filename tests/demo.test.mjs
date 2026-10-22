@@ -17,6 +17,20 @@ test('the demo preserves frozen work, holds unverified postal mail and sends no 
  const appeals=(await h.get('/api/coffer/appeals')).appeals,waiting=appeals.find(a=>a.status==='prepared'),approved=appeals.find(a=>a.status==='approved')
  assert.equal((await h.command('appeal.approve',{appealId:waiting.id,version:waiting.version})).status,'approved')
  assert.equal((await h.command('appeal.export',{appealId:approved.id,version:approved.version},{status:409})).error,'ADDRESS_CHANGED','Older unverified mail cannot bypass the address gate')
+ if(process.env.COFFER_LEGACY_MAIL_BROWSER){
+  const {mkdir}=await import('node:fs/promises'),{withBrowserWorker}=await import('./browser-worker.mjs')
+  await mkdir(process.env.COFFER_LEGACY_MAIL_BROWSER,{recursive:true})
+  await withBrowserWorker(h,async(context,origin)=>{
+   const page=await context.newPage()
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals/'+approved.id)
+    assert.equal(await page.getByRole('button',{name:'Export audience',exact:true}).count(),0)
+    assert.equal(await page.getByRole('button',{name:'Discard',exact:true}).count(),1)
+    assert.ok(await page.getByRole('alert').count());assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+    await page.screenshot({path:`${process.env.COFFER_LEGACY_MAIL_BROWSER}/DONOR-009-held-mail-${width}.png`,fullPage:true})
+   }
+  })
+ }
  const home=await h.request('/app');assert.equal(home.status,200)
  // Gifts: the campaign's progress and the monthly card Stripe declined and cleared on retry, in the selected donor's panel.
  const gifts=await (await h.request('/app/gifts')).text()
