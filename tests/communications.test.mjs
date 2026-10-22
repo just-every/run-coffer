@@ -157,6 +157,7 @@ test('DONOR-014: Mailchimp audience names follow parts and typed overrides for s
 test('DONOR-014: Connect Mango from the page, send an approved appeal to a Mango list, and keep opt-outs in step',()=>{
  // A synthetic credential: Mango is faked at its network edge.
  const contacts=new Map(),lists=new Map(),suppressions=[],credential=`coffer-test-${process.pid}`
+ let unsubscribeChosenOnPut=false
  return run(async h=>{
   const [avery,jordan]=await consenting(h,['Avery Chen','Jordan Brooks'])
   await h.command('donor.profile',{donorId:avery.id,version:(await h.get('/api/coffer/donors/'+avery.id)).donor.version,prefix:'Dr.',firstName:'Avery',lastName:'Chen',nickname:'Ave',envelopeName:'The Chen Family'})
@@ -245,6 +246,9 @@ test('DONOR-014: Connect Mango from the page, send an approved appeal to a Mango
   async function appealContactBrowser(h){const directory=process.env.COFFER_PROVIDER_FIELDS_BROWSER;const {withBrowserWorker}=await import('./browser-worker.mjs');await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals');const editor=page.locator('form').filter({has:page.locator('input[name=command][value="appeal.prepare"]')});await editor.getByLabel('Appeal name',{exact:true}).fill('Synthetic work email '+width);await editor.locator('select[name=emailType]').selectOption('work');await editor.getByRole('button',{name:'Prepare audience',exact:true}).click();await page.waitForURL('**/app/appeals/**');assert.ok((await page.locator('main').innerText()).includes(workEmail));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/DONOR-013-appeal-contact-'+width+'.png',fullPage:true})}await page.close()})}
 
   async function providerFieldsBrowser(h,expectedVersion){const directory=process.env.COFFER_PROVIDER_FIELDS_BROWSER;const {mkdir}=await import('node:fs/promises');const {withBrowserWorker}=await import('./browser-worker.mjs');await mkdir(directory,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/appeals/connect');const panel=page.locator('#provider-merge-fields');await panel.locator('select[name=fieldKey]').selectOption('custom.profile_interest');await panel.getByRole('button',{name:'Insert merge field',exact:true}).click();await page.getByRole('heading',{name:'Shared field draft',exact:true}).waitFor();assert.match(await page.locator('textarea[name=fields]').inputValue(),/custom\.profile_interest/);assert.equal((await h.get('/api/coffer/provider-fields')).version,expectedVersion,'Insertion only drafts');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/RCPT-010-provider-fields-'+width+'.png',fullPage:true})}await page.close()})}
+  const workRace=await selectedAppeal();await h.command('appeal.approve',{appealId:workRace.id,version:1});unsubscribeChosenOnPut=true
+  assert.equal((await h.command('appeal.send',{appealId:workRace.id,version:2})).suppressed,1)
+  assert.equal((await h.get('/api/coffer/donors/'+avery.id)).current.email.status,'withdrawn','A concurrent opt-out on the chosen work point withdraws this person, not a different primary-address lookup')
   // A Mango unsubscribe becomes a Coffer withdrawal; a Coffer withdrawal becomes a Mango suppression.
   contacts.get(recorded.contacts[0].email).emailStatus='unsubscribed'
   await h.command('marketing.sync')
@@ -265,6 +269,7 @@ test('DONOR-014: Connect Mango from the page, send an approved appeal to a Mango
    if(!body.email)return Response.json({error:'invalid_request'},{status:400})
    assert.equal(body.subscribe,true);assert.match(body.consent.evidence,/Synthetic explicit opt-in/)
    const fixture=recorded.contacts.find(c=>c.email===body.email),contact=contacts.get(body.email)??{...fixture,emailStatus:'subscribed'}
+   if(unsubscribeChosenOnPut){contact.emailStatus='unsubscribed';unsubscribeChosenOnPut=false}
    contact.fields=body.fields;contacts.set(body.email,contact)
    if(!lists.has(body.segmentName))lists.set(body.segmentName,new Set())
    lists.get(body.segmentName).add(body.email)

@@ -78,15 +78,16 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
 /** Mango: the donor joins the appeal's list with Coffer's consent evidence; a person approves the campaign in Mango. */
 async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConnection>>,row:Row,d:Row,input:MessageInput,existingFields?:Row):Promise<Row>{
  try {
-  const donor=await one(c,`SELECT d.*,k.id AS consent_id,k.evidence,k.captured_on FROM cf_donors d JOIN cf_consents k ON k.id=(SELECT id FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1) WHERE d.id=?`,d.id)
+  const donor=await one(c,`SELECT d.*,k.id AS consent_id,k.evidence,k.captured_on FROM cf_donors d JOIN cf_consents k ON k.id=(SELECT id FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1) WHERE d.id=? AND k.status='granted' AND d.constituent_status='active' AND d.erased_at IS NULL`,d.id)
+  if(!donor)fail('CONSENT_CHANGED','The recipient’s consent or status changed before handoff.',409)
   await commit(c,await solicitationRunGuards(c,input.sourceKind,input.sourceId,[d.id]))
   const selected=await profileRecipient(c,donor!,{emailType:input.emailType});if(selected.email!==row.email||input.expectedContactId&&(selected.selected_email_contact_id!==input.expectedContactId||selected.selected_email_contact_version!==input.expectedContactVersion))fail('CONTACT_CHANGED','The email contact changed before handoff.',409)
-  const contact=await listInMango(conn,{...await profileRecipient(c,donor!,{emailType:input.emailType}),remote_profile_fields:existingFields},(await settings(c)).organisation,input.listName,{donorName:d.name,totalGiven:usd(d.total_cents??0),lastGift:d.last_gift||'',giftCount:Number(d.gift_count??0)})
+  const contact=await listInMango(conn,{...selected,remote_profile_fields:existingFields},(await settings(c)).organisation,input.listName,{donorName:d.name,totalGiven:usd(d.total_cents??0),lastGift:d.last_gift||'',giftCount:Number(d.gift_count??0)})
   const listed=contact.emailStatus==='subscribed'
   const note=listed?`On the Mango list “${input.listName}”. Mango sends once a person approves a campaign for that list in Mango.`:`Mango keeps this address opted out (${contact.emailStatus}). No email will go to it.`
   await commit(c,[sql('UPDATE cf_communications SET status=?,campaign_id=?,submitted_at=?,note=? WHERE id=?',listed?'listed':'suppressed',(contact.segmentIds??[]).join(',')||null,c.now,note,row.id),
    event(c,'marketing.listed',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,provider:'mango',list:input.listName,status:contact.emailStatus})])
-  if(!listed)await reconcileDonor(c,d.id)
+  if(!listed)await reconcileDonor(c,d.id,false,{emailType:input.emailType})
   return savedResult(c,row.id,listed?'handed-off':'suppressed')
  } catch(error) {
   const detail=error as {message?:string}
