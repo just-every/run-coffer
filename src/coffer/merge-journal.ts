@@ -12,6 +12,7 @@ const owned = (table:string,scope=`n.donor_id IN ${pair}`,keys=['id'],restore=tr
 const descriptions = [
  owned('cf_donor_recognition',undefined,['donor_id']), owned('cf_gift_recognition',`n.gift_id IN (SELECT id FROM cf_contribution_ledger WHERE donor_id IN ${pair})`,['gift_id']),
  owned('cf_organization_contacts',`n.organization_donor_id IN ${pair} OR n.contact_donor_id IN ${pair}`),
+ owned('cf_custom_values',undefined,['field_key','record_id']), owned('cf_custom_value_history',undefined,['field_key','record_id','version']),
  owned('cf_donors',`n.id IN ${pair}`),
  // Include original households after a contact-field choice moves the survivor.
  // Household versions fence every later staff membership, head or override edit.

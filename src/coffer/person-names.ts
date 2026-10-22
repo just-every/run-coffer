@@ -25,8 +25,9 @@ export function importedOverrides(parts: Row, source: { informal?: string; forma
 export const NAME_MERGE_FIELDS = ['prefix', 'first_name', 'middle_name', 'last_name', 'suffix', 'nickname', 'informal_salutation', 'formal_salutation', 'envelope_name']
 export function nameMergeFields(d: Row): Record<string, string> {
  const names = d.letter_names ?? personNames(d)
- return { ...Object.fromEntries(['prefix','first_name','middle_name','last_name','suffix','nickname'].map(key => [key, d[key] ?? ''])),
-  informal_salutation: names.informal, formal_salutation: names.formal, envelope_name: d.letter_name ?? names.envelope }
+ const fallback=names.formal?.trim()||d.greeting||'Friend'
+ return { ...Object.fromEntries(['prefix','first_name','middle_name','last_name','suffix','nickname'].map(key => [key, String(d[key]??'').trim()?d[key]:fallback])),
+  informal_salutation: names.informal?.trim()||fallback, formal_salutation: fallback, envelope_name: (d.letter_name??names.envelope)?.trim()||fallback }
 }
 
 /** Internal contact marker stays out of provider fields; it carries existing erasure/export custody. */

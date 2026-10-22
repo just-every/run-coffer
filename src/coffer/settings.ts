@@ -1,4 +1,5 @@
 import { contributionReceiptKind, contributionGoodsStatement, renderContributionReceipt } from './contribution-receipts'
+import { customAllowed } from './custom-fields'
 import { NAME_MERGE_FIELDS, personNames } from './person-names'
 import { HOUSEHOLD_MERGE_FIELDS, CONTACT_MERGE_FIELDS, fieldPattern, fillFields, recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
 import { receiptRuleSettings } from './receipt-rules'
@@ -6,7 +7,7 @@ import { choice, commit, event, fail, guard, integer, longText, one, optional, s
 import { amount, usd } from './money'
 
 export type Settings = {
- thank_soft_credits: number; name_defaults: string; version: number; organisation: string; ein: string; timezone: string; threshold_cents: number; target_days: number
+ greeting: string; thank_soft_credits: number; name_defaults: string; version: number; organisation: string; ein: string; timezone: string; threshold_cents: number; target_days: number
  letter_subject: string; letter_template: string; none_statement: string; goods_statement: string; reviewed_at: string | null; reviewed_by: string | null
  religious_organization: number; token_year: number | null; token_max_value_cents: number; token_min_gift_cents: number; token_max_cost_cents: number
  fiscal_year_start: string
@@ -39,8 +40,8 @@ export async function settingsCommand(c: Context, p: Row) {
  const threshold = amount(p, 'threshold', 'Acknowledgement threshold', { allowZero: true }), targetDays = integer(typeof p.targetDays === 'string' ? Number(p.targetDays) : p.targetDays, 'Days to send', 1, 365)
  const subject = text(p.letterSubject, 'Letter subject', 200), template = longText(p.letterTemplate, 'Letter', 8000)
  const none = longText(p.noneStatement, 'No goods or services statement', 1000), goods = longText(p.goodsStatement, 'Goods or services statement', 1000)
- checkTemplate(subject, 'Letter subject', LETTER, [])
- checkTemplate(template, 'Letter', LETTER, LETTER_REQUIRED)
+ checkTemplate(subject, 'Letter subject', await customAllowed(c,LETTER), [])
+ checkTemplate(template, 'Letter', await customAllowed(c,LETTER), LETTER_REQUIRED)
  checkTemplate(none, 'No goods or services statement', [], [])
  checkTemplate(goods, 'Goods or services statement', GOODS, ['goods_value', 'goods_description'])
  if (!ein && placeholders(subject + template).includes('ein')) fail('TEMPLATE', 'Add your EIN or remove {{ein}} from the letter.', 400)
@@ -53,6 +54,7 @@ export async function settingsCommand(c: Context, p: Row) {
   sql('UPDATE cf_settings SET version=version+1,organisation=?,ein=?,timezone=?,threshold_cents=?,target_days=?,letter_subject=?,letter_template=?,none_statement=?,goods_statement=?,thank_soft_credits=COALESCE(?,thank_soft_credits),online_receipts=COALESCE(?,online_receipts),fiscal_year_start=COALESCE(?,fiscal_year_start),reviewed_at=?,reviewed_by=? WHERE id=1',
    organisation, ein, timezone, threshold, targetDays, subject, template, none, goods, thankSoftCredits, onlineReceipts, fiscalStart, c.now, c.actor.name),
   sql('UPDATE cf_settings SET religious_organization=?,token_year=?,token_max_value_cents=?,token_min_gift_cents=?,token_max_cost_cents=? WHERE id=1', rules.religious, rules.year, rules.maxValue, rules.minGift, rules.maxCost),
+  ...(p.greeting===undefined?[]:[sql('UPDATE cf_settings SET greeting=? WHERE id=1',text(p.greeting,'Default greeting',100))]),
   event(c, 'settings.update', 'settings', '1', null, { version: version + 1, thresholdCents: threshold })])
  return { version: version + 1 }
 }
@@ -71,6 +73,6 @@ export function renderLetter(s: Settings, gift: Row, recipient: Row, day: string
  const wording = template ?? { subject: s.letter_subject, body: s.letter_template }
  if (!s.ein || !placeholders(wording.body).includes('ein')) fail('RECEIPT_FACTS', 'Review letter settings: a receipt must include the organization’s EIN.', 409)
  const deductible = usd(gift.amount_cents - gift.goods_cents), goods = goodsStatement(s, gift)
- const fields = { date: longDate(day), ...recipientMergeFields(recipient), donor_name: recipient.letter_salutation ?? personNames(recipient).informal, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
+ const fields = { ...(gift.merge_fields??{}), date: longDate(day), ...recipientMergeFields(recipient), donor_name: recipient.letter_salutation ?? personNames(recipient).informal, amount: usd(gift.amount_cents), gift_date: longDate(gift.received_on), fund: gift.receipt_fund ?? gift.fund, goods_statement: goods, organization: s.organisation, ein: s.ein, deductible_amount: deductible }
  return renderTemplate(wording, fields)
 }

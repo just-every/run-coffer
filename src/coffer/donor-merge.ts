@@ -96,6 +96,8 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
    SELECT 1 FROM cf_donor_rule_tags s WHERE s.donor_id=? AND s.tag=t.tag AND s.created_at<t.created_at)`,target,source),
   sql('DELETE FROM cf_donor_rule_tags WHERE donor_id=? AND tag IN (SELECT tag FROM cf_donor_rule_tags WHERE donor_id=?)',source,target),
   sql('UPDATE cf_donor_rule_tags SET donor_id=? WHERE donor_id=?',target,source),
+  sql('UPDATE cf_custom_values SET donor_id=? WHERE donor_id=?',target,source),
+  sql('UPDATE cf_custom_value_history SET donor_id=? WHERE donor_id=?',target,source),
   sql('DELETE FROM cf_portfolio_members WHERE donor_id=? AND EXISTS(SELECT 1 FROM cf_portfolio_members WHERE donor_id=?)',source,target),
   sql('UPDATE cf_portfolio_members SET donor_id=? WHERE donor_id=?',target,source),
   sql('DELETE FROM cf_soft_credits WHERE donor_id IN (?,?) AND gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=?)',source,target,target),

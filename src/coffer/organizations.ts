@@ -1,3 +1,4 @@
+import { customMerge } from './custom-fields'
 import { computedHouseholdNames, householdDefaults, householdMembers } from './household-names'
 import { withNameDefaults } from './person-defaults'
 import { personNames } from './person-names'
@@ -33,6 +34,7 @@ export async function organizationState(c:{db:D1Database},donorId:string) {
 }
 /** Address and greeting are separate from the constituent credited by the ledger. */
 export async function letterRecipient(c:{db:D1Database},d:Row):Promise<Row> {
+ d={...d,merge_fields:{...await customMerge(c,'constituent',d.id)},greeting:(await one(c,'SELECT greeting FROM cf_settings WHERE id=1'))?.greeting}
  if(d.constituent_status==='deceased'&&d.constituent_kind!=='organization')return {...d,...await survivorAddressing(c,d)}
  const contact=d.constituent_kind==='organization'?await one(c,`SELECT d.* FROM cf_organization_contacts r JOIN cf_donors d ON d.id=r.contact_donor_id WHERE r.organization_donor_id=? AND r.is_primary=1 AND d.erased_at IS NULL AND d.constituent_kind='person'`,d.id):null
  d=await withNameDefaults(c,d)

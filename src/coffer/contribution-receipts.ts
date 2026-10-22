@@ -42,7 +42,7 @@ export function checkContributionTemplate(kind:string,subject:string,body:string
  if(!CONTRIBUTION_TEMPLATE_KINDS.includes(kind as ContributionTemplateKind))return
  const wording=subject+'\n'+body
  const [allowed,required]=CONTRIBUTION_TEMPLATE_FIELDS[kind as ContributionTemplateKind],used=templateTokens(body).map(t=>t.field)
- if(required.some(field=>!used.includes(field))||templateTokens(wording).some(t=>!allowed.includes(t.field)))fail('TEMPLATE','The contribution template must include its required facts and only its published fields.',400)
+ if(required.some(field=>!used.includes(field))||templateTokens(wording).some(t=>!allowed.includes(t.field)&&!t.field.startsWith('custom.')))fail('TEMPLATE','The contribution template must include its required facts and only its published fields.',400)
  if(/deduct/i.test(wording.replace(/[^a-z]/gi,'')))fail('TEMPLATE','Stock, DAF and IRA acknowledgments cannot contain deduction or deductibility language.',400)
  if(kind==='stock'&&(/\$/.test(wording)||/\b(?:usd|dollars?|valu(?:e|ed|ation)|worth|proceeds|prices?)\b/i.test(wording)))fail('TEMPLATE','A stock acknowledgment describes shares without assigning a gift value. Use {{goods_statement}} for any separately provided benefits.',400)
 }
@@ -75,7 +75,7 @@ export function renderContributionReceipt(s:Settings,gift:Row,recipient:Row,day:
  const selected=template?.kind===kind?template:null
  const wording=selected??defaults[kind],facts=gift.contribution_details??{}
  checkContributionTemplate(kind,wording.subject,wording.body)
- const fields:Record<string,string>={...recipientMergeFields(recipient),date:longDate(day),donor_name:kind==='daf'?recipient.name:recipient.letter_salutation??recipient.name,
+ const fields:Record<string,string>={...(gift.merge_fields??{}),...recipientMergeFields(recipient),date:longDate(day),donor_name:kind==='daf'?recipient.name:recipient.letter_salutation??recipient.name,
   gift_date:longDate(gift.received_on),goods_statement:contributionGoodsStatement(s,gift),organization:s.organisation,ein:s.ein,
   ...(kind==='stock'?{description:gift.description??gift.property_description,quantity:String(facts.shares??gift.quantity??''),stock_symbol:facts.symbol??'',stock_shares:facts.shares??''}
    :{amount:usd(gift.amount_cents),fund:gift.receipt_fund??gift.fund,qcd_custodian:gift.qcd_custodian??facts.custodian??''})}

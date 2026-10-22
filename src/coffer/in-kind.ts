@@ -1,5 +1,6 @@
+import { customMerge } from './custom-fields'
 import { contributionReceiptKind, renderContributionReceipt, withContributionTypes } from './contribution-receipts'
-import { recipientMergeFields } from './template-fields'
+import { recipientMergeFields, renderTemplate } from './template-fields'
 import { letterRecipient } from './organizations'
 import { receiptText } from './receipt-format'
 import { addDays, all, choice, commit, date, event, fail, guard, id, integer, longText, newId, one, optional, sql, today, type Context, type Row } from './db'
@@ -54,8 +55,8 @@ function renderAcknowledgment(s: Settings, g: Row, recipient: Row, on: string, t
    : 'No goods or services were provided in exchange for this contribution.'
  if (template) {
   // RCPT-007: an in-kind template never merges a value; the property, quantity and goods facts stay.
-  const fields = { ...recipientMergeFields(recipient), date: longDate(on), donor_name: recipient.letter_salutation, gift_date: longDate(g.received_on), description: g.description, quantity: String(g.quantity), goods_statement: goods, organization: s.organisation, ein: s.ein }
-  return { subject: fill(template.subject, fields), body: fill(template.body, fields), ...templateUse(template, s) }
+  const fields = { ...(g.merge_fields??{}), ...recipientMergeFields(recipient), date: longDate(on), donor_name: recipient.letter_salutation, gift_date: longDate(g.received_on), description: g.description, quantity: String(g.quantity), goods_statement: goods, organization: s.organisation, ein: s.ein }
+  return { ...renderTemplate(template as {subject:string;body:string}, fields), ...templateUse(template, s) }
  }
  return {
   ...settingsUse(s),
@@ -65,7 +66,7 @@ function renderAcknowledgment(s: Settings, g: Row, recipient: Row, on: string, t
 }
 
 export async function inKindCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
- if (!['inKind.save', 'inKind.acknowledge', 'inKind.dispose'].includes(command)) return undefined
+ if (!['inKind.save', 'inKind.review', 'inKind.acknowledge', 'inKind.dispose'].includes(command)) return undefined
  const donorId = id(p.donorId, 'Donor'), s = await settings(c), day = today(s.timezone, new Date(c.now))
  if (command === 'inKind.save') {
   const giftId = p.inKindId ? id(p.inKindId, 'In-kind gift') : newId(), version = p.inKindId ? integer(p.version, 'Version', 1) : 0
@@ -97,7 +98,7 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
  const g = await one(c, 'SELECT g.*,d.name AS donor_name FROM cf_in_kind_current g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id=? AND g.donor_id=? AND d.erased_at IS NULL', giftId, donorId)
  if (!g) fail('NOT_FOUND', 'That property record does not exist on this donor.', 404)
  await withContributionTypes(c, [g])
- if (command === 'inKind.acknowledge') {
+ if (command === 'inKind.acknowledge' || command === 'inKind.review') {
   const on = date(p.acknowledgedOn, 'Acknowledgment date')
   if (on < g.received_on || on > day) fail('INPUT', 'Acknowledgment date must be on or after receipt and no later than today.', 400)
   if (!s.reviewed_at || !s.ein) fail('SETTINGS', 'Review the organization name and EIN in settings before issuing a property acknowledgment.')
@@ -105,7 +106,11 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
   const previous = await one(c, 'SELECT * FROM cf_in_kind_acknowledgments WHERE in_kind_id=? ORDER BY property_version DESC LIMIT 1', giftId)
   const correction = previous ? await one(c, 'SELECT reason FROM cf_in_kind_revisions WHERE in_kind_id=? AND property_version=?', giftId, g.property_version) : null
   const recipient=await letterRecipient(c,(await one(c,'SELECT * FROM cf_donors WHERE id=?',donorId))!)
-  const acknowledgmentId = newId(), template = await templateFor(c, contributionReceiptKind(g) === 'stock' ? 'stock' : 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, recipient, on, template)
+  g.merge_fields=await customMerge(c,'gift',g.id)
+ const acknowledgmentId = newId(), template = await templateFor(c, contributionReceiptKind(g) === 'stock' ? 'stock' : 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, recipient, on, template)
+  const fields=JSON.parse('merge_blanks' in letter?String(letter.merge_blanks):'[]')
+  if(command==='inKind.review')return {donorId,recipientName:recipient.letter_name,subject:letter.subject,body:letter.body,fields}
+  if(fields.length)fail('MERGE_BLANKS','Review empty property acknowledgment fields before approval.',409,{donorId,recipientName:recipient.letter_name,fields})
   if(recipient.constituent_kind==='organization')letter.body=[recipient.letter_name,...[recipient.address_line1,recipient.address_line2,[recipient.city,recipient.region,recipient.postal_code].filter(Boolean).join(' '),recipient.country].filter(Boolean),'',letter.body].join('\n')
   if (previous) letter.body = `Corrected property acknowledgment replacing ${previous.receipt_year}-${previous.receipt_sequence}. What changed: ${correction?.reason ?? 'Donor reassigned'}. Use this copy in place of the earlier acknowledgment.\n\n${letter.body}`
   await commit(c, [live(donorId), current(giftId, donorId, version),

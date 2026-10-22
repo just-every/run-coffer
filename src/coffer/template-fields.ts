@@ -13,7 +13,7 @@ export const HOUSEHOLD_MERGE_FIELDS = ['household_addressee', 'household_informa
 export function recipientMergeFields(d: Row): Record<string, string> {
  const a = d.letter_address ? JSON.parse(d.letter_address) : { line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country }
  const household = d.letter_household_names
- return { ...nameMergeFields(d), household_addressee: household?.addressee ?? '', household_informal_salutation: household?.informal ?? '', household_formal_salutation: household?.formal ?? '', email: d.email ?? '', postal_address: a?.line1 ? [a.line1, a.line2, a.city, a.region, a.postalCode, a.country].filter(Boolean).join('\n') : '' }
+ return { ...(d.merge_fields??{}), ...nameMergeFields(d), household_addressee: household?.addressee ?? '', household_informal_salutation: household?.informal ?? '', household_formal_salutation: household?.formal ?? '', email: d.email ?? '', postal_address: a?.line1 ? [a.line1, a.line2, a.city, a.region, a.postalCode, a.country].filter(Boolean).join('\n') : '' }
 }
 
 /** Freeze the fields that actually rendered blank, alongside the exact wording.

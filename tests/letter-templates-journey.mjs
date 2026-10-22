@@ -149,6 +149,43 @@ export async function letterTemplatesJourney(){
   await h.command('household.update',{householdId,version:householdState.household.version,addressee_override:'Later household name',informal_override:'Later friends',formal_override:'Later formal name'})
   assert.deepEqual((await h.get('/api/coffer/letters/'+householdBatch.id)).letters[0],frozenHousehold,'Prepared household merge fields stay frozen after name changes')
   assert.equal((await h.command('ack.approve',{batchId:householdBatch.id,version:1},{status:409})).error,'HOUSEHOLD_CHANGED')
+  // RCPT-010 custom defaults are real stored values, not arbitrary template keys.
+  await h.command('custom.define',{key:'board_term',label:'Board term',kind:'constituent',type:'text'})
+  await h.command('custom.define',{key:'gift_reference',label:'Gift reference',kind:'gift',type:'text'})
+  await h.command('custom.define',{key:'call_topic',label:'Call topic',kind:'interaction',type:'text'})
+  await h.command('custom.define',{key:'board_term',label:'No permission',kind:'constituent',type:'text',version:1},{as:member.cookie,status:403})
+  const customCatalog=await h.get('/api/coffer/template-fields')
+  for(const entry of [customCatalog.settings,...customCatalog.templates])assert.ok(entry.fields.includes('custom.board_term'))
+  const own=await donor(h,'Sage Custom'),missing=await donor(h,'Robin Custom',{email:null,addressLine1:null})
+  await h.command('donor.profile',{donorId:own.id,version:1,firstName:'Sage',lastName:'Custom',formalSalutation:'Dr. Custom',informalSalutation:'',envelopeName:'Sage Custom'})
+  await h.command('custom.set',{key:'board_term',recordId:own.id,value:'2025–2027',source:'Reviewed board record'})
+  await h.command('custom.set',{key:'board_term',recordId:own.id,version:0,value:'Stale'},{status:409})
+  await h.command('custom.set',{key:'board_term',recordId:own.id,version:1,value:'Forbidden'},{as:member.cookie,status:403})
+  const preview=await h.command('person.defaultsPreview',{informal:'nickname-only',formal:'prefix-last',envelope:'initial'})
+  await h.command('person.defaults',preview)
+  const originalCustomTemplate=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===first.id)
+  const customBody=body+'\nCustom {{custom.board_term|our board}} / {{custom.gift_reference|no gift reference}}\nNames {{informal_salutation}} {{envelope_name}} {{household_addressee|Individual}}\nUnfilled {{custom.call_topic}}'
+  await save({templateId:first.id,version:originalCustomTemplate.version,name:'Custom receipt',subject:'Thank you {{informal_salutation}}',body:customBody})
+  await save({kind:'recurring_start',name:'Unknown custom',subject:'Thanks',body:body+'{{custom.unregistered|unknown}}'},{status:400})
+  const customGifts=await Promise.all([own,missing].map(d=>gift(h,d.id,'300','2025-09-15')))
+  await h.command('custom.set',{key:'gift_reference',recordId:customGifts[0].id,value:'Reviewed reference'})
+  const customBatch=await h.command('ack.prepare',{giftIds:customGifts.map(g=>g.id)})
+  const customReview=await h.get('/api/coffer/letters/'+customBatch.id)
+  const customLetter=customReview.letters.find(l=>l.donor_id===own.id),defaultLetter=customReview.letters.find(l=>l.donor_id===missing.id)
+  assert.match(customLetter.body,/Custom 2025–2027 \/ Reviewed reference/)
+  assert.match(customLetter.subject,/Dr\. Custom/,'Empty informal salutation follows the formal fallback')
+  assert.match(defaultLetter.body,/Custom our board \/ no gift reference/)
+  assert.ok(customReview.mergeReview.every(r=>r.fields.includes('custom.call_topic')))
+  assert.ok(customReview.mergeReview.every(r=>!r.fields.includes('custom.board_term')))
+  // Every RCPT-007 kind accepts defined fields while retaining mandatory facts.
+  for(const entry of customCatalog.templates){
+   const current=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.kind===entry.kind)
+   const sample={kind:entry.kind,name:'Custom '+entry.kind,subject:'Thanks {{custom.board_term|our board}}',body:entry.required.map(f=>'{{'+f+'}}').join(' ')+' {{custom.board_term|our board}}',...(entry.kind==='campaign'?{campaignId:campaign.id}:{}),...(entry.kind==='major_gift'?{minAmount:'1000'}:{}),...(current?{templateId:current.id,version:current.version}:{})}
+   await save(sample)
+   assert.ok((await h.get('/api/coffer/letter-templates')).templates.find(t=>t.kind===entry.kind).body.includes('{{custom.board_term|our board}}'))
+  }
+  const customCsv=await h.request('/api/coffer/exports/constituents.csv?q=Sage%20Custom');assert.equal(customCsv.status,200);assert.match(await customCsv.text(),/board_term/)
+  if(process.env.COFFER_RCPT007_BROWSER){const {customMergeBrowser}=await import('./letter-templates-browser.mjs');await customMergeBrowser(h,{batchId:customBatch.id,directory:process.env.COFFER_RCPT007_BROWSER})}
   // Templates, their versions and the recorded versions on letters travel with the archive.
   const saved=await archive(h)
   await run(async fresh=>{
@@ -160,6 +197,11 @@ export async function letterTemplatesJourney(){
    assert.deepEqual((await fresh.get('/api/coffer/letters/'+householdBatch.id)).mergeReview,householdReview.mergeReview)
    assert.equal((await fresh.get('/api/coffer/letters/'+householdBatch.id)).letters[0].body,frozenHousehold.body)
    assert.deepEqual((await fresh.get('/api/coffer/letters/'+fixedBatch.id)).mergeReview,[])
+   assert.deepEqual((await fresh.get('/api/coffer/letters/'+customBatch.id)).mergeReview,customReview.mergeReview)
+   assert.ok((await fresh.get('/api/coffer/template-fields')).settings.fields.includes('custom.board_term'))
+   await fresh.command('donor.erase',{donorId:own.id,confirm:'ERASE'})
+   assert.doesNotMatch(JSON.stringify(await archive(fresh)),/2025–2027|Reviewed reference/)
+
   })
  })
 }

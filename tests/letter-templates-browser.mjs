@@ -66,3 +66,30 @@ export async function mergeReviewBrowser(h,{batchId,directory,phase}) {
   await page.close()
  })
 }
+
+export async function customMergeBrowser(h,{batchId,directory}) {
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/settings#thank-you-templates')
+   await page.getByText('Add a template',{exact:true}).click()
+   const add=page.locator('#thank-you-templates details').filter({has:page.locator('summary',{hasText:'Add a template'})}).last().locator('form')
+   await add.getByLabel('Template name',{exact:true}).fill('Unsaved insertion check')
+   await add.getByLabel('Subject',{exact:true}).fill('Hello')
+   await add.getByLabel('Letter',{exact:true}).fill('Board: ')
+   await add.getByLabel('Merge field',{exact:true}).selectOption('custom.board_term')
+   await add.getByRole('button',{name:'Insert merge field',exact:true}).click()
+   await page.getByRole('heading',{name:'Template draft',exact:true}).waitFor()
+   assert.equal(await page.getByLabel('Letter',{exact:true}).inputValue(),'Board: {{custom.board_term}}')
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.screenshot({path:`${directory}/RCPT-010-insert-${width}.png`,fullPage:true})
+   await page.goto(origin+'/app/letters/'+batchId)
+   await page.getByRole('heading',{name:'Merge field review',exact:true}).waitFor()
+   assert.ok((await page.locator('main').innerText()).includes('{{custom.call_topic}}'))
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.screenshot({path:`${directory}/RCPT-010-custom-review-${width}.png`,fullPage:true})
+  }
+  await page.close()
+ })
+}

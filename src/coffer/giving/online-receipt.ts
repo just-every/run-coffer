@@ -22,15 +22,17 @@ export async function sendOnlineReceipt(env: GivingEnv, giftId: string): Promise
  const donor = await one(c, 'SELECT * FROM cf_donors WHERE id=?', gift.donor_id)
  const recipient=await letterRecipient(c,donor!)
  const rendered = renderGiftLetter(s, gift, recipient, day, (await giftTemplates(c, [gift])).get(gift.id))
- const letter = { id: letterId, batch_id: batchId, position: 0, gift_id: gift.id, donor_id: gift.donor_id, recipient_name: recipient.letter_name, recipient_email: gift.donor_email, address: recipient.letter_address, subject: rendered.subject, body: rendered.body, amount_cents: gift.amount_cents, received_on: gift.received_on }
+ const hasBlanks=JSON.parse(rendered.merge_blanks).length>0
+ const letter = { merge_blanks:rendered.merge_blanks, id: letterId, batch_id: batchId, position: 0, gift_id: gift.id, donor_id: gift.donor_id, recipient_name: recipient.letter_name, recipient_email: gift.donor_email, address: recipient.letter_address, subject: rendered.subject, body: rendered.body, amount_cents: gift.amount_cents, received_on: gift.received_on }
  const hash = await letterHash(s.version, [letter])
  // The owner's setting is the standing approval for this exact letter.
  await env.DB.batch([
-  env.DB.prepare("INSERT OR IGNORE INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,'approved',?,1,?,?,?,?,?,?)").bind(batchId, hash, gift.amount_cents, s.version, ...SYSTEM, now),
-  env.DB.prepare(`INSERT OR IGNORE INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,template_kind,template_id,template_version)
-   SELECT ?,?,0,?,?,1,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_acks WHERE gift_id=? AND live=1)`).bind(letterId, batchId, gift.id, gift.donor_id, letter.recipient_name, letter.recipient_email, letter.address, letter.subject, letter.body, letter.amount_cents, letter.received_on, rendered.template_kind, rendered.template_id, rendered.template_version, gift.id),
-  env.DB.prepare("INSERT OR IGNORE INTO cf_approvals VALUES(?,'acknowledgements',?,?,?,?,?,?,?,?,?)").bind(`approval-${batchId}`, batchId, hash, ...SYSTEM, SYSTEM[0], 'Online receipts setting', 'owner setting', now),
+  env.DB.prepare("INSERT OR IGNORE INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at) VALUES(?,1,?, ?,1,?,?,?,?,?,?)").bind(batchId,hasBlanks?'prepared':'approved', hash, gift.amount_cents, s.version, ...SYSTEM, now),
+  env.DB.prepare(`INSERT OR IGNORE INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,template_kind,template_id,template_version,merge_blanks)
+   SELECT ?,?,0,?,?,1,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_acks WHERE gift_id=? AND live=1)`).bind(letterId, batchId, gift.id, gift.donor_id, letter.recipient_name, letter.recipient_email, letter.address, letter.subject, letter.body, letter.amount_cents, letter.received_on, rendered.template_kind, rendered.template_id, rendered.template_version,rendered.merge_blanks, gift.id),
+  ...(!hasBlanks?[env.DB.prepare("INSERT OR IGNORE INTO cf_approvals VALUES(?,'acknowledgements',?,?,?,?,?,?,?,?,?)").bind(`approval-${batchId}`, batchId, hash, ...SYSTEM, SYSTEM[0], 'Online receipts setting', 'owner setting', now)]:[]),
  ])
+ if(hasBlanks)return
  const attempt = crypto.randomUUID()
  if (mailSuppressed(env)) {
   await env.DB.prepare("UPDATE cf_acks SET route='email',delivery_status='suppressed',delivery_note='Not emailed: email is switched off on this computer (local mode). Your hosted Coffer emails this receipt on its own.' WHERE id=? AND route='pending'").bind(letterId).run()

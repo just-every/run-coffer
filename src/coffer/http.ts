@@ -12,6 +12,8 @@ import { exportsResponse } from './exports-http'
 import { savedLists } from './saved-lists'
 import { exportsPage } from './ui/exports'
 import { form } from './ui/common'
+import { templateForm } from './ui/letter-templates'
+import { customFields } from './custom-fields'
 import { publishedTemplateFields } from './letter-templates'
 import { printMeetingBrief } from './ui/meeting-brief'
 import { pledgeInvoice } from './pledge-invoices'
@@ -83,7 +85,7 @@ import { createPortability } from '@runeditrun/rer/modules/portability'
 import { createPortabilityHandler } from './portability/http.mjs'
 import policy from './archive-policy.mjs'
 import { identity, manager, originGuard, person, type Actor, type Authority } from './auth'
-import { CofferError, fail, today, type Context } from './db'
+import { all, CofferError, fail, today, type Context } from './db'
 import { canonicalDonor } from './donor-merge'
 import { execute } from './commands'
 import { listDonors, donorHistory } from './donors'
@@ -263,6 +265,13 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if ((path === '/api/coffer/commands' || path === '/app/actions') && request.method === 'POST') {
    const data = path === '/app/actions' ? await formInput(await formBody(request, 400000)) : await jsonBody(request), command = String(data.command), input = data.input ?? data
+   if(!isApi&&command==='letterTemplate.save'&&input.insertField==='yes'){
+    if(!manager(actor))fail('FORBIDDEN','Only an owner or admin edits templates.',403)
+    const catalog=await publishedTemplateFields(c),entry=catalog.templates.find(t=>t.kind===input.kind),field=String(input.fieldKey)
+    if(!entry?.fields.includes(field))fail('TEMPLATE','Choose a field supported by this template kind.',400)
+    const target=input.fieldTarget==='subject'?'subject':'body',draft={...input,id:input.templateId??null,_draft:!input.templateId,min_cents:Math.round(Number(input.minAmount||0)*100),[target]:String(input[target]??'')+'{{'+field+'}}'}
+    return page('Template draft',templateForm(draft,await all(c,'SELECT id,name FROM cf_campaigns ORDER BY name'),entry.fields),actor,200,'/app/settings')
+   }
    let result
    try { result = command === 'donor.erase' ? await eraseDonor(c, auth.authority, input) : await execute(c, command, input) }
    catch (error: any) {
@@ -333,6 +342,8 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   { sql: 'DELETE FROM cf_donor_merges WHERE donor_id=?', params: [donorId] },
   { sql: 'UPDATE cf_pledge_installments SET recipient_email=NULL,message_id=NULL,attempt_id=NULL WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', params: [placeholder] },
   { sql: 'DELETE FROM cf_donor_tokens WHERE donor_id=?', params: [donorId] },
+  {sql:'DELETE FROM cf_custom_value_history WHERE donor_id=?',params:[donorId]},
+  {sql:'DELETE FROM cf_custom_values WHERE donor_id=?',params:[donorId]},
   { sql: 'DELETE FROM cf_giving_customers WHERE donor_id=?', params: [donorId] },
   { sql: "UPDATE cf_giving_intents SET donor_id=?,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR email=?", params: [placeholder, donorId, donor.email ?? ''] },
   { sql: "UPDATE cf_subscriptions SET donor_id=?,customer_id='' WHERE donor_id=?", params: [placeholder, donorId] },
@@ -418,8 +429,9 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if(url.pathname==='/api/coffer/custom-fields'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages custom fields.',403);return json({fields:await customFields(c)})}
  if(url.pathname==='/api/coffer/lists')return json({lists:await savedLists(c)})
- if(url.pathname==='/api/coffer/template-fields')return json(publishedTemplateFields())
+ if(url.pathname==='/api/coffer/template-fields')return json(await publishedTemplateFields(c))
  if(url.pathname==='/api/coffer/meetings')return json(await meetings(c))
  const meeting=url.pathname.match(/^\/api\/coffer\/meetings\/([^/]+)\/brief$/)
  if(meeting)return json(await meetingBrief(c,decodeURIComponent(meeting[1])))
