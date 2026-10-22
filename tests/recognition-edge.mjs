@@ -32,8 +32,7 @@ export async function giveRecognition(h,values){
  const completed=await h.request('/giving/thanks?session_id='+sessionId);assert.equal(completed.status,200,await completed.text())
  return {input,sessionId}
 }
-export async function recognitionMember(h,edge){
- const email='data-entry-recognition@example.test'
+export async function recognitionMember(h,edge,email='data-entry-recognition@example.test'){
  assert.equal((await h.request('/app/people/invite',form({email,role:'member',displayName:'Data entry'}))).status,303)
  const mail=edge.messages.findLast(m=>m.personalizations.some(p=>p.to.some(to=>to.email===email)))
  const link=mail.content.find(c=>c.type==='text/plain').value.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]

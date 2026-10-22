@@ -100,6 +100,8 @@ export async function solicitationJourney() {
   const managerRun=await command('appeal.prepare',{name:'Synthetic manager deliberate inclusion',channel:'email',includes:[{donorId:stop.id,reason:includeReason}]},{as:member})
   assert.deepEqual(await recipientIds(managerRun.id),[stop.id],'An assigned manager prepares only the explicitly selected own donor')
   assert.equal((await get('/api/coffer/appeals/'+managerRun.id)).inclusions[0].actor_id,manager.id)
+  const unrelatedMember=await recognitionMember(h,edge,'synthetic-coffer-550@example.test')
+  await command('appeal.prepare',{name:'Synthetic unrelated member refusal',channel:'email',includes:[{donorId:stop.id,reason:includeReason}]},{as:unrelatedMember,status:403})
   await command('appeal.prepare',{name:'Synthetic other constituent refusal',channel:'email',includes:[{donorId:control.id,reason:includeReason}]},{as:member,status:403})
   const included=await prepare('email','One requested appeal',{includes:[{donorId:stop.id,reason:includeReason}]})
   assert.ok((await recipientIds(included.id)).includes(stop.id))
@@ -172,6 +174,8 @@ export async function solicitationJourney() {
 
   const list=await command('list.save',{name:'Synthetic restricted Maya list',filters:{q:'Maya Chen',solicitation:'stop'}})
   assert.equal((await get('/api/coffer/lists')).lists.find(l=>l.id===list.id).filters.solicitation,'stop')
+  const savedListAudit=(await get('/api/coffer/audit?action=list.save&record='+list.id)).rows
+  assert.ok(savedListAudit.some(e=>e.actor_id===owner.id&&e.subject_id===list.id&&JSON.parse(e.detail).filterFields.includes('solicitation')),'The saved restriction filter has its own actor-attributed audit row')
   const listExport=await request('/api/coffer/exports/constituents.csv?list=saved:'+list.id)
   assert.equal(listExport.status,200);const exportText=await listExport.text()
   assert.match(exportText,/solicitation_restrictions/);assert.ok(exportText.includes(stop.id)&&exportText.includes('stop')&&!exportText.includes(control.id))
