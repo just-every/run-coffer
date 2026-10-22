@@ -131,10 +131,10 @@ export async function letterTemplatesJourney(){
   await h.command('ack.approve',{batchId:fixedBatch.id,version:1})
   // Both individual and household annual statements expose the same review.
   const annualTemplate=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===yearEnd.id)
-  await save({templateId:yearEnd.id,version:1,name:annualTemplate.name,subject:annualTemplate.subject,body:annualTemplate.body+'\nContact: {{email}}'})
+  await save({templateId:yearEnd.id,version:1,name:annualTemplate.name,subject:annualTemplate.subject,body:annualTemplate.body+'\nContact: {{email}}\nHousehold addressee: {{household_addressee}}'})
   const annualReviewBatch=await h.command('ack.prepareStatements',{year:2025,donorId:fay.id})
   const annualReview=await h.get('/api/coffer/letters/'+annualReviewBatch.id)
-  assert.deepEqual(annualReview.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:fay.id,fields:['email']}])
+  assert.deepEqual(annualReview.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:fay.id,fields:['email','household_addressee']}])
   const householdId=(await h.get('/api/coffer/donors/'+fay.id)).donor.household_id
   const family=await h.get('/api/coffer/households/'+householdId)
   await h.command('household.update',{householdId,version:family.household.version,addressee_override:'The Review Family',informal_override:'Review friends',formal_override:'The Review Household'})
