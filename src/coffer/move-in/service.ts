@@ -171,7 +171,7 @@ export async function undo(c: Context,id:string) {
  }
  writes.push(importHouseholdUndoFence(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
- writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.id<>'contact-'||p.kind||'-'||p.donor_id))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id))
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
   ['cf_custom_values','donor_id','donor',null,'record_id'],['cf_donor_tags','donor_id','donor',null,'donor_id'],['cf_gift_tributes','notification_donor_id','donor',null,'gift_id'],
   ['cf_acks','household_id','household',null,'id'],
