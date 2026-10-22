@@ -140,7 +140,7 @@ export async function solicitationJourney() {
   const welcome=await create('Inez Morgan','synthetic-coffer-508@example.test')
   await grant(welcome)
   await command('solicitation.set',{donorId:welcome.id,version:0,type:'stop',startsOn:day})
-  await gift(welcome,'35')
+  await gift(welcome,'35');await gift(annual,'35')
   assert.ok((await command('welcome.run')).submitted>=1)
   let enrolled=(await get('/api/coffer/welcome')).enrollments.find(e=>e.donor_id===welcome.id)
   assert.equal(enrolled.steps.find(s=>s.step==='thank').status,'submitted')
@@ -149,6 +149,9 @@ export async function solicitationJourney() {
   enrolled=(await get('/api/coffer/welcome')).enrollments.find(e=>e.donor_id===welcome.id)
   assert.equal(enrolled.steps.find(s=>s.step==='ask').status,'cancelled')
   assert.equal(enrolled.steps.find(s=>s.step==='ask').note,'do not solicit')
+  const limitedWelcome=(await get('/api/coffer/welcome')).enrollments.find(e=>e.donor_id===annual.id)
+  assert.equal(limitedWelcome.steps.find(s=>s.step==='thank').status,'submitted')
+  assert.equal(limitedWelcome.steps.find(s=>s.step==='ask').note,'solicitation limit · Last ask '+day)
   assert.ok(!(await get('/api/coffer/donors/'+welcome.id)).communications.some(m=>m.source_id===enrolled.steps.find(s=>s.step==='ask').id))
 
   const input={source:'lgl',files:[csv('constituents.csv',[['LGL Constituent ID','Name','Communication Tags'],['synthetic-coffer-509','Rowan Ellis','Do Not Solicit']])]}
@@ -221,7 +224,7 @@ export async function solicitationJourney() {
    await withBrowserWorker(h,async(context,origin)=>{
     await context.setExtraHTTPHeaders({cookie:h.owner,'x-test-now':at})
     const page=await context.newPage()
-    const screens=[['donor','/app/donors/'+stop.id],['limit-periods','/app/donors/'+monthly.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['limit-exclusion','/app/appeals/'+second.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
+    const screens=[['donor','/app/donors/'+stop.id],['limit-periods','/app/donors/'+monthly.id],['pipeline','/app/pipeline'],['tasks','/app/calls'],['appeal','/app/appeals/'+yesEmail.id],['limit-exclusion','/app/appeals/'+second.id],['sms-limit-exclusion','/app/texts?runId='+limitedText.id],['welcome','/app/appeals'],['appeal-entry','/app/appeals'],['import-entry','/app/move-in/crm'],['import','/app/move-in/crm/journal?id='+imported.id]]
     for(const width of [1440,390])for(const [name,path] of screens){
      await page.setViewportSize({width,height:1000});await page.goto(origin+path)
      if(name==='import-entry')await page.getByText('Map organization-specific communication codes',{exact:true}).click()
