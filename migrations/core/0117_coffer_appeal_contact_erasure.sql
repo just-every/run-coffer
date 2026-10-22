@@ -10,4 +10,3 @@ BEGIN
  (SELECT merge_id FROM cf_donor_merge_rows WHERE table_name IN ('cf_appeal_recipients','cf_communications') AND json_extract(json_extract(value,'$.name_fields'),'$._attention')=NEW.id);
  DELETE FROM cf_donor_merge_rows WHERE merge_id IN (SELECT id FROM cf_donor_merge_journal WHERE status='erased');
 END;
-
