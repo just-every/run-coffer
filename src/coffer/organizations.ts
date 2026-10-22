@@ -35,22 +35,24 @@ export async function organizationState(c:{db:D1Database},donorId:string) {
  return {contacts,organizations,relatedGifts}
 }
 /** Address and greeting are separate from the constituent credited by the ledger. */
-export async function letterRecipient(c:{db:D1Database},d:Row,options:{day?:string;emailType?:string;addressType?:string}={}):Promise<Row> {
+export async function letterRecipient(c:{db:D1Database},d:Row,options:{day?:string;emailType?:string;addressType?:string;interactionId?:string}={}):Promise<Row> {
  d=await selectedContacts(c,d,options)
- d={...d,merge_fields:{...await recipientFacts(c,d.id),...await customMerge(c,'constituent',d.id)},greeting:(await one(c,'SELECT greeting FROM cf_settings WHERE id=1'))?.greeting}
+ const interaction=options.interactionId?await one(c,'SELECT id FROM cf_interactions WHERE id=? AND donor_id=?',id(options.interactionId,'Interaction'),d.id):null
+ if(options.interactionId&&!interaction)fail('INTERACTION_CONTEXT','Choose an interaction belonging to this recipient. Limit the batch to that donor.',400)
+ d={...d,selected_interaction_id:interaction?.id,merge_fields:{...await recipientFacts(c,d.id),...await customMerge(c,'constituent',d.id),...(interaction?await customMerge(c,'interaction',interaction.id):{})},greeting:(await one(c,'SELECT greeting FROM cf_settings WHERE id=1'))?.greeting}
  if(d.constituent_status==='deceased'&&d.constituent_kind!=='organization')return {...d,...await survivorAddressing(c,d)}
  const contact=d.constituent_kind==='organization'?await one(c,`SELECT d.* FROM cf_organization_contacts r JOIN cf_donors d ON d.id=r.contact_donor_id WHERE r.organization_donor_id=? AND r.is_primary=1 AND d.erased_at IS NULL AND d.constituent_kind='person'`,d.id):null
  d=await withNameDefaults(c,d)
  if(contact)contact.name_defaults=d.name_defaults
  const names=personNames(d), greeting=contact?personNames(contact):names
  return {...d,letter_names:greeting,letter_name:contact?`${d.name}\nAttn: ${contact.name}`:names.envelope,letter_salutation:contact?informalName(contact):d.constituent_kind==='organization'?d.name:names.informal,
-  letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,emailContactId:d.selected_email_contact_id,emailContactVersion:d.selected_email_contact_version,addressContactId:d.selected_address_contact_id,addressContactVersion:d.selected_address_contact_version,organization:d.constituent_kind==='organization',...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
+  letter_address:JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,emailContactId:d.selected_email_contact_id,emailContactVersion:d.selected_email_contact_version,addressContactId:d.selected_address_contact_id,addressContactVersion:d.selected_address_contact_version,...(interaction?{interactionId:interaction.id}:{}),organization:d.constituent_kind==='organization',...(contact?{attention:contact.name,attentionDonorId:contact.id,salutation:informalName(contact)}:{})})}
 }
 /** A receipt for a gift on a deceased constituent's record goes to the surviving household or the estate, never to the deceased. */
 async function survivorAddressing(c:{db:D1Database},d:Row) {
  const household=d.household_id?await one(c,'SELECT * FROM cf_households WHERE id=?',d.household_id):null
  const living=household?(await householdMembers(c,household.id)).filter(m=>m.constituent_status!=='deceased'):[]
- const address=JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,organization:false})
+ const address=JSON.stringify({line1:d.address_line1,line2:d.address_line2,city:d.city,region:d.region,postalCode:d.postal_code,country:d.country,emailContactId:d.selected_email_contact_id,emailContactVersion:d.selected_email_contact_version,addressContactId:d.selected_address_contact_id,addressContactVersion:d.selected_address_contact_version,...(d.selected_interaction_id?{interactionId:d.selected_interaction_id}:{}),organization:false})
  if(!household||!living.length){const estate=`Estate of ${d.name}`;return {letter_names:{informal:estate,formal:estate,envelope:estate},letter_name:estate,letter_salutation:estate,letter_address:address}}
  const computed=computedHouseholdNames(living,household.head_donor_id,await householdDefaults(c))
  return {letter_names:{informal:household.informal_override??computed.informal,formal:household.formal_override??computed.formal,envelope:household.addressee_override??computed.addressee},letter_name:household.addressee_override??computed.addressee,letter_salutation:household.informal_override??computed.informal,letter_address:address}

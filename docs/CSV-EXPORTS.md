@@ -21,8 +21,7 @@ For a form it also accepts the five flat fields. Updating needs `listId` and
 the current `version`; a stale version returns 409. `GET /api/coffer/lists`
 lists these definitions. Definitions are backed up, never frozen member IDs;
 membership is evaluated from the saved definition inside the export statement.
-General saved-filter fields, appeal/journey/report consumers and undoable bulk
-actions remain DONOR-007 work.
+Current saved lists additionally support giving/date/fund/campaign, manager, consent, tags, custom fields, acknowledgment, status, engagement and lapse filters. They feed the current appeal, retention, task, welcome and export doors. Bulk tags, manager, custom values, status and restrictions have private audited history and guarded undo; the native export page provides these controls.
 
 Every successful CSV is audited as `export.csv`: actor, source, record type,
 safe selection metadata, count, as-of time and `N confidential staff notes
@@ -51,15 +50,15 @@ Constituents:
 constituent_kind, organization_type, website, ein, email, phone, address_line1,
 address_line2, city, region, postal_code, country, household_id,
 informal_salutation, formal_salutation, envelope_name, constituent_status,
-status_reason, deceased_on, status_changed_at, created_at,
-computed_informal_salutation, computed_formal_salutation, computed_envelope_name`.
+status_reason, deceased_on, status_changed_at, created_at, contact_points,
+custom_fields, tags, solicitation_restrictions, computed_informal_salutation, computed_formal_salutation, computed_envelope_name`.
 The first three salutation/envelope columns hold typed overrides; computed
 columns use current installation defaults and those overrides.
 
 Gifts:
 `id, donor_id, kind, received_on, amount_cents, gross_cents, adjustment_cents,
 refunded_cents, stated_value_cents, description, quantity, fund, campaign_id,
-allocations, method, pledge_id, created_at`.
+allocations, method, pledge_id, created_at, custom_fields`.
 One row per original hard-credit monetary gift, with its current signed net in
 `amount_cents`; a reversed gift has zero net. Refunds and reinstatements adjust
 that net and do not create extra gift rows. `gross_cents` retains the imported
@@ -89,7 +88,7 @@ recorded_by`. Only the newest recorded answer per constituent and channel.
 
 Interactions:
 `id, donor_id, kind, occurred_on, who, notes, next_step, open_question,
-question_resolved_at, recorded_at, recorded_by`. Includes ordinary notes and
+question_resolved_at, recorded_at, recorded_by, custom_fields`. Includes ordinary notes and
 visits alongside calls, meetings and logged emails; confidential notes are
 always withheld, even for an owner.
 
@@ -113,3 +112,5 @@ set when those capabilities ship. Report-record exports are DATA-004 and do
 not use this donor-lifetime selection.
 
 The `solicitation` filter is `any`, `none`, `stop`, `channels` or `limit`; it evaluates active restrictions in the organization day, including merged originals. Constituent files add `solicitation_restrictions`, a JSON array of original donor id, type, dates, channels, maximum, period, source, source date and version. This array retains inactive/future restrictions with their dates. Owner/admin `list.solicitation` requires listId, version, type and reason, applies through the same live membership selection (1–500 records), and preserves per-record version/history/audit. General undoable bulk actions remain DONOR-007.
+
+`custom_fields` is a JSON object for the record’s defined constituent, gift or interaction values; `tags` is the constituent’s JSON tag array. Definitions, types and entry methods are available to the owner/admin at `/api/coffer/custom-fields`. Currency values in this object are exact integer-cent decimal strings; text, numbers, dates, years and checkbox answers retain their stored scalar representation, and pick-many values retain an array. A cleared value may be null. Ordinary notes have an empty custom object until their custom-field capability ships; confidential notes remain withheld. These fields are read in the same consistent, unpaged statement and included in the existing row/byte limits and audit.

@@ -8,7 +8,7 @@ const key='synthetic-coffer-90',secret='synthetic-coffer-91',researchKey='synthe
 const headers={'x-test-now':'2026-10-18T16:00:00Z'}
 
 // Parse quoted records, including multiline notes and embedded JSON allocations.
-function parseCsv(input){
+export function parseCsv(input){
  const rows=[],row=[];let field='',quoted=false
  for(let i=0;i<input.length;i++){
   const ch=input[i]

@@ -1,3 +1,4 @@
+import {parseCsv} from './exports-journey.mjs'
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
 
@@ -165,25 +166,64 @@ export async function letterTemplatesJourney(){
   assert.ok(valueCatalog.settings.fields.includes('custom.gift_value'))
   const own=await donor(h,'Sage Custom'),missing=await donor(h,'Robin Custom',{email:null,addressLine1:null})
   await h.command('donor.profile',{donorId:own.id,version:1,firstName:'Sage',lastName:'Custom',formalSalutation:'Dr. Custom',informalSalutation:'',envelopeName:'Sage Custom'})
+  await h.command('custom.define',{key:'membership',label:'Membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer']})
+  await h.command('custom.define',{key:'interests',label:'Interests',kind:'constituent',type:'text',entry:'pick-many',choices:['Books','Music']})
+  await h.command('custom.set',{key:'membership',recordId:own.id,value:'Unknown'},{status:400})
+  await h.command('custom.set',{key:'membership',recordId:own.id,value:'Board'})
+  await h.command('custom.set',{key:'interests',recordId:own.id,value:['Books','Unknown']},{status:400})
+  await h.command('custom.set',{key:'interests',recordId:own.id,value:['Books','Music']})
+  const customList=await h.command('list.save',{name:'Custom members',filters:{q:'Sage Custom',customKey:'membership',customValue:'Board'}})
+  for(const tag of ['board','alumni'])await h.command('list.bulk',{listId:customList.id,version:1,actions:[{type:'tag.add',tag}],reason:'synthetic-coffer-1201'})
   await h.command('custom.set',{key:'board_term',recordId:own.id,value:'2025–2027',source:'Reviewed board record'})
   await h.command('custom.set',{key:'board_term',recordId:own.id,version:0,value:'Stale'},{status:409})
   await h.command('custom.set',{key:'board_term',recordId:own.id,version:1,value:'Forbidden'},{as:member.cookie,status:403})
   const preview=await h.command('person.defaultsPreview',{informal:'nickname-only',formal:'prefix-last',envelope:'initial'})
   await h.command('person.defaults',preview)
   const originalCustomTemplate=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===first.id)
-  const customBody=body+'\nCustom {{custom.board_term|our board}} / {{custom.gift_reference|no gift reference}}\nNames {{informal_salutation}} {{envelope_name}} {{household_addressee|Individual}}\nUnfilled {{custom.call_topic}}'
+  const customBody=body+'\nCustom {{custom.board_term|our board}} / {{custom.gift_reference|no gift reference}}\nNames {{informal_salutation}} {{envelope_name}} {{household_addressee|Individual}}\nUnfilled {{custom.call_topic}}\nInternal gift field {{custom.gift_value|No custom value}}'
   await save({templateId:first.id,version:originalCustomTemplate.version,name:'Custom receipt',subject:'Thank you {{informal_salutation}}',body:customBody})
   await save({kind:'recurring_start',name:'Unknown custom',subject:'Thanks',body:body+'{{custom.unregistered|unknown}}'},{status:400})
   const customGifts=await Promise.all([own,missing].map(d=>gift(h,d.id,'300','2025-09-15')))
   await h.command('custom.set',{key:'gift_reference',recordId:customGifts[0].id,value:'Reviewed reference'})
+  await h.command('custom.set',{key:'gift_value',recordId:customGifts[0].id,value:'not a number'},{status:400})
+  await h.command('custom.set',{key:'gift_value',recordId:customGifts[0].id,value:'125.25'})
   const customBatch=await h.command('ack.prepare',{giftIds:customGifts.map(g=>g.id)})
   const customReview=await h.get('/api/coffer/letters/'+customBatch.id)
   const customLetter=customReview.letters.find(l=>l.donor_id===own.id),defaultLetter=customReview.letters.find(l=>l.donor_id===missing.id)
-  assert.match(customLetter.body,/Custom 2025–2027 \/ Reviewed reference/)
+  assert.match(customLetter.body,/Custom 2025–2027 \/ Reviewed reference/);assert.match(customLetter.body,/Internal gift field \$125\.25/)
   assert.match(customLetter.subject,/Dr\. Custom/,'Empty informal salutation follows the formal fallback')
   assert.match(defaultLetter.body,/Custom our board \/ no gift reference/)
   assert.ok(customReview.mergeReview.every(r=>r.fields.includes('custom.call_topic')))
   assert.ok(customReview.mergeReview.every(r=>!r.fields.includes('custom.board_term')))
+  // An interaction is explicit and belongs to the recipient; another donor's
+  // fields cannot be substituted into their letter, statement or property copy.
+  const ownCall=await h.command('interaction.record',{donorId:own.id,kind:'call',occurredOn:'2025-09-15',notes:'Synthetic stewardship conversation'})
+  const otherCall=await h.command('interaction.record',{donorId:missing.id,kind:'call',occurredOn:'2025-09-15',notes:'Separate synthetic conversation'})
+  await h.command('custom.set',{key:'call_topic',recordId:ownCall.id,value:'Board conversation'})
+  await h.command('custom.set',{key:'call_topic',recordId:otherCall.id,value:'Private other conversation'})
+  const majorCurrent=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===major.id)
+  await save({templateId:major.id,version:majorCurrent.version,name:'Selected interaction',minAmount:'1',subject:'Selected conversation',body:customBody})
+  const contextGift=await gift(h,own.id,'300','2025-09-16')
+  assert.equal((await h.command('ack.prepare',{giftIds:[contextGift.id],interactionId:otherCall.id},{status:400})).error,'INTERACTION_CONTEXT')
+  const contextBatch=await h.command('ack.prepare',{giftIds:[contextGift.id],interactionId:ownCall.id})
+  const contextLetter=(await h.get('/api/coffer/letters/'+contextBatch.id)).letters[0]
+  assert.match(contextLetter.body,/Unfilled Board conversation/);assert.equal(JSON.parse(contextLetter.address).interactionId,ownCall.id)
+  assert.deepEqual((await h.get('/api/coffer/letters/'+contextBatch.id)).mergeReview,[])
+  const annualCurrent=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===yearEnd.id)
+  await save({templateId:yearEnd.id,version:annualCurrent.version,name:'Annual interaction',subject:'Annual',body:annualCurrent.body+'\n{{custom.call_topic}}'})
+  const contextAnnual=await h.command('ack.prepareStatements',{year:2025,donorId:own.id,interactionId:ownCall.id})
+  assert.match((await h.get('/api/coffer/letters/'+contextAnnual.id)).letters[0].body,/Board conversation/)
+  const propertyCurrent=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===property.id)
+  await save({templateId:property.id,version:propertyCurrent.version,name:'Property interaction',subject:'Property',body:propertyCurrent.body+'\n{{custom.call_topic}}'})
+  const contextProperty=await h.command('inKind.save',{donorId:own.id,description:'Synthetic donated maps',quantity:'2',statedValue:'30',receivedOn:'2025-09-15',goods:'none'})
+  const propertyInput={donorId:own.id,inKindId:contextProperty.id,version:1,acknowledgedOn:'2025-09-16',interactionId:ownCall.id}
+  assert.deepEqual((await h.command('inKind.review',propertyInput)).fields,[])
+  await h.command('inKind.acknowledge',propertyInput)
+  await h.command('custom.set',{key:'call_topic',recordId:ownCall.id,version:1,value:'Later conversation'})
+  assert.equal((await h.get('/api/coffer/letters/'+contextBatch.id)).letters[0].body,contextLetter.body,'Prepared interaction values stay frozen after editing their source')
+  assert.match((await h.get('/api/coffer/letters/'+contextAnnual.id)).letters[0].body,/Board conversation/)
+  assert.match((await h.get('/api/coffer/in-kind?donorId='+own.id)).gifts.find(g=>g.id===contextProperty.id).acknowledgments[0].body,/Board conversation/)
+  if(process.env.COFFER_RCPT007_BROWSER){const {interactionMergeBrowser}=await import('./letter-templates-browser.mjs');await interactionMergeBrowser(h,{donorId:own.id,interactionId:ownCall.id,directory:process.env.COFFER_RCPT007_BROWSER})}
   // Every RCPT-007 kind accepts defined fields while retaining mandatory facts.
   for(const entry of customCatalog.templates){
    const current=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.kind===entry.kind)
@@ -191,7 +231,12 @@ export async function letterTemplatesJourney(){
    await save(sample)
    assert.ok((await h.get('/api/coffer/letter-templates')).templates.find(t=>t.kind===entry.kind).body.includes('{{custom.board_term|our board}}'))
   }
-  const customCsv=await h.request('/api/coffer/exports/constituents.csv?q=Sage%20Custom');assert.equal(customCsv.status,200);assert.match(await customCsv.text(),/board_term/)
+  const customCsv=await h.request('/api/coffer/exports/constituents.csv?q=Sage%20Custom');assert.equal(customCsv.status,200);const customRow=parseCsv(await customCsv.text())[0]
+  assert.equal(JSON.parse(customRow.custom_fields).membership,'Board');assert.deepEqual(JSON.parse(customRow.custom_fields).interests,['Books','Music']);assert.deepEqual(JSON.parse(customRow.tags).sort(),['alumni','board'])
+  const giftsCsv=await h.request('/api/coffer/exports/gifts.csv?q=Sage%20Custom');assert.equal(giftsCsv.status,200);const gifted=parseCsv(await giftsCsv.text()).find(g=>g.id===customGifts[0].id)
+  assert.deepEqual(JSON.parse(gifted.custom_fields),{gift_reference:'Reviewed reference',gift_value:'12525'})
+  const interactionsCsv=await h.request('/api/coffer/exports/interactions.csv?q=Sage%20Custom');assert.equal(interactionsCsv.status,200);const called=parseCsv(await interactionsCsv.text()).find(i=>i.id===ownCall.id)
+  assert.deepEqual(JSON.parse(called.custom_fields),{call_topic:'Later conversation'})
   if(process.env.COFFER_RCPT007_BROWSER){const {customMergeBrowser}=await import('./letter-templates-browser.mjs');await customMergeBrowser(h,{batchId:customBatch.id,directory:process.env.COFFER_RCPT007_BROWSER})}
   // Templates, their versions and the recorded versions on letters travel with the archive.
   const saved=await archive(h)
@@ -207,7 +252,7 @@ export async function letterTemplatesJourney(){
    assert.deepEqual((await fresh.get('/api/coffer/letters/'+customBatch.id)).mergeReview,customReview.mergeReview)
    assert.ok((await fresh.get('/api/coffer/template-fields')).settings.fields.includes('custom.board_term'))
    await fresh.command('donor.erase',{donorId:own.id,confirm:'ERASE'})
-   assert.doesNotMatch(JSON.stringify(await archive(fresh)),/2025–2027|Reviewed reference/)
+   assert.doesNotMatch(JSON.stringify(await archive(fresh)),/2025–2027|Reviewed reference|Board conversation|Later conversation/)
 
   })
  })

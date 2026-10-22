@@ -60,7 +60,7 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  const householdId = p.householdId === undefined || p.householdId === null || p.householdId === '' ? null : id(p.householdId, 'Household')
  if (householdId) {
   if (donorId) fail('INPUT', 'Choose a donor or a household for this statement, not both.', 400)
-  return (await import('./household-statements')).prepareHouseholdStatement(c, year, householdId,undefined,{emailType:p.emailType||undefined,addressType:p.addressType||undefined})
+  return (await import('./household-statements')).prepareHouseholdStatement(c, year, householdId,undefined,{emailType:p.emailType||undefined,addressType:p.addressType||undefined,interactionId:p.interactionId||undefined})
  }
  if (!s.reviewed_at || !s.organisation || !s.ein) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')
  const scope = [`${year}-01-01`, `${year}-12-31`, donorId, donorId]
@@ -82,7 +82,7 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
  await receiptFundLabels(c,gifts)
  for (const gift of gifts) gift.tribute = tributes.get(gift.id) ?? null
  const batchId = newId(), template = await templateFor(c, 'year_end'), revision = await templateRevision(c)
- for(let i=0;i<donors.length;i++)donors[i]=await letterRecipient(c,donors[i],{emailType:p.emailType||undefined,addressType:p.addressType||undefined})
+ for(let i=0;i<donors.length;i++)donors[i]=await letterRecipient(c,donors[i],{emailType:p.emailType||undefined,addressType:p.addressType||undefined,interactionId:p.interactionId||undefined})
  let letters:Row[] = donors.map((d, position) => {
   const selected = gifts.filter(g => g.donor_id === d.id)
   if (!selected.length) fail('GIFTS_CHANGED', 'Gifts changed while preparing the statements. Prepare again.')
@@ -106,7 +106,7 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
   const {householdStatementPlan}=await import('./household-statements')
   letters=letters.filter(l=>!donors.find(d=>d.id===l.donor_id)?.household_id)
   for(const householdId of households){
-   const plan=await householdStatementPlan(c,year,householdId,undefined,{batchId,position:letters.length,emailType:p.emailType||undefined,addressType:p.addressType||undefined})
+   const plan=await householdStatementPlan(c,year,householdId,undefined,{batchId,position:letters.length,emailType:p.emailType||undefined,addressType:p.addressType||undefined,interactionId:p.interactionId||undefined})
    letters.push(plan.letter);householdChecks.push(...plan.checks)
   }
  }

@@ -105,7 +105,7 @@ export async function inKindCommand(c: Context, command: string, p: Row): Promis
   if (g.goods === 'unknown') fail('GOODS_UNKNOWN', 'Confirm goods or services before issuing a property acknowledgment.')
   const previous = await one(c, 'SELECT * FROM cf_in_kind_acknowledgments WHERE in_kind_id=? ORDER BY property_version DESC LIMIT 1', giftId)
   const correction = previous ? await one(c, 'SELECT reason FROM cf_in_kind_revisions WHERE in_kind_id=? AND property_version=?', giftId, g.property_version) : null
-  const recipient=await letterRecipient(c,(await one(c,'SELECT * FROM cf_donors WHERE id=?',donorId))!)
+  const recipient=await letterRecipient(c,(await one(c,'SELECT * FROM cf_donors WHERE id=?',donorId))!,{emailType:p.emailType||undefined,addressType:p.addressType||undefined,interactionId:p.interactionId||undefined})
   g.merge_fields=await customMerge(c,'gift',g.id)
  const acknowledgmentId = newId(), template = await templateFor(c, contributionReceiptKind(g) === 'stock' ? 'stock' : 'in_kind'), revision = await templateRevision(c), letter = renderAcknowledgment(s, g, recipient, on, template)
   const fields=JSON.parse('merge_blanks' in letter?String(letter.merge_blanks):'[]')

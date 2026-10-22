@@ -103,3 +103,10 @@ export async function propertyMergeReviewBrowser(h,{donorId,directory}){
   await page.screenshot({path:directory+'/RCPT-010-property-review-'+width+'.png',fullPage:true})
  }await page.close()})
 }
+
+export async function interactionMergeBrowser(h,{donorId,interactionId,directory}){
+ await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){
+  await h.command('gift.record',{donorId,amount:'300',receivedOn:'2025-09-20',method:'check',goods:'none'})
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/letters');const editor=page.locator('form').filter({has:page.locator('input[name=command][value="ack.prepare"]')});await editor.locator('select[name=donorId]').selectOption(donorId);await editor.locator('select[name=interactionId]').selectOption(interactionId);await editor.getByRole('button',{name:/Prepare .* letters/}).click();await page.waitForURL('**/app/letters/**');await page.getByText('Unfilled Later conversation',{exact:false}).first().waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/RCPT-010-interaction-'+width+'.png',fullPage:true})
+  }await page.close()})
+}

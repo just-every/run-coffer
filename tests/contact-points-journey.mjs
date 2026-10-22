@@ -1,13 +1,14 @@
+import { recognitionEdges, giveRecognition } from './recognition-edge.mjs'
 import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
 import {withBrowserWorker} from './browser-worker.mjs'
 import {mkdir} from 'node:fs/promises'
-export async function contactPointsJourney(){const receiptSubmissions=[];await run(async h=>{
+export async function contactPointsJourney(){const receiptSubmissions=[],giving=recognitionEdges();await run(async h=>{
  await reviewed(h)
  const a=await donor(h,'Alex Contacts',{email:'synthetic-coffer-801@example.test',phone:'202-555-0101',household:'Contacts family'}),b=await donor(h,'Blake Contacts',{email:'synthetic-coffer-801@example.test',household:'Contacts family'})
  const state=()=>h.get('/api/coffer/donors/'+a.id)
- const save=async input=>{const d=(await state()).donor;return h.command('contact.save',{donorId:a.id,donorVersion:d.version,source:'synthetic-coffer-802',sourceOn:'2025-01-01',...input},{entry:'tests/engagement-worker.ts',verifiedMail:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-811',MAIL_FROM:'receipts@example.test',COFFER_REPLY_DOMAIN:'replies.example.test'},outbound:async request=>{const u=new URL(request.url);assert.equal(u.origin,'https://api.sendgrid.com');assert.equal(u.pathname,'/v3/mail/send');receiptSubmissions.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-812-'+receiptSubmissions.length}})}})}
+ const save=async input=>{const d=(await state()).donor;return h.command('contact.save',{donorId:a.id,donorVersion:d.version,source:'synthetic-coffer-802',sourceOn:'2025-01-01',...input})}
  const home=await save({kind:'email',type:'personal',value:'synthetic-coffer-803@example.test'})
  const work=await save({kind:'email',type:'work',value:'synthetic-coffer-804@example.test'})
  await save({kind:'phone',type:'home',value:'202-555-0102'})
@@ -114,6 +115,16 @@ export async function contactPointsJourney(){const receiptSubmissions=[];await r
  const frozenNotice=(await h.get('/api/coffer/donors/'+b.id)).tributeNotifications.find(n=>n.id===notice.id)
  assert.equal(frozenNotice.recipient_email,'synthetic-coffer-804@example.test');assert.equal(JSON.parse(frozenNotice.contact_snapshot).emailContactId,work.id)
  await h.command('tributeNotification.approve',{notificationId:notice.id,version:1})
+ // The actual public giving form matches an existing nonprimary contact; it
+ // does not create another person or replace the chosen primary contact.
+ await h.api('/api/coffer/giving/campaigns',{name:'Contact matching',slug:'autumn-reading',description:'Synthetic contact matching campaign.',fund:'Reading',goal:'1000'})
+ await giveRecognition(h,{name:'Alex Contacts',email:'synthetic-coffer-803@example.test',amount:'25.00'})
+ const matched=await state(),onlineGift=matched.gifts.find(g=>g.source==='stripe'&&g.amount_cents===2500)
+ assert.ok(onlineGift);assert.equal(onlineGift.donor_id,a.id)
+ assert.deepEqual((await h.get('/api/coffer/donors?q=synthetic-coffer-803')).donors.map(d=>d.id),[a.id])
+ assert.equal(matched.donor.email,'synthetic-coffer-804@example.test')
+ const onlineReceipt=(await h.get('/api/coffer/letters/receipt-'+onlineGift.id)).letters[0]
+ assert.equal(onlineReceipt.recipient_email,'synthetic-coffer-804@example.test');assert.equal(JSON.parse(onlineReceipt.address).emailContactId,work.id)
  const before=await state(),saved=await archive(h)
  await run(async fresh=>{await restore(fresh,saved);const restored=await fresh.get('/api/coffer/donors/'+a.id);assert.deepEqual(restored.contactPoints,before.contactPoints);assert.deepEqual(restored.contactHistory,before.contactHistory);await fresh.command('donor.erase',{donorId:a.id,confirm:'ERASE'});const after=JSON.stringify(await archive(fresh));assert.doesNotMatch(after,/synthetic-coffer-803|synthetic-coffer-804|20 Lake Road|50 Winter Lane/)})
-},{entry:'tests/engagement-worker.ts',verifiedMail:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-811',MAIL_FROM:'receipts@example.test',COFFER_REPLY_DOMAIN:'replies.example.test'},outbound:async request=>{const u=new URL(request.url);assert.equal(u.origin,'https://api.sendgrid.com');assert.equal(u.pathname,'/v3/mail/send');receiptSubmissions.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-812-'+receiptSubmissions.length}})}})}
+},{entry:'tests/engagement-worker.ts',verifiedMail:true,bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-814',MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-811',MAIL_FROM:'receipts@example.test',COFFER_REPLY_DOMAIN:'replies.example.test'},outbound:async request=>{const u=new URL(request.url);if(u.hostname==='api.stripe.com')return giving.outbound(request);assert.equal(u.origin,'https://api.sendgrid.com');assert.equal(u.pathname,'/v3/mail/send');receiptSubmissions.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-812-'+receiptSubmissions.length}})}})}

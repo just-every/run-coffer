@@ -46,13 +46,14 @@ export async function ackCommand(c: Context, command: string, p: Row): Promise<R
  if (command === 'ack.prepare') {
   const s = await settings(c)
   if (!s.reviewed_at || !s.organisation) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')
+  const selectedDonor=p.donorId?id(p.donorId,'Donor'):null
   const wanted = Array.isArray(p.giftIds) ? new Set(p.giftIds.map((x: unknown) => id(x, 'Gift'))) : null
   const { gifts } = await dueGifts(c), day = today(s.timezone, new Date(c.now))
-  const chosen = gifts.filter(g => g.goods !== 'unknown' && g.net_cents > g.goods_cents && (!wanted || wanted.has(g.id))).slice(0, MAX_LETTERS).map((g): Row => ({ ...g, amount_cents: g.net_cents }))
+  const chosen = gifts.filter(g => g.goods !== 'unknown' && g.net_cents > g.goods_cents && (!selectedDonor||g.donor_id===selectedDonor) && (!wanted || wanted.has(g.id))).slice(0, MAX_LETTERS).map((g): Row => ({ ...g, amount_cents: g.net_cents }))
   if (wanted && chosen.length !== wanted.size) fail('NOT_DUE', 'A selected gift is not waiting for a letter, or still needs its goods or services answer.')
   if (!chosen.length) fail('NOTHING_DUE', 'No gifts are waiting for an acknowledgement letter.')
   const donors = new Map((await all(c, 'SELECT * FROM cf_donors WHERE id IN (SELECT value FROM json_each(?))', JSON.stringify([...new Set(chosen.map(g => g.donor_id))]))).map(d => [d.id, d]))
-  for(const [key,d] of donors)donors.set(key,await letterRecipient(c,d,{emailType:p.emailType||undefined,addressType:p.addressType||undefined}))
+  for(const [key,d] of donors)donors.set(key,await letterRecipient(c,d,{emailType:p.emailType||undefined,addressType:p.addressType||undefined,interactionId:p.interactionId||undefined}))
   const tributes = new Map((await all(c, 'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))', JSON.stringify(chosen.map(g => g.id)))).map(t => [t.gift_id, t]))
   const batchId = newId(), revision = await templateRevision(c), templates = await giftTemplates(c, chosen)
   const letters = chosen.map((g, position) => {
