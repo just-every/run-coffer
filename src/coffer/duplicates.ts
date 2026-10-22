@@ -45,7 +45,7 @@ export async function likelyDuplicates(c: {db:D1Database}, options:{donorId?:str
   // Names alone are not enough evidence that two records describe one person.
   const keys: [string,string,string,number][] = [
    ...[...(emails.get(d.id) ?? [])].map(address=>[`email:${address}`,'email',`Same email: ${address}`,100] as [string,string,string,number]),
-   ...points.filter(p=>p.donor_id===d.id&&p.kind==='phone').map(p=>[phoneKey(p.value)?'phone:'+phoneKey(p.value):'','phone','Same phone: '+p.value,90] as [string,string,string,number]),
+   ...points.filter(p=>p.donor_id===d.id&&p.kind==='phone').map(p=>[phoneKey(p.value)?'phone:'+phoneKey(p.value):'','phone','Same phone: '+phoneKey(p.value),90] as [string,string,string,number]),
    ...points.filter(p=>p.donor_id===d.id&&p.kind==='address').map(p=>{const a=JSON.parse(p.value);const key=postalKey({address_line1:a.line1,address_line2:a.line2,city:a.city,region:a.region,postal_code:a.postalCode,country:a.country});return [key?'address:'+key:'','address','Same postal address',90] as [string,string,string,number]}),
    [phone ? `phone:${phone}` : '', 'phone', `Same phone: ${phone}`, 90],
    [name && postal ? `postal:${name}:${postal}` : '', 'name_address', `Same name and postal address: ${d.name} · ${address}`, 95],

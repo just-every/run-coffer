@@ -171,7 +171,9 @@ export async function undo(c: Context,id:string) {
  }
  writes.push(importHouseholdUndoFence(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.id<>'contact-'||p.kind||'-'||p.donor_id))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
+  ['cf_custom_values','donor_id','donor',null,'record_id'],['cf_donor_tags','donor_id','donor',null,'donor_id'],['cf_gift_tributes','notification_donor_id','donor',null,'gift_id'],
   ['cf_acks','household_id','household',null,'id'],
   ['cf_gifts','donor_id','donor','gift','id'],['cf_pledges','donor_id','donor','pledge','id'],['cf_relationships','donor_id','donor','relationship','id'],['cf_relationships','related_donor_id','donor','relationship','id'],
   ['cf_soft_credits','donor_id','donor','softCredit','id'],['cf_soft_credits','gift_id','gift','softCredit','id'],['cf_donor_notes','donor_id','donor','note','id'],['cf_interactions','donor_id','donor','interaction','id'],
@@ -196,6 +198,7 @@ export async function undo(c: Context,id:string) {
  writes.push(sql(`DELETE FROM cf_solicitation_history WHERE donor_id IN (${owned('solicitation')})`,id))
  writes.push(...importHouseholdUndoWrites(c,id))
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
+ writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}
  writes.push(sql('DELETE FROM cf_move_in_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',id),sql("UPDATE cf_move_in_jobs SET state='undone',undone_at=?,applied_parts=0,report=json_remove(report,'$.solicitationUndoInProgress') WHERE id=?",c.now,id),event(c,'move-in.undo','move-in',id,null))
  try {await commit(c,writes)} catch(error) {
