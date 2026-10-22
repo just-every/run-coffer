@@ -84,6 +84,14 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
   ...rows('cf_approvals', online.approvals),
   ...rows('cf_appeals', out.appeals),
   ...rows('cf_appeal_recipients', out.recipients),
+  // The same frozen ask classification as ordinary preparation. Demo facts
+  // are created after migrations, so the upgrade backfill cannot supply it.
+  ...rows('cf_solicitation_runs', out.appeals.map(a=>({kind:'appeal',run_id:a.id,channel:a.channel,is_ask:1,prepared_at:a.prepared_at}))),
+  ...rows('cf_solicitation_recipients', out.recipients.map(r=>({kind:'appeal',run_id:r.appeal_id,donor_id:r.donor_id,restriction_version:0}))),
+  ...rows('cf_solicitation_asks', out.recipients.flatMap(r=>{
+   const a=out.appeals.find(a=>a.id===r.appeal_id)!
+   return ['exported','sent'].includes(a.status)?[{kind:'appeal',run_id:a.id,donor_id:r.donor_id,channel:a.channel,asked_on:a.sent_on??today(s.timezone,new Date(a.exported_at)),submitted_at:a.exported_at??a.prepared_at}]:[]
+  })),
   ...rows('cf_approvals', [...ack.approvals, ...out.approvals]),
   ...rows('cf_events', audit.map((e, i) => ({ id: i + 1, at: e.at, actor_id: e.actor.id, actor_name: e.actor.name, actor_role: e.actor.role, action: e.action, subject_kind: e.subject_kind, subject_id: e.subject_id, donor_id: e.donor_id, detail: JSON.stringify(e.detail) }))),
  ])

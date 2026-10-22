@@ -108,7 +108,7 @@ for(const source of ['lgl','bloomerang','re-nxt'])test(`ACK-001 / MOVE-001..003 
   const preview=await post(h,'preview',input)
   assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics))
   assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped))
-  assert.deepEqual(preview.counts,{donors:3,households:1,householdsWithHead:0,householdsWithoutHead:1,gifts:3,pledges:1,installments:2,relationships:1,softCredits:1,notes:3})
+  assert.deepEqual(preview.counts,{donors:3,households:1,householdsWithHead:0,householdsWithoutHead:1,gifts:3,pledges:1,installments:2,relationships:1,softCredits:1,notes:3,solicitations:0,channelWithdrawals:0})
   assert.equal(preview.sourceTotals.amountCents,90000)
   assert.equal(preview.sourceTotals.giftCount,3)
   assert.ok(preview.reconciliation.length>=13)
