@@ -100,7 +100,7 @@ export async function authResponse(request: Request, original: Bindings): Promis
  const response = await handleAuthResponse(request, original)
  if (before && response && response.status < 400) {
   const o = before.operator
-  const row = event({db:env.DB,actor:{id:o.id,name:o.displayName,role:o.role},authority:{sql:'1',params:[]},now:new Date().toISOString()},
+  const row = event({actor:{id:o.id,name:o.displayName,role:o.role},now:new Date().toISOString()},
    'auth.'+new URL(request.url).pathname.slice(6).replaceAll('/','.'),'operator',o.id,null,{},'cf_access_events')
   await env.DB.prepare(row.sql).bind(...row.params).run()
  }
