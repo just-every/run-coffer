@@ -1,4 +1,6 @@
 import { contactCommand } from './contact-points'
+import { listTasksCommand } from './list-tasks'
+import { profileBulkCommand } from './list-profile-bulk'
 import { bulkListCommand } from './list-bulk'
 import { customFieldCommand } from './custom-fields'
 import { addressCommand } from './addresses/commands'
@@ -65,7 +67,7 @@ export const ACCESS: Record<string, Role[]> = {
  'giftRule.save': MANAGERS, 'giftRule.publish': MANAGERS, 'giftRule.pause': MANAGERS,
  'sms.discard': MANAGERS, 'solicitation.set': STAFF, 'sms.preference': STAFF, 'sms.prepare': MANAGERS, 'sms.approve': MANAGERS, 'sms.send': MANAGERS,
  'giftBatch.create': STAFF, 'giftBatch.add': STAFF, 'giftBatch.edit': STAFF, 'giftBatch.close': STAFF,
- 'list.bulk': MANAGERS, 'list.undo': MANAGERS,
+ 'list.tasks': MANAGERS,'list.welcome': MANAGERS,'list.profile': MANAGERS,'list.profileUndo': MANAGERS,'list.bulk': MANAGERS, 'list.undo': MANAGERS,
  'list.solicitation': MANAGERS, 'list.save': MANAGERS, 'person.defaultsPreview': MANAGERS, 'person.defaults': MANAGERS, 'organization.contact': STAFF, 'household.update': STAFF, 'household.confirmNames': STAFF, 'statusNotice.acknowledge': STAFF, 'household.defaultsPreview': MANAGERS, 'household.defaults': MANAGERS, 'donor.profile': STAFF,
  'meeting.question.set': STAFF, 'meeting.schedule': STAFF, 'meeting.cancel': STAFF,
  'tributeNotification.prepare': STAFF, 'tributeNotification.approve': MANAGERS, 'receiptTask.complete': STAFF, 'recognition.donor': STAFF, 'recognition.gift': STAFF,
@@ -106,7 +108,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'donor.unmerge') return undoMerge(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [contactCommand,bulkListCommand,customFieldCommand,addressCommand, contributionTypeCommand, giftRulesCommand, solicitationCommand, smsCommand, giftBatchCommand, savedListCommand, personDefaultsCommand, organizationContactCommand, householdCommand, statusCommand, meetingQuestionCommand, meetingCommand, tributeNotificationCommand, receiptTaskCommand, letterTemplateCommand, dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [contactCommand,listTasksCommand,profileBulkCommand,bulkListCommand,customFieldCommand,addressCommand, contributionTypeCommand, giftRulesCommand, solicitationCommand, smsCommand, giftBatchCommand, savedListCommand, personDefaultsCommand, organizationContactCommand, householdCommand, statusCommand, meetingQuestionCommand, meetingCommand, tributeNotificationCommand, receiptTaskCommand, letterTemplateCommand, dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) {
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }

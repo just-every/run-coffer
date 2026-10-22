@@ -152,6 +152,7 @@ export async function donorHistory(c: Context, donorId: string) {
  for(const gift of gifts)gift.recognition=recognitionByGift.get(gift.id)??{anonymous:0,wall_opt_in:0,recognition_name:null}
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
+  customValues:['owner','admin'].includes(c.actor.role)?await all(c,'SELECT * FROM cf_custom_values WHERE donor_id=? ORDER BY field_key,record_id',donorId):[],
   contactPoints:await contactPoints(c,donorId),contactHistory:await all(c,'SELECT * FROM cf_contact_history WHERE donor_id=? ORDER BY recorded_at,point_id,version',donorId),
   contributionTypes:await contributionTypeState(c,donorId),
   ruleTags:await all(c,'SELECT donor_id,tag,created_at FROM cf_donor_rule_tags WHERE donor_id=? UNION SELECT donor_id,tag,created_at FROM cf_donor_tags WHERE donor_id=? ORDER BY tag',donorId,donorId),

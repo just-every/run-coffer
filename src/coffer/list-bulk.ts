@@ -15,7 +15,7 @@ export async function bulkListCommand(c:Context,command:string,p:Row):Promise<Ro
  requireRole(c.actor,['owner','admin'],'change a live list')
  if(command==='list.undo'){
   const jobId=id(p.jobId,'Bulk action'),version=integer(Number(p.version),'Bulk action version',1),job=await one(c,'SELECT * FROM cf_list_bulk_jobs WHERE id=?',jobId)
-  if(!job||job.undone_at||job.version!==version)fail('VERSION','This bulk action changed or was already undone.')
+  if(!job||job.kind!=='tags-manager'||job.undone_at||job.version!==version)fail('VERSION','This bulk action changed or was already undone.')
   const rows=await all(c,'SELECT * FROM cf_list_bulk_rows WHERE job_id=? ORDER BY donor_id',jobId)
   if(!rows.length)fail('NOT_FOUND','This bulk action has no remaining records to undo.',404)
   const writes:Stmt[]=[]
@@ -31,7 +31,7 @@ export async function bulkListCommand(c:Context,command:string,p:Row):Promise<Ro
  const listId=id(p.listId,'Saved list'),version=integer(Number(p.version),'List version',1),reason=text(p.reason,'Reason',1000)
  const list=await one(c,'SELECT version FROM cf_saved_lists WHERE id=?',listId)
  if(!list||list.version!==version)fail('VERSION','This saved list changed.')
- const {ids,selection}=await listMembers(c,listId)
+ const {ids,selection,guards}=await listMembers(c,listId)
  if(!ids.length||ids.length>500)fail('INPUT','A bulk action needs 1–500 constituents. Narrow the live list.',400)
  let actions=p.actions??[...(p.tag?[{type:p.removeTag==='yes'?'tag.remove':'tag.add',tag:p.tag}]:[]),...(p.portfolioId?[{type:'manager',portfolioId:p.portfolioId}]:[])];if(typeof actions==='string'){try{actions=JSON.parse(actions)}catch{fail('INPUT','Choose bulk actions.',400)}}
  if(!Array.isArray(actions)||!actions.length||actions.length>10)fail('INPUT','Choose 1–10 tag or manager actions.',400)
@@ -58,6 +58,6 @@ export async function bulkListCommand(c:Context,command:string,p:Row):Promise<Ro
   writes.push(sql('UPDATE cf_donors SET version=version+1 WHERE id=?',donorId))
   snapshots.push(sql('INSERT INTO cf_list_bulk_rows VALUES(?,?,?,?,?)',jobId,donorId,d.version+1,JSON.stringify(before),JSON.stringify(after)))
  }
- await commit(c,[guard('EXISTS(SELECT 1 FROM cf_saved_lists WHERE id=? AND version=?)','VERSION','The list changed.',listId,version),guard(`(WITH ${selection.ctes} SELECT (SELECT COUNT(*) FROM members)=? AND NOT EXISTS(SELECT 1 FROM members WHERE id NOT IN(SELECT value FROM json_each(?))))`,'LIST_CHANGED','Live list membership changed. Review it again.',...selection.params,ids.length,JSON.stringify(ids)),sql('INSERT INTO cf_list_bulk_jobs(id,list_id,list_version,reason,created_at,created_by) VALUES(?,?,?,?,?,?)',jobId,listId,version,reason,c.now,c.actor.id),...writes,...snapshots,event(c,command,'list_bulk',jobId,null,{listId,count:ids.length,actionTypes:validated.map(a=>a.type),reason})])
+ await commit(c,[...guards,guard('EXISTS(SELECT 1 FROM cf_saved_lists WHERE id=? AND version=?)','VERSION','The list changed.',listId,version),guard(`(WITH ${selection.ctes} SELECT (SELECT COUNT(*) FROM members)=? AND NOT EXISTS(SELECT 1 FROM members WHERE id NOT IN(SELECT value FROM json_each(?))))`,'LIST_CHANGED','Live list membership changed. Review it again.',...selection.params,ids.length,JSON.stringify(ids)),sql('INSERT INTO cf_list_bulk_jobs(id,list_id,list_version,reason,created_at,created_by) VALUES(?,?,?,?,?,?)',jobId,listId,version,reason,c.now,c.actor.id),...writes,...snapshots,event(c,command,'list_bulk',jobId,null,{listId,count:ids.length,actionTypes:validated.map(a=>a.type),reason})])
  return {id:jobId,listId,version:1,changed:ids.length}
 }

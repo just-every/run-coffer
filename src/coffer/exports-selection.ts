@@ -1,5 +1,6 @@
+import { engagementScores } from './engagement'
 import { contactSearchSql } from './contact-points'
-import { ADVANCED_FILTERS, advancedListSql } from './list-filters'
+import { ADVANCED_FILTERS, advancedListSql,validateCustomFilter } from './list-filters'
 import { solicitationFilterSql } from './solicitation-filter'
 import { choice, fail, integer, one, today, type Context } from './db'
 import { listFilters } from './saved-lists'
@@ -22,7 +23,15 @@ export async function exportSelection(c: Context, url: URL) {
  if (rawYear && !/^\d{4}$/.test(rawYear)) fail('INPUT','Choose a calendar year.',400)
  const year = integer(rawYear ? Number(rawYear) : currentYear,'Calendar year',1900,currentYear)
  const through = year === currentYear ? day : `${year}-12-31`
- const ctes = `config AS (SELECT timezone,name_defaults FROM cf_settings WHERE id=1),
+ const baseRevision=Number((await one(c,'SELECT revision FROM cf_score_clock WHERE id=1'))!.revision)
+ const saved=savedId?await one(c,'SELECT version,filters FROM cf_saved_lists WHERE id=?',savedId):null
+ const scoreFilters=saved?JSON.parse(saved.filters):filters
+ await validateCustomFilter(c,scoreFilters)
+ const needsScore=Boolean(scoreFilters.minScore||scoreFilters.maxScore||scoreFilters.lapsed)
+ const revision=needsScore?baseRevision:null
+ const scores=needsScore?(await engagementScores(c)).donors.filter(d=>(!scoreFilters.minScore||d.engagement.score>=Number(scoreFilters.minScore))&&(!scoreFilters.maxScore||d.engagement.score<=Number(scoreFilters.maxScore))&&(!scoreFilters.lapsed||d.engagement.retentionRisk.status===scoreFilters.lapsed)).map(d=>d.donorId):null
+ const scoreCurrentSql=revision===null?'1':`(SELECT revision FROM cf_score_clock WHERE id=1)=${revision}`
+ const ctes = `config AS (SELECT timezone,name_defaults,${scoreCurrentSql} AS selection_current FROM cf_settings WHERE id=1),
  selected_list AS (SELECT id,name,version,filters FROM cf_saved_lists WHERE id=?),
  filters AS (SELECT CASE WHEN ?='saved' THEN (SELECT filters FROM selected_list) ELSE ? END AS definition),
  annual AS MATERIALIZED (SELECT donor_id,substr(received_on,1,4) AS year,SUM(amount_cents) AS cents
@@ -33,6 +42,7 @@ export async function exportSelection(c: Context, url: URL) {
   AND (? NOT IN ('lybunt','sybunt') OR (
    COALESCE((SELECT cents FROM annual a WHERE a.donor_id=d.id AND a.year=?),0)<=0
    AND EXISTS(SELECT 1 FROM annual a WHERE a.donor_id=d.id AND a.year<? AND a.cents>0 AND (?='sybunt' OR a.year=?))))
+  AND (? IS NULL OR d.id IN(SELECT value FROM json_each(?)))
   AND ${advancedListSql('f.definition')}
   AND (json_extract(f.definition,'$.q')='' OR
    NOT EXISTS(SELECT 1 FROM json_each(replace(json_array(json_extract(f.definition,'$.q')),' ','","')) term
@@ -50,8 +60,8 @@ export async function exportSelection(c: Context, url: URL) {
   AND (json_extract(f.definition,'$.volunteer')='' OR (EXISTS(SELECT 1 FROM cf_volunteering v WHERE v.donor_id=d.id)
    AND (json_extract(f.definition,'$.volunteer')<>'never-given' OR NOT EXISTS(
     SELECT 1 FROM cf_contribution_ledger g WHERE g.donor_id=d.id AND g.kind IN ('gift','in_kind'))))))`
- const params = [savedId??'',source,JSON.stringify(filters),through,source,source,String(year),String(year),source,String(year-1)]
+ const params = [savedId??'',source,JSON.stringify(filters),through,source,source,String(year),String(year),source,String(year-1),scores===null?null:JSON.stringify(scores),scores===null?null:JSON.stringify(scores)]
  const selection = {source,listId:savedId,year:source==='lybunt'||source==='sybunt'?year:null,
   filters:Object.fromEntries(Object.entries(filters).map(([k,v])=>[k,k==='relationship'||k==='volunteer'?v:Boolean(v)]))}
- return {source,savedId,timezone,year,through,ctes,params,selection}
+ return {source,savedId,timezone,year,through,ctes,params,selection,scoreCurrentSql}
 }

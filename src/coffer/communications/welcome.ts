@@ -1,9 +1,10 @@
+import { listMembers } from '../list-members'
 import { prepareSolicitationRun, solicitationReason } from '../solicitation'
 import { NAME_MERGE_FIELDS } from '../person-names'
 import { emailConnection } from './connection'
 import type { Bindings } from '../../auth.server'
 import { requireRole } from '../auth'
-import { all, commit, event, fail, guard, integer, longText, newId, one, sql, text, type Context, type Row } from '../db'
+import { all, commit, event, fail, guard, integer, longText, newId, one, sql, text, type Context, type Row, type Stmt } from '../db'
 import { submitMessage } from './outbound'
 import { settings } from '../settings'
 import { today } from '../db'
@@ -31,9 +32,20 @@ function content(value: unknown, label: string, body = false) {
 }
 
 export async function welcomeCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
- if (!['welcome.publish', 'welcome.run'].includes(command)) return undefined
+ if (!['welcome.publish', 'welcome.run','list.welcome'].includes(command)) return undefined
  requireRole(c.actor, ['owner', 'admin'], 'manage the welcome series')
  if (command === 'welcome.run') return run(c)
+ if(command==='list.welcome'){
+  if(p.confirm!=='yes')fail('CONSENT','Confirm enrollment in the published welcome series. Its previously approved messages may submit on a later run.',400)
+  const listId=text(p.listId,'Saved list',100),list=await one(c,'SELECT version FROM cf_saved_lists WHERE id=?',listId)
+  if(!list||list.version!==Number(p.version))fail('VERSION','The saved list changed.')
+  const members=await listMembers(c,listId)
+  if(members.ids.length>100)fail('INPUT','Narrow the live list to at most 100 constituents.',400)
+  if(!await one(c,"SELECT id FROM cf_welcome WHERE id='welcome'"))fail('WELCOME_MISSING','Publish and review the welcome messages first.',409)
+  await enroll(c,members.ids,[...members.guards,guard('EXISTS(SELECT 1 FROM cf_saved_lists WHERE id=? AND version=?)','VERSION','The list changed.',listId,list.version),guard(`(WITH ${members.selection.ctes} SELECT (SELECT COUNT(*) FROM members)=? AND NOT EXISTS(SELECT 1 FROM members WHERE id NOT IN(SELECT value FROM json_each(?))))`,'LIST_CHANGED','Live membership changed.',...members.selection.params,members.ids.length,JSON.stringify(members.ids)),event(c,command,'saved_list',listId,null,{members:members.ids.length,publication:'welcome',explicitConsent:true})])
+  const enrolled=await one(c,"SELECT COUNT(*) AS n FROM cf_welcome_enrollments WHERE status='active' AND donor_id IN(SELECT value FROM json_each(?))",JSON.stringify(members.ids))
+  return {listId,active:enrolled!.n,excluded:members.ids.length-enrolled!.n,submitted:0}
+ }
  const thankSubject = content(p.thankSubject, 'Thank-you subject'), thankBody = content(p.thankBody, 'Thank-you message', true)
  const impactSubject = content(p.impactSubject, 'Impact subject'), impactBody = content(p.impactBody, 'Impact message', true)
  const askSubject = content(p.askSubject, 'Second-ask subject'), askBody = content(p.askBody, 'Second-ask message', true)
@@ -68,24 +80,24 @@ export async function welcomeCommand(c: Context, command: string, p: Row): Promi
  * gifts, even reversed gifts, prevent an existing donor becoming first-time.
  * Later edits preserve the original launch boundary and cannot affect an active
  * journey because publish refuses while an enrollment remains active. */
-async function enroll(c: Context) {
+async function enroll(c: Context,donorIds?:string[],checks:Stmt[]=[]) {
  const published=await one(c,"SELECT published_at FROM cf_welcome WHERE id='welcome'")
  if(!published)return
  const publishedDay=today((await settings(c)).timezone,new Date(published.published_at))
- await commit(c, [
+ await commit(c, [...checks,
   sql(`INSERT OR IGNORE INTO cf_welcome_enrollments(donor_id,first_gift_id,enrolled_at,status,stopped_at)
    SELECT d.id,g.id,?,'active',NULL FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id
    JOIN cf_welcome w ON w.id='welcome'
-   WHERE g.net_cents>0 AND ${sendable} AND julianday(g.created_at)>julianday(w.published_at)
+   WHERE (? IS NULL OR d.id IN(SELECT value FROM json_each(?))) AND g.net_cents>0 AND ${sendable} AND (?=0 OR (${consent} AND NOT EXISTS(SELECT 1 FROM cf_gifts another WHERE another.donor_id=d.id AND another.kind='gift' AND another.id<>g.id))) AND julianday(g.created_at)>julianday(w.published_at)
    AND julianday(g.created_at)<=julianday(?) AND g.received_on>=? AND NOT EXISTS(SELECT 1 FROM cf_gifts prior
     WHERE prior.donor_id=d.id AND prior.kind='gift' AND (julianday(prior.created_at)<julianday(g.created_at)
-     OR (julianday(prior.created_at)=julianday(g.created_at) AND prior.id<g.id)))`, c.now, c.now, publishedDay),
+     OR (julianday(prior.created_at)=julianday(g.created_at) AND prior.id<g.id)))`,c.now,donorIds?JSON.stringify(donorIds):null,donorIds?JSON.stringify(donorIds):null,donorIds?1:0,c.now,publishedDay),
   ...stepNames.map(step => sql(`INSERT OR IGNORE INTO cf_welcome_steps(id,donor_id,step,due_at,status,message_key,note,response_code)
    SELECT 'welcome:'||e.donor_id||':${step}',e.donor_id,'${step}',
    strftime('%Y-%m-%dT%H:%M:%fZ',g.created_at, '+'||${step === 'thank' ? '0' : `w.${step}_days`}||' days'),
    'pending','welcome:'||e.donor_id||':${step}',NULL,v.code
    FROM cf_welcome_enrollments e JOIN cf_gifts g ON g.id=e.first_gift_id JOIN cf_welcome w ON w.id='welcome'
-   LEFT JOIN cf_journey_step_publications v ON v.publication_id=w.publication_id AND v.step='${step}' WHERE e.status='active'`)),
+   LEFT JOIN cf_journey_step_publications v ON v.publication_id=w.publication_id AND v.step='${step}' WHERE e.status='active' AND (? IS NULL OR e.donor_id IN(SELECT value FROM json_each(?)))`,donorIds?JSON.stringify(donorIds):null,donorIds?JSON.stringify(donorIds):null)),
  ])
 }
 

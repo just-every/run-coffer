@@ -82,7 +82,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   if(grouping&&!grouping.pieces.length)fail('NO_GIFTS','No positive-balance gifts were found for gift-based mail pieces. Choose constituent or household pieces.',409)
   const addressSnapshot=await mailSnapshot(c,appealId,addressPass,recipients)
   const restriction=await prepareSolicitationRun(c,{kind:'appeal',id:appealId,channel,isAsk,donorIds:recipients.map(r=>r.donor_id),includes})
-  await commit(c, [...restriction.statements,
+  await commit(c, [...(saved?.guards??[]),...restriction.statements,
    ...(selection?[guard("NOT EXISTS(SELECT 1 FROM cf_appeals WHERE json_extract(segment,'$.resendOf')=? AND status<>'discarded')",'RESEND_EXISTS','A resend was prepared concurrently. Refresh to review it.',selection.resendOf)]:[]),
    guard(`NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE (SELECT k.id FROM cf_consents k WHERE k.donor_id=json_extract(j.value,'$.donor_id') AND k.channel=? ORDER BY k.id DESC LIMIT 1) IS NOT json_extract(j.value,'$.consent_id'))`, 'CONSENT_CHANGED', 'A donor’s consent changed while preparing. Prepare again.', list, channel),
    sql("INSERT INTO cf_appeal_codes(code,name,origin,created_at) VALUES(?,?,'staff',?)",code,name,c.now),

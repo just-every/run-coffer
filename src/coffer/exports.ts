@@ -23,7 +23,7 @@ export async function exportSnapshot(c: Context, type: ExportType, url: URL) {
  const query = `WITH ${s.ctes}, records AS MATERIALIZED (${spec.query}),
  record_json AS MATERIALIZED (SELECT ${recordJson(type)} AS data FROM records r),
  totals AS (SELECT count(*) AS row_count,COALESCE(SUM(length(CAST(data AS BLOB))),0) AS byte_count FROM record_json),
- metadata AS (SELECT t.*,? AS as_of,c.timezone,c.name_defaults,c.timezone=? AS calendar_current,
+ metadata AS (SELECT t.*,? AS as_of,c.timezone,c.name_defaults,c.timezone=? AS calendar_current,c.selection_current,
   (SELECT count(*) FROM members) AS member_count,(SELECT version FROM selected_list) AS list_version,
   (SELECT name FROM selected_list) AS list_name,(SELECT definition FROM filters) AS definition,
   (SELECT count(*) FROM cf_donor_notes n JOIN members m ON m.id=n.donor_id WHERE n.confidential=1) AS withheld
@@ -32,6 +32,7 @@ export async function exportSnapshot(c: Context, type: ExportType, url: URL) {
  ORDER BY json_extract(r.data,'$.donor_id'),json_extract(r.data,'$.id')`
  const result = (await c.db.prepare(query).bind(...s.params,c.now,s.timezone,MAX_ROWS,MAX_BYTES).all<Row>()).results
  const meta = result[0]
+ if (!meta?.selection_current) fail('LIST_CHANGED','Giving or engagement facts changed. Refresh this list.',409)
  if (!meta?.calendar_current) fail('SETTINGS_CHANGED','The organization calendar changed. Refresh the export.',409)
  if (s.source === 'saved' && meta.list_version == null) fail('NOT_FOUND','That saved list does not exist.',404)
  const selection = {...s.selection,...(s.source==='saved'?{version:meta.list_version,

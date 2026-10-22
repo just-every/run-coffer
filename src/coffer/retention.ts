@@ -1,4 +1,4 @@
-import { all, type Context } from './db'
+import { all, one, fail, type Context } from './db'
 import { retentionScope } from './retention-scope'
 import { longDate } from './settings'
 
@@ -58,6 +58,7 @@ export async function retention(c: Context, url: URL) {
     AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
    GROUP BY credited.id,credited.name ORDER BY lower(credited.name),credited.id`, start,start,priorStart,end,...donorParams,...ledgerParams),
  ])
+ if(!(await one(c,`SELECT ${scope.scoreCurrentSql} AS current`))?.current)fail('LIST_CHANGED','Giving or engagement facts changed. Refresh this report.',409)
  const groups: Record<RetentionKind, RetentionGroup> = {
   retained: { kind: 'retained', rows: [], count: 0, priorCents: 0, currentCents: 0 },
   new: { kind: 'new', rows: [], count: 0, priorCents: 0, currentCents: 0 },
