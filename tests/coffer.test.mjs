@@ -1,3 +1,4 @@
+import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import {organizationsJourney} from './organizations-journey.mjs'
 import {stateReportJourney} from './state-report-journey.mjs'
 import {attributionJourney} from './attribution-journey.mjs'
@@ -133,8 +134,9 @@ test('an appeal reaches only donors with current consent, and a withdrawal stops
  const history=await h.get(`/api/coffer/donors/${ana.id}`)
  assert.deepEqual(history.appeals.map(a=>[a.name,a.status]),[['Fall 2026 appeal','sent']])
  assert.equal((await h.get(`/api/coffer/donors/${ben.id}`)).appeals.length,0)
+ await prepareVerifiedMail(h)
  const mail=await h.command('appeal.prepare',{name:'Postcard',channel:'mail'});assert.equal(mail.recipients,1)
-}))
+},{verifiedMail:true}))
 
 test('IMPORT-001: saved Stripe refunds, every duplicate row, dry run, exact review, journal and undo',()=>run(async h=>{
  const input={...await stripe(),noGoodsOrServices:false}

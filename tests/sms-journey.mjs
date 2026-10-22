@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {createHmac} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
 import {run,donor,archive,restore} from './harness.mjs'
+import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import {withBrowserWorker} from './browser-worker.mjs'
 
 export async function smsJourney(){
@@ -93,6 +94,7 @@ export async function smsJourney(){
    const approval=await command('sms.approve',{runId:run.id,version:run.version})
    assert.equal((await command('sms.send',{runId:run.id,version:approval.version})).submitted,1)
   }
+  await prepareVerifiedMail(h,{headers:dayHeaders})
   const originalSourcePermission=await smsPermission(h,source),originalTargetPermission=await smsPermission(h,target)
   const originalSourceRestriction=(await donorFile(h,source)).solicitation,originalTargetRestriction=(await donorFile(h,target)).solicitation
   const mergeInputs=async()=>({sourceDonorId:source.id,sourceVersion:(await donorFile(h,source)).donor.version,donorId:target.id,version:(await donorFile(h,target)).donor.version,reason:'duplicate_record'})
@@ -126,7 +128,7 @@ export async function smsJourney(){
    assert.deepEqual(await smsPermission(copied,target),originalTargetPermission)
    assert.deepEqual((await donorFile(copied,source)).solicitation,originalSourceRestriction)
    assert.deepEqual((await donorFile(copied,target)).solicitation,originalTargetRestriction)
-  },{entry:'tests/advancing-clock-worker.ts',bindings:{TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound})
+  },{verifiedMail:true,entry:'tests/advancing-clock-worker.ts',bindings:{TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound})
   // The restored copy proves clean undo. The live copy proves that a later
   // deliberate staff decision cannot be overwritten by the same undo.
   const noAutomaticGrant=await prepare('thank-you',[target.id])
@@ -164,5 +166,5 @@ export async function smsJourney(){
     await page.close()
    })
   }
- },{entry:'tests/advancing-clock-worker.ts',bindings:{TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound})
+ },{verifiedMail:true,entry:'tests/advancing-clock-worker.ts',bindings:{TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound})
 }

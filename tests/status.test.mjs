@@ -1,3 +1,4 @@
+import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore,installation} from './harness.mjs'
@@ -51,7 +52,9 @@ test('DONOR-012: deceased and inactive constituents leave every send, task and s
   assert.deepEqual([ruthRecord.constituent_status,ruthRecord.status_reason,ruthRecord.status_changed_by,ruthRecord.deceased_on],['inactive','Asked for no contact','Morgan Lee',null])
 
   // Appeals count each excluded reason; a status change after preparation blocks approval.
-  const emailAppeal=await h.command('appeal.prepare',{name:'Spring appeal',channel:'email'}),mailAppeal=await h.command('appeal.prepare',{name:'Spring letters',channel:'mail'})
+  const emailAppeal=await h.command('appeal.prepare',{name:'Spring appeal',channel:'email'})
+  await prepareVerifiedMail(h)
+  const mailAppeal=await h.command('appeal.prepare',{name:'Spring letters',channel:'mail'})
   for(const a of [emailAppeal,mailAppeal]){assert.equal(a.recipients,5);assert.equal(a.excluded.inactive,1)}
   await profile(h,john,{constituentStatus:'deceased',deceasedOn:'2026-03-02'})
   await profile(h,wes,{constituentStatus:'deceased',deceasedOn:'2026-03-05'})
@@ -60,7 +63,9 @@ test('DONOR-012: deceased and inactive constituents leave every send, task and s
   assert.ok((await h.get('/api/coffer/audit?action=donor.status&record='+john.id)).rows.some(r=>JSON.parse(r.detail).to==='deceased'&&JSON.parse(r.detail).recordedBy==='Morgan Lee'))
   assert.equal((await h.command('appeal.approve',{appealId:emailAppeal.id,version:1},{status:409})).error,'CONSENT_CHANGED')
   await h.command('appeal.discard',{appealId:emailAppeal.id,version:1});await h.command('appeal.discard',{appealId:mailAppeal.id,version:1})
-  const email2=await h.command('appeal.prepare',{name:'Summer appeal',channel:'email'}),mail2=await h.command('appeal.prepare',{name:'Summer letters',channel:'mail'})
+  const email2=await h.command('appeal.prepare',{name:'Summer appeal',channel:'email'})
+  await prepareVerifiedMail(h)
+  const mail2=await h.command('appeal.prepare',{name:'Summer letters',channel:'mail'})
   for(const a of [email2,mail2]){assert.equal(a.recipients,3);assert.deepEqual([a.excluded.deceased,a.excluded.inactive],[2,1])}
   const recipients=(await h.get('/api/coffer/appeals/'+email2.id)).recipients.map(r=>r.donor_id)
   assert.ok(!recipients.includes(john.id)&&!recipients.includes(ruth.id))
@@ -139,7 +144,7 @@ test('DONOR-012: deceased and inactive constituents leave every send, task and s
   assert.equal((await marsh('esme.marsh')).constituent_status,'active')
   await importFile(h,'re-nxt','Constituent ID,First Name,Last Name,Email,Constituent Status,Date of Death\n901,Fay,Quill,fay.quill@example.org,Deceased,2025-10-10\n')
   const fay=await marsh('fay.quill');assert.deepEqual([fay.constituent_status,fay.deceased_on],['deceased','2025-10-10'])
- },{bindings:{MAIL_PROVIDER:'sendgrid'},outbound:async request=>{
+ },{verifiedMail:true,bindings:{MAIL_PROVIDER:'sendgrid'},outbound:async request=>{
   const u=new URL(request.url)
   if(u.hostname==='api.sendgrid.com'){
    const payload=await request.json(),text=payload.content.map(c=>c.value).join('\n')

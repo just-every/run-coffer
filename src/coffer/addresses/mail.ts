@@ -2,12 +2,10 @@ import { all, fail, guard, one, sql, type Context, type Row, type Stmt } from '.
 import { queueNcoa } from './commands'
 import { addressFingerprint, addressProcessing } from './state'
 
-/** Existing installations opt into the connected address-processing workflow.
- * The contract gap explicitly retains the older unverified export path until
- * rollout policy is settled; an enabled installation cannot bypass this gate. */
+/** Every new postal audience requires the reviewed connection and a completed pass. */
 export async function mailPreflight(c:Context) {
  const connection=await addressProcessing(c)
- if(!connection.enabled)return null
+ if(!connection.enabled)fail('NCOA_NOT_CONNECTED','An owner or admin must connect and authorize address processing in Addresses before preparing postal mail.',409)
  const pass=await one(c,"SELECT * FROM cf_ncoa_runs WHERE state='completed' AND consumed_appeal_id IS NULL AND connection_version=? ORDER BY completed_at DESC,id LIMIT 1",connection.version)
  if(pass)return pass
  const queued=await queueNcoa(c)
@@ -15,11 +13,9 @@ export async function mailPreflight(c:Context) {
 }
 export async function mailEligibility(c:{db:D1Database},donors:Row[]) {
  const result=new Map<string,{reason:string;check?:Row}>()
- const enabled=Boolean((await addressProcessing(c)).enabled)
  const checks=await all(c,'SELECT * FROM cf_address_checks WHERE donor_id IN(SELECT value FROM json_each(?))',JSON.stringify(donors.map(d=>d.id))),byId=new Map(checks.map(r=>[r.donor_id,r]))
  for(const donor of donors){
   const check=byId.get(donor.id)
-  if(!enabled){if(check?.status==='undeliverable'&&check.fingerprint===await addressFingerprint(donor))result.set(donor.id,{reason:'undeliverable address',check});continue}
   if(!check||check.fingerprint!==await addressFingerprint(donor))result.set(donor.id,{reason:'address not verified'})
   else if(check.status==='undeliverable')result.set(donor.id,{reason:'undeliverable address',check})
   else if(check.status!=='verified')result.set(donor.id,{reason:'address not verified',check})
@@ -36,11 +32,16 @@ export async function mailSnapshot(c:Context,appealId:string,pass:Row|null,recip
  ...checks.map(s=>sql('INSERT INTO cf_mail_address_snapshots VALUES(?,?,?,?,?)',appealId,s.donor_id,s.fingerprint,s.version,pass.id)),
  ...mailRunGuards(appealId)]
 }
-/** Snapshot-bearing mailings continue to check custody even after a connection
- * is disabled, rather than silently falling back to older unchecked exports. */
+/** Email is unaffected. Postal runs, including older prepared runs without
+ * verification snapshots, must be rebuilt before approval or first export. */
+const MAIL_VALID=`NOT EXISTS(SELECT 1 FROM cf_appeals a WHERE a.id=? AND a.channel='mail' AND (
+ NOT EXISTS(SELECT 1 FROM cf_address_processing WHERE id=1 AND enabled=1)
+ OR (SELECT COUNT(*) FROM cf_mail_address_snapshots WHERE appeal_id=a.id)<>a.recipients
+ OR EXISTS(SELECT 1 FROM cf_appeal_recipients r LEFT JOIN cf_mail_address_snapshots s ON s.appeal_id=r.appeal_id AND s.donor_id=r.donor_id LEFT JOIN cf_address_checks c ON c.donor_id=s.donor_id WHERE r.appeal_id=a.id AND (s.donor_id IS NULL OR c.donor_id IS NULL OR c.status<>'verified' OR c.version<>s.check_version OR c.fingerprint<>s.fingerprint))
+))`
 export function mailRunGuards(appealId:string):Stmt[] {
- return [guard(`NOT EXISTS(SELECT 1 FROM cf_mail_address_snapshots s LEFT JOIN cf_address_checks c ON c.donor_id=s.donor_id WHERE s.appeal_id=? AND (c.donor_id IS NULL OR c.status<>'verified' OR c.version<>s.check_version OR c.fingerprint<>s.fingerprint)) AND (NOT EXISTS(SELECT 1 FROM cf_mail_address_snapshots WHERE appeal_id=?) OR EXISTS(SELECT 1 FROM cf_address_processing WHERE id=1 AND enabled=1))`,'ADDRESS_CHANGED','A recipient address or verification changed. Discard the mailing and prepare a new address pass.',appealId,appealId)]
+ return [guard(MAIL_VALID,'ADDRESS_CHANGED','This mailing needs current address verification. Discard it and prepare a new address pass.',appealId)]
 }
 export async function mailAddressChanged(c:{db:D1Database},appealId:string) {
- return Boolean(await one(c,`SELECT 1 FROM cf_mail_address_snapshots s LEFT JOIN cf_address_checks c ON c.donor_id=s.donor_id WHERE s.appeal_id=? AND (c.donor_id IS NULL OR c.status<>'verified' OR c.version<>s.check_version OR c.fingerprint<>s.fingerprint) LIMIT 1`,appealId))
+ return !Boolean(await one(c,`SELECT 1 WHERE ${MAIL_VALID}`,appealId))
 }

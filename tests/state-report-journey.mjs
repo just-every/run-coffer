@@ -118,6 +118,7 @@ export async function addressVerificationJourney(){
   const processing=version=>h.command('address.processing',{version,enabled:'yes',pafReference:'synthetic-coffer-905',reviewed:'yes'})
   await h.command('address.processing',{version:0,enabled:'yes',pafReference:'synthetic-coffer-905',reviewed:'yes'},{as:member.cookie,status:403})
   await h.get('/api/coffer/addresses',{as:member.cookie,status:403});await h.get('/api/coffer/addresses',{as:'',status:401})
+  assert.equal((await h.command('appeal.prepare',{name:'Unconnected mailing',channel:'mail'},{status:409})).error,'NCOA_NOT_CONNECTED')
   await processing(0)
   const maya=await donor(h,'Synthetic Address Maya',{email:'synthetic-coffer-906@example.test',addressLine1:'1 maple street'});moverId=maya.id
   let history=await h.get('/api/coffer/donors/'+maya.id)
@@ -164,10 +165,10 @@ export async function addressVerificationJourney(){
   await h.command('address.queueNcoa');await tick()
   const approved=await prepare();await h.command('appeal.approve',{appealId:approved.id,version:1});await h.command('appeal.export',{appealId:approved.id,version:2})
   const file=await h.request('/api/coffer/appeals/'+approved.id+'/recipients.csv');assert.equal(file.status,200);assert.match(await file.text(),/9 MOVER ST/)
-  const ownFile=await h.api('/api/coffer/donors/'+maya.id+'/data-request',{requestedOn:new Date().toISOString().slice(0,10),method:'email'})
+  const ownFile=await h.api('/api/coffer/donors/'+maya.id+'/data-request',{requestedOn:new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),method:'email'})
   const ownText=JSON.stringify(ownFile);assert.ok(ownText.includes('ncoa')&&ownText.includes('9 MOVER ST'));assert.ok(!ownText.includes('Synthetic Address Rowan')&&!ownText.includes('synthetic-coffer-1000@example.test'),'The donor file contains their address records without other constituents')
   const backup=await archive(h)
-  await run(async fresh=>{await restore(fresh,backup);assert.equal((await fresh.get('/api/coffer/donors/'+maya.id+'/addresses')).check.source,'ncoa');assert.equal((await fresh.get('/api/coffer/addresses')).connection.enabled,0)})
+  await run(async fresh=>{await restore(fresh,backup);assert.equal((await fresh.get('/api/coffer/donors/'+maya.id+'/addresses')).check.source,'ncoa');assert.equal((await fresh.get('/api/coffer/addresses')).connection.enabled,0);assert.equal((await fresh.command('appeal.prepare',{name:'Restored unconnected mailing',channel:'mail'},{status:409})).error,'NCOA_NOT_CONNECTED')})
   if(process.env.COFFER_ADDRESS_BROWSER){
    const {mkdir}=await import('node:fs/promises');await mkdir(process.env.COFFER_ADDRESS_BROWSER,{recursive:true})
    const {withBrowserWorker}=await import('./browser-worker.mjs')

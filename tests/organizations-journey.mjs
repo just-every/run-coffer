@@ -1,3 +1,4 @@
+import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import assert from 'node:assert/strict'
 import {run,installation,donor,reviewed,archive,restore} from './harness.mjs'
 
@@ -41,6 +42,7 @@ export async function organizationsJourney() {
    await h.command('ack.discard',{batchId:temporary.id,version:1})
   }
   await h.command('consent.record',{donorIds:[org.id],channel:'mail',status:'granted',method:'paper form',evidence:'Organization postal permission',capturedOn:'2026-09-01'})
+  await prepareVerifiedMail(h)
   const namedMail=await h.command('appeal.prepare',{name:'Organization salutation',channel:'mail'})
   await h.command('appeal.approve',{appealId:namedMail.id,version:1});await h.command('appeal.export',{appealId:namedMail.id,version:2})
   const frozenRecipient=(await h.get('/api/coffer/appeals/'+namedMail.id)).recipients.find(r=>r.donor_id===org.id)
@@ -49,7 +51,7 @@ export async function organizationsJourney() {
   const letter=(await h.get('/api/coffer/letters/'+batch.id)).letters[0]
   assert.equal(letter.donor_id,org.id);assert.equal(letter.recipient_name,'Lakeside Community Foundation\nAttn: Dr. Maya Chen')
   assert.match(letter.body,/Dear Maya,/);assert.match(letter.body,/\$10,000\.00/)
-  assert.equal(JSON.parse(letter.address).region,'Minnesota')
+  assert.equal(JSON.parse(letter.address).region,'MN')
   await h.command('ack.approve',{batchId:batch.id,version:1})
   const printed=await (await h.request('/app/letters/'+batch.id+'/print')).text()
   assert.match(printed,/Lakeside Community Foundation<br>Attn: Dr. Maya Chen/)
@@ -92,7 +94,7 @@ export async function organizationsJourney() {
   assert.equal((await h.get('/api/coffer/appeals/'+namedMail.id)).recipients.find(r=>r.donor_id===org.id).name_fields,null)
   assert.equal((await h.get('/api/coffer/letters/'+batch.id)).letters[0].body,'[erased]')
   assert.ok(!(await (await h.request('/api/coffer/in-kind-acknowledgments/'+propertyAck.acknowledgmentId+'/download')).text()).includes('Maya'))
- },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic_organization_mail',MAIL_FROM:'receipts@example.test'},outbound:async request=>{
+ },{verifiedMail:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic_organization_mail',MAIL_FROM:'receipts@example.test'},outbound:async request=>{
   assert.equal(new URL(request.url).hostname,'api.sendgrid.com')
   submitted.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'organization-'+submitted.length}})
  }})

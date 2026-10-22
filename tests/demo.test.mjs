@@ -2,7 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {run} from './harness.mjs'
 
-test('the demo opens on a lived-in pantry whose waiting work a person can finish, and an invitation sends nothing',()=>run(async h=>{
+test('the demo preserves frozen work, holds unverified postal mail and sends no invitation',()=>run(async h=>{
  const donors=await h.get('/api/coffer/donors')
  assert.ok(donors.total>=30,'sample donors')
  assert.equal((await h.get('/api/coffer/settings')).organisation,'Copper Hollow Food Pantry')
@@ -16,7 +16,7 @@ test('the demo opens on a lived-in pantry whose waiting work a person can finish
  assert.equal((await h.command('ack.approve',{batchId:prepared.id,version:prepared.version})).status,'approved')
  const appeals=(await h.get('/api/coffer/appeals')).appeals,waiting=appeals.find(a=>a.status==='prepared'),approved=appeals.find(a=>a.status==='approved')
  assert.equal((await h.command('appeal.approve',{appealId:waiting.id,version:waiting.version})).status,'approved')
- assert.equal((await h.command('appeal.export',{appealId:approved.id,version:approved.version})).status,'exported')
+ assert.equal((await h.command('appeal.export',{appealId:approved.id,version:approved.version},{status:409})).error,'ADDRESS_CHANGED','Older unverified mail cannot bypass the address gate')
  const home=await h.request('/app');assert.equal(home.status,200)
  // Gifts: the campaign's progress and the monthly card Stripe declined and cleared on retry, in the selected donor's panel.
  const gifts=await (await h.request('/app/gifts')).text()

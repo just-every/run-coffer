@@ -1,3 +1,4 @@
+import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
@@ -206,6 +207,7 @@ test('COMM-008: email appeal results match signed ledger and sender outcomes wit
   assert.equal(detail.results.responseRate,1)
   const empty=await h.get('/api/coffer/appeals/'+frozen.id)
   assert.equal(empty.results.code,code)
+  await prepareVerifiedMail(h)
   const mail=await h.command('appeal.prepare',{name:'COMM-008 postal appeal',channel:'mail',cost:'25.50'})
   assert.notEqual(mail.code,code)
   const zero=(await h.get('/api/coffer/appeals/'+mail.id)).results
@@ -221,6 +223,7 @@ test('COMM-008: email appeal results match signed ledger and sender outcomes wit
   assert.equal(results.returnRatio,7451/2550)
   assert.deepEqual([results.delivered,results.deliveryUnknown,results.opened,results.clicked],[null,1,null,null])
   assert.equal(results.comparison.find(r=>r.id===frozen.id).dollarsCents,10000)
+  await prepareVerifiedMail(h)
   await h.command('appeal.prepare',{name:'Invalid cost',channel:'mail',cost:'0.001'},{status:400})
   const lines=await archive(h),fresh=await installation()
   try{
@@ -266,6 +269,7 @@ test('COMM-008: email appeal results match signed ledger and sender outcomes wit
      await page.getByLabel('Appeal cost (USD, optional)').fill('12.50')
      await page.getByLabel('Appeal name',{exact:true}).fill('COMM-008 browser '+width)
      await page.screenshot({path:process.env.COFFER_PROOF_DIR+'/COMM-008-form-'+width+'.png',fullPage:true})
+     await prepareVerifiedMail(h)
      await page.getByRole('button',{name:'Prepare audience',exact:true}).click()
      await page.getByText('Results',{exact:true}).waitFor()
      assert.match(await page.locator('body').innerText(),/12.50/)
@@ -273,7 +277,7 @@ test('COMM-008: email appeal results match signed ledger and sender outcomes wit
     }
    })
   }
- },{outbound:async request=>{
+ },{verifiedMail:true,outbound:async request=>{
   const u=new URL(request.url),key=`${request.method} ${u.pathname}`;calls.push(key)
   assert.equal(u.origin,'https://us21.api.mailchimp.com')
   assert.equal(request.headers.get('authorization'),`Bearer ${apiKey}`)

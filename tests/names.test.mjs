@@ -1,3 +1,4 @@
+import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,settings,archive,restore,installation} from './harness.mjs'
@@ -139,6 +140,7 @@ test('DONOR-014: name parts compute informal, formal and envelope names; overrid
  assert.equal((await h.get('/api/coffer/donors?q=uma.night')).donors.length,0)
  // The mail-house export freezes all three names, and later profile changes cannot rewrite them.
  await h.command('consent.record',{donorIds:[robert.id],channel:'mail',status:'granted',method:'paper form',evidence:'Explicit postal permission',capturedOn:'2026-09-01'})
+ await prepareVerifiedMail(h)
  const mail=await h.command('appeal.prepare',{name:'Named mail file',channel:'mail'})
  await h.command('appeal.approve',{appealId:mail.id,version:1});await h.command('appeal.export',{appealId:mail.id,version:2})
  await profile(h,robert,{envelopeName:'Changed after review'})
@@ -148,7 +150,7 @@ test('DONOR-014: name parts compute informal, formal and envelope names; overrid
  const lines=await archive(h),fresh=await installation()
  try{await restore(fresh,lines);assert.equal((await fresh.get('/api/coffer/donors/'+ana.id)).names.informal,'Ms. Lee');assert.equal((await fresh.get('/api/coffer/letters/'+batch.id)).letters[0].body,frozen)}finally{await fresh.close()}
 
-},{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_FROM:'receipts@example.test',MAIL_API_KEY:'synthetic-sendgrid-edge'},outbound:async request=>{
+},{verifiedMail:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_FROM:'receipts@example.test',MAIL_API_KEY:'synthetic-sendgrid-edge'},outbound:async request=>{
  assert.equal(new URL(request.url).hostname,'api.sendgrid.com')
  delivered.push(await request.json())
  return new Response(null,{status:202,headers:{'x-message-id':'synthetic-name-receipt'}})

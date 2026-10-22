@@ -6,10 +6,13 @@ import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import assert from 'node:assert/strict'
+import {verifiedMailBindings,verifiedMailOutbound} from './verified-mail-edge.mjs'
 const bundles=new Map()
 // `outbound` handles additional network edges; Resend remains captured in messages.
+// `verifiedMail` adds only Smarty/Melissa network fakes; journeys explicitly prepare their real postal pass.
 // `entry` swaps the Worker under test (tests/demo-worker.ts wraps it in withDemo); `bindings` adds or overrides vars.
-export async function installation({entry='tests/worker.ts',bindings={},outbound,triggerHandlers=false}={}) {
+export async function installation({entry='tests/worker.ts',bindings={},outbound,triggerHandlers=false,verifiedMail=false}={}) {
+ if(verifiedMail){bindings={...verifiedMailBindings,...bindings};outbound=verifiedMailOutbound(outbound);triggerHandlers=true}
  if(!bundles.has(entry))bundles.set(entry,build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']}))
  const bundle=await bundles.get(entry)
  const directory=await mkdtemp(join(tmpdir(),'coffer-api-')),setup=randomBytes(32).toString('hex'),messages=[]
@@ -43,7 +46,7 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
    const cookie=confirmed.headers.getSetCookie().map(x=>x.split(';')[0]).join('; '),session=await api('/auth/session',undefined,{as:cookie})
    return {cookie,id:session.operator.id,session}
   }
-  return {mf,origin,owner,messages,request,api,command,get,person,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  return {mf,origin,owner,messages,request,api,command,get,person,verifiedMail,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(error){await mf.dispose();await rm(directory,{recursive:true,force:true});throw error}
 }
 export async function run(fn,options){const h=await installation(options);try{return await fn(h)}finally{await h.close()}}

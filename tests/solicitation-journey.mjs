@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {run,donor,reviewed,archive} from './harness.mjs'
 import {recognitionMember} from './recognition-edge.mjs'
+import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import {solicitationEdges} from './solicitation-edge.mjs'
 
 const csv=(name,rows)=>({name,base64:Buffer.from(rows.map(row=>row.join(',')).join('\r\n')).toString('base64')})
@@ -56,7 +57,7 @@ export async function solicitationJourney() {
   const stewardship=await command('task.generate',{sourceKey:lapse.key,ownerId:owner.id,dueOn:day,isAsk:false})
   assert.equal(stewardship.is_ask,0,'A person can create a stewardship call explicitly marked as not an ask')
 
-  const prepare=(channel,name,extra={})=>command('appeal.prepare',{name,channel,...extra})
+  const prepare=async(channel,name,extra={})=>{if(channel==='mail')await prepareVerifiedMail(h,{headers:options({}).headers});return command('appeal.prepare',{name,channel,...extra})}
   const recipientIds=async id=>(await get('/api/coffer/appeals/'+id)).recipients.map(r=>r.donor_id)
   const email=await prepare('email','Spring reading-room appeal'),mail=await prepare('mail','Spring reading-room letters')
   for(const run of [email,mail]){
@@ -224,5 +225,5 @@ export async function solicitationJourney() {
     }
    })
   }
- },{entry:'tests/advancing-clock-worker.ts',bindings:{MAIL_PROVIDER:'sendgrid'},outbound:edge.outbound})
+ },{verifiedMail:true,entry:'tests/advancing-clock-worker.ts',bindings:{MAIL_PROVIDER:'sendgrid'},outbound:edge.outbound})
 }
