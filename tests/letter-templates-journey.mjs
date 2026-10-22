@@ -180,7 +180,7 @@ export async function letterTemplatesJourney(){
   const preview=await h.command('person.defaultsPreview',{informal:'nickname-only',formal:'prefix-last',envelope:'initial'})
   await h.command('person.defaults',preview)
   const originalCustomTemplate=(await h.get('/api/coffer/letter-templates')).templates.find(t=>t.id===first.id)
-  const customBody=body+'\nCustom {{custom.board_term|our board}} / {{custom.gift_reference|no gift reference}}\nNames {{informal_salutation}} {{envelope_name}} {{household_addressee|Individual}}\nUnfilled {{custom.call_topic}}\nInternal gift field {{custom.gift_value|No custom value}}'
+  const customBody=body+'\nCustom {{custom.board_term|our board}} / {{custom.gift_reference|no gift reference}}\nNames {{informal_salutation}} {{envelope_name}} {{household_addressee|Individual}}\nUnfilled {{custom.call_topic}}\nInternal gift field {{custom.gift_value|No custom value}}\nMembership {{custom.membership|Friend of the library}}'
   await save({templateId:first.id,version:originalCustomTemplate.version,name:'Custom receipt',subject:'Thank you {{informal_salutation}}',body:customBody})
   await save({kind:'recurring_start',name:'Unknown custom',subject:'Thanks',body:body+'{{custom.unregistered|unknown}}'},{status:400})
   const customGifts=await Promise.all([own,missing].map(d=>gift(h,d.id,'300','2025-09-15')))
@@ -223,6 +223,15 @@ export async function letterTemplatesJourney(){
   assert.equal((await h.get('/api/coffer/letters/'+contextBatch.id)).letters[0].body,contextLetter.body,'Prepared interaction values stay frozen after editing their source')
   assert.match((await h.get('/api/coffer/letters/'+contextAnnual.id)).letters[0].body,/Board conversation/)
   assert.match((await h.get('/api/coffer/in-kind?donorId='+own.id)).gifts.find(g=>g.id===contextProperty.id).acknowledgments[0].body,/Board conversation/)
+  await h.command('custom.clear',{key:'membership',recordId:own.id,version:1},{as:member.cookie,status:403})
+  await h.command('custom.clear',{key:'membership',recordId:own.id,version:1,source:'synthetic-coffer-1302'})
+  await h.command('custom.clear',{key:'membership',recordId:own.id,version:1},{status:409})
+  assert.deepEqual((await h.get('/api/coffer/lists/'+customList.id+'/members')).donorIds,[])
+  const clearedGift=await gift(h,own.id,'300','2025-09-17'),clearedBatch=await h.command('ack.prepare',{giftIds:[clearedGift.id],interactionId:ownCall.id})
+  assert.match((await h.get('/api/coffer/letters/'+clearedBatch.id)).letters[0].body,/Membership Friend of the library/)
+  await h.command('custom.set',{key:'membership',recordId:own.id,version:2,value:'Board'})
+  assert.match((await h.get('/api/coffer/letters/'+clearedBatch.id)).letters[0].body,/Membership Friend of the library/,'Restoring a value does not rewrite an earlier default')
+  if(process.env.COFFER_RCPT007_BROWSER){const {customRecordBrowser}=await import('./letter-templates-browser.mjs');await customRecordBrowser(h,{donorId:own.id,directory:process.env.COFFER_RCPT007_BROWSER})}
   if(process.env.COFFER_RCPT007_BROWSER){const {interactionMergeBrowser}=await import('./letter-templates-browser.mjs');await interactionMergeBrowser(h,{donorId:own.id,interactionId:ownCall.id,directory:process.env.COFFER_RCPT007_BROWSER})}
   // Every RCPT-007 kind accepts defined fields while retaining mandatory facts.
   for(const entry of customCatalog.templates){

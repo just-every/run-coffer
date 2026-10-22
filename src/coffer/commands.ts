@@ -61,7 +61,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
  'contact.save': STAFF,
- 'custom.define': MANAGERS, 'custom.set': MANAGERS,
+ 'custom.define': MANAGERS, 'custom.set': MANAGERS, 'custom.clear': MANAGERS,
  'address.processing': MANAGERS, 'address.verify': STAFF, 'address.queueNcoa': MANAGERS,
  'contribution.record': STAFF, 'contribution.stockSale': STAFF,
  'giftRule.save': MANAGERS, 'giftRule.publish': MANAGERS, 'giftRule.pause': MANAGERS,

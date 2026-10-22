@@ -157,6 +157,7 @@ async function formInput(data: FormData) {
   const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
  }
+ if(input.command==='custom.set'&&data.has('customMany'))input.value=data.getAll('customValues')
  if (input.command === 'sms.prepare') input.donorIds=data.getAll('donorIds')
  if (input.command === 'research.screen') input.donorIds=data.getAll('donorIds')
  if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
@@ -373,6 +374,8 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
+ if(command==='custom.define')return redirect('/app/settings?saved=1#custom-field-definitions')
+ if(command==='custom.set'||command==='custom.clear')return redirect('/app/donors/'+encodeURIComponent(result.donorId)+'?customRecord='+encodeURIComponent(input.recordId)+'#custom-fields')
  if(command==='inKind.review')return page('Property merge review',`<h2>${esc(result.recipientName)}</h2>${result.fields.length?'<p>Empty fields to correct before approval:</p><ul>'+result.fields.map((f:string)=>'<li>'+esc(f)+'</li>').join('')+'</ul>':'<p>No empty merge fields.</p>'}<h3>${esc(result.subject)}</h3><pre>${esc(result.body)}</pre><p><a href="/app/donors/${encodeURIComponent(result.donorId)}#in-kind">Return to the property record</a></p>`,actor,200,'/app/donors')
  if(command==='list.tasks')return redirect('/app/calls?owner='+encodeURIComponent(input.ownerId))
  if(command==='list.welcome')return redirect('/app/appeals')
