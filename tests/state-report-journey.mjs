@@ -208,7 +208,7 @@ export async function addressVerificationJourney(){
   assert.deepEqual((await h.get('/api/coffer/donors/'+maya.id)).donor,beforePaf)
   assert.deepEqual((await getAddress(maya.id)).check,beforePafCheck,'PAF refusal changes neither addresses nor deliverability')
   const disabledStatement=await h.command('ack.prepareStatements',{year:2025,donorId:maya.id});assert.ok(disabledStatement.id,'Year-end statements never wait for address processing')
-  const disabledGift=await h.command('gift.record',{donorId:maya.id,amount:'300',receivedOn:at.slice(0,10),method:'check',goods:'none'})
+  const disabledGift=await h.command('gift.record',{donorId:maya.id,amount:'300',receivedOn:new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at)),method:'check',goods:'none'})
   const disabledAck=await h.command('ack.prepare',{giftIds:[disabledGift.id]});assert.ok(disabledAck.id,'Acknowledgments and receipts never wait for address processing')
   await h.command('ack.approve',{batchId:disabledAck.id,version:1})
   const calls=ncoa.length;await tick();assert.equal(ncoa.length,calls,'Disabled processing does not retry the refused pass')
