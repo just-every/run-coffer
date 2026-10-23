@@ -89,19 +89,25 @@ function plainExcerpt(raw: Uint8Array): string {
  return visit(binary, 0)
 }
 
-/** The From address, only when Cloudflare's own receiver header (always the topmost
- * Authentication-Results) says it passed DMARC. Mail services send with their own
- * envelope sender, so a donor replying through one is recognized by this instead. */
-function authenticatedFrom(raw: Uint8Array): string | null {
+/** The sender identities Cloudflare's own receiver header (always the topmost
+ * Authentication-Results) authenticated: the From address when it passed DMARC and
+ * the envelope sender when it passed SPF. Mail services send with their own envelope
+ * sender, so a donor replying through one is recognized by the From instead. */
+function authenticatedSenders(raw: Uint8Array, envelope: string): string[] {
  let head = ''
  for (let i = 0; i < Math.min(raw.length, 65536); i++) head += String.fromCharCode(raw[i])
  const lines = head.split(/\r?\n\r?\n/)[0].replace(/\r?\n[ \t]+/g, ' ').split(/\r?\n/)
  const results = lines.find(line => /^authentication-results:/i.test(line))
- if (!results || !/^authentication-results:\s*mx\.cloudflare\.net;/i.test(results)) return null
+ if (!results || !/^authentication-results:\s*mx\.cloudflare\.net;/i.test(results)) return []
+ const mailbox = (value: string) => /^[^@\s]+@[^@\s]+$/.test(value)
  const domain = /\bdmarc=pass\b[^;]*?\bheader\.from=([^\s;]+)/i.exec(results)?.[1]?.toLowerCase()
  const from = lines.find(line => /^from:/i.test(line))?.slice(5) ?? ''
  const sender = address(/<([^<>\s]+@[^<>\s]+)>/.exec(from)?.[1] ?? from)
- return domain && /^[^@\s]+@[^@\s]+$/.test(sender) && sender.split('@')[1] === domain ? sender : null
+ const mailFrom = address(/\bspf=pass\b[^;]*?\bsmtp\.mailfrom=([^\s;]+)/i.exec(results)?.[1] ?? '')
+ return [...new Set([
+  ...(domain && mailbox(sender) && sender.split('@')[1] === domain ? [sender] : []),
+  ...(mailbox(envelope) && mailFrom === envelope ? [envelope] : []),
+ ])]
 }
 
 
@@ -121,15 +127,16 @@ async function findCommunication(message: ForwardableEmailMessage, env: Bindings
   WHERE a.route='email' AND a.attempt_id IS NOT NULL AND a.delivery_status IN ('submitted','delivered','bounced','complained','uncertain','sending')
  ) c JOIN cf_donors d ON d.id=c.donor_id WHERE d.erased_at IS NULL
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`
+ const senders = authenticatedSenders(raw, address(message.from))
+ if (!senders.length) return null
  if (fixed && destination === fixed) {
-  const senders = [...new Set([address(message.from), authenticatedFrom(raw)].filter(Boolean))]
   const candidates = await all({ db: env.DB }, `${live} AND (lower(trim(d.email)) IN (SELECT value FROM json_each(?)) OR lower(trim((${point}))) IN(SELECT value FROM json_each(?))) AND lower(trim(c.reply_to))=? ORDER BY c.created_at DESC,c.id DESC`, JSON.stringify(senders),JSON.stringify(senders), destination)
   return candidates.find(c => threadSubject(c.subject) === threadSubject(message.headers.get('subject') ?? '')) ?? null
  }
  const match = /^coffer\+((?:receipt-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@([^@\s]+)$/.exec(destination)
  if (!config.COFFER_REPLY_DOMAIN || !match || match[2] !== address(config.COFFER_REPLY_DOMAIN)) return null
  const communication = await one({ db: env.DB }, `${live} AND lower(trim(c.reply_to))=?`, destination)
- return communication && address(communication.reply_to ?? '') === destination && [address(message.from),authenticatedFrom(raw)].some(sender=>sender&&[address(communication.donor_email??''),address(communication.contact_email??'')].includes(sender)) ? communication : null
+ return communication && address(communication.reply_to ?? '') === destination && senders.some(sender=>[address(communication.donor_email??''),address(communication.contact_email??'')].includes(sender)) ? communication : null
 }
 
 async function recordState(db: D1Database, taskId: string, attempt: string, state: string, note: string, at: string) {

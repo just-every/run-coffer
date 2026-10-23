@@ -40,7 +40,7 @@ export async function contactPointsJourney(){const receiptSubmissions=[],giving=
  await h.command('ack.approve',{batchId:chosenReceipt.id,version:1});await h.command('ack.send',{batchId:chosenReceipt.id,version:2})
  assert.equal(receiptSubmissions.at(-1).personalizations[0].to[0].email,'synthetic-coffer-803@example.test','An explicit personal contact is submitted without changing the primary work contact')
  assert.equal((await state()).donor.email,'synthetic-coffer-804@example.test')
- const personalMail=receiptSubmissions.at(-1),reply=await h.request('/test-email',{method:'POST',body:{from:'synthetic-coffer-803@example.test',to:personalMail.reply_to.email,headers:{subject:'Re: '+personalMail.subject,'message-id':'<synthetic-coffer-813@example.test>'},raw:'Content-Type: text/plain; charset=utf-8\r\n\r\nThank you for the personal receipt.'}})
+ const personalMail=receiptSubmissions.at(-1),reply=await h.request('/test-email',{method:'POST',body:{from:'synthetic-coffer-803@example.test',to:personalMail.reply_to.email,headers:{subject:'Re: '+personalMail.subject,'message-id':'<synthetic-coffer-813@example.test>'},raw:'Authentication-Results: mx.cloudflare.net; spf=pass smtp.mailfrom=synthetic-coffer-803@example.test\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nThank you for the personal receipt.'}})
  assert.equal(reply.status,200);const replyOutcome=await reply.json();assert.equal(replyOutcome.rejected,null);assert.deepEqual(replyOutcome.forwarded,['owner@example.test'])
  assert.equal((await h.get('/api/coffer/replies')).find(r=>r.letter_id===chosenLetter.id).donor_id,a.id,'Replies from the exact bound nonprimary contact join the same donor history')
  const mobile=await save({kind:'phone',type:'mobile',value:'202-555-0103',primary:true})

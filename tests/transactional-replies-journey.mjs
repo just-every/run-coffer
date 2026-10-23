@@ -20,7 +20,7 @@ export async function transactionalRepliesJourney(){
   const receive=async(mail,text,key)=>{
    const to=mail.reply_to.email
    assert.match(to,/^coffer\+[0-9a-f-]{36}@replies\.example\.test$/)
-   const response=await h.request('/test-email',{method:'POST',body:{from:'ana.receipt@example.org',to,headers:{subject:'Re: '+mail.subject,'message-id':`<${key}@example.test>`},raw:`Content-Type: text/plain; charset=utf-8\r\n\r\n${text}`}})
+   const response=await h.request('/test-email',{method:'POST',body:{from:'ana.receipt@example.org',to,headers:{subject:'Re: '+mail.subject,'message-id':`<${key}@example.test>`},raw:`Authentication-Results: mx.cloudflare.net; spf=pass smtp.mailfrom=ana.receipt@example.org\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${text}`}})
    assert.equal(response.status,200);const outcome=await response.json();assert.equal(outcome.rejected,null);assert.deepEqual(outcome.forwarded,['owner@example.test'])
   }
   await receive(receipt,'Thanks for this online receipt.','online-receipt')

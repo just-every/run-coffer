@@ -46,7 +46,7 @@ export async function engagementJourney() {
   await command('appeal.export',{appealId:appeal.id,version:2})
   await command('appeal.markSent',{appealId:appeal.id,version:3,sentOn:'2026-10-15'})
   const reply=async(automatic=false)=>{
-   const response=await h.request('/test-email',{method:'POST',headers,body:{from:recipientEmail,to:'replies@example.test',headers:{subject:'Re: Reading room news','message-id':automatic?'<automatic@example.test>':'<reply@example.test>',...(automatic?{'auto-submitted':'auto-replied'}:{})},raw:'Content-Type: text/plain; charset=utf-8\r\n\r\nThank you, I would like to meet about the reading room.'}})
+   const response=await h.request('/test-email',{method:'POST',headers,body:{from:recipientEmail,to:'replies@example.test',headers:{subject:'Re: Reading room news','message-id':automatic?'<automatic@example.test>':'<reply@example.test>',...(automatic?{'auto-submitted':'auto-replied'}:{})},raw:`Authentication-Results: mx.cloudflare.net; spf=pass smtp.mailfrom=${recipientEmail}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nThank you, I would like to meet about the reading room.`}})
    assert.equal(response.status,200);return response.json()
   }
   assert.equal((await reply()).forwarded.length,1)

@@ -15,6 +15,46 @@ test('COMM-005: routed replies reach managers, withdraw explicit stops once and 
  await transactionalRepliesJourney()
 })
 
+test('a reply is matched to a donor only through a sender identity the mail receiver authenticated',()=>{
+ const sent=[],address='synthetic-coffer-1501@example.test'
+ return run(async h=>{
+  await reviewed(h)
+  const known=await donor(h,'Synthetic Reply Donor',{email:address})
+  await h.command('consent.record',{donorIds:[known.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic explicit opt-in',capturedOn:'2026-10-01'})
+  await h.command('gift.record',{donorId:known.id,amount:'250',receivedOn:'2026-10-01',method:'check',goods:'none'})
+  const batch=await h.command('ack.prepare');await h.command('ack.approve',{batchId:batch.id,version:1});await h.command('ack.send',{batchId:batch.id,version:2})
+  const letter=(await h.get(`/api/coffer/letters/${batch.id}`)).letters[0]
+  assert.equal(sent.find(m=>m.custom_args?.coffer_letter_id===letter.id).reply_to.email,'replies@example.test')
+  let serial=0
+  const receive=async(from,results,{head='',body='Please remove me from your email list.'}={})=>{
+   const received=results?`Authentication-Results: mx.cloudflare.net; ${results}\r\n`:''
+   const response=await h.request('/test-email',{method:'POST',body:{from,to:'replies@example.test',headers:{subject:'Re: '+letter.subject,'message-id':`<synthetic-coffer-${1510+ ++serial}@example.test>`},raw:`${received}${head}Content-Type: text/plain; charset=utf-8\r\n\r\n${body}`}})
+   assert.equal(response.status,200);return response.json()
+  }
+  const consent=async()=>(await h.get('/api/coffer/donors/'+known.id)).current.email.status
+  for(const [results,head] of [
+   ['dkim=pass header.d=attacker.example; dmarc=pass header.from=attacker.example; spf=none smtp.mailfrom='+address,'From: <synthetic-coffer-1502@attacker.example>\r\n'],
+   ['spf=softfail smtp.mailfrom='+address,''],
+   ['',''],
+  ]){
+   const outcome=await receive(address,results,{head})
+   assert.ok(outcome.rejected,'An envelope sender the receiver did not authenticate never identifies the donor')
+   assert.deepEqual(outcome.forwarded,[])
+  }
+  assert.equal(await consent(),'granted')
+  assert.equal((await h.get('/api/coffer/replies')).length,0)
+  const ownServer=await receive(address,'spf=pass smtp.mailfrom='+address,{body:'Thank you for the acknowledgment.'})
+  assert.equal(ownServer.rejected,null);assert.deepEqual(ownServer.forwarded,['owner@example.test'])
+  const viaService=await receive('synthetic-coffer-1503@mailer.example','dkim=pass header.d=example.test; dmarc=pass header.from=example.test; spf=pass smtp.mailfrom=synthetic-coffer-1503@mailer.example',{head:`From: Synthetic Reply Donor <${address}>\r\n`})
+  assert.equal(viaService.rejected,null);assert.deepEqual(viaService.forwarded,['owner@example.test'])
+  assert.equal(await consent(),'withdrawn','An authenticated donor’s explicit request still withdraws consent')
+ },{entry:'tests/engagement-worker.ts',bindings:{MAIL_PROVIDER:'sendgrid',COFFER_REPLY_ADDRESS:'replies@example.test'},outbound:async request=>{
+  assert.equal(new URL(request.url).origin,'https://api.sendgrid.com')
+  sent.push(await request.json())
+  return new Response(null,{status:202,headers:{'x-message-id':`synthetic-coffer-${1520+sent.length}`}})
+ }})
+})
+
 async function consenting(h,names){
  const rows=[]
  for(const [i,name] of names.entries()){

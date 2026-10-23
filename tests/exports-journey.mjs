@@ -125,7 +125,7 @@ export async function exportsJourney(){
   const batch=await command('ack.prepare');await command('ack.approve',{batchId:batch.id,version:1});await command('ack.send',{batchId:batch.id,version:2})
   const letter=(await get(`/api/coffer/letters/${batch.id}`)).letters.find(l=>l.donor_id===main.id)
   assert.equal(letter.delivery_status,'submitted')
-  const replied=await h.request('/test-email',{method:'POST',headers,body:{from:'synthetic-coffer-1@example.test',to:'synthetic-coffer-36@example.test',headers:{subject:`Re: ${letter.subject}`,'message-id':'<synthetic-coffer-37@example.test>'},raw:'Content-Type: text/plain; charset=utf-8\r\n\r\nsynthetic-coffer-38 thanks'}})
+  const replied=await h.request('/test-email',{method:'POST',headers,body:{from:'synthetic-coffer-1@example.test',to:'synthetic-coffer-36@example.test',headers:{subject:`Re: ${letter.subject}`,'message-id':'<synthetic-coffer-37@example.test>'},raw:'Authentication-Results: mx.cloudflare.net; spf=pass smtp.mailfrom=synthetic-coffer-1@example.test\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nsynthetic-coffer-38 thanks'}})
   assert.equal(replied.status,200,await replied.text());assert.equal((await get('/api/coffer/replies')).length,1)
   const stamp=String(Math.floor(Date.parse(headers['x-test-now'])/1000)),bounce=JSON.stringify([{event:'bounce',sg_event_id:'synthetic-coffer-35',timestamp:Number(stamp),coffer_letter_id:letter.id,coffer_attempt_id:letter.attempt_id}])
   const bounced=await h.request('/api/coffer/mail/events',{method:'POST',as:'',raw:bounce,headers:{...headers,'x-twilio-email-event-webhook-timestamp':stamp,'x-twilio-email-event-webhook-signature':sign('sha256',Buffer.from(stamp+bounce),keys.privateKey).toString('base64')}})

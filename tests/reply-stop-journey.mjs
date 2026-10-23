@@ -37,7 +37,7 @@ export async function replyStopJourney(){
   assert.equal(sent.find(m=>m.custom_args?.coffer_letter_id===letter.id).reply_to.email,'replies@example.test','The delivered acknowledgment advertises its durable inbound destination')
   let serial=0
   const receive=async(body,{key=`reply-${++serial}`,automatic=false,from='ada.reply@example.org',raw,to='replies@example.test',extraHeaders={}}={})=>{
-   const response=await h.request('/test-email',{method:'POST',headers,body:{from,to,headers:{subject:`${automatic?'Automatic reply:':'Re:'} ${letter.subject}`,'message-id':`<${key}@example.test>`,...(automatic?{'auto-submitted':'auto-replied'}:{}),...extraHeaders},raw:raw??`Content-Type: text/plain; charset=utf-8\r\n\r\n${body}`}})
+   const response=await h.request('/test-email',{method:'POST',headers,body:{from,to,headers:{subject:`${automatic?'Automatic reply:':'Re:'} ${letter.subject}`,'message-id':`<${key}@example.test>`,...(automatic?{'auto-submitted':'auto-replied'}:{}),...extraHeaders},raw:`Authentication-Results: mx.cloudflare.net; spf=pass smtp.mailfrom=${from}\r\n`+(raw??`Content-Type: text/plain; charset=utf-8\r\n\r\n${body}`)}})
    assert.equal(response.status,200);return response.json()
   }
   assert.ok((await receive('An unknown sender',{from:'stranger@example.test'})).rejected)
