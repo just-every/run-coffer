@@ -297,7 +297,11 @@ test('backup restores donors, gifts, consent, approvals and import custody into 
 
 test('erasing a donor removes their personal data and Stripe originals but keeps anonymous gifts',()=>run(async h=>{
  const {job,input}=await imported(h);await reviewed(h)
- const maya=(await h.get('/api/coffer/donors?q=maya')).donors[0];await consent(h,[maya.id])
+ const matches=(await h.get('/api/coffer/donors?q=maya')).donors;assert.equal(matches.length,2,'Distinct source identities wait for staff review')
+ const maya=matches[0],source=matches[1],targetHistory=await h.get('/api/coffer/donors/'+maya.id),sourceHistory=await h.get('/api/coffer/donors/'+source.id)
+ await h.command('donor.merge',{sourceDonorId:source.id,sourceVersion:sourceHistory.donor.version,donorId:maya.id,version:targetHistory.donor.version,reason:'duplicate_record'})
+ const before=(await h.get('/api/coffer/donors/'+maya.id)).totals.lifetimeCents;assert.equal(before,60000)
+ await consent(h,[maya.id])
  const batch=await h.command('ack.prepare',{});const old=await archive(h)
  const admin=await h.person('admin@example.test','admin')
  await h.command('donor.erase',{donorId:maya.id,confirm:'ERASE'},{as:admin.cookie,status:403})

@@ -6,7 +6,7 @@ import { withBrowserWorker } from './browser-worker.mjs'
 
 export async function annualLapsesJourney() {
  const chimp=JSON.parse(await readFile('tests/fixtures/mailchimp/responses.json','utf8'))
- const secret='whsec_annual_lapses_edge',plan={id:'sub_annual',customer:'cus_annual',created:Date.parse('2025-01-01T12:00:00Z')/1000,status:'active',currency:'usd',metadata:{},cancel_at_period_end:false,items:{data:[{quantity:1,price:{type:'recurring',currency:'usd',unit_amount:2500,billing_scheme:'per_unit',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}}}]}}
+ const secret='synthetic-coffer-1700',plan={id:'sub_annual',customer:'cus_annual',created:Date.parse('2025-01-01T12:00:00Z')/1000,status:'active',currency:'usd',metadata:{},cancel_at_period_end:false,items:{data:[{quantity:1,price:{type:'recurring',currency:'usd',unit_amount:2500,billing_scheme:'per_unit',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}}}]}}
  let email='',sent=false
  const member=()=>({id:'fixture-contact',email_address:email,status:'subscribed'})
  const outbound=async request=>{
@@ -38,6 +38,9 @@ export async function annualLapsesJourney() {
   const preview=await h.api('/api/coffer/imports/preview',input,opts)
   let job=await h.api('/api/coffer/imports/apply',{...input,fingerprint:preview.fingerprint},opts)
   while(job.state!=='completed')job=await h.api('/api/coffer/imports/resume',{id:job.id},opts)
+  const duplicate=(await get('/api/coffer/donors?q=Ada')).donors.find(d=>d.id!==ada.id)
+  assert.ok(duplicate,'An imported customer stays distinct until staff review')
+  await command('donor.merge',{sourceDonorId:duplicate.id,sourceVersion:(await get('/api/coffer/donors/'+duplicate.id)).donor.version,donorId:ada.id,version:(await get('/api/coffer/donors/'+ada.id)).donor.version,reason:'duplicate_record'})
   plan.status='canceled'
   const raw=JSON.stringify({id:'evt_annual_cancel',type:'customer.subscription.deleted',data:{object:{id:plan.id}}}),timestamp=Math.floor(Date.parse(headers['x-test-now'])/1000)
   const sig=createHmac('sha256',secret).update(`${timestamp}.${raw}`).digest('hex')
@@ -83,7 +86,7 @@ export async function annualLapsesJourney() {
   assert.deepEqual((await read()).groups.find(g=>g.kind==='sybunt').rows.map(r=>r.donorId),[ben.id])
   await command('donor.erase',{donorId:ben.id,confirm:'ERASE'})
   assert.equal((await read()).groups.find(g=>g.kind==='sybunt').count,0)
- },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'sk_test_annual_edge',STRIPE_WEBHOOK_SECRET:secret},outbound})
+ },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1701',STRIPE_WEBHOOK_SECRET:secret},outbound})
 }
 
 async function annualBrowser(h,headers,report,directory) {
