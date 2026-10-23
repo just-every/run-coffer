@@ -20,7 +20,7 @@ export function reviewedCustomMappings(input: ParseInput, out: ParsedImport) {
    const identity = JSON.stringify([m.sheet ?? '',m.column,m.kind])
    if (seen.has(identity)) throw Error('Map each source column and record kind once.')
    seen.add(identity)
-   return {...m,choices}
+   return {source:m.source,column:m.column,sheet:m.sheet||undefined,key:m.key,label:m.label,kind:m.kind,type:m.type,entry:m.entry,choices,version:m.version??0}
   })
  } catch (e) { out.customFields = []; out.diagnostics.push({severity:'error',code:'CUSTOM_MAPPING',message:String(e instanceof Error ? e.message : e)}) }
 }

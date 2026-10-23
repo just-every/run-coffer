@@ -313,6 +313,7 @@ test('DONOR-005: reviewed incumbent custom columns retain typed source values, r
    const preview=await post(h,'preview',input);assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.unmapped.length,0)
    assert.equal(preview.customFields.length,9);assert.equal((await h.get('/api/coffer/donors')).total,0)
    const review=await h.request('/app/move-in/crm/review?id='+preview.id);assert.match(await review.text(),/Reviewed custom fields/)
+   if(process.env.COFFER_CUSTOM_IMPORT_BROWSER&&source==='bloomerang'&&format==='csv'){const {customImportBrowser}=await import('./custom-import-browser.mjs');await customImportBrowser(h,input,preview,process.env.COFFER_CUSTOM_IMPORT_BROWSER)}
    await moveIn(h,preview)
    const person=(await h.get('/api/coffer/donors')).donors[0],details=await h.get('/api/coffer/donors/'+person.id)
    const values=Object.fromEntries(details.customValues.map(v=>[v.field_key,JSON.parse(v.value)]))

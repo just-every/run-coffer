@@ -18,9 +18,9 @@ const customChoices=(m:Row)=> (m.choices??[]).map((v:string)=>{
 function customMapping(source:string,report:Row={}) {
  const columns=report.sourceColumns??[{column:'',sheet:'',kind:'constituent'}], mappings=report.customFields??[], definitions=report.customDefinitions??[]
  return `<details><summary>Map custom report columns</summary><p>Choose the exact exported column and its record kind, then select an existing field or define a new one. Leave the field key empty to leave a column out. USD amounts need at most two decimal places; pick-many cells use a list such as ["Board", "Volunteer"]. Blank cells leave values unset. Preview again to review every mapping before moving in.</p>${columns.map((column:Row)=>{
-  const m=mappings.find((v:Row)=>v.column===column.column&&(v.sheet??'')===column.sheet&&v.kind===column.kind)??{}, existing=m.version?m.key:''
+  const m=mappings.find((v:Row)=>v.column===column.column&&(!v.sheet||v.sheet===column.sheet)&&v.kind===column.kind)??{}, existing=m.version?m.key:''
   const eligible=definitions.filter((f:Row)=>f.kind===column.kind)
-  return `<fieldset><legend>${e(column.column||'Source custom column')}${column.sheet?` · ${e(column.sheet)}`:''}</legend>${hidden('customSource',source)}${column.column?hidden('customColumn',column.column):field('Exported column','customColumn','text')}${hidden('customSheet',column.sheet)}
+  return `<fieldset><legend>${e(column.column||'Source custom column')}${column.sheet?` · ${e(column.sheet)}`:''}</legend>${hidden('customSource',source)}${column.column?hidden('customColumn',column.column):field('Exported column','customColumn','text')}${hidden('customSheet',m.column?m.sheet??'':column.sheet)}
   ${select('Existing field','customExisting',[['','Define a new field or leave out'],...eligible.map((f:Row)=>[JSON.stringify({...f,choices:JSON.parse(f.choices)}),f.label+' · '+f.key] as [string,string])],existing?JSON.stringify({...definitions.find((f:Row)=>f.key===existing),choices:m.choices}):'')}
   ${field('New field key','customKey','text',existing?'':m.key??'','pattern="[a-z][a-z0-9_]*" maxlength="80"')}${field('New field label','customLabel','text',existing?'':m.label??'','maxlength="100"')}
   ${select('Record kind','customKind',[['constituent','Constituent'],['gift','Gift'],['pledge','Pledge'],['interaction','Interaction'],['note','Note']],m.kind??column.kind)}
