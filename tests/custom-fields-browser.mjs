@@ -43,6 +43,6 @@ export async function customFieldsBrowser(h,{donorId,giftId,directory}){
 async function fits(page,width){
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Screen fits '+width)
  // Native file/date inputs supply browser text. Audit the authored controls.
- const icons=await page.locator('button,a,[role=button]').evaluateAll(nodes=>nodes.filter(n=>n.getBoundingClientRect().width&&!(n.innerText||'').trim()).map(n=>n.outerHTML.slice(0,300)))
+ const icons=await page.locator('button,a,[role=button]').evaluateAll(nodes=>nodes.filter(n=>n.checkVisibility()&&!(n.innerText||'').trim()).map(n=>n.outerHTML.slice(0,300)))
  assert.deepEqual(icons,[],'These screens give authored controls visible text')
 }
