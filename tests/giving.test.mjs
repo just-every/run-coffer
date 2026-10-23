@@ -267,6 +267,33 @@ test('portal links and sessions sent to a former email stop working once staff c
  },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1300'}})
 })
 
+test('a public checkout’s appeal box cannot replace a donor’s recorded email withdrawal',async()=>{
+ const requestId=randomUUID(),paidAt=Math.floor(Date.now()/1000)
+ await run(async h=>{
+  const address='synthetic-coffer-1601@example.test'
+  const known=await donor(h,'Synthetic Withdrawn Donor',{email:address})
+  await h.command('consent.record',{donorIds:[known.id],channel:'email',status:'withdrawn',method:'paper form',evidence:'Synthetic written unsubscribe request',capturedOn:'2026-10-01'})
+  await h.api('/api/coffer/giving/campaigns',{name:'Keep reading',slug:'keep-reading',description:'Support local readers.',fund:'Reading',goal:'60000'})
+  const checkout=await h.request('/give/keep-reading/checkout',form({name:'Synthetic Withdrawn Donor',email:address,amount:'1.00',frequency:'once',emailConsent:'yes',requestId}))
+  assert.equal(checkout.status,303,await checkout.text())
+  const thanks=await h.request('/giving/thanks?session_id=synthetic-coffer-1602',{as:''})
+  assert.equal(thanks.status,200,await thanks.text())
+  const history=await h.get('/api/coffer/donors/'+known.id)
+  assert.deepEqual(history.gifts.map(g=>g.amount_cents),[100],'The gift is still recorded on the matching donor')
+  assert.equal(history.current.email.status,'withdrawn','An unconfirmed checkout box does not replace the withdrawal')
+  const appeal=await h.command('appeal.prepare',{name:'Synthetic checkout consent appeal',channel:'email'},{status:409})
+  assert.equal(appeal.details['consent withdrawn'],1)
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1600'},outbound:async request=>{
+  const url=new URL(request.url)
+  assert.equal(url.hostname,'api.stripe.com')
+  if(url.pathname==='/v1/customers')return Response.json({id:'synthetic-coffer-1603'})
+  if(url.pathname==='/v1/checkout/sessions'&&request.method==='POST')return Response.json({id:'synthetic-coffer-1602',url:'https://checkout.stripe.com/c/pay/synthetic-coffer-1602'})
+  if(url.pathname==='/v1/checkout/sessions/synthetic-coffer-1602')return Response.json({id:'synthetic-coffer-1602',metadata:{coffer_intent:requestId},customer:'synthetic-coffer-1603',currency:'usd',amount_total:100,status:'complete',payment_status:'paid',payment_intent:'synthetic-coffer-1604'})
+  if(url.pathname==='/v1/payment_intents/synthetic-coffer-1604')return Response.json({id:'synthetic-coffer-1604',status:'succeeded',currency:'usd',amount_received:100,created:paidAt})
+  assert.fail(`Unexpected Stripe request: ${request.method} ${url.pathname}`)
+ }})
+})
+
 test('REPORT-006: monthly health preserves starts, amount changes, failed payments, recoveries and cancellations across the clock',async()=>{
  const {recurringHealthJourney}=await import('./recurring-health-journey.mjs')
  await recurringHealthJourney()

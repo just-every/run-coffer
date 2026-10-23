@@ -78,9 +78,11 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
   ...[tributeGiftStatement(id,intent.id,now)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...[giftRecognitionStatement(id,intent)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   // The donor ticked the separate appeal box at checkout; receipts never depend on it.
+  // Nobody confirmed the mailbox, so the box never replaces a recorded withdrawal.
   ...(intent.email_consent ? [env.DB.prepare(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
-   SELECT ?,'email','granted','web form',?,?,?,'Giving page' WHERE EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_consents WHERE donor_id=? AND evidence=?)`)
-   .bind(intent.donor_id, consentEvidence(intent), day, now, intent.donor_id, intent.donor_id, consentEvidence(intent))] : []),
+   SELECT ?,'email','granted','web form',?,?,?,'Giving page' WHERE EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_consents WHERE donor_id=? AND evidence=?)
+   AND COALESCE((SELECT status FROM cf_consents WHERE donor_id=? AND channel='email' ORDER BY id DESC LIMIT 1),'')<>'withdrawn'`)
+   .bind(intent.donor_id, consentEvidence(intent), day, now, intent.donor_id, intent.donor_id, consentEvidence(intent), intent.donor_id)] : []),
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'stripe','Stripe','agent','giving.paid','gift',?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_events WHERE action='giving.paid' AND subject_id=?)`).bind(now, id, intent.donor_id, JSON.stringify({ amountCents: cents, campaignId: intent.campaign_id }), id),
  ])
