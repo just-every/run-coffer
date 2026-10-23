@@ -124,11 +124,14 @@ export function restoreMerge(tables:Description[],mergeId:string): Stmt[] {
   const prefix = `WITH ${before},${after}`
   const liveKey = keySQL(d,d.table)
   statements.push(sql(`${prefix} DELETE FROM ${d.table} WHERE ${liveKey} IN (SELECT a.row_key FROM after a LEFT JOIN before b USING(row_key) WHERE b.row_key IS NULL)`,mergeId,mergeId))
+  // A merge may select a source point as the survivor's primary. Release both
+  // primary slots before moving points back: row update order is unspecified.
+  if (d.table === 'cf_contact_points') statements.push(sql(`${prefix} UPDATE cf_contact_points SET is_primary=0 WHERE ${liveKey} IN (SELECT row_key FROM before)`,mergeId,mergeId))
   const changes = d.columns.filter(k=>!d.keys.includes(k)).map(k=>k==='version'
    ? `${k}=${d.table}.${k}+1`
    : `${k}=json_extract((SELECT value FROM before WHERE row_key=${liveKey}),'$.${k}')`)
   if (changes.length) statements.push(sql(`${prefix} UPDATE ${d.table} SET ${changes.join(',')}
-   WHERE ${liveKey} IN (SELECT b.row_key FROM before b JOIN after a USING(row_key) WHERE b.value<>a.value)`,mergeId,mergeId))
+   WHERE ${liveKey} IN (SELECT b.row_key FROM before b JOIN after a USING(row_key)${d.table === 'cf_contact_points' ? '' : ' WHERE b.value<>a.value'})`,mergeId,mergeId))
   statements.push(sql(`${prefix} INSERT INTO ${d.table}(${d.columns.join(',')})
    SELECT ${d.columns.map(k=>`json_extract(b.value,'$.${k}')`).join(',')} FROM before b LEFT JOIN after a USING(row_key) WHERE a.row_key IS NULL`,mergeId,mergeId))
  }

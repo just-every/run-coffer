@@ -77,7 +77,7 @@ export async function appeals(clock: Clock, db: D1Database, plan: AppealSeed[], 
   const appealId = `demo-appeal-${a.key}`, segment = { givenSince: a.givenSince ? dayOf(clock, a.givenSince) : null, minTotalCents: a.minTotalCents ?? 0 }, stage = a.stage
   const found = a.channel==='mail'?await postalHistory(db,segment):await audience({ db }, a.channel, segment)
   // Past appeals went only to people who were already donors then.
-  const list = found.recipients.filter(r => (since.get(r.donor_id) ?? 0) > stage.prepared)
+  const list = found.recipients.filter(r => (since.get(r.donor_id) ?? 0) > stage.prepared).map(({ donor_version, ...recipient }) => recipient)
   const hash = await hashOf(a.name, a.channel, list), preparedAt = timeOf(clock, stage.prepared, 10)
   const decided = stage.approver ? timeOf(clock, stage.prepared - 1, 11) : null, exported = stage.status === 'sent' ? timeOf(clock, stage.prepared - 1, 12) : null
   rows.push({ id: appealId, version: { prepared: 1, approved: 2, exported: 3, sent: 4 }[stage.status], name: a.name, channel: a.channel, segment: JSON.stringify(segment), excluded: JSON.stringify(found.excluded), status: stage.status,
