@@ -15,7 +15,7 @@ export async function mobileJourney() {
   await mkdir(directory,{recursive:true})
   await withBrowserWorker(h,async(context,origin)=>{
    const page=await context.newPage();page.setDefaultTimeout(15000)
-   const shot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),name+' fits');await page.screenshot({path:join(directory,name+'.png'),fullPage:true})}
+   const shot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),name+' fits');await page.screenshot({path:join(directory,name+'.png'),fullPage:false})}
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
     await page.goto(origin+'/app')
@@ -53,8 +53,8 @@ export async function mobileJourney() {
     await page.getByRole('navigation',{name:'Donor actions'}).getByRole('link',{name:"Today's tasks",exact:true}).click()
     await page.getByRole('heading',{name:'Call list',exact:true}).waitFor();await shot('tasks-'+width)
     await page.goto(origin+'/app/gifts')
-    const icon=page.getByRole('link',{name:'Open Maya Chen’s record'}).first(),tip=icon.getByRole('tooltip')
-    await icon.focus();await tip.waitFor({state:'visible'});assert.equal(await tip.innerText(),'Open donor')
+    const icon=page.getByRole('link',{name:width === 390 ? 'Edit Maya Chen’s details' : 'Open Maya Chen’s record'}).first(),tip=icon.getByRole('tooltip')
+    await icon.focus();await tip.waitFor({state:'visible'});assert.equal(await tip.innerText(),width === 390 ? 'Edit details' : 'Open donor')
     await shot('tooltip-focus-'+width)
     await icon.blur();await page.mouse.move(0,0);await tip.waitFor({state:'hidden'})
     await icon.hover();await page.waitForTimeout(150);assert.equal(await tip.isVisible(),false)
