@@ -23,15 +23,20 @@ function doors(h,key) {
 /** One public-door journey for the named-grant authority boundary, through
  * ordinary HTTP and MCP. Only the paid mail submission edge is replaced. */
 export async function agentGrantsJourney() {
+ const proof=label=>{if(process.env.COFFER_GRANT_PROOF)console.info(`agent-grants: ${label}`)}
+ proof('starting manager authority journey')
  const messages=[]
  await run(async h=>{
+  proof('manager installation ready')
   const member=await h.person('grant.member@example.test')
   await h.command('agentGrant.save',{}, {as:member.cookie,status:403})
   const admin=await h.person('grant.admin@example.test','admin'),record=await donor(h,'Admin scoped donor')
   const grant=await h.command('agentGrant.save',{name:'Admin read grant',donorIds:[record.id],permissions:['donors.list'],dailyLimit:1},{as:admin.cookie})
   assert.equal((await h.get('/api/coffer/agent-grants')).grants.find(g=>g.id===grant.id).approved_by_role,'admin')
  })
+ proof('starting receipt authority journey')
  return run(async h=>{
+  proof('receipt installation ready')
   await reviewed(h)
   const template=await h.command('letterTemplate.save',{kind:'major_gift',name:'Standard thank-you',minAmount:'250',subject:settings.letterSubject,body:settings.letterTemplate})
   const ana=await donor(h,'Scoped Ana'),ben=await donor(h,'Private Ben'),house=await donor(h,'Scoped Household',{household:'Private household label'})
@@ -41,6 +46,7 @@ export async function agentGrantsJourney() {
   const permissions=['donors.list','donors.context','ack.prepare','ack.send']
   const grantInput={name:'Standard receipt approval',donorIds:[ana.id,house.id],permissions,dailyLimit:2,standingApproval:true}
   await h.command('agentGrant.save',{...grantInput,standingApproval:false},{status:400})
+  proof('saving named standing approval')
   const grant=await h.command('agentGrant.save',grantInput)
   for(const k of [key,otherKey])await h.command('agentGrant.attach',{keyId:k.id,grantId:grant.id})
   const api=doors(h,key),second=doors(h,otherKey)
@@ -66,10 +72,12 @@ export async function agentGrantsJourney() {
   await h.command('relationship.remove',{donorId:ana.id,relationshipId:relation.id})
   const gifts=[relatedGift]
   for(let i=0;i<2;i++)gifts.push(await h.command('gift.record',{donorId:ana.id,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'}))
+  proof('scope refusals complete; preparing receipts')
   const batches=[]
   for(const [index,gift] of gifts.entries())batches.push(index===1?await api.mcp('ack.prepare',{giftIds:[gift.id]}):await api.http('ack.prepare',{giftIds:[gift.id]}))
   // Both doors share one atomic daily counter. Parallel calls reach the same
   // real native letter-delivery reservation and network submission service.
+  proof('dispatching under standing approval')
   assert.equal((await api.http('ack.send',{batchId:batches[0].id,version:1})).submitted,1)
   const race=await Promise.all(batches.slice(1).map(batch=>api.mcp('ack.send',{batchId:batch.id,version:1},'either')))
   assert.equal(race.filter(r=>!r.isError&&r.value.submitted===1).length,1)
@@ -87,6 +95,7 @@ export async function agentGrantsJourney() {
   await h.command('letterTemplate.save',{templateId:template.id,version:1,name:'Revised standard thank-you',minAmount:'250',subject:settings.letterSubject,body:settings.letterTemplate+' Thank you again.'})
   assert.equal((await api.http('ack.send',{batchId:held.id,version:1},409)).error,'TEMPLATES_CHANGED')
   await api.mcp('ack.send',{batchId:held.id,version:1},'TEMPLATES_CHANGED')
+  proof('daily and template limits complete; testing kill switches')
   const control=(await h.get('/api/coffer/agent-grants')).control
   await h.command('agentGrant.kill',{version:control.version,enabled:false})
   await api.http('ack.send',{batchId:held.id,version:1},401)
