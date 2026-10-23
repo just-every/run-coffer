@@ -173,7 +173,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 ### Mobile
 
-115. **`MOBILE-001` Phone-ready web app** (partial). The browser journey asserts no horizontal scroll at 390 pixels on every screen, and a phone journey looks up a donor, logs a call and records a gift within two taps each, and sees the do-not-solicit badge on a restricted donor.
+115. **`MOBILE-001` Phone-ready web app** (done). The browser journey asserts no horizontal scroll at 390 pixels on every screen, and a phone journey looks up a donor, logs a call and records a gift within two taps each, and sees the do-not-solicit badge on a restricted donor.
 116. **`MOBILE-002` Native iOS and Android apps** (missing). A native test on iOS and Android simulators logs a call offline, reconnects and sees it on the web timeline, and receives push notifications for an assigned task, a new major gift and a reply.
 117. **`MOBILE-003` In-person giving** (missing). A native test with Stripe Terminal's simulated reader takes a $100 gift and reads the gift, donor and emailed receipt in Coffer.
 
