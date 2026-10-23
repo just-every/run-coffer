@@ -1,3 +1,4 @@
+import { radarFailure } from './protection'
 import { fail, one } from '../db'
 import { observeRecovery } from '../agent/recovery'
 import { identify, recordGift, stripeId, syncSubscription } from './recording'
@@ -30,15 +31,15 @@ export async function completed(env: GivingEnv, sessionId: string) {
  const session = await stripe(env, '/checkout/sessions/' + encodeURIComponent(sessionId))
  if (session.metadata?.coffer_intent !== saved.id || stripeId(session.customer) !== saved.customer_id || session.currency !== 'usd' || session.amount_total !== saved.amount_cents) fail('invalid_payment', 'Stripe returned a different checkout.', 409)
  if (session.status !== 'complete' || session.payment_status !== 'paid') return { paid: false, monthly: saved.frequency === 'monthly' }
+ const payment=saved.frequency!=='monthly'?await stripe(env,'/payment_intents/'+encodeURIComponent(stripeId(session.payment_intent))):null
+ if(payment&&(payment.status!=='succeeded'||payment.currency!=='usd'||payment.amount_received!==saved.amount_cents))fail('invalid_payment','Payment has not completed.',409)
  const intent = await identify(env, saved.id, saved.customer_id)
  if (!intent) fail('not_found', 'That donor is not available.', 404)
  if (saved.frequency === 'monthly') {
   const synced = await syncSubscription(env, stripeId(session.subscription))
   if (synced?.sub.latest_invoice) await invoice(env, stripeId(synced.sub.latest_invoice))
  } else {
-  const pi = await stripe(env, '/payment_intents/' + encodeURIComponent(stripeId(session.payment_intent)))
-  if (pi.status !== 'succeeded' || pi.currency !== 'usd' || pi.amount_received !== saved.amount_cents) fail('invalid_payment', 'Payment has not completed.', 409)
-  await recordGift(env, intent, pi.id, pi.amount_received, pi.created)
+  await recordGift(env, intent, payment!.id, payment!.amount_received, payment!.created)
  }
  return { paid: true, monthly: saved.frequency === 'monthly' }
 }
@@ -59,6 +60,7 @@ export async function webhook(env: GivingEnv, request: Request, raw: string) {
  } else if (['customer.subscription.updated', 'customer.subscription.deleted', 'customer.subscription.created'].includes(event.type)) {
   await syncSubscription(env, object.id)
  }
+ await radarFailure(env,event)
  await paymentEvent(env, event)
  await env.DB.prepare('INSERT OR IGNORE INTO cf_giving_events(id,type,processed_at) VALUES(?,?,?)').bind(event.id, event.type, new Date().toISOString()).run()
 }

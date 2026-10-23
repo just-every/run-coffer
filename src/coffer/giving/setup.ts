@@ -1,3 +1,4 @@
+import { textGivingSettings } from './connections-ui'
 import type { Context } from '../db'
 import { box, chip, e, guide } from '../ui/common'
 import { managed, stripe, type GivingEnv } from './stripe'
@@ -55,7 +56,7 @@ export async function givingSetupPage(c: Context, check?: Record<string, any>) {
  <li>Open the new endpoint, choose <strong>Reveal</strong> under <strong>Signing secret</strong> and copy it. It starts <code>whsec_</code>. Coffer refuses messages that are not signed with it.</li></ol>`)
  const save = box('3. Save the keys in Coffer', owner ? saveKeys(env, local ? ['STRIPE_SECRET_KEY'] : ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET']) + (local ? `<p class="muted">To save a webhook secret from the Stripe CLI too, run the same lines with <code>STRIPE_WEBHOOK_SECRET</code> in place of <code>STRIPE_SECRET_KEY</code>.</p>` : '') : '<p>An owner or admin saves the keys.</p>')
  const after = box('4. Take a test gift', `<ol class="steps"><li><a href="/app/giving">Publish a campaign</a> and open its page.</li><li>Give $25 with card <code>4242 4242 4242 4242</code>, any future date and any three-digit code.</li><li>The gift appears on the donor’s record and in the campaign total. ${local ? '' : 'Webhook messages also show under the endpoint in Stripe.'}</li></ol><p>Switching to live mode later: repeat steps 1–3 with live keys and a live-mode webhook.</p><p><a href="${guide('online-giving')}">Online giving guide</a> · <a href="${guide('payments')}">Payouts and accounting guide</a></p>`)
- return `${intro}<div class="grid wide"><div>${keys}${hooks}${save}</div><div>${status}${after}</div></div>`
+ return `${intro}<div class="grid wide"><div>${keys}${hooks}${save}</div><div>${status}${after}</div></div>` + await textGivingSettings(c)
 }
 
 function checkResult(check: Record<string, any>, endpoint: string, live: boolean, local: boolean) {

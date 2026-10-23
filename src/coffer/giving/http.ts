@@ -1,3 +1,4 @@
+import { textLink } from './text'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { CofferError, fail } from '../db'
 import { e, page } from '../ui/common'
@@ -43,7 +44,7 @@ export async function givingResponse(request: Request, original: Bindings): Prom
    response.headers.set('referrer-policy', 'strict-origin'); return response
   }
   const m = path.match(/^\/give\/([a-z0-9-]+)(\/checkout)?$/)
-  if (m && !m[2] && ['GET', 'HEAD'].includes(request.method)) return campaignPage(await campaign({ db: env.DB }, m[1]), env, (await settings({ db: env.DB })).organisation, url.searchParams.has('cancelled'), await trackedAppeal({ db: env.DB }, url.searchParams.get('appeal')))
+  if (m && !m[2] && ['GET', 'HEAD'].includes(request.method)) { const linkedText=await textLink(env,m[1],url.searchParams.get('text')); return campaignPage(await campaign({ db: env.DB }, m[1]), env, (await settings({ db: env.DB })).organisation, url.searchParams.has('cancelled'), await trackedAppeal({ db: env.DB }, linkedText ? linkedText.appeal : url.searchParams.get('appeal')), linkedText ? { phone: linkedText.phone, token: url.searchParams.get('text')! } : null) }
   if (m?.[2] && request.method === 'POST') {
    if (!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) fail('form_required', 'Send the donation form.', 415)
    const session = await checkout(env, request, m[1], Object.fromEntries(new URLSearchParams(await givingBody(request))))

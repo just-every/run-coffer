@@ -10,6 +10,7 @@ import { addressesPage } from './ui/addresses'
 import { giftRulesState } from './gift-rules'
 import { giftRulesPage } from './ui/gift-rules'
 import { solicitationState } from './solicitation'
+import { protectionState } from './giving/protection'
 import { smsState, smsPreference, smsWebhook } from './sms'
 import { textsPage } from './ui/sms'
 import { giftBatch, giftBatches } from './gift-batches'
@@ -220,6 +221,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   if (!isApi && person(actor)) actor.org = (await settings(c)).organisation || undefined
+  if(path==='/api/coffer/giving/protection'&&request.method==='GET'){if(!manager(actor))fail('FORBIDDEN','Only the owner or an admin reviews giving protection.',403);return json({forms:await protectionState(c)})}
   const documents=await documentsResponse(request,c,async()=>isApi?jsonBody(request):formBody(request,400000))
   if(documents)return documents
   const agent = await agentResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
@@ -401,6 +403,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.fields','marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
+ if(command.startsWith('giving.'))return redirect('/app/giving/setup?saved=1')
  if(command==='pledgeTemplate.save')return redirect('/app/settings?saved=1#pledge-template')
  if(command==='custom.define'||command==='custom.renameChoice'||command==='tag.define'||command==='tag.category')return redirect('/app/settings?saved=1#custom-field-definitions')
  if(command==='custom.set'||command==='custom.clear')return redirect('/app/donors/'+encodeURIComponent(result.donorId)+'?customRecord='+encodeURIComponent(input.recordId)+'#custom-fields')

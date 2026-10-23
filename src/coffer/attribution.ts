@@ -51,7 +51,7 @@ export async function entryAttribution(c: Context, p: Row, fund: string, split: 
 export function onlineAttribution(intent: Row, reference: string): Stmt[] {
  const gift = "SELECT id FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'"
  return [
-  sql(`INSERT OR IGNORE INTO cf_gift_channels(gift_id,channel) SELECT id,'form' FROM (${gift})`, reference),
+  sql(`INSERT OR IGNORE INTO cf_gift_channels(gift_id,channel) SELECT id,? FROM (${gift})`, intent.giving_channel === 'text' ? 'text' : 'form', reference),
   ...(intent.appeal ? [sql(`INSERT OR IGNORE INTO cf_gift_appeals(gift_id,appeal) SELECT id,? FROM (${gift})`, intent.appeal, reference)] : []),
  ]
 }

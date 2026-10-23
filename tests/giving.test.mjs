@@ -250,3 +250,11 @@ test('REPORT-006: monthly health preserves starts, amount changes, failed paymen
 test('GIFT-011: checkout publication choices, donor and gift anonymity, honor rolls and custody',async()=>{const {recognitionJourney}=await import('./recognition-journey.mjs');await recognitionJourney()})
 
  test('CAMP-001 / GIVE-002 / PAY-004: dated campaigns reconcile gifts and custody; public media pages close new giving and count donors',async()=>{const {campaignProgressJourney}=await import('./campaign-progress-journey.mjs');await campaignProgressJourney();const {campaignPageJourney}=await import('./campaign-page-journey.mjs');await campaignPageJourney();const {feeCoverJourney}=await import('./fee-cover-journey.mjs');await feeCoverJourney()})
+
+test('GIVE-008: signed keyword links prefill the mobile form, attribute paid gifts and honor STOP without marketing grants',async()=>{
+ const {textGivingJourney}=await import('./text-giving-journey.mjs');await textGivingJourney()
+})
+
+test('GIVE-007: address bursts pause giving, alert administrators and count verified Radar failures without donor records',async()=>{
+ const {givingProtectionJourney}=await import('./giving-protection-journey.mjs');await givingProtectionJourney()
+})

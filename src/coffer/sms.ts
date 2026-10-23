@@ -1,3 +1,7 @@
+import { textEnvironment } from './giving/connections'
+import { keywordReply } from './giving/text'
+import { sha256 } from './db'
+import { e } from './ui/common'
 import { smsConsentStatement } from './sms-permission'
 import { all, choice, commit, date, event, fail, guard, id, integer, newId, one, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { settings } from './settings'
@@ -75,7 +79,7 @@ export async function smsCommand(c:Context,command:string,p:Row):Promise<Row|und
   await commit(c,[runGuard,...recipients.flatMap(r=>[...eligibility(r),...pledgeEligibility(run.purpose,r.donor_id)]),...await restrictionGuards(c,runId),sql("UPDATE cf_sms_runs SET state='approved',version=version+1,approved_at=?,approved_by=? WHERE id=?",c.now,c.actor.name,runId),event(c,command,'sms',runId,null,{purpose:run.purpose,recipients:recipients.length})])
   return {id:runId,version:version+1,state:'approved'}
  }
- const env=c.env as unknown as SmsEnv
+ const env=await textEnvironment(c.env as any)
  if(!env?.TWILIO_ACCOUNT_SID||!env.TWILIO_AUTH_TOKEN||!env.TWILIO_FROM)fail('SMS_UNAVAILABLE','Configure Twilio account, auth token and registered sender before sending texts.',409)
  const from=phone(env.TWILIO_FROM),result:Row={id:runId,submitted:0,held:0,uncertain:0,failed:0}
  for(const r of recipients){
@@ -101,6 +105,7 @@ export async function smsCommand(c:Context,command:string,p:Row):Promise<Row|und
 /** Signed form POST only. URL includes the exact configured path and query.
  * Twilio algorithm: https://www.twilio.com/docs/usage/security */
 export async function smsWebhook(request:Request,env:SmsEnv,at=new Date().toISOString()):Promise<Response>{
+ env=await textEnvironment(env as any)
  if(request.method!=='POST'||!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded'))return new Response('Form POST required',{status:415})
  if(!env.TWILIO_AUTH_TOKEN||!env.TWILIO_ACCOUNT_SID||!env.TWILIO_FROM)return new Response('SMS unavailable',{status:503})
  const raw=await request.text();if(raw.length>16384)return new Response('Too large',{status:413})
@@ -112,13 +117,13 @@ export async function smsWebhook(request:Request,env:SmsEnv,at=new Date().toISOS
  if(difference||fields.get('AccountSid')!==env.TWILIO_ACCOUNT_SID||fields.get('To')!==env.TWILIO_FROM)return new Response('Invalid signature',{status:403})
  const messageId=fields.get('MessageSid'),from=fields.get('From'),isStop=/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/i.test((fields.get('Body')??'').trim())
  if(!messageId||!from)return new Response('Missing message identity',{status:400})
- if(!isStop)return new Response('<Response/>',{headers:{'content-type':'text/xml'}})
+ if(!isStop){const link=await keywordReply(env as any,fields,at);return new Response(link?`<Response><Message>${e('Give securely: '+link+' Reply STOP to stop messages.')}</Message></Response>`:'<Response/>',{headers:{'content-type':'text/xml','cache-control':'no-store'}})}
  const c:Context={db:env.DB,env:env as any,now:at,actor:{id:'twilio-stop',name:'Twilio STOP',role:'owner'},authority:{sql:'1',params:[]}}
  const donors=await all(c,`SELECT p.* FROM cf_sms_preferences p JOIN cf_donors d ON d.id=p.donor_id WHERE p.phone=? AND p.id=(SELECT MAX(id) FROM cf_sms_preferences WHERE donor_id=p.donor_id) AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)`,from)
  // Replay-safe: each insert/event is conditioned on absence of the receipt;
  // the receipt is the last statement in this same atomic transaction.
  const day=today((await settings(c)).timezone,new Date(at))
- await commit(c,[...donors.flatMap(d=>[
+ await commit(c,[sql('INSERT INTO cf_text_stops VALUES(?,?) ON CONFLICT(phone_hash) DO UPDATE SET stopped_at=excluded.stopped_at',await sha256(from),at),...donors.flatMap(d=>[
   sql("INSERT INTO cf_sms_preferences(donor_id,status,phone,timezone,source,evidence,captured_on,recorded_at,recorded_by) SELECT ?,'withdrawn',?,?,'twilio-stop',?,?,?,'Twilio STOP' WHERE NOT EXISTS(SELECT 1 FROM cf_sms_inbound WHERE message_id=?)",d.donor_id,from,d.timezone,messageId,day,at,messageId),
   smsConsentStatement(d.donor_id,messageId,at,messageId),
   sql("INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) SELECT ?,'twilio-stop','Twilio STOP','owner','sms.stop','donor',?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_sms_inbound WHERE message_id=?)",at,d.donor_id,d.donor_id,JSON.stringify({source:'twilio-stop',messageId}),messageId),

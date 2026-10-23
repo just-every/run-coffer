@@ -412,9 +412,13 @@ Donation forms resist card testing: Cloudflare Turnstile challenges, per-address
 
 *Acceptance:* An HTTP journey sends 30 small card attempts from one address in a minute; attempts after the limit are refused, the form pauses and the admin is alerted, and no donor records are created for the failures; with the Stripe edge faked, a charge returned as blocked by a Radar rule is refused, creates no donor or gift and counts toward the form's failure rate.
 
+Current protection limits public checkout to ten requests per address per UTC minute. Ten failures comprising at least half of a form's attempts in that minute latch a pause; the owner or an admin reviews a persistent alert in Giving connection settings and explicitly resumes it. A connected Turnstile check requires success for this installation hostname and the giving action; missing, rejected or unavailable challenges refuse checkout before Stripe. Existing forms still require protection activation, as recorded in the Gap. The $1 minimum remains in force. New public forms under `GIVE-001` inherit these gates; staff payment entry under `GIVE-009` remains separate.
+
 #### GIVE-008 — Text-to-give.
 
 A nonprofit claims a keyword on its Twilio number; a donor who texts it gets a link to a mobile form prefilled with their phone number, and the gift is attributed to the text-to-give source. Replies of STOP end messages at once. The attribution is `GIFT-003`'s text-to-give channel (and a defined appeal when the keyword names one), counted in its totals.
+
+Keywords are unique on this installation's registered Twilio number and are configured by the owner or an admin. Only a signed inbound request gets one TwiML reply, with provider replays suppressed. Its authenticated encrypted link expires after 15 minutes and shows the requesting phone only on that form; the number is not copied into donor identity or used to grant marketing consent. The immutable paid intent carries the text channel and the keyword's defined appeal. Signed STOP uses the existing append-only SMS withdrawal history and also retains a phone hash to suppress links for senders without a donor record. Provider credentials are sealed with the installation secret and excluded from portable backups.
 
 *Acceptance:* An HTTP journey with the Twilio edge faked texts a keyword, follows the link, gives, and sees the gift attributed to text-to-give in `GIFT-003`'s channel totals; a STOP reply records SMS consent as withdrawn.
 
@@ -1342,8 +1346,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 61 | 41 | 26 | 128 |
-| All | 70 | 41 | 26 | 137 |
+| Target and push further | 62 | 42 | 24 | 128 |
+| All | 71 | 42 | 24 | 137 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1386,8 +1390,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `GIVE-004` | Card, bank, wallet and PayPal checkout | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Stripe-hosted card and Link checkout ships, with Apple Pay offered on supported devices. ACH is coming soon pending a US test account; Apple Pay device payment, PayPal/Venmo, ACH settlement/returns and staff entry remain outstanding. No card numbers enter Coffer. |
 | `GIVE-005` | Donor portal | target | partial | `src/coffer/giving/`, `tests/giving.test.mjs` | Emailed single-use links open a donor-only portal to view monthly plans, update cards at Stripe and cancel. Statements, amounts/frequencies, pause, communication preferences and cancellation tasks remain outstanding. |
 | `GIVE-006` | Failed recurring payments | target | done | `src/coffer/agent/recovery.ts`, `src/coffer/agent/card-expiry.ts`, `src/coffer/agent/recovery-ui.ts`, `migrations/core/0080_coffer_card_expiry.sql`, `tests/agent-recovery.test.mjs`, `tests/recovery-browser.mjs` |  |
-| `GIVE-007` | Fraud and card-testing protection | target | missing |  | No forms to protect. |
-| `GIVE-008` | Text-to-give | target | missing |  | No text-to-give. |
+| `GIVE-007` | Fraud and card-testing protection | target | partial | `tests/giving.test.mjs` — "GIVE-007: address bursts pause giving, alert administrators and count verified Radar failures without donor records", givingProtectionJourney in `tests/giving-protection-journey.mjs`: 30 attempts, refusal after ten, persistent pause and admin alert, no failed donor or gift, minimum amount, configured Turnstile rejection and unavailable-edge refusal, signed blocked-charge failure and replay accounting; native form and alert at 1440 and 390 pixels | Per-card limits, automatic refund and exclusion of fraudulent gifts discovered after payment, mandatory protection activation on existing forms, and failure accounting for every recurring and hosted-checkout attempt remain unimplemented. The persistent alert is in Giving connection settings; email alerts are not implemented. Provider edges are faked; no live provider claim. |
+| `GIVE-008` | Text-to-give | target | done | `tests/giving.test.mjs` — "GIVE-008: signed keyword links prefill the mobile form, attribute paid gifts and honor STOP without marketing grants", textGivingJourney in `tests/text-giving-journey.mjs`: owner and admin keyword configuration with defined appeal, signed Twilio request and replay refusal, encrypted phone-prefilled link, paid gift in GIFT-003 text channel and appeal totals, signed STOP withdrawal through existing SMS consent and suppression for unknown senders; native giving form and connection settings at 1440 and 390 pixels | Provider edge is faked. A keyword authorizes one reply only; it never grants marketing permission. |
 | `GIVE-009` | Staff-entered card and bank payments | target | missing |  | Coffer takes no payments; staff record a gift by hand after the money arrives elsewhere. |
 | `CAMP-001` | Campaigns with goals | target | done | `src/coffer/giving/campaigns.ts`, `src/coffer/campaign-progress.ts`, `src/coffer/ui/campaign-progress.ts`, `migrations/core/0065_coffer_campaign_progress.sql`, `tests/campaign-progress-journey.mjs`, `tests/giving.test.mjs`, `tests/campaign-browser.mjs` | Clause-named HTTP and native journeys assert a $60,000 campaign, dates and nested phases, funds/appeals/forms, form/check/pledge payments, exact received/outstanding/recognition figures, donor/new/recurring/average statistics and custody. |
 | `CAMP-002` | Fundraising events | target | missing |  | No events. |
