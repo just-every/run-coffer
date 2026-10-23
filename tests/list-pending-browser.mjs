@@ -12,7 +12,7 @@ export async function pendingRestoreBrowser(h,{listId,directory}){
    await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/exports?list=saved:'+listId)
    const row=()=>page.locator('li').filter({has:page.locator('input[name=jobId][value="'+job.id+'"]')}).last()
    await row().getByRole('button',{name:'Undo this bulk change',exact:true}).click();await page.waitForURL('**/app/exports?list=saved:*')
-   await row().getByText('Records restored.',{exact:true}).waitFor()
+   await row().getByRole('button',{name:'Restore pending work',exact:true}).waitFor()
    const before=await h.get('/api/coffer/tasks'),closed=before.tasks.filter(t=>t.status==='done').map(t=>t.id)
    assert.ok(closed.length,'Record undo leaves closed tasks closed')
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))

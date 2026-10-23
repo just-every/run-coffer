@@ -42,7 +42,7 @@ export async function customFieldsBrowser(h,{donorId,giftId,directory}){
 }
 async function fits(page,width){
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Screen fits '+width)
- // Every visible action on these screens has text; decorative SVGs are not controls.
- const unnamed=await page.getByRole('button').evaluateAll(nodes=>nodes.filter(n=>n.getBoundingClientRect().width&&!(n.textContent||'').trim()&&!n.getAttribute('aria-label')).length)
- assert.equal(unnamed,0,'No unnamed icon-only button')
+ // Native file/date inputs supply browser text. Audit the authored controls.
+ const icons=await page.locator('button,a,[role=button]').evaluateAll(nodes=>nodes.filter(n=>n.getBoundingClientRect().width&&!(n.innerText||'').trim()).map(n=>n.outerHTML.slice(0,300)))
+ assert.deepEqual(icons,[],'These screens give authored controls visible text')
 }

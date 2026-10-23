@@ -65,5 +65,5 @@ export async function batchPage(c: Context, batchId: string) {
 function postalFlag(value:string|null){
  if(!value)return ''
  const address=JSON.parse(value);if(!address.line1)return ''
- return address.addressVerification==='verified'?'<p class="muted">Verified postal address.</p>':'<p class="notice">Unverified postal address · uses the stored address; this acknowledgment does not wait on processing.</p>'
+ return address.addressVerification==='verified'?'<p class="muted" data-address-verification="verified">Verified postal address.</p>':'<p class="notice" data-address-verification="unverified">Unverified postal address · uses the stored address; this acknowledgment does not wait on processing.</p>'
 }
