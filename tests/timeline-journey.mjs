@@ -67,8 +67,9 @@ async function timelineBrowser(h,donorId,directory){
     const note=width===390?originalNote.replace('autumn','winter'):originalNote
     assert.equal(note.length,30)
     const started=performance.now();let clicks=0
-    await page.getByText(label,{exact:true}).click();clicks++
-    const composer=page.getByText(label,{exact:true}).locator('..')
+    const summary=page.locator('#conversations summary').filter({hasText:label})
+    await summary.click();clicks++
+    const composer=summary.locator('..')
     await composer.locator('textarea').pressSequentially(note,{delay:200})
     await composer.getByRole('button',{name:button,exact:true}).click();clicks++
     const timeline=page.locator('#timeline');await timeline.getByText(note,{exact:true}).waitFor()
