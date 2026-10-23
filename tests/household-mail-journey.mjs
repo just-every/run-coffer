@@ -5,6 +5,7 @@ import {withBrowserWorker} from './browser-worker.mjs'
 import {mkdir} from 'node:fs/promises'
 export async function householdMailJourney(){await run(async h=>{
  await reviewed(h)
+ const member=await h.person('synthetic-coffer-1603@example.test'),admin=await h.person('synthetic-coffer-1604@example.test','admin'),agent=await h.command('agent.create',{label:'synthetic-coffer-1605'}),asAgent={as:'',headers:{authorization:'Bearer '+agent.token}}
  const a=await donor(h,'Alex Household',{household:'Mail household'}),b=await donor(h,'Blake Household',{household:'Mail household'})
  const consent=(d,status='granted')=>h.command('consent.record',{donorId:d.id,channel:'mail',status,method:'paper form',evidence:'synthetic-coffer-901',capturedOn:'2025-01-01'})
  await consent(a);await consent(b)
@@ -25,13 +26,14 @@ export async function householdMailJourney(){await run(async h=>{
  assert.equal(piece.name,'The Household Family');assert.equal(JSON.parse(piece.names).household_informal_salutation,'Alex and Blake')
  assert.deepEqual(snapshot.gifts.map(g=>g.id).sort(),[ga.id,gb.id,joint.id].sort());assert.equal(snapshot.gifts.reduce((n,g)=>n+g.amountCents,0),60000)
  assert.equal(snapshot.headStatus,'none');assert.equal(snapshot.gifts.length,3,'The joint hard-credit ID is counted once, with no soft-credit line')
- await h.command('appeal.approve',{appealId:grouped.id,version:1});await h.command('appeal.export',{appealId:grouped.id,version:2})
+ await h.command('appeal.approve',{appealId:grouped.id,version:1},{as:member.cookie,status:403});await h.command('appeal.approve',{appealId:grouped.id,version:1},{...asAgent,status:403});await h.command('appeal.approve',{appealId:grouped.id,version:1},{as:admin.cookie});await h.command('appeal.export',{appealId:grouped.id,version:2})
  const download=await h.request('/api/coffer/appeals/'+grouped.id+'/recipients.csv')
  assert.equal(download.status,200);const csv=await download.text();assert.equal(csv.trim().split('\r\n').length,2);assert.match(csv,/The Household Family,Alex and Blake/)
  const statement=await h.command('ack.prepareStatements',{year:2025,postagePerPiece:'0.73'})
  assert.deepEqual([statement.onePiecePer,statement.letters,statement.pieceCount,statement.estimatedPostageCents],['household',1,1,73])
  const statementDetail=await h.get('/api/coffer/letters/'+statement.id)
  assert.equal(statementDetail.letters[0].recipient_name,'The Household Family')
+ assert.equal(JSON.parse(statementDetail.letters[0].address).addressVerification,'verified','Statements use the verified household address when available')
  assert.equal(statementDetail.letters[0].amount_cents,60000)
  assert.deepEqual(JSON.parse(statementDetail.letters[0].statement_gifts).map(g=>g.id).sort(),[ga.id,gb.id,joint.id].sort())
  await h.command('ack.discard',{batchId:statement.id,version:1})
@@ -45,7 +47,7 @@ export async function householdMailJourney(){await run(async h=>{
  const giftStatementDetail=await h.get('/api/coffer/letters/'+giftStatements.id)
  assert.ok(giftStatementDetail.letters.every(l=>JSON.parse(l.statement_gifts).length===1))
  assert.equal(giftStatementDetail.letters.reduce((n,l)=>n+l.amount_cents,0),60000)
- await h.command('ack.approve',{batchId:giftStatements.id,version:1})
+ await h.command('ack.approve',{batchId:giftStatements.id,version:1},{as:member.cookie,status:403});await h.command('ack.approve',{batchId:giftStatements.id,version:1},{...asAgent,status:403});await h.command('ack.approve',{batchId:giftStatements.id,version:1},{as:admin.cookie})
  await h.command('ack.discard',{batchId:giftStatements.id,version:2})
  const stableStatement=await h.command('ack.prepareStatements',{year:2025})
  await h.command('ack.approve',{batchId:stableStatement.id,version:1})
@@ -87,7 +89,7 @@ export async function householdMailJourney(){await run(async h=>{
  assert.equal(ackDetail.mailPieces.length,1);assert.equal(JSON.parse(ackDetail.mailPieces[0].letter_ids).length,3)
  assert.match(ackDetail.mailPieces[0].content,/Household: The Household Family/)
  assert.match(ackDetail.mailPieces[0].content,/Synthetic Reader/,'The new postal door retains tribute facts')
- await h.command('ack.approve',{batchId:acknowledgments.id,version:1});await h.command('ack.export',{batchId:acknowledgments.id,version:2})
+ await h.command('ack.approve',{batchId:acknowledgments.id,version:1},{as:member.cookie,status:403});await h.command('ack.approve',{batchId:acknowledgments.id,version:1},{...asAgent,status:403});await h.command('ack.approve',{batchId:acknowledgments.id,version:1});await h.command('ack.export',{batchId:acknowledgments.id,version:2})
  const paper=await h.request('/app/letters/'+acknowledgments.id+'/print'),paperText=await paper.text()
  assert.equal(paper.status,200);assert.equal((paperText.match(/<article class="letter"/g)||[]).length,1)
  for(const l of ackDetail.letters)assert.match(paperText,new RegExp('Receipt '+l.receipt_year+'-'+l.receipt_sequence))
@@ -100,8 +102,18 @@ export async function householdMailJourney(){await run(async h=>{
  await h.command('household.update',{householdId:hid,version:changedHousehold.household.version,informal_override:'Another greeting'})
  await h.command('ack.approve',{batchId:staleAck.id,version:1},{status:409})
  assert.equal(await (await h.request('/app/letters/'+acknowledgments.id+'/print')).text(),paperText,'An exported grouped postal copy retains its exact names, numbers and gift facts after a household edit')
+ // The mailing preview retains an explicitly selected deceased head and flags
+ // overrides for review; it never chooses a replacement or rewrites old mail.
+ await h.command('gift.record',{donorId:a.id,amount:'75',receivedOn:'2024-08-01',method:'check',goods:'none'})
+ await h.command('household.update',{householdId:hid,version:(await h.get('/api/coffer/households/'+hid)).household.version,headDonorId:a.id})
+ await h.command('donor.profile',{donorId:a.id,version:(await h.get('/api/coffer/donors/'+a.id)).donor.version,constituentStatus:'deceased',deceasedOn:'2025-09-01'})
+ const headReview=await h.command('ack.prepareStatements',{year:2024,householdId:hid})
+ const headLetter=(await h.get('/api/coffer/letters/'+headReview.id)).letters[0],headSnapshot=JSON.parse(headLetter.household_snapshot)
+ assert.equal(headSnapshot.headStatus,'deceased');assert.equal(headSnapshot.overridesReview,true)
+ assert.equal(headLetter.amount_cents,7500);assert.equal(headSnapshot.headDonorId,a.id,'The preview never guesses a replacement head')
+ assert.deepEqual((await h.get('/api/coffer/letters/'+stableStatement.id)).letters[0].household_snapshot,statementSnapshot.household_snapshot,'Deceased-head changes preserve earlier statement snapshots')
  if(process.env.COFFER_HOUSEHOLD_MAIL_BROWSER){const directory=process.env.COFFER_HOUSEHOLD_MAIL_BROWSER;await mkdir(directory,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){
-  await page.setViewportSize({width,height:1000});for(const [name,path] of [['prepare','/app/appeals'],['grouped','/app/appeals/'+grouped.id],['consent','/app/appeals/'+single.id],['distant','/app/appeals/'+distant.id],['statement-settings','/app/letters'],['household-statement','/app/letters/'+stableStatement.id],['acknowledgment','/app/letters/'+acknowledgments.id],['acknowledgment-print','/app/letters/'+acknowledgments.id+'/print'],['acknowledgment-labels','/app/letters/'+acknowledgments.id+'/print?labels=1']]){await page.goto(origin+path);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/RCPT-009-'+name+'-'+width+'.png',fullPage:true})}
+  await page.setViewportSize({width,height:1000});for(const [name,path] of [['deceased-head-review','/app/letters/'+headReview.id],['prepare','/app/appeals'],['grouped','/app/appeals/'+grouped.id],['consent','/app/appeals/'+single.id],['distant','/app/appeals/'+distant.id],['statement-settings','/app/letters'],['household-statement','/app/letters/'+stableStatement.id],['acknowledgment','/app/letters/'+acknowledgments.id],['acknowledgment-print','/app/letters/'+acknowledgments.id+'/print'],['acknowledgment-labels','/app/letters/'+acknowledgments.id+'/print?labels=1']]){await page.goto(origin+path);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/RCPT-009-'+name+'-'+width+'.png',fullPage:true})}
  }await page.close()})}
  const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/appeals/'+grouped.id)).mailPieces,frozen.mailPieces);await fresh.command('donor.erase',{donorId:a.id,confirm:'ERASE'});assert.equal((await fresh.get('/api/coffer/appeals/'+grouped.id)).mailPieces.length,0);assert.equal((await fresh.get('/api/coffer/letters/'+acknowledgments.id)).mailPieces.length,0)})
 },{verifiedMail:true})}
