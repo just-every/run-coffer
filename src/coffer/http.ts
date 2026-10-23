@@ -1,3 +1,4 @@
+import { reservePreparationGrant } from './agent-grants-legacy'
 import { agentGrantsState } from './agent-grants'
 import { grantedRead } from './agent-grants-reads'
 import { savedConnection } from './communications/connection'
@@ -216,6 +217,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  try {
   const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
+  if(c.actor.preparationGrant&&(request.method==='GET'||path==='/api/coffer/mcp'))await reservePreparationGrant(c,'read')
   if (path === '/api/coffer/mcp') {
    if (!auth.bearer || actor.role !== 'agent') fail('agent_key_required', 'Use an existing Coffer agent key for MCP.', 403)
    if (request.headers.has('origin') && request.headers.get('origin') !== url.origin) fail('invalid_origin', 'This MCP request came from another origin.', 403)

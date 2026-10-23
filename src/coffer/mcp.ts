@@ -98,6 +98,7 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
  if (!valid(args, tool.inputSchema)) return error(id, -32602, 'Tool arguments must match its inputSchema.', modern ? 400 : 200)
  try {
   const value = c.actor.grant && ['donors.list','donors.context'].includes(tool.name) ? await grantedRead(c,tool.name as 'donors.list'|'donors.context',args) : tool.name === 'donors.list' ? await listDonors(c, args) : tool.name === 'donors.context' ? await donorHistory(c, args.donorId) : await execute(c, tool.name, args)
+  if(c.actor.preparationGrant)await commit(c,[event(c,'mcp.tool','agent_grant',c.actor.preparationGrant.id,tool.name==='donors.context'?String(args.donorId):null,{tool:tool.name},'cf_access_events')])
   return result({ content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value, isError: false })
  } catch (cause) {
   if (!(cause instanceof CofferError)) return error(id, -32603, 'Internal error.', 500)

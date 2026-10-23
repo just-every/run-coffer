@@ -1,3 +1,4 @@
+import { preparationGrantLimits } from './agent-grants-legacy'
 import { manager } from './auth'
 import { all, commit, event, fail, guard, id, integer, newId, one, sql, text, type Context, type Row } from './db'
 import { settings } from './settings'
@@ -12,11 +13,12 @@ const values = (value: unknown, label: string): string[] => {
 }
 export async function agentGrantsState(c: Context) {
  if (!manager(c.actor)) fail('FORBIDDEN','Only an owner or admin manages agent grants.',403)
- return { grants: await all(c,'SELECT * FROM cf_agent_grants ORDER BY name,id'), keys: await all(c,'SELECT id,label,grant_id,revoked_at FROM cf_agent_keys ORDER BY created_at DESC'), control: await one(c,'SELECT * FROM cf_agent_grant_control WHERE id=1'), settingsVersion:(await settings(c)).version, templateRevision:await templateRevision(c) }
+ return { preparationGrants:await all(c,'SELECT * FROM cf_agent_preparation_grants ORDER BY name,id'), grants: await all(c,'SELECT * FROM cf_agent_grants ORDER BY name,id'), keys: await all(c,'SELECT id,label,grant_id,revoked_at FROM cf_agent_keys ORDER BY created_at DESC'), control: await one(c,'SELECT * FROM cf_agent_grant_control WHERE id=1'), settingsVersion:(await settings(c)).version, templateRevision:await templateRevision(c) }
 }
 export async function agentGrantCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
  if (!command.startsWith('agentGrant.')) return undefined
  if (!manager(c.actor)) fail('FORBIDDEN','Only an owner or admin manages agent grants.',403)
+ if(command==='agentGrant.legacyLimits')return preparationGrantLimits(c,p)
  if (command === 'agentGrant.kill') {
   const version=integer(Number(p.version),'Version',1), enabled=p.enabled===true||p.enabled==='yes'?1:0
   await commit(c,[guard('EXISTS(SELECT 1 FROM cf_agent_grant_control WHERE id=1 AND version=?)','VERSION','Grant controls changed. Refresh.',version),sql('UPDATE cf_agent_grant_control SET enabled=?,version=version+1 WHERE id=1',enabled),event(c,command,'agent_grants','control',null,{enabled})])

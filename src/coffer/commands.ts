@@ -1,3 +1,4 @@
+import { reservePreparationGrant } from './agent-grants-legacy'
 import { agentGrantCommand } from './agent-grants'
 import { executeGranted } from './agent-grants-execution'
 import { profileFieldCommand } from './communications/profile-fields'
@@ -99,12 +100,13 @@ export const ACCESS: Record<string, Role[]> = {
  'ack.correct': MANAGERS, 'ack.prepareStatements': MANAGERS, 'ack.send': MANAGERS, 'ack.checkDelivery': MANAGERS, 'ack.printed': MANAGERS, 'ack.prepare': PREPARERS, 'ack.approve': MANAGERS, 'ack.discard': MANAGERS, 'ack.export': MANAGERS, 'ack.markSent': MANAGERS,
  'marketing.sync': MANAGERS, 'marketing.connectMango': MANAGERS, 'marketing.connectMailchimp': MANAGERS, 'marketing.chooseAudience': MANAGERS, 'marketing.check': MANAGERS, 'marketing.disconnect': MANAGERS, 'marketing.refresh': MANAGERS, 'appeal.send': MANAGERS, 'welcome.publish': MANAGERS, 'welcome.run': MANAGERS, 'reply.complete': STAFF, 'reply.proposeStop': STAFF, 'reply.confirmStop': STAFF, 'reply.reverseStop': STAFF,
  'appeal.prepare': [...PREPARERS,'member'], 'appeal.approve': MANAGERS, 'appeal.discard': MANAGERS, 'appeal.export': MANAGERS, 'appeal.markSent': MANAGERS,
- 'agentGrant.disable': MANAGERS, 'agentGrant.save': MANAGERS, 'agentGrant.attach': MANAGERS, 'agentGrant.kill': MANAGERS,
+ 'agentGrant.legacyLimits': MANAGERS, 'agentGrant.disable': MANAGERS, 'agentGrant.save': MANAGERS, 'agentGrant.attach': MANAGERS, 'agentGrant.kill': MANAGERS,
  'agent.create': MANAGERS, 'agent.revoke': MANAGERS,
 }
 
 export async function execute(c: Context, command: string, input: unknown): Promise<Row> {
  if(c.actor.role==='agent' && c.actor.grant) return executeGranted(c,command,object(input))
+ if(c.actor.preparationGrant&&['ack.prepare','appeal.prepare'].includes(command))await reservePreparationGrant(c,'prepare')
  const allowed = ACCESS[command]
  if (!allowed) fail('COMMAND', 'Unknown Coffer command.', 400)
  requireRole(c.actor, allowed, `run ${command}`)
@@ -142,6 +144,6 @@ async function agentKey(c: Context, command: string, p: Row) {
  const label = text(p.label, 'Agent label', 100)
  const token = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
  const keyId = newId(), now = Date.now(), expiresAt = now + 30 * 86400000
- await commit(c, [sql('INSERT INTO cf_agent_keys(id,token_hash,label,created_by,creator_version,expires_at,revoked_at,created_at) SELECT ?,?,?,id,version,?,NULL,? FROM oa_operators WHERE id=?', keyId, await digest(token), label, expiresAt, now, c.actor.id), event(c, 'agent.create', 'agent', keyId, null, { expiresAt })])
+ await commit(c, [sql('INSERT INTO cf_agent_keys(id,token_hash,label,created_by,creator_version,expires_at,revoked_at,created_at) SELECT ?,?,?,id,version,?,NULL,? FROM oa_operators WHERE id=?', keyId, await digest(token), label, expiresAt, now, c.actor.id), event(c, 'agent.create', 'agent', keyId, null, { expiresAt,grantId:'preparation:'+keyId,grantVersion:1 })])
  return { id: keyId, label, token, expiresAt }
 }
