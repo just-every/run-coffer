@@ -236,7 +236,7 @@ async function portalBrowser(h,edge,person,letter){
    await provider.send('Fetch.fulfillRequest',{requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'text/html'}],body:Buffer.from(body).toString('base64')})
   })
   await context.clearCookies()
-  const capture=async(name,width)=>{await assertPortalTooltips(page);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${directory}/GIVE-005-${name}-${width}.png`,fullPage:true})}
+  const capture=async(name,width)=>{await page.evaluate(()=>scrollTo(0,0));await assertPortalTooltips(page);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${directory}/GIVE-005-${name}-${width}.png`,fullPage:true})}
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/giving/portal');await capture('sign-in',width);await page.getByLabel('Email address',{exact:true}).fill('synthetic-coffer-2006@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByRole('heading',{name:'Check your email',exact:true}).waitFor();await capture('link-requested',width)
