@@ -142,6 +142,6 @@ async function agentKey(c: Context, command: string, p: Row) {
  const label = text(p.label, 'Agent label', 100)
  const token = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
  const keyId = newId(), now = Date.now(), expiresAt = now + 30 * 86400000
- await commit(c, [sql('INSERT INTO cf_agent_keys SELECT ?,?,?,id,version,?,NULL,? FROM oa_operators WHERE id=?', keyId, await digest(token), label, expiresAt, now, c.actor.id), event(c, 'agent.create', 'agent', keyId, null, { expiresAt })])
+ await commit(c, [sql('INSERT INTO cf_agent_keys(id,token_hash,label,created_by,creator_version,expires_at,revoked_at,created_at) SELECT ?,?,?,id,version,?,NULL,? FROM oa_operators WHERE id=?', keyId, await digest(token), label, expiresAt, now, c.actor.id), event(c, 'agent.create', 'agent', keyId, null, { expiresAt })])
  return { id: keyId, label, token, expiresAt }
 }
