@@ -31,7 +31,13 @@ export async function recoveryNoticesJourney() {
   await action({action:'policy',version:2,enabled:true,standingApproval:true,developmentLead:true,majorAmount:'1000'},{as:member.cookie,status:403})
   for(const p of edge.plans)await edge.fail(h,p,'evt_notice_'+p.id)
   assert.equal(portalMessages().length,0,'Explicitly off does not fall back to existing automatic invitations')
+  await action({action:'policy',version:2,enabled:true,standingApproval:true,majorAmount:'1000'},{status:400})
+  await action({action:'policy',version:2,enabled:true,developmentLead:true,majorAmount:'1000'},{status:400})
   await action({action:'policy',version:2,enabled:true,standingApproval:true,developmentLead:true,majorAmount:'1000'})
+  const designated=(await h.get('/auth/session')).operator,policyApproval=(await h.get('/api/coffer/audit?action=recovery.standingApproval')).rows.find(row=>JSON.parse(row.detail).enabled)
+  assert.equal((await state()).policy.approved_by,designated.id,'Designation is always the authenticated current approver, never a nominated account')
+  assert.equal(policyApproval.actor_id,designated.id);assert.equal(policyApproval.actor_role,'owner');assert.ok(policyApproval.at)
+
   await runAt(0)
   assert.equal(portalMessages().length,1,'Standing approval alone never grants donor recovery-contact permission')
   assert.match((await state()).steps.find(n=>n.donor_id===ben.donor.id).reason,/permission/i)
