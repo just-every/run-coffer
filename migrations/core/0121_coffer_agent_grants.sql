@@ -50,7 +50,7 @@ CREATE TABLE cf_agent_preparation_grants (
 INSERT INTO cf_agent_preparation_grants(id,key_id,name)
  SELECT 'preparation:'||id,id,label||' preparation' FROM cf_agent_keys;
 CREATE TABLE cf_agent_preparation_usage (
- grant_id TEXT NOT NULL REFERENCES cf_agent_preparation_grants(id),
+ grant_id TEXT NOT NULL REFERENCES cf_agent_preparation_grants(id) ON DELETE CASCADE,
  day TEXT NOT NULL,
  reads INTEGER NOT NULL DEFAULT 0 CHECK(reads>=0),
  preparations INTEGER NOT NULL DEFAULT 0 CHECK(preparations>=0),

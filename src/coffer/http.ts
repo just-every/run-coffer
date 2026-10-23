@@ -194,16 +194,21 @@ async function pages(data: FormData, name: string) {
  return out
 }
 
+// Retain the authority that produced a response: re-identifying after a read
+// must never relabel an all-record response with a newly narrowed grant.
+const responseAuthorities = new WeakMap<Request, Context>()
 const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
  const response = await cofferHandler(request, original)
  const path = new URL(request.url).pathname
  const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/sms/webhook'
  if (response && response.status < 400 && !provider && !response.headers.get('location')?.startsWith('/signin') && ROUTES.test(path)) {
-  const env = runtimeBindings(original), auth = await identity(request,env)
-  try { await recordRequest({ db:env.DB,actor:auth.actor,authority:auth.authority,now:new Date().toISOString(),env },request,response) }
+  const env = runtimeBindings(original), captured=responseAuthorities.get(request)
+  const auth=captured?null:await identity(request,env)
+  try { await recordRequest(captured??{ db:env.DB,actor:auth!.actor,authority:auth!.authority,now:new Date().toISOString(),env },request,response) }
   catch (error) { if (error instanceof CofferError) return json({error:error.code,message:error.message},error.status); throw error }
  }
+ responseAuthorities.delete(request)
  return response
 }
 async function cofferHandler(request: Request, original: Bindings): Promise<Response | null> {
@@ -217,6 +222,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  try {
   const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
+  responseAuthorities.set(request,c)
   if(c.actor.preparationGrant&&(request.method==='GET'||path==='/api/coffer/mcp'))await reservePreparationGrant(c,'read')
   if (path === '/api/coffer/mcp') {
    if (!auth.bearer || actor.role !== 'agent') fail('agent_key_required', 'Use an existing Coffer agent key for MCP.', 403)
