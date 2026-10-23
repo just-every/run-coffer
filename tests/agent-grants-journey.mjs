@@ -129,6 +129,7 @@ export async function agentGrantsJourney() {
   await h.command('agentGrant.kill',{version:liveControl.version,enabled:false})
   await legacy.get('/api/coffer/donors',401)
   await legacy.mcp('donors.list',{},null,401)
+  if(process.env.COFFER_GRANT_BROWSER){const {agentGrantsBrowser}=await import('./agent-grants-browser.mjs');await agentGrantsBrowser(h,ana.id,process.env.COFFER_GRANT_BROWSER)}
  },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1'},outbound:async request=>{
   assert.equal(new URL(request.url).hostname,'api.sendgrid.com');assert.equal(new URL(request.url).pathname,'/v3/mail/send')
   messages.push(await request.json())

@@ -38,5 +38,6 @@ export async function automationGrantsJourney() {
   receipt=(await grants()).find(g=>g.id==='receipts')
   await save({enabled:false})
   await h.api('/api/coffer/agent/grants',{id:'receipts',version:receipt.version,dailyLimit:1,enabled:true},{as:'',status:401})
+  if(process.env.COFFER_GRANT_BROWSER){const {automationGrantsBrowser}=await import('./agent-grants-browser.mjs');await automationGrantsBrowser(h,process.env.COFFER_GRANT_BROWSER)}
  },{entry:'tests/automation-worker.ts',triggerHandlers:true})
 }
