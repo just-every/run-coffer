@@ -24,6 +24,13 @@ function doors(h,key) {
  * ordinary HTTP and MCP. Only the paid mail submission edge is replaced. */
 export async function agentGrantsJourney() {
  const messages=[]
+ await run(async h=>{
+  const member=await h.person('grant.member@example.test')
+  await h.command('agentGrant.save',{}, {as:member.cookie,status:403})
+  const admin=await h.person('grant.admin@example.test','admin'),record=await donor(h,'Admin scoped donor')
+  const grant=await h.command('agentGrant.save',{name:'Admin read grant',donorIds:[record.id],permissions:['donors.list'],dailyLimit:1},{as:admin.cookie})
+  assert.equal((await h.get('/api/coffer/agent-grants')).grants.find(g=>g.id===grant.id).approved_by_role,'admin')
+ })
  return run(async h=>{
   await reviewed(h)
   const template=await h.command('letterTemplate.save',{kind:'major_gift',name:'Standard thank-you',minAmount:'250',subject:settings.letterSubject,body:settings.letterTemplate})
@@ -33,8 +40,6 @@ export async function agentGrantsJourney() {
   const key=await h.command('agent.create',{label:'Named receipt assistant'}),otherKey=await h.command('agent.create',{label:'Second named client'})
   const permissions=['donors.list','donors.context','ack.prepare','ack.send']
   const grantInput={name:'Standard receipt approval',donorIds:[ana.id,house.id],permissions,dailyLimit:2,standingApproval:true}
-  const member=await h.person('grant.member@example.test')
-  await h.command('agentGrant.save',grantInput,{as:member.cookie,status:403})
   await h.command('agentGrant.save',{...grantInput,standingApproval:false},{status:400})
   const grant=await h.command('agentGrant.save',grantInput)
   for(const k of [key,otherKey])await h.command('agentGrant.attach',{keyId:k.id,grantId:grant.id})
