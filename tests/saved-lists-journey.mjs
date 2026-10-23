@@ -164,5 +164,6 @@ export async function savedListsJourney(){await run(async h=>{
  assert.ok((await h.get('/api/coffer/welcome')).enrollments[0].steps.every(s=>s.status==='cancelled'),'Profile undo leaves cancelled journey work closed')
  await h.command('list.restorePending',{jobId:welcomeStatus.id,version:2,confirm:'yes'})
  assert.ok((await h.get('/api/coffer/welcome')).enrollments[0].steps.every(s=>s.status==='pending'),'Separate confirmation restores unsent journey work after constituent status')
+ if(process.env.COFFER_LIST_BROWSER){const {pendingRestoreBrowser}=await import('./list-pending-browser.mjs');await pendingRestoreBrowser(h,{listId:list.id,directory:process.env.COFFER_LIST_BROWSER})}
  const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/lists/'+list.id+'/members')).donorIds.sort(),[a.id,b.id].sort());await fresh.command('donor.erase',{donorId:a.id,confirm:'ERASE'});assert.deepEqual((await fresh.get('/api/coffer/lists/'+list.id+'/members')).donorIds,[b.id])})
 })}

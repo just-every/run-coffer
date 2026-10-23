@@ -14,6 +14,11 @@ export async function householdMailJourney(){await run(async h=>{
  const hid=(await h.get('/api/coffer/donors/'+a.id)).donor.household_id
  const hh=await h.get('/api/coffer/households/'+hid)
  await h.command('household.update',{householdId:hid,version:hh.household.version,addressee_override:'The Household Family',informal_override:'Alex and Blake',formal_override:'The Household Family'})
+ const unverified=await h.command('ack.prepareStatements',{year:2025,householdId:hid})
+ const unverifiedLetter=(await h.get('/api/coffer/letters/'+unverified.id)).letters[0]
+ assert.equal(JSON.parse(unverifiedLetter.address).addressVerification,'unverified','Statements use stored addresses without waiting for processing')
+ assert.match(await (await h.request('/app/letters/'+unverified.id)).text(),/Unverified postal address/)
+ await h.command('ack.discard',{batchId:unverified.id,version:1})
  const prepare=async(onePiecePer)=>{await prepareVerifiedMail(h);return h.command('appeal.prepare',{name:'Household mailing '+(onePiecePer??'default'),channel:'mail',...(onePiecePer?{onePiecePer}:{}),postagePerPiece:'0.73'})}
  const grouped=await prepare(),detail=await h.get('/api/coffer/appeals/'+grouped.id)
  assert.equal(grouped.pieceCount,1);assert.equal(detail.mailPieces.length,1)
