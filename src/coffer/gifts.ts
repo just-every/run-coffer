@@ -20,7 +20,7 @@ function goods(p: Row, giftCents: number) {
 export async function prepareGiftRecord(c: Context, p: Row, suppliedId?: string) {
   const donorId = id(p.donorId, 'Donor'), giftId = suppliedId ?? newId(), cents = amount(p, 'amount', 'Gift amount'), received = date(p.receivedOn, 'Received on')
   const s = await settings(c), benefit = receiptBenefit(p, cents, received, s)
-  if (received > today(s.timezone)) fail('INPUT', 'A gift records money already received; its date cannot be in the future.', 400)
+  if (received > today(s.timezone,new Date(c.now))) fail('INPUT', 'A gift records money already received; its date cannot be in the future.', 400)
   const allocations = await prepareGiftAllocations(c, p, cents)
   const method = choice(p.method, METHODS, 'how the gift was paid'), reference = optional(p.reference, 'Reference', 100), fund = allocations.length ? allocations[0].fund : optional(p.fund, 'Fund', 100) ?? 'Unrestricted'
   const pledgeId = optional(p.pledgeId, 'Pledge', 100), g = benefit ? { kind: 'none', cents: 0, description: null } : goods(p, cents), note = optional(p.note, 'Note', 1000)
