@@ -115,6 +115,28 @@ test('MAJOR-002: portfolios count manager moves, current pipeline, signed giving
  await portfoliosJourney()
 })
 
+test('only an owner or admin changes a relationship manager, so a member cannot take over a donor’s restriction',()=>run(async h=>{
+ const owner=(await h.get('/auth/session')).operator,member=await h.person('synthetic-coffer-1401@example.test')
+ const restricted=await donor(h,'Synthetic Restricted Prospect')
+ const leadership=await h.command('portfolio.save',{name:'Synthetic owner relationships',managerId:owner.id,untouchedDays:30})
+ await h.command('portfolio.assign',{donorId:restricted.id,portfolioId:leadership.id})
+ await h.command('solicitation.set',{donorId:restricted.id,version:0,type:'stop'})
+ const clear=(status)=>h.command('solicitation.set',{donorId:restricted.id,version:1,type:'none'},{as:member.cookie,status})
+ await clear(403)
+ await h.command('portfolio.save',{portfolioId:leadership.id,version:leadership.version,name:'Synthetic owner relationships',managerId:member.id,untouchedDays:30},{as:member.cookie,status:403})
+ await h.command('portfolio.save',{name:'Synthetic member relationships',managerId:member.id,untouchedDays:30},{as:member.cookie,status:403})
+ const assigned=await h.command('portfolio.save',{name:'Synthetic member relationships',managerId:member.id,untouchedDays:30})
+ await h.command('portfolio.assign',{donorId:restricted.id,portfolioId:assigned.id,previousPortfolioId:leadership.id},{as:member.cookie,status:403})
+ await clear(403)
+ const report=await h.get('/api/coffer/portfolios')
+ assert.equal(report.portfolios.find(p=>p.id===leadership.id).manager_id,owner.id)
+ assert.deepEqual(report.portfolios.find(p=>p.id===leadership.id).rows.map(r=>r.donor_id),[restricted.id])
+ assert.equal((await h.get('/api/coffer/donors/'+restricted.id)).solicitation.type,'stop')
+ await h.command('portfolio.assign',{donorId:restricted.id,portfolioId:assigned.id,previousPortfolioId:leadership.id})
+ await clear(200)
+ assert.equal((await h.get('/api/coffer/donors/'+restricted.id)).solicitation.type,'none','The manager an owner assigns may still clear it')
+}))
+
 test('MAJOR-003: dated cultivation tasks and attached proposals retain sending, responses and custody',async()=>{
  const {cultivationJourney}=await import('./cultivation-journey.mjs')
  await cultivationJourney()

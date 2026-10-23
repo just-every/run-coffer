@@ -86,7 +86,7 @@ export const ACCESS: Record<string, Role[]> = {
  'grant.save': STAFF, 'grant.status': STAFF, 'grant.attach': STAFF, 'grant.award': STAFF, 'grant.completeReport': STAFF, 'grant.assignReport': STAFF,
  'engagement.settings': MANAGERS, 'prospect.stages': MANAGERS, 'prospect.close': STAFF,
  'cultivation.template': STAFF, 'cultivation.apply': STAFF, 'cultivation.complete': STAFF, 'proposal.save': STAFF, 'proposal.attach': STAFF, 'proposal.sent': STAFF, 'proposal.response': STAFF,
- 'portfolio.save': STAFF, 'portfolio.assign': STAFF,
+ 'portfolio.save': MANAGERS, 'portfolio.assign': MANAGERS,
  'planned.save': STAFF, 'planned.realize': STAFF, 'planned.unlink': STAFF, 'legacy.set': STAFF,
  'dashboard.goal': MANAGERS, 'fund.define': MANAGERS, 'fund.spend': MANAGERS, 'appealCode.define': MANAGERS,
  'task.repeatCreate': STAFF, 'task.repeatComplete': STAFF, 'task.generate': STAFF, 'task.assign': STAFF, 'task.snooze': STAFF, 'task.complete': STAFF, 'prospect.save': STAFF,
