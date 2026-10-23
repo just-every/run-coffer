@@ -1,6 +1,7 @@
 import { requireRole } from './auth'
 import { all, choice, commit, date, event, fail, guard, id, integer, one, sql, text, type Context, type Row } from './db'
 import { exactUsd } from './money'
+import { customRecord } from './custom-records'
 
 export const customFields = (c:{db:D1Database}) => all(c,'SELECT * FROM cf_custom_fields ORDER BY key')
 export async function customFieldNames(c:{db:D1Database}) { return (await customFields(c)).map(f=>'custom.'+f.key) }
@@ -33,7 +34,7 @@ export async function customFieldCommand(c:Context,command:string,p:Row):Promise
  if(command==='custom.define') {
   const existing=await one(c,'SELECT * FROM cf_custom_fields WHERE key=?',key)
   const version=existing?integer(Number(p.version),'Field version',1):0
-  const kind=choice(p.kind??existing?.kind,['constituent','gift','interaction'],'record kind'),type=choice(p.type??existing?.type,['text','number','currency','date','year','checkbox'],'field type')
+  const kind=choice(p.kind??existing?.kind,['constituent','gift','pledge','opportunity','interaction','note'],'record kind'),type=choice(p.type??existing?.type,['text','number','currency','date','year','checkbox'],'field type')
   const entry=choice(p.entry??existing?.entry??'free-form',['free-form','pick-one','pick-many'],'entry method'),label=text(p.label,'Field label',100)
   if(existing&&(existing.kind!==kind||existing.type!==type||existing.entry!==entry))fail('INPUT','A field keeps its record kind, type and entry method.',400)
   const choices=entry==='free-form'?[]:typeof p.choices==='string'?p.choices.split(/\r?\n/).map(v=>v.trim()).filter(Boolean):p.choices
@@ -46,7 +47,7 @@ export async function customFieldCommand(c:Context,command:string,p:Row):Promise
  }
  const field=await one(c,'SELECT * FROM cf_custom_fields WHERE key=?',key);if(!field)fail('NOT_FOUND','Choose a defined custom field.',404)
  const recordId=id(p.recordId,'Record'),version=integer(Number(p.version??0),'Value version',0),source=text(p.source??'staff','Source',100)
- const record=await one(c,field.kind==='constituent'?'SELECT id AS donor_id FROM cf_donors WHERE id=? AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=cf_donors.id)':field.kind==='gift'?'SELECT g.donor_id FROM cf_contribution_ledger g JOIN cf_donors d ON d.id=g.donor_id WHERE g.id=? AND d.erased_at IS NULL':'SELECT i.donor_id FROM cf_interactions i JOIN cf_donors d ON d.id=i.donor_id WHERE i.id=? AND d.erased_at IS NULL',recordId)
+ const record=await customRecord(c,field.kind,recordId)
  if(!record)fail('NOT_FOUND','Choose a current record.',404)
  let input=p.value;if(field.entry==='pick-many'&&typeof input==='string'){try{input=JSON.parse(input)}catch{fail('INPUT','Choose a JSON list of values.',400)}}
  const value=command==='custom.clear'?'null':customValue(field,input)
@@ -55,7 +56,12 @@ export async function customFieldCommand(c:Context,command:string,p:Row):Promise
  sql('INSERT INTO cf_custom_value_history VALUES(?,?,?,?,?,?,?,?)',key,recordId,record.donor_id,version+1,value,source,c.now,c.actor.id),event(c,command,'custom_value',recordId,record.donor_id,{key,version:version+1}),sql('UPDATE cf_donors SET version=version+1 WHERE id=?',record.donor_id)])
  return {key,recordId,donorId:record.donor_id,version:version+1}
 }
+export function customDisplay(field:Row,value:unknown):string {
+ if(value==null)return ''
+ const render=(v:unknown)=>field.type==='currency'?exactUsd(String(v)):String(v)
+ return Array.isArray(value)?value.map(render).join(', '):render(value)
+}
 export async function customMerge(c:{db:D1Database},kind:string,recordId:string):Promise<Record<string,string>> {
  const values=await all(c,'SELECT f.key,f.type,v.value FROM cf_custom_fields f JOIN cf_custom_values v ON v.field_key=f.key JOIN cf_donors d ON d.id=v.donor_id WHERE f.kind=? AND v.record_id=? AND d.erased_at IS NULL',kind,recordId)
- return Object.fromEntries(values.filter(v=>v.value!=='null').map(v=>{const value=JSON.parse(v.value),render=(s:string)=>v.type==='currency'?exactUsd(s):s;return ['custom.'+v.key,Array.isArray(value)?value.map(render).join(', '):render(value)]}))
+ return Object.fromEntries(values.map(v=>['custom.'+v.key,customDisplay(v,JSON.parse(v.value))]))
 }

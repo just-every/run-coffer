@@ -156,8 +156,8 @@ test('IMPORT-001: saved Stripe refunds, every duplicate row, dry run, exact revi
  assert.match(await (await h.request('/app/move-in')).text(),/Nothing imported yet/)
  const plan=await h.api('/api/coffer/imports/preview',input)
  assert.equal((await h.get('/api/coffer/donors')).total,0)
- assert.equal(plan.donors.length,7);assert.equal(plan.gifts.length,16)
- assert.deepEqual(plan.skipped.map(s=>s.reason).sort(),['Matches a donor already using this email; gifts attach to that donor.','No matching donor. Include its Stripe customer, or add the donor with this email in Coffer first.','Not a successful payment.','Not in US dollars.'])
+ assert.equal(plan.donors.length,8);assert.equal(plan.gifts.length,16)
+ assert.deepEqual(plan.skipped.map(s=>s.reason).sort(),['No matching donor. Include its Stripe customer, or add the donor with this email in Coffer first.','Not a successful payment.','Not in US dollars.'])
  const byRef=Object.fromEntries(plan.gifts.map(g=>[g.reference,g]))
  assert.equal(plan.gifts.reduce((n,g)=>n+g.netCents,0),1345000)
  const partial=plan.gifts.find(g=>g.note==='Summer reading sponsor'),full=plan.gifts.find(g=>g.status==='refunded')
@@ -166,7 +166,7 @@ test('IMPORT-001: saved Stripe refunds, every duplicate row, dry run, exact revi
  const page=await h.request('/app/move-in/preview',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({customers:JSON.stringify(input.customers),charges:JSON.stringify(input.charges)}).toString()})
  assert.equal(page.status,200);assert.match(await page.text(),/Gross[\s\S]*Refunded[\s\S]*Net[\s\S]*Partially refunded/)
  assert.equal(Object.values(byRef).find(g=>g.amountCents===100000).receivedOn,'2025-12-31')
- assert.equal(new Set(plan.gifts.filter(g=>g.note==='Monthly gift'||g.note==='Gift in memory of Ruth Okafor').map(g=>g.donorId)).size,1)
+ assert.equal(new Set(plan.gifts.filter(g=>g.note==='Monthly gift'||g.note==='Gift in memory of Ruth Okafor').map(g=>g.donorId)).size,2)
  await h.api('/api/coffer/imports/apply',{...input,fingerprint:'0'.repeat(64)},{status:409})
  let job=await h.api('/api/coffer/imports/apply',{...input,fingerprint:plan.fingerprint})
  while(job.state!=='completed')job=await h.api('/api/coffer/imports/resume',{id:job.id})
@@ -179,7 +179,7 @@ test('IMPORT-001: saved Stripe refunds, every duplicate row, dry run, exact revi
  for(const original of journal.originals){assert.equal(original.original.status,'retained');assert.deepEqual(JSON.parse(Buffer.from(original.original.base64,'base64')),original.name.includes('customers')?input.customers[0]:input.charges[Number(original.name.match(/(\d+)\.json/)[1])-1])}
  const fullHistory=await h.get('/api/coffer/donors/'+full.donorId)
  assert.equal(fullHistory.gifts.find(g=>g.reverses===full.id).amount_cents,-10000)
- const donors=await h.get('/api/coffer/donors');assert.equal(donors.total,7)
+ const donors=await h.get('/api/coffer/donors');assert.equal(donors.total,8)
  const priya=donors.donors.find(d=>d.name==='Priya Shah');assert.equal(priya.total_cents,60000)
  assert.equal((await h.get('/api/coffer/letters')).due.filter(g=>g.goods==='unknown').length,9)
  const already=await h.api('/api/coffer/imports/preview',input,{status:409})
@@ -187,7 +187,7 @@ test('IMPORT-001: saved Stripe refunds, every duplicate row, dry run, exact revi
  const importedIds=[...plan.donors.map(d=>d.sourceRef),...plan.gifts.map(g=>g.reference)].sort()
  assert.deepEqual(already.details.map(d=>d.sourceId).sort(),importedIds)
  for(const row of already.details)assert.ok(already.message.includes(row.sourceId)&&already.message.includes('row '+row.row))
- assert.equal((await h.get('/api/coffer/donors')).total,7)
+ assert.equal((await h.get('/api/coffer/donors')).total,8)
  const invalidRefund=structuredClone(input);invalidRefund.charges[0].data[0].id='ch_invalidRefund';invalidRefund.charges[0].data[0].amount_refunded=invalidRefund.charges[0].data[0].amount+1
  invalidRefund.customers=[];invalidRefund.charges=[{object:'list',data:[invalidRefund.charges[0].data[0]]}]
  await h.api('/api/coffer/imports/preview',invalidRefund,{status:400})
@@ -354,3 +354,6 @@ test('DONOR-009: verified entry and licensed scheduled address passes preserve m
 test('DONOR-007: saved giving and consent lists stay live in appeals, retention and exports; audited bulk tags and managers undo atomically',async()=>{const {savedListsJourney}=await import('./saved-lists-journey.mjs');await savedListsJourney()})
 
 test('DONOR-013: typed contact points, atomic primary receipts, all-contact lookup, household consent and custody',async()=>{const {contactPointsJourney}=await import('./contact-points-journey.mjs');await contactPointsJourney()})
+
+
+test('DONOR-005: typed records, live tag segments, exact gift grouping and pick-list renames keep their values',async()=>{const {customFieldsJourney}=await import('./custom-fields-journey.mjs');await customFieldsJourney()})

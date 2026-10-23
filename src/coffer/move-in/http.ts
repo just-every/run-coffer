@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { customFields } from '../custom-fields'
 import { manager } from '../auth'
 import { fail, today, type Context } from '../db'
 import { settings } from '../settings'
@@ -19,7 +20,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)
  const action=url.pathname.slice(base.length+1)
  if(request.method==='GET') {
-  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone),c.actor,200,'/app/more')
+  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c)),c.actor,200,'/app/more')
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
   if(action==='review' && !api) {
    const job=await reviewed(c,url.searchParams.get('id')||''), list=await issues(c,job.id,{...q,severity:q.severity??(job.report.canApply?undefined:'error')})
@@ -53,7 +54,16 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
    if(total>16*1024*1024)fail('MOVE_IN_LIMIT','All files together must be 16 MB or less. Split the gift export by year and upload constituents.csv again with each year’s file.',413)
    files.push({name:f.name,base64:Buffer.from(await f.arrayBuffer()).toString('base64')})
   }
-  input={source:get('source'),files,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||''))}
+  const form=data as FormData,parts=(key:string)=>form.getAll(key).map(String)
+  const columns=parts('customColumn'),sources=parts('customSource'),sheets=parts('customSheet'),existing=parts('customExisting'),keys=parts('customKey'),labels=parts('customLabel'),kinds=parts('customKind'),types=parts('customType'),entries=parts('customEntry'),choices=parts('customChoices')
+  const mappings=columns.flatMap((column,index)=>{
+   if(!existing[index]&&!keys[index])return []
+   let definition:Record<string,any>
+   if(existing[index]){try{definition=JSON.parse(existing[index])}catch{fail('CUSTOM_MAPPING','Choose a current custom field.',400)}}
+   else definition={key:keys[index],label:labels[index],kind:kinds[index],type:types[index],entry:entries[index],choices:(choices[index]??'').split(/\r?\n/).map(v=>v.trim()).filter(Boolean),version:0}
+   return [{...definition,source:sources[index]||get('source'),column,sheet:sheets[index]||undefined}]
+  })
+  input={source:get('source'),files,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
  }
  if(action==='preview') {const result=await service.preview(c,input);return api?json(result):new Response(null,{status:303,headers:{...headers,location:`/app/move-in/crm/review?id=${encodeURIComponent(result.id)}`}})}
  return fail('not_found','That move-in action does not exist.',404)

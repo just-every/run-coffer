@@ -1,3 +1,4 @@
+import { manager } from './auth'
 import { engagementScores } from './engagement'
 import { contactSearchSql } from './contact-points'
 import { ADVANCED_FILTERS, advancedListSql,validateCustomFilter } from './list-filters'
@@ -26,6 +27,7 @@ export async function exportSelection(c: Context, url: URL) {
  const baseRevision=Number((await one(c,'SELECT revision FROM cf_score_clock WHERE id=1'))!.revision)
  const saved=savedId?await one(c,'SELECT version,filters FROM cf_saved_lists WHERE id=?',savedId):null
  const scoreFilters=saved?JSON.parse(saved.filters):filters
+ if(scoreFilters.customKey&&!manager(c.actor))fail('FORBIDDEN','Only an owner or admin uses custom-data lists.',403)
  await validateCustomFilter(c,scoreFilters)
  const needsScore=Boolean(scoreFilters.minScore||scoreFilters.maxScore||scoreFilters.lapsed)
  const revision=needsScore||savedId?baseRevision:null

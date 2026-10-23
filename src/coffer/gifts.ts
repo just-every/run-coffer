@@ -1,3 +1,4 @@
+import { customEntry } from './custom-entry'
 import { benefitStatements, receiptBenefit } from './receipt-rules'
 import { choice, commit, date, event, fail, guard, id, integer, newId, one, optional, sql, text, today, type Context, type Row } from './db'
 import { giftInstallmentStatements } from './pledges'
@@ -32,6 +33,7 @@ export async function prepareGiftRecord(c: Context, p: Row, suppliedId?: string)
    ...benefitStatements(giftId, benefit, s),
    ...giftAllocationStatements(giftId, allocations),
    ...attribution.statements(giftId),
+   ...await customEntry(c,'gift',giftId,donorId,p.customFields,'gift entry'),
    ...await giftInstallmentStatements(c, p, giftId, donorId, cents, pledgeId),
    event(c, 'gift.record', 'gift', giftId, donorId, { amountCents: cents, receivedOn: received, campaignId: attribution.campaignId, appeal: attribution.appeal, channel: attribution.channel, ...(allocations.length ? { allocations } : {}) })]
   return { statements, result: { id: giftId, amountCents: cents, campaignId: attribution.campaignId, appeal: attribution.appeal, channel: attribution.channel, ...(allocations.length ? { allocations } : {}) } }

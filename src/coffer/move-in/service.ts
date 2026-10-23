@@ -1,3 +1,5 @@
+import { customFields } from '../custom-fields'
+import { importedCustomWrites, customImportUndoGuards, customImportUndoWrites } from './custom-fields'
 import { solicitationImportHistory, restrictionReconciliation } from './solicitation-import'
 import { manager } from '../auth'
 import { all, commit, CofferError, date, event, fail, guard, one, optional, sha256, sql, today, type Context, type Row, type Stmt } from '../db'
@@ -28,8 +30,7 @@ export async function preview(c: Context,input: ParseInput) {
   if(saved?.mapping)input={...input,solicitCodes:JSON.parse(saved.mapping)}
  }
  const parsed=await parseExports(input)
- await settledEmails(c,parsed)
- const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null})
+ const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields})
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
  if(prior?.redacted)parsed.diagnostics.push({severity:'error',code:'MOVE_IN_ERASED',message:'An imported constituent was erased. This move-in cannot restore their contact or history.'})
@@ -49,19 +50,9 @@ export async function preview(c: Context,input: ParseInput) {
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
  return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
-}
-
-/** A constituent an earlier move-in from this CRM already brought keeps the email Coffer holds; a later year's file never blocks on it. */
-async function settledEmails(c: Context,parsed: ParsedImport) {
- const shared=parsed.diagnostics.filter(d=>d.code==='SHARED_EMAIL')
- if(!shared.length)return
- const byRow=new Map(parsed.donors.map(d=>[`${d.location.file}|${d.location.row}`,d.externalId]))
- const ids=shared.map(d=>byRow.get(`${d.file}|${d.row}`)).filter((x): x is string=>!!x), keys=new Map(await Promise.all(ids.map(async id=>[await sha256(id),id] as const)))
- const earlier=new Set((await all(c,"SELECT source_key FROM cf_move_in_records WHERE source=? AND kind='donor' AND source_key IN (SELECT value FROM json_each(?))",parsed.source,JSON.stringify([...keys.keys()]))).map(r=>keys.get(r.source_key)))
- parsed.diagnostics=parsed.diagnostics.filter(d=>d.code!=='SHARED_EMAIL'||!earlier.has(byRow.get(`${d.file}|${d.row}`)))
 }
 
 /** Approves the staged review and applies its first parts. */
@@ -97,13 +88,16 @@ export async function continueApply(c: Context,id:string) {
   const part=JSON.parse(next.payload) as ParsedImport, plan=await planImport(c,part), errors=plan.diagnostics.filter(d=>d.severity==='error')
   if(errors.length)fail('MOVE_IN_ERRORS',`Part ${next.position+1} of ${job.parts} (${contents(part)}) could not be applied. ${errors.length} row${errors.length===1?'':'s'}: ${errors.slice(0,5).map(d=>`${d.file} row ${d.row}: ${d.message}`).join(' ')} Nothing from this part was saved; the ${job.applied_parts} part${job.applied_parts===1?'':'s'} before it stay in Coffer. Fix the record in Coffer and press Continue, or undo the whole move-in.`,409,errors.slice(0,50))
   const writes:Stmt[]=[...plan.checks,guard('EXISTS(SELECT 1 FROM cf_move_in_parts WHERE job_id=? AND position=? AND applied_at IS NULL)','MOVE_IN_CHANGED','This part was applied in another window. Refresh the journal.',id,next.position)]
+  writes.push(sql('INSERT INTO cf_identity_ingest VALUES(1)'))
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
+  writes.push(...importedCustomWrites(c,plan,job.source,id))
   writes.push(...solicitationImportHistory(c,plan.effects,job.source,id))
   writes.push(...importedHouseholdWrites(c,plan.householdChanges,job.source,id))
   if(job.acknowledged_before)writes.push(sql(`INSERT OR IGNORE INTO cf_prior_acknowledgements(gift_id,job_id,acknowledged_before) SELECT json_extract(value,'$.id'),?,? FROM json_each(?) WHERE json_extract(value,'$.received_on')<?`,id,job.acknowledged_before,JSON.stringify(plan.effects.filter(e=>e.kind==='gift'&&e.owned).map(e=>({id:e.nativeId,received_on:e.row.received_on}))),job.acknowledged_before))
   const jobGifts=await Promise.all(part.gifts.map(async g=>({giftId:plan.giftIds.get(g.externalId),donorKey:await sha256(g.donorExternalId)})))
   writes.push(sql("INSERT OR IGNORE INTO cf_move_in_job_gifts(job_id,gift_id,donor_source_key) SELECT ?,json_extract(value,'$.giftId'),json_extract(value,'$.donorKey') FROM json_each(?)",id,JSON.stringify(jobGifts)))
   writes.push(sql('UPDATE cf_move_in_parts SET applied_at=? WHERE job_id=? AND position=?',c.now,id,next.position),sql('UPDATE cf_move_in_jobs SET applied_parts=applied_parts+1 WHERE id=?',id))
+  writes.push(sql('DELETE FROM cf_identity_ingest'))
   try {await commit(c,writes)} catch(error) {
    if(error instanceof CofferError && !UNIQUE_CODES[error.code])throw error
    await partFailed(c,job,next.position,part,plan,error)
@@ -176,11 +170,11 @@ export async function undo(c: Context,id:string) {
   const t=tables[kind]
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>r.snapshot))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
- writes.push(importHouseholdUndoFence(id))
+ writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1) AND p.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='contact' AND owned=1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id,id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
-  ['cf_custom_values','donor_id','donor',null,'record_id'],['cf_donor_tags','donor_id','donor',null,'donor_id'],['cf_gift_tributes','notification_donor_id','donor',null,'gift_id'],
+  ['cf_donor_tags','donor_id','donor',null,'donor_id'],['cf_gift_tributes','notification_donor_id','donor',null,'gift_id'],
   ['cf_acks','household_id','household',null,'id'],
   ['cf_gifts','donor_id','donor','gift','id'],['cf_pledges','donor_id','donor','pledge','id'],['cf_relationships','donor_id','donor','relationship','id'],['cf_relationships','related_donor_id','donor','relationship','id'],
   ['cf_soft_credits','donor_id','donor','softCredit','id'],['cf_soft_credits','gift_id','gift','softCredit','id'],['cf_donor_notes','donor_id','donor','note','id'],['cf_interactions','donor_id','donor','interaction','id'],
@@ -198,11 +192,13 @@ export async function undo(c: Context,id:string) {
   ['cf_prospects','donor_id','donor',null,'id'],['cf_prospects','pledge_id','pledge',null,'id'],['cf_prospects','gift_id','gift',null,'id'],['cf_call_tasks','donor_id','donor',null,'id'],['cf_call_tasks','interaction_id','interaction',null,'id'],
  ]
  for(const [table,fk,parent,child,key] of dependencies)writes.push(guard(`NOT EXISTS(SELECT 1 FROM ${table} WHERE ${fk} IN (${owned(parent)})${child?` AND ${key} NOT IN (${owned(child)})`:''})`,'MOVE_IN_USED','Someone has used these imported records. Nothing was undone.',id,...(child?[id]:[])))
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_custom_values v WHERE (v.donor_id IN (${owned('donor')}) OR v.record_id IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND owned=1)) AND NOT EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.job_id=? AND r.kind='customValue' AND r.native_id=v.record_id AND json_extract(r.snapshot,'$.field_key')=v.field_key))`,'MOVE_IN_USED','Custom values were added after this move-in. Nothing was undone.',id,id,id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_job_gifts WHERE job_id<>? AND gift_id IN (${owned('gift')}))`,'MOVE_IN_USED','A later move-in counts gifts from this one. Undo that move-in first.',id,id))
  // This transaction-local marker authorizes only exact snapshot-owned consent
  // deletions in the migration's append-only exception. Failed guards roll it back.
  writes.push(sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.solicitationUndoInProgress',json('true')) WHERE id=?",id))
  writes.push(sql(`DELETE FROM cf_solicitation_history WHERE donor_id IN (${owned('solicitation')})`,id))
+ writes.push(...customImportUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))

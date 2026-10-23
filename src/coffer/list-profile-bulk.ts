@@ -9,7 +9,7 @@ import { solicitationWriteStatements } from './solicitation'
 // are append-only: undo records a new version rather than rewriting an old one.
 const profileColumns=['constituent_status','status_reason','deceased_on','status_changed_at','status_changed_by']
 const originals=(donorId:string)=>({sql:'SELECT s.* FROM cf_solicitation s WHERE s.donor_id=? OR s.donor_id IN(SELECT donor_id FROM cf_donor_merges WHERE into_id=?) ORDER BY s.donor_id',params:[donorId,donorId]})
-async function snapshot(c:Context,donorId:string) {
+export async function snapshot(c:Context,donorId:string) {
  const restriction=originals(donorId)
  const [profile,custom,restrictions,calls,series,enrollments,steps]=await Promise.all([
   one(c,`SELECT ${profileColumns.join(',')} FROM cf_donors WHERE id=?`,donorId),
@@ -26,7 +26,7 @@ const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b)
 async function assertSnapshot(c:Context,donorId:string,expected:Snapshot) {
  if(!same(await snapshot(c,donorId),expected))fail('BULK_CHANGED','A profile, custom value, restriction, task or journey changed after this action. Undo would overwrite newer work.',409)
 }
-function stateGuard(donorId:string,expected:Snapshot):Stmt {
+export function stateGuard(donorId:string,expected:Snapshot):Stmt {
  // The same-transaction fingerprint includes every store an undo can restore.
  const tables=[['cf_custom_values','record_id','field_key'],['cf_call_tasks','donor_id','id'],['cf_welcome_enrollments','donor_id','donor_id'],['cf_welcome_steps','donor_id','id']] as const
  const parts: string[]=[],params:unknown[]=[]
@@ -42,7 +42,7 @@ function stateGuard(donorId:string,expected:Snapshot):Stmt {
  parts.push('(SELECT COUNT(*) FROM cf_recurring_tasks t JOIN cf_recurring_task_series s ON s.id=t.series_id WHERE s.donor_id=?)=?');params.push(donorId,expected.series.length)
  return guard(parts.join(' AND '),'BULK_CHANGED','The constituent changed while preparing the bulk action.',...params)
 }
-function updateRow(table:string,row:Row,keys:string[]):Stmt {
+export function updateRow(table:string,row:Row,keys:string[]):Stmt {
  const cols=Object.keys(row).filter(k=>!keys.includes(k)&&k!=='version')
  return sql(`UPDATE ${table} SET ${cols.map(k=>k+'=?').join(',')}${'version' in row?',version=version+1':''} WHERE ${keys.map(k=>k+'=?').join(' AND ')}`,...cols.map(k=>row[k]),...keys.map(k=>row[k]))
 }
@@ -52,7 +52,6 @@ export async function profileBulkCommand(c:Context,command:string,p:Row,options:
  if(command==='list.profileUndo'){
   const jobId=id(p.jobId,'Bulk action'),version=integer(Number(p.version),'Action version',1),job=await one(c,"SELECT * FROM cf_list_bulk_jobs WHERE id=? AND kind<>'tags-manager'",jobId)
   if(!job||job.undone_at||job.version!==version)fail('VERSION','This action changed or was already undone.')
-  if(job.kind==='status'&&p.restorePending!=='yes')fail('CONSENT','Confirm restoration of the earlier task and unsent journey states before undoing a status change.',400)
   const rows=await all(c,'SELECT * FROM cf_list_bulk_rows WHERE job_id=? ORDER BY donor_id',jobId),writes:Stmt[]=[]
   if(!rows.length)fail('NOT_FOUND','No records remain to undo.',404)
   for(const row of rows){
@@ -68,7 +67,6 @@ export async function profileBulkCommand(c:Context,command:string,p:Row,options:
    if(job.kind==='status'){
     const restored:Row={...before.profile,...(before.profile!.constituent_status!==after.profile!.constituent_status?{status_changed_at:c.now,status_changed_by:c.actor.name}:{})}
     writes.push(sql(`UPDATE cf_donors SET ${profileColumns.map(k=>k+'=?').join(',')} WHERE id=?`,...profileColumns.map(k=>restored[k]),row.donor_id))
-    for(const [table,values,keys] of [['cf_call_tasks',before.calls,['id']],['cf_recurring_tasks',before.series,['id']],['cf_welcome_enrollments',before.enrollments,['donor_id']],['cf_welcome_steps',before.steps,['id']]] as [string,Row[],string[]][])for(const value of values)writes.push(updateRow(table,value,keys))
    }
    if(job.kind==='solicitation')for(const current of after.restrictions){
     const prior=before.restrictions.find(v=>v.donor_id===current.donor_id),next=current.version+1
@@ -77,7 +75,7 @@ export async function profileBulkCommand(c:Context,command:string,p:Row,options:
    }
    writes.push(sql('UPDATE cf_donors SET version=version+1 WHERE id=?',row.donor_id),event(c,'list.profileUndo','donor',row.donor_id,row.donor_id,{jobId,kind:job.kind,...(job.kind==='status'?{from:after.profile!.constituent_status,to:before.profile!.constituent_status}:{})}))
   }
-  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_list_bulk_jobs WHERE id=? AND version=? AND undone_at IS NULL)','VERSION','This action changed.',jobId,version),...writes,sql('UPDATE cf_list_bulk_jobs SET version=version+1,undone_at=? WHERE id=?',c.now,jobId),event(c,command,'list_bulk',jobId,null,{count:rows.length,kind:job.kind,restorePending:p.restorePending==='yes'})])
+  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_list_bulk_jobs WHERE id=? AND version=? AND undone_at IS NULL)','VERSION','This action changed.',jobId,version),...writes,sql('UPDATE cf_list_bulk_rows SET donor_version=donor_version+1 WHERE job_id=?',jobId),sql('UPDATE cf_list_bulk_jobs SET version=version+1,undone_at=? WHERE id=?',c.now,jobId),event(c,command,'list_bulk',jobId,null,{count:rows.length,kind:job.kind,restoredPending:false})])
   return {id:jobId,version:version+1,undone:rows.length}
  }
  const listId=id(p.listId,'Saved list'),version=integer(Number(p.version),'List version',1),reason=text(p.reason,'Reason',1000),kind=choice(p.kind,['custom','status','solicitation'] as const,'bulk action')

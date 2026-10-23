@@ -1,5 +1,5 @@
 import { requireRole } from './auth'
-import { customAllowed } from './custom-fields'
+import { customAllowed, customMerge } from './custom-fields'
 import { all, commit, event, fail, guard, integer, longText, one, sql, text, today, type Context, type Row } from './db'
 import { letterRecipient } from './organizations'
 import { pledgeHistory } from './pledges'
@@ -27,7 +27,7 @@ export async function renderPledgeReminder(c:Context,i:Row,options:{emailType?:s
  const p=pledges.find(p=>p.id===i.pledge_id);if(!p)fail('PLEDGE_CHANGED','The pledge changed. Open it again.')
  const recipient=await letterRecipient(c,d,options),remainingCents=i.amount_cents-i.paid_cents
  const campaign=p.campaign_id?await one(c,'SELECT name FROM cf_campaigns WHERE id=?',p.campaign_id):null
- const fields={...recipientMergeFields(recipient),date:longDate(today(s.timezone,new Date(c.now))),donor_name:recipient.letter_salutation??d.name,organization:s.organisation,ein:s.ein,fund:p.fund,campaign:campaign?.name??'',amount:usd(remainingCents),installment_amount:usd(remainingCents),due_date:longDate(i.due_on),pledged_amount:usd(p.amount_cents),pledge_balance:usd(p.remaining_cents),installment_number:String(i.position),pledge_date:longDate(p.pledged_on)}
+ const fields={...recipientMergeFields(recipient),...await customMerge(c,'pledge',p.id),date:longDate(today(s.timezone,new Date(c.now))),donor_name:recipient.letter_salutation??d.name,organization:s.organisation,ein:s.ein,fund:p.fund,campaign:campaign?.name??'',amount:usd(remainingCents),installment_amount:usd(remainingCents),due_date:longDate(i.due_on),pledged_amount:usd(p.amount_cents),pledge_balance:usd(p.remaining_cents),installment_number:String(i.position),pledge_date:longDate(p.pledged_on)}
  return {templateVersion:t.version,settingsVersion:s.version,donorVersion:d.version,recipient,remainingCents,...renderTemplate({subject:t.subject,body:t.body},fields)}
 }
 export async function pledgeMergeReview(c:{db:D1Database}){

@@ -116,6 +116,9 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
  // Withheld after the walk, so their ids stay this donor's own and are never shown as a counterpart.
  const notes = rows.get('cf_donor_notes') ?? [], confidentialNotes = notes.filter(n => n.confidential === 1).length
  rows.set('cf_donor_notes', notes.filter(n => n.confidential !== 1))
+ const privateNotes=new Set(notes.filter(n=>n.confidential===1).map(n=>n.id))
+ for(const table of ['cf_custom_values','cf_custom_value_history'])rows.set(table,(rows.get(table)??[]).filter(value=>!privateNotes.has(value.record_id)))
+ rows.set('cf_donor_merge_rows',(rows.get('cf_donor_merge_rows')??[]).filter(row=>!['cf_custom_values','cf_custom_value_history'].includes(row.table_name)||!privateNotes.has(JSON.parse(row.value).record_id)))
  const records: Record<string, Row[]> = {}
  for (const t of tables) {
   const found = rows.get(t.name); if (!found?.length) continue

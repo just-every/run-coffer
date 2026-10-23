@@ -3,14 +3,14 @@ import type { ParsedImport, SourceLocation } from './types'
 const at = (l: SourceLocation) => `${l.file} row ${l.row}`
 
 /** Household sharing preserves each person's address and independent consent.
- * Unrelated sharing remains a source error under published DONOR-001. */
+ * Asynchronous import keeps unrelated identities for duplicate review. */
 export function sharedEmails(out:ParsedImport){
  const owner=new Map<string,ParsedImport['donors'][number]>()
  for(const d of out.donors)for(const email of new Set([d.email,...(d.contacts??[]).filter(p=>p.kind==='email').map(p=>p.value)].filter(Boolean))){
   const first=owner.get(email)
   if(!first||first.externalId===d.externalId){owner.set(email,d);continue}
   if(first.householdKey&&first.householdKey===d.householdKey)out.diagnostics.push({...d.location,severity:'warning',code:'SHARED_EMAIL_HOUSEHOLD',column:'email',message:`${d.name} (${d.externalId}) shares ${email} with ${first.name} (${at(first.location)}) in ${d.householdName}. Both retain the address and remain separate constituents with independent consent.`})
-  else out.diagnostics.push({...d.location,severity:'error',code:'SHARED_EMAIL',column:'email',message:`Constituents ${first.externalId} (${at(first.location)}) and ${d.externalId} share ${email} outside a household. Review their identity or remove the conflicting address before importing.`})
+  else out.diagnostics.push({...d.location,severity:'warning',code:'SHARED_EMAIL',column:'email',message:`Constituents ${first.externalId} (${at(first.location)}) and ${d.externalId} share ${email} outside a household. Both retain separate source identities and enter duplicate review after importing.`})
  }
 }
 

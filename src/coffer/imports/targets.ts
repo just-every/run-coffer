@@ -59,8 +59,7 @@ export const ledgerTargets: D1TargetAdapter = {
   write(row) {
     const k = scope(row.destination, row.targetKind), v = values(k, row), columns = COLUMNS[k].map(([c]) => c)
     const statements: D1Sql[] = []
-    if (k === 'donor' && (row.value as Record<string, Json>).email)
-      statements.push(guard(sql(`NOT EXISTS(SELECT 1 FROM cf_donors WHERE id<>? AND email=?)`, row.targetId, (row.value as Record<string, Json>).email)))
+    if (k === 'donor') statements.push(sql('INSERT INTO cf_identity_ingest VALUES(1)'))
     if (k === 'gift' || k === 'subscription')
       statements.push(guard(sql(`EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL)`, (row.value as Record<string, Json>).donorId)))
     if (k === 'subscription')
@@ -78,6 +77,7 @@ export const ledgerTargets: D1TargetAdapter = {
         sql('UPDATE cf_subscription_history SET observed_at=? WHERE subscription_id=?',new Date().toISOString(),row.targetId))
     }
     if (k === 'gift' && (row.value as Record<string, Json>).appeal) statements.push(sql('INSERT INTO cf_gift_appeals(gift_id,appeal) VALUES(?,?) ON CONFLICT(gift_id) DO UPDATE SET appeal=excluded.appeal', row.targetId, (row.value as Record<string, Json>).appeal))
+    if (k === 'donor') statements.push(sql('DELETE FROM cf_identity_ingest'))
     return statements
   },
   remove(target, kind, id) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {readFile,readdir} from 'node:fs/promises'
 import {withBrowserWorker} from './browser-worker.mjs'
 import {mkdir} from 'node:fs/promises'
-import {run,archive,restore} from './harness.mjs'
+import {run,donor,archive,restore} from './harness.mjs'
 
 export async function exportInput(source,format='csv') {
  const dir=`tests/fixtures/move-in/${source}`
@@ -273,5 +273,104 @@ test('DONOR-013: LGL and Bloomerang contact reports preserve three typed emails 
   await post(h,'undo',{id:again.id},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,1,'A later contact edit prevents deleting the imported person')
   await h.command('donor.erase',{donorId:person.id,confirm:'ERASE'})
   assert.equal((await post(h,'preview',input)).canApply,false,'Erasure prevents contact import resurrection')
+ })
+})
+
+// Synthetic, configurable incumbent reports exercise the actual CSV and XLSX upload doors.
+async function customReportFiles(tables,format) {
+ if(format==='csv')return tables.map(([name,rows])=>({name:name+'.csv',base64:Buffer.from(rows.map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\r\n')).toString('base64')}))
+ const {zipSync,strToU8}=await import('fflate'),xml=v=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')
+ const files={
+  '[Content_Types].xml':strToU8('<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+tables.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>'),
+  '_rels/.rels':strToU8('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'),
+  'xl/workbook.xml':strToU8('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+tables.map(([name],i)=>`<sheet name="${name}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>'),
+  'xl/_rels/workbook.xml.rels':strToU8('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+tables.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')+'</Relationships>'),
+ }
+ for(const [i,[,rows]] of tables.entries())files[`xl/worksheets/sheet${i+1}.xml`]=strToU8('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+rows.map((row,r)=>`<row r="${r+1}">`+row.map((value,c)=>`<c r="${String.fromCharCode(65+c)}${r+1}" t="inlineStr"><is><t>${xml(value)}</t></is></c>`).join('')+'</row>').join('')+'</sheetData></worksheet>')
+ return [{name:'synthetic-coffer-1400.xlsx',base64:Buffer.from(zipSync(files)).toString('base64')}]
+}
+
+test('DONOR-005: reviewed incumbent custom columns retain typed source values, replay and archive custody, and guard undo',async()=>{
+ for(const source of ['lgl','bloomerang','re-nxt'])await run(async h=>{
+  const donorColumn=source==='lgl'?'LGL Constituent ID':source==='bloomerang'?'Account Number':'Constituent ID',giftColumn=source==='lgl'?'LGL Gift ID':source==='bloomerang'?'Transaction Number':'Gift ID'
+  const field=(column,key,kind,type,entry='free-form',choices=[])=>({source,column,key,label:column,kind,type,entry,choices})
+  const mappings=[field('Custom membership','import_membership','constituent','text','pick-one',['Board','Volunteer']),field('Custom interests','import_interests','constituent','text','pick-many',['Books','Music']),field('Custom score','import_score','constituent','number'),field('Custom renewed','import_renewed','constituent','date'),field('Custom active','import_active','constituent','checkbox'),field('Custom gift USD','import_gift_usd','gift','currency'),field('Custom pledge year','import_pledge_year','pledge','year'),field('Custom conversation','import_conversation','interaction','text'),field('Custom note','import_note','note','text')]
+  await h.command('custom.define',{...mappings[0]});mappings[0].version=1
+  const tables=(membership='Board',currency='123.45')=>[
+   ['constituents',[[donorColumn,'Name','Custom membership','Custom interests','Custom score','Custom renewed','Custom active'],['synthetic-coffer-1401','Synthetic Custom Import',membership,JSON.stringify(['Books','Music']),'12.5','2026-10-01','false']]],
+   ['gifts',[[giftColumn,donorColumn,'Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount','Custom gift USD'],['synthetic-coffer-1402','synthetic-coffer-1401','Gift','2026-10-01','50','Check','0',currency]]],
+   ['pledges',[['Pledge ID',donorColumn,'Gift Type','Pledge Date','Amount','Fund','Custom pledge year'],['synthetic-coffer-1403','synthetic-coffer-1401','Pledge','2026-10-01','100','Library','2027']]],
+   ['conversations',[['Note ID',donorColumn,'Note','Note Date','Note Type','Custom conversation'],['synthetic-coffer-1404','synthetic-coffer-1401','Met the board','2026-10-01','meeting','Books <and> music']]],
+   ['notes',[['Note ID',donorColumn,'Note','Note Date','Note Type','Custom note'],['synthetic-coffer-1405','synthetic-coffer-1401','Original source note','2026-10-01','general','Preserve original']]],
+  ]
+  for(const format of ['csv','xlsx']){
+   const input={source,customFields:mappings,files:await customReportFiles(tables(),format)}
+   for(const [membership,currency,column] of [['Unknown','123.45','Custom membership'],['Board','123.456','Custom gift USD']]){
+    const invalid=await post(h,'preview',{...input,files:await customReportFiles(tables(membership,currency),format)})
+    assert.equal(invalid.canApply,false);assert.ok(invalid.diagnostics.some(d=>d.code==='CUSTOM_VALUE'&&d.column===column&&d.row===2),JSON.stringify(invalid.diagnostics))
+    await post(h,'apply',{id:invalid.id,fingerprint:invalid.fingerprint,acceptedReason:'Do not drop custom values'},{status:409})
+   }
+   const preview=await post(h,'preview',input);assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.unmapped.length,0)
+   assert.equal(preview.customFields.length,9);assert.equal((await h.get('/api/coffer/donors')).total,0)
+   const review=await h.request('/app/move-in/crm/review?id='+preview.id);assert.match(await review.text(),/Reviewed custom fields/)
+   await moveIn(h,preview)
+   const person=(await h.get('/api/coffer/donors')).donors[0],details=await h.get('/api/coffer/donors/'+person.id)
+   const values=Object.fromEntries(details.customValues.map(v=>[v.field_key,JSON.parse(v.value)]))
+   assert.deepEqual(values,{import_active:'false',import_conversation:'Books <and> music',import_gift_usd:'12345',import_interests:['Books','Music'],import_membership:'Board',import_note:'Preserve original',import_pledge_year:'2027',import_renewed:'2026-10-01',import_score:'12.5'})
+   const giftValue=details.customValues.find(v=>v.field_key==='import_gift_usd');assert.equal(giftValue.record_id,details.gifts[0].id)
+   const provenance=JSON.parse(giftValue.source);assert.equal(provenance.original,'123.45');assert.equal(provenance.sourceRecordId,'synthetic-coffer-1402');assert.equal(provenance.sourceDonorId,'synthetic-coffer-1401');assert.equal(provenance.source,source)
+   const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).customValues,details.customValues);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0)})
+   const definition=(await h.get('/api/coffer/custom-fields')).fields.find(f=>f.key==='import_note')
+   await h.command('custom.define',{...definition,label:'Renamed source note',choices:[],version:definition.version})
+   const repeat=await post(h,'preview',{...input,files:input.files.map(f=>({...f,name:'renamed-'+f.name}))});assert.equal(repeat.prior.state,'completed')
+   assert.equal((await moveIn(h,repeat)).unchanged,true);assert.deepEqual((await h.get('/api/coffer/donors/'+person.id)).customValues,details.customValues)
+   await post(h,'undo',{id:preview.id});assert.equal((await h.get('/api/coffer/donors')).total,0)
+   mappings.find(m=>m.key==='import_note').label='Renamed source note'
+   if(format==='xlsx'){
+    const again=await post(h,'preview',{...input,customFields:mappings});assert.equal(again.canApply,true,JSON.stringify(again.diagnostics));await moveIn(h,again)
+    await h.command('custom.set',{key:'import_gift_usd',recordId:giftValue.record_id,version:1,value:'200',source:'synthetic-coffer-1406'})
+    await post(h,'undo',{id:again.id},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,1,'Post-import custom edits prevent undo')
+   }
+  }
+ })
+})
+
+
+test('DONOR-001 / DONOR-006: asynchronous incumbent imports keep distinct shared-contact identities and gifts in duplicate review',async()=>{
+ for(const source of ['lgl','bloomerang','re-nxt'])await run(async h=>{
+  const donorColumn=source==='lgl'?'LGL Constituent ID':source==='bloomerang'?'Account Number':'Constituent ID',giftColumn=source==='lgl'?'LGL Gift ID':source==='bloomerang'?'Transaction Number':'Gift ID'
+  const shared='synthetic-coffer-1501@example.test',family='synthetic-coffer-1502@example.test'
+  const staff=await donor(h,'Synthetic Existing Identity',{email:shared})
+  await donor(h,'Synthetic Refused Staff Identity',{email:shared},{status:409})
+  const csv=(name,rows)=>({name,base64:Buffer.from(rows.map(r=>r.join(',')).join('\r\n')+'\r\n').toString('base64')})
+  const input={source,files:[csv('constituents.csv',[
+   [donorColumn,'Name','Email','Email 2','Email 2 Type','Phone','Address','City','State','ZIP','Household Name'],
+   ['synthetic-coffer-1503','Synthetic Source Identity',shared,'synthetic-coffer-1505@example.test','work','202-555-0151','151 Shared Street','Madison','WI','53703',''],
+   ['synthetic-coffer-1504','Synthetic Source Identity',shared,'synthetic-coffer-1505@example.test','work','202-555-0151','151 Shared Street','Madison','WI','53703',''],
+   ['synthetic-coffer-1506','Synthetic Household One',family,'','','202-555-0152','152 Family Street','Madison','WI','53703','Synthetic Import Family'],
+   ['synthetic-coffer-1507','Synthetic Household Two',family,'','','202-555-0152','152 Family Street','Madison','WI','53703','Synthetic Import Family'],
+  ]),csv('gifts.csv',[[giftColumn,donorColumn,'Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount'],
+   ['synthetic-coffer-1508','synthetic-coffer-1503','Gift','2026-10-01','21','Check','0'],
+   ['synthetic-coffer-1509','synthetic-coffer-1504','Gift','2026-10-01','32','Check','0'],
+  ])]}
+  const preview=await post(h,'preview',input)
+  assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.ok(preview.diagnostics.some(d=>d.code==='SHARED_EMAIL'&&d.severity==='warning'))
+  await moveIn(h,preview)
+  const people=(await h.get('/api/coffer/donors')).donors
+  assert.equal(people.length,5,'Distinct source IDs remain distinct even when their names and contacts are identical')
+  const imported=people.filter(d=>d.name==='Synthetic Source Identity');assert.equal(imported.length,2)
+  const histories=await Promise.all(imported.map(d=>h.get('/api/coffer/donors/'+d.id)))
+  assert.deepEqual(histories.map(d=>d.gifts.reduce((n,g)=>n+g.amount_cents,0)).sort((a,b)=>a-b),[2100,3200])
+  assert.ok(histories.every(d=>d.contactPoints.some(p=>p.kind==='email'&&p.value==='synthetic-coffer-1505@example.test')))
+  assert.equal((await h.get('/api/coffer/donors/'+staff.id)).gifts.length,0,'A shared email never transfers the imported gifts to staff’s existing person')
+  const pairs=(await h.get('/api/coffer/duplicates')).pairs,between=(a,b)=>pairs.find(p=>[p.source.id,p.target.id].includes(a)&&[p.source.id,p.target.id].includes(b))
+  assert.ok(between(imported[0].id,imported[1].id).reasons.some(r=>r.code==='email'))
+  assert.ok(between(imported[0].id,imported[1].id).reasons.some(r=>r.code==='phone'))
+  assert.ok(between(imported[0].id,imported[1].id).reasons.some(r=>r.code==='address'))
+  assert.ok(imported.every(d=>between(staff.id,d.id)))
+  const household=people.filter(d=>d.name.startsWith('Synthetic Household'));assert.equal(household.length,2);assert.ok(!between(household[0].id,household[1].id),'Household contacts keep two people without a duplicate flag')
+  const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.equal((await fresh.get('/api/coffer/donors')).total,5);assert.ok((await fresh.get('/api/coffer/duplicates')).pairs.some(p=>[p.source.id,p.target.id].includes(imported[0].id)&&[p.source.id,p.target.id].includes(imported[1].id)))})
+  await post(h,'undo',{id:preview.id});assert.deepEqual((await h.get('/api/coffer/donors')).donors.map(d=>d.id),[staff.id])
+  await donor(h,'Synthetic Staff Refusal After Import',{email:shared},{status:409})
  })
 })

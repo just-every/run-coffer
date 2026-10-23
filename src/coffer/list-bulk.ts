@@ -44,6 +44,7 @@ export async function bulkListCommand(c:Context,command:string,p:Row):Promise<Ro
    writes.push(guard("EXISTS(SELECT 1 FROM cf_portfolios p JOIN oa_operators o ON o.id=p.manager_id WHERE p.id=? AND o.status='active' AND o.role IN ('owner','admin','member'))",'MANAGER_CHANGED','Choose a portfolio with an active relationship manager.',portfolioId));validated.push({type:'manager',portfolioId})
   }else fail('INPUT','Choose a supported bulk tag or manager action.',400)
  }
+ for(const action of validated)if(action.type==='tag.add')writes.push(sql('INSERT OR IGNORE INTO cf_tag_definitions(name) VALUES(?)',action.tag))
  const snapshots=[]
  for(const donorId of ids){
   const d=(await one(c,'SELECT version FROM cf_donors WHERE id=?',donorId))!,before=await snapshot(c,donorId),after:Row[][]=JSON.parse(JSON.stringify(before))

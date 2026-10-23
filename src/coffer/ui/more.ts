@@ -22,6 +22,7 @@ export function morePage(actor: Actor) {
   ${boss ? '<li><a href="/app/agent"><strong>Development agent</strong><span>Reconcile gifts, recover monthly gifts, queue receipts and draft stewardship.</span></a></li>' : ''}
   ${boss ? '<li><a href="/app/move-in/crm"><strong>Move in from a CRM</strong><span>Little Green Light, Bloomerang or Raiser’s Edge NXT exports, with totals checked before switching.</span></a></li>' : ''}
   ${boss ? '<li><a href="/app/move-in"><strong>Move in from Stripe</strong><span>Bring a year of customers and charges, review, apply or undo.</span></a></li>' : ''}
+  ${boss?'<li><a href="/app/reports/custom-fields"><strong>Gift custom fields</strong><span>Gift columns and exact totals grouped by a custom field.</span></a></li>':''}
   <li><a href="/app/funds"><strong>Giving by fund</strong><span>Each payment and its fund allocations, with accounting CSV.</span></a></li>
   <li><a href="/app/gifts/attribution"><strong>Gift attribution</strong><span>Totals by fund, campaign, appeal and channel that sum to the ledger; define appeals and tracked links.</span></a></li>
   <li><a href="/app/reports/states"><strong>Giving by state</strong><span>Donors, gifts and dollars per state for charitable-solicitation registrations, with CSV.</span></a></li>

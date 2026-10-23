@@ -2,7 +2,7 @@ import { runGiftRules } from '../gift-rules'
 import { tributeGiftStatement } from './tribute'
 import { giftRecognitionStatement } from '../recognition'
 import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
-import { fail, newId, one, today, type Row } from '../db'
+import { fail, one, today, type Row } from '../db'
 import { settings } from '../settings'
 import { stripe, type GivingEnv } from './stripe'
 import { sendOnlineReceipt } from './online-receipt'
@@ -18,8 +18,14 @@ export async function identify(env: GivingEnv, intentId: string, customer: strin
  if (intent.donor_id && !donor) return null // Erasure must never restore personal data.
  if (!donor) donor = await lookupEmailDonor(c,intent.email,intent.name)
  if (!donor) {
-  await env.DB.prepare("INSERT OR IGNORE INTO cf_donors(id,version,name,email,source,source_ref,created_at) VALUES(?,1,?,?,'stripe',?,?)").bind(newId(), intent.name, intent.email, customer, new Date().toISOString()).run()
-  donor = await lookupEmailDonor(c,intent.email,intent.name)
+  // Checkout return and webhook share this identity even when they race.
+  const donorId = 'giving-donor-' + intent.id
+  await env.DB.batch([
+   env.DB.prepare('INSERT INTO cf_identity_ingest VALUES(1)'),
+   env.DB.prepare("INSERT OR IGNORE INTO cf_donors(id,version,name,email,source,source_ref,created_at) VALUES(?,1,?,?,'stripe',?,?)").bind(donorId, intent.name, intent.email, customer, new Date().toISOString()),
+   env.DB.prepare('DELETE FROM cf_identity_ingest'),
+  ])
+  donor = await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',donorId)
  }
  if (donor) donor = await one(c, 'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL', await canonicalDonor(c,donor.id))
  if (!donor) fail('donor_unavailable', 'The donor record is not available.', 409)

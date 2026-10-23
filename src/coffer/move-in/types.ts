@@ -4,7 +4,10 @@ export type ExportFile = { name: string; base64: string }
 export type SourceLocation = { file: string; sheet: string; row: number }
 export type Diagnostic = Partial<SourceLocation> & { severity: 'error' | 'warning'; code: string; message: string; column?: string }
 export type UnmappedValue = SourceLocation & { column: string; value: string; reason: string }
-export type Located = { location: SourceLocation }
+export type CustomImportKind = 'constituent' | 'gift' | 'pledge' | 'interaction' | 'note'
+export type CustomImportMapping = { source: ImportSource; column: string; sheet?: string; key: string; label: string; kind: CustomImportKind; type: 'text'|'number'|'currency'|'date'|'year'|'checkbox'; entry: 'free-form'|'pick-one'|'pick-many'; choices: string[]; version?: number }
+export type ImportedCustomValue = { mapping: CustomImportMapping; value: string; original: string; location: SourceLocation }
+export type Located = { location: SourceLocation; customValues?: ImportedCustomValue[] }
 export type ParsedContact={externalId:string;kind:'email'|'phone'|'address';type:string;value:string;primary:boolean;startsOn:string|null;endsOn:string|null}
 export type ParsedDonor = Located & {
  contacts?:ParsedContact[]; externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
@@ -36,12 +39,12 @@ export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; 
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }
 export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:string; channel:'email'|'mail'|'phone'|'sms'; sourceOn:string; codes:string[] }
 export type ParsedImport = {
- source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
+ customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
  relationships: ParsedRelationship[]; softCredits: ParsedSoftCredit[]; pledges: ParsedPledge[]
  installments: ParsedInstallment[]; notes: ParsedNote[]; unmapped: UnmappedValue[]; diagnostics: Diagnostic[]
  sourceTotals: ImportTotals; mappedTotals: ImportTotals; controlTotals: ControlTotal[]
  files: { name: string; bytes: number; sheets: string[]; rows: number }[]
 }
-export type ParseInput = { source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
+export type ParseInput = { customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
 export type Cell = string | number | boolean | Date | null
 export type Table = { file: string; sheet: string; rows: Cell[][] }

@@ -8,13 +8,13 @@ const columns = (value: string) => value.split(' ')
 
 const constituentColumns = columns('id version name prefix first_name middle_name last_name suffix nickname constituent_kind organization_type website ein email phone address_line1 address_line2 city region postal_code country household_id informal_salutation formal_salutation envelope_name constituent_status status_reason deceased_on status_changed_at created_at')
 const giftColumns = columns('id donor_id kind received_on amount_cents gross_cents adjustment_cents refunded_cents stated_value_cents description quantity fund campaign_id allocations method pledge_id created_at custom_fields')
-const pledgeColumns = columns('id donor_id version pledged_on due_by amount_cents reduced_cents paid_cents remaining_cents fund campaign_id created_at')
+const pledgeColumns = columns('id donor_id version pledged_on due_by amount_cents reduced_cents paid_cents remaining_cents fund campaign_id created_at custom_fields')
 const planColumns = columns('id donor_id campaign_id amount_cents status cancel_at_period_end failed_attempts recovered updated_at')
 const consentColumns = columns('id donor_id channel status method evidence captured_on recorded_at recorded_by')
 const interactionBase = columns('id donor_id kind occurred_on who notes next_step open_question question_resolved_at recorded_at recorded_by')
 const interactionColumns=[...interactionBase,'custom_fields']
 const taskColumns = columns('id donor_id task_kind title owner_id due_on status notes created_at completed_at related_record_id')
-const opportunityColumns = columns('id donor_id version label stage owner_id ask_amount_cents expected_amount_cents probability_percent weighted_cents expected_close_on next_step fund campaign_id pledge_id gift_id closed_on created_at updated_at')
+const opportunityColumns = columns('id donor_id version label stage owner_id ask_amount_cents expected_amount_cents probability_percent weighted_cents expected_close_on next_step fund campaign_id pledge_id gift_id closed_on created_at updated_at custom_fields')
 
 const customValues=(kind:string,record:string)=>`(SELECT json_group_object(v.field_key,json(v.value)) FROM cf_custom_values v JOIN cf_custom_fields f ON f.key=v.field_key WHERE f.kind='${kind}' AND v.record_id=${record})`
 
@@ -43,16 +43,16 @@ export const exportRecords: Record<ExportType, RecordSpec> = {
    NULL,'[]','in_kind',NULL,g.created_at,${customValues('gift','g.id')} FROM cf_in_kind_current g JOIN members m ON m.id=g.donor_id`},
  pledges: {columns:pledgeColumns,query:`SELECT p.id,p.donor_id,p.version,p.pledged_on,p.due_by,p.amount_cents,p.reduced_cents,
   ${pledgePaid} AS paid_cents,MAX(0,p.amount_cents-p.reduced_cents-(${pledgePaid})) AS remaining_cents,
-  p.fund,p.campaign_id,p.created_at FROM cf_pledge_totals p JOIN members m ON m.id=p.donor_id`},
+  p.fund,p.campaign_id,p.created_at,${customValues('pledge','p.id')} AS custom_fields FROM cf_pledge_totals p JOIN members m ON m.id=p.donor_id`},
  plans: {columns:planColumns,query:`SELECT ${planColumns.map(k=>`s.${k}`).join(',')} FROM cf_subscriptions s JOIN members m ON m.id=s.donor_id`},
  consent: {columns:consentColumns,query:`SELECT ${consentColumns.map(k=>`k.${k}`).join(',')} FROM cf_consents k JOIN members m ON m.id=k.donor_id
   WHERE k.id=(SELECT MAX(latest.id) FROM cf_consents latest WHERE latest.donor_id=k.donor_id AND latest.channel=k.channel)`},
  interactions: {columns:interactionColumns,query:`SELECT ${interactionBase.map(k=>`i.${k}`).join(',')},${customValues('interaction','i.id')} AS custom_fields FROM cf_interactions i JOIN members m ON m.id=i.donor_id
-  UNION ALL SELECT n.id,n.donor_id,n.kind,n.occurred_on,n.who,n.body,n.next_step,NULL,NULL,n.recorded_at,n.recorded_by,'{}'
+  UNION ALL SELECT n.id,n.donor_id,n.kind,n.occurred_on,n.who,n.body,n.next_step,NULL,NULL,n.recorded_at,n.recorded_by,${customValues('note','n.id')}
   FROM cf_donor_notes n JOIN members m ON m.id=n.donor_id WHERE n.confidential=0`},
  tasks: {columns:taskColumns,query:taskRecords},
  opportunities: {columns:opportunityColumns,query:`SELECT p.id,p.donor_id,p.version,p.label,p.stage,p.owner_id,p.ask_amount_cents,p.expected_amount_cents,p.probability_percent,
-  (p.expected_amount_cents*p.probability_percent+50)/100 AS weighted_cents,p.expected_close_on,p.next_step,p.fund,p.campaign_id,p.pledge_id,p.gift_id,p.closed_on,p.created_at,p.updated_at
+  (p.expected_amount_cents*p.probability_percent+50)/100 AS weighted_cents,p.expected_close_on,p.next_step,p.fund,p.campaign_id,p.pledge_id,p.gift_id,p.closed_on,p.created_at,p.updated_at,${customValues('opportunity','p.id')} AS custom_fields
   FROM cf_prospects p JOIN members m ON m.id=p.donor_id`},
 }
 

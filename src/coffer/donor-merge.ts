@@ -21,10 +21,10 @@ export async function lookupEmailDonor(c:{db:D1Database}, email:string, name?:st
  ) a LEFT JOIN cf_donor_merges m ON m.donor_id=a.donor_id
  JOIN cf_donors owner ON owner.id=COALESCE(m.into_id,a.donor_id)
  WHERE a.email=? AND owner.erased_at IS NULL`,email.trim().toLowerCase())
- if (rows.length <= 1) return rows[0] ?? null
+ // An email is a contact detail, not a person's identity. Even its sole
+ // current owner must match the submitted name before a form gift can join.
  const named = name ? rows.filter(d=>String(d.name).trim().toLowerCase()===name.trim().toLowerCase()) : []
- if (named.length===1) return named[0]
- return fail('DONOR_MATCH_AMBIGUOUS','This email belongs to more than one donor. Match the donor by name or review the donor records before recording this gift.')
+ return named.length===1 ? named[0] : null
 }
 
 function quietCommunications(source:string,target:string):Stmt[] {
@@ -74,6 +74,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   guard(`NOT EXISTS(SELECT 1 FROM cf_employer_matches m JOIN cf_gifts g ON g.id=m.gift_id WHERE (m.employer_donor_id IN (?,?) AND g.donor_id IN (?,?))) AND NOT EXISTS(SELECT 1 FROM cf_employer_matches a JOIN cf_employer_matches b ON a.gift_id=b.gift_id WHERE a.employer_donor_id=? AND b.employer_donor_id=?)`, 'MATCH_CONFLICT', 'Resolve matching-gift promises between these records, or duplicate employer promises, before merging.', source,target,source,target,source,target),
   sql("INSERT INTO cf_donor_merge_journal(id,source_id,target_id,merged_at,merged_by,status) VALUES(?,?,?,?,?,'active')",mergeId,source,target,c.now,c.actor.name),
   ...captureMerge(tables,mergeId,'before'),
+  sql('INSERT INTO cf_identity_ingest VALUES(1)'),
   sql('INSERT INTO cf_contact_edit VALUES(1)'),
   sql('INSERT INTO cf_donor_merges VALUES(?,?,?,?)', source,target,c.now,c.actor.name),
   sql('UPDATE cf_donor_merges SET into_id=? WHERE into_id=?',target,source),
@@ -143,6 +144,7 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
   sql("UPDATE cf_contact_points SET is_primary=1,version=version+1,updated_at=? WHERE id=(SELECT p.id FROM cf_contact_points p JOIN cf_donors d ON d.id=p.donor_id WHERE p.donor_id=? AND p.kind='address' AND p.active=1 AND p.value=json_object('line1',d.address_line1,'line2',d.address_line2,'city',d.city,'region',d.region,'postalCode',d.postal_code,'country',d.country) ORDER BY p.id LIMIT 1)",c.now,target),
   sql("UPDATE cf_contact_points SET active=0,is_primary=0,version=version+1,updated_at=? WHERE donor_id=? AND kind='address' AND EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND address_line1 IS NULL)",c.now,target,target),
   sql('DELETE FROM cf_contact_edit'),
+  sql('DELETE FROM cf_identity_ingest'),
   ...captureMerge(tables,mergeId,'after'),
   event(c,'donor.merge','donor',source,target,{mergeId,sourceDonorId:source,targetDonorId:target,reason}),
  )
@@ -165,9 +167,11 @@ export async function undoMerge(c:Context,p:Row):Promise<Row> {
   // Restoring the survivor's address is not a move: drop the rows the trigger
   // writes during the restore, so the journal's exact address history returns.
   sql("INSERT OR REPLACE INTO cf_address_moves(donor_id,effective_on,source) VALUES(?,?,'undo')",merge.target_id,c.now.slice(0,10)),
+  sql('INSERT INTO cf_identity_ingest VALUES(1)'),
   sql('INSERT INTO cf_contact_edit VALUES(1)'),
   ...restoreMerge(tables,mergeId),
   sql('DELETE FROM cf_contact_edit'),
+  sql('DELETE FROM cf_identity_ingest'),
   sql("DELETE FROM cf_donor_address_history WHERE donor_id IN (?,?) AND source='undo'",merge.source_id,merge.target_id),
   sql('DELETE FROM cf_address_moves WHERE donor_id=?',merge.target_id),
   ...advanceEarlierMergeVersions(tables,mergeId),

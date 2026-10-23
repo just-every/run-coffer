@@ -21,6 +21,8 @@ import { form } from './ui/common'
 import { appealPieces } from './mail-pieces'
 import { listMembers } from './list-members'
 import { templateForm } from './ui/letter-templates'
+import { report as customReport, reportCsv as customReportCsv } from './custom-report'
+import { customReportPage } from './ui/custom-report'
 import { customFields } from './custom-fields'
 import { publishedTemplateFields } from './letter-templates'
 import { printMeetingBrief } from './ui/meeting-brief'
@@ -161,6 +163,8 @@ async function formInput(data: FormData) {
   const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
  }
+ const customKeys=[...new Set([...data.keys()].filter(key=>key.startsWith('custom.')))]
+ if(customKeys.length)input.customFields=Object.fromEntries(customKeys.filter(key=>data.getAll(key).some(value=>String(value).trim()!=='')).map(key=>[key.slice(7),data.has('many.'+key)?data.getAll(key):data.get(key)]))
  if(input.command==='custom.set'&&data.has('customMany'))input.value=data.getAll('customValues')
  if (input.command === 'sms.prepare') input.donorIds=data.getAll('donorIds')
  if (input.command === 'research.screen') input.donorIds=data.getAll('donorIds')
@@ -398,7 +402,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 const CONNECT = new Set(['marketing.fields','marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
  if(command==='pledgeTemplate.save')return redirect('/app/settings?saved=1#pledge-template')
- if(command==='custom.define')return redirect('/app/settings?saved=1#custom-field-definitions')
+ if(command==='custom.define'||command==='custom.renameChoice'||command==='tag.define'||command==='tag.category')return redirect('/app/settings?saved=1#custom-field-definitions')
  if(command==='custom.set'||command==='custom.clear')return redirect('/app/donors/'+encodeURIComponent(result.donorId)+'?customRecord='+encodeURIComponent(input.recordId)+'#custom-fields')
  if(command==='inKind.review')return page('Property merge review',`<h2>${esc(result.recipientName)}</h2>${result.fields.length?'<p>Empty fields to correct before approval:</p><ul>'+result.fields.map((f:string)=>'<li>'+esc(f)+'</li>').join('')+'</ul>':'<p>No empty merge fields.</p>'}<h3>${esc(result.subject)}</h3><pre>${esc(result.body)}</pre><p><a href="/app/donors/${encodeURIComponent(result.donorId)}#in-kind">Return to the property record</a></p>`,actor,200,'/app/donors')
  if(command==='list.tasks')return redirect('/app/calls?owner='+encodeURIComponent(input.ownerId))
@@ -553,6 +557,9 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/prospects') return json(await prospects(c))
  if (path === '/api/coffer/reports/recurring') return json(await recurringHealth(c,url))
  if (path === '/api/coffer/reports/restrictions') return json(await restrictionReport(c,url))
+ if (path === '/api/coffer/reports/custom-fields')return json(await customReport(c,url))
+ if (path === '/api/coffer/reports/custom-fields.csv'||path==='/app/reports/custom-fields.csv')return download(customReportCsv(await customReport(c,url)),'coffer-custom-gifts')
+ if(path==='/app/reports/custom-fields')return show('Gift custom fields',await customReportPage(c,url))
  if (path === '/api/coffer/reports/funds') return json(await fundReport(c,url))
  if (path === '/api/coffer/reports/states') return json(await stateReport(c,url))
  if (path === '/api/coffer/reports/dashboard') return json(await dashboardReport(c,url))

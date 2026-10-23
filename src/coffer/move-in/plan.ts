@@ -1,3 +1,4 @@
+import { planCustomValues, type CustomImportWrite } from './custom-fields'
 import { planSolicitationImports } from './solicitation-import'
 import { all, fail, guard, sha256, type Context, type Row, type Stmt } from '../db'
 import { computedHouseholdNames } from '../household-names'
@@ -9,7 +10,7 @@ import { accumulate, emptyTotals } from './source-totals'
 import { importedOverrides } from '../person-names'
 
 export type Effect = { kind: Kind; sourceKey: string; contentHash: string; nativeId: string; owned: boolean; row: Row; donorId: string | null; relatedId: string | null; location?: Located['location'] }
-export type Plan = { effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
+export type Plan = { customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
 const stable = (value: unknown): string => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))) : v)
 export const contentHash = (value: unknown) => sha256(stable(value))
 export const nativeId = async (source: string, kind: string, key: string) => `crm-${(await contentHash([source,kind,key])).slice(0,40)}`
@@ -29,7 +30,7 @@ const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solici
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
- const plan: Plan = {effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
+ const plan: Plan = {customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
  const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
@@ -39,9 +40,8 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const merges = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'into_id',into_id) AS snapshot FROM cf_donor_merges ORDER BY donor_id`)
  const merged = new Map(merges.map(m=>[m.donor_id as string,m.into_id as string]))
  const canonical = (id: string): string => merged.get(id)??id
- const emailAliases = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'email',email) AS snapshot FROM cf_donor_aliases WHERE email IN (SELECT value FROM json_each(?)) ORDER BY donor_id,email`,[JSON.stringify(parsed.donors.map(d=>d.email).filter(Boolean))])
- const donorRows = await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) OR n.email IN (SELECT value FROM json_each(?)) OR n.source_ref IN (SELECT value FROM json_each(?)) ORDER BY n.id`, [JSON.stringify(mappings.filter(m=>m.kind==='donor').map(m=>m.native_id)),JSON.stringify(parsed.donors.map(d=>d.email).filter(Boolean)),JSON.stringify(parsed.donors.map(d=>`${source}:${d.externalId}`))])
- const survivors = [...new Set([...donorRows.map(d=>canonical(d.id)),...emailAliases.map(d=>canonical(d.donor_id))])].filter(id=>!donorRows.some(d=>d.id===id))
+ const donorRows = await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) OR n.source_ref IN (SELECT value FROM json_each(?)) ORDER BY n.id`, [JSON.stringify(mappings.filter(m=>m.kind==='donor').map(m=>m.native_id)),JSON.stringify(parsed.donors.map(d=>`${source}:${d.externalId}`))])
+ const survivors = [...new Set([...donorRows.map(d=>canonical(d.id))])].filter(id=>!donorRows.some(d=>d.id===id))
  if(survivors.length)donorRows.push(...await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) ORDER BY n.id`,[JSON.stringify(survivors)]))
  // Household names are unique in Coffer. An imported household never joins an existing one by name: it takes the next free name.
  const nameChoices=(name:string)=>[name,...Array.from({length:8},(_,i)=>`${name} (${i+2})`)]
@@ -63,7 +63,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const diagnostic = (message: string, location?: Located['location'], severity: 'error'|'warning' = 'error', code = 'MOVE_IN_MAPPING', column = 'Record ID') => plan.diagnostics.push({severity,code,message,column,...location})
  const add = async (kind: Kind, entity: Located & {externalId:string}, row: Row, match?: string, donorId: string | null = null, relatedId: string | null = null) => {
   // A donor's household is inferred from the whole file set, so it is not part of the donor's own details.
-  const key = await sourceKey(entity.externalId), {location:_,householdKey:_h,householdName:_n,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string}
+  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string}
   const hash = await contentHash(payload), previous = existing.get(`${kind}:${key}`)
   if (previous) {
    // A later file (another year's gifts) finds the donors and households an earlier move-in brought, by the CRM's own ID.
@@ -91,7 +91,9 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   const prior = existing.get(`donor:${await sourceKey(d.externalId)}`)
   if (prior) { plan.donorIds.set(d.externalId,await add('donor',d,{})); continue }
   if ((d.contacts??[]).some(p=>p.kind==='email'&&suppressed.has(erasureHash(p.value))) || suppressed.has(erasureHash(d.email)) || suppressed.has(erasureHash(`${source}:${d.externalId}`)) || suppressed.has(erasureHash(await nativeId(source,'donor',d.externalId)))) diagnostic(`Donor ${d.externalId} was erased from Coffer. Remove this constituent and its linked rows from the exports; erased records cannot be restored.`,d.location)
-  const matching = donorRows.filter(r=>r.source_ref===`${source}:${d.externalId}` || (d.email && r.email===d.email) || emailAliases.some(a=>a.email===d.email&&canonical(a.donor_id)===r.id))
+  // The incumbent's constituent ID wins. A distinct source ID never joins
+  // another source constituent merely because their contacts coincide.
+  const matching = donorRows.filter(r=>r.source_ref===`${source}:${d.externalId}`)
   const sourceHouseholdId=d.householdKey?(households.get(d.householdKey)||existing.get(`household:${await sourceKey(d.householdKey)}`)?.native_id):null
   const eligibleMatches=matching.filter(r=>!sourceHouseholdId||r.household_id!==sourceHouseholdId||r.source_ref===`${source}:${d.externalId}`)
   const matches = [...new Map(eligibleMatches.map(r=>{const id=canonical(r.id);return [id,donorRows.find(d=>d.id===id)??r]})).values()]
@@ -109,7 +111,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  for(const d of parsed.donors){
   const donorId=plan.donorIds.get(d.externalId)!
   const ownedDonor=plan.effects.find(e=>e.kind==='donor'&&e.owned&&e.nativeId===donorId),owned=!!ownedDonor
-  for(const email of (d.contacts??[]).filter(p=>p.kind==='email'))if(contactOwners.some(o=>o.value===email.value&&o.donor_id!==donorId&&(!ownedDonor?.row.household_id||o.household_id!==ownedDonor.row.household_id)))diagnostic('An unrelated existing constituent uses a contact email from '+d.externalId+'. Review duplicates before importing.',d.location,'error','SHARED_EMAIL','Email')
+  for(const email of (d.contacts??[]).filter(p=>p.kind==='email'))if(contactOwners.some(o=>o.value===email.value&&o.donor_id!==donorId&&(!ownedDonor?.row.household_id||o.household_id!==ownedDonor.row.household_id)))diagnostic('An unrelated existing constituent uses a contact email from '+d.externalId+'. The distinct source identity is retained for duplicate review.',d.location,'warning','SHARED_EMAIL','Email')
   // Existing identities retain their current contacts, as all other profile fields do.
   for(const point of d.contacts??[]){
    const prior=existing.get(`contact:${await sourceKey(point.externalId)}`)
@@ -224,6 +226,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(['call','meeting','email'].includes(n.type))await add('interaction',n,{donor_id:donorId,kind:n.type,occurred_on:n.date,who:`${source} export`,notes:n.text,next_step:null,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
   else await add('note',n,{donor_id:donorId,occurred_on:n.date,body:n.text,source,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
+ await planCustomValues(c,parsed,plan,existing)
  // Never expose a partial transaction as an option when inputs exceed D1's bound.
  if(!preview && plan.effects.length>3000)fail('MOVE_IN_LIMIT','Split this export into smaller reviews (at most 1,000 source rows).',400)
  return plan

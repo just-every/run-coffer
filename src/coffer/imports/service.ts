@@ -17,18 +17,21 @@ async function nativeIndex(db: D1Database, input: SnapshotInput): Promise<Native
   const ids = customers.map((c: any) => typeof c.id === 'string' ? donorId(c.id) : null).filter(Boolean) as string[]
   const hashes = [...ids, ...emails].map(erasureHash)
   const refs = [...new Set(charges.flatMap((c: any) => [c.id,c.payment_intent,c.invoice]).filter(x => typeof x === 'string'))]
-  const [byId, erased, byEmail, gifts, settings] = await db.batch([
+  const [byId, erased, byEmail, gifts, settings, customersById] = await db.batch([
     db.prepare('SELECT id,COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=cf_donors.id),id) AS effective_id FROM cf_donors WHERE erased_at IS NULL AND id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(ids)),
     db.prepare('SELECT hash FROM cf_erasures WHERE hash IN (SELECT value FROM json_each(?))').bind(JSON.stringify(hashes)),
-    db.prepare(`SELECT DISTINCT COALESCE(m.into_id,d.id) AS id,e.email FROM (SELECT id AS donor_id,email FROM cf_donors UNION SELECT donor_id,email FROM cf_donor_aliases) e JOIN cf_donors d ON d.id=e.donor_id LEFT JOIN cf_donor_merges m ON m.donor_id=d.id WHERE d.erased_at IS NULL AND e.email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)),
+    db.prepare(`SELECT DISTINCT COALESCE(m.into_id,d.id) AS id,COALESCE(s.name,d.name) AS name,e.email FROM (SELECT id AS donor_id,email FROM cf_donors UNION SELECT donor_id,email FROM cf_donor_aliases UNION SELECT donor_id,value AS email FROM cf_contact_points WHERE kind='email' AND active=1) e JOIN cf_donors d ON d.id=e.donor_id LEFT JOIN cf_donor_merges m ON m.donor_id=d.id LEFT JOIN cf_donors s ON s.id=m.into_id WHERE d.erased_at IS NULL AND e.email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)),
     db.prepare("SELECT g.reference,b.net_cents AS amount_cents FROM cf_gifts g JOIN cf_gift_balances b ON b.id=g.id WHERE g.source='stripe' AND g.kind='gift' AND g.reference IN (SELECT value FROM json_each(?))").bind(JSON.stringify(refs)),
     db.prepare('SELECT timezone FROM cf_settings WHERE id=1'),
+    db.prepare(`SELECT DISTINCT a.customer_id,COALESCE(m.into_id,d.id) AS id FROM (
+      SELECT source_ref AS customer_id,id AS donor_id FROM cf_donors WHERE source='stripe'
+      UNION SELECT customer_id,donor_id FROM cf_giving_customers
+    ) a JOIN cf_donors d ON d.id=a.donor_id LEFT JOIN cf_donor_merges m ON m.donor_id=d.id
+    WHERE d.erased_at IS NULL AND a.customer_id IN(SELECT value FROM json_each(?))`).bind(JSON.stringify([...customers.map((c:any)=>c.id),...charges.map((c:any)=>c.customer)].filter(Boolean))),
   ]) as any[]
-  for (const mail of emails) if (new Set(byEmail.results.filter((r:any)=>r.email===mail).map((r:any)=>r.id)).size>1)
-    reject('IMPORT_DONOR_AMBIGUOUS','A shared household email matches several donors. Match the Stripe customer to a donor before importing this history.',409)
   return {
     donorIds: new Set(byId.results.map((r: any) => r.id)), aliases: new Map(byId.results.map((r:any) => [r.id,r.effective_id])), erased: new Set(erased.results.map((r: any) => r.hash)),
-    emails: new Map(byEmail.results.map((r: any) => [r.email, r.id])), charges: new Map(charges.flatMap((c: any) => { const prior = gifts.results.find((g: any) => [c.id,c.payment_intent,c.invoice].includes(g.reference)); return prior ? [[c.id,prior.amount_cents] as [string,number]] : [] })),
+    emailPeople: byEmail.results, customerDonors: new Map(customersById.results.map((r:any)=>[r.customer_id,r.id])), charges: new Map(charges.flatMap((c: any) => { const prior = gifts.results.find((g: any) => [c.id,c.payment_intent,c.invoice].includes(g.reference)); return prior ? [[c.id,prior.amount_cents] as [string,number]] : [] })),
     timezone: settings.results[0].timezone,
     subscriptions: await subscriptionIndex(db),
   }

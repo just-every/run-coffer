@@ -125,6 +125,19 @@ export async function contactPointsJourney(){const receiptSubmissions=[],giving=
  assert.equal(matched.donor.email,'synthetic-coffer-804@example.test')
  const onlineReceipt=(await h.get('/api/coffer/letters/receipt-'+onlineGift.id)).letters[0]
  assert.equal(onlineReceipt.recipient_email,'synthetic-coffer-804@example.test');assert.equal(JSON.parse(onlineReceipt.address).emailContactId,work.id)
+ // Staff refuses the same unrelated contact synchronously, while a public
+ // checkout retains a new person and queues their shared contact for review.
+ await giveRecognition(h,{name:'Synthetic Unrelated Form Person',email:'synthetic-coffer-803@example.test',amount:'31.00'})
+ const sharedPeople=(await h.get('/api/coffer/donors?q=synthetic-coffer-803')).donors
+ assert.equal(sharedPeople.length,2,'A form cannot silently assign an unrelated payer to the sole email owner')
+ const formPerson=sharedPeople.find(d=>d.name==='Synthetic Unrelated Form Person');assert.ok(formPerson);assert.notEqual(formPerson.id,a.id)
+ const formDetails=await h.get('/api/coffer/donors/'+formPerson.id)
+ assert.ok(formDetails.gifts.some(g=>g.source==='stripe'&&g.amount_cents===3100&&g.donor_id===formPerson.id))
+ assert.ok(!(await state()).gifts.some(g=>g.source==='stripe'&&g.amount_cents===3100),'The unrelated gift never joins the first email owner')
+ assert.ok((await h.get('/api/coffer/duplicates')).pairs.some(p=>[p.source.id,p.target.id].includes(a.id)&&[p.source.id,p.target.id].includes(formPerson.id)&&p.reasons.some(r=>r.code==='email')))
+ await donor(h,'Synthetic Staff Refusal After Form',{email:'synthetic-coffer-803@example.test'},{status:409})
+ // Remove this identity before testing erasure of the original contact below.
+ await h.command('donor.erase',{donorId:formPerson.id,confirm:'ERASE'})
  const before=await state(),saved=await archive(h)
  await run(async fresh=>{await restore(fresh,saved);const restored=await fresh.get('/api/coffer/donors/'+a.id);assert.deepEqual(restored.contactPoints,before.contactPoints);assert.deepEqual(restored.contactHistory,before.contactHistory);await fresh.command('donor.erase',{donorId:a.id,confirm:'ERASE'});const after=JSON.stringify(await archive(fresh));assert.doesNotMatch(after,/synthetic-coffer-803|synthetic-coffer-804|20 Lake Road|50 Winter Lane/)})
 },{entry:'tests/engagement-worker.ts',verifiedMail:true,bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-814',MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-811',MAIL_FROM:'receipts@example.test',COFFER_REPLY_DOMAIN:'replies.example.test'},outbound:async request=>{const u=new URL(request.url);if(u.hostname==='api.stripe.com')return giving.outbound(request);assert.equal(u.origin,'https://api.sendgrid.com');assert.equal(u.pathname,'/v3/mail/send');receiptSubmissions.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-812-'+receiptSubmissions.length}})}})}

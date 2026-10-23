@@ -56,3 +56,37 @@ default or refuses transfer. Saving the selection sends nothing. See
 Currency values retain exact integer cents up to the safe-integer boundary.
 Template formatting and currency list comparisons keep the final cent and
 pick-many values, including zero, without floating-point dollar conversion.
+
+CRM export move-in preserves custom columns from Little Green Light,
+Bloomerang and Raiser’s Edge NXT CSV reports and XLSX worksheets. Include the
+source record IDs in constituent, gift, pledge and note reports. A call, meeting
+or email note maps to an interaction; other notes map to note records.
+Opportunities have no export importer yet.
+
+Preview the files, then open **Map custom report columns** on the re-upload form.
+Choose an existing field or supply its stable key, label, record kind, type,
+entry method and choices, and upload the same files again. The review names
+every selected column, worksheet, CRM and definition before apply. Existing
+fields retain their reviewed definition and version. Pick-many source cells
+contain a JSON array, such as `["Books","Music"]`; checkbox cells contain
+`true` or `false`. Currency cells contain decimal USD amounts with at most two
+fractional digits, without currency symbols or thousands separators. Invalid
+choices, dates, currency and other typed values block apply and name their
+source column and row. Empty cells leave values unset. Unselected columns stay
+visible as left out.
+
+Values attach to the native records resolved from the source record IDs,
+including matched constituents. Existing custom values are never overwritten.
+Every imported value retains its original source record ID, source donor ID,
+column, file, worksheet, row and original cell text alongside its canonical
+value, version and history. These facts and the importer custody travel with
+the private installation archive; no provider receives them. Replaying the same
+review, including after filenames or field labels change, does not duplicate
+or rewrite values. Different source values require review and an undo of the
+earlier move-in first.
+
+Undo removes the imported values and their history atomically with the other
+imported records. Later custom edits or newly attached custom values refuse
+undo. Field definitions remain available after undo, including later label
+edits, so shared definitions are never discarded. Only an owner or admin can
+preview, apply or undo this mapping.

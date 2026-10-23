@@ -38,7 +38,7 @@ export async function dueGifts(c: { db: D1Database }) {
  }
 }
 
-export const address = (d: Row) => JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country })
+export const address = (d: Row) => JSON.stringify({ line1: d.address_line1, line2: d.address_line2, city: d.city, region: d.region, postalCode: d.postal_code, country: d.country, addressVerification:d.postal_verification??'unverified' })
 export const letterHash = (s: number, letters: Row[],pieces?:Row[]) => sha256(JSON.stringify([s, letters.map(l => [l.gift_id, l.donor_id, l.recipient_name, l.recipient_email, l.address, l.subject, l.body, l.amount_cents, l.received_on, ...(l.statement_gifts ? [l.statement_gifts] : []), ...(l.household_id ? [l.household_id, l.household_version, l.household_snapshot] : []), ...(l.merge_blanks && l.merge_blanks !== '[]' ? [l.merge_blanks] : [])]),...(pieces?.length?[pieces.map(p=>[p.id,p.recipient_name,p.address,p.household_id,p.household_version,p.members,p.letter_ids,p.content,p.snapshot,p.merge_blanks])]:[])]))
 export const batchLetters = (c: { db: D1Database }, batchId: string) => all(c, 'SELECT * FROM cf_acks WHERE batch_id=? ORDER BY position', batchId)
 

@@ -13,7 +13,7 @@ export const giftId = (charge: string) => `stripe-${sha256(canonicalJson([namesp
 export const erasureHash = (value: string) => sha256(canonicalJson(['coffer-erasure', value.trim().toLowerCase()]))
 
 /** What Coffer already holds, read before planning so the mapping stays pure. */
-export type NativeIndex = { liveRead?: boolean; donorIds: Set<string>; aliases?: Map<string,string>; erased: Set<string>; emails: Map<string, string>; charges: Map<string, number>; timezone: string; subscriptions: SubscriptionIndex }
+export type NativeIndex = { liveRead?: boolean; donorIds: Set<string>; aliases?: Map<string,string>; erased: Set<string>; emailPeople: {id:string;email:string;name:string}[]; customerDonors: Map<string,string>; charges: Map<string, number>; timezone: string; subscriptions: SubscriptionIndex }
 const ERASED = 'Belongs to a donor erased from Coffer; not imported again.'
 
 const object = (value: unknown, label: string): SnapshotObject => {
@@ -76,23 +76,26 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
   // a later review of the same Stripe objects never conflicts with this one.
   const effects = new Map<string, TargetEffect>(), refunds = new Map<string, TargetEffect>(), skipped: Skipped[] = []
   const skip = (r: SourceRecord, reason: string) => skipped.push({ kind: r.kind as 'customer' | 'charge', sourceId: r.sourceId, reason })
-  // Stripe allows several customers with one email; Coffer keeps one donor per
-  // email. The earliest customer wins and later ones point at it.
+  // Stripe customer IDs are distinct source identities, even at a shared email.
   const customers = records.filter(r => r.kind === 'customer')
     .sort((a, b) => ((a.payload as SnapshotObject).created as number) - ((b.payload as SnapshotObject).created as number) || a.sourceId.localeCompare(b.sourceId))
-  const donorFor = new Map<string, string>(), why = new Map<string, string>(), byEmail = new Map(native.emails)
+  const donorFor = new Map(native.customerDonors), why = new Map<string, string>()
+  const matchEmail = (email:string,name:string) => {
+    const matches=native.emailPeople.filter(d=>d.email===email&&name&&d.name.trim().toLowerCase()===name.trim().toLowerCase())
+    const ids=[...new Set(matches.map(d=>d.id))]
+    return ids.length===1?ids[0]:''
+  }
   for (const r of customers) {
     const c = r.payload as SnapshotObject, email = mail(c.email), target = donorId(r.sourceId), name = str(c.name, 'customer name', 200)
     const reason = c.deleted === true ? 'Deleted in Stripe.'
       : native.erased.has(erasureHash(target)) || (email && native.erased.has(erasureHash(email))) ? ERASED
       : native.donorIds.has(target) ? 'Already in Coffer from an earlier import.'
-      : email && byEmail.has(email) ? 'Matches a donor already using this email; gifts attach to that donor.'
+      : native.customerDonors.has(r.sourceId) ? 'Already associated with this Stripe customer in Coffer.'
       : !name && !email ? 'No name or email to identify the donor.' : ''
     if (native.donorIds.has(target)) donorFor.set(r.sourceId, native.aliases?.get(target) ?? target)
-    else if (reason && email && byEmail.has(email) && c.deleted !== true) donorFor.set(r.sourceId, byEmail.get(email)!)
+    else if (reason && native.customerDonors.has(r.sourceId) && c.deleted !== true) donorFor.set(r.sourceId,native.customerDonors.get(r.sourceId)!)
     if (reason) { why.set(r.sourceId, reason); skip(r, reason); continue }
     donorFor.set(r.sourceId, target)
-    if (email) byEmail.set(email, target)
     const a = (c.address && typeof c.address === 'object' && !Array.isArray(c.address) ? c.address : {}) as SnapshotObject
     effects.set(`customer:${r.sourceId}`, { targetKind: 'donor', targetId: target, value: {
       id: target, version: 1, name: name || email, email: email || null, phone: str(c.phone, 'phone', 40) || null,
@@ -113,7 +116,7 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
     if (net === 0 && liveRead) { skip(r, 'Fully refunded.'); continue }
     const billing = (p.billing_details && typeof p.billing_details === 'object' ? p.billing_details : {}) as SnapshotObject
     const customer = typeof p.customer === 'string' ? p.customer : '', email = mail(billing.email) || mail(p.receipt_email)
-    const donor = (customer && donorFor.get(customer)) || (email && byEmail.get(email)) || ''
+    const donor = customer ? donorFor.get(customer) || '' : email ? matchEmail(email,str(billing.name,'billing name',200)) : ''
     if (!donor && email && native.erased.has(erasureHash(email))) { skip(r, ERASED); continue }
     if (!donor) { skip(r, customer && why.has(customer) ? `Its customer was not imported: ${why.get(customer)}` : 'No matching donor. Include its Stripe customer, or add the donor with this email in Coffer first.'); continue }
     const meta = (p.metadata && typeof p.metadata === 'object' ? p.metadata : {}) as SnapshotObject

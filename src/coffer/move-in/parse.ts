@@ -1,3 +1,4 @@
+import { reviewedCustomMappings, mapCustomColumns } from './custom-fields'
 import { creditChecks, sharedEmails } from './checks'
 import { inferHouseholds, validateHouseholdHeads } from './households'
 import { pledgeChecks } from './pledge-checks'
@@ -15,6 +16,7 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  if (!['lgl', 'bloomerang', 're-nxt'].includes(input.source)) {
   out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose Little Green Light, Bloomerang, or Raiser’s Edge NXT.' }); return out
  }
+ reviewedCustomMappings(input,out)
  const tables = await readExports(input.files, out), rows: SourceRow[] = []
  const aliases = columnFields(input.source)
  for (const table of tables) {
@@ -29,6 +31,7 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  }
  sourceTotals(rows, out.sourceTotals)
  for (const row of rows) if (row.kind() === 'control') { mapRow(row, out, input); controlRow(row, out) } else mapRow(row, out, input)
+ mapCustomColumns(rows,out)
  inferHouseholds(out)
  validateHouseholdHeads(out)
  sharedEmails(out)

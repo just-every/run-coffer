@@ -1,6 +1,6 @@
 import { runGiftRules } from '../gift-rules'
 import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
-import { email, fail, newId, one, sql, type Context } from '../db'
+import { email, fail, one, sql, type Context } from '../db'
 import { settings } from '../settings'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { cents, day, stripeId, stripePages } from './stripe-data'
@@ -43,11 +43,13 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
   if (!donor && customerId) customer = await stripe(env, '/customers/' + encodeURIComponent(customerId))
   const mail = email(charge.billing_details?.email ?? charge.receipt_email ?? customer?.email)
   const donorName = String(charge.billing_details?.name ?? customer?.name ?? mail).slice(0,200)
-  if (!donor && mail) donor = await lookupEmailDonor(c,mail,donorName)
+  // An unlinked processor customer is a distinct source identity.
+  if (!donor && mail && !customerId) donor = await lookupEmailDonor(c,mail,donorName)
   if (!donor && !mail) fail('donor_match_required', 'Add a donor email to this Stripe payment before syncing it.', 409)
   if (!donor) {
-   await paymentWrite(env, [sql("INSERT OR IGNORE INTO cf_donors(id,version,name,email,source,source_ref,created_at) VALUES(?,1,?,?,'stripe',?,?)", newId(), String(charge.billing_details?.name ?? customer?.name ?? mail).slice(0, 200), mail, customerId || charge.id, now)], authority)
-   donor = await lookupEmailDonor(c,mail!,donorName)
+   const donorId = 'stripe-donor-' + (customerId || charge.id)
+   await paymentWrite(env, [sql('INSERT INTO cf_identity_ingest VALUES(1)'),sql("INSERT OR IGNORE INTO cf_donors(id,version,name,email,source,source_ref,created_at) VALUES(?,1,?,?,'stripe',?,?)", donorId, donorName, mail, customerId || charge.id, now),sql('DELETE FROM cf_identity_ingest')], authority)
+   donor = await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',donorId)
   }
   if (donor) donor = await one(c, 'SELECT * FROM cf_donors WHERE id=?', await canonicalDonor(c,donor.id))
   if (!donor) fail('donor_match_required', 'This Stripe donor could not be matched.', 409)
