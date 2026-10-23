@@ -178,6 +178,7 @@ export async function portalJourney(){
   for(let replay=0;replay<2;replay++)assert.equal((await sendRegrant()).status,303)
   assert.deepEqual((await h.get('/api/coffer/donors/'+person.id)).consents,beforeRegrant,'A verified donor request cannot enable consent before staff evidence')
   assert.equal(edge.state.messages.length,beforeRegrantMessages,'Consent review never sends a message automatically')
+  assert.match(await (await get('/giving/portal/communications')).text(),/Your request is with staff/,'Pending consent review survives a clean page reload')
   const regrantTasks=(await h.get('/api/coffer/tasks')).tasks.filter(t=>t.donor_id===person.id&&t.source_key.startsWith('portal-consent-regrant:'))
   assert.equal(regrantTasks.length,1,'Repeated donor requests create one owned review task per consent version')
   assert.equal(regrantTasks[0].is_ask,0);assert.ok(regrantTasks[0].owner_id)
@@ -259,7 +260,7 @@ async function portalBrowser(h,edge,person,letter){
    await page.getByRole('link',{name:'Email preferences',exact:true}).click();await capture('consent',width);await page.getByRole('button',{name:'Withdraw email consent',exact:true}).click();await page.getByRole('status').waitFor();await capture('consent-withdrawn',width)
    await page.getByText('Request email permission again',{exact:true}).click()
    await page.getByRole('checkbox',{name:'I want to receive email news and appeals again.'}).check();await capture('consent-regrant-request',width)
-   await page.getByRole('button',{name:'Request email regrant',exact:true}).click();await page.getByRole('status').waitFor();await capture('consent-regrant-held',width)
+   await page.getByRole('button',{name:'Request email regrant',exact:true}).click();await page.getByRole('status').waitFor();await page.goto(origin+'/giving/portal/communications');await page.getByRole('status').waitFor();await capture('consent-regrant-held',width)
    assert.equal((await h.get('/api/coffer/donors/'+person.id)).consents[0].status,'withdrawn')
 
    await page.goto(origin+'/giving/portal/cancel?subscription=sub_portal');await capture('cancellation',width)

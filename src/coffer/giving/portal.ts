@@ -189,7 +189,7 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
  if(path==='/giving/portal/document'&&read)return downloadDocument(env,donor,url.searchParams.get('letter')??'',url.searchParams.get('view')==='1')
  if(path==='/giving/portal/copy'&&!read){await requestDocumentCopy(env,donor,await form(request));return redirect('/giving/portal/history?copy=submitted')}
  if(path==='/giving/portal/communications'){
-  if(read)return communicationPage(env,donor,url.searchParams.get('saved')==='1',url.searchParams.get('requested')==='1')
+  if(read)return communicationPage(env,donor,url.searchParams.get('saved')==='1')
   const data=await form(request)
   if(data.get('status')==='regrant-request'){await requestEmailRegrant(env,donor,data);return redirect('/giving/portal/communications?requested=1')}
   await withdrawEmail(env,donor,data);return redirect('/giving/portal/communications?saved=1')
