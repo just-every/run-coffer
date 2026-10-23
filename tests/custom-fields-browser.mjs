@@ -26,7 +26,7 @@ export async function customFieldsBrowser(h,{donorId,giftId,directory}){
    await page.goto(origin+'/app/donors/'+donorId+'#custom-fields');await detail.locator('summary').click();assert.equal(await detail.locator('select[name=value]').inputValue(),'Trustee')
    await fits(page,width);await custom.screenshot({path:directory+'/DONOR-005-renamed-record-'+width+'.png'})
    await page.goto(origin+'/app/donors/'+donorId+'#record')
-   const manual=page.locator('form').filter({has:page.locator('input[name=command][value="gift.record"]')})
+   const manual=page.locator('#record form')
    await manual.getByLabel('Amount (USD)',{exact:true}).fill('3.25');await manual.getByLabel('Received on',{exact:true}).fill('2025-03-01');await manual.locator('select[name=method]').selectOption('check');await manual.getByLabel('Check number or reference',{exact:true}).fill('synthetic-coffer-'+(width+10));await manual.getByLabel('No goods or services',{exact:true}).check();await manual.getByText('Custom gift fields',{exact:true}).click();await manual.getByLabel('budget',{exact:true}).fill('200.75')
    await fits(page,width);await manual.screenshot({path:directory+'/DONOR-005-manual-gift-'+width+'.png'})
    await manual.getByRole('button',{name:'Record gift',exact:true}).click();await page.waitForURL('**/app/donors/'+donorId)
