@@ -12,10 +12,10 @@ export async function recoveryNoticeAction(c:Context,p:Row) {
  if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin approves recovery notices.',403)
  const action=String(p.action)
  if(action==='policy') {
-  const version=integer(Number(p.version),'Version',1),major=amount(p,'majorAmount','Major-donor review threshold'),operator=await one(c,'SELECT version FROM oa_operators WHERE id=?',c.actor.id),enabled=p.enabled==='yes'||p.enabled===true
-  if(enabled&&p.developmentLead!==true&&p.developmentLead!=='yes')fail('DEVELOPMENT_LEAD','The standing approver must explicitly accept named development-lead responsibility.',400)
+  const version=integer(Number(p.version),'Version',1),major=amount(p,'majorAmount','Major-donor review threshold'),operator=await one(c,'SELECT version FROM oa_operators WHERE id=?',c.actor.id),enabled=p.enabled==='yes'||p.enabled===true,designated=p.developmentLead===true||p.developmentLead==='yes'
+  if(enabled&&!designated)fail('DEVELOPMENT_LEAD','The standing approver must explicitly accept named development-lead responsibility.',400)
   if(enabled&&p.standingApproval!==true&&p.standingApproval!=='yes')fail('STANDING_APPROVAL','Explicitly approve standard recovery notices before enabling this policy.',400)
-  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND version=?)','VERSION','Notice policy changed. Refresh.',version),sql('UPDATE cf_recovery_notice_policy SET version=version+1,enabled=?,major_cents=?,approved_by=?,approver_version=?,approved_at=? WHERE id=1',enabled?1:0,major,c.actor.id,operator!.version,c.now),event(c,'recovery.standingApproval','recovery_policy','1',null,{version:version+1,majorCents:major,enabled})])
+  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND version=?)','VERSION','Notice policy changed. Refresh.',version),sql('UPDATE cf_recovery_notice_policy SET version=version+1,enabled=?,major_cents=?,approved_by=CASE WHEN ? THEN ? ELSE approved_by END,approver_version=CASE WHEN ? THEN ? ELSE approver_version END,approved_at=? WHERE id=1',enabled?1:0,major,designated?1:0,c.actor.id,designated?1:0,operator!.version,c.now),event(c,'recovery.standingApproval','recovery_policy','1',null,{version:version+1,majorCents:major,enabled,developmentLead:designated})])
   return {version:version+1}
  }
  if(action==='permission') {

@@ -28,6 +28,8 @@ export async function recoveryNoticesJourney() {
   const [ana,ben,mira]=edge.plans
   const majorGift=await h.command('gift.record',{donorId:mira.donor.id,amount:'1500',receivedOn:day,method:'check',goods:'none'})
   await action({action:'policy',version:1,enabled:false,majorAmount:'1000'})
+  assert.equal((await state()).policy.approved_by,null,'Turning notices off does not implicitly designate the person saving the policy')
+  if(process.env.COFFER_RECOVERY_NOTICES_BROWSER){const {recoveryNoticesBrowser}=await import('./recovery-notices-browser.mjs');await recoveryNoticesBrowser(h,{directory:process.env.COFFER_RECOVERY_NOTICES_BROWSER,phase:'no-implicit-lead'})}
   await action({action:'policy',version:2,enabled:true,standingApproval:true,developmentLead:true,majorAmount:'1000'},{as:member.cookie,status:403})
   for(const p of edge.plans)await edge.fail(h,p,'evt_notice_'+p.id)
   assert.equal(portalMessages().length,0,'Explicitly off does not fall back to existing automatic invitations')
@@ -181,6 +183,9 @@ export async function recoveryNoticesJourney() {
   const invalidated=(await state()).steps.find(n=>n.invoice_id===mira.invoice)
   assert.ok(invalidated);assert.equal(invalidated.state,'held');assert.match(invalidated.reason,/standing authority changed/)
   assert.equal(portalMessages().length,beforeRoleChange,'A designation cannot survive its holder losing the required role')
+  await action({action:'policy',version:5,enabled:false,majorAmount:'1000'},owner10)
+  assert.equal((await state()).policy.approved_by,otherAdmin.id,'A different person turning notices off cannot silently take the lead designation')
+  assert.equal(JSON.parse((await h.get('/api/coffer/audit?action=recovery.standingApproval')).rows[0].detail).developmentLead,false)
   assert.ok(!edge.calls.some(([method,path])=>method==='POST'&&/invoices\/.*\/pay|payment_intents|\/subscriptions\//.test(path)),'Recovery never makes an extra charge or changes the plan')
  },edge.options)
 }
