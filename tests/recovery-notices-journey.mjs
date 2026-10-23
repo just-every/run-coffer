@@ -166,6 +166,21 @@ export async function recoveryNoticesJourney() {
   await action({action:'policy',version:3,enabled:false,majorAmount:'1000'},owner8)
   const beforeOff=portalMessages().length,owner10=await ownerAt(10)
   await runAt(10,owner10);assert.equal(portalMessages().length,beforeOff,'Explicitly off stops all additional notice steps')
+  const adminLogin=await h.request('/auth/magic-link',{method:'POST',as:'',body:{email:'notices.admin@example.test'},headers:{'x-test-now':at(10)}})
+  assert.equal(adminLogin.status,202)
+  const adminLink=new URL(h.messages.at(-1).text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0])
+  const adminSession=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:adminLink.searchParams.get('token')},headers:{'x-test-now':at(10)}})
+  assert.equal(adminSession.status,303)
+  const adminOptions={as:adminSession.headers.getSetCookie().map(c=>c.split(';')[0]).join('; '),headers:{'x-test-now':at(10)}}
+  await action({action:'policy',version:4,enabled:true,standingApproval:true,developmentLead:true,majorAmount:'1000',approvedBy:designated.id},adminOptions)
+  assert.equal((await state()).policy.approved_by,otherAdmin.id,'A current admin can explicitly designate only themselves')
+  await h.api('/auth/operator/role',{operatorId:otherAdmin.id,role:'member'},owner10)
+  const beforeRoleChange=portalMessages().length
+  mira.invoice='in_notice_authority_changed';mira.status='past_due';mira.paid=false
+  await edge.fail(h,mira,'evt_notice_authority_changed',at(10.5));await runAt(10.5,owner10)
+  const invalidated=(await state()).steps.find(n=>n.invoice_id===mira.invoice)
+  assert.ok(invalidated);assert.equal(invalidated.state,'held');assert.match(invalidated.reason,/standing authority changed/)
+  assert.equal(portalMessages().length,beforeRoleChange,'A designation cannot survive its holder losing the required role')
   assert.ok(!edge.calls.some(([method,path])=>method==='POST'&&/invoices\/.*\/pay|payment_intents|\/subscriptions\//.test(path)),'Recovery never makes an extra charge or changes the plan')
  },edge.options)
 }

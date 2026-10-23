@@ -203,6 +203,7 @@ export async function portalJourney(){
   const sharedLogin=await signInPortal(h,'synthetic-coffer-2401@example.test',edge.state.messages)
   await donor(h,'Synthetic Shared Other',{email:'synthetic-coffer-2401@example.test',household:'Synthetic shared mailbox household'})
   assert.equal((await h.request('/giving/portal/history',{as:sharedLogin.cookie})).status,403,'A shared mailbox cannot identify one person even when a session predates sharing')
+  assert.equal((await h.request('/giving/portal/communications',portalForm({status:'regrant-request',version:0,confirm:'yes'},sharedLogin.cookie))).status,403,'An ambiguous mailbox cannot submit a consent regrant request')
   const beforeAmbiguous=edge.state.messages.length
   assert.equal((await h.request('/giving/portal/request',portalForm({email:'synthetic-coffer-2401@example.test'}))).status,200)
   assert.equal(edge.state.messages.length,beforeAmbiguous,'An ambiguous mailbox receives no financial access link')
@@ -216,6 +217,7 @@ export async function portalJourney(){
   assert.equal((await h.get('/api/coffer/donors/'+person.id)).gifts.find(g=>g.id===extra.id).amount_cents,10000)
   await h.command('donor.erase',{donorId:person.id,confirm:'ERASE'})
   assert.equal((await get('/giving/portal/history')).status,303,'Erasure revokes donor sessions')
+  assert.ok(!(await h.get('/api/coffer/tasks')).tasks.some(t=>t.donor_id===person.id),'Erasure removes consent review tasks as well as cancellation follow-up')
  },edge.options)
 }
 async function portalBrowser(h,edge,person,letter){
