@@ -165,6 +165,31 @@ export async function portalJourney(){
   assert.equal((await h.request('/giving/portal/communications',portalForm(withdraw,as))).status,303)
   assert.equal((await h.get('/api/coffer/donors/'+person.id)).consents[0].status,'withdrawn')
   assert.equal((await h.request('/giving/portal/communications',portalForm({...withdraw,status:'granted'},as))).status,403)
+  consentHtml=await (await get('/giving/portal/communications')).text()
+  const regrant={version:value(consentHtml,'version'),status:'regrant-request',confirm:'yes'}
+  const sendRegrant=(values=regrant,options={})=>h.request('/giving/portal/communications',{...portalForm(values,as),...options})
+  assert.equal((await sendRegrant({...regrant,confirm:'no'})).status,400)
+  assert.equal((await sendRegrant({...regrant,donorId:other.id})).status,403)
+  assert.equal((await sendRegrant({...regrant,version:withdraw.version})).status,409)
+  assert.equal((await sendRegrant(regrant,{as:''})).status,303)
+  assert.equal((await sendRegrant(regrant,{headers:{'content-type':'application/x-www-form-urlencoded',origin:'https://wrong.example.test'}})).status,403)
+  const beforeRegrant=(await h.get('/api/coffer/donors/'+person.id)).consents
+  const beforeRegrantMessages=edge.state.messages.length
+  for(let replay=0;replay<2;replay++)assert.equal((await sendRegrant()).status,303)
+  assert.deepEqual((await h.get('/api/coffer/donors/'+person.id)).consents,beforeRegrant,'A verified donor request cannot enable consent before staff evidence')
+  assert.equal(edge.state.messages.length,beforeRegrantMessages,'Consent review never sends a message automatically')
+  const regrantTasks=(await h.get('/api/coffer/tasks')).tasks.filter(t=>t.donor_id===person.id&&t.source_key.startsWith('portal-consent-regrant:'))
+  assert.equal(regrantTasks.length,1,'Repeated donor requests create one owned review task per consent version')
+  assert.equal(regrantTasks[0].is_ask,0);assert.ok(regrantTasks[0].owner_id)
+  const requested=(await h.get('/api/coffer/donors/'+person.id)).events.filter(e=>e.action==='portal.consentRegrantRequested')
+  assert.equal(requested.length,1);assert.equal(requested[0].actor_id,'donor:'+person.id)
+  assert.equal(JSON.parse(requested[0].detail).status,'pending')
+  await h.command('consent.record',{donorId:person.id,channel:'email',status:'granted',method:'web form',evidence:'Staff reviewed verified donor request at '+requested[0].at+' by '+person.id+' through their emailed portal sign-in.',capturedOn:requested[0].at.slice(0,10)})
+  let reviewedConsent=(await h.get('/api/coffer/donors/'+person.id)).consents[0]
+  assert.equal(reviewedConsent.status,'granted');assert.equal(reviewedConsent.recorded_by,'Morgan Lee');assert.equal(reviewedConsent.method,'web form');assert.ok(reviewedConsent.evidence.includes(requested[0].at))
+  assert.match(await (await get('/giving/portal/communications')).text(),/current email permission is granted/)
+  assert.equal((await sendRegrant()).status,409,'Staff review invalidates the old donor request')
+
   assert.equal((await h.request('/giving/portal/copy',portalForm({letter:ownLetter.id,requestId:randomUUID()},as))).status,303,'Requested transactional copies survive appeal withdrawal')
   if(process.env.COFFER_PORTAL_BROWSER)await portalBrowser(h,edge,person,ownLetter)
   const cancel={subscription:'sub_portal',requestId:randomUUID(),confirm:'yes'}
@@ -209,7 +234,7 @@ async function portalBrowser(h,edge,person,letter){
    await provider.send('Fetch.fulfillRequest',{requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'text/html'}],body:Buffer.from(body).toString('base64')})
   })
   await context.clearCookies()
-  const capture=async(name,width)=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${directory}/GIVE-005-${name}-${width}.png`,fullPage:true})}
+  const capture=async(name,width)=>{await assertPortalTooltips(page);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`${directory}/GIVE-005-${name}-${width}.png`,fullPage:true})}
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/giving/portal');await capture('sign-in',width);await page.getByLabel('Email address',{exact:true}).fill('synthetic-coffer-2006@example.test');await page.getByRole('button',{name:'Email a sign-in link'}).click();await page.getByRole('heading',{name:'Check your email',exact:true}).waitFor();await capture('link-requested',width)
@@ -230,6 +255,11 @@ async function portalBrowser(h,edge,person,letter){
    await page.getByText('Your payment method change was confirmed at Stripe.').waitFor();await capture('payment-updated',width)
    await h.command('consent.record',{donorId:person.id,channel:'email',status:'granted',method:'paper form',evidence:'Synthetic explicit permission before browser withdrawal',capturedOn:'2025-01-01'})
    await page.getByRole('link',{name:'Email preferences',exact:true}).click();await capture('consent',width);await page.getByRole('button',{name:'Withdraw email consent',exact:true}).click();await page.getByRole('status').waitFor();await capture('consent-withdrawn',width)
+   await page.getByText('Request email permission again',{exact:true}).click()
+   await page.getByRole('checkbox',{name:'I want to receive email news and appeals again.'}).check();await capture('consent-regrant-request',width)
+   await page.getByRole('button',{name:'Request email regrant',exact:true}).click();await page.getByRole('status').waitFor();await capture('consent-regrant-held',width)
+   assert.equal((await h.get('/api/coffer/donors/'+person.id)).consents[0].status,'withdrawn')
+
    await page.goto(origin+'/giving/portal/cancel?subscription=sub_portal');await capture('cancellation',width)
    if(width===390){
     await page.getByRole('button',{name:'Cancel at end of billing period',exact:true}).click();await page.getByRole('status').waitFor();await capture('cancellation-saved',width)
@@ -243,4 +273,14 @@ async function portalBrowser(h,edge,person,letter){
   }
   await page.close()
  })
+}
+
+async function assertPortalTooltips(page){
+ for(const control of await page.locator('a,button').all()){
+  const info=await control.evaluate(el=>({text:el.innerText.trim(),label:el.getAttribute('aria-label'),tip:el.querySelector('[role="tooltip"]')?.textContent?.trim()}))
+  if(!await control.isVisible()||info.text&&!info.tip)continue
+  assert.ok(info.tip,'An icon-only control has a short tooltip: '+info.label)
+  await control.focus()
+  assert.equal(await control.locator('[role="tooltip"]').evaluate(el=>getComputedStyle(el).visibility),'visible')
+ }
 }

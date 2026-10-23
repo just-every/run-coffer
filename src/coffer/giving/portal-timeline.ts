@@ -13,6 +13,7 @@ const titles:Record<string,string>={
  'portal.documentDownloaded':'Approved giving document downloaded',
  'portal.copyRequested':'Giving document copy requested',
  'portal.copySubmitted':'Requested copy submitted to email provider',
+ 'portal.consentRegrantRequested':'Email consent regrant requested by donor',
  'consent.record':'Email consent withdrawn by donor',
 }
 /** The same audited donor facts feed both API history and the visible timeline.
@@ -30,6 +31,7 @@ export async function portalTimeline(c:Pick<Context,'db'>,donorId:string){
   if(row.action==='portal.paymentMethodUpdateStarted')facts.push('The donor opened Stripe’s hosted page. A replacement is not yet confirmed')
   if(row.action==='portal.paymentMethodUpdated')facts.push('A different default method was verified by reading Stripe; no payment details retained')
   if(row.action==='portal.copySubmitted')facts.push('Provider accepted the requested copy; delivery is not yet confirmed')
+  if(row.action==='portal.consentRegrantRequested')facts.push('Verified donor requested email news and appeals; staff evidence is required before permission changes')
   if(row.action==='consent.record')facts.push('Email appeals and marketing permission withdrawn; transactional receipts keep their separate rules')
   return {kind:row.action==='consent.record'?'email':'portal',id:row.id,day:row.at.slice(0,10),at:row.at,title:titles[row.action]??'Donor portal activity',body:facts.join(' · ')||'Recorded by the authenticated donor'}
  })
