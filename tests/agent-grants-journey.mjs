@@ -11,8 +11,9 @@ function doors(h,key) {
   const answer=await response.json();assert.equal(response.status,status,JSON.stringify(answer))
   if(status!==200)return answer
   assert.equal(answer.error,undefined,JSON.stringify(answer))
-  assert.equal(answer.result.isError,!!expectedError,JSON.stringify(answer))
   const value=answer.result.structuredContent??JSON.parse(answer.result.content[0].text)
+  if(expectedError==='either')return {isError:answer.result.isError,value}
+  assert.equal(answer.result.isError,!!expectedError,JSON.stringify(answer))
   if(expectedError)assert.equal(value.error,expectedError)
   return value
  }
@@ -64,23 +65,27 @@ export async function agentGrantsJourney() {
   for(const [index,gift] of gifts.entries())batches.push(index===1?await api.mcp('ack.prepare',{giftIds:[gift.id]}):await api.http('ack.prepare',{giftIds:[gift.id]}))
   // Both doors share one atomic daily counter. Parallel calls reach the same
   // real native letter-delivery reservation and network submission service.
-  const sent=await Promise.all([api.http('ack.send',{batchId:batches[0].id,version:1}),api.mcp('ack.send',{batchId:batches[1].id,version:1})])
-  assert.ok(sent.every(s=>s.submitted===1));assert.equal(messages.length,2)
+  assert.equal((await api.http('ack.send',{batchId:batches[0].id,version:1})).submitted,1)
+  const race=await Promise.all(batches.slice(1).map(batch=>api.mcp('ack.send',{batchId:batch.id,version:1},'either')))
+  assert.equal(race.filter(r=>!r.isError&&r.value.submitted===1).length,1)
+  assert.equal(race.filter(r=>r.isError&&r.value.error==='DAILY_LIMIT').length,1)
+  const held=batches[1+race.findIndex(r=>r.isError)]
+  assert.equal(messages.length,2)
   const detail=await h.get(`/api/coffer/letters/${batches[0].id}`)
   assert.equal(detail.approval.prepared_by_role,'agent');assert.equal(detail.approval.approved_by_role,'owner');assert.equal(detail.approval.content_hash,batches[0].contentHash)
   assert.ok(detail.events.filter(e=>e.actor_role==='agent').every(e=>{const d=JSON.parse(e.detail);return d.grantId===grant.id&&d.grantVersion===1}))
-  assert.equal((await api.http('ack.send',{batchId:batches[2].id,version:1},409)).error,'DAILY_LIMIT')
-  await api.mcp('ack.send',{batchId:batches[2].id,version:1},'DAILY_LIMIT')
+  assert.equal((await api.http('ack.send',{batchId:held.id,version:1},409)).error,'DAILY_LIMIT')
+  await api.mcp('ack.send',{batchId:held.id,version:1},'DAILY_LIMIT')
   // The other key cannot consume its colleague’s prepared batch, despite
   // sharing the same grant and daily counter.
-  await second.mcp('ack.send',{batchId:batches[2].id,version:1},'GRANT_SCOPE')
+  await second.mcp('ack.send',{batchId:held.id,version:1},'GRANT_SCOPE')
   await h.command('letterTemplate.save',{templateId:template.id,version:1,name:'Revised standard thank-you',minAmount:'250',subject:settings.letterSubject,body:settings.letterTemplate+' Thank you again.'})
-  assert.equal((await api.http('ack.send',{batchId:batches[2].id,version:1},409)).error,'TEMPLATES_CHANGED')
-  await api.mcp('ack.send',{batchId:batches[2].id,version:1},'TEMPLATES_CHANGED')
+  assert.equal((await api.http('ack.send',{batchId:held.id,version:1},409)).error,'TEMPLATES_CHANGED')
+  await api.mcp('ack.send',{batchId:held.id,version:1},'TEMPLATES_CHANGED')
   const control=(await h.get('/api/coffer/agent-grants')).control
   await h.command('agentGrant.kill',{version:control.version,enabled:false})
-  await api.http('ack.send',{batchId:batches[2].id,version:1},401)
-  await api.mcp('ack.send',{batchId:batches[2].id,version:1},null,401)
+  await api.http('ack.send',{batchId:held.id,version:1},401)
+  await api.mcp('ack.send',{batchId:held.id,version:1},null,401)
   await api.get('/api/coffer/donors',401)
   await h.command('agentGrant.kill',{version:control.version+1,enabled:true})
   const narrow=await h.command('agentGrant.save',{...grantInput,id:grant.id,version:1,donorIds:[ana.id],permissions:['donors.list','donors.context'],standingApproval:false})
@@ -94,7 +99,7 @@ export async function agentGrantsJourney() {
   // Legacy keys retain their AGENT-001 behavior until explicitly attached.
   const legacy=doors(h,await h.command('agent.create',{label:'Legacy preparation client'}))
   assert.ok((await legacy.get('/api/coffer/donors')).total>1)
-  await legacy.http('ack.send',{batchId:batches[2].id,version:1},403)
+  await legacy.http('ack.send',{batchId:held.id,version:1},403)
  },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1'},outbound:async request=>{
   assert.equal(new URL(request.url).hostname,'api.sendgrid.com');assert.equal(new URL(request.url).pathname,'/v3/mail/send')
   messages.push(await request.json())
