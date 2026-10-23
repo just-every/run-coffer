@@ -50,3 +50,8 @@ test('RCPT-008: annual receipt numbers, half-refund corrections, voided reversal
 test('RCPT-011: versioned gift thank-yous, role boundaries, separate soft-credit queue, sender acceptance and bounce recovery',async()=>{const {receiptStatusJourney}=await import('./receipt-status-journey.mjs');await receiptStatusJourney()})
 
 test('RCPT-009: household postal appeals freeze consenting addressees, distinct hard gifts, piece counts and version guards',async()=>{const {householdMailJourney}=await import('./household-mail-journey.mjs');await householdMailJourney()})
+
+
+test('RCPT-004: January statements, migration benefit facts, approved copy delivery and corrected reissues',async()=>{const {annualStatementsJourney}=await import('./annual-statements-journey.mjs');await annualStatementsJourney()})
+
+test('COMM-007: frozen asks, coded batch replies, mailing results and inherited household custody',async()=>{const {mailAppealsJourney}=await import('./mail-appeals-journey.mjs');await mailAppealsJourney()})

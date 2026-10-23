@@ -1,3 +1,4 @@
+import { receiptNumber } from './receipt-format'
 import { recipientMergeFields, renderTemplate } from './template-fields'
 import { letterRecipient } from './organizations'
 import { withReceiptBenefits } from './receipt-rules'
@@ -53,7 +54,8 @@ export function annualLetter(s: Settings, donor: Row, gifts: Row[], year: number
 }
 
 /** Freeze one annual letter per donor in the normal human approval workflow. */
-export async function prepareStatements(c: Context, p: Row): Promise<Row> {
+export async function prepareStatements(c: Context, p: Row, internal: { original?: Row; scheduled?: boolean } = {}): Promise<Row> {
+ const original = internal.original
  const s = await settings(c), day = today(s.timezone, new Date(c.now))
  const year = integer(typeof p.year === 'string' ? Number(p.year) : p.year, 'Statement year', 1900, Number(day.slice(0, 4)))
  const donorId = p.donorId === undefined || p.donorId === null || p.donorId === '' ? null : id(p.donorId, 'Donor')
@@ -63,19 +65,35 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
   return (await import('./household-statements')).prepareHouseholdStatement(c, year, householdId,undefined,{emailType:p.emailType||undefined,addressType:p.addressType||undefined,interactionId:p.interactionId||undefined})
  }
  if (!s.reviewed_at || !s.organisation || !s.ein) fail('SETTINGS_UNREVIEWED', 'A person must review and save the organization name and letter wording in Settings before letters are prepared.')
+ // January can prepare the reviewed subjects while another donor or
+ // household waits for benefit facts. A held subject's statement is never
+ // truncated: every eligible gift is included when a person resolves the hold.
+ const benefitsReviewed=`NOT EXISTS(SELECT 1 FROM cf_gift_balances held JOIN cf_donors person ON person.id=held.donor_id
+  WHERE (person.id=d.id OR (d.household_id IS NOT NULL AND person.household_id=d.household_id)) AND person.erased_at IS NULL
+  AND held.kind='gift' AND held.net_cents>0 AND substr(held.received_on,1,4)='${year}'
+  AND (held.goods='unknown' OR held.goods_cents>held.net_cents)
+  AND NOT EXISTS(SELECT 1 FROM cf_contribution_types typed WHERE typed.gift_id=held.id AND typed.kind='daf')
+  AND NOT EXISTS(SELECT 1 FROM cf_gifts reversed WHERE reversed.reverses=held.id))`
+ const eligible=internal.scheduled?`${ELIGIBLE} AND ${benefitsReviewed}`:ELIGIBLE
  const scope = [`${year}-01-01`, `${year}-12-31`, donorId, donorId]
  const donors = await all(c, `SELECT d.* FROM cf_donors d WHERE EXISTS(
-  SELECT 1 FROM cf_gift_balances g WHERE g.donor_id=d.id AND ${ELIGIBLE})
+  SELECT 1 FROM cf_gift_balances g WHERE g.donor_id=d.id AND ${eligible})
   ORDER BY lower(d.name),d.id LIMIT ${MAX_LETTERS + 1}`, ...scope)
  if (donors.length > MAX_LETTERS) fail('TOO_MANY_LETTERS', 'This year has more than 500 donor statements. Select one donor to prepare their statement.')
  // Inactive and deceased constituents get no statement; they are counted under that reason.
  const held = await all(c, `SELECT d.constituent_status AS status,count(DISTINCT d.id) AS n FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${GIFTS} AND d.constituent_status<>'active' GROUP BY d.constituent_status`, ...scope)
  const excluded = Object.fromEntries(held.map(r => [r.status, r.n]))
+ if(internal.scheduled){
+  const heldBenefits=await all(c,`SELECT DISTINCT COALESCE(d.household_id,d.id) AS subject FROM cf_donors d WHERE d.erased_at IS NULL
+   AND NOT (${benefitsReviewed}) AND EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.donor_id=d.id AND ${ELIGIBLE})`,...scope)
+  if(heldBenefits.length)excluded['goods review statements']=heldBenefits.length
+ }
  if (!donors.length) fail('NOTHING_DUE', 'No unreversed gifts from active constituents were found for this calendar year and donor selection.', 409, { excluded })
  const donorIds = JSON.stringify(donors.map(d => d.id))
  const gifts = await all(c, `SELECT g.id,g.version,g.donor_id,g.received_on,g.net_cents AS amount_cents,g.fund,g.goods,g.goods_cents,g.goods_description
   FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id
-  WHERE ${ELIGIBLE} AND d.id IN (SELECT value FROM json_each(?)) ORDER BY g.received_on,g.id`, ...scope, donorIds)
+  WHERE ${eligible} AND d.id IN (SELECT value FROM json_each(?)) ORDER BY g.received_on,g.id`, ...scope, donorIds)
+ if (gifts.some(g => g.goods_cents > g.amount_cents)) fail('GOODS_REVIEW', 'A benefit value exceeds the remaining contribution. Review the financial correction before preparing a statement.')
  if (gifts.some(g => g.goods === 'unknown')) fail('GOODS_UNKNOWN', 'A gift in this year still needs its goods or services answer. Open the donor’s gift history, record that answer, then prepare the statement again.')
  const tributes = new Map((await all(c, 'SELECT * FROM cf_gift_tributes WHERE gift_id IN (SELECT value FROM json_each(?))', JSON.stringify(gifts.map(g=>g.id)))).map(t=>[t.gift_id,t]))
  await withReceiptBenefits(c, gifts)
@@ -110,16 +128,21 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
    letters.push(plan.letter);householdChecks.push(...plan.checks)
   }
  }
- letters=letters.map((l,position)=>({...l,position}))
+ letters=letters.map((l,position)=>({...l,position,...(original?{replaces_id:original.id,body:`Corrected statement replacing ${receiptNumber(original)}.\nWhat changed: ${original.void_reason}. Original total ${usd(original.amount_cents)}; current total ${usd(l.amount_cents)}. Use this corrected statement in place of the original.\n\n${l.body}`}:{})}))
  const total = letters.reduce((n, l) => n + l.amount_cents, 0), hash = await letterHash(s.version, letters)
  const snapshots = JSON.stringify(gifts.map(g => ({ ...g, donor_version: donors.find(d => d.id === g.donor_id)!.version })))
  await commit(c, [...householdChecks,
+  ...(internal.scheduled ? [guard('NOT EXISTS(SELECT 1 FROM cf_annual_preparations WHERE year=?)','ANNUAL_PREPARED','This January statement run is already prepared.',year),sql('INSERT INTO cf_annual_preparations(year,batch_id,prepared_at) VALUES(?,?,?)',year,batchId,c.now)] : []),
+  ...(original ? [guard('EXISTS(SELECT 1 FROM cf_acks WHERE id=? AND void_reason IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE replaces_id=?)','RECEIPT_CHANGED','This statement already has a replacement. Open its batch.',original.id,original.id)] : []),
   guard("NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE COALESCE((SELECT version FROM cf_gift_tributes WHERE gift_id=json_extract(j.value,'$.giftId')),0)<>json_extract(j.value,'$.version'))", 'TRIBUTE_CHANGED', 'A tribute changed while preparing. Prepare the statements again.', JSON.stringify(gifts.map(g=>({giftId:g.id,version:tributes.get(g.id)?.version??0})))),
   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND version=?)', 'SETTINGS_CHANGED', 'Letter settings changed while preparing. Prepare again.', s.version), templatesUnchanged(revision),
-  // The count covers the entire requested scope, including donors added since
-  // selection. Exact rows and donor versions also fence reversals and erasure.
-  guard(`(SELECT count(*) FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${ELIGIBLE})=?
-   AND NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE NOT EXISTS(
+  // Keep completeness and exact-row checks separate: expanding the balance
+  // views inside one nested predicate exceeds D1's expression-depth limit.
+  ...(internal.scheduled?[guard(`(SELECT count(*) FROM cf_donors d WHERE EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.donor_id=d.id AND ${eligible}))=?`,
+   'GIFTS_CHANGED','Statement eligibility changed while preparing. Prepare again.',...scope,donors.length)]:[]),
+  guard(`(SELECT count(*) FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${ELIGIBLE}${internal.scheduled?' AND d.id IN (SELECT value FROM json_each(?))':''})=?`,
+   'GIFTS_CHANGED','The gift selection changed while preparing. Prepare again.',...scope,...(internal.scheduled?[donorIds]:[]),gifts.length),
+  guard(`NOT EXISTS(SELECT 1 FROM json_each(?) j WHERE NOT EXISTS(
     SELECT 1 FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id
     WHERE ${ELIGIBLE} AND g.id=json_extract(j.value,'$.id')
      AND g.version=json_extract(j.value,'$.version') AND g.donor_id=json_extract(j.value,'$.donor_id')
@@ -127,19 +150,19 @@ export async function prepareStatements(c: Context, p: Row): Promise<Row> {
      AND g.fund=json_extract(j.value,'$.fund') AND g.goods=json_extract(j.value,'$.goods')
      AND g.goods_cents=json_extract(j.value,'$.goods_cents') AND g.goods_description IS json_extract(j.value,'$.goods_description')
      AND d.version=json_extract(j.value,'$.donor_version')))`,
-  'GIFTS_CHANGED', 'Gifts or donor details changed while preparing the statements. Prepare again.', ...scope, gifts.length, snapshots, ...scope),
+   'GIFTS_CHANGED','Gifts or donor details changed while preparing the statements. Prepare again.',snapshots,...scope),
   guard(`NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id
    WHERE b.kind='statement' AND b.statement_year=? AND b.status<>'discarded'
-    AND a.donor_id IN (SELECT value FROM json_each(?)))`,
-  'STATEMENT_EXISTS', 'A selected donor already has a statement for this year. Open that batch, or discard it before preparing again. Select a different donor to prepare another statement.', year, donorIds),
+    AND a.donor_id IN (SELECT value FROM json_each(?)) AND (? IS NULL OR a.void_reason IS NULL))`,
+  'STATEMENT_EXISTS', 'A selected donor already has a statement for this year. Open that batch, or discard it before preparing again. Select a different donor to prepare another statement.', year, donorIds, original?.id??null),
   sql(`INSERT INTO cf_ack_batches(id,version,status,content_hash,letters,total_cents,settings_version,prepared_by_id,prepared_by_name,prepared_by_role,prepared_at,kind,statement_year,one_piece_per,postage_per_piece_cents)
    VALUES(?,1,'prepared',?,?,?,?,?,?,?,?,'statement',?,?,?)`, batchId, hash, letters.length, total, s.version, c.actor.id, c.actor.name, c.actor.role, c.now, year,basis,postage),
-  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,statement_gifts,template_kind,template_id,template_version,merge_blanks,household_id,household_version,household_snapshot)
+  sql(`INSERT INTO cf_acks(id,batch_id,position,gift_id,donor_id,live,recipient_name,recipient_email,address,subject,body,amount_cents,received_on,statement_gifts,template_kind,template_id,template_version,merge_blanks,household_id,household_version,household_snapshot,replaces_id)
    SELECT json_extract(value,'$.id'),json_extract(value,'$.batch_id'),json_extract(value,'$.position'),json_extract(value,'$.gift_id'),json_extract(value,'$.donor_id'),0,
     json_extract(value,'$.recipient_name'),json_extract(value,'$.recipient_email'),json_extract(value,'$.address'),json_extract(value,'$.subject'),json_extract(value,'$.body'),
     json_extract(value,'$.amount_cents'),json_extract(value,'$.received_on'),json_extract(value,'$.statement_gifts'),
-    json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version'),json_extract(value,'$.merge_blanks'),json_extract(value,'$.household_id'),json_extract(value,'$.household_version'),json_extract(value,'$.household_snapshot') FROM json_each(?)`, JSON.stringify(letters)),
-  event(c, 'ack.prepareStatements', 'acknowledgements', batchId, null, { year, letters: letters.length, totalCents: total }),
+    json_extract(value,'$.template_kind'),json_extract(value,'$.template_id'),json_extract(value,'$.template_version'),json_extract(value,'$.merge_blanks'),json_extract(value,'$.household_id'),json_extract(value,'$.household_version'),json_extract(value,'$.household_snapshot'),json_extract(value,'$.replaces_id') FROM json_each(?)`, JSON.stringify(letters)),
+  event(c, original?'ack.correct':'ack.prepareStatements', 'acknowledgements', batchId, null, { year, letters: letters.length, totalCents: total,excluded,...(original?{originalLetterId:original.id,letterId:letters[0].id}:{}) }),
  ])
- return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash, excluded,onePiecePer:basis,pieceCount:letters.length,estimatedPostageCents:postage===null?null:postage*letters.length }
+ return { id: batchId, version: 1, letters: letters.length, totalCents: total, contentHash: hash, excluded,onePiecePer:basis,pieceCount:letters.length,estimatedPostageCents:postage===null?null:postage*letters.length,...(original?{replacesId:original.id}:{}) }
 }

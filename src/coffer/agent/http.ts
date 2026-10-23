@@ -1,3 +1,6 @@
+import { recoveryNoticeState, recoveryNoticeAction } from './recovery-policy'
+import { receiptAutonomyState, saveReceiptAutonomy, runReceiptAutonomy, recoverReceiptStatement } from './receipt-autonomy'
+import { receiptAutonomyPanel } from './receipts-ui'
 import { automationGrants, saveAutomationGrant } from '../automation-grants'
 import { automationGrantPanel } from './grants-ui'
 import { reconcileJourney, prepareJourneyResend } from './journey-delivery'
@@ -28,6 +31,8 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  const prefix=api?'/api/coffer/agent':'/app/agent',tail=path.slice(prefix.length)
  if (request.method==='GET' || request.method==='HEAD') {
   if(api) {
+   if(tail==='/recovery/notices')return json(await recoveryNoticeState(c))
+   if(tail==='/receipts/settings')return json(await receiptAutonomyState(c))
    if(tail==='/grants')return json(await automationGrants(c))
    if(tail==='/appeals')return json(url.searchParams.get('appealId')?await appealDelivery(c,url.searchParams.get('appealId')!):await deliveryState(c))
    if(tail==='/stewardship')return json(await stewardshipState(c,url.searchParams.get('donorId')??undefined))
@@ -41,14 +46,19 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
   else if(tail==='/reconcile'){title='Reconcile gifts';content=await reconciliationPage(c)}
   else if(tail==='/recovery'){title='Recover monthly gifts';content=await recoveryPage(c)}
   else if(tail==='/appeals'){title='Check appeal delivery';content=await appealAgentPage(c,url)}
-  else if(tail==='/receipts'){title='Find missing receipts';content=await receiptAgentPage(c,url)}
+  else if(tail==='/receipts'){title='Find missing receipts';content=await receiptAgentPage(c,url)+await receiptAutonomyPanel(c)}
+  else if(tail==='/receipts/settings'){title='Receipt standing approval';content=await receiptAutonomyPanel(c)}
   else if(tail==='') {title='Development agent';content=await overview(c,env,url)}
   else return fail('NOT_FOUND','That agent page does not exist.',404)
   return page(title,nav()+content,c.actor,200,'/app/agent')
  }
  if(request.method!=='POST')fail('METHOD','Use the agent page buttons.',405)
  const p=await body();let result:any,back='/app/agent'
- if(tail==='/grants'){result=await saveAutomationGrant(c,p);back='/app/agent/grants'}
+ if(tail==='/recovery/notice-action'){result=await recoveryNoticeAction(c,p);back='/app/agent/recovery'}
+ else if(tail==='/receipts/settings'){result=await saveReceiptAutonomy(c,p);back='/app/agent/receipts'}
+ else if(tail==='/receipts/run'){result=await runReceiptAutonomy(c);back='/app/agent/receipts'}
+ else if(tail==='/receipts/statements/recover'){result=await recoverReceiptStatement(c,p);back='/app/agent/receipts'}
+ else if(tail==='/grants'){result=await saveAutomationGrant(c,p);back='/app/agent/grants'}
  else if(tail==='/appeals/run'){result=await reconcileAppeal(c,p);back='/app/agent/appeals?appealId='+encodeURIComponent(p.appealId)}
  else if(tail==='/appeals/journey/run'){result=await reconcileJourney(c,p);back='/app/agent/appeals'}
  else if(tail==='/appeals/journey/prepare'){result=await prepareJourneyResend(c,p);back='/app/appeals/'+result.id}

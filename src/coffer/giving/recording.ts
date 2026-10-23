@@ -1,3 +1,4 @@
+import { observePortalPlan } from './portal-plan-facts'
 import { runGiftRules } from '../gift-rules'
 import { tributeGiftStatement } from './tribute'
 import { giftRecognitionStatement } from '../recognition'
@@ -57,6 +58,7 @@ export async function syncSubscription(env: GivingEnv, subscriptionId: string) {
  await env.DB.prepare(`INSERT INTO cf_subscriptions(id,donor_id,campaign_id,customer_id,amount_cents,status,cancel_at_period_end,updated_at)
  VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,cancel_at_period_end=excluded.cancel_at_period_end,amount_cents=excluded.amount_cents,updated_at=excluded.updated_at`).bind(sub.id, intent.donor_id, intent.campaign_id, stripeId(sub.customer), cents, sub.status, sub.cancel_at_period_end ? 1 : 0, now).run()
  if(Number.isSafeInteger(sub.created)&&sub.created>0)await env.DB.prepare('UPDATE cf_subscription_lifetimes SET started_at=?,start_known=1 WHERE subscription_id=?').bind(new Date(sub.created*1000).toISOString(),sub.id).run()
+ await observePortalPlan(env,sub)
  return { sub, intent }
 }
 

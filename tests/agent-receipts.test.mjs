@@ -1,9 +1,11 @@
 import {test} from 'node:test'
+import {receiptAutonomyJourney} from './receipt-autonomy-journey.mjs'
 import assert from 'node:assert/strict'
 import {generateKeyPairSync,sign} from 'node:crypto'
 const keys=generateKeyPairSync('ec',{namedCurve:'prime256v1'}),publicKey=keys.publicKey.export({type:'spki',format:'der'}).toString('base64')
 import {run,donor,reviewed,settings} from './harness.mjs'
-test('RCPT-010: the agent queues small missing and bounced receipts for review, never sends them unseen, and can undo its batch',async()=>{
+test('DEV-003 / RCPT-010: missing and bounced receipts keep human review or explicit standing approval, custody and delivery recovery',async()=>{
+ let submissions=0
  await run(async h=>{
   await reviewed(h)
   await h.command('custom.define',{key:'stewardship_note',label:'Stewardship note',kind:'constituent',type:'text'})
@@ -17,7 +19,7 @@ test('RCPT-010: the agent queues small missing and bounced receipts for review, 
   assert.equal(b.letters[0].gift_id,gift.id)
   assert.deepEqual(b.mergeReview.map(r=>({donorId:r.donorId,fields:r.fields})),[{donorId:d.id,fields:['custom.stewardship_note']}])
   assert.equal(b.letters[0].route,'pending')
-  assert.equal(h.messages.length,0)
+  assert.equal(submissions,0)
   assert.equal((await h.api('/api/coffer/agent/receipts/queue',{})).queued,0)
   const activity=(await h.get('/api/coffer/agent')).activity.find(a=>a.kind==='receipts.prepare')
   await h.api('/api/coffer/agent/activity/undo',{id:activity.id})
@@ -36,7 +38,8 @@ test('RCPT-010: the agent queues small missing and bounced receipts for review, 
   b=await h.get('/api/coffer/letters/'+again.id)
   assert.equal(b.batch.status,'prepared')
   assert.equal(b.letters[0].route,'pending')
-  assert.equal(h.messages.length,0)
+  assert.equal(submissions,1)
   await h.api('/api/coffer/agent/receipts/queue',{},{as:'',status:401})
- },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_EVENT_PUBLIC_KEY:publicKey},outbound:async r=>{assert.equal(new URL(r.url).hostname,'api.sendgrid.com');return new Response(null,{status:202,headers:{'x-message-id':'agent-receipt-message'}})}})
+ },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_EVENT_PUBLIC_KEY:publicKey},outbound:async r=>{assert.equal(new URL(r.url).hostname,'api.sendgrid.com');submissions++;return new Response(null,{status:202,headers:{'x-message-id':'agent-receipt-message'}})}})
+ await receiptAutonomyJourney()
 })

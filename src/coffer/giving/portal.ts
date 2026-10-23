@@ -1,17 +1,22 @@
+import { downloadProperty } from './portal-property'
+import { portalContext, uniquePortalEmail } from './portal-identity'
+import { givingHistory, downloadDocument, requestDocumentCopy } from './portal-documents'
+import { communicationPage, withdrawEmail } from './portal-consent'
+import { changePlan, managePlanPage, ownPlan, planQuery } from './portal-plans'
+import { updatePaymentMethod, paymentMethodReturn } from './portal-card'
 import { donorRequestPage, saveDonorRequest } from './portal-preferences'
 import { runtimeBindings } from '../../auth.server'
 import { operatorMail } from '../../mail.server.mjs'
 import { all, email, fail, one, sha256 } from '../db'
 import { e } from '../ui/common'
-import { requireStripe, stripe, type GivingEnv } from './stripe'
+import { type GivingEnv } from './stripe'
 import { cancellationPage, confirmationPage, invalidLinkPage, requestedPage, requestPage, subscriptionsPage, type PortalSubscription } from './portal-ui'
 
 const LINK_LIFETIME = 30 * 60_000, SESSION_LIFETIME = 60 * 60_000
 const TOKEN = /^[a-f0-9]{64}$/
-const routes = new Set(['/giving/portal', '/giving/portal/request', '/giving/portal/confirm', '/giving/portal/card', '/giving/portal/cancel', '/giving/portal/preferences'])
+const routes = new Set(['/giving/portal', '/giving/portal/request', '/giving/portal/confirm', '/giving/portal/card', '/giving/portal/cancel', '/giving/portal/preferences','/giving/portal/history','/giving/portal/document','/giving/portal/copy','/giving/portal/communications','/giving/portal/plan','/giving/portal/card-return','/giving/portal/property'])
 type Donor = { id: string; name: string; email: string | null }
 type Subscription = PortalSubscription & { customer_id: string; donor_id: string }
-type StripeSubscription = { id: string; customer: string | { id: string }; status: string; cancel_at_period_end: boolean }
 const context = (env: GivingEnv) => ({ db: env.DB })
 const randomToken = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2, '0')).join('')
 
@@ -72,29 +77,39 @@ function mailSender(env: GivingEnv) {
 }
 
 /** Only a hash is persisted. No development inbox or token response is created. */
-export async function emailPortalLink(original: GivingEnv, donorId: string, subject = 'Your private giving portal link'): Promise<boolean> {
+export async function emailPortalLink(original: GivingEnv, donorId: string, subject = 'Your private giving portal link', dispatch?: { body?: string; authorize?: () => Promise<void> }): Promise<boolean> {
  const env = runtimeBindings(original) as GivingEnv
- requireStripe(env)
  const sender = mailSender(env), base = origin(env)
- const donor = await one<Donor>(context(env), 'SELECT id,name,email FROM cf_donors WHERE id=? AND erased_at IS NULL', donorId)
- if (!donor?.email) return false
+ const donor = await one<Donor>(context(env), "SELECT id,name,email FROM cf_donors WHERE id=? AND erased_at IS NULL AND constituent_status='active'", donorId)
+ if (!donor?.email || !await one(context(env),`SELECT 1 WHERE ${uniquePortalEmail}`,donor.email,donor.email)) return false
+ const placeholder = '{{private_giving_portal_link}}'
+ const template = dispatch?.body ?? `Open your private giving portal to view your gifts and statements, manage recurring giving, or set your communication preferences:\n\n${placeholder}\n\nThis one-use link expires in 30 minutes. If you did not request it, you can ignore this email.`
+ if (!template.includes(placeholder)) fail('portal_template', 'The prepared message must include the private giving portal link.', 400)
  const token = randomToken(), hash = await sha256(token)
- const inserted = await env.DB.prepare(`INSERT INTO cf_donor_tokens(token_hash,donor_id,kind,expires_at,used_at)
-  SELECT ?,id,'link',?,NULL FROM cf_donors WHERE id=? AND erased_at IS NULL AND email=?`)
-  .bind(hash, Date.now() + LINK_LIFETIME, donor.id, donor.email).run()
+ const inserted = await env.DB.prepare(`INSERT INTO cf_donor_tokens(token_hash,donor_id,kind,expires_at,used_at,email_hash)
+  SELECT ?,id,'link',?,NULL,? FROM cf_donors WHERE id=? AND erased_at IS NULL AND constituent_status='active' AND email=?`)
+  .bind(hash, Date.now() + LINK_LIFETIME, await sha256(donor.email), donor.id, donor.email).run()
  if (inserted.meta.changes !== 1) return false
  const link = `${base}/giving/portal/confirm?token=${token}`
+ const message = {
+  deliveryId: crypto.randomUUID(), from: env.MAIL_FROM!, to: [donor.email], subject,
+  text: template.replaceAll(placeholder, link),
+  html: `<p>${e(template).replaceAll(placeholder, `<a href="${e(link)}">${e(link)}</a>`).replaceAll('\n', '<br>')}</p>`,
+  headers: {},
+ }
+ const discardUnusedToken = () => env.DB.prepare("DELETE FROM cf_donor_tokens WHERE token_hash=? AND kind='link' AND used_at IS NULL").bind(hash).run()
+ // No asynchronous preparation follows this final authority check. A refused
+ // dispatch preserves the caller's reason and never reaches the mail provider.
+ try { await dispatch?.authorize?.() } catch (error) {
+  await discardUnusedToken()
+  throw error
+ }
  try {
-  const result = await sender.send({
-   deliveryId: crypto.randomUUID(), from: env.MAIL_FROM!, to: [donor.email], subject,
-   text: `Open your private giving portal to view your monthly gifts, update your card, or cancel monthly giving:\n\n${link}\n\nThis one-use link expires in 30 minutes. If you did not request it, you can ignore this email.`,
-   html: `<p>Open your private giving portal to view your monthly gifts, update your card, or cancel monthly giving.</p><p><a href="${e(link)}">Open your giving portal</a></p><p>This one-use link expires in 30 minutes. If you did not request it, you can ignore this email.</p>`,
-   headers: {},
-  })
+  const result = await sender.send(message)
   if (result.status !== 'accepted') fail('mail_unavailable', 'The sign-in email could not be sent. Try again later.', 503)
   return true
  } catch {
-  await env.DB.prepare("DELETE FROM cf_donor_tokens WHERE token_hash=? AND kind='link'").bind(hash).run()
+  await discardUnusedToken()
   fail('mail_unavailable', 'The sign-in email could not be sent. Try again later.', 503)
  }
 }
@@ -104,8 +119,11 @@ async function session(request: Request, env: GivingEnv) {
  if (cookies.length !== 1) return null
  const token = cookies[0].slice(cookieName(env).length + 1)
  if (!TOKEN.test(token)) return null
- return one<Donor & {sessionHash:string}>(context(env), `SELECT d.id,d.name,d.email,t.token_hash AS sessionHash FROM cf_donor_tokens t JOIN cf_donors d ON d.id=t.donor_id
-  WHERE t.token_hash=? AND t.kind='session' AND t.used_at IS NULL AND t.expires_at>? AND d.erased_at IS NULL`, await sha256(token), Date.now())
+ const donor = await one<Donor & {sessionHash:string}>(context(env), `SELECT d.id,d.name,d.email,t.token_hash AS sessionHash FROM cf_donor_tokens t JOIN cf_donors d ON d.id=t.donor_id
+  WHERE t.token_hash=? AND t.kind='session' AND t.used_at IS NULL AND t.expires_at>? AND d.erased_at IS NULL AND d.constituent_status='active'`, await sha256(token), Date.now())
+ if(!donor)return null
+ await portalContext(env,donor)
+ return donor
 }
 
 async function confirm(request: Request, env: GivingEnv, token: string) {
@@ -113,90 +131,20 @@ async function confirm(request: Request, env: GivingEnv, token: string) {
  const hash = await sha256(token), now = Date.now()
  if (request.method === 'GET' || request.method === 'HEAD') {
   const valid = await one(context(env), `SELECT t.donor_id FROM cf_donor_tokens t JOIN cf_donors d ON d.id=t.donor_id
-   WHERE t.token_hash=? AND t.kind='link' AND t.used_at IS NULL AND t.expires_at>? AND d.erased_at IS NULL`, hash, now)
+   WHERE t.token_hash=? AND t.kind='link' AND t.used_at IS NULL AND t.expires_at>? AND d.erased_at IS NULL AND d.constituent_status='active' AND t.email_hash IS NOT NULL`, hash, now)
   return valid ? confirmationPage(token) : invalidLinkPage()
  }
  const newSession = randomToken(), sessionHash = await sha256(newSession)
  // The batch is one transaction: concurrent confirmation can create only one session.
  const result = await env.DB.batch([
-  env.DB.prepare(`INSERT INTO cf_donor_tokens(token_hash,donor_id,kind,expires_at,used_at)
-   SELECT ?,t.donor_id,'session',?,NULL FROM cf_donor_tokens t JOIN cf_donors d ON d.id=t.donor_id
-   WHERE t.token_hash=? AND t.kind='link' AND t.used_at IS NULL AND t.expires_at>? AND d.erased_at IS NULL`).bind(sessionHash, now + SESSION_LIFETIME, hash, now),
+  env.DB.prepare(`INSERT INTO cf_donor_tokens(token_hash,donor_id,kind,expires_at,used_at,email_hash)
+   SELECT ?,t.donor_id,'session',?,NULL,t.email_hash FROM cf_donor_tokens t JOIN cf_donors d ON d.id=t.donor_id
+   WHERE t.token_hash=? AND t.kind='link' AND t.used_at IS NULL AND t.expires_at>? AND d.erased_at IS NULL AND d.constituent_status='active' AND t.email_hash IS NOT NULL`).bind(sessionHash, now + SESSION_LIFETIME, hash, now),
   env.DB.prepare("UPDATE cf_donor_tokens SET used_at=? WHERE token_hash=? AND kind='link' AND used_at IS NULL AND expires_at>?").bind(now, hash, now),
  ])
  if (result[0].meta.changes !== 1) return invalidLinkPage()
  const secure = new URL(origin(env)).protocol === 'https:' ? '; Secure' : ''
  return redirect('/giving/portal', `${cookieName(env)}=${newSession}; Max-Age=3600; Path=/; HttpOnly; SameSite=Lax${secure}`)
-}
-
-const subscriptionQuery = `SELECT s.*,c.name AS campaign_name FROM cf_subscriptions s JOIN cf_campaigns c ON c.id=s.campaign_id`
-async function ownSubscription(env: GivingEnv, donor: Donor, id: string) {
- const found = await one<Subscription>(context(env), `${subscriptionQuery} WHERE s.id=? AND s.donor_id=?`, id, donor.id)
- if (!found) fail('not_found', 'That monthly gift is not on your account.', 404)
- return found
-}
-
-function validateSubscription(value: StripeSubscription, own: Subscription) {
- const customer = typeof value.customer === 'string' ? value.customer : value.customer?.id
- if (value.id !== own.id || customer !== own.customer_id) fail('subscription_changed', 'This monthly gift could not be verified. Contact the organization.', 409)
- if (!['active', 'trialing', 'past_due', 'unpaid', 'canceled', 'incomplete', 'incomplete_expired', 'paused'].includes(value.status) || typeof value.cancel_at_period_end !== 'boolean') fail('stripe_error', 'Stripe returned an unreadable subscription.', 502)
-}
-
-async function saveSubscription(env: GivingEnv, own: Subscription, value: StripeSubscription) {
- validateSubscription(value, own)
- await env.DB.prepare(`UPDATE cf_subscriptions SET status=?,cancel_at_period_end=?,updated_at=? WHERE id=? AND donor_id=? AND customer_id=?
-  AND EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL)`)
-  .bind(value.status, Number(value.cancel_at_period_end), new Date().toISOString(), own.id, own.donor_id, own.customer_id, own.donor_id).run()
-}
-
-async function cardConfiguration(env: GivingEnv) {
- const stored = await one<{ value: string }>(context(env), "SELECT value FROM cf_giving_config WHERE key='donor_card_configuration'")
- if (stored) {
-  const config = await stripe(env, `billing_portal/configurations/${encodeURIComponent(stored.value)}`)
-  const features = config.features ?? {}
-  const onlyCardUpdates = ['customer_update', 'invoice_history', 'subscription_cancel', 'subscription_update'].every(name => features[name]?.enabled === false)
-   && Object.keys(features).every(name => name === 'payment_method_update' || features[name]?.enabled !== true)
-  if (config.id === stored.value && config.active === true && features.payment_method_update?.enabled === true && onlyCardUpdates && config.login_page?.enabled === false) return stored.value
-  fail('portal_configuration_changed', 'Card updates are unavailable because the payment portal configuration changed. Contact the organization.', 503)
- }
- const config = await stripe(env, 'billing_portal/configurations', {
-  'features[payment_method_update][enabled]': true,
-  'features[customer_update][enabled]': false,
-  'features[invoice_history][enabled]': false,
-  'features[subscription_cancel][enabled]': false,
-  'features[subscription_update][enabled]': false,
-  'login_page[enabled]': false,
-  default_return_url: `${origin(env)}/giving/portal`,
- }, `coffer-donor-card-${await sha256(origin(env))}`)
- if (typeof config.id !== 'string' || !config.id.startsWith('bpc_')) fail('stripe_error', 'Stripe returned an unreadable portal configuration.', 502)
- await env.DB.prepare("INSERT INTO cf_giving_config(key,value) VALUES('donor_card_configuration',?) ON CONFLICT(key) DO NOTHING").bind(config.id).run()
- return config.id
-}
-
-async function providerAction(env: GivingEnv, donor: Donor, data: URLSearchParams, action: 'card' | 'cancel') {
- requireStripe(env)
- const own = await ownSubscription(env, donor, data.get('subscription') ?? '')
- const current = await stripe<StripeSubscription>(env, `subscriptions/${encodeURIComponent(own.id)}`)
- validateSubscription(current, own)
- if (action === 'cancel') {
-  if (data.get('confirm') !== 'yes') fail('confirmation_required', 'Confirm cancellation using the portal button.', 400)
-  const ended = ['canceled', 'incomplete_expired'].includes(current.status)
-  // Setting this flag is itself idempotent, including after an operator reinstates a gift.
-  const changed = ended || current.cancel_at_period_end ? current : await stripe<StripeSubscription>(env, `subscriptions/${encodeURIComponent(own.id)}`, { cancel_at_period_end: true })
-  await saveSubscription(env, own, changed)
-  return redirect('/giving/portal?cancelled=1')
- }
- await saveSubscription(env, own, current)
- const result = await stripe(env, 'billing_portal/sessions', {
-  customer: own.customer_id, configuration: await cardConfiguration(env), return_url: `${origin(env)}/giving/portal`,
-  'flow_data[type]': 'payment_method_update',
-  'flow_data[after_completion][type]': 'redirect',
-  'flow_data[after_completion][redirect][return_url]': `${origin(env)}/giving/portal`,
- })
- let destination: URL
- try { destination = new URL(result.url) } catch { fail('stripe_error', 'Stripe returned an unreadable portal address.', 502) }
- if (destination.protocol !== 'https:' || destination.hostname !== 'billing.stripe.com' || destination.username || destination.password || destination.port) fail('stripe_error', 'Stripe returned an unexpected portal address.', 502)
- return redirect(destination.href)
 }
 
 export async function portalResponse(request: Request, original: GivingEnv): Promise<Response | null> {
@@ -208,8 +156,7 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
  if (!read && request.method !== 'POST') fail('method_not_allowed', 'Use the portal buttons.', 405)
  if (path === '/giving/portal/request') {
   if (read) return redirect('/giving/portal')
-  requireStripe(env)
-  mailSender(env)
+   mailSender(env)
   const data = await form(request), address = email(data.get('email'))
   if (!address) fail('input', 'Enter your email address.', 400)
   const [byEmail, byIp] = await Promise.all([
@@ -235,9 +182,24 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
  }
  if (path === '/giving/portal') {
   if (!read) fail('method_not_allowed', 'Use the portal buttons.', 405)
-  return subscriptionsPage(donor.name, await all<Subscription>(context(env), `${subscriptionQuery} WHERE s.donor_id=? ORDER BY c.name,s.id`, donor.id), url.searchParams.get('cancelled') === '1')
+  return subscriptionsPage(donor.name, await all<Subscription>(context(env), `${planQuery} WHERE s.donor_id=? ORDER BY c.name,s.id`, donor.id), url.searchParams.get('cancelled') === '1',url.searchParams)
  }
- if (path === '/giving/portal/cancel' && read) return cancellationPage(await ownSubscription(env, donor, url.searchParams.get('subscription') ?? ''))
+ if(path==='/giving/portal/history'&&read)return givingHistory(env,donor,url.searchParams.get('copy')==='submitted')
+ if(path==='/giving/portal/property'&&read)return downloadProperty(env,donor,url.searchParams.get('ack')??'')
+ if(path==='/giving/portal/document'&&read)return downloadDocument(env,donor,url.searchParams.get('letter')??'',url.searchParams.get('view')==='1')
+ if(path==='/giving/portal/copy'&&!read){await requestDocumentCopy(env,donor,await form(request));return redirect('/giving/portal/history?copy=submitted')}
+ if(path==='/giving/portal/communications'){
+  if(read)return communicationPage(env,donor,url.searchParams.get('saved')==='1')
+  await withdrawEmail(env,donor,await form(request));return redirect('/giving/portal/communications?saved=1')
+ }
+ if(path==='/giving/portal/plan'){
+  if(read)return managePlanPage(env,donor,url.searchParams.get('subscription')??'')
+  return changePlan(env,donor,await form(request))
+ }
+ if(path==='/giving/portal/card-return'&&read)return paymentMethodReturn(env,donor,url.searchParams.get('request')??'')
+ if (path === '/giving/portal/cancel' && read) return cancellationPage((await ownPlan(env, donor, url.searchParams.get('subscription') ?? '')).own as unknown as PortalSubscription)
  if (read) fail('method_not_allowed', 'Use the portal buttons.', 405)
- return providerAction(env, donor, await form(request), path === '/giving/portal/card' ? 'card' : 'cancel')
+ if(path==='/giving/portal/card')return updatePaymentMethod(env,donor,await form(request))
+ if(path==='/giving/portal/cancel')return changePlan(env,donor,await form(request),true)
+ fail('not_found','This portal action is unavailable.',404)
 }

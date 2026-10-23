@@ -6,13 +6,7 @@ import { box, e, field, hidden, select } from '../ui/common'
 import { portalPage } from './portal-ui'
 import type { GivingEnv } from './stripe'
 
-type PortalDonor={id:string;name:string;email:string|null;sessionHash:string}
-const unambiguous=`(SELECT COUNT(*) FROM cf_donors x WHERE x.email=? AND x.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=x.id))=1`
-async function requestContext(env:GivingEnv,donor:PortalDonor){
- if(!donor.email||!await one({db:env.DB},`SELECT 1 WHERE ${unambiguous}`,donor.email))fail('portal_identity_ambiguous','Please ask the organization to record this request. This email address does not identify one current donor.',403)
- const now=Date.now()
- return {db:env.DB,now:new Date(now).toISOString(),actor:{id:'donor:'+donor.id,name:'Authenticated donor portal',role:'donor'},authority:{sql:`EXISTS(SELECT 1 FROM cf_donor_tokens t JOIN cf_donors d ON d.id=t.donor_id WHERE t.token_hash=? AND t.donor_id=? AND t.kind='session' AND t.used_at IS NULL AND t.expires_at>? AND d.erased_at IS NULL AND d.email=? AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)) AND ${unambiguous}`,params:[donor.sessionHash,donor.id,now,donor.email,donor.email]}}
-}
+import { portalContext as requestContext, type PortalDonor } from './portal-identity'
 /** The self-service door only strengthens a choice, retaining all merged original restrictions.
  * It never clears a staff/imported/original choice or grants channel consent. */
 export async function saveDonorRequest(env:GivingEnv,donor:PortalDonor,data:URLSearchParams){

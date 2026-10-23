@@ -1,6 +1,7 @@
+import { portalTimeline } from './giving/portal-timeline'
 import { date, fail, type Context } from './db'
 
-export const TIMELINE_KINDS=['call','meeting','email','note','visit','gift','pledge','receipt','appeal','task','volunteering'] as const
+export const TIMELINE_KINDS=['call','meeting','email','note','visit','gift','pledge','receipt','appeal','task','volunteering','portal'] as const
 export function timelineFilter(url?:URL){
  const kind=url?.searchParams.get('timelineKind')??'',from=url?.searchParams.get('timelineFrom')??'',to=url?.searchParams.get('timelineTo')??''
  if(kind && !TIMELINE_KINDS.includes(kind as any))fail('INPUT','Choose a timeline activity type.',400)
@@ -22,5 +23,5 @@ export async function timelineSources(c:Context,donorId:string){
   "SELECT 'appeal' AS kind,a.id,COALESCE(a.sent_on,substr(a.prepared_at,1,10)) AS day,a.prepared_at AS at,'Appeal' AS title,a.name||' · '||a.status AS body FROM cf_appeals a JOIN cf_appeal_recipients r ON r.appeal_id=a.id WHERE r.donor_id=? AND a.status<>'discarded'",
  ]
  const rows=await c.db.batch(queries.map(query=>c.db.prepare(query).bind(donorId)))
- return rows.flatMap(row=>row.results??[])
+ return [...rows.flatMap(row=>row.results??[]),...await portalTimeline(c,donorId)]
 }

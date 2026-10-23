@@ -41,4 +41,4 @@ export async function createCampaign(c: Context, raw: Record<string, any> | Form
  ])
  return { id, slug }
 }
-export const subscriptions = (c: { db: D1Database }, donorId: string) => all(c, 'SELECT s.*,c.name AS campaign FROM cf_subscriptions s JOIN cf_campaigns c ON c.id=s.campaign_id WHERE s.donor_id=? ORDER BY s.updated_at DESC', donorId)
+export const subscriptions = (c: { db: D1Database }, donorId: string) => all(c, 'SELECT s.*,c.name AS campaign,p.interval,p.interval_count,p.collection_paused FROM cf_subscriptions s JOIN cf_campaigns c ON c.id=s.campaign_id LEFT JOIN cf_portal_subscription_settings p ON p.subscription_id=s.id WHERE s.donor_id=? ORDER BY s.updated_at DESC', donorId)

@@ -36,7 +36,9 @@ export async function definedAppeal(c: { db: D1Database }, value: unknown): Prom
 /** Entry-door attribution: an optional single-gift campaign (on the gift's own fund), appeal and channel. */
 export async function entryAttribution(c: Context, p: Row, fund: string, split: boolean) {
  const campaignId = optional(p.campaignId, 'Campaign', 100), appeal = await definedAppeal(c, p.appeal)
- const channel = p.channel ? choice(p.channel, CHANNELS, 'gift channel') : null
+ const piece = appeal ? await one(c,'SELECT mail_appeal_id FROM cf_appeal_codes WHERE code=? AND mail_appeal_id IS NOT NULL',appeal) : null
+ if(piece&&p.channel&&p.channel!=='mail')fail('INPUT','A mail-piece response code uses the mail-piece channel.',400)
+ const channel = piece ? 'mail' : p.channel ? choice(p.channel, CHANNELS, 'gift channel') : null
  if (campaignId && split) fail('INPUT', 'A split gift names a campaign on each part.', 400)
  const statements = (giftId: string): Stmt[] => [
   ...(campaignId ? [guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=? AND fund=?)', 'CAMPAIGN_FUND', 'Choose a campaign raising for this gift’s fund.', campaignId, fund),

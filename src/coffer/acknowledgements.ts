@@ -19,6 +19,7 @@ export const DUE_ANY = `g.kind='gift' AND (g.amount_cents>=min(?,25000) OR (g.am
  AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
  AND NOT EXISTS(SELECT 1 FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1 AND (a.delivery_status NOT IN ('bounced','rejected','complained') OR a.printed_at IS NOT NULL))
  AND NOT ${UNRESOLVED_THANK_YOU}
+ AND g.received_on>=COALESCE((SELECT acknowledge_from FROM cf_receipt_autonomy WHERE id=1),'0001-01-01')
  AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)
  AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND (k.status<>'not acknowledged' OR k.outcome_unknown=1))`
 // An inactive constituent's gifts wait outside the letter list, counted under that reason (DONOR-012).
@@ -32,7 +33,8 @@ export async function dueGifts(c: { db: D1Database }) {
  await receiptFundLabels(c,rows)
  const held = await one<{ n: number }>(c, `SELECT count(*) AS n FROM cf_gift_balances g JOIN cf_donors d ON d.id=g.donor_id WHERE ${DUE_ANY} AND d.constituent_status='inactive'`, s.threshold_cents)
  return {
-  softCredits: s.thank_soft_credits ? await all(c,`SELECT s.id,s.gift_id,s.donor_id,d.name AS donor_name,g.received_on,min(s.amount_cents,g.net_cents) AS recognized_cents,COALESCE(a.version,0) AS version FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id JOIN cf_donors d ON d.id=s.donor_id LEFT JOIN cf_soft_credit_acknowledgments a ON a.soft_credit_id=s.id WHERE d.erased_at IS NULL AND d.constituent_status='active' AND g.net_cents>0 AND COALESCE(a.status,'not acknowledged')='not acknowledged' AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id) ORDER BY g.received_on,s.id`) : [],
+  softCredits: s.thank_soft_credits ? await all(c,`SELECT s.id,s.gift_id,s.donor_id,d.name AS donor_name,g.received_on,min(s.amount_cents,g.net_cents) AS recognized_cents,COALESCE(a.version,0) AS version FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id JOIN cf_donors d ON d.id=s.donor_id LEFT JOIN cf_soft_credit_acknowledgments a ON a.soft_credit_id=s.id WHERE d.erased_at IS NULL AND d.constituent_status='active' AND g.net_cents>0 AND g.received_on>=COALESCE((SELECT acknowledge_from FROM cf_receipt_autonomy WHERE id=1),'0001-01-01') AND COALESCE(a.status,'not acknowledged')='not acknowledged'
+ AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id) ORDER BY g.received_on,s.id`) : [],
   settings: s, today: day, held: { inactive: held?.n ?? 0 },
   gifts: rows.map((g): Row => { const due = addDays(g.received_on, s.target_days); return { ...g, due_on: due, overdue: day > due, age_days: daysBetween(g.received_on, day) } }),
  }
@@ -137,7 +139,11 @@ export async function batchDetail(c: { db: D1Database }, batchId: string) {
 }
 
 /** Annual statements freeze the complete calendar year, including late gifts. */
-export const currentLetterGiftsCondition = `NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.batch_id=? AND a.void_reason IS NULL AND b.kind='statement' AND (
- (a.household_id IS NULL AND (SELECT count(*) FROM cf_gift_balances g WHERE g.net_cents>0 AND g.donor_id=a.donor_id AND g.kind='gift' AND substr(g.received_on,1,4)=CAST(b.statement_year AS TEXT) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id))<>CASE WHEN b.one_piece_per='gift' THEN (SELECT COUNT(DISTINCT json_extract(j.value,'$.id')) FROM cf_acks other,json_each(other.statement_gifts) j WHERE other.batch_id=a.batch_id AND other.donor_id=a.donor_id) ELSE json_array_length(a.statement_gifts) END)
+const currentStatementGifts = (selection:string) => `NOT EXISTS(SELECT 1 FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE ${selection} AND a.void_reason IS NULL AND b.kind='statement' AND (
+ (a.household_id IS NULL AND (SELECT count(*) FROM cf_gift_balances g WHERE g.net_cents>0 AND g.donor_id=a.donor_id AND g.kind='gift' AND NOT EXISTS(SELECT 1 FROM cf_contribution_types t WHERE t.gift_id=g.id AND t.kind='daf') AND substr(g.received_on,1,4)=CAST(b.statement_year AS TEXT) AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id))<>CASE WHEN b.one_piece_per='gift' THEN (SELECT COUNT(DISTINCT json_extract(j.value,'$.id')) FROM cf_acks other,json_each(other.statement_gifts) j WHERE other.batch_id=a.batch_id AND other.donor_id=a.donor_id) ELSE json_array_length(a.statement_gifts) END)
  OR EXISTS(SELECT 1 FROM json_each(a.statement_gifts) j WHERE NOT EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=json_extract(j.value,'$.id') AND g.version=json_extract(j.value,'$.version') AND (a.household_id IS NULL OR g.donor_id=json_extract(j.value,'$.donor_id')) AND g.net_cents=json_extract(j.value,'$.amount_cents') AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)))))`
+export const currentLetterGiftsCondition = currentStatementGifts('a.batch_id=?')
+/** Donor downloads validate their own document, so another recipient's voided
+ * letter cannot make an unchanged frozen statement disappear. */
+export const currentDocumentGifts = (letterId:string) => guard(`(${currentStatementGifts('a.id=?')}) AND EXISTS(SELECT 1 FROM cf_acks WHERE id=? AND void_reason IS NULL)`, 'GIFT_CHANGED', 'This receipt or statement changed. Contact the organization for its approved correction.',letterId,letterId)
 export const currentLetterGifts = (batchId: string) => guard(`(${currentLetterGiftsCondition}) AND NOT EXISTS(SELECT 1 FROM cf_acks WHERE batch_id=? AND void_reason IS NOT NULL)`, 'GIFT_CHANGED', 'A receipt or statement gift changed. Open its voided copy and prepare a correction.', batchId, batchId)

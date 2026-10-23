@@ -13,14 +13,15 @@ export const UNRESOLVED_THANK_YOU = `EXISTS(SELECT 1 FROM cf_welcome_enrollments
 export async function withGiftAcknowledgments(c: {db:D1Database}, gifts:Row[]) {
  if(!gifts.length)return
  const ids=JSON.stringify(gifts.map(g=>g.id))
- const [recorded,prior,held]=await Promise.all([
+ const [recorded,prior,held,cutoff]=await Promise.all([
   all(c,`SELECT k.*,a.delivery_status,a.submitted_at,CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event='delivered' AND e.signature_verified=1) THEN 1 ELSE 0 END AS provider_delivered, i.notes AS interaction_content,n.body AS note_content,COALESCE(n.confidential,0) AS note_confidential FROM cf_gift_acknowledgments k LEFT JOIN cf_acks a ON a.id=k.letter_id LEFT JOIN cf_interactions i ON i.id=k.interaction_id LEFT JOIN cf_donor_notes n ON n.id=k.note_id WHERE k.gift_id IN (SELECT value FROM json_each(?))`,ids),
   all(c,'SELECT gift_id FROM cf_prior_acknowledgements WHERE gift_id IN (SELECT value FROM json_each(?))',ids),
   all(c,`SELECT g.id FROM cf_gifts g WHERE g.id IN (SELECT value FROM json_each(?)) AND ${UNRESOLVED_THANK_YOU}`,ids),
+  one(c,'SELECT acknowledge_from FROM cf_receipt_autonomy WHERE id=1'),
  ])
  const byId=new Map(recorded.map(r=>[r.gift_id,r])),beforeCutoff=new Set(prior.map(r=>r.gift_id))
  for(const gift of gifts){
-  gift.before_acknowledge_from=beforeCutoff.has(gift.id)
+  gift.before_acknowledge_from=beforeCutoff.has(gift.id)||Boolean(cutoff?.acknowledge_from&&gift.received_on<cutoff.acknowledge_from)
   gift.acknowledgment=byId.get(gift.id)??(beforeCutoff.has(gift.id)?{status:'acknowledged',source:'Reviewed move-in cutoff',acknowledged_on:null,method:null,batch_id:null,letter_id:null,reason:null}:{status:'not acknowledged',version:0})
   const a=gift.acknowledgment
   if(a.status==='not acknowledged'&&held.some(h=>h.id===gift.id))a.outcome_unknown=1

@@ -1,5 +1,7 @@
+import { policyConfigured } from './recovery-notices-rules'
+import { advanceRecoveryNotices } from './recovery-notices'
 import { automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
-import { all, commit, fail, newId, one, sql, today, type Context, type Row } from '../db'
+import { all, commit, fail, guard, newId, one, sql, today, type Context, type Row } from '../db'
 import { settings } from '../settings'
 import { emailPortalLink } from '../giving/portal'
 import { stripeId } from '../giving/recording'
@@ -42,15 +44,21 @@ export async function checkCardExpiry(c: Context, env: GivingEnv, current: Row) 
  await commit(c,[sql('DELETE FROM cf_card_expiry_notices WHERE subscription_id=? AND (expiry_year<>? OR expiry_month<>?)',saved.id,year,month)])
  const day=today((await settings(c)).timezone,new Date(c.now)), currentYear=Number(day.slice(0,4)), currentMonth=Number(day.slice(5,7))
  if (year!==currentYear+(currentMonth===12?1:0) || month!==(currentMonth===12?1:currentMonth+1)) return
+ if(await policyConfigured(c)){
+  const key='expiry:'+saved.id+':'+year+'-'+String(month).padStart(2,'0'),previous=await one(c,'SELECT case_started_at FROM cf_recovery_steps WHERE invoice_id=? ORDER BY ordinal LIMIT 1',key)
+  const intent=await one(c,"SELECT amount_cents FROM cf_giving_intents WHERE customer_id=? AND frequency='monthly' ORDER BY created_at LIMIT 1",saved.customer_id)
+  await advanceRecoveryNotices(c,env,saved.id,key,'expiry',intent?.amount_cents??saved.amount_cents,previous?.case_started_at??c.now,{methodId,year,month})
+  return
+ }
  if(await one(c,'SELECT subscription_id FROM cf_card_expiry_notices WHERE subscription_id=? AND payment_method_id=? AND expiry_year=? AND expiry_month=?',saved.id,methodId,year,month))return
  await claimAutomation(c,'recovery.expiry',1,saved.donor_id)
  const claimId=newId()
- await commit(c,[sql(`INSERT OR IGNORE INTO cf_card_expiry_notices(subscription_id,payment_method_id,expiry_year,expiry_month,claim_id,state,checked_at)
+ await commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NULL)','POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),sql(`INSERT OR IGNORE INTO cf_card_expiry_notices(subscription_id,payment_method_id,expiry_year,expiry_month,claim_id,state,checked_at)
   SELECT s.id,?,?,?,?,'sending',? FROM cf_subscriptions s JOIN cf_donors d ON d.id=s.donor_id
   WHERE s.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`,methodId,year,month,claimId,c.now,saved.id)])
  if (!await one(c,'SELECT subscription_id FROM cf_card_expiry_notices WHERE claim_id=?',claimId)) return
  let state='failed'
- try { state=await emailPortalLink(env,saved.donor_id,'Your monthly gift card expires next month')?'sent':'skipped' } catch { /* Keep an uncertain send visible; do not resend automatically. */ }
+ try { state=await emailPortalLink(env,saved.donor_id,'Your monthly gift card expires next month',{authorize:()=>commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NULL)','POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),guard('EXISTS(SELECT 1 FROM cf_card_expiry_notices WHERE subscription_id=? AND claim_id=? AND payment_method_id=?)','CARD_CHANGED','The current default card changed.',saved.id,claimId,methodId)])})?'sent':'skipped' } catch { /* Keep an uncertain send visible; do not resend automatically. */ }
  await commit(c,[sql('UPDATE cf_card_expiry_notices SET state=?,checked_at=? WHERE subscription_id=? AND claim_id=?',state,c.now,saved.id,claimId)])
  await action(c,{kind:'recovery.expiry_'+state,subjectId:saved.id,summary:state==='sent'?'Card-expiry portal warning accepted by the mail provider.':state==='skipped'?'No deliverable account for the card-expiry warning.':'Card-expiry email failed or delivery is uncertain.',why:'The current default card expires next calendar month in the organization’s time zone. This is a transactional notice, not an ask.'})
 }

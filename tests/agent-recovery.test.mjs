@@ -195,3 +195,8 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
   assert.ok(!JSON.stringify(await archive(h)).includes('pm_replacement'),'Erasure removes the opaque payment-method reference')
  }, { bindings: { STRIPE_SECRET_KEY: 'sk_test_recovery_edge', STRIPE_WEBHOOK_SECRET: secret }, outbound })
 })
+
+test('DEV-002: explicit standing approval and donor permissions govern scheduled notices, named-lead review, real portal stops and recovery attribution',async()=>{
+ const {recoveryNoticesJourney}=await import('./recovery-notices-journey.mjs')
+ await recoveryNoticesJourney()
+})

@@ -56,7 +56,7 @@ export async function preview(c: Context,input: ParseInput) {
 }
 
 /** Approves the staged review and applies its first parts. */
-export async function apply(c: Context,input:{id:string;fingerprint:string;acceptedReason?:string;acknowledged?:string;acknowledgedBefore?:string}) {
+export async function apply(c: Context,input:{id:string;fingerprint:string;acceptedReason?:string;acknowledged?:string;acknowledgedBefore?:string;acknowledgeFrom?:string}) {
  authorize(c)
  const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',String(input.id??''))
  if(!job)fail('MOVE_IN_CHANGED','Upload the exports and review them again.',409)
@@ -67,8 +67,11 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  if(report.canApply===false || !job.parts)fail('MOVE_IN_ERRORS','This review has rows that must be fixed first. Fix them in your files and upload them again.',409)
  const acceptedReason=optional(input.acceptedReason,'Reason for accepting differences',2000)
  if(report.needsAcceptance && !acceptedReason)fail('MOVE_IN_TOTALS','Say why the differences or unused columns are acceptable before moving in, or fix the files and upload again.')
+ const acknowledgeFrom=input.acknowledgeFrom?date(input.acknowledgeFrom,'Acknowledge from'):null
+ if(acknowledgeFrom&&c.actor.role!=='owner')fail('FORBIDDEN','Only the owner sets the installation acknowledge-from date during move-in.',403)
  const acknowledgedBefore=input.acknowledged==='no'?null:date(input.acknowledgedBefore||today((await settings(c)).timezone,new Date(c.now)),'Thanked before')
  await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='reviewed' AND fingerprint=?)",'MOVE_IN_CHANGED','This move-in changed. Review it again.',job.id,job.fingerprint),
+  ...(acknowledgeFrom?[sql('UPDATE cf_receipt_autonomy SET version=version+1,acknowledge_from=?,updated_at=?,updated_by=? WHERE id=1',acknowledgeFrom,c.now,c.actor.id),event(c,'agent.receipts.cutoff','receipt_autonomy','1',null,{acknowledgeFrom,moveInId:job.id})]:[]),
   sql("UPDATE cf_move_in_jobs SET state='applying',accepted_reason=?,acknowledged_before=?,created_at=?,created_by=? WHERE id=?",acceptedReason,acknowledgedBefore,c.now,c.actor.name,job.id),
   event(c,'move-in.apply','move-in',job.id,null,{source:job.source,counts:report.counts,parts:job.parts,acceptedDifferences:!!acceptedReason,acknowledgedBefore})])
  return continueApply(c,job.id)

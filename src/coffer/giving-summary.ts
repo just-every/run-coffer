@@ -27,7 +27,7 @@ export async function givingSummary(c: { db: D1Database; now?: string }, donorId
  while ((years.get(year) ?? 0) > 0) { streak++; year-- }
  const largest = balances.reduce<Row | null>((best, gift) => !best || gift.net_cents > best.net_cents ? gift : best, null)
  const gift = (g: Row | null | undefined) => g ? { id: g.id, receivedOn: g.received_on, amountCents: g.net_cents, originalAmountCents: g.amount_cents, fund: g.fund } : null
- const recurring = history.subscriptions.map(plan => ({ id: plan.id, status: plan.status, amountCents: plan.amount_cents, cancelAtPeriodEnd: !!plan.cancel_at_period_end }))
+ const recurring = history.subscriptions.map(plan => ({ id: plan.id, status: plan.status, amountCents: plan.amount_cents, cancelAtPeriodEnd: !!plan.cancel_at_period_end,interval:plan.interval??null,intervalCount:plan.interval_count??null,collectionsPaused:!!plan.collection_paused }))
  return {
   lifetimeCents: history.gifts.reduce((n, g) => n + g.amount_cents, 0),
   firstGift: gift(balances[0]), largestGift: gift(largest), lastGift: gift(balances.at(-1)), giftCount: balances.length,

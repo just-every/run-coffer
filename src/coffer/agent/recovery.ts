@@ -1,3 +1,5 @@
+import { policyConfigured } from './recovery-notices-rules'
+import { advanceRecoveryNotices, settleRecoveryNotices } from './recovery-notices'
 import { automated, automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
 import { manager } from '../auth'
 import { all, choice, commit, event, fail, guard, one, sql, text, type Context, type Row } from '../db'
@@ -37,20 +39,22 @@ export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, in
   summary: state === 'recovered' ? 'Monthly gift recovered at Stripe; the paid gift is recorded.' : state === 'lapsed' ? 'Monthly gift lapsed at Stripe.' : 'Failed monthly gift is waiting on Stripe recovery.',
   why: `Current Stripe invoice and subscription state: ${current.status}; ${sub.status}. Stripe owns the retry schedule.`,
  })
+ await settleRecoveryNotices(c,sub.id,current.id,state,state==='recovered'?new Date(current.status_transitions.paid_at*1000).toISOString():c.now)
  if (state === 'lapsed') await exhaustedTask(c,current.id,sub.id)
  if (state !== 'waiting' || previous?.state === 'recovered') return
+ if(await policyConfigured(c)){await advanceRecoveryNotices(c,env,sub.id,current.id,'failure',intent.amount_cents,previous?.created_at??c.now);return}
  // One atomic claim across duplicate events and concurrent Worker instances.
  // A crash after the claim is deliberately visible as uncertain; sending again
  // would risk duplicate mail because emailPortalLink has no idempotent delivery API.
  if(previous && previous.notice_state!=='pending')return
  await claimAutomation(c,'recovery.notice',1,intent.donor_id)
  const claimId=newId()
- await commit(c,[sql(`UPDATE cf_agent_recovery SET notice_state='sending',notice_event_id=?,notice_at=?,notice_claim_id=?
+ await commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NULL)','POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),sql(`UPDATE cf_agent_recovery SET notice_state='sending',notice_event_id=?,notice_at=?,notice_claim_id=?
   WHERE invoice_id=? AND notice_state='pending' AND state='waiting'`,failureEventId??null,c.now,claimId,current.id)])
  if(!await one(c,'SELECT invoice_id FROM cf_agent_recovery WHERE invoice_id=? AND notice_claim_id=?',current.id,claimId))return
  await action(c, { kind: 'recovery.card_link_requested', subjectId: current.id, summary: 'Requested one private card-update email.', why: 'The monthly invoice failed. Email cannot be unsent; an interrupted send needs review before any new invitation.' })
  let notice = 'failed'
- try { notice = await emailPortalLink(env, intent.donor_id, 'Update your card for your monthly gift') ? 'sent' : 'skipped' } catch { /* Persist failure; never automatically repeat an uncertain external send. */ }
+ try { notice = await emailPortalLink(env, intent.donor_id, 'Update your card for your monthly gift',{authorize:()=>commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NULL)','POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),guard("EXISTS(SELECT 1 FROM cf_agent_recovery WHERE invoice_id=? AND state='waiting' AND notice_claim_id=?)",'RECOVERY_STOPPED','The recovery notice was stopped.',current.id,claimId)])}) ? 'sent' : 'skipped' } catch { /* Persist failure; never automatically repeat an uncertain external send. */ }
  await commit(c,[sql('UPDATE cf_agent_recovery SET notice_state=?,notice_at=? WHERE invoice_id=?',notice,new Date().toISOString(),current.id)])
  await action(c, { kind: `recovery.card_link_${notice}`, subjectId: current.id, summary: notice === 'sent' ? 'Private card-update email accepted by the mail provider.' : notice === 'skipped' ? 'Card-update email unavailable: donor has no deliverable account.' : 'Card-update email failed or its delivery is uncertain.', why: notice === 'sent' ? 'The donor can update their card in the secure giving portal. This email cannot be unsent.' : 'No automatic resend is scheduled. Review delivery before contacting the donor through the existing giving portal.' })
 }

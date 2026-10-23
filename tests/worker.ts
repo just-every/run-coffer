@@ -1,3 +1,4 @@
+import { prepareJanuaryStatements } from '../src/coffer/annual-scheduler'
 import { advanceNcoa } from '../src/coffer/addresses/scheduler'
 import { advancePledgeTasks } from '../src/coffer/pledges'
 import { advanceMeetingBriefs } from '../src/coffer/meeting-briefs'
@@ -7,4 +8,4 @@ import { advanceRecurringTasks } from '../src/coffer/recurring-tasks'
 import { rejectedResponse } from '../src/base/rejected-response'
 import { authResponse } from '../src/auth.server'
 import { cofferResponse } from '../src/coffer/http'
-export default { async scheduled(controller: ScheduledController, env: any) { await advanceNcoa(env,new Date(controller.scheduledTime)); await advancePledgeTasks(env,new Date(controller.scheduledTime)); await advanceRecurringTasks(env,new Date(controller.scheduledTime)); await advanceMeetingBriefs(env,new Date(controller.scheduledTime)) }, async fetch(request: Request, env: any) { const response = await authResponse(request, env) ?? await cofferResponse(request, env) ?? new Response('Not found', { status: 404 }); return rejectedResponse(request, response) } }
+export default { async scheduled(controller: ScheduledController, env: any) { await prepareJanuaryStatements(env,new Date(controller.scheduledTime)); await advanceNcoa(env,new Date(controller.scheduledTime)); await advancePledgeTasks(env,new Date(controller.scheduledTime)); await advanceRecurringTasks(env,new Date(controller.scheduledTime)); await advanceMeetingBriefs(env,new Date(controller.scheduledTime)) }, async fetch(request: Request, env: any) { const response = await authResponse(request, env) ?? await cofferResponse(request, env) ?? new Response('Not found', { status: 404 }); return rejectedResponse(request, response) } }

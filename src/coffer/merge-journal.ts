@@ -79,6 +79,9 @@ const descriptions = [
  owned('cf_campaign_gifts',`n.gift_id IN (${gifts})`,['gift_id'],false),
  owned('cf_subscription_gifts',`n.gift_id IN (${gifts}) OR n.subscription_id IN (${subscriptions})`,['gift_id'],false),
  owned('cf_agent_recovery',`n.subscription_id IN (${subscriptions})`,['invoice_id'],false),
+ // Contact authority is invalidated by identity movement and needs explicit reconfirmation, including after undo.
+ owned('cf_recovery_permissions',undefined,['donor_id'],false),
+ owned('cf_recovery_steps',`n.subscription_id IN (${subscriptions}) OR n.donor_id IN ${pair}`,['id'],false),
  owned('cf_stewardship_versions',`n.draft_id IN (SELECT id FROM cf_stewardship_drafts WHERE donor_id IN ${pair})`,['draft_id','version'],false),
  owned('cf_move_in_records',`n.donor_id IN ${pair} OR n.related_id IN ${pair}`,['source','kind','source_key'],false),
  owned('cf_move_in_job_gifts',`n.gift_id IN (${gifts})`,['job_id','gift_id'],false),

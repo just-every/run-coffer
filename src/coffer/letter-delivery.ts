@@ -1,3 +1,4 @@
+import { portalCopyEvents } from './giving/portal-copy-delivery'
 import { ackMailPieces } from './ack-mail-pieces'
 import { receiptAcceptance } from './gift-ack-receipt'
 import { readReceiptDelivery } from './receipt-activity'
@@ -135,4 +136,5 @@ async function recordDeliveryEvents(db: D1Database, incoming: Row[], signed=fals
    delivery_note=CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event IN ('bounced','complained')) THEN 'Email did not reach the donor. Correct the email address; this letter is in the print batch.' ELSE delivery_note END
    WHERE id IN (SELECT json_extract(value,'$.letterId') FROM json_each(?))`).bind(payload),
  ])
+ await portalCopyEvents(db,incoming,signed)
 }

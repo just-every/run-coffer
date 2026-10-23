@@ -12,13 +12,21 @@ Payout membership, account mappings, unsupported currencies and missing refunded
 
 ## Monthly recovery
 
-Signed invoice events read current Stripe invoice and subscription state, track the failure and request one private card-update email per invoice. The existing donor portal lets the donor update their payment method in Stripe Billing Portal. Stripe owns scheduled payment retries; Coffer never creates an extra charge. Daily checks also discover missed webhook failures and record **waiting**, **recovered** or **lapsed** outcomes.
+Signed invoice events and daily checks read current Stripe invoice and subscription state. Stripe owns payment retries; Coffer never creates an extra charge. Before a recovery notice policy is configured, existing transactional single-notice behavior remains. Any explicit policy configuration, including off, takes over that sending boundary.
 
-The activity page records who, what and why. Pausing/resuming Coffer’s checks is reversible; it does not pause Stripe’s charges. A durable mail claim prevents duplicate automatic invitations. An interrupted or failed submission is visible for human investigation. Submitted email cannot be unsent, and settled charges cannot be undone from Coffer.
+Under **Recovery notice approval**, an owner/admin explicitly designates themselves as the development lead and approves the standing policy. Each donor also needs recorded recovery-contact permission, a permitted email/mail/phone channel, a minimum interval and a maximum notices per failure. Standard email notices send under that approval; major donors and changed plan amounts require the named lead’s approval of the exact prepared version. Mail and phone produce a script for a person to complete with evidence. Source links cite actual plan, giving, consent and interaction facts. Frequency counts contacts across the donor’s plans, including moved plans and uncertain attempts.
+
+Follow-ups stop after a provider-confirmed payment-method update, recovery, lapse or explicit closure. Merely opening Stripe does not count as replacing a card. Current default-card expiry uses the same policy and review rules. Outcomes identify the last actual contact before recovery without claiming it caused the payment. Every mail claim rechecks current grant, policy, donor permission, consent, plan amount, named-lead approval and stop state immediately before sending. Uncertain submissions wait for investigation. Submitted email cannot be recalled; pausing Coffer does not pause Stripe charges.
+
+The current owner/admin development-lead designation and invalidation of contact permission on merge (including no automatic regrant on undo) are conservative adopted defaults pending ct approval. Moving a plan never silently transfers its source donor’s contact authority.
 
 ## Missing receipts
 
-The agent finds unreceipted gifts of every amount and bounced/rejected receipts. Unknown goods/services answers remain held. It freezes a prepared batch in **Letters**; a person reviews and approves the exact wording before sending or printing. Consent and address are rechecked at dispatch. Bounced addresses route to print. It never automatically resends an uncertain submission. Preparing a batch can be undone before any letters are routed.
+The agent finds not-acknowledged gifts past target, corrected bounced receipts and undelivered year-end statements. The installation’s acknowledge-from date excludes older gifts without inventing an acknowledgment. Gifts already acknowledged in Coffer or before move-in, or marked do not acknowledge, never enter its proposals.
+
+Without a selected standing-approved key, preparation waits for human approval in **Letters**. An owner/admin may explicitly select a named key whose grant approves the current receipt template. Standard receipts then use the real native sender under both the background grant and key’s current donor scope, template version, daily limits and global stop. Large gifts, unknown goods values, missing addresses, complex recipients and uncertain deliveries remain visible human holds. The largest-standard-gift amount is reviewed by the admin.
+
+Year-end recovery requires an explicit owner/admin action on an already human-approved, never-submitted statement. Accepted or uncertain submissions are investigated rather than submitted again. Failed addresses need correction or mailing. A prepared batch can be undone before dispatch; a submitted email cannot be recalled.
 
 ## Stewardship and AI setup
 
@@ -56,4 +64,4 @@ Agent keys can be attached to a named, versioned grant through owner/admin comma
 
 `tests/agent-grants-journey.mjs` exports `agentGrantsJourney()` for the test suite's registration. It proves named authority, scoped records, standing template approval, shared daily limits, narrowing and both kill switches through real HTTP and MCP, with only the paid mail submission edge replaced. It does not establish live SendGrid delivery or browser layout.
 
-Existing scheduled reconciliation, recurring-payment notices, missing-receipt preparation and meeting readiness now use named background grants. Owners and admins can stop them, narrow donor scope where meaningful, or reduce daily action limits under Agent → Background grants. The global switch also stops those jobs. These grants preserve existing transactional notice capabilities; they enable no new receipt sending. Quota reservations and each agent event retain grant identity and revision. Installation authority and usage are excluded from donor archives.
+Existing scheduled reconciliation, recurring-payment notices, missing-receipt preparation, January statement preparation and meeting readiness use named background grants. Owners and admins can stop them, narrow donor scope where meaningful, or reduce daily action limits under Agent → Background grants. The global switch also stops those jobs. These grants preserve existing transactional notice capabilities; they enable no new receipt sending. Quota reservations and each agent event retain grant identity and revision. Installation authority and usage are excluded from donor archives.

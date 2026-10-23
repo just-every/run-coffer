@@ -4,7 +4,7 @@ import {createHmac,randomUUID} from 'node:crypto'
 import {run,donor} from './harness.mjs'
 import {fixedNow} from './fixed-clock.mjs'
 
-const webhookSecret='whsec_giving_test_edge'
+const webhookSecret='synthetic-coffer-3001'
 const form=(values,as='')=>({method:'POST',as,headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(values).toString()})
 const cookie=response=>response.headers.getSetCookie().map(value=>value.split(';')[0]).join('; ')
 
@@ -12,13 +12,14 @@ const cookie=response=>response.headers.getSetCookie().map(value=>value.split(';
 // campaign totals and portal authorization all run through the real HTTP handlers.
 function stripeEdge() {
  const state={attempt:1,status:'past_due',cancelled:false,intent:null}
- const subscription=()=>({id:'sub_monthly',customer:'cus_monthly',metadata:{coffer_intent:state.intent},status:state.status,cancel_at_period_end:state.cancelled,items:{data:[{price:{unit_amount:2500}}]},latest_invoice:'in_monthly'})
+ const subscription=()=>({id:'sub_monthly',customer:'cus_monthly',metadata:{coffer_intent:state.intent},status:state.status,cancel_at_period_end:state.cancelled,items:{data:[{id:'si_monthly',quantity:1,price:{id:'price_monthly',unit_amount:2500,currency:'usd',product:'prod_reading',recurring:{interval:'month',interval_count:1}}}]},latest_invoice:'in_monthly'})
  const invoice=()=>({id:'in_monthly',customer:'cus_monthly',currency:'usd',parent:{type:'subscription_details',subscription_details:{subscription:'sub_monthly'}},status:state.status==='active'?'paid':'open',amount_paid:state.status==='active'?2500:0,attempt_count:state.attempt,next_payment_attempt:state.status==='active'?null:Math.floor(Date.now()/1000)+86400,status_transitions:{paid_at:state.status==='active'?Math.floor(Date.now()/1000):null}})
  const outbound=async request=>{
   const url=new URL(request.url)
   assert.equal(url.hostname,'api.stripe.com')
   const params=new URLSearchParams(await request.text())
   if(url.pathname==='/v1/customers'&&request.method==='POST')return Response.json({id:'cus_monthly'})
+  if(url.pathname==='/v1/customers/cus_monthly'&&request.method==='GET')return Response.json({id:'cus_monthly',invoice_settings:{default_payment_method:'pm_current'}})
   if(url.pathname==='/v1/checkout/sessions'&&request.method==='POST') {
    assert.equal(params.get('mode'),'subscription')
    assert.equal(params.get('line_items[0][price_data][unit_amount]'),'2500')
@@ -238,7 +239,7 @@ test('CAMP-001: recurring campaign progress; a failed monthly donation recovers 
   assert.equal(expiredPortal.status,200)
   assert.doesNotMatch(await expiredPortal.text(),/name="subscription" value="sub_monthly"/)
   assert.equal((await summary()).raised_cents,2500,'Erasure keeps anonymous financial history')
- },{entry:'tests/fixed-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'sk_test_network_edge',STRIPE_WEBHOOK_SECRET:webhookSecret},outbound:edge.outbound})
+ },{entry:'tests/fixed-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-3002',STRIPE_WEBHOOK_SECRET:webhookSecret},outbound:edge.outbound})
 })
 
 test('REPORT-006: monthly health preserves starts, amount changes, failed payments, recoveries and cancellations across the clock',async()=>{
@@ -250,3 +251,6 @@ test('REPORT-006: monthly health preserves starts, amount changes, failed paymen
 test('GIFT-011: checkout publication choices, donor and gift anonymity, honor rolls and custody',async()=>{const {recognitionJourney}=await import('./recognition-journey.mjs');await recognitionJourney()})
 
  test('CAMP-001 / GIVE-002 / PAY-004: dated campaigns reconcile gifts and custody; public media pages close new giving and count donors',async()=>{const {campaignProgressJourney}=await import('./campaign-progress-journey.mjs');await campaignProgressJourney();const {campaignPageJourney}=await import('./campaign-page-journey.mjs');await campaignPageJourney();const {feeCoverJourney}=await import('./fee-cover-journey.mjs');await feeCoverJourney()})
+
+
+test('GIVE-005: donor-only documents, plan self-service, verified card replacement, preferences and owned cancellation follow-up',async()=>{const {portalJourney}=await import('./portal-journey.mjs');await portalJourney()})
