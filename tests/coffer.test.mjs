@@ -365,3 +365,5 @@ test('DONOR-013: typed contact points, atomic primary receipts, all-contact look
 test('DONOR-005: typed records, live tag segments, exact gift grouping and pick-list renames keep their values',async()=>{const {customFieldsJourney}=await import('./custom-fields-journey.mjs');await customFieldsJourney()})
 
 test('MOBILE-001: phone lookup, call, meeting, gift and tasks use direct actions with visible restrictions and every staff screen fits',async()=>{const {mobileJourney}=await import('./mobile-journey.mjs');await mobileJourney()})
+
+test('DEV-012: named and preparation grants enforce scope, template approval, atomic limits and immediate stops through HTTP, MCP and scheduled jobs',async()=>{const {agentGrantsJourney}=await import('./agent-grants-journey.mjs');const {automationGrantsJourney}=await import('./automation-grants-journey.mjs');await agentGrantsJourney();await automationGrantsJourney()})

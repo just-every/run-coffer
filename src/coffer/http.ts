@@ -1,3 +1,4 @@
+import { agentGrantsPanel } from './ui/agent-grants'
 import { reservePreparationGrant } from './agent-grants-legacy'
 import { agentGrantsState } from './agent-grants'
 import { grantedRead } from './agent-grants-reads'
@@ -673,7 +674,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved')))
  if (path === '/app/data') {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
-  return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited'), now: Date.parse(c.now), timeZone: (await settings(c)).timezone }))
+  return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited'), now: Date.parse(c.now), timeZone: (await settings(c)).timezone }) + await agentGrantsPanel(c))
  }
  if (path === '/app/move-in') { if (!manager(actor)) fail('manager_required', 'Only the owner or an admin moves records in.', 403); return show('Move in from Stripe', moveInPage(await imports.jobs(c.db as any), today((await settings(c)).timezone, new Date(c.now)), stripeAvailable(c.env!))) }
  if (path === '/app/backup') fail('post_required', 'Use the backup button.', 405)
