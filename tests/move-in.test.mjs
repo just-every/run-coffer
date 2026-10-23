@@ -344,11 +344,11 @@ test('DONOR-001 / DONOR-006: asynchronous incumbent imports keep distinct shared
   await donor(h,'Synthetic Refused Staff Identity',{email:shared},{status:409})
   const csv=(name,rows)=>({name,base64:Buffer.from(rows.map(r=>r.join(',')).join('\r\n')+'\r\n').toString('base64')})
   const input={source,files:[csv('constituents.csv',[
-   [donorColumn,'Name','Email','Email 2','Email 2 Type','Phone','Address','City','State','ZIP','Household Name'],
-   ['synthetic-coffer-1503','Synthetic Source Identity',shared,'synthetic-coffer-1505@example.test','work','202-555-0151','151 Shared Street','Madison','WI','53703',''],
-   ['synthetic-coffer-1504','Synthetic Source Identity',shared,'synthetic-coffer-1505@example.test','work','202-555-0151','151 Shared Street','Madison','WI','53703',''],
-   ['synthetic-coffer-1506','Synthetic Household One',family,'','','202-555-0152','152 Family Street','Madison','WI','53703','Synthetic Import Family'],
-   ['synthetic-coffer-1507','Synthetic Household Two',family,'','','202-555-0152','152 Family Street','Madison','WI','53703','Synthetic Import Family'],
+   [donorColumn,'Name','Email','Email 2','Email 2 Type','Phone','Address','City','State','ZIP','Household ID','Household Name'],
+   ['synthetic-coffer-1503','Synthetic Source Identity',shared,'synthetic-coffer-1505@example.test','work','202-555-0151','151 Shared Street','Madison','WI','53703','synthetic-coffer-1511','Unrelated Source One'],
+   ['synthetic-coffer-1504','Synthetic Source Identity',shared,'synthetic-coffer-1505@example.test','work','202-555-0151','151 Shared Street','Madison','WI','53703','synthetic-coffer-1512','Unrelated Source Two'],
+   ['synthetic-coffer-1506','Synthetic Household One',family,'','','202-555-0152','152 Family Street','Madison','WI','53703','synthetic-coffer-1510','Synthetic Import Family'],
+   ['synthetic-coffer-1507','Synthetic Household Two',family,'','','202-555-0152','152 Family Street','Madison','WI','53703','synthetic-coffer-1510','Synthetic Import Family'],
   ]),csv('gifts.csv',[[giftColumn,donorColumn,'Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount'],
    ['synthetic-coffer-1508','synthetic-coffer-1503','Gift','2026-10-01','21','Check','0'],
    ['synthetic-coffer-1509','synthetic-coffer-1504','Gift','2026-10-01','32','Check','0'],

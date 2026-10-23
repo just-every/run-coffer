@@ -81,8 +81,9 @@ export function snapshotSource(input: SnapshotInput, native: NativeIndex): { sou
     .sort((a, b) => ((a.payload as SnapshotObject).created as number) - ((b.payload as SnapshotObject).created as number) || a.sourceId.localeCompare(b.sourceId))
   const donorFor = new Map(native.customerDonors), why = new Map<string, string>()
   const matchEmail = (email:string,name:string) => {
-    const matches=native.emailPeople.filter(d=>d.email===email&&name&&d.name.trim().toLowerCase()===name.trim().toLowerCase())
-    const ids=[...new Set(matches.map(d=>d.id))]
+    const planned=[...effects.values()].filter(e=>e.targetKind==='donor').map(e=>e.value as Record<string,Json>)
+    const matches=[...native.emailPeople,...planned].filter(d=>d.email===email&&name&&String(d.name).trim().toLowerCase()===name.trim().toLowerCase())
+    const ids=[...new Set(matches.map(d=>String(d.id)))]
     return ids.length===1?ids[0]:''
   }
   for (const r of customers) {

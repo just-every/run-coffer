@@ -25,6 +25,7 @@ export async function letterTemplatesJourney(){
   assert.equal((await save({kind:'first_gift',name:'First gift',subject:'Welcome',body:body.replace('{{goods_statement}} ','')},{status:400})).error,'TEMPLATE')
   assert.equal((await save({kind:'first_gift',name:'First gift',subject:'Welcome',body:body+' {{unrecognized_field}}'},{status:400})).error,'TEMPLATE')
   await save({kind:'first_gift',name:'First gift',subject:'Welcome',body},{as:member.cookie,status:403})
+  await save({kind:'first_gift',name:'No cross-donor names',subject:'Thanks',body:body+' {{soft_credit_names|Supporter}}'},{status:400})
   await save({kind:'first_gift',name:'Unknown default',subject:'Welcome',body:body+' {{unknown_field|a default}}'},{status:400})
   await save({kind:'first_gift',name:'Nested default',subject:'Welcome',body:body+' {{email|{{donor_name}}}}'},{status:400})
   await save({kind:'first_gift',name:'Empty default',subject:'Welcome',body:body+' {{email| }}'},{status:400})

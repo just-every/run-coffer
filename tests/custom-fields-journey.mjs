@@ -14,7 +14,7 @@ export async function customFieldsJourney(){
   for(const d of [a,b]){
    await h.command('custom.set',{key:'membership',recordId:d.id,value:'Board'})
    await h.command('custom.set',{key:'interests',recordId:d.id,value:['Books','Music']})
-   await h.command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'written',evidence:'synthetic-coffer-1401',capturedOn:'2025-01-01'})
+   await h.command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-1401',capturedOn:'2025-01-01'})
   }
   const list=await h.command('list.save',{name:'Board custom list',filters:{customKey:'membership',customValue:'Board'}})
   for(const tag of ['board','alumni'])await h.command('list.bulk',{listId:list.id,version:1,actions:[{type:'tag.add',tag}],reason:'synthetic-coffer-1402'})
@@ -27,6 +27,8 @@ export async function customFieldsJourney(){
   const call=await h.command('interaction.record',{donorId:a.id,kind:'call',occurredOn:'2025-03-02',notes:'synthetic-coffer-1403'})
   await h.command('custom.set',{key:'topic',recordId:call.id,value:'Library visit'})
   await h.command('gift.reverse',{giftId:g2.id,reason:'synthetic-coffer-1404'})
+  const giftList=await h.command('list.save',{name:'Budget gifts',filters:{customKey:'budget',customValue:'250.50'}})
+  assert.deepEqual((await h.get('/api/coffer/lists/'+giftList.id+'/members')).donorIds.sort(),[a.id,b.id].sort())
   const before=await h.get('/api/coffer/reports/custom-fields?field=budget')
   assert.deepEqual(before.groups.map(g=>[g.value,g.amountCents,g.giftCount]),[['25050',10025,2],[null,3000,1]])
   assert.equal(before.totalCents,13025);assert.equal(before.giftCount,3)

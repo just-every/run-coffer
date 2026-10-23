@@ -100,7 +100,9 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
   })
  }
  const mergeRows = rows.get('cf_donor_merge_rows')
- if (mergeRows) rows.set('cf_donor_merge_rows', mergeRows.filter(r => r.table_name === 'cf_donors' && ids.includes(JSON.parse(r.row_key)[0])))
+ if (mergeRows) rows.set('cf_events',(rows.get('cf_events')??[]).filter(row=>row.subject_kind!=='custom_value'||!privateNotes.has(row.subject_id)))
+ rows.set('cf_move_in_records',(rows.get('cf_move_in_records')??[]).filter(row=>row.kind!=='customValue'||!privateNotes.has(row.native_id)))
+ rows.set('cf_donor_merge_rows', mergeRows.filter(r => r.table_name === 'cf_donors' && ids.includes(JSON.parse(r.row_key)[0])))
  const counterparts = new Map<string, string>()
  const opaque = (value: unknown) => {
   const key = String(value)
@@ -118,6 +120,8 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
  rows.set('cf_donor_notes', notes.filter(n => n.confidential !== 1))
  const privateNotes=new Set(notes.filter(n=>n.confidential===1).map(n=>n.id))
  for(const table of ['cf_custom_values','cf_custom_value_history'])rows.set(table,(rows.get(table)??[]).filter(value=>!privateNotes.has(value.record_id)))
+ rows.set('cf_events',(rows.get('cf_events')??[]).filter(row=>row.subject_kind!=='custom_value'||!privateNotes.has(row.subject_id)))
+ rows.set('cf_move_in_records',(rows.get('cf_move_in_records')??[]).filter(row=>row.kind!=='customValue'||!privateNotes.has(row.native_id)))
  rows.set('cf_donor_merge_rows',(rows.get('cf_donor_merge_rows')??[]).filter(row=>!['cf_custom_values','cf_custom_value_history'].includes(row.table_name)||!privateNotes.has(JSON.parse(row.value).record_id)))
  const records: Record<string, Row[]> = {}
  for (const t of tables) {

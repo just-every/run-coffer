@@ -207,13 +207,15 @@ test('IMPORT-001: saved Stripe refunds, every duplicate row, dry run, exact revi
 
 test('IMPORT-001: undo stops at an imported donor a person has since built on',()=>run(async h=>{
  const {job}=await imported(h)
- const maya=(await h.get('/api/coffer/donors?q=maya')).donors[0]
+ const mayas=(await h.get('/api/coffer/donors?q=maya')).donors
+ assert.deepEqual(mayas.map(d=>d.total_cents).sort((a,b)=>a-b),[20000,40000],'Distinct Stripe customers keep separate histories until reviewed')
+ const maya=mayas[0],before=maya.total_cents
  await consent(h,[maya.id])
  let failed=await h.api('/api/coffer/imports/undo',{id:job.id},{status:409})
  for(let i=0;i<5&&failed.state;i++)failed=await h.api('/api/coffer/imports/undo',{id:job.id},{status:409})
  assert.ok(failed.error)
  const history=await h.get(`/api/coffer/donors/${maya.id}`)
- assert.equal(history.consents.length,1);assert.equal(history.totals.lifetimeCents,60000)
+ assert.equal(history.consents.length,1);assert.equal(history.totals.lifetimeCents,before)
 }))
 
 test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans, checks actual totals and undoes without writing Stripe', async()=>{
@@ -304,7 +306,7 @@ test('erasing a donor removes their personal data and Stripe originals but keeps
  const history=await h.get(`/api/coffer/donors/${erased.donorId}`)
  await h.get(`/api/coffer/donors/${maya.id}`,{status:404})
  assert.equal(history.donor.name,'Erased donor');assert.equal(history.donor.email,null);assert.equal(history.consents.length,0)
- assert.equal(history.totals.lifetimeCents,60000);assert.ok(history.gifts.every(g=>g.note===null))
+ assert.equal(history.totals.lifetimeCents,before);assert.ok(history.gifts.every(g=>g.note===null))
  const letters=(await h.get(`/api/coffer/letters/${batch.id}`)).letters.filter(l=>l.donor_id===erased.donorId)
  assert.ok(letters.length&&letters.every(l=>l.body==='[erased]'&&l.recipient_name==='Erased donor'))
  assert.equal((await h.command('ack.approve',{batchId:batch.id,version:1},{status:409})).error,'CONTENT_CHANGED')
