@@ -1,3 +1,4 @@
+import { tooltipLink } from './tooltip'
 // The dense ledger card the Gifts screen draws (tabs or a title, the pager on the
 // right, one-line rows on hairlines), shared by the other list screens so they
 // carry the main screen's density. Rows use the Gifts ledger's cell classes, so
@@ -9,7 +10,7 @@ import { icon } from './icons'
 export function pager(total: number, page: number, size: number, href: (page: number) => string, always = false) {
  if (!total || (!always && total <= size)) return ''
  const first = page * size, last = Math.min(total, first + size)
- const arrow = (to: number, ok: boolean, label: string, cls = '') => ok ? `<a href="${e(href(to))}" aria-label="${label}">${icon('right', cls)}</a>` : `<span class="cf-off" aria-hidden="true">${icon('right', cls)}</span>`
+ const arrow = (to: number, ok: boolean, label: string, cls = '') => ok ? `${tooltipLink(href(to),label,label,icon('right',cls))}` : `<span class="cf-off" aria-hidden="true">${icon('right', cls)}</span>`
  return `<p class="cf-pager"><span>${first + 1}–${last} of ${total}</span>${arrow(page - 1, page > 0, 'Previous page', 'cf-back')}${arrow(page + 1, last < total, 'Next page')}</p>`
 }
 

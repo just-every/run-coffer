@@ -1,3 +1,4 @@
+import { tooltipLink } from './tooltip'
 import { manager } from '../auth'
 import { today } from '../db'
 import { acknowledgmentStatus, giftAcknowledgmentForms } from './gift-acknowledgments'
@@ -43,7 +44,7 @@ export async function donorPanel(c: Context, donorId: string, timezone: string,s
   : `<p>${retried}I can draft a thank-you from ${e(first)}’s gifts, funds and conversations for you to review.</p><div class="cf-agent-actions">${draftButton}</div>`}</section>`
 
  const mail = [d.address_line1, d.address_line2, [[d.city, d.region].filter(Boolean).join(', '), d.postal_code].filter(Boolean).join(' ')].filter(Boolean)
- const details = `<section class="cf-card cf-contact"><h3>Donor details <a href="${href}" aria-label="Edit ${e(d.name)}’s details">${icon('edit')}</a></h3><dl>
+ const details = `<section class="cf-card cf-contact"><h3>Donor details ${tooltipLink(href, 'Edit '+d.name+'’s details', 'Edit details', icon('edit'))}</h3><dl>
   <dt>Email</dt><dd class="cf-val"><span class="cf-email">${d.email ? e(d.email).replace('@', '<wbr>@') : '<span class="muted">None</span>'}</span>${consent(p.consent.email)}</dd>
   <dt>Mail</dt><dd class="cf-val"><span>${mail.length ? mail.map(e).join('<br>') : '<span class="muted">None</span>'}</span>${consent(p.consent.mail)}</dd>
   ${d.phone ? `<dt>Phone</dt><dd>${e(d.phone)}</dd>` : ''}${d.household ? `<dt>Household</dt><dd>${e(d.household)} (${p.members})</dd>` : ''}</dl></section>`

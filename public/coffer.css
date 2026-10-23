@@ -446,3 +446,10 @@
 .coffer ol.issues { padding-left: 1.6em; }
 .coffer ol.issues li p { margin: 4px 0 0; overflow-wrap: anywhere; }
 @media (max-width: 560px) { .coffer .filters { grid-template-columns: 1fr; } }
+
+/* Icon controls carry the same short explanation for mouse and keyboard users. */
+.cf-tip { position: relative; }
+.cf-tip [role=tooltip] { position: absolute; z-index: 20; top: 100%; right: 0; width: max-content; max-width: 180px; padding: 6px 9px; border-radius: 6px; background: var(--cf-night); color: #fff; font-size: 12px; font-weight: 500; line-height: 1.4; pointer-events: none; visibility: hidden; opacity: 0; transition: opacity 0s .3s, visibility 0s .3s; }
+.cf-tip:hover [role=tooltip], .cf-tip:focus-visible [role=tooltip] { visibility: visible; opacity: 1; }
+.cf-tip:focus-visible [role=tooltip] { transition-delay: 0s; }
+.cf-top .cf-tasks { color: #fff; white-space: nowrap; }
