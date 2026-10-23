@@ -254,3 +254,10 @@ test('GIFT-011: checkout publication choices, donor and gift anonymity, honor ro
 
 
 test('GIVE-005: donor-only documents, plan self-service, verified card replacement, preferences and owned cancellation follow-up',async()=>{const {portalJourney}=await import('./portal-journey.mjs');await portalJourney()})
+test('GIVE-008: signed keyword links prefill the mobile form, attribute paid gifts and honor STOP without marketing grants',async()=>{
+ const {textGivingJourney}=await import('./text-giving-journey.mjs');await textGivingJourney()
+})
+
+test('GIVE-007: address bursts pause giving, alert administrators and count verified Radar failures without donor records',async()=>{
+ const {givingProtectionJourney}=await import('./giving-protection-journey.mjs');await givingProtectionJourney()
+})

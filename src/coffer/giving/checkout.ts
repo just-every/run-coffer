@@ -1,3 +1,5 @@
+import { protectCheckout } from './protection'
+import { textLink } from './text'
 import { givingTribute } from './tribute'
 import { intentRecognition } from '../recognition'
 import { choice, email, fail, one, sha256, text, today } from '../db'
@@ -18,7 +20,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const c = await campaign({ db: env.DB }, slug)
  if (c.closes_on && today((await settings({ db: env.DB })).timezone) > c.closes_on) fail('campaign_closed', 'This campaign has closed and is no longer accepting new gifts. Thank you for your support.', 409)
  requireStripe(env)
- await limit(env, 'checkout:' + (request.headers.get('CF-Connecting-IP') ?? 'local'))
+ await protectCheckout(env,request,c.id,p)
  if (p.website) fail('INPUT', 'Please leave the website field empty.', 400)
  const name = text(p.name, 'Your name', 200), mail = email(p.email)
  if (!mail) fail('INPUT', 'Enter your email address.', 400)
@@ -36,16 +38,18 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  if (covers && String(cents) !== String(p.quotedAmountCents)) fail('fee_cover_changed', 'The estimated total changed. Reload the donation page and review the amount before continuing.', 409)
  const tribute=givingTribute(p)
  const recognition=intentRecognition(p)
- const appeal = await trackedAppeal({ db: env.DB }, p.appeal), consent = p.emailConsent === 'yes' ? 1 : 0
+ const linkedText = await textLink(env, slug, p.textLink)
+ const appeal = await trackedAppeal({ db: env.DB }, linkedText ? linkedText.appeal : p.appeal), consent = p.emailConsent === 'yes' ? 1 : 0
  const storedTribute=tribute??{kind:null,honoree:null,notified_name:null,notified_email:null,notified_address:null,amount_permission:0}
  await env.DB.batch([
-  env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at,anonymous,wall_opt_in,recognition_name,appeal,requested_amount_cents,fee_cover_cents,fee_cover_rate_bps,fee_cover_fixed_cents) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, frequency, consent, new Date().toISOString(),recognition.anonymous,recognition.wallOptIn,recognition.recognitionName,appeal,base,cents-base,covers?rate:null,covers?fixed:null),
+  env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at,anonymous,wall_opt_in,recognition_name,appeal,requested_amount_cents,fee_cover_cents,fee_cover_rate_bps,fee_cover_fixed_cents,giving_channel) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, frequency, consent, new Date().toISOString(),recognition.anonymous,recognition.wallOptIn,recognition.recognitionName,appeal,base,cents-base,covers?rate:null,covers?fixed:null,linkedText?'text':'form'),
   env.DB.prepare('INSERT OR IGNORE INTO cf_giving_tributes(intent_id,kind,honoree,notified_name,notified_email,notified_address,amount_permission) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM cf_giving_intents WHERE id=? AND name=? AND email=? AND amount_cents=? AND frequency=?)').bind(id,storedTribute.kind,storedTribute.honoree,storedTribute.notified_name,storedTribute.notified_email,storedTribute.notified_address,storedTribute.amount_permission,id,name,mail,cents,frequency),
  ])
  const intent = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
  if (!intent || intent.campaign_id !== c.id || intent.name !== name || intent.email !== mail || intent.amount_cents !== cents || intent.frequency !== frequency || intent.email_consent !== consent || intent.anonymous!==recognition.anonymous || intent.wall_opt_in!==recognition.wallOptIn || intent.recognition_name!==recognition.recognitionName || intent.appeal!==appeal || intent.requested_amount_cents!==base || intent.fee_cover_cents!==cents-base || intent.fee_cover_rate_bps!==(covers?rate:null) || intent.fee_cover_fixed_cents!==(covers?fixed:null)) fail('checkout_changed', 'Reload the donation page before changing this gift.', 409)
  const savedTribute=await one({db:env.DB},'SELECT kind,honoree,notified_name,notified_email,notified_address,amount_permission FROM cf_giving_tributes WHERE intent_id=?',id)
  if(JSON.stringify(savedTribute)!==JSON.stringify(storedTribute))fail('checkout_changed','Reload the donation page before changing this tribute.',409)
+ if (intent.giving_channel !== (linkedText ? 'text' : 'form')) fail('checkout_changed', 'Reload the donation page before changing the source.', 409)
  if (intent.session_id) return stripe(env, '/checkout/sessions/' + encodeURIComponent(intent.session_id))
  // An unverified public email must not reveal an existing Stripe customer's saved details.
  const customer = (await stripe(env, '/customers', { name, email: mail, 'metadata[coffer_install]': env.AUTH_ORIGIN }, 'customer-' + id)).id
@@ -58,7 +62,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   'line_items[0][price_data][product_data][name]': c.name,
   'line_items[0][quantity]': '1', 'metadata[coffer_intent]': id,
   success_url: env.AUTH_ORIGIN + '/giving/thanks?session_id={CHECKOUT_SESSION_ID}',
-  cancel_url: env.AUTH_ORIGIN + '/give/' + slug + '?cancelled=1' + (appeal ? '&appeal=' + encodeURIComponent(appeal) : ''),
+  cancel_url: env.AUTH_ORIGIN + '/give/' + slug + '?cancelled=1' + (appeal ? '&appeal=' + encodeURIComponent(appeal) : '') + (linkedText ? '&text=' + encodeURIComponent(p.textLink) : ''),
  }
  if (frequency === 'monthly') {
   params['line_items[0][price_data][recurring][interval]'] = 'month'
