@@ -107,6 +107,8 @@ export async function householdMailJourney(){await run(async h=>{
  await h.command('gift.record',{donorId:a.id,amount:'75',receivedOn:'2024-08-01',method:'check',goods:'none'})
  await h.command('household.update',{householdId:hid,version:(await h.get('/api/coffer/households/'+hid)).household.version,headDonorId:a.id})
  await h.command('donor.profile',{donorId:a.id,version:(await h.get('/api/coffer/donors/'+a.id)).donor.version,constituentStatus:'deceased',deceasedOn:'2025-09-01'})
+ assert.equal((await h.command('ack.prepareStatements',{year:2024,householdId:hid},{status:409})).error,'NAMES_UNCONFIRMED')
+ await h.command('household.confirmNames',{householdId:hid,version:(await h.get('/api/coffer/households/'+hid)).household.version},{as:member.cookie})
  const headReview=await h.command('ack.prepareStatements',{year:2024,householdId:hid})
  const headLetter=(await h.get('/api/coffer/letters/'+headReview.id)).letters[0],headSnapshot=JSON.parse(headLetter.household_snapshot)
  assert.equal(headSnapshot.headStatus,'deceased');assert.equal(headSnapshot.overridesReview,true)
