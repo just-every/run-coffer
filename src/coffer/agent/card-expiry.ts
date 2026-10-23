@@ -1,3 +1,4 @@
+import { automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
 import { all, commit, fail, newId, one, sql, today, type Context, type Row } from '../db'
 import { settings } from '../settings'
 import { emailPortalLink } from '../giving/portal'
@@ -7,16 +8,21 @@ import { action } from './activity'
 
 /** Read the existing provider default, never collect card data in Coffer. */
 export async function checkCardExpiry(c: Context, env: GivingEnv, current: Row) {
+ const granted=await automationContext(env,'recovery',c.now)
+ if(!granted)return
+ c=granted
+ const scope=automationRecords(c,'d.id')
  const saved = await one(c, `SELECT s.* FROM cf_subscriptions s JOIN cf_donors d ON d.id=s.donor_id
   WHERE s.id=? AND s.customer_id=? AND d.erased_at IS NULL
-  AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`, current.id, stripeId(current.customer))
- if (!saved) return
+  AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id) AND ${scope.sql}`, current.id, stripeId(current.customer),...scope.params)
+ if (!saved || !automationAllows(c,saved.donor_id)) return
  if (!['active','trialing','past_due','incomplete'].includes(current.status)) {
   await commit(c,[sql('DELETE FROM cf_card_expiry_notices WHERE subscription_id=?',saved.id)])
   return
  }
  let method = current.default_payment_method
  if (!method) {
+  await commit(c,[])
   const customer = await stripe(env, '/customers/'+encodeURIComponent(saved.customer_id))
   if (customer.id!==saved.customer_id || customer.deleted) fail('invalid_payment','Stripe returned a different customer.',409)
   method = customer.invoice_settings?.default_payment_method
@@ -25,6 +31,7 @@ export async function checkCardExpiry(c: Context, env: GivingEnv, current: Row) 
  // Replacing or removing the default method removes the old reference at once.
  await commit(c,[sql('DELETE FROM cf_card_expiry_notices WHERE subscription_id=? AND payment_method_id<>?',saved.id,methodId)])
  if (!methodId) return
+ await commit(c,[])
  const payment = typeof method==='object' && method.card ? method : await stripe(env,'/payment_methods/'+encodeURIComponent(methodId))
  if (payment.id!==methodId || stripeId(payment.customer)!==saved.customer_id) fail('invalid_payment','Stripe returned a payment method for a different customer.',409)
  const year=payment.card?.exp_year, month=payment.card?.exp_month
@@ -35,6 +42,8 @@ export async function checkCardExpiry(c: Context, env: GivingEnv, current: Row) 
  await commit(c,[sql('DELETE FROM cf_card_expiry_notices WHERE subscription_id=? AND (expiry_year<>? OR expiry_month<>?)',saved.id,year,month)])
  const day=today((await settings(c)).timezone,new Date(c.now)), currentYear=Number(day.slice(0,4)), currentMonth=Number(day.slice(5,7))
  if (year!==currentYear+(currentMonth===12?1:0) || month!==(currentMonth===12?1:currentMonth+1)) return
+ if(await one(c,'SELECT subscription_id FROM cf_card_expiry_notices WHERE subscription_id=? AND payment_method_id=? AND expiry_year=? AND expiry_month=?',saved.id,methodId,year,month))return
+ await claimAutomation(c,'recovery.expiry',1,saved.donor_id)
  const claimId=newId()
  await commit(c,[sql(`INSERT OR IGNORE INTO cf_card_expiry_notices(subscription_id,payment_method_id,expiry_year,expiry_month,claim_id,state,checked_at)
   SELECT s.id,?,?,?,?,'sending',? FROM cf_subscriptions s JOIN cf_donors d ON d.id=s.donor_id

@@ -1,3 +1,4 @@
+import { automated, automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
 import { manager } from '../auth'
 import { all, choice, commit, event, fail, guard, one, sql, text, type Context, type Row } from '../db'
 import { emailPortalLink } from '../giving/portal'
@@ -9,30 +10,29 @@ import { cardExpiryNotices, checkCardExpiry } from './card-expiry'
 import { today, newId } from '../db'
 import { settings as cofferSettings } from '../settings'
 
-function system(env: GivingEnv): Context {
- return { db: env.DB, env, actor: { id: 'coffer-recovery', name: 'Coffer recovery', role: 'agent' }, authority: { sql: '1', params: [] }, now: new Date().toISOString() }
-}
 function authorize(c: Context) {
- if (!manager(c.actor) && !(c.actor.role === 'agent' && c.authority.sql === '1')) fail('FORBIDDEN', 'Only the owner or an admin can manage recovery.', 403)
+ if (!manager(c.actor) && !(automated(c) && c.automation.id === 'recovery')) fail('FORBIDDEN', 'Only the owner or an admin can manage recovery.', 403)
 }
 
 /** Observe current provider state, never the potentially stale webhook payload. */
 export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, intent: Row, failureEventId?: string) {
- const c = system(env)
+ const c = await automationContext(env,'recovery')
+ if(!c || !automationAllows(c,intent.donor_id))return
  const previous = await one(c, 'SELECT * FROM cf_agent_recovery WHERE invoice_id=?', current.id)
  const failed = ['open','void','uncollectible'].includes(current.status) && current.attempt_count > 0
  if (!previous && !failed) return
  const state = current.status === 'paid' && current.amount_paid > 0 ? 'recovered'
   : ['void', 'uncollectible'].includes(current.status) || ['unpaid', 'canceled', 'incomplete_expired'].includes(sub.status) ? 'lapsed' : 'waiting'
  const next = state === 'waiting' ? current.next_payment_attempt ?? null : null
- const changed = await c.db.prepare(`INSERT INTO cf_agent_recovery(invoice_id,subscription_id,state,attempt_count,next_attempt_at,created_at,last_checked_at)
+ await claimAutomation(c,'recovery.observe',1,intent.donor_id)
+ const changed = !previous || previous.state!==state || previous.attempt_count!==(current.attempt_count??0) || previous.next_attempt_at!==next
+ await commit(c,[sql(`INSERT INTO cf_agent_recovery(invoice_id,subscription_id,state,attempt_count,next_attempt_at,created_at,last_checked_at)
   VALUES(?,?,?,?,?,?,?) ON CONFLICT(invoice_id) DO UPDATE SET state=excluded.state,attempt_count=excluded.attempt_count,
   next_attempt_at=excluded.next_attempt_at,last_checked_at=excluded.last_checked_at
   WHERE (state<>'recovered' OR excluded.state='recovered') AND
-  (state<>excluded.state OR attempt_count<>excluded.attempt_count OR next_attempt_at IS NOT excluded.next_attempt_at)`)
-  .bind(current.id, sub.id, state, current.attempt_count ?? 0, next, c.now, c.now).run()
- await c.db.prepare('UPDATE cf_agent_recovery SET last_checked_at=? WHERE invoice_id=?').bind(c.now, current.id).run()
- if (changed.meta.changes) await action(c, {
+  (state<>excluded.state OR attempt_count<>excluded.attempt_count OR next_attempt_at IS NOT excluded.next_attempt_at)`
+  ,current.id, sub.id, state, current.attempt_count ?? 0, next, c.now, c.now),sql('UPDATE cf_agent_recovery SET last_checked_at=? WHERE invoice_id=?',c.now,current.id)])
+ if (changed) await action(c, {
   kind: `recovery.${state}`, subjectId: current.id,
   summary: state === 'recovered' ? 'Monthly gift recovered at Stripe; the paid gift is recorded.' : state === 'lapsed' ? 'Monthly gift lapsed at Stripe.' : 'Failed monthly gift is waiting on Stripe recovery.',
   why: `Current Stripe invoice and subscription state: ${current.status}; ${sub.status}. Stripe owns the retry schedule.`,
@@ -42,13 +42,16 @@ export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, in
  // One atomic claim across duplicate events and concurrent Worker instances.
  // A crash after the claim is deliberately visible as uncertain; sending again
  // would risk duplicate mail because emailPortalLink has no idempotent delivery API.
- const claimed = await c.db.prepare(`UPDATE cf_agent_recovery SET notice_state='sending',notice_event_id=?,notice_at=?
-  WHERE invoice_id=? AND notice_state='pending' AND state='waiting' RETURNING invoice_id`).bind(failureEventId ?? null, c.now, current.id).first()
- if (!claimed) return
+ if(previous && previous.notice_state!=='pending')return
+ await claimAutomation(c,'recovery.notice',1,intent.donor_id)
+ const claimId=newId()
+ await commit(c,[sql(`UPDATE cf_agent_recovery SET notice_state='sending',notice_event_id=?,notice_at=?,notice_claim_id=?
+  WHERE invoice_id=? AND notice_state='pending' AND state='waiting'`,failureEventId??null,c.now,claimId,current.id)])
+ if(!await one(c,'SELECT invoice_id FROM cf_agent_recovery WHERE invoice_id=? AND notice_claim_id=?',current.id,claimId))return
  await action(c, { kind: 'recovery.card_link_requested', subjectId: current.id, summary: 'Requested one private card-update email.', why: 'The monthly invoice failed. Email cannot be unsent; an interrupted send needs review before any new invitation.' })
  let notice = 'failed'
  try { notice = await emailPortalLink(env, intent.donor_id, 'Update your card for your monthly gift') ? 'sent' : 'skipped' } catch { /* Persist failure; never automatically repeat an uncertain external send. */ }
- await c.db.prepare('UPDATE cf_agent_recovery SET notice_state=?,notice_at=? WHERE invoice_id=?').bind(notice, new Date().toISOString(), current.id).run()
+ await commit(c,[sql('UPDATE cf_agent_recovery SET notice_state=?,notice_at=? WHERE invoice_id=?',notice,new Date().toISOString(),current.id)])
  await action(c, { kind: `recovery.card_link_${notice}`, subjectId: current.id, summary: notice === 'sent' ? 'Private card-update email accepted by the mail provider.' : notice === 'skipped' ? 'Card-update email unavailable: donor has no deliverable account.' : 'Card-update email failed or its delivery is uncertain.', why: notice === 'sent' ? 'The donor can update their card in the secure giving portal. This email cannot be unsent.' : 'No automatic resend is scheduled. Review delivery before contacting the donor through the existing giving portal.' })
 }
 
@@ -70,15 +73,17 @@ export async function runRecovery(c: Context, env: GivingEnv) {
   requireStripe(env)
  }
  await commit(c, [sql('UPDATE cf_agent_recovery_settings SET last_run_at=? WHERE id=1', c.now)])
+ const scope=automationRecords(c,'d.id')
  const subscriptions = await all(c, `SELECT DISTINCT s.id FROM cf_subscriptions s JOIN cf_donors d ON d.id=s.donor_id
-  WHERE d.erased_at IS NULL AND (s.status IN ('active','trialing','past_due','unpaid','incomplete') OR EXISTS
-  (SELECT 1 FROM cf_agent_recovery r WHERE r.subscription_id=s.id AND r.state='waiting')) ORDER BY s.id`)
+  WHERE d.erased_at IS NULL AND ${scope.sql} AND (s.status IN ('active','trialing','past_due','unpaid','incomplete') OR EXISTS
+  (SELECT 1 FROM cf_agent_recovery r WHERE r.subscription_id=s.id AND r.state='waiting')) ORDER BY s.id`,...scope.params)
  const result = { enabled: true, checked: 0, recovered: 0, lapsed: 0, errors: 0 }
  for (const sub of subscriptions) {
   try {
    // Check each tracked invoice too: a subscription may already have advanced to
    // a newer invoice while an earlier failure was paid or written off.
    const tracked = await all(c, "SELECT invoice_id FROM cf_agent_recovery WHERE subscription_id=? AND state='waiting'", sub.id)
+   await commit(c,[])
    const current = await stripe(env, '/subscriptions/' + encodeURIComponent(sub.id))
    const ids = new Set(tracked.map(row => row.invoice_id as string))
    const latest = stripeId(current.latest_invoice)
@@ -110,6 +115,8 @@ export async function recoveryAction(c: Context, _env: GivingEnv, input: Row) {
 
 /** A current relationship manager owns follow-up; otherwise the installation owner. */
 async function exhaustedTask(c: Context, invoiceId: string, subscriptionId: string) {
+ if(await one(c,'SELECT id FROM cf_call_tasks WHERE source_key=?','recovery:'+invoiceId))return
+ await claimAutomation(c,'recovery.task')
  const taskId=newId(), day=today((await cofferSettings(c)).timezone,new Date(c.now))
  const owner=`COALESCE((SELECT o.id FROM cf_portfolio_members m JOIN cf_portfolios p ON p.id=m.portfolio_id JOIN oa_operators o ON o.id=p.manager_id WHERE m.donor_id=s.donor_id AND o.status='active' AND o.role IN ('owner','admin','member')),(SELECT id FROM oa_operators WHERE role='owner' AND status='active' ORDER BY id LIMIT 1))`
  await commit(c,[sql(`INSERT OR IGNORE INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at,is_ask)

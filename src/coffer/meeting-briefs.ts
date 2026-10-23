@@ -4,7 +4,7 @@ import { donorHistory } from './donors'
 import { prospects } from './major-gifts'
 import { researchState } from './research'
 import { runtimeBindings, type Bindings } from '../auth.server'
-import { systemContext } from './agent/activity'
+import { automationContext, automationRecords, claimAutomation } from './automation-grants'
 
 const staff = (c: Context) => requireRole(c.actor, ['owner','admin','member'], 'schedule meetings and read meeting briefs')
 const live = (donorId: string) => guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE id=? AND erased_at IS NULL
@@ -33,10 +33,15 @@ export async function meetingCommand(c: Context, command: string, p: Row): Promi
 
 /** Minute scheduler: idempotent readiness, with no model or outbound send. */
 export async function advanceMeetingBriefs(original: Bindings, at=new Date()) {
- const env=runtimeBindings(original),c=systemContext(env.DB,env,at.toISOString())
- await commit(c,[sql(`UPDATE cf_donor_meetings SET ready_at=? WHERE cancelled_at IS NULL AND ready_at IS NULL AND prepare_at<=?
+ const env=runtimeBindings(original),c=await automationContext(env,'briefs',at.toISOString())
+ if(!c)return
+ const scope=automationRecords(c,'m.donor_id')
+ const due=await all(c,`SELECT m.id FROM cf_donor_meetings m WHERE m.cancelled_at IS NULL AND m.ready_at IS NULL AND m.prepare_at<=? AND ${scope.sql}`,c.now,...scope.params)
+ if(!due.length)return
+ await claimAutomation(c,'briefs.prepare',due.length)
+ await commit(c,[sql(`UPDATE cf_donor_meetings SET ready_at=? WHERE id IN(SELECT value FROM json_each(?)) AND cancelled_at IS NULL AND ready_at IS NULL AND prepare_at<=?
  AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=donor_id AND d.erased_at IS NULL
- AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))`,c.now,c.now)])
+ AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))`,c.now,JSON.stringify(due.map(m=>m.id)),c.now),event(c,'briefs.prepare','automation_grant','briefs',null,{meetings:due.length})])
 }
 
 export async function meetings(c: Context) {

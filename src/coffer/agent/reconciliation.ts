@@ -1,4 +1,5 @@
 import { manager } from '../auth'
+import { automated } from '../automation-grants'
 import { all, commit, event, fail, guard, newId, one, sql, text, type Context, type Row, type Stmt, today } from '../db'
 import { available, managed, stripe } from '../giving/stripe'
 import { stripePages } from '../payments/stripe-data'
@@ -11,7 +12,7 @@ import { activityStatement } from './activity'
 import { chargeFinding, fingerprint, type Correction, type Finding } from './reconcile-scan'
 
 function authorize(c: Context, scheduled = false) {
- if (!manager(c.actor) && !(scheduled && c.actor.id === 'coffer-agent' && c.authority.sql === '1')) fail('FORBIDDEN','Only the owner or an admin can reconcile giving.',403)
+ if (!manager(c.actor) && !(scheduled && automated(c) && c.automation.id === 'reconciliation')) fail('FORBIDDEN','Only the owner or an admin can reconcile giving.',403)
 }
 export async function reconciliationData(c: Context) {
  const rows = await all(c,'SELECT * FROM cf_agent_issues ORDER BY CASE state WHEN \'open\' THEN 0 ELSE 1 END,found_at DESC,id DESC LIMIT 100')
@@ -30,6 +31,11 @@ async function observed(c: Context, sourceId:string, kinds:string[], findings:Fi
 }
 const review=(sourceId:string,kind:string,summary:string,why:string,evidence:Row,detail:string):Finding=>({sourceId,kind,summary,why,evidence,proposed:{action:'review',detail}})
 
+async function* authorizedPages(c:Context,env:PaymentsEnv,path:string) {
+ const pages=stripePages(env,path)[Symbol.asyncIterator]()
+ for(;;) { await commit(c,[]);const next=await pages.next();if(next.done)return;yield next.value }
+}
+
 /** Rules are useful without AI. An incomplete provider read never claims a clean run. */
 export async function runReconciliation(c:Context,env:PaymentsEnv) {
  authorize(c,true)
@@ -37,14 +43,14 @@ export async function runReconciliation(c:Context,env:PaymentsEnv) {
  const unavailable:string[]=[],errors:string[]=[]
  if (available(env)) {
   try {
-   for await(const charge of stripePages(env,'/charges')) {
+   for await(const charge of authorizedPages(c,env,'/charges')) {
     const finding=await chargeFinding(c,charge,env)
     await observed(c,charge.id,['contribution','missing_gift','currency','invalid_charge'],finding?[finding]:[])
     checkedCharges++
    }
   } catch { errors.push('Stripe charge enumeration was incomplete; run again after checking the connection.') }
   try {
-   for await(const remote of stripePages(env,'/payouts')) {
+   for await(const remote of authorizedPages(c,env,'/payouts')) {
     const local=await one(c,'SELECT * FROM cf_payouts WHERE id=?',remote.id), findings:Finding[]=[]
     if (!local) findings.push(review(remote.id,'missing_payout','Stripe payout is missing from Coffer.','Provider payout facts have no saved payout record.',{stripe:{id:remote.id,amount:remote.amount,currency:remote.currency,status:remote.status}},'Sync this payout in Payments; exact balance transaction membership is required before any deposit posting.'))
     else if(local.amount_cents!==remote.amount || local.currency!==remote.currency || local.status!==remote.status) findings.push(review(remote.id,'payout_provider','Saved payout differs from Stripe.','Provider amount, currency or status changed.',{saved:{id:local.id,amount:local.amount_cents,currency:local.currency,status:local.status},stripe:{amount:remote.amount,currency:remote.currency,status:remote.status}},'Review Stripe and refresh Payments. An immutable deposit must never be replaced with a guessed amount.'))

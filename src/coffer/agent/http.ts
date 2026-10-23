@@ -1,3 +1,5 @@
+import { automationGrants, saveAutomationGrant } from '../automation-grants'
+import { automationGrantPanel } from './grants-ui'
 import { reconcileJourney, prepareJourneyResend } from './journey-delivery'
 import { appealDelivery, deliveryState, reconcileAppeal, prepareResend } from './appeals'
 import { appealAgentPage } from './appeals-ui'
@@ -26,13 +28,15 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  const prefix=api?'/api/coffer/agent':'/app/agent',tail=path.slice(prefix.length)
  if (request.method==='GET' || request.method==='HEAD') {
   if(api) {
+   if(tail==='/grants')return json(await automationGrants(c))
    if(tail==='/appeals')return json(url.searchParams.get('appealId')?await appealDelivery(c,url.searchParams.get('appealId')!):await deliveryState(c))
    if(tail==='/stewardship')return json(await stewardshipState(c,url.searchParams.get('donorId')??undefined))
    if(tail==='')return json({reconciliation:await reconciliationData(c),recovery:await recoveryData(c),missingReceipts:await missingReceipts(c),activity:await activity(c)})
    fail('NOT_FOUND','That agent page does not exist.',404)
   }
   let content:string,title:string
-  if(tail==='/setup'){title='Agent AI setup';content=await setupPage(c)}
+  if(tail==='/grants'){title='Background agent grants';content=await automationGrantPanel(c)}
+  else if(tail==='/setup'){title='Agent AI setup';content=await setupPage(c)}
   else if(tail==='/stewardship'){title='Draft stewardship';content=await stewardshipPage(c,url)}
   else if(tail==='/reconcile'){title='Reconcile gifts';content=await reconciliationPage(c)}
   else if(tail==='/recovery'){title='Recover monthly gifts';content=await recoveryPage(c)}
@@ -44,7 +48,8 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  }
  if(request.method!=='POST')fail('METHOD','Use the agent page buttons.',405)
  const p=await body();let result:any,back='/app/agent'
- if(tail==='/appeals/run'){result=await reconcileAppeal(c,p);back='/app/agent/appeals?appealId='+encodeURIComponent(p.appealId)}
+ if(tail==='/grants'){result=await saveAutomationGrant(c,p);back='/app/agent/grants'}
+ else if(tail==='/appeals/run'){result=await reconcileAppeal(c,p);back='/app/agent/appeals?appealId='+encodeURIComponent(p.appealId)}
  else if(tail==='/appeals/journey/run'){result=await reconcileJourney(c,p);back='/app/agent/appeals'}
  else if(tail==='/appeals/journey/prepare'){result=await prepareJourneyResend(c,p);back='/app/appeals/'+result.id}
  else if(tail==='/appeals/prepare'){result=await prepareResend(c,p);back='/app/appeals/'+result.id}
@@ -63,7 +68,7 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  } else fail('NOT_FOUND','Unknown agent action.',404)
  return api?json(result):redirect(back)
 }
-const nav=()=>`<p class="actions"><a href="/app/agent">Activity</a><a href="/app/agent/reconcile">Reconcile</a><a href="/app/agent/recovery">Monthly recovery</a><a href="/app/agent/receipts">Missing receipts</a><a href="/app/agent/appeals">Appeal delivery</a><a href="/app/agent/stewardship">Stewardship</a><a href="/app/agent/setup">AI setup</a></p>`
+const nav=()=>`<p class="actions"><a href="/app/agent">Activity</a><a href="/app/agent/reconcile">Reconcile</a><a href="/app/agent/recovery">Monthly recovery</a><a href="/app/agent/receipts">Missing receipts</a><a href="/app/agent/appeals">Appeal delivery</a><a href="/app/agent/stewardship">Stewardship</a><a href="/app/agent/setup">AI setup</a><a href="/app/agent/grants">Background grants</a></p>`
 async function overview(c:Context,env:GivingEnv,url:URL) {
   return `<p>Reconcile gifts, follow failed monthly plans, prepare missing receipts and draft personal stewardship. Every proposal keeps its sources and reason. People approve corrections, receipts and messages.</p>${managed(env)?'<p class="notice">Provider integrations are not available yet on RER Managed.</p>':''}<ul class="tiles"><li><a href="/app/agent/reconcile"><strong>Reconcile gifts</strong><span>Compare Stripe, the gift ledger and Pantry; review, apply and undo corrections.</span></a></li><li><a href="/app/agent/recovery"><strong>Recover monthly gifts</strong><span>Private card-update email, Stripe retry schedule and recovered or lapsed outcomes.</span></a></li><li><a href="/app/agent/receipts"><strong>Find missing receipts</strong><span>Prepare missing and bounced receipts for a person to approve.</span></a></li><li><a href="/app/agent/stewardship"><strong>Draft from donor history</strong><span>Gifts, funds, conversations and tributes, with sources to review before sending.</span></a></li></ul>${await activityTable(c,url)}`
 }

@@ -1,3 +1,4 @@
+import { automationRecords, claimAutomation } from '../automation-grants'
 import { UNRESOLVED_THANK_YOU } from '../gift-acknowledgments'
 import { letterRecipient } from '../organizations'
 import { withReceiptBenefits } from '../receipt-rules'
@@ -16,9 +17,10 @@ const ELIGIBLE=`g.kind='gift' AND d.erased_at IS NULL
  AND NOT EXISTS(SELECT 1 FROM cf_prior_acknowledgements p WHERE p.gift_id=g.id)
  AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND (k.status<>'not acknowledged' OR k.outcome_unknown=1))`
 export async function missingReceipts(c:Context) {
+ const scope=automationRecords(c,'d.id')
  return all(c,`SELECT g.*,d.name AS donor_name,d.city,d.region,
  (SELECT a.delivery_status FROM cf_acks a WHERE a.gift_id=g.id AND a.live=1 LIMIT 1) AS previous_status
- FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE ${ELIGIBLE} ORDER BY g.received_on,g.id LIMIT 500`)
+ FROM cf_gifts g JOIN cf_donors d ON d.id=g.donor_id WHERE ${ELIGIBLE} AND ${scope.sql} ORDER BY g.received_on,g.id LIMIT 500`,...scope.params)
 }
 /** Prepare fresh frozen letters. Prior bounced proof remains; sending always needs human approval. */
 export async function queueMissingReceipts(c:Context) {
@@ -26,6 +28,7 @@ export async function queueMissingReceipts(c:Context) {
  if (!s.reviewed_at || !s.organisation) fail('SETTINGS_UNREVIEWED','Review Letter settings before preparing receipts.')
  const found=await missingReceipts(c),chosen=found.filter(g=>g.goods!=='unknown')
  if (!chosen.length) return {queued:0,held:found.length,id:null}
+ await claimAutomation(c,'receipts.prepare',chosen.length)
  await withReceiptBenefits(c, chosen)
  const ids=JSON.stringify(chosen.map(g=>g.id)),batchId=newId(),revision=await templateRevision(c),templates=await giftTemplates(c,chosen)
  const donors=new Map((await all(c,'SELECT * FROM cf_donors WHERE id IN (SELECT value FROM json_each(?))',JSON.stringify([...new Set(chosen.map(g=>g.donor_id))]))).map(d=>[d.id,d]))
