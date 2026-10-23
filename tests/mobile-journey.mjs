@@ -49,7 +49,7 @@ export async function mobileJourney() {
      await shot(kind+'-draft-'+width)
      await compose.getByRole('button',{name:'Save '+kind,exact:true}).click()
      await page.locator('#timeline').getByText(`${kind} from the literacy fair at ${width}px.`,{exact:true}).waitFor()
-     await shot(kind+'-saved-'+width)
+     await page.locator('#timeline').getByText(`${kind} from the literacy fair at ${width}px.`,{exact:true}).scrollIntoViewIfNeeded();await shot(kind+'-saved-'+width)
     }
     await page.getByRole('navigation',{name:'Donor actions'}).getByRole('link',{name:'Record a gift',exact:true}).click()
     const record=page.locator('#record')

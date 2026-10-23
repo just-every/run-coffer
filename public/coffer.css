@@ -453,3 +453,6 @@
 .cf-tip:hover [role=tooltip], .cf-tip:focus-visible [role=tooltip] { visibility: visible; opacity: 1; }
 .cf-tip:focus-visible [role=tooltip] { transition-delay: 0s; }
 .cf-top .cf-tasks { color: #fff; white-space: nowrap; }
+
+.coffer .phone-actions a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid var(--cf-line); border-radius: 8px; background: var(--rer-surface); text-decoration: none; }
+.coffer .phone-actions a:hover { border-color: var(--cf-violet-line); }
