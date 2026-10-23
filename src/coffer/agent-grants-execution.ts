@@ -1,7 +1,7 @@
 import { ackCommand, batchLetters, currentLetterGifts, letterHash } from './acknowledgements'
 import { ackMailPieces } from './ack-mail-pieces'
 import { requireGrant } from './agent-grants'
-import { all, commit, event, fail, guard, id, integer, newId, one, sql, today, type Context, type Row, type Stmt } from './db'
+import { commit, event, fail, guard, id, integer, newId, one, sql, today, type Context, type Row, type Stmt } from './db'
 import { deliveryCommand } from './letter-delivery'
 import { settings } from './settings'
 

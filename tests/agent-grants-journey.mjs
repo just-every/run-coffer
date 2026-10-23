@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { run, donor, reviewed } from './harness.mjs'
+import { run, donor, reviewed, settings } from './harness.mjs'
 
 function doors(h,key) {
  const headers={authorization:`Bearer ${key.token}`},version='2026-07-28'
@@ -25,6 +25,7 @@ export async function agentGrantsJourney() {
  const messages=[]
  return run(async h=>{
   await reviewed(h)
+  const template=await h.command('letterTemplate.save',{kind:'major_gift',name:'Standard thank-you',minAmount:'250',subject:settings.letterSubject,body:settings.letterTemplate})
   const ana=await donor(h,'Scoped Ana'),ben=await donor(h,'Private Ben'),house=await donor(h,'Scoped Household',{household:'Private household label'})
   const relative=await donor(h,'Private household member',{household:'Private household label'})
   const relation=await h.command('relationship.create',{donorId:ana.id,relatedDonorId:ben.id,type:'friend'})
@@ -60,7 +61,7 @@ export async function agentGrantsJourney() {
   const gifts=[relatedGift]
   for(let i=0;i<2;i++)gifts.push(await h.command('gift.record',{donorId:ana.id,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'}))
   const batches=[]
-  for(const gift of gifts)batches.push(await api.http('ack.prepare',{giftIds:[gift.id]}))
+  for(const [index,gift] of gifts.entries())batches.push(index===1?await api.mcp('ack.prepare',{giftIds:[gift.id]}):await api.http('ack.prepare',{giftIds:[gift.id]}))
   // Both doors share one atomic daily counter. Parallel calls reach the same
   // real native letter-delivery reservation and network submission service.
   const sent=await Promise.all([api.http('ack.send',{batchId:batches[0].id,version:1}),api.mcp('ack.send',{batchId:batches[1].id,version:1})])
@@ -73,7 +74,7 @@ export async function agentGrantsJourney() {
   // The other key cannot consume its colleague’s prepared batch, despite
   // sharing the same grant and daily counter.
   await second.mcp('ack.send',{batchId:batches[2].id,version:1},'GRANT_SCOPE')
-  await reviewed(h)
+  await h.command('letterTemplate.save',{templateId:template.id,version:1,name:'Revised standard thank-you',minAmount:'250',subject:settings.letterSubject,body:settings.letterTemplate+' Thank you again.'})
   assert.equal((await api.http('ack.send',{batchId:batches[2].id,version:1},409)).error,'TEMPLATES_CHANGED')
   await api.mcp('ack.send',{batchId:batches[2].id,version:1},'TEMPLATES_CHANGED')
   const control=(await h.get('/api/coffer/agent-grants')).control
