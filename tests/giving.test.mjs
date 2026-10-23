@@ -242,6 +242,31 @@ test('CAMP-001: recurring campaign progress; a failed monthly donation recovers 
  },{entry:'tests/fixed-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-3002',STRIPE_WEBHOOK_SECRET:webhookSecret},outbound:edge.outbound})
 })
 
+test('portal links and sessions sent to a former email stop working once staff change the email',async()=>{
+ await run(async h=>{
+  const former='synthetic-coffer-1301@example.test',current='synthetic-coffer-1302@example.test'
+  const known=await donor(h,'Synthetic Portal Holder',{email:former})
+  const link=async address=>{
+   const requested=await h.request('/giving/portal/request',form({email:address}))
+   assert.equal(requested.status,200,await requested.text())
+   const mail=h.messages.findLast(m=>m.to.includes(address))
+   return new URL(mail.text.match(/https?:\/\/[^\s<>]+\/giving\/portal\/confirm\?token=[a-f0-9]+/)[0]).searchParams.get('token')
+  }
+  const signIn=async address=>h.request('/giving/portal/confirm',form({token:await link(address)}))
+  const unused=await link(former),session=cookie(await signIn(former))
+  assert.equal((await h.request('/giving/portal/preferences',{as:session})).status,200)
+  const before=(await h.get('/api/coffer/donors/'+known.id)).donor
+  await h.command('contact.save',{donorId:known.id,donorVersion:before.version,kind:'email',type:'personal',value:current,primary:'yes'})
+  const stale=await h.request('/giving/portal/confirm',form({token:unused}))
+  assert.equal(stale.status,400,'A link mailed to the former address no longer signs in')
+  assert.equal(stale.headers.getSetCookie().length,0)
+  assert.equal((await h.request('/giving/portal/preferences',{as:session})).status,303,'A session opened from the former address ends')
+  const renewed=await signIn(current)
+  assert.equal(renewed.status,303)
+  assert.equal((await h.request('/giving/portal/preferences',{as:cookie(renewed)})).status,200,'The current address still signs in')
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1300'}})
+})
+
 test('REPORT-006: monthly health preserves starts, amount changes, failed payments, recoveries and cancellations across the clock',async()=>{
  const {recurringHealthJourney}=await import('./recurring-health-journey.mjs')
  await recurringHealthJourney()
