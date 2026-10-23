@@ -26,7 +26,7 @@ export async function bulkListCommand(c:Context,command:string,p:Row):Promise<Ro
    writes.push(sql('UPDATE cf_donors SET version=version+1 WHERE id=?',row.donor_id))
   }
   await commit(c,[guard('EXISTS(SELECT 1 FROM cf_list_bulk_jobs WHERE id=? AND version=? AND undone_at IS NULL)','VERSION','This bulk action changed.',jobId,version),...writes,sql('UPDATE cf_list_bulk_jobs SET version=version+1,undone_at=? WHERE id=?',c.now,jobId),event(c,command,'list_bulk',jobId,null,{count:rows.length})])
-  return {id:jobId,version:version+1,undone:rows.length}
+  return {id:jobId,listId:job.list_id,version:version+1,undone:rows.length}
  }
  const listId=id(p.listId,'Saved list'),version=integer(Number(p.version),'List version',1),reason=text(p.reason,'Reason',1000)
  const list=await one(c,'SELECT version FROM cf_saved_lists WHERE id=?',listId)

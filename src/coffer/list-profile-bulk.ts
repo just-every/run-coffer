@@ -76,7 +76,7 @@ export async function profileBulkCommand(c:Context,command:string,p:Row,options:
    writes.push(sql('UPDATE cf_donors SET version=version+1 WHERE id=?',row.donor_id),event(c,'list.profileUndo','donor',row.donor_id,row.donor_id,{jobId,kind:job.kind,...(job.kind==='status'?{from:after.profile!.constituent_status,to:before.profile!.constituent_status}:{})}))
   }
   await commit(c,[guard('EXISTS(SELECT 1 FROM cf_list_bulk_jobs WHERE id=? AND version=? AND undone_at IS NULL)','VERSION','This action changed.',jobId,version),...writes,sql('UPDATE cf_list_bulk_rows SET donor_version=donor_version+1 WHERE job_id=?',jobId),sql('UPDATE cf_list_bulk_jobs SET version=version+1,undone_at=? WHERE id=?',c.now,jobId),event(c,command,'list_bulk',jobId,null,{count:rows.length,kind:job.kind,restoredPending:false})])
-  return {id:jobId,version:version+1,undone:rows.length}
+  return {id:jobId,listId:job.list_id,version:version+1,undone:rows.length}
  }
  const listId=id(p.listId,'Saved list'),version=integer(Number(p.version),'List version',1),reason=text(p.reason,'Reason',1000),kind=choice(p.kind,['custom','status','solicitation'] as const,'bulk action')
  const list=await one(c,'SELECT version FROM cf_saved_lists WHERE id=?',listId)

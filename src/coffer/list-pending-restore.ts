@@ -19,5 +19,5 @@ export async function restorePendingCommand(c:Context,command:string,p:Row):Prom
   writes.push(sql('UPDATE cf_donors SET version=version+1 WHERE id=?',row.donor_id),event(c,command,'donor',row.donor_id,row.donor_id,{jobId}))
  }
  await commit(c,[guard("EXISTS(SELECT 1 FROM cf_list_bulk_jobs WHERE id=? AND version=? AND kind='status' AND undone_at IS NOT NULL AND pending_restored_at IS NULL)",'VERSION','This action changed.',jobId,version),...writes,sql('UPDATE cf_list_bulk_jobs SET version=version+1,pending_restored_at=? WHERE id=?',c.now,jobId),event(c,command,'list_bulk',jobId,null,{count:rows.length,confirmed:true})])
- return {id:jobId,version:version+1,restoredPending:rows.length}
+ return {id:jobId,listId:job.list_id,version:version+1,restoredPending:rows.length}
 }

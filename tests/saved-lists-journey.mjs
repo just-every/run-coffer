@@ -160,7 +160,9 @@ export async function savedListsJourney(){await run(async h=>{
  assert.ok(welcomeState.enrollments[0].steps.every(s=>s.status==='pending'))
  const welcomeStatus=await h.command('list.profile',{listId:welcomeList.id,version:1,kind:'status',status:'inactive',statusReason:'Pause pending review',reason:'synthetic-coffer-717'})
  assert.ok((await h.get('/api/coffer/welcome')).enrollments[0].steps.every(s=>s.status==='cancelled'))
- await h.command('list.profileUndo',{jobId:welcomeStatus.id,version:1,restorePending:'yes'})
- assert.ok((await h.get('/api/coffer/welcome')).enrollments[0].steps.every(s=>s.status==='pending'),'Explicit undo restores unsent journey work as well as constituent status')
+ await h.command('list.profileUndo',{jobId:welcomeStatus.id,version:1})
+ assert.ok((await h.get('/api/coffer/welcome')).enrollments[0].steps.every(s=>s.status==='cancelled'),'Profile undo leaves cancelled journey work closed')
+ await h.command('list.restorePending',{jobId:welcomeStatus.id,version:2,confirm:'yes'})
+ assert.ok((await h.get('/api/coffer/welcome')).enrollments[0].steps.every(s=>s.status==='pending'),'Separate confirmation restores unsent journey work after constituent status')
  const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/lists/'+list.id+'/members')).donorIds.sort(),[a.id,b.id].sort());await fresh.command('donor.erase',{donorId:a.id,confirm:'ERASE'});assert.deepEqual((await fresh.get('/api/coffer/lists/'+list.id+'/members')).donorIds,[b.id])})
 })}
