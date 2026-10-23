@@ -1,3 +1,5 @@
+import { agentGrantsState } from './agent-grants'
+import { grantedRead } from './agent-grants-reads'
 import { savedConnection } from './communications/connection'
 import { profileFieldsPanel } from './communications/profile-fields'
 import { pledgeTemplatePanel } from './ui/pledge-template'
@@ -166,6 +168,7 @@ async function formInput(data: FormData) {
  const customKeys=[...new Set([...data.keys()].filter(key=>key.startsWith('custom.')))]
  if(customKeys.length)input.customFields=Object.fromEntries(customKeys.filter(key=>data.getAll(key).some(value=>String(value).trim()!=='')).map(key=>[key.slice(7),data.has('many.'+key)?data.getAll(key):data.get(key)]))
  if(input.command==='custom.set'&&data.has('customMany'))input.value=data.getAll('customValues')
+ if(input.command==='agentGrant.save')input.permissions=data.getAll('permissions')
  if (input.command === 'sms.prepare') input.donorIds=data.getAll('donorIds')
  if (input.command === 'research.screen') input.donorIds=data.getAll('donorIds')
  if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
@@ -217,6 +220,12 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    if (!auth.bearer || actor.role !== 'agent') fail('agent_key_required', 'Use an existing Coffer agent key for MCP.', 403)
    if (request.headers.has('origin') && request.headers.get('origin') !== url.origin) fail('invalid_origin', 'This MCP request came from another origin.', 403)
    return await mcpResponse(request, c, () => textBody(request, LIMIT))
+  }
+  if(actor.grant) {
+   if(request.method==='GET' && path==='/api/coffer/donors')return json(await grantedRead(c,'donors.list',Object.fromEntries(url.searchParams)))
+   const scopedDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)$/)
+   if(request.method==='GET'&&scopedDonor)return json(await grantedRead(c,'donors.context',{donorId:decodeURIComponent(scopedDonor[1])}))
+   if(!(request.method==='POST'&&path==='/api/coffer/commands'))fail('GRANT_FORBIDDEN','This endpoint is outside the named agent grant.',403)
   }
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   if (!isApi && person(actor)) actor.org = (await settings(c)).organisation || undefined
@@ -432,6 +441,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('cultivation.') || command.startsWith('proposal.')) return redirect('/app/opportunities/' + encodeURIComponent(result.prospectId ?? input.prospectId))
  if (command.startsWith('prospect.')) return redirect('/app/pipeline')
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
+ if(command.startsWith('agentGrant.'))return redirect('/app/data#agent-grants')
  if (command === 'agent.revoke') return redirect('/app/data')
  if (command === 'dashboard.goal') return redirect('/app/reports/dashboard?year='+encodeURIComponent(String(input.year))+'#goals')
  if(command==='person.defaultsPreview')return page('Review name defaults',`<p>${result.changed} person records will change. Overrides and prepared documents are preserved.</p>${form('person.defaults','<p>Save these defaults for existing and new people.</p>','Save name defaults',result)}<p><a href="/app/settings">Back to settings</a></p>`,actor)
@@ -482,6 +492,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if(url.pathname==='/api/coffer/agent-grants')return json(await agentGrantsState(c))
  if(url.pathname==='/api/coffer/provider-fields'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages shared provider fields.',403);const conn=await savedConnection(c);return json({provider:conn?.provider??null,version:conn?.mergeVersion??1,fields:conn?.mergeSelection??[]})}
  const members=url.pathname.match(/^\/api\/coffer\/lists\/([^/]+)\/members$/);if(members){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reads a saved list.',403);return json({donorIds:(await listMembers(c,decodeURIComponent(members[1]))).ids})}
  if(url.pathname==='/api/coffer/pledge-template'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reads reminder wording.',403);return json(await pledgeTemplate(c))}

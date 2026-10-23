@@ -24,9 +24,9 @@ export async function all<T = Row>(c: { db: D1Database }, text: string, ...param
 }
 
 /** The audit row for a change: identifiers and amounts only, never donor personal data. */
-export function event(c: { now: string; actor: { id: string; name: string; role: string } }, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}, table: 'cf_events' | 'cf_access_events' = 'cf_events'): Stmt {
+export function event(c: { now: string; actor: { id: string; name: string; role: string; grant?: { id: string; version: number } } }, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}, table: 'cf_events' | 'cf_access_events' = 'cf_events'): Stmt {
  return sql(`INSERT INTO ${table}(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,?,?,?,?,?)`,
-  c.now, c.actor.id, c.actor.name, c.actor.role, action, subjectKind, subjectId, donorId, JSON.stringify(detail))
+  c.now, c.actor.id, c.actor.name, c.actor.role, action, subjectKind, subjectId, donorId, JSON.stringify({ ...detail, ...(c.actor.grant ? { grantId: c.actor.grant.id, grantVersion: c.actor.grant.version } : {}) }))
 }
 
 /** One D1 transaction: the caller's current authority, then the writes and

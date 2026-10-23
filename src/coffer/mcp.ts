@@ -1,10 +1,12 @@
+import { grantedRead } from './agent-grants-reads'
+import { commit, event } from './db'
 import { execute } from './commands'
 import { CofferError, type Context, type Row } from './db'
 import { donorHistory, listDonors } from './donors'
 
 const CURRENT = '2026-07-28', LEGACY = '2025-11-25', versions = [CURRENT, LEGACY]
 const serverInfo = { name: 'coffer', version: '1.0.0' }, capabilities = { tools: {} }
-const instructions = 'Read donor context and prepare drafts. A person reviews and approves acknowledgment batches and appeals in Coffer. No tool approves, exports or sends.'
+const instructions = 'Read donor context and prepare drafts under the key’s current authority. People approve ordinary drafts. Named grants may separately authorize sending standard receipts under a standing human approval; scope, templates, daily limits and kill switches apply to every call.'
 const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' }
 const json = (value: unknown, status = 200, extra = {}) => Response.json(value, { status, headers: { ...headers, ...extra } })
 const error = (id: string | number | null, code: number, message: string, status = 400, data?: unknown) => json({ jsonrpc: '2.0', id, error: { code, message, ...(data === undefined ? {} : { data }) } }, status)
@@ -26,6 +28,8 @@ const tools = [
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } },
 ]
 
+const standingSendTool = { name:'ack.send',description:'Dispatch this named grant’s own frozen standard receipt batch under explicit standing human approval. Current scope, template revision, daily receipt limit and kill switch are rechecked. Interrupted claims require human investigation.',inputSchema:schema({batchId:identifier('Prepared receipt batch.'),version:{type:'integer',minimum:1,maximum:Number.MAX_SAFE_INTEGER}},['batchId','version']),annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:false,openWorldHint:true} }
+
 /** Validate exactly the JSON Schema keywords used by the fixed tool catalog. */
 function valid(value: unknown, s: Row): boolean {
  if (s.type === 'object') return object(value) && (s.required ?? []).every((key: string) => Object.hasOwn(value, key)) && Object.entries(value).every(([key, item]) => Object.hasOwn(s.properties, key) && valid(item, s.properties[key]))
@@ -46,6 +50,8 @@ function headerName(value: string | null): string | null {
 /** Root supplies native bearer identity + authority, validates Origin, and reads
  * UTF-8 text with its bounded private-body reader (1 MiB). No sessions are kept. */
 export async function mcpResponse(request: Request, c: Context, readBody: () => Promise<string>): Promise<Response> {
+ const availableTools=c.actor.grant?[...tools,standingSendTool]:tools
+ if(c.actor.grant)await commit(c,[event(c,'mcp.request','agent_grant',c.actor.grant.id,null,{},'cf_access_events')])
  if (c.actor.role !== 'agent') return error(null, -32600, 'Use an existing Coffer agent bearer key.', 403)
  if (request.method !== 'POST') return json({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Use POST; this endpoint does not offer a GET stream or sessions.' } }, 405, { allow: 'POST' })
  if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') return error(null, -32600, 'Send application/json.', 415)
@@ -80,18 +86,18 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
  if (message.method === 'ping' && !modern) return result({})
  if (message.method === 'tools/list') {
   if (p.cursor !== undefined) return error(id, -32602, 'This catalog has one page; omit cursor.')
-  return result({ tools })
+  return result({ tools: availableTools })
  }
  if (message.method !== 'tools/call') return error(id, -32601, 'Method not found.', modern ? 404 : 200)
  // DONOR-008: agent keys never grant record-file access, including direct
  // calls to document operations that are deliberately absent from discovery.
  if (typeof p.name === 'string' && p.name.startsWith('documents.')) return error(id, -32602, 'Agent keys cannot use record documents.', 403, { code: 'FORBIDDEN' })
- const tool = tools.find(tool => tool.name === p.name)
+ const tool = availableTools.find(tool => tool.name === p.name)
  if (!tool) return error(id, -32602, 'Unknown tool. Only the listed read and preparation tools are available.', modern ? 400 : 200)
  const args = p.arguments === undefined ? {} : p.arguments
  if (!valid(args, tool.inputSchema)) return error(id, -32602, 'Tool arguments must match its inputSchema.', modern ? 400 : 200)
  try {
-  const value = tool.name === 'donors.list' ? await listDonors(c, args) : tool.name === 'donors.context' ? await donorHistory(c, args.donorId) : await execute(c, tool.name, args)
+  const value = c.actor.grant && ['donors.list','donors.context'].includes(tool.name) ? await grantedRead(c,tool.name as 'donors.list'|'donors.context',args) : tool.name === 'donors.list' ? await listDonors(c, args) : tool.name === 'donors.context' ? await donorHistory(c, args.donorId) : await execute(c, tool.name, args)
   return result({ content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value, isError: false })
  } catch (cause) {
   if (!(cause instanceof CofferError)) return error(id, -32603, 'Internal error.', 500)

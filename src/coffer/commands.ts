@@ -1,3 +1,5 @@
+import { agentGrantCommand } from './agent-grants'
+import { executeGranted } from './agent-grants-execution'
 import { profileFieldCommand } from './communications/profile-fields'
 import { pledgeTemplateCommand } from './pledge-templates'
 import { contactCommand } from './contact-points'
@@ -97,10 +99,12 @@ export const ACCESS: Record<string, Role[]> = {
  'ack.correct': MANAGERS, 'ack.prepareStatements': MANAGERS, 'ack.send': MANAGERS, 'ack.checkDelivery': MANAGERS, 'ack.printed': MANAGERS, 'ack.prepare': PREPARERS, 'ack.approve': MANAGERS, 'ack.discard': MANAGERS, 'ack.export': MANAGERS, 'ack.markSent': MANAGERS,
  'marketing.sync': MANAGERS, 'marketing.connectMango': MANAGERS, 'marketing.connectMailchimp': MANAGERS, 'marketing.chooseAudience': MANAGERS, 'marketing.check': MANAGERS, 'marketing.disconnect': MANAGERS, 'marketing.refresh': MANAGERS, 'appeal.send': MANAGERS, 'welcome.publish': MANAGERS, 'welcome.run': MANAGERS, 'reply.complete': STAFF, 'reply.proposeStop': STAFF, 'reply.confirmStop': STAFF, 'reply.reverseStop': STAFF,
  'appeal.prepare': [...PREPARERS,'member'], 'appeal.approve': MANAGERS, 'appeal.discard': MANAGERS, 'appeal.export': MANAGERS, 'appeal.markSent': MANAGERS,
+ 'agentGrant.disable': MANAGERS, 'agentGrant.save': MANAGERS, 'agentGrant.attach': MANAGERS, 'agentGrant.kill': MANAGERS,
  'agent.create': MANAGERS, 'agent.revoke': MANAGERS,
 }
 
 export async function execute(c: Context, command: string, input: unknown): Promise<Row> {
+ if(c.actor.role==='agent' && c.actor.grant) return executeGranted(c,command,object(input))
  const allowed = ACCESS[command]
  if (!allowed) fail('COMMAND', 'Unknown Coffer command.', 400)
  requireRole(c.actor, allowed, `run ${command}`)
@@ -112,6 +116,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'donor.merge') return mergeDonor(c, p)
  if (command === 'donor.unmerge') return undoMerge(c, p)
  if (command === 'settings.update') return settingsCommand(c, p)
+ if (command.startsWith('agentGrant.')) return (await agentGrantCommand(c,command,p))!
  if (command.startsWith('agent.')) return agentKey(c, command, p)
  for (const handler of [restorePendingCommand,profileFieldCommand,pledgeTemplateCommand,contactCommand,listTasksCommand,profileBulkCommand,bulkListCommand,customChoiceCommand,tagCommand,customFieldCommand,addressCommand, contributionTypeCommand, giftRulesCommand, solicitationCommand, smsCommand, giftBatchCommand, savedListCommand, personDefaultsCommand, organizationContactCommand, householdCommand, statusCommand, meetingQuestionCommand, meetingCommand, tributeNotificationCommand, receiptTaskCommand, letterTemplateCommand, dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)

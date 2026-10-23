@@ -2,7 +2,7 @@ import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
 import { CofferError } from './db'
 export type Role = 'owner' | 'admin' | 'member' | 'agent'
 /** `org` is display-only: the organization name the app shell shows in its top bar. */
-export type Actor = { id: string; name: string; role: Role; org?: string }
+export type Actor = { id: string; name: string; role: Role; org?: string; grant?: { id: string; version: number } }
 export type Authority = { sql: string; params: any[] }
 export const digest = async (value: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), x => x.toString(16).padStart(2, '0')).join('')
 /** Owners and admins manage; members do data entry; agents only prepare. */
@@ -20,10 +20,11 @@ export async function identity(request: Request, original: Bindings): Promise<{ 
  if (bearer) {
   if (!/^Bearer [A-Za-z0-9_-]{43}$/.test(bearer)) throw new CofferError('invalid_agent_key', 'Supply a valid agent key.', 401)
   const hash = await digest(bearer.slice(7)), now = Date.now()
-  const sql = "EXISTS(SELECT 1 FROM cf_agent_keys k JOIN oa_operators o ON o.id=k.created_by WHERE k.token_hash=? AND k.revoked_at IS NULL AND k.expires_at>? AND o.status='active' AND o.version=k.creator_version AND o.role IN ('owner','admin'))"
-  const key = await env.DB.prepare(`SELECT k.id,k.label FROM cf_agent_keys k WHERE k.token_hash=? AND (${sql})`).bind(hash, hash, now).first<{ id: string; label: string }>()
+  const sql = "EXISTS(SELECT 1 FROM cf_agent_keys k JOIN oa_operators o ON o.id=k.created_by WHERE k.token_hash=? AND k.revoked_at IS NULL AND k.expires_at>MAX(?,unixepoch('now')*1000) AND o.status='active' AND o.version=k.creator_version AND o.role IN ('owner','admin'))"
+  const key = await env.DB.prepare(`SELECT k.id,k.label,k.grant_id,g.version AS grant_version FROM cf_agent_keys k LEFT JOIN cf_agent_grants g ON g.id=k.grant_id WHERE k.token_hash=? AND (${sql})`).bind(hash, hash, now).first<{ id: string; label: string; grant_id: string | null; grant_version: number }>()
   if (!key) throw new CofferError('invalid_agent_key', 'This agent key is unknown, expired or revoked.', 401)
-  return { actor: { id: key.id, name: key.label, role: 'agent' }, authority: { sql, params: [hash, now] }, bearer: true }
+  const grantSql = key.grant_id ? ` AND EXISTS(SELECT 1 FROM cf_agent_keys WHERE token_hash=? AND grant_id=?) AND EXISTS(SELECT 1 FROM cf_agent_grants g JOIN oa_operators approver ON approver.id=g.approved_by_id WHERE g.id=? AND g.version=? AND g.enabled=1 AND approver.status='active' AND approver.version=g.approver_version AND approver.role IN ('owner','admin')) AND EXISTS(SELECT 1 FROM cf_agent_grant_control WHERE id=1 AND enabled=1)` : ' AND EXISTS(SELECT 1 FROM cf_agent_keys WHERE token_hash=? AND grant_id IS NULL)'
+  return { actor: { id: key.id, name: key.label, role: 'agent', ...(key.grant_id ? { grant: { id: key.grant_id, version: key.grant_version } } : {}) }, authority: { sql: sql + grantSql, params: [hash, now, ...(key.grant_id ? [hash,key.grant_id,key.grant_id, key.grant_version] : [hash])] }, bearer: true }
  }
  const session = await operatorAuth(env).getSession(request)
  if (!session) throw new CofferError('sign_in_required', 'Sign in to continue.', 401)
