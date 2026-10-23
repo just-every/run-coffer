@@ -38,7 +38,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_ORGANIZATION_BROWSER=.cache/organizations node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DATA-002|GIFT-002|GIFT-010|STEW-005):' tests/coffer.test.mjs"
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001):' tests/coffer.test.mjs"
       ]
     },
     {
@@ -207,6 +207,14 @@
       "hosted": false,
       "commands": [
         "COFFER_RECOVERY_BROWSER=.cache/monthly-recovery node --test --test-name-pattern=GIVE-006 tests/agent-recovery.test.mjs"
+      ]
+    },
+    {
+      "name": "phone-staff",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node --test --test-name-pattern='^MOBILE-001:' tests/coffer.test.mjs"
       ]
     }
   ],
