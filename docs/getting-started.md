@@ -1,14 +1,14 @@
-Coffer runs on your own computer. You need macOS, Linux or Windows with WSL2, and git.
+Coffer runs on your own computer, on macOS, Linux or Windows with WSL2. Git is required; rer brings Node and pnpm.
 
 ## Start Coffer
 
-One line installs the `rer` launcher, gets Coffer and starts it:
+One line installs the `rer` launcher, clones Coffer into `run-coffer` and starts it:
 
 ```sh
-npx -y @runeditrun/rer dev just-every/run-coffer
+curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-coffer
 ```
 
-No Node? `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-coffer` brings its own Node and does the same.
+Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-coffer` does the same. If the installer prints a line that puts `rer` on your PATH, run that line too.
 
 The first start installs everything and can take a few minutes. If it is interrupted, run the same line again: it picks up where it stopped. When Coffer is ready it prints:
 
@@ -24,7 +24,7 @@ Local use sends no email, so no mailbox is needed.
 
 ## Stop and start again
 
-Stop Coffer with `rer dev --stop`, or Ctrl-C in the window where it runs. To start it again later:
+Stop Coffer with `rer dev --stop`, or Ctrl-C in the window where it runs. To start it again later, run the same line from the same folder, or:
 
 ```sh
 cd run-coffer && rer dev

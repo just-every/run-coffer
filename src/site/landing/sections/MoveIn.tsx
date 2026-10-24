@@ -2,12 +2,22 @@ import { org } from '../data'
 import { Check, Chip, Drawing, Icon, StepCopy } from '../parts'
 
 const ROWS: [string, string][] = [['Constituents', '4,812'], ['Households', '1,207'], ['Gifts', '38,406 · $3,912,550.00'], ['Pledges', '214'], ['Duplicates merged', '63']]
-// Narrow, the first command wraps only after its flags, never at the pipe.
-const COMMANDS = [<>curl -fsSL <span className="nowrap">https://runeditrun.com/install.sh | sh</span></>, 'rer dev just-every/run-coffer']
+// The one start line every Run Edit Run page shows, and the alternative for people who already have Node.
+const START = 'curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-coffer'
+const ALTERNATIVE = 'npx -y @runeditrun/rer dev just-every/run-coffer'
 const exportFile = `${org.short.toLowerCase()}-export.zip`
 
+/** A command that wraps only between words, keeping the installer's `install.sh | sh` together. */
+function words(line: string) {
+  return line.split(/(\S*install\.sh \| sh|\S+)/).map((part, index) => {
+    const pipe = /^(.*\/)(install\.sh \| sh)$/.exec(part)
+    if (pipe) return <span key={index}><span className="nowrap">{pipe[1]}</span><wbr /><span className="nowrap">{pipe[2]}</span></span>
+    return part.trim() ? <span key={index} className="nowrap">{part}</span> : part
+  })
+}
+
 /** Feb 20, moving in: a Little Green Light export checked row by row, two gifts with no fund fixed, totals matched
- * to the cent; and the two commands that install rer and start Coffer (the run page's steps 1 and 2). */
+ * to the cent; and the one line that installs rer and starts Coffer, with the npx alternative. */
 export function MoveIn() {
   return <section id="move-in" className="story move-in" aria-labelledby="move-in-title">
     <div className="site-wrap story-row">
@@ -25,9 +35,12 @@ export function MoveIn() {
           </div>
         </div>
       </Drawing>
-      <figure className="terminal" aria-label="Install and start Coffer from the source">
+      <figure className="terminal" aria-label={`Install and start Coffer with one line: ${START}. Already have Node 22 or later? ${ALTERNATIVE} does the same.`}>
         <p className="terminal-bar" aria-hidden="true"><span /><span /><span /></p>
-        <pre><code>{COMMANDS.map((c, i) => <span key={i} className="terminal-line"><span className="prompt" aria-hidden="true">$ </span>{c}{'\n'}</span>)}</code></pre>
+        <pre><code>
+          <span className="terminal-line"><span className="prompt" aria-hidden="true">$ </span>{words(START)}{'\n'}</span>
+          <span className="terminal-line terminal-comment"><span className="prompt" aria-hidden="true"># </span>{words(`Already have Node 22 or later? ${ALTERNATIVE}`)}{'\n'}</span>
+        </code></pre>
       </figure>
     </div>
   </section>

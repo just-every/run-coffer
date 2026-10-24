@@ -1,5 +1,7 @@
 # Host it on Cloudflare
 
+**Or let Run Edit Run host it.** [Run Edit Run](https://app.runeditrun.com/?product=coffer&plan=assisted) can set Coffer up on your own Cloudflare account and keep it updated; sign-ups are by request for now.
+
 Coffer on your computer needs no accounts. To let your team and donors reach it, host it in your own Cloudflare account. Everything it creates there (one Worker and one D1 database) belongs to you.
 
 ## What you need

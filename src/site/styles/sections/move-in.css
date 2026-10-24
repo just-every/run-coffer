@@ -1,4 +1,4 @@
-/* Feb 20, moving in: the import card on the right and the terminal tucked over its lower-left corner (at 1400 and
+/* Feb 20, moving in: the import card on the right and the one-line terminal tucked over its lower-left corner (at 1400 and
    wider; narrower, the terminal sits under the copy, and on phones under the card). */
 .move-in { padding-top: 40px; }
 .move-in .story-row { grid-template-columns: minmax(0, 1fr) 284px 120px 395px; grid-template-rows: auto auto; column-gap: 0; }
@@ -30,7 +30,8 @@
 .terminal-bar span { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
 .terminal-bar span:nth-child(2) { background: #febc2e; } .terminal-bar span:nth-child(3) { background: #28c840; }
 .terminal pre { margin-top: 22px; padding: 0 16px; overflow-x: auto; font: 400 12px/26px var(--font-mono); color: #eceaff; }
-.terminal-line { display: block; white-space: pre; }
+.terminal-line { display: block; padding-left: 2ch; text-indent: -2ch; white-space: pre-wrap; }
+.terminal-comment, .terminal-comment .prompt { color: #a6a3cf; }
 .prompt { color: #9c7bff; font-weight: 600; }
 
 @media (max-width: 1399px) {
@@ -57,5 +58,4 @@
   .import-fix .import-ok { font-size: 15px; }
   .terminal { padding: 14px 0 16px; }
   .terminal pre { margin-top: 14px; padding: 0 14px; font-size: 12px; line-height: 22px; }
-  .terminal-line { padding-left: 2ch; text-indent: -2ch; white-space: pre-wrap; overflow-wrap: anywhere; }
 }
