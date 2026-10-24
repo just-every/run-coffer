@@ -32,6 +32,15 @@
       },
       "modes": {
         ".github/workflows/verify.yml": "100644"
+      },
+      "adapted": {
+        ".github/workflows/verify.yml": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+      },
+      "acknowledged": {
+        ".github/workflows/verify.yml": {
+          "sha256": "c846d57fd9fb6031d0bed5ae76e32a71e20309a5b3034aa1843cc958f282c95d",
+          "mode": "100644"
+        }
       }
     },
     {
