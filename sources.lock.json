@@ -296,7 +296,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "1df5a0bced989ef9cab83bbf0de9940512592e81c4d757fe4bbb80269eec3246",
+      "sha256": "f603cd9dcd5fd1256faccc4fe3469b8e21eedbf548ef7fc1c753bcc978d0640e",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1232,7 +1232,7 @@
       "executable": false
     },
     "rer-project.json": {
-      "sha256": "3800e879e5934c9ac9933d870ffbe87c9210e3267d4e57fd42874cab739f8d20",
+      "sha256": "f0c4bdd665bbf022e9f9e24c4728ade72303ec828ef424b92ad4f49c9af99104",
       "executable": false
     },
     "rer-setup.json": {
