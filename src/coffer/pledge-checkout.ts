@@ -63,10 +63,10 @@ export async function completePledgeCheckout(env: GivingEnv,sessionId:string) {
  const c={db:env.DB},saved=await one(c,'SELECT * FROM cf_pledge_checkouts WHERE session_id=?',sessionId)
  if(!saved)return null
  const session=await stripe(env,'/checkout/sessions/'+encodeURIComponent(sessionId))
- if(session.metadata?.coffer_pledge_checkout!==saved.id||session.currency!=='usd'||session.amount_total!==saved.amount_cents)fail('invalid_payment','Stripe returned a different pledge checkout.',409)
+ if(session.id!==sessionId||session.metadata?.coffer_pledge_checkout!==saved.id||session.currency!=='usd'||session.amount_total!==saved.amount_cents)fail('invalid_payment','Stripe returned a different pledge checkout.',409)
  if(session.status!=='complete'||session.payment_status!=='paid')return {paid:false}
  const pi=await stripe(env,'/payment_intents/'+encodeURIComponent(session.payment_intent))
- if(pi.status!=='succeeded'||pi.currency!=='usd'||pi.amount_received!==saved.amount_cents||pi.metadata?.coffer_pledge_checkout!==saved.id)fail('invalid_payment','Stripe has not confirmed this installment payment.',409)
+ if(pi.id!==session.payment_intent||pi.status!=='succeeded'||pi.currency!=='usd'||pi.amount_received!==saved.amount_cents||pi.metadata?.coffer_pledge_checkout!==saved.id)fail('invalid_payment','Stripe has not confirmed this installment payment.',409)
  const i=await payable(env,saved.installment_id)
  if(!i)fail('donor_unavailable','This pledge record is no longer available. Ask the organization to reconcile the payment.',409)
  const giftId='giving-'+pi.id,now=new Date().toISOString(),on=today((await settings(c)).timezone,new Date(pi.created*1000))
