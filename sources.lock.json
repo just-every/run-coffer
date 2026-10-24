@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "just-every/run-coffer",
-  "manifest": "df163138308fcb44fbfa1eb41f7d480f1b2d0f52f808f3178f4487191f352030",
+  "manifest": "81a0db748dafc18694250469740cddf474d6d1c7d18aa1629b17013a01f5a3cd",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -495,6 +495,34 @@
         "digest": "93b9ded9f94787f6dea2612bf606323e3f31466cba9918eb1d2351a6ba6d94b7",
         "sha256": "e5183fea0febfd3bf2d0b10cf36c7fba9db911063302ea9db7125920e5caa7ad"
       }
+    },
+    {
+      "id": "just-every/seed-fonts",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/base/font-head.ts"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base",
+          "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+          "path": ".",
+          "paths": [
+            "foundation/runtime/font-head.ts"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "src/base/font-head.ts",
+            "originPath": "foundation/runtime/font-head.ts"
+          }
+        ]
+      },
+      "baseline": {
+        "key": "69cf856f4b7f126f385d31669c5296e1a1444996df24d2a962b8a6244d7c6dbd",
+        "digest": "d11a536058e5038a79aa85e4424fe7f78b683bf64a3144fb6dd868173abfa33f",
+        "sha256": "38f18e855a701f2b8933895676e741bf75326accabe9005706a2b848ed7aaad7"
+      }
     }
   ],
   "files": {
@@ -535,7 +563,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "16554243958b6c313f4b352dcf5336e1ab2e6acad048f276309b21cf6f9ba076",
+      "sha256": "be7d6dcd06b405fa484e044e53911659e0ab5b736bf3f76be48e3d0f1e44c25c",
       "executable": false
     },
     "CHANGELOG.md": {
@@ -687,7 +715,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "df163138308fcb44fbfa1eb41f7d480f1b2d0f52f808f3178f4487191f352030",
+      "sha256": "81a0db748dafc18694250469740cddf474d6d1c7d18aa1629b17013a01f5a3cd",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -1907,7 +1935,7 @@
       "executable": false
     },
     "src/base/font-head.ts": {
-      "sha256": "937fe339a397abee96e4279f2e310fa336eb30b2ec3aeb98f2c09ed0ba7d5dac",
+      "sha256": "13105a4b416cb5d0677ca8661e619b301b1c06b84b1acf6c101da0f4bf53a162",
       "executable": false
     },
     "src/base/font-response.ts": {

@@ -461,6 +461,30 @@
           }
         ]
       }
+    },
+    {
+      "id": "just-every/seed-fonts",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/base/font-head.ts"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base",
+          "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+          "path": ".",
+          "paths": [
+            "foundation/runtime/font-head.ts"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "src/base/font-head.ts",
+            "originPath": "foundation/runtime/font-head.ts"
+          }
+        ]
+      }
     }
   ]
 }

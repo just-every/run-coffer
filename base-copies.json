@@ -711,6 +711,15 @@
       },
       "modes": {
         "src/base/font-head.ts": "100644"
+      },
+      "adapted": {
+        "src/base/font-head.ts": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+      },
+      "acknowledged": {
+        "src/base/font-head.ts": {
+          "sha256": "13105a4b416cb5d0677ca8661e619b301b1c06b84b1acf6c101da0f4bf53a162",
+          "mode": "100644"
+        }
       }
     },
     {
