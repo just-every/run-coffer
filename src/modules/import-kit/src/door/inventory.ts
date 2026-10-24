@@ -34,7 +34,7 @@ export async function importedTargets(request: DoorRequest, targets: DoorTarget[
     const key = canonicalJson([p.jobId,p.sourceIdentity,p.targetKind,p.targetId]);
     if (!p.reversed && p.destination === destination && !live.has(key)) live.set(key, p);
   }
-  // A kind/id the native set holds twice is ambiguous and never matches.
+  // A kind and id the native set holds twice is ambiguous and never matches.
   const rows = new Map<string, TargetRow | null>();
   for (const row of persisted.rows) if (row.destination === destination) {
     const key = canonicalJson([row.targetKind,row.targetId]);

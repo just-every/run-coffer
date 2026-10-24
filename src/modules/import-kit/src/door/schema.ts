@@ -35,7 +35,7 @@ const failureSchema = [
 ];
 /** For doors installed before apply-failure support: run ONCE in a new numbered
  * migration, in one database.batch(). Copy children before dropping parents so
- * foreign keys stay enabled and every retained approval/snapshot survives. */
+ * foreign keys stay enabled and every retained approval and snapshot survives. */
 export const importDoorApplyFailureMigration = [
   ...planTables('_apply_failure'),
   'INSERT INTO ik_door_plans_apply_failure SELECT * FROM ik_door_plans',

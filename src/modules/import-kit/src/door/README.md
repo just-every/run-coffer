@@ -65,7 +65,7 @@ exports the same schema and migrations) has no opt-in and answers 503 too.
 Until the third has run, only `archive` and `restore-check` answer that 503.
 
 `ik_door_scopes` binds each logical namespace to the product destination on
-the first uploaded chunk, before a plan/job exists. Old applied namespaces remain scoped through their kit job id
+the first uploaded chunk, before a plan or job exists. Old applied namespaces remain scoped through their kit job id
 or the recoverable `door:<plan id>` operation key. Rows the previous door wrote
 in a namespace with neither link (an unplanned upload, a plan never applied,
 or rows a rolled-back previous Worker keeps writing) were never applied by any
@@ -171,7 +171,7 @@ The required flat payload fields are:
 | `v`, `iss`, `aud` | Version `1` and the configured owner-claim issuer/audience. |
 | `installationId`, `email` | Exact installation and owner identity. |
 | `jti` | UUID nonce, durably single-use. |
-| `iat`, `exp` | Issued/expiry Unix seconds; lifetime at most 300 seconds, future issue allowance at most 30 seconds. |
+| `iat`, `exp` | Issued and expiry Unix seconds; lifetime at most 300 seconds, future issue allowance at most 30 seconds. |
 | `action` | Exactly the requested route suffix. |
 | `namespace` | Logical import-tool namespace. |
 | `maxBytes`, `maxChunks`, `maxRecords` | Positive quotas capped at 300,000,000 bytes, 1,024 chunks and 1,000,000 records. |
@@ -179,7 +179,7 @@ The required flat payload fields are:
 Unknown keys are rejected. Apply additionally requires `fingerprint` (64 hex
 characters), `approvalRecordId` and `approvedAt` (canonical ISO timestamp).
 Plan grants carry no fingerprint. Optional `catchup: 'bounded'` is accepted only
-for plan/apply; bounded plan and apply grants carry the same standing owner
+for plan and apply; bounded plan and apply grants carry the same standing owner
 `approvalRecordId` and `approvedAt`. The apply body `reviewedFingerprint` must
 match both the signed fingerprint and the exact retained plan.
 
@@ -219,7 +219,7 @@ All bodies are JSON. Quotas are admission limits, not a hosted capacity promise.
 | `plan` | `{ uploadId, catchup?: boolean }` returns `planId`, `fingerprint`, server-derived counts, summary, rejected rows with reasons, `diagnostics` and differences including gone source ids. Planning makes no native target writes. |
 | `apply` | `{ planId, reviewedFingerprint }` creates or resumes the real kit job in bounded batches. Repeat with a fresh valid grant to continue. A large source (a stored plan over 4 MiB, such as a multi-megabyte Notion export) is created in bounded staged steps within one request, and the answer may be the still `queued` job; an interrupted creation is never a job and the next `apply` resumes it from what was staged. |
 | `status` | `{ planId }` reads current job progress. |
-| `reconcile` | `{ planId }` derives source-id disposition/presence and native/provenance revision, value, attachment and count checks on the server. |
+| `reconcile` | `{ planId }` derives source-id disposition and presence and native and provenance revision, value, attachment and count checks on the server. |
 | `undo` | `{ planId }` reverses the newest snapshot's attributed effects in bounded kit work, preserving native edits. |
 | `archive` | `{ uploadId, tool, takenAt }` keeps a fully uploaded bundle as the tool's archive; returns `archiveId`, `key`, `tool`, `takenAt`, `bundleSha256`, `bytes` and `counts`. Grant only. See "Archives". |
 | `restore-check` | `{ archiveId }` parses the archive with the namespace's reader and mapping and writes nothing native; returns the archive's fields with `bundleSha256`, `bytes` and `counts` recomputed from its bytes, and `rejected`. Grant only. |
@@ -394,7 +394,7 @@ An interrupted private plan preparation reports
 `plan_staging_interrupted_cancel_and_replan` with `details.planId`. Call `undo` with that `planId`
 to cancel its private preparation, then plan the retained upload again. A
 preparation with no kit job cancels without native effects. Once a job exists,
-the same route uses the kit's guarded rollback/undo instead.
+the same route uses the kit's guarded rollback or undo instead.
 
 An exception during the target apply ends that job as `failed`. Its native
 batch is atomic: no writes from the failed batch remain. The approval and a

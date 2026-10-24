@@ -50,7 +50,7 @@ export function tracked(root, allowMissing = false) {
 }
 export const digest = files => hash(json(files));
 // Base's test, fixture and browser-check sources, which portable copies leave out.
-// Composition pins its tooling alone, so composition/git-source.mjs keeps its own copy.
+// Composition pins its tooling alone, so ./composition/git-source.mjs keeps its own copy.
 export function testSource(path) {
   return path.split('/').some(part => ['test', 'tests', 'fixtures'].includes(part)) ||
     /(?:\.test\.[^/]+|(?:^|\/)test-manifest-support\.mjs$|(?:^|\/)(?:test-fixture|[^/]+-fixture)\.(?:mjs|cjs)$|(?:^|\/)(?:tests|test_[^/]+|[^/]*_tests)\.py|(?:^|\/)browser-(?:check|output)\.mjs)$/.test(path);

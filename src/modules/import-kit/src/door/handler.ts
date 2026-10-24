@@ -75,7 +75,7 @@ export function createDoorHandler(prefix: string, database: D1Database,
       // A kit size or request limit is a named 413.
       const error = overtaken ? new DoorError('erased_during_request', 410) : sizeLimitError(caught) ?? caught;
       const known = error instanceof DoorError;
-      // Never reflect a parser/native adapter error containing customer records.
+      // Never reflect a parser or native adapter error containing customer records.
       return Response.json({error:known?error.code:'import_door_conflict',...(known && error.details?{details:error.details}:{})},{status:known?error.status:409,headers});
     }
   };

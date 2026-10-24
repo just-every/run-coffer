@@ -90,6 +90,126 @@
           "scripts/delivery/base/packaging.json"
         ]
       }
+    },
+    {
+      "id": "just-every/public-source-wording",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "scripts/delivery/base/capabilities.mjs",
+          "scripts/delivery/base/payloads.mjs",
+          "scripts/delivery/base/sql-statements.mjs",
+          "scripts/edition-authoring/files.mjs",
+          "src/modules/dependencies/README.md",
+          "src/modules/dependencies/sealing.mjs",
+          "src/modules/dependencies/store.mjs",
+          "src/modules/import-kit/src/d1/reversal-journal.ts",
+          "src/modules/import-kit/src/door/ADOPTING.md",
+          "src/modules/import-kit/src/door/README.md",
+          "src/modules/import-kit/src/door/failures.ts",
+          "src/modules/import-kit/src/door/handler.ts",
+          "src/modules/import-kit/src/door/inventory.ts",
+          "src/modules/import-kit/src/door/refusals.ts",
+          "src/modules/import-kit/src/door/schema.ts",
+          "src/modules/operator-auth/README.md",
+          "src/modules/operator-auth/SCHEDULED-POLICY.md"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base",
+          "revision": "4280971d7c0295b8a88c3e1179048efcbbe14f30",
+          "path": ".",
+          "paths": [
+            "edition-authoring/files.mjs",
+            "modules/delivery-producer/capabilities.mjs",
+            "modules/delivery-producer/payloads.mjs",
+            "modules/delivery-producer/sql-statements.mjs",
+            "modules/dependencies/README.md",
+            "modules/dependencies/sealing.mjs",
+            "modules/dependencies/store.mjs",
+            "modules/import-kit/src/d1/reversal-journal.ts",
+            "modules/import-kit/src/door/ADOPTING.md",
+            "modules/import-kit/src/door/README.md",
+            "modules/import-kit/src/door/failures.ts",
+            "modules/import-kit/src/door/handler.ts",
+            "modules/import-kit/src/door/inventory.ts",
+            "modules/import-kit/src/door/refusals.ts",
+            "modules/import-kit/src/door/schema.ts",
+            "modules/operator-auth/README.md",
+            "modules/operator-auth/SCHEDULED-POLICY.md"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "scripts/delivery/base/capabilities.mjs",
+            "originPath": "modules/delivery-producer/capabilities.mjs"
+          },
+          {
+            "path": "scripts/delivery/base/payloads.mjs",
+            "originPath": "modules/delivery-producer/payloads.mjs"
+          },
+          {
+            "path": "scripts/delivery/base/sql-statements.mjs",
+            "originPath": "modules/delivery-producer/sql-statements.mjs"
+          },
+          {
+            "path": "scripts/edition-authoring/files.mjs",
+            "originPath": "edition-authoring/files.mjs"
+          },
+          {
+            "path": "src/modules/dependencies/README.md",
+            "originPath": "modules/dependencies/README.md"
+          },
+          {
+            "path": "src/modules/dependencies/sealing.mjs",
+            "originPath": "modules/dependencies/sealing.mjs"
+          },
+          {
+            "path": "src/modules/dependencies/store.mjs",
+            "originPath": "modules/dependencies/store.mjs"
+          },
+          {
+            "path": "src/modules/import-kit/src/d1/reversal-journal.ts",
+            "originPath": "modules/import-kit/src/d1/reversal-journal.ts"
+          },
+          {
+            "path": "src/modules/import-kit/src/door/ADOPTING.md",
+            "originPath": "modules/import-kit/src/door/ADOPTING.md"
+          },
+          {
+            "path": "src/modules/import-kit/src/door/README.md",
+            "originPath": "modules/import-kit/src/door/README.md"
+          },
+          {
+            "path": "src/modules/import-kit/src/door/failures.ts",
+            "originPath": "modules/import-kit/src/door/failures.ts"
+          },
+          {
+            "path": "src/modules/import-kit/src/door/handler.ts",
+            "originPath": "modules/import-kit/src/door/handler.ts"
+          },
+          {
+            "path": "src/modules/import-kit/src/door/inventory.ts",
+            "originPath": "modules/import-kit/src/door/inventory.ts"
+          },
+          {
+            "path": "src/modules/import-kit/src/door/refusals.ts",
+            "originPath": "modules/import-kit/src/door/refusals.ts"
+          },
+          {
+            "path": "src/modules/import-kit/src/door/schema.ts",
+            "originPath": "modules/import-kit/src/door/schema.ts"
+          },
+          {
+            "path": "src/modules/operator-auth/README.md",
+            "originPath": "modules/operator-auth/README.md"
+          },
+          {
+            "path": "src/modules/operator-auth/SCHEDULED-POLICY.md",
+            "originPath": "modules/operator-auth/SCHEDULED-POLICY.md"
+          }
+        ]
+      }
     }
   ]
 }

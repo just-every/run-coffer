@@ -35,7 +35,7 @@ export function requireNewPlan(planId: string, reason: string): never {
 export async function recordApplyFailure(request: DoorRequest, snapshot: DoorSnapshot, job: ImportJob, error: unknown): Promise<never> {
   const g = request.access, reason = reasonCode(error);
   // This is server bookkeeping for an already accepted attempt, including when
-  // its key was revoked/expired during apply. It grants no further native writes.
+  // its key was revoked or expired during apply. It grants no further native writes.
   // Fence on the pre-batch job: a concurrent publication must never be failed.
   // An erasure that overtook the request, or withdrew the snapshot, is not an
   // apply failure: this batch is then refused and the erasure's 410 answers.

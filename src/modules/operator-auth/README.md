@@ -1,7 +1,7 @@
 # Operator auth (IF-055-CORE-v1)
 
 Portable server-only ESM: import `createOperatorAuth`, `createAuthHandler` and
-`createSignInHandler` from `modules/operator-auth/index.mjs`. TypeScript
+`createSignInHandler` from `./modules/operator-auth/index.mjs`. TypeScript
 declarations are `index.d.mts`. No framework or mail transport is bundled. Apply
 `accounts/schema/operator-auth.sql` once for a fresh auth database (and
 `identity/oidc/schema/oidc.sql` when the app offers identity providers). Preserve applied migration history in an existing
@@ -562,7 +562,7 @@ returns the cookies a test browser or fetch client installs, and
 
 Portable archives never carry dev identity: export drops `dev` sessions and
 dev-minted credentials and marks personas suspended, and import refuses an
-archive holding either (`modules/portability/dev-data.mjs`). Seeds that mint
+archive holding either (`./modules/portability/dev-data.mjs`). Seeds that mint
 their own credentials while signed in record them in `oa_dev_credentials` and
 admit them only behind the gate.
 
@@ -594,7 +594,7 @@ an independently captured pre-update source snapshot containing the complete
 root. With the frozen workspace dependencies installed, run:
 
 ```sh
-OA_BASELINE_SOURCE=/path/to/snapshot node --test modules/operator-auth/tests/reinvitation-upgrade.mjs
+OA_BASELINE_SOURCE=/path/to/snapshot node --test ./modules/operator-auth/tests/reinvitation-upgrade.mjs
 ```
 
 Runtime tests use the locked Wrangler Miniflare/esbuild dependencies and run the
@@ -608,7 +608,7 @@ deployment remain separate.
 
 ## Adopting this version
 
-Copy the **complete** `modules/operator-auth/` directory from one reviewed Base
+Copy the **complete** `./modules/operator-auth/` directory from one reviewed Base
 revision into the seed's operator-auth source location. Keep its layers
 (`identity/`, `accounts/`, `dev/`), runtime files, declarations, schema,
 conformance files and tests from that same revision; `rer check` names any copied
@@ -705,5 +705,5 @@ The application-side dependency, owner-setting and logout protocol is documented
 
 OA accounts offer a bounded, hash-pinned scheduled policy door, separate from
 human sessions. Read [SCHEDULED-POLICY.md](SCHEDULED-POLICY.md) for the design,
-additive migration, declaration, owner approval/revocation flow and audit contract.
+additive migration, declaration, owner approval and revocation flow and audit contract.
 The reference `/app/policies` screen and Worker scheduled handler show adoption.

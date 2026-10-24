@@ -12,26 +12,26 @@ an exported people JSON file, review, apply, reconcile and undo. The
 claim the local app. Installation `.rer` archive recovery is currently a
 separate developer-only mechanism; it is not accepted by this door.
 
-Installation backup/restore keeps its archive integrity and erasure fences. It
+Installation backup and restore keeps its archive integrity and erasure fences. It
 is separate from bringing records in; never claim an archive traverses the door.
 
 The seed's signed-in move-in screen, `rer` and Business must share **upload →
 plan → reviewed fingerprint → apply → reconcile → undo**. Keep source readers,
 mappings and native target adapters; delete the old importer routes, separate
-job creation/apply code and their callers. Do not leave a hidden second importer.
+job creation and apply code and their callers. Do not leave a hidden second importer.
 Owner history and undo must include jobs from either authority.
 
 ## Add to the seed
 
-1. **Schema and copies.** Vendor `modules/import-kit/src`, its schema JSON in
-   `modules/import-kit/schema`, and sibling `./modules/d1-transport` with relative
+1. **Schema and copies.** Vendor `./modules/import-kit/src`, its schema JSON in
+   `./modules/import-kit/schema`, and sibling `./modules/d1-transport` with relative
    paths intact; record copies using the
    seed's existing Base provenance workflow. Never rename applied migrations.
    Apply these in new numbered seed migrations, in this order,
    skipping any the seed already applied:
    - the D1 kit schemas, in the order `initializeD1ImportStorage` in
-     `modules/import-kit/src/d1/database.ts` installs them (all exported from
-     `modules/import-kit/src/d1/index.ts`): `d1Schema` (with
+     `./modules/import-kit/src/d1/database.ts` installs them (all exported from
+     `./modules/import-kit/src/d1/index.ts`): `d1Schema` (with
      `preservedUndoEvolution`), `d1ErasureSchema`, `d1StreamOriginSchema` and
      `d1LegacyStreamReceiptUpgrade`, `d1StagingSchema`, `d1NativeStagingSchema`,
      `d1CustodyStateSchema`, `d1ReversalFenceSchema`, `d1PreparationSchema`,
@@ -39,10 +39,10 @@ Owner history and undo must include jobs from either authority.
      `d1CustodyStateReplaceSchema` (Base's default seed ships it as
      `default-seed/migrations/core/0026_import_custody_replace.sql`) and
      `d1ErasureProgressSchema`, plus the
-     kit evolutions in `modules/import-kit/src/d1/README.md` that apply to the
+     kit evolutions in `./modules/import-kit/src/d1/README.md` that apply to the
      seed;
    - a seed without a door: `importDoorSchema` from
-     `modules/import-kit/src/door/schema.ts` (also exported by `index.ts` and
+     `./modules/import-kit/src/door/schema.ts` (also exported by `index.ts` and
      `operator.ts`);
    - a seed that already installed an earlier door: never `importDoorSchema`
      again (it refuses that schema at deploy), but
@@ -76,10 +76,10 @@ Owner history and undo must include jobs from either authority.
    seed that adapted `door/types.ts` and `door/authority.ts` to pass a policy
    (Lamp) drops that change, re-vendors the door verbatim and passes the option.
 3. **Operator mount.** Import `createImportOperatorHandler` from
-   `modules/import-kit/src/door/operator.ts`. Supply the runtime options in
+   `./modules/import-kit/src/door/operator.ts`. Supply the runtime options in
    `types.ts`, plus server-owned `installationId`, `appOrigin`, `ownerEmail`,
    `namespace`, and `authorize(request, action)`. That callback authenticates the
-   current owner with the seed's normal session/CSRF checks and returns a
+   current owner with the seed's normal session and CSRF checks and returns a
    `D1Sql` predicate checking that exact session and owner in the same database;
    return `null` for other callers. The predicate is rechecked inside mutations.
    Mount the handler before ordinary route rejection, including the host router
@@ -138,7 +138,7 @@ Owner history and undo must include jobs from either authority.
    `RER_OWNER_CLAIM_APP_ORIGIN`, `RER_OWNER_CLAIM_PUBLIC_KEYS` and the owner
    email; RER sets that trust on Business installs whatever the claim mode. If the seed
    has owner-claim, additionally mount `createImportDoorHandler` from `index.ts`
-   with the **same** server-owned claim/key-ring configuration and
+   with the **same** server-owned claim and key-ring configuration and
    `installationId` set to the operator mount's door key (it defaults to
    `claim.installationId`). With several sources, pass `source: importSource`
    (step 3's allow-list) instead of `parse`/`mapping`: the door calls it with
@@ -170,7 +170,7 @@ Owner history and undo must include jobs from either authority.
    bytes (`ik_door_archive_chunks`, withdrawn whole) and headers, approvals,
    namespace lineage and destination bindings (`ik_door_scopes`), apply-failure
    facts (`ik_door_apply_failures`) and grant metadata in the seed's
-   erasure/custody inventory,
+   erasure and custody inventory,
    alongside ordinary kit originals/provenance. Withdraw an indivisible bundle
    when erasing any contained subject; preserve unrelated native records. Keep
    installation settings and permanent revoked keys. Exercise **every erase
@@ -178,9 +178,9 @@ Owner history and undo must include jobs from either authority.
    Do not omit tables from retirement tallies to hide retained personal data.
 7. **Tests.** Extend existing HTTP journeys within the seed's 200-test cap. Use
    its actual migrated Worker, real sign-in, synthetic exports and public native
-   reads. Cover anonymous/non-owner and cross-origin refusal, no-write planning,
+   reads. Cover anonymous and non-owner and cross-origin refusal, no-write planning,
    fingerprint refusal, apply/reconcile/undo, native edit protection, session
-   revocation during mutation, disabled/revoked grants, owner undo while Business
+   revocation during mutation, disabled or revoked grants, owner undo while Business
    is off, grants staying closed under `RER_IMPORT_DOOR=on` until the owner
    turns Business imports on (or, if the seed uses `enableDoorAtFirstClaim`,
    the door opening at the first claim and staying closed without the
@@ -196,8 +196,8 @@ runtime has no dependency on either;
 use the seed's existing owner authentication. All `/api/rer/import/*` requests
 return 404 through that mount. No signer, dummy claim configuration or grant is
 needed. Keep the `installationId` you chose: it stays the door key. To add
-Business later, add those three grant files, `modules/owner-claim/verify.mjs`
-and its dependency `modules/operator-auth/loopback.mjs`, then configure its
+Business later, add those three grant files, `./modules/owner-claim/verify.mjs`
+and its dependency `./modules/operator-auth/loopback.mjs`, then configure its
 trusted ring with RER's claim installation id, pass your existing door key as
 the grant mount's `installationId` (and, with several sources, your
 `importSource` as its `source`), mount the grant handler first and explicitly
@@ -283,8 +283,8 @@ Copy the following into an existing seed test journey and call `checkDoor`.
 It needs only Node built-ins. `request(action, body, review)` must return the
 actual HTTP `Response`: use owner-cookie requests to the operator mount, or
 mint a **fresh action-bound grant per call** for the grant mount (the apply
-`review` argument supplies its signed fingerprint/approval). `nativeSnapshot`
-reads a stable projection of native records through the seed's public API/export,
+`review` argument supplies its signed fingerprint and approval). `nativeSnapshot`
+reads a stable projection of native records through the seed's public API or export,
 excluding import bookkeeping. Supply nonempty synthetic source bytes plus
 `assertApplied(before, after, report)` and `assertUndone(before, after)` to check
 real field values and the seed's undo policy. Those hooks must use public reads,
