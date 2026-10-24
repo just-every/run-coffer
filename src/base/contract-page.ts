@@ -1,10 +1,10 @@
 // The run site's /contract page: the seed's CONTRACT.md as parseContract reads
-// it, drawn as br's "headline" design (rer-consolidation evidence/br-contract
+// it, drawn as br's "headline" design (rer-consolidation ./evidence/br-contract
 // SPEC.md): the done count set large beside one stacked bar, the kind split and
 // product target, progress by area beside every clause, and how statuses are
 // judged. Every number comes from the parsed contract; nothing is typed here.
 // It works without scripts; contract-filter.ts adds the status chips and search.
-// This file is copied unchanged to src/base by both maintained exporters.
+// This file is copied unchanged to ./src/base by both maintained exporters.
 import { checkIdentity, type EditionIdentity } from './identity'
 import { checkRunData, document, escape, header, siteLinks, type RunData } from './run-site'
 import { CONTRACT_STYLE } from './contract-style'

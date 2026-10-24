@@ -1,7 +1,7 @@
 // The /contract page's style, after run-site.ts's BASE (rer-consolidation
-// evidence/br-contract SPEC.md sections 3 to 6). The status tokens are Base's
+// ./evidence/br-contract SPEC.md sections 3 to 6). The status tokens are Base's
 // defaults at zero specificity, so a seed's rer-theme.css :root wins over them.
-// This file is copied unchanged to src/base by both maintained exporters.
+// This file is copied unchanged to ./src/base by both maintained exporters.
 const DEFAULTS = ':where(:root){--rer-done:#1e8458;--rer-partial:#e9a23b;--rer-missing:#d03f57;--rer-done-ink:#17744c;--rer-partial-ink:#8a5a00;--rer-missing-ink:#b02a43;'
   + '--rer-on-done:#fff;--rer-on-partial:var(--rer-text,#172033);--rer-on-missing:#fff}'
   + 'body{--contract-tint:color-mix(in srgb,var(--rer-text,#172033) 4%,var(--rer-surface,#fff));--site-link:var(--rer-link,var(--site-ink));--heading:var(--rer-font-heading,var(--rer-font-body,inherit))}'

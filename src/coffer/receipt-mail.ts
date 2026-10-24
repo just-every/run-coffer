@@ -73,7 +73,7 @@ async function eventBody(request: Request): Promise<Uint8Array> {
 }
 
 /** Verify timestamp + untouched raw body before decoding any event JSON.
- * SendGrid specifies ASN.1 DER r/s, handled by the shared WebCrypto verifier:
+ * SendGrid specifies ASN.1 DER r or s, handled by the shared WebCrypto verifier:
  * https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/getting-started-event-webhook-security-features
  */
 export async function verifySendgridEvents(request: Request, env: Bindings): Promise<Row[]> {

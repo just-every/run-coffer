@@ -54,7 +54,7 @@ export function reflectedCredentialMatcher(secrets: readonly string[]): (value: 
 }
 
 export function credentialQueryKey(rawKey: string, policy?: PaginationCursorPolicy): boolean {
-  // The sole exception is the exact wire spelling, not encoded/case aliases.
+  // The sole exception is the exact wire spelling, not encoded or case aliases.
   if (policy === 'page-token-v1' && rawKey === 'page_token') return false;
   // A credential by its whole name parts (`api_key`, `access_token`, `sig`, `X-Amz-Signature`), never `keyword` or `author`.
   return credentialName(decodedCredentialText(rawKey), 'query') !== undefined;
@@ -126,7 +126,7 @@ function namedTuples(list: readonly unknown[]): Map<number, string> {
   list.forEach((item, index) => tuples.set(index, (item as [string, unknown])[0]));
   return tuples;
 }
-/** Null, an empty string or a mask/placeholder where a credential would go is not a credential. */
+/** Null, an empty string or a mask or placeholder where a credential would go is not a credential. */
 export function credentialPlaceholder(value: unknown): boolean {
   return value === null || (typeof value === 'string'
     && /^(?:\s*|[*\u2022\u25CF\u00B7x#_.-]{1,64}|[<[({]?\s*(?:redacted|hidden|masked|removed|omitted|none|null|n\/a|placeholder)\s*[>\])}]?)$/i.test(value));

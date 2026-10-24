@@ -118,7 +118,7 @@ export async function loadOperatorProfile() {
 The same-origin cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` in production;
 JavaScript does not read or write it. The auth handler enforces POST and exact
 Origin for its mutations. The product's own state-changing APIs keep their
-Origin/Fetch-Metadata checks too. Never use a client role or cached profile as
+Origin or Fetch-Metadata checks too. Never use a client role or cached profile as
 the server's authorization decision.
 
 ## Real sender outcomes and OIDC
@@ -129,12 +129,11 @@ Pass the actual `createMailSender` result directly to the auth core. An
 `503 mail_unavailable`; there is no fallback or automatic retry. Resolve an
 uncertain attempt before requesting another link.
 
-Optional OIDC remains server-side: configure one exact HTTPS issuer, use the
-same `auth` and D1 for `createOidcClient`, dispatch its handler before
-`createAuthHandler`, and forward every Set-Cookie header. The client constructs
-its trusted admission closure from `auth.createIdentityAdmission({ issuer,
-subjectEmails })`; custom auth adapters must implement the same server-only
-contract. An existing issuer/subject binding may sign in again, while a
+Optional OIDC remains server-side: configure `config.providers` and an
+independent `OIDC_TRANSACTION_SECRET` on `createOperatorAuth`;
+`createAuthHandler` serves the provider routes. Preserve every `Set-Cookie`
+header individually. See the [OIDC guide](../identity/oidc/README.md) for provider
+configuration and trusted `subjectEmails` mappings. An existing issuer or subject binding may sign in again, while a
 different principal cannot join an already-bound operator by presenting the same
 verified email. Configure any subject-to-existing-email association from trusted
 server configuration, never callback or browser input. Do not expose its

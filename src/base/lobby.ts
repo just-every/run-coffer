@@ -5,7 +5,7 @@ import { rejectedResponse } from './rejected-response'
 // seed's floor art. Claimed, the button is Sign in; before the owner's claim it
 // is Finish setup. It reveals nothing but that state, is the same for every
 // visitor and works without JavaScript. Visual authority: the 12ui Lobby.
-// This file is copied unchanged to src/base by both maintained exporters.
+// This file is copied unchanged to ./src/base by both maintained exporters.
 import { checkIdentity, type EditionIdentity } from './identity'
 import { admitted, baseOwnerClaim, setupState, type ClaimRead, type SetupState } from './setup-state'
 import { ink } from './theme-frame'

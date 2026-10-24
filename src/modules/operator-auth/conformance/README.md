@@ -14,13 +14,13 @@ surface, `privateRequest` for one actual protected consumer API (with optional
 test-only request headers for Host-boundary probes), `mails` for
 messages captured by the test-only sender, and `close` for disposing all runtime
 and D1 state. The test runtime must apply the consumer's actual numbered core
-schema and use real workerd/D1; keep synthetic mail capture inside the test
+schema and use real workerd or D1; keep synthetic mail capture inside the test
 adapter. Never expose this adapter or its fixture routes in application builds.
 
 The default presentation remains asset-free. A consumer that intentionally adds
 self-hosted fonts sets `adapter.confirmationFonts: true`. That profile requires
 same-origin stylesheet and font-preload links, verifies the exact inline style
-hash plus only same-origin style/font permissions, and still rejects external
+hash plus only same-origin style or font permissions, and still rejects external
 origins, scripts, images and unsafe inline attributes. Mail stays self-contained.
 
 A consumer that configures `branding.productName` or a seed theme
@@ -35,9 +35,9 @@ without a theme its CSP adds only `img-src 'self'`. Every other resource rule
 above still applies, and mail stays image-free.
 
 The Base conformance registration is executable at
-[`../tests/conformance.test.ts`](../tests/conformance.test.ts), and its D1/Worker
+[`../tests/conformance.test.ts`](https://github.com/runeditrun/base/blob/main/modules/operator-auth/tests/conformance.test.ts), and its D1 or Worker
 adapter lives in this directory's `tests/worker.mjs` and `tests/runtime.mjs`.
-An adopting seed should map these methods to its actual Hono/Worker dispatcher
+An adopting seed should map these methods to its actual Hono or Worker dispatcher
 and native private API, then import and call the exported registration from its
 existing test discovery path. No Base manifest or workflow is changed here.
 
@@ -47,15 +47,15 @@ The registered cases prove:
   no duplicate owner claim, and no private API access without a session;
 - GET and HEAD confirmation previews without cookie issuance, followed by one
   POST confirmation to the original safe `returnTo` and rejection of replay;
-- neutral branding in magic/invitation previews and both mail parts,
+- neutral branding in magic or invitation previews and both mail parts,
   exact-byte stylesheet CSP, HEAD parity, single hidden POST token, plain subjects,
   one confirmation URL per mail part and configured invalid-link recovery;
 - owner/admin/member boundaries, session revocation and session invalidation
   after an operator role change;
-- local review issuance and subsequent session/private-API checks reject
+- local review issuance and subsequent session or private-API checks reject
   attacker-controlled Host values even when forwarded-Host headers claim
   loopback;
-- allow-list masking and independent IP/email rate limits before mail effects;
+- allow-list masking and independent IP or email rate limits before mail effects;
 - accepted, rejected and uncertain IF-056 mail results. Only `accepted` makes
   the link usable; rejected or uncertain delivery revokes it and returns
   `mail_unavailable`;
@@ -70,7 +70,7 @@ The optional seam is enabled by setting `adapter.oidcIssuer` to one exact HTTPS
 issuer and implementing `runtime.admitVerifiedIdentity`. It must call the real
 trusted core seam with the issuer included in `externalIssuers`; the conformance
 case starts from a fresh owner with no prior external identity binding. It makes
-no claim that a changed issuer/subject can bind by matching email. Do not route
+no claim that a changed issuer or subject can bind by matching email. Do not route
 request-body identity data to this seam in the application.
 
 The test sender returns only the IF-056 result shape. `accepted` is API
@@ -82,4 +82,4 @@ Custom branding is additionally checked against real D1 in the module runtime
 suite. These shared cases are also consumed by default-seed; no provider sends are
 required. Browser responsiveness, keyboard focus and pinned axe-core 4.10.3
 audits run in `../tests/presentation-browser.test.mjs` at 1440 and 390 pixels,
-with light/dark schemes and black/white accents, retaining production CSP.
+with light or dark schemes and black or white accents, retaining production CSP.

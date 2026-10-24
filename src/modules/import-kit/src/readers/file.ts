@@ -6,7 +6,7 @@ import { fail } from './errors.ts';
 import { limitsFor, RecordCollector, readerCredentialPolicy, readerPaginationPolicy, safeValue, textId } from './records.ts';
 import { liveCredentialRemoved, removeCredentials, withholdsOriginal } from '../provenance/credentials.ts';
 
-/** JSON arrays are visited per element; an object/scalar is one input. NDJSON uses physical rows. */
+/** JSON arrays are visited per element; an object or scalar is one input. NDJSON uses physical rows. */
 export async function readFileSource(input: FileSourceInput, limits?: ReaderLimits): Promise<SourceBundle> {
   return (await readFileSourceRemovals(input, limits)).source;
 }

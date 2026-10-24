@@ -66,7 +66,7 @@ export function creationStatements(plan: ImportPlan, context: D1CreatePreflightC
  * This sizes custody creation, not the consumer's later native effect batches. */
 export function preflightD1ImportJob(plan: ImportPlan, context: D1CreatePreflightContext): D1CreatePreflight {
   const operationKey = validateCreation(plan, context);
-  // UUIDs have identical UTF-8/JSON size. The generated ID is the only value
+  // UUIDs have identical UTF-8 or JSON size. The generated ID is the only value
   // different from the actual creation path.
   // The codec production creation uses: given directly, or the adapter's when a full context is passed.
   const codec = creationCodec(plan, context.planCodec ?? (context as Partial<D1ImportContext>).storage?.targets?.planCodec);

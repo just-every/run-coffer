@@ -12,7 +12,7 @@ export interface ImportDoorSource {
 export interface ImportDoorRuntimeOptions extends ImportDoorSource {
   database: D1Database;
   targets: D1TargetAdapter;
-  /** The seed's actual owner principal, so its ordinary import history/undo works. */
+  /** The seed's actual owner principal, so its ordinary import history or undo works. */
   ownerPrincipalId: string;
   destination: string;
   format: 'json' | 'ndjson';

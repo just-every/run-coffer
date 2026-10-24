@@ -39,7 +39,7 @@ export function configureBranding(input = {}) {
   if (signInPath.length > 2048) invalid();
   // Only the configured encoding must be well formed. Decoding %25 can produce
   // literal percent data, so subsequent inspection must tolerate it while still
-  // revealing nested separators/control characters elsewhere in the route.
+  // revealing nested separators or control characters elsewhere in the route.
   let decoded;
   try { decoded = decodeURIComponent(signInPath); } catch { invalid(); }
   const decoder = new TextDecoder('utf-8', { ignoreBOM: true });

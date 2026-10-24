@@ -43,6 +43,7 @@ modules/mail/src/adapters/sendgrid/index.mjs
 modules/mail/src/adapters/sendgrid/serialize.mjs
 modules/mail/src/adapters/rer/contract.mjs
 modules/mail/src/adapters/rer/index.mjs
+modules/mail/src/adapters/rer/list-headers.mjs
 modules/mail/src/adapters/messaging/contract.mjs
 modules/mail/src/adapters/messaging/event-schema.mjs
 modules/mail/src/adapters/messaging/index.mjs
@@ -118,14 +119,14 @@ These are for developing the module itself or documentation. A seed may keep any
 - `modules/mail/README.md` and every `README.md` under `modules/mail/src/`
 
 The provider is explicit: `sendgrid`, `resend`, `cloudflare`, `rer`, `messaging`, or `development`.
-`mode` is required (`production`, `development`, or `test`). Remote providers require `apiKey`; Cloudflare additionally requires a 32-hex `accountId`. A remote provider in test/development mode still makes a real provider request unless the caller explicitly supplies a test fetch. Missing credentials, validation errors, or provider failure never select another provider. Config and messages reject unknown fields so requested features cannot silently disappear.
+`mode` is required (`production`, `development`, or `test`). SendGrid, Resend, Cloudflare and RER require `apiKey`; Cloudflare additionally requires a 32-hex `accountId`. Messaging instead requires its signed-link configuration (`serviceOrigin`, `installId`, `kid` and `signingKey`) and rejects `apiKey` and `accountId`. A remote provider in test or development mode still makes a real provider request unless the caller explicitly supplies a test fetch. Missing credentials, validation errors, or provider failure never select another provider. Config and messages reject unknown fields so requested features cannot silently disappear.
 
 `createMailSender(config, dependencies?)` returns `{send(message)}`. Dependencies are optional standard `fetch`, `clock: () => epochMilliseconds`, and `timeoutMilliseconds` (a positive safe integer bounding each remote attempt; the default is 15,000). Production normally uses global fetch. Direct provider endpoints are fixed; `rer` uses its assigned relay URL. No retry or automatic replay exists. The sender snapshots configuration at construction and the message at submission.
 
 ### Managed mail through RER
 
 Seeds opt into Managed mail with `mail: {providers: ["rer"]}` in their candidate
-deployment spec. The [delivery producer](../delivery-producer/README.md#managed-mail)
+deployment spec. The [delivery producer](https://github.com/runeditrun/base/blob/main/modules/delivery-producer/README.md#managed-mail)
 can generate the matching setup fields. RER assigns public `MAIL_PROVIDER`,
 `MAIL_FROM`, `MAIL_RELAY_URL` and private `MAIL_API_KEY`; Managed owners do not
 enter them. Wire those settings into the shared sender:
@@ -173,7 +174,7 @@ characters). `List-Archive` and `List-Help` accept one or two angle-bracketed
 HTTPS or mailto URLs, using the relay's URL and mailbox checks. These three
 headers allow separator tabs. `In-Reply-To` accepts exactly one `<local@domain>`
 message ID with ASCII dot-atoms or a bracketed domain literal. `References`
-accepts 1–20 such IDs separated by ASCII spaces, without leading/trailing
+accepts 1–20 such IDs separated by ASCII spaces, without leading or trailing
 spaces, tabs or commas. Invalid values fail locally with `invalid_list_id`,
 `invalid_list_archive`, `invalid_list_help`, `invalid_in_reply_to` or
 `invalid_references`. Values are preserved; raw headers are never forwarded.
@@ -202,14 +203,14 @@ adapter makes no retries and never reads or logs provider error bodies.
 
 ## Message and results
 
-Required fields: `deliveryId` (nonempty, at most 512 characters), `from`, nonempty `to: string[]`, `subject: string` (SendGrid requires nonempty; other providers allow empty), and at least one nonempty `text` or `html`. Addresses accept a mailbox or `Display Name <mailbox>`; the conservative mailbox grammar rejects controls, multiple addresses inside one string and malformed domains. Use arrays for recipients.
+Required fields: `deliveryId` (nonempty, at most 512 characters), `from`, nonempty `to: string[]`, `subject: string` (SendGrid requires nonempty; RER requires nonblank and at most 200 characters; other providers allow empty), and at least one nonempty `text` or `html`. Addresses accept a mailbox or `Display Name <mailbox>`; the conservative mailbox grammar rejects controls, multiple addresses inside one string and malformed domains. Use arrays for recipients.
 
 Optional `cc`, `bcc`, `replyTo`, and string-valued `headers` preserve envelope and threading. `In-Reply-To` and ordered `References` can be supplied as headers. SendGrid and Resend also accept `Message-ID`; Cloudflare generates it and rejects a caller-supplied value; `rer` rejects it and assigns one from an optional `messageKey`. CR/LF/control characters, duplicate header names ignoring case, reserved envelope/MIME/security headers and invalid header names fail before a request. Provider-specific header restrictions are also enforced.
 
 Attachments use `{filename, contentType, content: Uint8Array, disposition?: 'attachment'|'inline', contentId?}`. Content is raw bytes, never a base64 string at the public boundary. Inline attachments require a content ID. Unsupported attachment features fail explicitly. Provider size and count limits still apply.
 
 Resend checks a conservative 40,000,000-byte total email budget before Base64 or
-JSON encoding, including UTF-8 bodies, all recipients/headers, aggregate Base64
+JSON encoding, including UTF-8 bodies, all recipients or headers, aggregate Base64
 attachments and MIME overhead. Its final JSON request is capped at 39,000,000
 UTF-8 bytes. Oversize input throws `MailValidationError` with fixed code
 `resend_message_too_large` before dispatch. See the precise
@@ -218,7 +219,7 @@ local guard and may reject input below the provider's maximum.
 
 SendGrid additionally supports `customArgs: Record<string,string>`, positive safe-integer `asmGroupId`, and boolean `subscriptionTracking`. The custom argument JSON including `rer_delivery_id` is limited to 10,000 UTF-8 bytes. Caller arguments cannot replace `rer_delivery_id`, `email`, `event`, `timestamp`, `sg_event_id`, or `sg_message_id`. Resend and Cloudflare reject these SendGrid-only settings, including empty `customArgs` and `subscriptionTracking: false`.
 
-`send` returns `{provider,status,providerMessageId,code?,recipientResults?}`. Status is `accepted`, `rejected`, `rate_limited`, `uncertain`, or `development`. `providerMessageId` is a real provider receipt or null; local correlation never fabricates one. A validation/configuration error throws a redacted error with a fixed code. Errors/results never expose raw provider response bodies or credentials.
+`send` returns `{provider,status,providerMessageId,code?,recipientResults?}`. Status is `accepted`, `rejected`, `rate_limited`, `uncertain`, or `development`. `providerMessageId` is a real provider receipt or null; local correlation never fabricates one. A validation or configuration error throws a redacted error with a fixed code. Errors or results never expose raw provider response bodies or credentials.
 
 - SendGrid requires HTTP 202 for acceptance. Its `X-Message-Id` is nullable. `rer_delivery_id` is correlation, not duplicate suppression. Click, open, and Google Analytics tracking are disabled; subscription tracking is enabled only when requested. `serializeSendGridMessage(message)` exposes validated wire bytes for callers that own durable fingerprints.
 - Resend uses `deliveryId` as `Idempotency-Key` and preserves the returned ID. Resend retains idempotency keys for 24 hours; a reused key with a different payload conflicts. This module does not retry or assume indefinite duplicate suppression. See [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys).
@@ -313,22 +314,22 @@ Because the one adapter now builds the request, the former module takes this mod
 
 ## Verified events and inbound mail
 
-`verifyWebhook({provider,rawBody,headers,key,now,toleranceSeconds?})` returns a boolean. Providers are `sendgrid` and `resend`; `rawBody` is the exact `Uint8Array`, `headers` a `Headers`, and `now` epoch milliseconds. Default clock tolerance is 300 seconds. SendGrid uses base64 SPKI P-256 public keys and DER ECDSA signatures over timestamp plus exact bytes; Resend uses a `whsec_` base64 HMAC secret and Svix framing. Never decode and reserialize JSON or multipart before verification. Signature validity alone establishes neither schema validity nor sender identity. `MAX_WEBHOOK_BYTES` exports the 32 MiB verifier bound; delivery-event intake has its own 1 MiB bound. `createDeliveryEventIntake({provider,tenantId,eventNamespace,key?,storage,authorize,clock?,cloudflareSource?})` verifies, authorizes, then commits receipts and recipient states in one durable transaction. It exposes `ingestWebhook({rawBody,headers})` for SendGrid/Resend or `consumeQueue(batch)` for the trusted Cloudflare queue boundary. Supply actual serializable durable storage (Durable Object SQLite, or `store:createD1EventStore({db:env.DB})` with its additive migration); there is no process-local fallback. See the [event integration contract](src/events/README.md) for atomic deduplication and recipient reconciliation.
+`verifyWebhook({provider,rawBody,headers,key,now,toleranceSeconds?})` returns a boolean. Providers are `sendgrid` and `resend`; `rawBody` is the exact `Uint8Array`, `headers` a `Headers`, and `now` epoch milliseconds. Default clock tolerance is 300 seconds. SendGrid uses base64 SPKI P-256 public keys and DER ECDSA signatures over timestamp plus exact bytes; Resend uses a `whsec_` base64 HMAC secret and Svix framing. Never decode and reserialize JSON or multipart before verification. Signature validity alone establishes neither schema validity nor sender identity. `MAX_WEBHOOK_BYTES` exports the 32 MiB verifier bound; delivery-event intake has its own 1 MiB bound. `createDeliveryEventIntake({provider,tenantId,eventNamespace,key?,storage,authorize,clock?,cloudflareSource?})` verifies, authorizes, then commits receipts and recipient states in one durable transaction. It exposes `ingestWebhook({rawBody,headers})` for SendGrid or Resend or `consumeQueue(batch)` for the trusted Cloudflare queue boundary. Supply actual serializable durable storage (Durable Object SQLite, or `store:createD1EventStore({db:env.DB})` with its additive migration); there is no process-local fallback. See the [event integration contract](src/events/README.md) for atomic deduplication and recipient reconciliation.
 
-`normalizeInbound(input, limits)` returns `{provider,messageId,from,to,subject,text,html,inReplyTo,references,attachments}`. Nullable fields remain null, empty subject remains valid, references retain order, and attachment content remains decoded bytes. Required positive-integer limits are `maxRawBytes`, `maxBodyBytes`, `maxAttachments`, `maxAttachmentBytes`, and `maxTotalAttachmentBytes`; limits apply to actual bytes, including streams and decoded attachments. Over-limit/malformed messages fail atomically.
+`normalizeInbound(input, limits)` returns `{provider,messageId,from,to,subject,text,html,inReplyTo,references,attachments}`. Nullable fields remain null, empty subject remains valid, references retain order, and attachment content remains decoded bytes. Required positive-integer limits are `maxRawBytes`, `maxBodyBytes`, `maxAttachments`, `maxAttachmentBytes`, and `maxTotalAttachmentBytes`; limits apply to actual bytes, including streams and decoded attachments. Over-limit or malformed messages fail atomically.
 
-Inputs are Cloudflare `{provider:'cloudflare',message:{from,to,headers,raw,rawSize}}` from a Worker email handler, SendGrid `{provider:'sendgrid',rawBody,contentType}` after original multipart signature verification, or Resend `{provider:'resend',email,signedEmailId,fetchAttachment?}` after a verified `email.received` event and checked hydration identity. No unsigned HTTP JSON receiver is provided. Cloudflare delivery events use a trusted Event Subscriptions Queue boundary, never an invented HTTP signature. See [inbound dependencies and trust boundaries](src/inbound/README.md), `signedEmailId` must come from the authenticated event, not the hydrated response. The facade exports `createResendAttachmentFetcher({apiKey,maxAttachmentBytes}, {fetch?,clock?})` for the explicit `fetchAttachment` dependency; it validates metadata, fixed provider/CDN origins, size and redirects. No attachment may be silently omitted.
+Inputs are Cloudflare `{provider:'cloudflare',message:{from,to,headers,raw,rawSize}}` from a Worker email handler, SendGrid `{provider:'sendgrid',rawBody,contentType}` after original multipart signature verification, or Resend `{provider:'resend',email,signedEmailId,fetchAttachment?}` after a verified `email.received` event and checked hydration identity. No unsigned HTTP JSON receiver is provided. Cloudflare delivery events use a trusted Event Subscriptions Queue boundary, never an invented HTTP signature. See [inbound dependencies and trust boundaries](src/inbound/README.md), `signedEmailId` must come from the authenticated event, not the hydrated response. The facade exports `createResendAttachmentFetcher({apiKey,maxAttachmentBytes}, {fetch?,clock?})` for the explicit `fetchAttachment` dependency; it validates metadata, fixed provider or CDN origins, size and redirects. No attachment may be silently omitted.
 
 ## Doctor and live proof
 
-`mailDoctor({domain,provider,dnsRecords?,live:false}, dependencies?)` returns six items (`mx`, `spf`, `dkim`, `dmarc`, `send`, `receive`) with status, next steps, optional records and safe evidence. Plans are not observations: without probes records remain pending/not checked. DNS values must come from provider setup or supplied records; DKIM keys/selectors are never invented. Missing credentials are actionable, never a pass.
+`mailDoctor({domain,provider,dnsRecords?,live:false}, dependencies?)` returns six items (`mx`, `spf`, `dkim`, `dmarc`, `send`, `receive`) with status, next steps, optional records and safe evidence. Plans are not observations: without probes records remain pending or not checked. DNS values must come from provider setup or supplied records; DKIM keys or selectors are never invented. Missing credentials are actionable, never a pass.
 
 ```sh
 node modules/mail/doctor.mjs --domain mail.example.com --provider resend --plan --json
 node modules/mail/doctor.mjs --domain mail.example.com --provider resend --plan
 ```
 
-Both plan commands are offline and require no credentials. See [doctor dependencies and explicit live invocation](src/doctor/README.md) for DNS checking and bounded send/receive correlation. A send response cannot make receive pass. The protected [live-proof contract](live-proof/README.md) names the exact runner command and receipt path; its evidence writer uses `EVIDENCE_WRITE_TOKEN`. Hosted workflow wiring and all owner-controlled credentials/resources remain separate integration work.
+Both plan commands are offline and require no credentials. See [doctor dependencies and explicit live invocation](src/doctor/README.md) for DNS checking and bounded send or receive correlation. A send response cannot make receive pass. The protected [live-proof contract](live-proof/README.md) names the exact runner command and receipt path; its evidence writer uses `EVIDENCE_WRITE_TOKEN`. Hosted workflow wiring and all owner-controlled credentials or resources remain separate integration work.
 
 ## Verification
 
@@ -344,6 +345,6 @@ pnpm --dir modules/mail test:workerd
 
 The root install is also required for the bundle regression, which uses the reference app's actual Vite dependency. The facade formerly re-exported the doctor while the doctor dynamically imported the facade, causing Vite's `INEFFECTIVE_DYNAMIC_IMPORT` warning. Both now import a private sender module; the existing facade exports and send behavior remain unchanged. `tests/development/bundle.test.mjs` builds the facade and doctor with Vite and fails on that warning.
 
-The module-local lock pins the Miniflare/workerd test runtime; production source has no npm dependencies. Unit suites cover core validation, adapters, events, inbound parsing, development, unsubscribe and doctor behaviour. The Messaging HTTP/service-binding smoke and real D1 intake race/rollback/restart suite join the existing area smokes. They check core portability, remote adapters, inbound hydration, durable event intake, historical development storage and doctor/facade assembly. The storage smokes retain real transaction rollback, namespace isolation, restart and suppression coverage. `tests/all.test.ts` runs the nested suites serially through `pnpm verify:modules`; each worker is disposed after its run. Former SendGrid API tests remain while seed source still imports the deprecated module.
+The module-local lock pins the Miniflare or workerd test runtime; production source has no npm dependencies. Unit suites cover core validation, adapters, events, inbound parsing, development, unsubscribe and doctor behaviour. The Messaging HTTP or service-binding smoke and real D1 intake race/rollback/restart suite join the existing area smokes. They check core portability, remote adapters, inbound hydration, durable event intake, historical development storage and doctor or facade assembly. The storage smokes retain real transaction rollback, namespace isolation, restart and suppression coverage. `tests/all.test.ts` runs the nested suites serially through `pnpm verify:modules`; each worker is disposed after its run. Former SendGrid API tests remain while seed source still imports the deprecated module.
 
 Local conformance does not establish provider configuration, DNS propagation, deployed webhook reachability, DKIM coverage or mailbox delivery. Live acceptance remains **PENDING** until an exact-SHA hosted run sends and receives on the owner's approved test domain with independently correlated mailbox evidence. Resend is the default test sender; SendGrid is selected where Inbound Parse is required. No live request is authorized by running local tests.

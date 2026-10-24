@@ -54,7 +54,7 @@ export function tallyBefore(stores: Store[], receipt: string, scope: TallyScope)
 }
 
 /** Opaque door content is withdrawn after all before-images are tallied and
- * before kit job/header changes can sever its scope links, in the same batch. */
+ * before kit job or header changes can sever its scope links, in the same batch. */
 export function tallyWithdraw(stores: Store[], scope: TallyScope): D1Sql[] {
   return stores.filter(store => store.withdraw !== undefined).sort((a, b) => a.withdraw! - b.withdraw!)
     .map(store => sql(`DELETE FROM ${store.name} WHERE ${store.where}`, ...store.params(scope)));

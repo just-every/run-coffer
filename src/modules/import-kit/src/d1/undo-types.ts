@@ -35,14 +35,14 @@ export interface D1UndoSnapshot {
   /** Optional complete destination set from targets.list, including unrelated
    * rows. Kit checks every current observation against this set (null means
    * absent), then fences it through targets.matchesMany. This requires that
-   * adapter method; it does not replace custom observation/dependency guards. */
+   * adapter method; it does not replace custom observation or dependency guards. */
   nativeRows?: TargetRow[];
   dependencies: D1UndoDependency[];
   /** Domain-required atomic reversal units, e.g. required MANY owner + joins.
    * Overlapping groups are united. Retaining any member retains the unit. */
   atomicGroups?: string[][];
-  /** Nonempty scalar predicates fencing the WHOLE observed native/dependency
-   * set, including absent/incoming edges and cardinalities. No mutations. */
+  /** Nonempty scalar predicates fencing the WHOLE observed native or dependency
+   * set, including absent or incoming edges and cardinalities. No mutations. */
   guards: D1Sql[];
 }
 export interface D1PreservedUndoAdapter {

@@ -61,7 +61,7 @@ preparing future letters. Letters already approved retain their exact address
 and wording.
 
 Print all letters, a single letter, or the pending print batch. Choose US Letter,
-100% scale and no browser headers/footers; use Print or Save as PDF. Each letter
+100% scale and no browser headers or footers; use Print or Save as PDF. Each letter
 starts on a new page, with the address positioned for a window envelope. Long
 statements continue onto additional pages. Test a sheet with your envelopes.
 After printing, record the print batch as printed. CSV export remains available.

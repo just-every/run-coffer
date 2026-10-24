@@ -155,7 +155,7 @@ interface versions; callback input cannot select an endpoint or change the pin.
    its approval against that origin and exact callback set, and stores the key,
    sector, interface and registration paths with a short one-use code.
 3. The provider posts only `{issuer, interface, code}` to the fixed app URL
-   `/.well-known/rer-link/callback`. The app accepts only its configured/trusted
+   `/.well-known/rer-link/callback`. The app accepts only its configured or trusted
    issuer named by that fresh app-local approval. Every callback, including an
    unchanged link or a link after unlink, requires a new approval. The exact
    attempt, owner and session authority and link snapshot are rechecked atomically
@@ -169,7 +169,7 @@ interface versions; callback input cannot select an endpoint or change the pin.
    `iat`, `exp` at most 60 seconds later, unique `jti`, `code`, `interface`,
    `sector_id` and the fixed `callback`.
 5. The provider verifies the signature against the key fetched at approval,
-   audience, times, unique assertion/code use and every bound registration
+   audience, times, unique assertion or code use and every bound registration
    property. Code redemption is atomic: concurrent requests have one winner.
    The response contains `{issuer, interface, origin, callback, sector_id,
    client_id}`. For an existing same-provider link it must retain the client ID
@@ -185,7 +185,7 @@ interface versions; callback input cannot select an endpoint or change the pin.
    require a new app-local approval and provider approval.
 
 Provider implementations must enforce code and token expiry, one-use redemption,
-origin/callback binding and key continuity themselves. The application-side
+origin or callback binding and key continuity themselves. The application-side
 network tests model those provider obligations without contacting a live service.
 
 ## App owner controls and claims
@@ -197,7 +197,7 @@ successful identity link enables `idpSignIn` automatically. The setup attempt
  cannot authorize a later relink to enable sign-in. The CLI closes that
 first-setup eligibility after successful setup, including a blank optional
 provider. Existing and imported installs remain off until their current owner
-enables the app setting. `GET/POST /auth/settings/identity` has JSON and plain HTML
+enables the app setting. `GET or POST /auth/settings/identity` has JSON and plain HTML
 forms, requires the current owner, records effective changes in `oa_auth_audit`,
 and never accepts platform authority. Any valid settings POST closes setup
 eligibility, including an unchanged value, without auditing a nonexistent change
@@ -215,7 +215,7 @@ subject, fresh verified designated email, unique jti, iat and exp (at most five
 minutes), and `install_owner: {client_id, sector_id, subject, email}`. The app
 requires all four properties to match its own installation and designated owner.
 The existing bootstrap transaction commits owner, grant consumption, binding,
-setting audit and provider session together. Durable issuer/client uniqueness
+setting audit and provider session together. Durable issuer or client uniqueness
 allows one owner grant even after a restart; the grant never becomes an ordinary
 role or a general sign-in credential. CLI readiness also verifies the local owner
 exists; linking alone is insufficient.
@@ -250,23 +250,23 @@ even for a bound account. Explicit mappings between an upstream subject and emai
 supported only when they do not contradict an asserted stale proof.
 
 `POST /auth/oidc/auth/logout` accepts `logout_token` and ignores other fields.
-Use a signed JWT with `typ: "logout+jwt"`, pinned issuer/client audience, current
-iat/exp, nonempty durable one-use jti, no nonce property, and sub or sid. When
+Use a signed JWT with `typ: "logout+jwt"`, pinned issuer or client audience, current
+iat or exp, nonempty durable one-use jti, no nonce property, and sub or sid. When
 both selectors exist they must agree. `events` must contain an empty object at
 `http://schemas.openid.net/event/backchannel-logout` or
 `https://runeditrun.com/events/identity-fence`; unknown events are refused.
 The fence event increments only the selected person's durable identity fence.
 All their fenced sessions and minted credentials then fail admission, while
 other people remain active. Ordinary ID tokens with any `events` property are
-refused. Credential consumers must record/check the fence; the provided
+refused. Credential consumers must record or check the fence; the provided
 `mintCredential`/`authenticateCredential` functions also refuse legacy credentials
 with no recorded fence. Editor grants require the actual current install owner;
-OIDC sessions must also match that owner's current issuer/subject account binding.
+OIDC sessions must also match that owner's current issuer or subject account binding.
 
 To back up and restore this installation, apply the following identity policy
 to its archives. This is separate from bringing records in through the door.
 Archives omit server link keys, approvals, code state, provider sessions and OIDC
-transients, preserve durable people/bindings/grant use/sector, set sign-in off and
+transients, preserve durable people/bindings/grant use or sector, set sign-in off and
 mark links as needing re-link. Import checks these conditions and requires an
 explicit fresh provider approval. Local `rer import` returns `needsRelink: true`
 and `nextCommand: "rer setup"`; that setup continuation consumes the fresh approval
@@ -278,7 +278,7 @@ needed re-link without reading or emitting private keys or approvals.
 Native `createOperatorAuth` composition reuses this protocol with
 `accounts.dependencies: NativeDependencyAuthority<R>`. Missing capabilities
 refuse enablement. Native authority checks and revocation statements join the
-same D1 link/unlink transaction; verified logout consumption uses the native
+same D1 link or unlink transaction; verified logout consumption uses the native
 binding/session/fence store atomically. No OA account tables are queried.
 Every native callback requires a new local owner approval, including initial
 and unchanged links. Shared code fences the exact attempt and approving
@@ -289,11 +289,11 @@ pending approval while preserving the sector.
 
 Native dependency setup before a first owner is currently unsupported:
 `/auth/dependencies/setup` and `auth.authorizeDependencySetup` explicitly refuse
-with `native_capability_unavailable` (501) before pending/key mutation or OA
+with `native_capability_unavailable` (501) before pending or key mutation or OA
 setup SQL. Claim the native owner through the seed's supported bootstrap, then
 confirm a local email proof and approve at `/auth/dependencies/relink`. A native
 `claimOwner` capability alone does not make an empty installation's initial IdP
-link/claim journey available. Static incumbent providers remain available beside
+link or claim journey available. Static incumbent providers remain available beside
 linked Auth.
 See [the exact native contract](../operator-auth/docs/native-accounts.md) for
 method arguments, migration selection, proof fences and adoption steps.

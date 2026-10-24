@@ -2,7 +2,7 @@
 
 Import `withDemo` first in the Worker entry and wrap the worker with
 `withDemo(worker, { seed })`. It changes behavior only with `RER_DEMO=1`.
-Production build/deploy refuses that setting; ordinary builds keep real effects.
+Production build or deploy refuses that setting; ordinary builds keep real effects.
 
 - Public internet reads and checks run for real: pages, feeds, previews and
   monitor probes against any URL. GET, HEAD and OPTIONS use the real network.
@@ -28,11 +28,17 @@ Production build/deploy refuses that setting; ordinary builds keep real effects.
   Put `data-rer-name` on the product's text label, for example
   `<span data-rer-name>Uptime</span>`, to show **Uptime Demo** in its nav.
   The same attribute shows **Uptime Dev** under the local dev wrapper. No bar,
-  layout offset or timer is injected. CSS adds the label suffix without
+  layout offset or timer is injected. In demo mode a **Run <Seed>** link sits
+  beside each marked navigation label and opens `https://<domain>/run`. The
+  existing `demoSockets()` Vite plugin supplies the public `name` and canonical
+  run-site `domain` from `deploy-demo.json` and the command adapter's
+  `site.declaration` (normally `deploy-site.json`); an explicit HTTPS `/run`
+  `runUrl` in the demo declaration takes precedence and is validated for both
+  local and hosted demos. No per-seed link is required. CSS adds the label suffix without
   changing the application's hydrated text; CSP allows exact hashes only.
 
 Public sockets, WebSockets and event streams remain usable for checks. The
-local sockets guard and hosted egress retain a small direct mail/SMS denylist;
+local sockets guard and hosted egress retain a small direct mail or SMS denylist;
 use the effect helper for such sends. Hosted demos keep their isolated
-container, Turnstile, per-IP start limit, TTL/idle end and maximum instances.
-See [adoption and hosting](../../export/DEMO.md).
+container, Turnstile, per-IP start limit, TTL or idle end and maximum instances.
+See [adoption and hosting](https://github.com/runeditrun/base/blob/main/export/DEMO.md).

@@ -7,7 +7,7 @@ import { iconHead } from './icon-head'
 // renders them with its own RunData and edition identity, and a seed with an
 // approved homepage renders that page instead of siteHomeHtml.
 // Visual authority: the 12ui Run page picks.
-// This file is copied unchanged to src/base by both maintained exporters.
+// This file is copied unchanged to ./src/base by both maintained exporters.
 import { checkIdentity, type EditionIdentity } from './identity'
 import { ink } from './theme-frame'
 import type { SeedContract } from './seed-contract.mjs'
@@ -121,7 +121,7 @@ export function header(identity: EditionIdentity, run: RunData, contract?: SeedC
   return `<header class="bar"><a class="brand" href="/"><img src="${escape(identity.mark)}" alt="" width="40" height="40"><span>${escape(identity.product)}</span></a>`
     + `<nav aria-label="Site">${siteLinks(run, contract, current)}</nav></header>`
 }
-// Keep each word/path whole, leaving the original whitespace between words so
+// Keep each word or path whole, leaving the original whitespace between words so
 // inline commands can wrap at spaces and selection copies the same text.
 const inlineCode = (value: string) => `<code>${escape(value).replace(/\S+/g, word => `<span class="code-word">${word}</span>`)}</code>`
 // The one-line alternative can break only before the repository; keep plain spaces for copying.

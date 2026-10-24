@@ -3,7 +3,7 @@ import type { DoorRequest, DoorSnapshot } from './types.ts';
 import { DoorError } from './protocol.ts';
 import { assertion, snapshotHeld, sql, transact } from './store.ts';
 
-/** SQLite busy/locked wording, plus the retryable errors Cloudflare D1 reports
+/** SQLite busy or locked wording, plus the retryable errors Cloudflare D1 reports
  * (storage resets, code updates, lost connections, overload and timeouts). */
 const transient = new RegExp([
   String.raw`\bSQLITE_(?:BUSY|LOCKED|INTERRUPT)(?:_\w+)?\b`, String.raw`\bdatabase (?:table )?(?:is )?(?:busy|locked|unavailable)`,
@@ -11,7 +11,7 @@ const transient = new RegExp([
   'caused object to be reset', 'Replica disconnected', 'transient issue on remote node', 'client disconnected',
   'D1 DB is overloaded', 'exceeded timeout',
 ].join('|'),'i');
-/** Only persist allowlisted classifications, never adapter/SQL messages that
+/** Only persist allowlisted classifications, never adapter or SQL messages that
  * may contain customer records. Providers can wrap SQLite errors in causes. */
 function reasonCode(error: unknown): string {
   const seen = new Set<unknown>();

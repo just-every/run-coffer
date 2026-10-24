@@ -8,7 +8,7 @@ export type OriginalErasurePolicy = 'withdraw-affected-artifacts' | 'withdraw-al
 export type UnavailableOriginal = { status: 'unavailable'; reason: 'not-supplied' } | { status: 'unavailable'; reason: 'credentials-removed' } | { status: 'unavailable'; reason: 'unavailable-after-erasure'; policy: OriginalErasurePolicy };
 export type ArtifactOriginal = { status: 'available'; base64: string } | UnavailableOriginal;
 export interface SourceArtifact { name: string; sha256: string; size: number; original?: ArtifactOriginal }
-/** Durable, job-bound custody readback. No reference/URL can claim byte retention. */
+/** Durable, job-bound custody readback. No reference or URL can claim byte retention. */
 export interface RetainedOriginal { jobId: string; kind: 'artifact' | 'attachment'; key: string; name: string; sha256: string; size: number; original: { status: 'retained'; base64: string } | UnavailableOriginal }
 /** Exact noncredential pagination query key; strict credential policy when omitted. */
 export type PaginationCursorPolicy = 'page-token-v1';
@@ -42,6 +42,6 @@ export interface ImportContext { destination: string; namespace: string; mapping
 export type JobState = 'queued' | 'applying' | 'completed' | 'failed' | 'undoing' | 'undone' | 'rolling_back' | 'rolled_back';
 export interface ImportJob { id: string; fingerprint: string; destination: string; namespace: string; mappingVersion: string; principalId: string; state: JobState; checkpoint: number; total: number; fence: number; error: string | null; erasedRecords?: number }
 export interface ProvenanceRow { id: string; jobId: string; sourceIdentity: string; sourceKind: string; sourceId: string; sourceHash: string; artifactHash: string; location: SourceLocation; destination: string; targetKind: string; targetId: string; valueHash: string; attachmentHash: string | null; appliedRevision: string; before: TargetRow | null; reversed: boolean }
-/** integrity is present only when durable SQL identities/JSON disagree. Independent readbacks may omit it. */
+/** integrity is present only when durable SQL identities or JSON disagree. Independent readbacks may omit it. */
 export interface PersistedImport { rows: TargetRow[]; provenance: ProvenanceRow[]; integrity?: Omit<Reconciliation, 'ok'> }
 export interface Reconciliation { ok: boolean; missing: string[]; duplicate: string[]; extra: string[]; mismatched: string[] }

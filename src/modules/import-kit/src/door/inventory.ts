@@ -12,7 +12,7 @@ async function ownerPlans(request: DoorRequest, ids: string[]): Promise<Map<stri
     .bind(JSON.stringify(ids), request.access.installationId, request.access.namespace).all<Pick<DoorPlanRow,'id'|'job_id'>>();
   return new Map(results.map(row => [row.id, row]));
 }
-/** Product lineage only locates evidence. The kit's immutable plan/provenance
+/** Product lineage only locates evidence. The kit's immutable plan or provenance
  * owns the revision and full native snapshot; a current native revision is never
  * promoted to permission to overwrite an edit. Every target's current state comes
  * from the native rows the persisted read fenced under its atomic guard, so the

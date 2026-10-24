@@ -67,7 +67,7 @@ export function reversalGuards(id: string, state: ReversalState): D1Sql[] {
     ...exactRows('ik_d1_reversal_reports', ['job_id','effect_id','position','record_json'], state.rows, sql('job_id=?', id), undefined, undefined, {key:'job_id',values:[id]}),
     // Every disposition still requires its exact native provenance state. One
     // JSON snapshot per byte-bounded chunk avoids a three-bind predicate for
-    // every previously published effect in all later undo/report requests.
+    // every previously published effect in all later undo or report requests.
     // The report's exact rows and scoped count close the disposition set;
     // pending provenance belongs to the separately fenced full inventory.
     ...jsonChunks(state.dispositions.filter(d => d.redacted !== 'erased').map(d => [d.effectId, id, Number(d.disposition === 'reversed' || d.reason === 'superseded')])).map(chunk => guard(sql(

@@ -67,7 +67,7 @@ export function readStoredOriginals(db: SqlDatabase, plan: ImportPlan, jobId: st
   const rows = db.prepare('SELECT * FROM ik_originals WHERE job_id=? ORDER BY kind,original_key').all(jobId);
   if (!version) {
     // Pre-custody jobs really retain mapped attachment bytes in their plan, but
-    // have no file/page originals. Do not reconstruct those from parsed records.
+    // have no file or page originals. Do not reconstruct those from parsed records.
     if (rows.length || plan.source.artifacts.some(a => a.original !== undefined)) throw new Error('ORIGINAL_CUSTODY_MISSING');
     return expected;
   }

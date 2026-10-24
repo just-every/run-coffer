@@ -160,7 +160,7 @@ export async function runPledgeReminders(env: Bindings, at = new Date()): Promis
 
 /** Minute Cron creates one ordinary call task per overdue installment. The
  * INSERT rechecks the balance, donor and assignee inside the audited transaction;
- * manual creation and concurrent/replayed ticks share the same unique source. */
+ * manual creation and concurrent or replayed ticks share the same unique source. */
 export async function advancePledgeTasks(env: Bindings, at: Date) {
  const c: Context = { db: env.DB, env, now: at.toISOString(), actor: { id: 'coffer-scheduler', name: 'Pledge scheduler', role: 'owner' }, authority: { sql: 'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)', params: [] } }
  const day = today((await settings(c)).timezone, at)
