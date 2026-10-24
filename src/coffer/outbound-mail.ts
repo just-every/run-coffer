@@ -30,7 +30,7 @@ export async function sendDonorMail(env: Bindings, message: Message): Promise<{ 
  try {
   result = await sender(env).send({ ...content, ...(env.MAIL_PROVIDER === 'rer' ? { messageKey: message.deliveryId } : {}) })
  } catch {
-  throw new SendGridSendError('rejected', 'Mail configuration or message is unsupported. No email was submitted.')
+  throw new SendGridSendError('ambiguous', 'Mail submission could not be confirmed. Check the provider before any retry.')
  }
  if (result.status === 'accepted') return { providerMessageId: result.providerMessageId }
  throw new SendGridSendError(result.status === 'uncertain' ? 'ambiguous' : result.status, 'Mail submission was not confirmed.')

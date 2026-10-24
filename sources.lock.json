@@ -203,6 +203,10 @@
       "sha256": "84278eae57b22f3afc5189a295e429babc14f12e0f495d61169154f22d22790c",
       "executable": false
     },
+    "docs/deployment.md": {
+      "sha256": "0daf5ba11626c08f8db2453cdbde65435f073a6f82dcb0313ef97191a2e11a4f",
+      "executable": false
+    },
     "docs/DEVELOPMENT-AGENT.md": {
       "sha256": "03741bf9177525e6631edf9b7340655ab708c770f3bd40b12dc2a505288b93ad",
       "executable": false
@@ -2417,6 +2421,10 @@
     },
     "src/coffer/organizations.ts": {
       "sha256": "5c2fec7ae192cdd55fd6b620bdf1a7ed9d724ea0b19df61a5c82cd7f8fbdabb1",
+      "executable": false
+    },
+    "src/coffer/outbound-mail.ts": {
+      "sha256": "58c0f3d3eb620e76910eb89d9f0568d27b440a3205fb37da4e072f264e3ffdc4",
       "executable": false
     },
     "src/coffer/payments/adjustment-notices.ts": {
@@ -5249,6 +5257,10 @@
     },
     "tests/harness.mjs": {
       "sha256": "7148e2bfb1589887c2b115de196b2fab919b7b3e8209d004f3ffd630242de2f5",
+      "executable": false
+    },
+    "tests/hosted-mail.test.mjs": {
+      "sha256": "8fe03cab2f8493fd8e6ba5f1dcea1639f8f4e9b594127bd1535d51ced5c99ad8",
       "executable": false
     },
     "tests/hosted-restore.test.mjs": {
