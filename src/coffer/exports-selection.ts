@@ -1,3 +1,4 @@
+import { reportSelection } from './exports-report'
 import { manager } from './auth'
 import { engagementScores } from './engagement'
 import { contactSearchSql } from './contact-points'
@@ -5,19 +6,30 @@ import { ADVANCED_FILTERS, advancedListSql,validateCustomFilter } from './list-f
 import { solicitationFilterSql } from './solicitation-filter'
 import { choice, fail, integer, one, today, type Context } from './db'
 import { listFilters } from './saved-lists'
+import type { ExportType } from './exports-records'
+
+export type ExportSelection = {
+ source:string; savedId:string|null; timezone:string; year:number; through:string
+ ctes:string; params:unknown[]; scoreCurrentSql:string; reportType?:ExportType; reportTotalsSql?:string
+ selection:{source:string;listId?:string|null;year?:number|null;filters?:Record<string,unknown>;report?:string;parameters?:Record<string,unknown>}
+}
 
 const pattern = (column: string) => `('%'||replace(replace(replace(${column},char(92),char(92)||char(92)),'%',char(92)||'%'),'_',char(92)||'_')||'%')`
 
 /** Membership and selected records are evaluated in the same export statement.
  * Time-zone preflight is checked again inside that statement; a changed setting
  * refuses the request instead of mixing two organization calendars. */
-export async function exportSelection(c: Context, url: URL) {
+export async function exportSelection(c: Context, url: URL):Promise<ExportSelection> {
+ const report=url.searchParams.get('report')
+ if(report&&report!=='annual-lapses')return reportSelection(c,url)
+ if(report==='annual-lapses'&&!['lybunt','sybunt'].includes(url.searchParams.get('list')||''))fail('INPUT','Choose LYBUNT or SYBUNT.',400)
  const value = url.searchParams.get('list') || 'search'
  const savedId = value.startsWith('saved:') ? value.slice(6) : null
  if (savedId !== null && (!savedId || savedId.length > 100)) fail('INPUT','Choose a saved list.',400)
  const source = savedId === null ? choice(value,['search','lybunt','sybunt'] as const,'donor list') : 'saved'
  const filters = listFilters(Object.fromEntries(['q','relationship','relatedTo','volunteer','solicitation',...ADVANCED_FILTERS].map(k=>[k,url.searchParams.get(k)||''])))
  if (source === 'saved' && Object.values(filters).some(Boolean)) fail('INPUT','A saved list uses its saved filters. Open the current search to choose other filters.',400)
+ if(report&&Object.values(filters).some(Boolean))fail('INPUT','An annual lapse report uses only its year and cohort.',400)
  const timezone = String((await one(c,'SELECT timezone FROM cf_settings WHERE id=1'))!.timezone)
  const day = today(timezone,new Date(c.now)), currentYear = Number(day.slice(0,4))
  const rawYear = url.searchParams.get('year')
@@ -65,5 +77,5 @@ export async function exportSelection(c: Context, url: URL) {
  const params = [savedId??'',source,JSON.stringify(filters),through,source,source,String(year),String(year),source,String(year-1),scores===null?null:JSON.stringify(scores),scores===null?null:JSON.stringify(scores)]
  const selection = {source,listId:savedId,year:source==='lybunt'||source==='sybunt'?year:null,
   filters:Object.fromEntries(Object.entries(filters).map(([k,v])=>[k,k==='relationship'||k==='volunteer'?v:Boolean(v)]))}
- return {source,savedId,timezone,year,through,ctes,params,selection,scoreCurrentSql}
+ return {source,savedId,timezone,year,through,ctes,params,selection:report?{...selection,report}:selection,scoreCurrentSql,reportType:report?'constituents' as const:undefined}
 }

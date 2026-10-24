@@ -35,7 +35,7 @@ function checkedCents(value: bigint): number {
  * Entry dates select ledger movements; adjustments inherit the original gift's
  * current custom value. No allocations, soft credits or display pagination
  * enter this query, so every contribution and original gift counts once. */
-export async function report(c: Context, url: URL): Promise<CustomReport> {
+export async function customRecordSelection(c: Context, url: URL) {
  requireRole(c.actor, ['owner', 'admin'], 'read custom field gifts reports')
  const from = url.searchParams.get('from') || null, through = url.searchParams.get('through') || null
  if (from) date(from, 'From')
@@ -46,17 +46,24 @@ export async function report(c: Context, url: URL): Promise<CustomReport> {
  const selected = key ? fields.find(f => f.key === key) : fields[0]
  if (key && !selected) fail('INPUT', 'Choose a defined gift custom field.', 400)
  const field = selected ?? null
- if (!field) return { fields, field, from, through, groups: [], records: [], totalCents: 0, giftCount: 0 }
 
- const entries = await all(c, `SELECT l.id,l.donor_id,d.name AS donor_name,l.received_on,l.kind,
+
+ const query = `SELECT l.id,l.fund,NULL AS campaign_id,l.donor_id,d.name AS donor_name,l.received_on,l.kind,
   CAST(l.amount_cents AS TEXT) AS amount_cents,
-  COALESCE(l.reverses,p.gift_id,l.id) AS original_id,v.value AS custom_value
+  COALESCE(l.reverses,p.gift_id,l.id) AS original_id,COALESCE(l.reverses,p.gift_id,l.id) AS gift_id,v.value AS custom_value
   FROM cf_contribution_ledger l JOIN cf_donors d ON d.id=l.donor_id
   LEFT JOIN cf_payment_entries p ON l.source='stripe-adjustment' AND p.id=l.id
   LEFT JOIN cf_custom_values v ON v.field_key=? AND v.record_id=COALESCE(l.reverses,p.gift_id,l.id)
    AND v.donor_id=l.donor_id AND d.erased_at IS NULL
-  WHERE (? IS NULL OR l.received_on>=?) AND (? IS NULL OR l.received_on<=?)
-  ORDER BY l.received_on DESC,l.created_at DESC,l.id`, field.key, from, from, through, through)
+  WHERE ? IS NOT NULL AND (? IS NULL OR l.received_on>=?) AND (? IS NULL OR l.received_on<=?)
+  ORDER BY l.received_on DESC,l.created_at DESC,l.id`
+ return {query,params:[field?.key??null,field?.key??null,from,from,through,through],fields,field,from,through,parameters:{field:field?.key??null,from,through}}
+}
+
+export async function report(c: Context, url: URL): Promise<CustomReport> {
+ const {query,params,fields,field,from,through}=await customRecordSelection(c,url)
+ if(!field)return {fields,field,from,through,groups:[],records:[],totalCents:0,giftCount:0}
+ const entries=await all(c,query,...params)
 
  const grouped = new Map<string, { value: CustomValue; displayValue: string; cents: bigint; gifts: Set<string> }>()
  const gifts = new Set<string>(), records: CustomReportRecord[] = []

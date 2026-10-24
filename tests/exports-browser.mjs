@@ -45,3 +45,29 @@ export async function exportsBrowser(h,{listId,headers},directory){
   await page.close()
  })
 }
+
+
+export async function reportExportsBrowser(h,{headers,query},directory){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  await context.setExtraHTTPHeaders({cookie:h.owner,...headers})
+  const page=await context.newPage()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/funds?'+query)
+   await page.getByRole('heading',{name:'Giving by fund',exact:true,level:1}).waitFor()
+   const pending=page.waitForEvent('download')
+   await page.getByRole('link',{name:'gifts CSV',exact:true}).click()
+   const file=await pending
+   assert.match(file.suggestedFilename(),/report-funds.*report-records/)
+   assert.equal(await file.failure(),null)
+   assert.equal(await page.getByRole('link',{name:'constituents CSV',exact:true}).count(),1)
+   assert.equal(await page.locator('a[href*="/api/coffer/exports/"]').count(),8)
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   // The touched screen has text on every interactive control, including Menu.
+   assert.deepEqual(await page.locator('button,a,label[for="cf-menu"]').evaluateAll(nodes=>nodes.filter(n=>n.getBoundingClientRect().width&&!(n.textContent||'').trim()).map(n=>n.outerHTML)),[])
+   await page.screenshot({path:`${directory}/DATA-004-funds-${width}.png`,fullPage:true})
+  }
+  await page.close()
+ })
+}

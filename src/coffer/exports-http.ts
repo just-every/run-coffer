@@ -9,10 +9,12 @@ export async function exportsResponse(request: Request, c: Context): Promise<Res
  const type=exportType(match?.[1]??url.searchParams.get('type')??'constituents')
  if(!match)return Response.json((await exportSnapshot(c,type,url)).metadata,{headers})
  const {body,metadata}=await exportCsv(c,type,url)
- const source=metadata.listId?`saved-${encodeURIComponent(metadata.listId)}`:metadata.source
+ const source=url.searchParams.has('report')?'report-'+encodeURIComponent(url.searchParams.get('report')!):metadata.listId?`saved-${encodeURIComponent(metadata.listId)}`:metadata.source
+ const parameters=url.searchParams.has('report')?'-'+encodeURIComponent(new URLSearchParams(Object.entries('parameters' in metadata.selection?(metadata.selection.parameters??{}):{year:metadata.selection.year,list:metadata.selection.source}).filter(([,v])=>v!==null&&v!==undefined&&v!=='').map(([k,v])=>[k,String(v)])).toString()):''
+ const scope=metadata.selection.scope==='donor-lifetime'?'lifetime':metadata.selection.scope
  const date=metadata.asOf.replace(/[:.]/g,'-')
  return new Response(body,{headers:{...headers,'content-type':'text/csv; charset=utf-8',
-  'content-disposition':`attachment; filename="coffer-${type}-${source}-lifetime-${date}.csv"`,
+  'content-disposition':`attachment; filename="coffer-${type}-${source}${parameters}-${scope}-${date}.csv"`,
   'x-coffer-row-count':String(metadata.rowCount),'x-coffer-as-of':metadata.asOf,
   'x-coffer-withheld':metadata.withheld.statement}})
 }
