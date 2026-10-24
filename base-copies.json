@@ -3580,15 +3580,6 @@
       },
       "modes": {
         "src/modules/operator-auth/accounts/native.mjs": "100644"
-      },
-      "adapted": {
-        "src/modules/operator-auth/accounts/native.mjs": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "src/modules/operator-auth/accounts/native.mjs": {
-          "sha256": "bf571fae2aff2a5b9034f79b8d7ed12c151ea7bc83dc436b3cb17b7ecd2615f5",
-          "mode": "100644"
-        }
       }
     },
     {
@@ -3820,15 +3811,6 @@
       },
       "modes": {
         "src/modules/operator-auth/accounts/store.mjs": "100644"
-      },
-      "adapted": {
-        "src/modules/operator-auth/accounts/store.mjs": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "src/modules/operator-auth/accounts/store.mjs": {
-          "sha256": "d986fdb62656a9fd8255b7b3309ff55330baa436083a87478ade10f23f08bdf7",
-          "mode": "100644"
-        }
       }
     },
     {
@@ -3840,15 +3822,6 @@
       },
       "modes": {
         "src/modules/operator-auth/branding.mjs": "100644"
-      },
-      "adapted": {
-        "src/modules/operator-auth/branding.mjs": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "src/modules/operator-auth/branding.mjs": {
-          "sha256": "9e32c4a4fb4ec7b3ca02e4ca5081a840c68a4a9d285fc677523bd6e7f539fe09",
-          "mode": "100644"
-        }
       }
     },
     {
@@ -4036,15 +4009,6 @@
       },
       "modes": {
         "src/modules/operator-auth/docs/native-accounts.md": "100644"
-      },
-      "adapted": {
-        "src/modules/operator-auth/docs/native-accounts.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "src/modules/operator-auth/docs/native-accounts.md": {
-          "sha256": "c5d382b6255eae0c38d40f05146bc46426cfa0824bdd9d9d264d7e9832d5554b",
-          "mode": "100644"
-        }
       }
     },
     {
@@ -4056,15 +4020,6 @@
       },
       "modes": {
         "src/modules/operator-auth/docs/README.md": "100644"
-      },
-      "adapted": {
-        "src/modules/operator-auth/docs/README.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "src/modules/operator-auth/docs/README.md": {
-          "sha256": "c05ef3fa0bf088f2696fc3bcd56eeaa78e329f21c39ecfaa53e5d3f19c02335a",
-          "mode": "100644"
-        }
       }
     },
     {
@@ -4582,15 +4537,6 @@
       },
       "modes": {
         "src/modules/operator-auth/service.mjs": "100644"
-      },
-      "adapted": {
-        "src/modules/operator-auth/service.mjs": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
-      },
-      "acknowledged": {
-        "src/modules/operator-auth/service.mjs": {
-          "sha256": "74111edfb57d928c56a6a4577c05d11c67502a6fd551d4047f94f02c3c73b4d2",
-          "mode": "100644"
-        }
       }
     },
     {

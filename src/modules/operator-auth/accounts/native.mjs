@@ -1,4 +1,4 @@
-// Native composition never constructs an OA account or session store. The seed
+// Native composition never constructs an OA account/session store. The seed
 // selects its tenant in these adapters, before any request is handled.
 import { AuthError, deny } from '../errors.mjs';
 import { accountsAdapter, person } from './adapter.mjs';

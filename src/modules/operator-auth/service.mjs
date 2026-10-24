@@ -1,5 +1,5 @@
 // Composed identity over Base's OA accounts, or an explicitly paired native
-// ./accounts/proof adapter. Native composition never constructs the OA store.
+// accounts/proof adapter. Native composition never constructs the OA store.
 import { scheduledPolicies } from './scheduled/index.mjs';
 import { fencedCredentials } from './accounts/credentials.mjs';
 import { providerControl } from './accounts/provider-control.mjs';

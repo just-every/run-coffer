@@ -95,7 +95,7 @@ export class AuthStore {
     const allow = allowedEmails === undefined ? { sql: '1', args: [] } : { sql: `o.email IN (${allowedEmails.map(() => '?').join(',') || 'NULL'})`, args: allowedEmails };
     // JS evaluated the configured policy on this issuer snapshot. Bind that
     // approval to the invitation and repeat its authority check in the session
-    // transaction, so a concurrent demotion or deactivation cannot admit anyone.
+    // transaction, so a concurrent demotion/deactivation cannot admit anyone.
     const authority = issuer ? { sql: `t.issuer_id=? AND t.issuer_version=? AND EXISTS(
       SELECT 1 FROM oa_operators i WHERE i.id=t.issuer_id AND i.version=t.issuer_version AND i.status='active')`,
     args: [issuer.id, issuer.version] } : { sql: '0', args: [] };

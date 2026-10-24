@@ -378,13 +378,7 @@
           "src/modules/import-kit/src/readers/errors.ts",
           "src/modules/import-kit/src/readers/file.ts",
           "src/modules/import-kit/src/storage/originals.ts",
-          "src/modules/import-kit/src/types.ts",
-          "src/modules/operator-auth/accounts/native.mjs",
-          "src/modules/operator-auth/accounts/store.mjs",
-          "src/modules/operator-auth/branding.mjs",
-          "src/modules/operator-auth/docs/README.md",
-          "src/modules/operator-auth/docs/native-accounts.md",
-          "src/modules/operator-auth/service.mjs"
+          "src/modules/import-kit/src/types.ts"
         ],
         "origin": {
           "repository": "https://github.com/runeditrun/base",
@@ -464,30 +458,6 @@
           {
             "path": "src/modules/import-kit/src/types.ts",
             "originPath": "modules/import-kit/src/types.ts"
-          },
-          {
-            "path": "src/modules/operator-auth/accounts/native.mjs",
-            "originPath": "modules/operator-auth/accounts/native.mjs"
-          },
-          {
-            "path": "src/modules/operator-auth/accounts/store.mjs",
-            "originPath": "modules/operator-auth/accounts/store.mjs"
-          },
-          {
-            "path": "src/modules/operator-auth/branding.mjs",
-            "originPath": "modules/operator-auth/branding.mjs"
-          },
-          {
-            "path": "src/modules/operator-auth/docs/README.md",
-            "originPath": "modules/operator-auth/docs/README.md"
-          },
-          {
-            "path": "src/modules/operator-auth/docs/native-accounts.md",
-            "originPath": "modules/operator-auth/docs/native-accounts.md"
-          },
-          {
-            "path": "src/modules/operator-auth/service.mjs",
-            "originPath": "modules/operator-auth/service.mjs"
           }
         ]
       }

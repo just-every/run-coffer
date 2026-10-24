@@ -65,7 +65,7 @@ own routes; it replaces a seed's own sign-in page once the seed has checked its
 `identity/oidc/schema/oidc.sql`, and keep client secrets and the app's private
 key in Worker bindings. `createAuthHandler(auth)` then also serves each
 provider's `/auth/oidc/<id>/start` and `/auth/oidc/<id>/callback`; preserve all
-`Set-Cookie` headers individually. See [./identity/oidc](../identity/oidc/README.md)
+`Set-Cookie` headers individually. See [identity/oidc](../identity/oidc/README.md)
 for presets, pinning, email trust and reachability, and the module README for
 domain rules, step-up and the `beforeMagicLink`/`afterConfirm` hooks. Microsoft
 and Okta identify people only through `subjectEmails`, configured from trusted
