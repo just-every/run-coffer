@@ -51,7 +51,7 @@ export async function startPledgeCheckout(env: GivingEnv,id:string,url:URL) {
   'metadata[coffer_pledge_checkout]':saved!.id,'payment_intent_data[metadata][coffer_pledge_checkout]':saved!.id,
   success_url:env.AUTH_ORIGIN+'/giving/pledge/thanks?session_id={CHECKOUT_SESSION_ID}',cancel_url:url.href,
  },'pledge-checkout-'+saved!.id)
- if(session.status==='expired'){await env.DB.prepare("UPDATE cf_pledge_checkouts SET status='expired' WHERE id=?").bind(saved!.id).run();return startPledgeCheckout(env,id,url)}
+ if(session.status==='expired'){await env.DB.prepare("UPDATE cf_pledge_checkouts SET status='expired' WHERE id=?").bind(saved!.id).run();fail('checkout_expired','That checkout expired. Open the installment link again.',409)}
  if(session.status==='complete'){await completePledgeCheckout(env,session.id);fail('balance_changed','Payment completed. Reopen the installment link.',409)}
  if(typeof session.id!=='string'||typeof session.url!=='string'||new URL(session.url).origin!=='https://checkout.stripe.com')fail('checkout_unavailable','Stripe checkout is unavailable.',502)
  await env.DB.prepare('UPDATE cf_pledge_checkouts SET session_id=? WHERE id=? AND session_id IS NULL').bind(session.id,saved!.id).run()

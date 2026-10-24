@@ -106,7 +106,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments pnpm run test:payments"
+        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments pnpm run test:payments"
       ]
     },
     {
@@ -114,7 +114,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:donor-depth",
+        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments pnpm run test:donor-depth",
         "node --test tests/giving-summary.test.mjs",
         "node --test tests/split-gifts.test.mjs",
         "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test tests/duplicates.test.mjs",

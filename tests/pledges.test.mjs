@@ -238,8 +238,8 @@ test('STEW-004: scheduled follow-up is a non-ask sent once per unpaid installmen
   await h.command('solicitation.set',{donorId:d.id,version:0,type:'stop',startsOn:'2025-01-01',source:'person',sourceRef:'synthetic-coffer-1602'})
   const pledge=await h.command('pledge.create',{donorId:d.id,amount:'400',pledgedOn:'2025-01-01',fund:'Library',installments:['2030-03-09','2030-06-09','2030-09-09','2030-12-09'].map(dueOn=>({dueOn,amount:'100'}))})
   const tick=async at=>{const r=await h.mf.dispatchFetch(h.origin+'/cdn-cgi/local/scheduled?time='+Date.parse(at)+'&format=json');assert.equal(r.status,200,await r.text())}
-  await tick('2030-03-10T04:59:00Z');assert.equal(messages.length,0)
-  await tick('2030-03-10T05:00:00Z');assert.equal(messages.length,1)
+  await tick('2030-03-09T13:00:00Z');assert.equal(messages.length,0)
+  await tick('2030-03-10T13:00:00Z');assert.equal(messages.length,1)
   assert.match(messages[0].content[0].value,/\$100\.00 remaining/)
   await tick('2030-03-11T13:00:00Z');assert.equal(messages.length,1)
   const history=()=>h.get('/api/coffer/donors/'+d.id)
@@ -274,15 +274,18 @@ test('STEW-004: quarterly pledge reminder and printed invoice pay exactly the un
   const payUrl=new URL(reminder.content[0].value.match(/Pay this installment: (https:\/\/\S+)/)[1]),payPath=payUrl.pathname+payUrl.search
   const invoice=await (await h.request('/app/pledges/'+pledge.id+'/invoice')).text();assert.ok(invoice.includes(payUrl.pathname));assert.match(invoice,/Pay installment due/)
   await h.request(payUrl.pathname,{as:''}).then(async r=>assert.equal(r.status,404,await r.text()))
+  const expired=new URL(payUrl);expired.searchParams.set('expires','1');assert.equal((await h.request(expired.pathname+expired.search,{as:''})).status,404)
   const confirmation=await h.request(payPath,{as:''});assert.equal(confirmation.status,200);assert.match(await confirmation.text(),/Pay \$75\.00 with Stripe/)
   const start=()=>h.request(payPath,{method:'POST',as:''})
   const [first,replay]=await Promise.all([start(),start()]);assert.equal(first.status,303,await first.text());assert.equal(replay.status,303,await replay.text())
   assert.equal(first.headers.get('location'),'https://checkout.stripe.com/c/pay/synthetic-coffer-1704');assert.equal(edge.sessions.length,1)
   const session=edge.sessions[0];assert.equal(session.amount_total,7500);assert.equal(session.mode,'payment')
   assert.equal((await h.get('/api/coffer/donors/'+d.id)).pledges[0].installments[0].remaining_cents,7500,'Unpaid provider sessions never create gifts')
-  if(process.env.COFFER_PLEDGE_PAY_BROWSER){const {withBrowserWorker}=await import('./browser-worker.mjs');const {mkdir}=await import('node:fs/promises');await mkdir(process.env.COFFER_PLEDGE_PAY_BROWSER,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/pledges/'+pledge.id+'/invoice');await page.getByRole('link',{name:/Pay installment due/}).first().waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:process.env.COFFER_PLEDGE_PAY_BROWSER+'/STEW-004-pay-invoice-'+width+'.png',fullPage:true});await page.getByRole('link',{name:/Pay installment due/}).first().click();await page.getByRole('button',{name:'Pay $75.00 with Stripe',exact:true}).waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:process.env.COFFER_PLEDGE_PAY_BROWSER+'/STEW-004-pay-confirm-'+width+'.png',fullPage:true})}await page.close()})}
+  if(process.env.COFFER_PLEDGE_PAY_BROWSER){const {withBrowserWorker}=await import('./browser-worker.mjs');const {mkdir}=await import('node:fs/promises');await mkdir(process.env.COFFER_PLEDGE_PAY_BROWSER,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/pledges/'+pledge.id+'/invoice');await page.getByRole('link',{name:/Pay installment due/}).first().waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:process.env.COFFER_PLEDGE_PAY_BROWSER+'/STEW-004-pay-invoice-'+width+'.png',fullPage:true});const target=new URL(await page.getByRole('link',{name:/Pay installment due/}).first().getAttribute('href'));await page.goto(origin+target.pathname+target.search);await page.getByRole('button',{name:'Pay $75.00 with Stripe',exact:true}).waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:process.env.COFFER_PLEDGE_PAY_BROWSER+'/STEW-004-pay-confirm-'+width+'.png',fullPage:true})}await page.close()})}
   session.status='complete';session.payment_status='paid';session.payment_intent='pi_synthetic_coffer_1705'
   edge.payment={id:session.payment_intent,status:'succeeded',currency:'usd',amount_received:7500,created:Math.floor(Date.now()/1000),metadata:{coffer_pledge_checkout:session.metadata.coffer_pledge_checkout}}
+  const chargeRaw=JSON.stringify({id:'synthetic-coffer-1712',type:'charge.succeeded',data:{object:{id:'ch_synthetic_coffer_1713'}}}),chargeTime=Math.floor(Date.now()/1000),chargeSig=createHmac('sha256',secret).update(`${chargeTime}.${chargeRaw}`).digest('hex')
+  const chargeEvent=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw:chargeRaw,headers:{'stripe-signature':`t=${chargeTime},v1=${chargeSig}`}});assert.equal(chargeEvent.status,200,await chargeEvent.text())
   for(const id of ['synthetic-coffer-1706','synthetic-coffer-1707']){
    const raw=JSON.stringify({id,type:'checkout.session.completed',data:{object:{id:session.id}}}),t=Math.floor(Date.now()/1000),sig=createHmac('sha256',secret).update(`${t}.${raw}`).digest('hex')
    const response=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw,headers:{'stripe-signature':`t=${t},v1=${sig}`}});assert.equal(response.status,200,await response.text())
@@ -295,7 +298,13 @@ test('STEW-004: quarterly pledge reminder and printed invoice pay exactly the un
   assert.match(await (await h.request(payPath,{as:''})).text(),/No payment is requested/)
   const thanks=await h.request('/giving/pledge/thanks?session_id='+session.id,{as:''});assert.equal(thanks.status,200)
   assert.equal((await h.get('/api/coffer/donors/'+d.id)).totals.lifetimeCents,10000)
- },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1708',MAIL_FROM:'pledges@example.test',STRIPE_SECRET_KEY:'synthetic-coffer-1709',STRIPE_WEBHOOK_SECRET:secret},outbound:async request=>{
+  const next=new Date(dates[1]+'T13:00:00Z');next.setUTCDate(next.getUTCDate()+1)
+  for(let replay=0;replay<2;replay++){const tick=await h.mf.dispatchFetch(h.origin+'/cdn-cgi/local/scheduled?time='+next.getTime()+'&format=json');assert.equal(tick.status,200,await tick.text())}
+  const followups=messages.filter(m=>m.subject==='Follow-up on your pledge installment')
+  assert.equal(followups.length,1);assert.match(followups[0].content[0].value,/\$100\.00 remaining/)
+  assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='pledge:'+pledge.installments[1].id).length,1)
+  await h.command('donor.erase',{donorId:d.id,confirm:'ERASE'});assert.equal((await h.request(payPath,{as:''})).status,404)
+ },{triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1708',MAIL_FROM:'pledges@example.test',STRIPE_SECRET_KEY:'synthetic-coffer-1709',STRIPE_WEBHOOK_SECRET:secret},outbound:async request=>{
   const u=new URL(request.url)
   if(u.hostname==='api.sendgrid.com'){messages.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-1710'}})}
   assert.equal(u.hostname,'api.stripe.com')
@@ -306,6 +315,7 @@ test('STEW-004: quarterly pledge reminder and printed invoice pay exactly the un
   }
   if(u.pathname.startsWith('/v1/checkout/sessions/'))return Response.json(edge.sessions[0])
   if(u.pathname.startsWith('/v1/payment_intents/'))return Response.json(edge.payment)
+  if(u.pathname.startsWith('/v1/charges/'))return Response.json({id:'ch_synthetic_coffer_1713',paid:true,status:'succeeded',amount:7500,currency:'usd',created:edge.payment.created,payment_intent:edge.payment.id,metadata:edge.payment.metadata,amount_refunded:0})
   assert.fail('Unexpected pledge edge '+u.pathname)
  }})
 })
