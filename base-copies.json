@@ -582,6 +582,17 @@
       }
     },
     {
+      "path": "scripts/install-chromium-deps.py",
+      "originPath": "export/install-chromium-deps.py",
+      "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+      "files": {
+        "scripts/install-chromium-deps.py": "5fdf0266ba333677288d3db15c053d48e5fc048f1de19c43006f26cf10b49a52"
+      },
+      "modes": {
+        "scripts/install-chromium-deps.py": "100644"
+      }
+    },
+    {
       "path": "scripts/installer/seed.mjs",
       "originPath": "foundation/template/scripts/installer/seed.mjs",
       "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
@@ -949,12 +960,12 @@
       "originPath": "modules/d1-transport",
       "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
       "files": {
-        "src/modules/d1-transport/index.d.mts": "b1dcfba529210c9237fa257faa0da8c9062bef946961ba8edeb8af7e171611f3",
-        "src/modules/d1-transport/index.mjs": "f3de81d8dc2726fca11d401a73edfad6a5f9efc42aa6cd3d63bd3b25be26d2a6"
+        "src/modules/d1-transport/index.mjs": "f3de81d8dc2726fca11d401a73edfad6a5f9efc42aa6cd3d63bd3b25be26d2a6",
+        "src/modules/d1-transport/index.d.mts": "b1dcfba529210c9237fa257faa0da8c9062bef946961ba8edeb8af7e171611f3"
       },
       "modes": {
-        "src/modules/d1-transport/index.d.mts": "100644",
-        "src/modules/d1-transport/index.mjs": "100644"
+        "src/modules/d1-transport/index.mjs": "100644",
+        "src/modules/d1-transport/index.d.mts": "100644"
       },
       "adapted": {
         "src/modules/d1-transport/index.mjs": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
@@ -971,6 +982,7 @@
       "originPath": "modules/demo",
       "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
       "files": {
+        "src/modules/demo/README.md": "5d6dbd49a11d39876075d82c5e7b6a0ca9135de3bcc7bc6f52ecd080a9b84b82",
         "src/modules/demo/declaration.mjs": "cb482eeecf701747b215ad8f0e54c824ce327bb2a7f71f5fadfdfc852c39efd9",
         "src/modules/demo/effects.mjs": "e74d46fec165fdb5eafc62e53d6691e3064d5b9b5257c53f3cd6dd9a40386226",
         "src/modules/demo/index.d.mts": "71caa39f5001ab8bd2891ae5bdb9bf1ab4910c121fb038d83ae549adaf8fcf10",
@@ -979,7 +991,6 @@
         "src/modules/demo/label.d.mts": "f6f859527d589be2104a82348adfce8bfc8f59076e49e5e545c4274be6af4918",
         "src/modules/demo/label.mjs": "7ca757507f3d3495a8777f3058dfa55d946b1656d6e31bec1c9c774dde1f3fb3",
         "src/modules/demo/navigation.mjs": "c6016948383d61875bd62de1607878fa99ba57aa223bdf6aab1e773c6813781c",
-        "src/modules/demo/README.md": "5d6dbd49a11d39876075d82c5e7b6a0ca9135de3bcc7bc6f52ecd080a9b84b82",
         "src/modules/demo/responses.mjs": "f91b6cb14dfde5c30750e6d248820f7218a855353e43e2defbc10fcc25fedc5d",
         "src/modules/demo/run-url.mjs": "b8726c289cb528cde1b885133d138113884ef445358b3a7a1659864e67caa561",
         "src/modules/demo/sockets.mjs": "af88b298b721b3b2a9fe2425b9a8b7c95d842f28b56b3c48cf4366226ec90389",
@@ -987,6 +998,7 @@
         "src/modules/demo/vite.mjs": "e9d55fc14de56dd3fdc5a3c3aee4db4b4f29b1fc5b6bbefbab882f0233dc605f"
       },
       "modes": {
+        "src/modules/demo/README.md": "100644",
         "src/modules/demo/declaration.mjs": "100644",
         "src/modules/demo/effects.mjs": "100644",
         "src/modules/demo/index.d.mts": "100644",
@@ -995,7 +1007,6 @@
         "src/modules/demo/label.d.mts": "100644",
         "src/modules/demo/label.mjs": "100644",
         "src/modules/demo/navigation.mjs": "100644",
-        "src/modules/demo/README.md": "100644",
         "src/modules/demo/responses.mjs": "100644",
         "src/modules/demo/run-url.mjs": "100644",
         "src/modules/demo/sockets.mjs": "100644",
@@ -3338,6 +3349,7 @@
       "originPath": "modules/mail",
       "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
       "files": {
+        "src/modules/mail/README.md": "00154803c5caf2fa952b4b1a26f849dc44fd9fbbc23db18a5715eb592f63fef9",
         "src/modules/mail/.gitignore": "bac5cb305c3cbf6aa42e50e7f2c0f5331a71d70dac15f239b8ec6746afed0db5",
         "src/modules/mail/doctor.mjs": "861a2be20c051247d590cc14d173037f648666fc28ac39f826d69e38e5e2f5d9",
         "src/modules/mail/index.mjs": "c0501b55f9ba53796926bed1abb22c8690ad2a66b03e09407a84a632c5a4a0c0",
@@ -3346,7 +3358,6 @@
         "src/modules/mail/live-proof/run.mjs": "e0c9a4838d6e3ab467f98a7c5be3a74f874267ced6ec025e4de26e906fb45a04",
         "src/modules/mail/package.json": "b6e2d1e285c44deffbec6ae94ab67599d8dda0aaa548066c415ec94418ffbd30",
         "src/modules/mail/pnpm-lock.yaml": "4b8846fd11bb799afabcb07e44e9a3297086144ef18521fcfc458718233941e6",
-        "src/modules/mail/README.md": "00154803c5caf2fa952b4b1a26f849dc44fd9fbbc23db18a5715eb592f63fef9",
         "src/modules/mail/src/adapters/cloudflare/headers.mjs": "6bee46c1edb6228b9d3df8b26ca1acbb163c36d94ecbd8e28ace1a6811095f23",
         "src/modules/mail/src/adapters/cloudflare/index.mjs": "377e4a322ac7803a1c56986ac909c35c1328896cff07c0610abbad5e8f8c3f86",
         "src/modules/mail/src/adapters/cloudflare/README.md": "80531ce460180b853b7db0480b4ff3d4f919fa5ccc119f71255fb1ac13485c5a",
@@ -3405,6 +3416,7 @@
         "src/modules/mail/src/unsubscribe/index.mjs": "5804439f7b5981c73dba442cb33237ba73eedfaf1a71fd1c2f5e5a91cb1b2927"
       },
       "modes": {
+        "src/modules/mail/README.md": "100644",
         "src/modules/mail/.gitignore": "100644",
         "src/modules/mail/doctor.mjs": "100644",
         "src/modules/mail/index.mjs": "100644",
@@ -3413,7 +3425,6 @@
         "src/modules/mail/live-proof/run.mjs": "100644",
         "src/modules/mail/package.json": "100644",
         "src/modules/mail/pnpm-lock.yaml": "100644",
-        "src/modules/mail/README.md": "100644",
         "src/modules/mail/src/adapters/cloudflare/headers.mjs": "100644",
         "src/modules/mail/src/adapters/cloudflare/index.mjs": "100644",
         "src/modules/mail/src/adapters/cloudflare/README.md": "100644",

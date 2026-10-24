@@ -563,7 +563,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "be7d6dcd06b405fa484e044e53911659e0ab5b736bf3f76be48e3d0f1e44c25c",
+      "sha256": "a9b440bf0d4831672f4571d658564c5c4393631e1d0c98b88f2bb5bb41b07407",
       "executable": false
     },
     "CHANGELOG.md": {
@@ -1844,6 +1844,10 @@
     },
     "scripts/hosted-transfer.mjs": {
       "sha256": "d28590dbd0d2033e7bf40527f8618abbb6f811b6796761c066544a5e01640f78",
+      "executable": false
+    },
+    "scripts/install-chromium-deps.py": {
+      "sha256": "5fdf0266ba333677288d3db15c053d48e5fc048f1de19c43006f26cf10b49a52",
       "executable": false
     },
     "scripts/install.mjs": {
