@@ -145,7 +145,7 @@ export async function receiptCorrectionsJourney() {
    const another=await fresh.command('gift.record',{donorId:source.id,amount:'350',receivedOn:'2025-09-14',method:'check',goods:'none'})
    const afterErasure=await fresh.command('ack.prepare',{giftIds:[another.id]})
    assert.equal((await detail(fresh,afterErasure.id)).letters[0].receipt_sequence,reserved+2,'Erasure never reuses a number')
-  },options)
+  },{...options,givingProtection:false})
   if(process.env.COFFER_CORRECTIONS_BROWSER){
    const directory=process.env.COFFER_CORRECTIONS_BROWSER;await mkdir(directory,{recursive:true})
    await withBrowserWorker(h,async(context,origin)=>{

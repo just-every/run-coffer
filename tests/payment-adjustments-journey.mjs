@@ -175,7 +175,7 @@ export async function paymentAdjustmentsJourney() {
     assert.ok(!JSON.stringify(erasedState).includes(half.donor.email)&&!JSON.stringify(erasedState).includes(half.donor.name),'Erasure keeps anonymous refund facts, no former donor text')
     assert.equal((await fresh.get('/api/coffer/donors/'+erased.donorId)).totals.lifetimeCents,5000)
 
-   },options)
+   },{...options,givingProtection:false})
    assert.equal(refundCalls.length,beforeCalls);assert.equal(messages.length,beforeMail,'Restore never resends provider work')
   }
  },options)
