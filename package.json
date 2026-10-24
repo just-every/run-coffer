@@ -37,7 +37,9 @@
     "test:move-in": "node --test --test-concurrency=1 tests/move-in.test.mjs",
     "test:communications": "node --test tests/communications.test.mjs",
     "test:agent": "node --test --test-concurrency=1 tests/agent-*.test.mjs tests/stewardship.test.mjs",
-    "backup:hosted": "node scripts/backup-hosted.mjs"
+    "backup:hosted": "node scripts/backup-hosted.mjs",
+    "delivery:spec": "node scripts/build-deployment-spec.mjs",
+    "check:deployment-spec": "node scripts/build-deployment-spec.mjs --check"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.41",
@@ -52,7 +54,7 @@
     "@cloudflare/vite-plugin": "1.54.5",
     "@cloudflare/workers-types": "5.20260908.1",
     "@playwright/test": "1.63.0",
-    "@runeditrun/rer": "0.2.63",
+    "@runeditrun/rer": "0.2.79",
     "@types/node": "22.20.5",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",

@@ -64,3 +64,21 @@ instructions under `node_modules/@runeditrun/rer/modules/deploy-kit`; account sc
 resource ownership, migrations, receipt and health checks are defined there.
 Local validation does not prove hosted acceptance, provider delivery or remote
 health.
+
+## Hosted delivery package
+
+`packaging.json` declares this installation's Worker, DB and FILES resources,
+unchanged migration sources, recovery instructions and hosted setup. Run
+`pnpm run build`, then `pnpm delivery:spec` to refresh the committed deployment
+specification. `pnpm check:deployment-spec` refuses a stale projection.
+Package with `node scripts/delivery/base/cli.mjs package --config packaging.json --output rer-package`,
+or produce only the artifact with `node scripts/delivery/base/cli.mjs artifact --config packaging.json`.
+The generated output directories are disposable. The Managed workflow accepts
+manual dispatch only. No release tag is created by these commands.
+
+Managed authentication mail uses the assigned RER relay URL and private mail
+credential. Assisted authentication mail can use SendGrid, Resend or Cloudflare
+with the selected provider's own credentials and sender setup. Coffer's receipt
+and pledge-reminder delivery still requires SendGrid and explicitly refuses
+Managed installations. Do not treat successful authentication mail setup as
+proof that those donor-mail workflows are available on Managed hosting.

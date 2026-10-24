@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "project": {
+    "schema": 1,
+    "projectId": "just-every/run-coffer",
+    "name": "coffer",
+    "sourceRepository": "https://github.com/just-every/run-coffer",
+    "license": "MIT",
+    "deployment": {
+      "target": "cloudflare-workers",
+      "artifactFile": "rer-worker-artifact.json"
+    },
+    "operations": {
+      "setup": "pnpm install --frozen-lockfile && pnpm exec rer install",
+      "build": "pnpm run build",
+      "verify": "pnpm run verify && pnpm check:deployment-spec && pnpm exec rer check --profile first-party",
+      "artifact": "node scripts/delivery/base/cli.mjs artifact --config packaging.json",
+      "recovery": "Follow docs/backup.md and OPERATIONS.md. Pause writes and scheduled work, export the local installation with rer export or the hosted installation with pnpm backup:hosted, retain exact source and private settings, restore into fresh empty resources, re-export and compare data and attachment bytes before routing traffic. Preserve every applied migration name and byte."
+    }
+  },
+  "managed": {
+    "workflowRef": "runeditrun/delivery/.github/workflows/trusted-build.yml@86c8b37399c901bffd9a240dbd1148a65ec83b34",
+    "artifactFile": "rer-worker-artifact.json",
+    "buildProfile": "project",
+    "verificationProfiles": [
+      "full"
+    ]
+  },
+  "artifact": {
+    "specInputs": {
+      "publicVariableNames": [
+        "AUTH_ORIGIN",
+        "AUTH_LOCAL",
+        "MAIL_PROVIDER",
+        "MAIL_FROM",
+        "MAIL_RELAY_URL",
+        "MAIL_ACCOUNT_ID",
+        "OWNER_EMAIL"
+      ],
+      "secretNames": [
+        "SESSION_SECRET",
+        "SETUP_TOKEN",
+        "MAIL_API_KEY"
+      ],
+      "optionalSecretNames": [
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "MAIL_EVENT_PUBLIC_KEY",
+        "PANTRY_ORIGIN",
+        "PANTRY_AGENT_TOKEN",
+        "PANTRY_DEPOSIT_ACCOUNT",
+        "PANTRY_FEE_ACCOUNT",
+        "PANTRY_FUND_ACCOUNTS",
+        "QBO_ACCOUNT_NAMES",
+        "COFFER_REPLY_ADDRESS"
+      ],
+      "migrationPrefix": "core-",
+      "healthPath": "/health",
+      "recovery": "Follow docs/backup.md and OPERATIONS.md. Pause writes and scheduled work, export the local installation with rer export or the hosted installation with pnpm backup:hosted, retain exact source and private settings, restore into fresh empty resources, re-export and compare data and attachment bytes before routing traffic. Preserve every applied migration name and byte.",
+      "providerEffects": [
+        "outbound-mail",
+        "outbound-webhooks"
+      ],
+      "mail": {
+        "providers": [
+          "rer",
+          "sendgrid",
+          "resend",
+          "cloudflare"
+        ]
+      },
+      "surfaces": {
+        "app": {
+          "path": "/signin",
+          "originVariable": "AUTH_ORIGIN",
+          "signIn": {
+            "path": "/signin",
+            "loginHint": false
+          }
+        }
+      }
+    }
+  },
+  "setup": {
+    "manifestFile": "rer-setup.json"
+  }
+}

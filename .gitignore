@@ -17,3 +17,6 @@ dist/
 
 exports/
 *owner-session.txt
+
+rer-package/
+delivery-artifact/

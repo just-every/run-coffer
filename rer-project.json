@@ -3,5 +3,20 @@
   "projectId": "just-every/run-coffer",
   "name": "coffer",
   "sourceRepository": "https://github.com/just-every/run-coffer",
-  "license": "MIT"
+  "license": "MIT",
+  "deployment": {
+    "target": "cloudflare-workers",
+    "artifactFile": "rer-worker-artifact.json"
+  },
+  "operations": {
+    "setup": "pnpm install --frozen-lockfile && pnpm exec rer install",
+    "build": "pnpm run build",
+    "verify": "pnpm run verify && pnpm check:deployment-spec && pnpm exec rer check --profile first-party",
+    "artifact": "node scripts/delivery/base/cli.mjs artifact --config packaging.json",
+    "recovery": "Follow docs/backup.md and OPERATIONS.md. Pause writes and scheduled work, export the local installation with rer export or the hosted installation with pnpm backup:hosted, retain exact source and private settings, restore into fresh empty resources, re-export and compare data and attachment bytes before routing traffic. Preserve every applied migration name and byte."
+  },
+  "setup": {
+    "path": "rer-setup.json",
+    "sha256": "da8ff9c5115254ef11bb6a9ec78bd40d0f080dc050aaa8d836e6e36377b59b3c"
+  }
 }
