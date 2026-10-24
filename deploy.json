@@ -23,19 +23,23 @@
   "secrets": [
     {
       "binding": "OWNER_EMAIL",
-      "environment": "OWNER_EMAIL"
+      "environment": "OWNER_EMAIL",
+      "label": "Owner email"
     },
     {
       "binding": "SESSION_SECRET",
-      "environment": "SESSION_SECRET"
+      "environment": "SESSION_SECRET",
+      "label": "Session secret"
     },
     {
       "binding": "SETUP_TOKEN",
-      "environment": "SETUP_TOKEN"
+      "environment": "SETUP_TOKEN",
+      "label": "Setup token"
     },
     {
       "binding": "MAIL_API_KEY",
-      "environment": "MAIL_API_KEY"
+      "environment": "MAIL_API_KEY",
+      "label": "Mail API key"
     },
     {
       "binding": "STRIPE_SECRET_KEY",
@@ -51,13 +55,13 @@
       "binding": "MAIL_PROVIDER",
       "environment": "MAIL_PROVIDER",
       "verifyStandIn": "resend",
-      "optional": true
+      "label": "Mail provider"
     },
     {
       "binding": "MAIL_FROM",
       "environment": "MAIL_FROM",
       "verifyStandIn": "auth@example.test",
-      "optional": true
+      "label": "Sender address"
     },
     {
       "binding": "MAIL_EVENT_PUBLIC_KEY",

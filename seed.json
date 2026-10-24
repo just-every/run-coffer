@@ -8,7 +8,7 @@
     "id": "foundation",
     "record": "No domain record selected"
   },
-  "description": "Owner-run donor records and giving for a US nonprofit: donors and households, an immutable gift ledger with pledges and soft credits, Stripe card and monthly gifts, emailed receipts, letters and year-end statements, and a checked Little Green Light move-in.",
+  "description": "Owner-run donor records and giving for a US nonprofit: donors and households, an immutable gift ledger with pledges and soft credits, Stripe card and monthly gifts, emailed receipts, letters and year-end statements, and reviewed move-in from saved export files.",
   "capabilities": [
     {
       "id": "http-dispatch",

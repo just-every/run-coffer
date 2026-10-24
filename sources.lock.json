@@ -555,7 +555,7 @@
       "executable": false
     },
     "deploy.json": {
-      "sha256": "c268b30878d511a500443d977ccec765097b7ea0f8b9b46a7a7393b28616b3b6",
+      "sha256": "e4a40095ace4a0dca9781f6b802eb12c8474fe9cbcf4c3c031178fc6dcbdd193",
       "executable": false
     },
     "docs/AGENT-COMMANDS.md": {
@@ -1879,7 +1879,7 @@
       "executable": false
     },
     "seed.json": {
-      "sha256": "710cdb037c6dbb3f60d5a9884974fd2e5a89daa215810e9a7f56ad15856acd82",
+      "sha256": "3118a8b70f265c440c3b27d484b63aa635775faa0333c2d15cc24e80ad5c3fc8",
       "executable": false
     },
     "src/auth.server.ts": {
