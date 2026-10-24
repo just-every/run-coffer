@@ -44,7 +44,7 @@ export async function attributionJourney() {
   const tracked = await (await h.request('/give/spring-reading?appeal=spring-mail', { as: '' })).text()
   assert.match(tracked, /<input type="hidden" name="appeal" value="SPRING-MAIL">/)
   assert.doesNotMatch(await (await h.request('/give/spring-reading?appeal=NOT-DEFINED', { as: '' })).text(), /name="appeal"/)
-  const input = { requestId: randomUUID(), frequency: 'once', name: 'Cara Online', email: 'cara.online@example.org', amount: '40', appeal: 'SPRING-MAIL' }
+  const input = { requestId: randomUUID(), frequency: 'once','cf-turnstile-response':'synthetic-coffer-security-token', name: 'Cara Online', email: 'cara.online@example.org', amount: '40', appeal: 'SPRING-MAIL' }
   const checkout = await h.request('/give/spring-reading/checkout', { ...form(input), as: '' })
   assert.equal(checkout.status, 303, await checkout.text())
   const session = new URL(checkout.headers.get('location')).pathname.split('/').at(-1)
@@ -86,5 +86,5 @@ export async function attributionJourney() {
   for (const text of ['By fund', 'By campaign', 'By appeal', 'By channel', 'Spring mail appeal', 'Year-end letter', 'from an import', '?appeal=SPRING-MAIL']) assert.ok(page.includes(text), text)
   assert.match(page, /name="command" value="appealCode.define"/)
   assert.doesNotMatch(await (await h.request('/app/gifts/attribution', { as: member })).text(), /value="appealCode.define"/)
- }, { bindings: { STRIPE_SECRET_KEY: 'sk_test_attribution_edge', MAIL_PROVIDER: 'sendgrid' }, outbound: edge.outbound })
+ }, { bindings: { STRIPE_SECRET_KEY: 'synthetic-coffer-6000', MAIL_PROVIDER: 'sendgrid' }, outbound: edge.outbound })
 }

@@ -12,12 +12,13 @@ import { onlineAttribution } from '../attribution'
 export const stripeId = (value: any): string => typeof value === 'string' ? value : value?.id ?? ''
 
 /** A provider object must name an intention created by this installation. */
-export async function identify(env: GivingEnv, intentId: string, customer: string): Promise<Row | null> {
+export async function identify(env: GivingEnv, intentId: string, customer: string, createDonor = true): Promise<Row | null> {
  const c = { db: env.DB }, intent = await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', intentId)
  if (!intent || !customer || intent.customer_id !== customer) return null
  let donor = intent.donor_id ? await one(c, 'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL', intent.donor_id) : null
  if (intent.donor_id && !donor) return null // Erasure must never restore personal data.
  if (!donor) donor = await lookupEmailDonor(c,intent.email,intent.name)
+ if (!donor && !createDonor) return null
  if (!donor) {
   // Checkout return and webhook share this identity even when they race.
   const donorId = 'giving-donor-' + intent.id
@@ -38,9 +39,9 @@ export async function identify(env: GivingEnv, intentId: string, customer: strin
 }
 
 /** Read current Stripe state so delayed webhook deliveries cannot undo recovery. */
-export async function syncSubscription(env: GivingEnv, subscriptionId: string) {
+export async function syncSubscription(env: GivingEnv, subscriptionId: string, createDonor?: boolean) {
  const sub = await stripe(env, '/subscriptions/' + encodeURIComponent(subscriptionId))
- let intent = await identify(env, sub.metadata?.coffer_intent ?? '', stripeId(sub.customer))
+ let intent = await identify(env, sub.metadata?.coffer_intent ?? '', stripeId(sub.customer), createDonor ?? ['active','trialing'].includes(sub.status))
  if (!intent) {
   // Imported plans retain their verified Stripe customer association and have no checkout intention.
   const existing=await one({db:env.DB}, `SELECT s.*,c.fund FROM cf_subscriptions s JOIN cf_campaigns c ON c.id=s.campaign_id JOIN cf_donors d ON d.id=s.donor_id WHERE s.id=? AND s.customer_id=? AND d.erased_at IS NULL`,sub.id,stripeId(sub.customer))

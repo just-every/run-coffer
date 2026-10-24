@@ -39,7 +39,7 @@ export async function campaignPageJourney(){
   assert.equal((await upload(smallVideo)).status,409,'A published video is never silently overwritten')
   let page=await h.request('/give/spring-story',{as:''}),html=await page.text()
   assert.equal(page.status,200);assert.match(html,/<img src="\/give\/spring-story\/media\/image"/);assert.match(html,/<video controls/);assert.match(html,/Community campaign film/)
-  assert.match(page.headers.get('content-security-policy'),/media-src 'self'/);assert.ok(!page.headers.get('content-security-policy').includes('frame-src'))
+  assert.match(page.headers.get('content-security-policy'),/media-src 'self'/);assert.match(page.headers.get('content-security-policy'),/frame-src https:\/\/challenges\.cloudflare\.com;/);assert.ok(!html.includes('<iframe'),'Campaign media never embeds an external frame')
   assert.ok(!html.includes('This campaign has closed'),'The closing date is inclusive in New York, and the planning end date does not close giving')
   for(const [kind,bytes,type] of [['image',image,'image/png'],['video',video,'video/mp4']]){
    const path=`/give/spring-story/media/${kind}`,response=await h.request(path,{as:''})
@@ -61,7 +61,7 @@ export async function campaignPageJourney(){
   }
 
   const gift=async(amount,wallOptIn)=>{
-   const input={name:'Campaign Reader',email:'reader@example.test',amount,frequency:'once',requestId:randomUUID(),wallOptIn,recognitionName:'The Reading Circle'}
+   const input={name:'Campaign Reader',email:'reader@example.test',amount,frequency:'once','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID(),wallOptIn,recognitionName:'The Reading Circle'}
    const checkout=await h.request('/give/spring-story/checkout',form(input));assert.equal(checkout.status,303,await checkout.text())
    const session=[...edge.sessions.values()].at(-1)
    assert.equal((await h.request('/giving/thanks?session_id='+session.id,{as:''})).status,200)
@@ -86,5 +86,5 @@ export async function campaignPageJourney(){
   assert.ok(!JSON.stringify(saved).includes(uploadedImage.toString('base64')),'The original image containing private metadata is never retained')
   await run(async fresh=>{await restore(fresh,saved);assert.deepEqual(Buffer.from(await (await fresh.request('/give/spring-story/media/image',{as:''})).arrayBuffer()),image);const restoredVideo=await fresh.request('/give/spring-story/media/video',{as:''});assert.equal(restoredVideo.status,200,restoredVideo.ok?'Restored video is available':await restoredVideo.clone().text());assert.deepEqual(Buffer.from(await restoredVideo.arrayBuffer()),video);assert.match(await (await fresh.request('/give/spring-story',{as:''})).text(),/campaign has closed/);assert.equal((await fresh.get('/api/coffer/giving/campaigns')).campaigns.find(c=>c.id===created.id).donor_count,1)},{entry:'tests/fixed-clock-worker.ts'})
   if(process.env.COFFER_CAMPAIGN_PAGE_BROWSER){const {campaignPageBrowser}=await import('./campaign-page-browser.mjs');await campaignPageBrowser(h,edge,process.env.COFFER_CAMPAIGN_PAGE_BROWSER)}
- },{entry:'tests/fixed-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'sk_test_campaign_page_edge'},outbound:edge.outbound})
+ },{entry:'tests/fixed-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6000'},outbound:edge.outbound})
 }

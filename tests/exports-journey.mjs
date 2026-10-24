@@ -103,7 +103,7 @@ export async function exportsJourney(){
   const template=await command('cultivation.template',{name:'synthetic-coffer-24',steps:[{offsetDays:1,title:'synthetic-coffer-25'}]})
   await command('cultivation.apply',{prospectId:opportunity.id,templateId:template.id,templateVersion:template.version,startOn:'2026-10-18',ownerId:owner.id})
   const campaign=await h.api('/api/coffer/giving/campaigns',{name:'synthetic-coffer-26',slug:'synthetic-coffer-26',description:'synthetic-coffer-26',fund:'Unrestricted',goal:'1000'})
-  const checkout=await h.request('/give/synthetic-coffer-26/checkout',{method:'POST',headers:{...headers,'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({name:'synthetic-coffer-1 target',email:'synthetic-coffer-1@example.test',amount:'25.01',frequency:'monthly',requestId:randomUUID()}).toString()})
+  const checkout=await h.request('/give/synthetic-coffer-26/checkout',{method:'POST',headers:{...headers,'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({name:'synthetic-coffer-1 target',email:'synthetic-coffer-1@example.test',amount:'25.01',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}).toString()})
   assert.equal(checkout.status,303,await checkout.text());assert.ok(intent)
   await provider('synthetic-coffer-27','customer.subscription.created','synthetic-coffer-97')
   // Saved Stripe history uses the provider's required source-ID grammar.

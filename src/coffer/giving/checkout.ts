@@ -1,4 +1,4 @@
-import { protectCheckout } from './protection'
+import { failedAttempt, protectCheckout } from './protection'
 import { textLink } from './text'
 import { givingTribute } from './tribute'
 import { intentRecognition } from '../recognition'
@@ -21,6 +21,10 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  if (c.closes_on && today((await settings({ db: env.DB })).timezone) > c.closes_on) fail('campaign_closed', 'This campaign has closed and is no longer accepting new gifts. Thank you for your support.', 409)
  requireStripe(env)
  await protectCheckout(env,request,c.id,p)
+ const provider: typeof stripe = async (...args) => {
+  try { return await stripe(...args) }
+  catch(error) { await failedAttempt(env,c.id); throw error }
+ }
  if (p.website) fail('INPUT', 'Please leave the website field empty.', 400)
  const name = text(p.name, 'Your name', 200), mail = email(p.email)
  if (!mail) fail('INPUT', 'Enter your email address.', 400)
@@ -50,9 +54,9 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const savedTribute=await one({db:env.DB},'SELECT kind,honoree,notified_name,notified_email,notified_address,amount_permission FROM cf_giving_tributes WHERE intent_id=?',id)
  if(JSON.stringify(savedTribute)!==JSON.stringify(storedTribute))fail('checkout_changed','Reload the donation page before changing this tribute.',409)
  if (intent.giving_channel !== (linkedText ? 'text' : 'form')) fail('checkout_changed', 'Reload the donation page before changing the source.', 409)
- if (intent.session_id) return stripe(env, '/checkout/sessions/' + encodeURIComponent(intent.session_id))
+ if (intent.session_id) return provider(env, '/checkout/sessions/' + encodeURIComponent(intent.session_id))
  // An unverified public email must not reveal an existing Stripe customer's saved details.
- const customer = (await stripe(env, '/customers', { name, email: mail, 'metadata[coffer_install]': env.AUTH_ORIGIN }, 'customer-' + id)).id
+ const customer = (await provider(env, '/customers', { name, email: mail, 'metadata[coffer_install]': env.AUTH_ORIGIN }, 'customer-' + id)).id
  await env.DB.prepare('UPDATE cf_giving_intents SET customer_id=? WHERE id=?').bind(customer, id).run()
  const params: Record<string, string> = {
   mode: frequency === 'monthly' ? 'subscription' : 'payment', customer,
@@ -68,7 +72,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   params['line_items[0][price_data][recurring][interval]'] = 'month'
   params['subscription_data[metadata][coffer_intent]'] = id
  } else params['payment_intent_data[metadata][coffer_intent]'] = id
- const session = await stripe(env, '/checkout/sessions', params, 'checkout-' + id)
+ const session = await provider(env, '/checkout/sessions', params, 'checkout-' + id)
  await env.DB.prepare('UPDATE cf_giving_intents SET session_id=? WHERE id=?').bind(session.id, id).run()
  return session
 }

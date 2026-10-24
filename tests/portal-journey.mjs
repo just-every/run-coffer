@@ -77,7 +77,7 @@ export async function signInPortal(h,email,messages=h.messages){
 export async function paidPortalPlan(h,edge){
  const person=await donor(h,'Synthetic Portal Donor',{email:'synthetic-coffer-2006@example.test'})
  await h.api('/api/coffer/giving/campaigns',{name:'Synthetic portal reading',slug:'portal-reading',description:'Local readers',fund:'Reading',goal:'10000'})
- const response=await h.request('/give/portal-reading/checkout',portalForm({name:'Synthetic Portal Donor',email:'synthetic-coffer-2006@example.test',amount:'25',frequency:'monthly',emailConsent:'yes',requestId:randomUUID()}));assert.equal(response.status,303,await response.text())
+ const response=await h.request('/give/portal-reading/checkout',portalForm({name:'Synthetic Portal Donor',email:'synthetic-coffer-2006@example.test',amount:'25',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',emailConsent:'yes',requestId:randomUUID()}));assert.equal(response.status,303,await response.text())
  const timestamp=Math.floor(Date.now()/1000),raw=JSON.stringify({id:'evt_portal_paid',type:'invoice.paid',data:{object:{id:'in_portal'}}}),signature=createHmac('sha256','synthetic-coffer-2004').update(`${timestamp}.${raw}`).digest('hex')
  const delivered=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw,headers:{'stripe-signature':`t=${timestamp},v1=${signature}`}});assert.equal(delivered.status,200,await delivered.text())
  const history=await h.get('/api/coffer/donors/'+person.id)

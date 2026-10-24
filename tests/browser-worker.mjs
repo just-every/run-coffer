@@ -27,6 +27,9 @@ export async function withBrowserWorker(h,journey,{channel}={}) {
  const browser=await chromium.launch({headless:true,...(channel?{channel}:{}),args:['--use-mock-keychain','--password-store=basic']})
  try {
   const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true})
+  // Fake only the challenge provider script; the Worker verifies the resulting
+  // token against its independently faked provider verification endpoint.
+  await context.route('https://challenges.cloudflare.com/turnstile/**',route=>route.fulfill({contentType:'application/javascript',body:`for(const widget of document.querySelectorAll('.cf-turnstile')){const input=document.createElement('input');input.type='hidden';input.name='cf-turnstile-response';input.value='synthetic-coffer-security-token';widget.append(input)}`}))
   // Use the actual native session cookie so authentication survives redirects.
   await context.addCookies(h.owner.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',httpOnly:true,secure:true,sameSite:'Lax'}}))
   return await journey(context,origin)

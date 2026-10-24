@@ -128,7 +128,7 @@ test('DONOR-014 / DEV-009: reconcile five dropped appeal recipients against the 
   const trackedPage=await (await h.request('/give/journey-giving?appeal='+thankCode,{as:''})).text()
   assert.ok(trackedPage.includes(`name="appeal" value="${thankCode}"`))
   const onlineDonor=(await h.get('/api/coffer/donors/'+journeyDonors[3].id)).donor
-  const checkout=await h.request('/give/journey-giving/checkout',{...form({requestId:randomUUID(),frequency:'once',name:onlineDonor.name,email:onlineDonor.email,amount:'60.01',appeal:thankCode}),as:''})
+  const checkout=await h.request('/give/journey-giving/checkout',{...form({requestId:randomUUID(),frequency:'once','cf-turnstile-response':'synthetic-coffer-security-token',name:onlineDonor.name,email:onlineDonor.email,amount:'60.01',appeal:thankCode}),as:''})
   assert.equal(checkout.status,303,await checkout.text())
   const session=new URL(checkout.headers.get('location')).pathname.split('/').at(-1)
   assert.equal((await h.request('/giving/thanks?session_id='+session,{as:''})).status,200)

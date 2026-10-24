@@ -1,4 +1,4 @@
-import { radarFailure } from './protection'
+import { checkoutFailure, invoiceProtection, radarFailure } from './protection'
 import { fail, one } from '../db'
 import { observeRecovery } from '../agent/recovery'
 import { identify, recordGift, stripeId, syncSubscription } from './recording'
@@ -9,7 +9,8 @@ export async function invoice(env: GivingEnv, id: string, failureEventId?: strin
  const current = await stripe(env, '/invoices/' + encodeURIComponent(id))
  const subscriptionId = stripeId(current.parent?.subscription_details?.subscription)
  if (!subscriptionId) return
- const synced = await syncSubscription(env, subscriptionId)
+ await invoiceProtection(env,current,subscriptionId)
+ const synced = await syncSubscription(env, subscriptionId,current.status==='paid'&&current.amount_paid>0)
  if (!synced) return
  const { sub, intent } = synced
  if (current.currency !== 'usd' || stripeId(current.customer) !== intent.customer_id) fail('invalid_payment', 'Stripe returned a different currency or customer.', 409)
@@ -55,6 +56,8 @@ export async function webhook(env: GivingEnv, request: Request, raw: string) {
  if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
   const saved = await one({ db: env.DB }, 'SELECT id FROM cf_giving_intents WHERE session_id=?', object.id)
   if (saved) await completed(env, object.id)
+ } else if(event.type==='checkout.session.async_payment_failed') {
+  await checkoutFailure(env,object.id)
  } else if (['invoice.paid', 'invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.updated'].includes(event.type)) {
   await invoice(env, object.id, event.type === 'invoice.payment_failed' ? event.id : undefined)
  } else if (['customer.subscription.updated', 'customer.subscription.deleted', 'customer.subscription.created'].includes(event.type)) {

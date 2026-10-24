@@ -55,7 +55,7 @@ export async function textGivingJourney(){
     }
    })
   }
-  const values={name:'Synthetic Text Giver',email:'synthetic-coffer-415@example.test',amount:'25',frequency:'once',requestId:randomUUID(),textLink:link.searchParams.get('text')}
+  const values={name:'Synthetic Text Giver',email:'synthetic-coffer-415@example.test',amount:'25',frequency:'once','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID(),textLink:link.searchParams.get('text')}
   const checkout=await h.request('/give/text-reading/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(values).toString()});assert.equal(checkout.status,303,await checkout.text())
   const thanks=await h.request('/giving/thanks?session_id='+session,{as:''});assert.equal(thanks.status,200,await thanks.text())
   const report=await h.get('/api/coffer/reports/attribution')

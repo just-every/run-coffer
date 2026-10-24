@@ -61,7 +61,7 @@ export async function recognitionJourney(){
   assert.equal((await h.get(`/api/coffer/donors/${ada.id}`)).gifts.find(g=>g.id===property.id).recognition.anonymous,1)
   if(process.env.COFFER_RECOGNITION_BROWSER){const {recognitionBrowser}=await import('./recognition-browser.mjs');await recognitionBrowser(h,edge,ada.id,ben.id,process.env.COFFER_RECOGNITION_BROWSER)}
   const saved=await archive(h)
-  await run(async fresh=>{await restore(fresh,saved);assert.equal((await fresh.get(`/api/coffer/donors/${ada.id}`)).recognition.anonymous,1);assert.equal((await fresh.get(reportPath)).totalCents,(await h.get(reportPath)).totalCents);const restoredWall=await (await fresh.request('/give/autumn-reading',{as:''})).text();assert.ok(!restoredWall.includes('<strong>The Rivera Family</strong>'))},{bindings:{STRIPE_SECRET_KEY:'sk_test_recognition_edge'}})
+  await run(async fresh=>{await restore(fresh,saved);assert.equal((await fresh.get(`/api/coffer/donors/${ada.id}`)).recognition.anonymous,1);assert.equal((await fresh.get(reportPath)).totalCents,(await h.get(reportPath)).totalCents);const restoredWall=await (await fresh.request('/give/autumn-reading',{as:''})).text();assert.ok(!restoredWall.includes('<strong>The Rivera Family</strong>'))},{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6001'}})
   const comparison=await h.get(`/api/coffer/duplicates/compare?source=${ada.id}&target=${ben.id}`)
   const merge=await h.command('donor.merge',{sourceDonorId:ada.id,donorId:ben.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
   assert.equal((await h.get(`/api/coffer/donors/${ben.id}`)).recognition.anonymous,1)
@@ -89,5 +89,5 @@ export async function recognitionJourney(){
   assert.ok(!JSON.stringify(await archive(h)).includes('The Rivera Family'))
   assert.ok(!(await (await h.request('/give/autumn-reading',{as:''})).text()).includes('<strong>The Rivera Family</strong>'))
   assert.equal((await h.get('/api/coffer/giving/campaigns')).campaigns.find(c=>c.id===campaign.id).raised_cents,50500+(edge.sessions.size-4)*2000)
- },{bindings:{STRIPE_SECRET_KEY:'sk_test_recognition_edge',MAIL_PROVIDER:'sendgrid'},outbound:edge.outbound})
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6001',MAIL_PROVIDER:'sendgrid'},outbound:edge.outbound})
 }

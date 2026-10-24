@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {createHmac,randomUUID} from 'node:crypto'
 import {run,donor,archive,restore,reviewed,settings} from './harness.mjs'
-const secret='whsec_pledge_edge'
+const secret='synthetic-coffer-6000'
 const form=values=>({method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(values).toString()})
 
 export async function pledgeBalancesJourney(){
@@ -75,7 +75,7 @@ export async function pledgeBalancesJourney(){
    assert.equal(after.remaining_cents,0);assert.equal(after.reduced_cents,dates.length*1000);assert.equal(after.adjustments.every(a=>a.kind==='write_off'),true)
    const writtenOff=await h.request('/app/pledges/'+more.id+'/invoice');assert.equal(writtenOff.status,200);const noBalance=await writtenOff.text();assert.ok(noBalance.includes('<dd class="total">$0.00</dd>'));assert.ok(!noBalance.includes('<tbody>'))
   }
-  const checkout=await h.request('/give/library-pledge/checkout',form({name:'Ana Quarterly Pledge',email:'ana.quarterly.pledge@example.org',amount:'2500',frequency:'monthly',requestId:randomUUID()}));assert.equal(checkout.status,303,await checkout.text())
+  const checkout=await h.request('/give/library-pledge/checkout',form({name:'Ana Quarterly Pledge',email:'ana.quarterly.pledge@example.org',amount:'2500',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}));assert.equal(checkout.status,303,await checkout.text())
   await send(h,'evt_pledge_sub','customer.subscription.created','sub_pledge')
   const key=await h.command('agent.create',{label:'Pledge reader'})
   assert.equal((await h.request(invoicePath,{as:'',headers:{authorization:'Bearer '+key.token}})).status,403)
@@ -116,7 +116,7 @@ export async function pledgeBalancesJourney(){
   await h.command('donor.erase',{donorId:ana.id,confirm:'ERASE'})
   assert.equal((await h.request(invoicePath)).status,404)
   const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes('Donor revised the building commitment.'))
- },{bindings:{STRIPE_SECRET_KEY:'sk_test_pledge_edge',STRIPE_WEBHOOK_SECRET:secret},outbound:async request=>{
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6001',STRIPE_WEBHOOK_SECRET:secret},outbound:async request=>{
   const url=new URL(request.url);assert.equal(url.hostname,'api.stripe.com');const params=new URLSearchParams(await request.text());edge.calls++
   if(url.pathname==='/v1/customers')return Response.json({id:'cus_pledge'})
   if(url.pathname==='/v1/checkout/sessions'){edge.intent=params.get('metadata[coffer_intent]');return Response.json({id:'cs_pledge',url:'https://checkout.stripe.com/c/pay/cs_pledge'})}

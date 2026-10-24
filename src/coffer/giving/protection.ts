@@ -30,7 +30,7 @@ export async function protectCheckout(env: GivingEnv,request: Request,campaignId
  const count=await env.DB.prepare(`INSERT INTO cf_giving_limits VALUES(?,?,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN window=excluded.window THEN count+1 ELSE 1 END,window=excluded.window RETURNING count`).bind(hash,minute).first<{count:number}>()
  if(!count||count.count>10){await failedAttempt(env,campaignId);fail('rate_limited','Too many giving attempts. Please try later.',429)}
  const config=await givingConnection(env,'turnstile')
- if(!config)return // Existing installations retain checkout until protection is connected.
+ if(!config)fail('protection_unavailable','Online giving is temporarily unavailable while the organization connects its security check.',503)
  const token=p['cf-turnstile-response']
  let valid=false
  if(typeof token==='string'&&token.length>0&&token.length<=2048)try {
@@ -40,14 +40,56 @@ export async function protectCheckout(env: GivingEnv,request: Request,campaignId
  }catch{/* Unavailable verification never permits checkout. */}
  if(!valid){await failedAttempt(env,campaignId);fail('challenge_required','Complete the security check before giving.',403)}
 }
+/** The claim and counter update share a transaction: concurrent deliveries and
+ * distinct provider events for one observed attempt must count only once. */
+export async function providerFailure(env: GivingEnv, campaignId: string, attempt: string, failed = true) {
+ const minute=Math.floor(Date.now()/60000),now=new Date().toISOString()
+ await env.DB.batch([
+  env.DB.prepare('INSERT OR IGNORE INTO cf_giving_fraud_events VALUES(?,?,?)').bind(attempt,campaignId,now),
+  env.DB.prepare(`INSERT INTO cf_giving_attempt_windows SELECT ?,?,1,?,0,NULL WHERE changes()=1
+   ON CONFLICT(campaign_id) DO UPDATE SET
+   attempts=CASE WHEN minute=excluded.minute THEN attempts+1 ELSE 1 END,
+   failures=CASE WHEN minute=excluded.minute THEN failures+excluded.failures ELSE excluded.failures END,minute=excluded.minute`).bind(campaignId,minute,Number(failed)),
+  env.DB.prepare('UPDATE cf_giving_attempt_windows SET paused=1,alerted_at=COALESCE(alerted_at,?) WHERE campaign_id=? AND failures>=10 AND failures*2>=attempts').bind(now,campaignId),
+ ])
+}
+export async function invoiceProtection(env: GivingEnv, invoice: Row, subscriptionId: string) {
+ const failed=invoice.status==='open'
+ if(invoice.currency!=='usd'||!(failed||invoice.status==='paid'&&invoice.amount_paid>0)||!Number.isSafeInteger(invoice.attempt_count)||invoice.attempt_count<1)return
+ const customer=typeof invoice.customer==='string'?invoice.customer:invoice.customer?.id
+ if(!customer)return
+ const subscription=await stripe(env,'/subscriptions/'+encodeURIComponent(subscriptionId))
+ if((typeof subscription.customer==='string'?subscription.customer:subscription.customer?.id)!==customer)return
+ // Look up an existing association without creating a donor for a failed gift.
+ const saved=await one({db:env.DB},'SELECT campaign_id FROM cf_giving_intents WHERE id=? AND customer_id=?',subscription.metadata?.coffer_intent??'',customer)
+  ??await one({db:env.DB},'SELECT campaign_id FROM cf_subscriptions WHERE id=? AND customer_id=?',subscriptionId,customer)
+ if(saved)await providerFailure(env,saved.campaign_id,'invoice:'+invoice.id+':'+invoice.attempt_count,failed)
+}
 export async function radarFailure(env: GivingEnv,event: Row) {
  if(!['charge.failed','payment_intent.payment_failed'].includes(event.type))return
  if(!await one({db:env.DB},'SELECT id FROM cf_giving_intents WHERE customer_id IS NOT NULL LIMIT 1'))return
- const object=await stripe(env,(event.type==='charge.failed'?'/charges/':'/payment_intents/')+encodeURIComponent(event.data.object.id))
+ const charge=event.type==='charge.failed'
+ const object=await stripe(env,(charge?'/charges/':'/payment_intents/')+encodeURIComponent(event.data.object.id))
+ if(charge?object.status!=='failed'||object.paid===true:!object.last_payment_error||!['requires_payment_method','canceled'].includes(object.status))return
  const intentId=object.metadata?.coffer_intent??object.last_payment_error?.payment_intent?.metadata?.coffer_intent
  if(!intentId)return
- const saved=await one({db:env.DB},'SELECT campaign_id FROM cf_giving_intents WHERE id=?',intentId)
+ const customer=typeof object.customer==='string'?object.customer:object.customer?.id
+ if(!customer)return
+ const saved=await one({db:env.DB},'SELECT campaign_id FROM cf_giving_intents WHERE id=? AND customer_id=?',intentId,customer)
  if(!saved)return
- const claimed=await env.DB.prepare('INSERT OR IGNORE INTO cf_giving_fraud_events VALUES(?,?,?) RETURNING event_id').bind(event.id,saved.campaign_id,new Date().toISOString()).first()
- if(claimed)await failedAttempt(env,saved.campaign_id)
+ const payment=charge?object.payment_intent:object.id
+ const paymentId=typeof payment==='string'?payment:payment?.id
+ const failedCharge=charge?object.id:object.last_payment_error?.charge
+ const chargeId=typeof failedCharge==='string'?failedCharge:failedCharge?.id
+ // A charge identifies a particular retry; the payment intent may be reused.
+ await providerFailure(env,saved.campaign_id,chargeId?'charge:'+chargeId:'payment:'+paymentId+':'+event.id)
+}
+
+export async function checkoutFailure(env: GivingEnv, sessionId: string) {
+ const saved=await one({db:env.DB},'SELECT campaign_id,customer_id FROM cf_giving_intents WHERE session_id=?',sessionId)
+ if(!saved)return
+ const session=await stripe(env,'/checkout/sessions/'+encodeURIComponent(sessionId))
+ const customer=typeof session.customer==='string'?session.customer:session.customer?.id
+ if(session.id!==sessionId||session.currency!=='usd'||session.payment_status!=='unpaid'||customer!==saved.customer_id)return
+ await providerFailure(env,saved.campaign_id,'checkout:'+sessionId)
 }

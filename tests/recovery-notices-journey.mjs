@@ -22,7 +22,7 @@ export async function recoveryNoticesJourney() {
    p.donor=await donor(h,p.name,{email:p.email})
    await consent(p,'granted')
    await h.command('interaction.record',{donorId:p.donor.id,kind:'call',occurredOn:day,notes:'Donor confirmed private portal recovery contact is welcome.',who:'Recovery care team'})
-   const checkout=await h.request('/give/notice-reading/checkout',recoveryForm({name:p.name,email:p.email,amount:'25',frequency:'monthly',requestId:randomUUID()}))
+   const checkout=await h.request('/give/notice-reading/checkout',recoveryForm({name:p.name,email:p.email,amount:'25',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}))
    assert.equal(checkout.status,303,await checkout.text())
    if(p.id!=='ben')await action({action:'permission',donorId:p.donor.id,version:0,enabled:true,channel:'email',intervalDays:2,maxNotices:2,sourceOn:day,evidence:'Donor explicitly authorized up to two recovery notices at least two days apart.'})
   }

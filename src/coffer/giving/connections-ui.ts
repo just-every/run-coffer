@@ -13,7 +13,7 @@ export async function textGivingSettings(c: Context) {
 
 async function fraudSettings(c: Context) {
  const paused=(await protectionState(c)).filter(r=>r.paused),configured=await one(c,"SELECT name FROM cf_giving_connections WHERE name='turnstile'")
- return box('Giving protection',`<p>${configured?'Turnstile verification is connected. Failed or unavailable checks refuse checkout.':'Turnstile is not connected. Existing forms have address limits only; connect it before accepting public gifts.'}</p><p>Ten attempts per address per minute. Ten failures comprising at least half of a form’s attempts in a minute pause it until an owner or admin reviews and resumes it. This panel is the persistent admin alert. Card limits and automatic fraud refunds are not available yet.</p>`+
+ return box('Giving protection',`<p>${configured?'Turnstile verification is connected. Failed or unavailable checks refuse checkout.':'Turnstile is not connected. All public checkout is closed until you connect it.'}</p><p>Ten attempts per address per minute. Ten failures comprising at least half of a form’s attempts in a minute pause it until an owner or admin reviews and resumes it. This panel is the persistent admin alert. Card limits and automatic fraud refunds are not available yet.</p>`+
  form('giving.protection',field('Turnstile site key','siteKey','text','','required')+field('Turnstile secret','secret','password','','required autocomplete="new-password"'),'Connect giving protection')+
  paused.map(p=>`<div role="alert"><p><strong>${e(p.name)} is paused</strong> · ${e(p.alerted_at)} · ${p.failures} failures</p>${form('giving.resume','<p>Review payment activity in Stripe before reopening gifts.</p>','Resume giving',{campaignId:p.campaign_id})}</div>`).join(''))
 }

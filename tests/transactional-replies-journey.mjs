@@ -9,7 +9,7 @@ export async function transactionalRepliesJourney(){
  await run(async h=>{
   await reviewed(h)
   await h.api('/api/coffer/giving/campaigns',{name:'Keep reading',slug:'keep-reading',description:'Support local readers.',fund:'Reading',goal:'60000'})
-  const response=await h.request('/give/keep-reading/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({name:'Ana Receipt',email:'ana.receipt@example.org',amount:'25',frequency:'once',requestId}).toString()})
+  const response=await h.request('/give/keep-reading/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({name:'Ana Receipt',email:'ana.receipt@example.org',amount:'25',frequency:'once','cf-turnstile-response':'synthetic-coffer-security-token',requestId}).toString()})
   assert.equal(response.status,303)
   const thanks=await h.request('/giving/thanks?session_id=cs_reply_test',{as:''});assert.equal(thanks.status,200,await thanks.text())
   const donor=(await h.get('/api/coffer/donors')).donors.find(d=>d.email==='ana.receipt@example.org')
@@ -34,7 +34,7 @@ export async function transactionalRepliesJourney(){
   assert.deepEqual(replies.map(r=>r.source_kind).sort(),['receipt','statement'])
   assert.equal(replies.find(r=>r.source_kind==='statement').stop_status,'automatic')
   assert.equal((await h.get(`/api/coffer/donors/${donor.id}`)).current.email.status,'withdrawn')
- },{entry:'tests/engagement-worker.ts',bindings:{MAIL_PROVIDER:'sendgrid',COFFER_REPLY_DOMAIN:'replies.example.test',STRIPE_SECRET_KEY:'sk_test_reply_edge'},outbound:async request=>{
+ },{entry:'tests/engagement-worker.ts',bindings:{MAIL_PROVIDER:'sendgrid',COFFER_REPLY_DOMAIN:'replies.example.test',STRIPE_SECRET_KEY:'synthetic-coffer-6000'},outbound:async request=>{
   const u=new URL(request.url)
   if(u.hostname==='api.sendgrid.com'){sent.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':`transactional-reply-${sent.length}`}})}
   assert.equal(u.hostname,'api.stripe.com')

@@ -26,7 +26,7 @@ export function recognitionEdges(){
  return {outbound,sessions,messages}
 }
 export async function giveRecognition(h,values){
- const input={requestId:randomUUID(),frequency:'once',...values},response=await h.request('/give/autumn-reading/checkout',form(input))
+ const input={requestId:randomUUID(),frequency:'once','cf-turnstile-response':'synthetic-coffer-security-token',...values},response=await h.request('/give/autumn-reading/checkout',form(input))
  assert.equal(response.status,303,await response.text())
  const sessionId=new URL(response.headers.get('location')).pathname.split('/').at(-1)
  const completed=await h.request('/giving/thanks?session_id='+sessionId);assert.equal(completed.status,200,await completed.text())

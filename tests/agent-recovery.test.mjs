@@ -68,7 +68,7 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
   const person = await donor(h, 'Rae Recovery', {city:'Henderson',region:'KY',postalCode:'42420'})
   await h.command('solicitation.set',{donorId:person.id,version:0,type:'stop',startsOn:new Date().toISOString().slice(0,10)})
   await h.api('/api/coffer/giving/campaigns', { name: 'Monthly reading', slug: 'monthly-reading', description: 'Reading for all.', fund: 'Reading', goal: '1000.00' })
-  const checkout = await h.request('/give/monthly-reading/checkout', form({ name: 'Rae Recovery', email: 'rae.recovery@example.org', amount: '25.00', frequency: 'monthly', requestId: randomUUID() }))
+  const checkout = await h.request('/give/monthly-reading/checkout', form({ name: 'Rae Recovery', email: 'rae.recovery@example.org', amount: '25.00', frequency: 'monthly','cf-turnstile-response':'synthetic-coffer-security-token', requestId: randomUUID() }))
   assert.equal(checkout.status, 303, await checkout.text())
   const deliver = async (id, type, invoiceId=state.invoiceId) => {
    const timestamp = Math.floor(Date.now() / 1000), body = JSON.stringify({ id, type, data: { object: { id: invoiceId } } })
@@ -130,7 +130,7 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
   const pause = activity.find(row => row.kind === 'recovery.pause')
   assert.ok(pause.actor_id && pause.why && pause.undo_kind)
   const secondPerson=await donor(h,'Nico Second')
-  assert.equal((await h.request('/give/monthly-reading/checkout',form({name:'Nico Second',email:'nico.second@example.org',amount:'25.00',frequency:'monthly',requestId:randomUUID()}))).status,303)
+  assert.equal((await h.request('/give/monthly-reading/checkout',form({name:'Nico Second',email:'nico.second@example.org',amount:'25.00',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}))).status,303)
   await deliver('evt_second_failure','invoice.payment_failed',second.invoiceId)
   await h.api('/api/coffer/agent/recovery/run', {})
   data = await recovery()
@@ -193,7 +193,7 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
   await h.command('donor.erase',{donorId:person.id,confirm:'ERASE'})
   assert.equal((await recovery()).expiryNotices.length,0)
   assert.ok(!JSON.stringify(await archive(h)).includes('pm_replacement'),'Erasure removes the opaque payment-method reference')
- }, { bindings: { STRIPE_SECRET_KEY: 'sk_test_recovery_edge', STRIPE_WEBHOOK_SECRET: secret }, outbound })
+ }, { bindings: { STRIPE_SECRET_KEY: 'synthetic-coffer-6000', STRIPE_WEBHOOK_SECRET: secret }, outbound })
 })
 
 test('DEV-002: explicit standing approval and donor permissions govern scheduled notices, named-lead review, real portal stops and recovery attribution',async()=>{

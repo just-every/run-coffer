@@ -22,7 +22,7 @@ export function dashboardStripe() {
   assert.fail('Unexpected Stripe edge: '+url.pathname)
  }
  return {outbound,async give(h,slug,frequency='once',name='Online Dashboard Donor',amount='40'){
-  const response=await h.request('/give/'+slug+'/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({requestId:randomUUID(),name,email:name.toLowerCase().replaceAll(' ','.')+'@example.test',frequency,amount,appeal:'SPRING'}).toString()})
+  const response=await h.request('/give/'+slug+'/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({requestId:randomUUID(),name,email:name.toLowerCase().replaceAll(' ','.')+'@example.test',frequency,'cf-turnstile-response':'synthetic-coffer-security-token',amount,appeal:'SPRING'}).toString()})
   assert.equal(response.status,303,await response.text());const id=response.headers.get('location').split('/').at(-1)
   const thanks=await h.request('/giving/thanks?session_id='+id,{as:''});assert.equal(thanks.status,200,await thanks.text())
   return id

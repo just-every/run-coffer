@@ -11,12 +11,23 @@ const bundles=new Map()
 // `outbound` handles additional network edges; Resend remains captured in messages.
 // `verifiedMail` adds only Smarty/Melissa network fakes; journeys explicitly prepare their real postal pass.
 // `entry` swaps the Worker under test (tests/demo-worker.ts wraps it in withDemo); `bindings` adds or overrides vars.
-export async function installation({entry='tests/worker.ts',bindings={},outbound,triggerHandlers=false,verifiedMail=false}={}) {
+export async function installation({entry='tests/worker.ts',bindings={},outbound,triggerHandlers=false,verifiedMail=false,givingProtection=Boolean(bindings.STRIPE_SECRET_KEY&&outbound)}={}) {
+ // Giving fixtures connect the same required protection as a real installation.
+ // Only the Turnstile network boundary is faked; requests still need its token.
+ const givingToken='synthetic-coffer-security-token'
+ let origin='https://127.0.0.1'
+ if(givingProtection){
+  const edge=outbound
+  outbound=async request=>{
+   if(new URL(request.url).hostname!=='challenges.cloudflare.com')return edge(request)
+   const p=new URLSearchParams(await request.text())
+   return Response.json({success:p.get('secret')===givingToken&&p.get('response')===givingToken,hostname:new URL(origin).hostname,action:'giving'})
+  }
+ }
  if(verifiedMail){bindings={...verifiedMailBindings,...bindings};outbound=verifiedMailOutbound(outbound);triggerHandlers=true}
  if(!bundles.has(entry))bundles.set(entry,build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']}))
  const bundle=await bundles.get(entry)
  const directory=await mkdtemp(join(tmpdir(),'coffer-api-')),setup=randomBytes(32).toString('hex'),messages=[]
- let origin='https://127.0.0.1'
  const secret=randomBytes(32).toString('hex')
  const options=()=>({...convertV4MiniflareOptions({unsafeTriggerHandlers:triggerHandlers,host:'127.0.0.1',port:Number(new URL(origin).port),modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],r2Buckets:['FILES'],bindings:{AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'auth@example.test',...bindings},outboundService:async request=>{if(outbound&&new URL(request.url).hostname!=='api.resend.com')return outbound(request);assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})}}),resourcePersistencePath:directory})
  const mf=new Miniflare(options())
@@ -37,6 +48,7 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
   const api=async(path,body,{status=200,...options}={})=>{const response=await request(path,{...(body===undefined?{}:{method:'POST',body}),...options});const value=await response.json();assert.equal(response.status,status,JSON.stringify(value));return value}
   const command=(command,input={},options={})=>api('/api/coffer/commands',{command,input},options)
   const get=(path,options={})=>api(path,undefined,options)
+  if(givingProtection)await command('giving.protection',{siteKey:givingToken,secret:givingToken})
   const person=async(email,role='member')=>{
    // The Data & access invite form, which sends Base's invitation.
    const invited=await request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email,role,displayName:email.split('@')[0]}).toString()});assert.equal(invited.status,303,await invited.text())

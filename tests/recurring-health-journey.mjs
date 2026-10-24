@@ -4,7 +4,7 @@ import {mkdir} from 'node:fs/promises'
 import {run} from './harness.mjs'
 import {withBrowserWorker} from './browser-worker.mjs'
 
-const secret='whsec_recurring_health_network_edge'
+const secret='synthetic-coffer-6000'
 export async function recurringHealthJourney(){
  let now='2026-01-10T12:00:00.000Z',selected='a',customer=0
  const plans=new Map(),invoices=new Map()
@@ -31,7 +31,7 @@ export async function recurringHealthJourney(){
   await h.api('/api/coffer/giving/campaigns',{name:'Year-round literacy',slug:'year-round',description:'Monthly books and tutoring.',fund:'Reading',goal:'10000'})
   for(const [key,day,email,amount]of [['a','10','ana@example.test','25'],['b','11','ana@example.test','25'],['c','12','ben@example.test','50']]){
    selected=key;now=`2026-01-${day}T12:00:00.000Z`
-   const response=await h.request('/give/year-round/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded','x-test-now':now},raw:new URLSearchParams({name:key==='c'?'Ben Wells':'Ana Diaz',email,amount,frequency:'monthly',requestId:randomUUID()}).toString()})
+   const response=await h.request('/give/year-round/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded','x-test-now':now},raw:new URLSearchParams({name:key==='c'?'Ben Wells':'Ana Diaz',email,amount,frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}).toString()})
    assert.equal(response.status,303,await response.text())
    await deliver('evt_start'+key,'customer.subscription.created','sub_health'+key)
   }
@@ -101,5 +101,5 @@ export async function recurringHealthJourney(){
   assert.deepEqual([importedState.status,importedState.amount_cents],['canceled',3000])
   const current=(await get('/api/coffer/reports/recurring')).rows.at(-1)
   assert.equal(current.canceledPlans,1)
- },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'sk_test_health_edge',STRIPE_WEBHOOK_SECRET:secret},outbound})
+ },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6001',STRIPE_WEBHOOK_SECRET:secret},outbound})
 }

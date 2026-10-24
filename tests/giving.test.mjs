@@ -78,7 +78,7 @@ test('CAMP-001: recurring campaign progress; a failed monthly donation recovers 
   const donation=await page.text()
   assert.match(donation,/action="\/give\/keep-reading\/checkout"/)
   assert.match(donation,/name="emailConsent"/,'The giving page asks for appeal consent separately from the receipt')
-  const checkout=await h.request('/give/keep-reading/checkout',form({name:'Ana Diaz',email:'ana.diaz@example.org',amount:'25.00',frequency:'monthly',emailConsent:'yes',requestId:randomUUID()}))
+  const checkout=await h.request('/give/keep-reading/checkout',form({name:'Ana Diaz',email:'ana.diaz@example.org',amount:'25.00',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',emailConsent:'yes',requestId:randomUUID()}))
   assert.equal(checkout.status,303,await checkout.text())
   assert.equal(new URL(checkout.headers.get('location')).hostname,'checkout.stripe.com')
   assert.equal((await history()).gifts.length,0)
@@ -258,6 +258,7 @@ test('GIVE-008: signed keyword links prefill the mobile form, attribute paid gif
  const {textGivingJourney}=await import('./text-giving-journey.mjs');await textGivingJourney()
 })
 
-test('GIVE-007: address bursts pause giving, alert administrators and count verified Radar failures without donor records',async()=>{
+test('GIVE-007: address bursts pause giving, alert administrators and count verified Radar failures without donor records',async t=>{
+ t.mock.timers.enable({apis:['Date'],now:Date.parse(fixedNow)})
  const {givingProtectionJourney}=await import('./giving-protection-journey.mjs');await givingProtectionJourney()
 })

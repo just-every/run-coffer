@@ -26,7 +26,7 @@ export async function campaignProgressJourney() {
   await h.command('softCredit.record',{giftId:neighborhood.id,donorId:advisor.id,amount:'30'})
   const reversed = await gift(ada,2000)
   await h.command('gift.reverse',{giftId:reversed.id,reason:'Check returned',reversedOn:day})
-  const checkout = await h.request('/give/spring-reading/checkout',{...form({name:'Eva Online',email:'eva.online@example.org',amount:'40',frequency:'once',requestId:randomUUID()}),as:''})
+  const checkout = await h.request('/give/spring-reading/checkout',{...form({name:'Eva Online',email:'eva.online@example.org',amount:'40',frequency:'once','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}),as:''})
   assert.equal(checkout.status,303,await checkout.text())
   const session = new URL(checkout.headers.get('location')).pathname.split('/').at(-1)
   assert.equal((await h.request('/giving/thanks?session_id='+session,{as:''})).status,200)
@@ -52,5 +52,5 @@ export async function campaignProgressJourney() {
   assert.deepEqual([(await read(parent.id)).raisedCents,(await read(parent.id)).softCreditCents],[19000,0])
   await h.command('donor.erase',{donorId:ben.id,confirm:'ERASE'})
   assert.equal((await read(parent.id)).raisedCents,19000,'erasure keeps received ledger cents')
- }, {bindings:{STRIPE_SECRET_KEY:'sk_test_campaign_edge'},outbound:edge.outbound})
+ }, {bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6000'},outbound:edge.outbound})
 }

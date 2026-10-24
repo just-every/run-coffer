@@ -73,7 +73,7 @@ export async function feeCoverJourney() {
   const nextPage=await (await h.request('/give/reading-fee-cover',{as:''})).text()
   assert.notEqual(nextPage.match(/<script nonce="([^"]+)"/)?.[1],nonce,'Every response has a fresh nonce')
   await h.api(configPath,config,{status:409})
-  const values={requestId:randomUUID(),name:'Cover Donor',email:'cover@example.test',frequency:'once',amount:'100.00',feeCover:'yes',quotedAmountCents:'10330'}
+  const values={requestId:randomUUID(),name:'Cover Donor',email:'cover@example.test',frequency:'once','cf-turnstile-response':'synthetic-coffer-security-token',amount:'100.00',feeCover:'yes',quotedAmountCents:'10330'}
   const submit=(v=values,slug='reading-fee-cover')=>h.request('/give/'+slug+'/checkout',form(v))
   assert.equal((await submit(values,'meals-fee-cover')).status,409,'Unconfigured fee cover is refused')
   assert.equal((await submit({...values,quotedAmountCents:'10329'})).status,409,'The exact reviewed total is required')
@@ -99,7 +99,7 @@ export async function feeCoverJourney() {
   assert.equal(messages.length,1);assert.match(messages[0].content[0].value,/\$103\.30/)
   assert.equal((await h.request('/giving/thanks?session_id='+sessionId,{as:''})).status,200);assert.equal(messages.length,1)
   // A second actual giving form contributes to the same payout without fee cover.
-  const other=await submit({requestId:randomUUID(),name:'Meals Donor',email:'meals@example.test',frequency:'once',amount:'25.00'},'meals-fee-cover')
+  const other=await submit({requestId:randomUUID(),name:'Meals Donor',email:'meals@example.test',frequency:'once','cf-turnstile-response':'synthetic-coffer-security-token',amount:'25.00'},'meals-fee-cover')
   assert.equal(other.status,303,await other.text())
   assert.equal((await h.request('/giving/thanks?session_id='+other.headers.get('location').split('/').at(-1),{as:''})).status,200)
   const firstCharge=[...charges.values()][0]
@@ -117,9 +117,9 @@ export async function feeCoverJourney() {
   assert.deepEqual(report.matched,report.totals);assert.deepEqual(report.unmatched,{gross_cents:0,fee_cents:0,net_cents:0})
   await h.get('/api/coffer/payments/fees',{as:'',status:401});await h.get('/api/coffer/payments/fees',{as:member.cookie,status:403})
   assert.equal((await h.request('/app/payouts/fees')).status,200)
-  const monthly=await submit({requestId:randomUUID(),name:'Monthly Cover Donor',email:'monthly.cover@example.test',frequency:'monthly',amount:'100.00',feeCover:'yes',quotedAmountCents:'10341'})
+  const monthly=await submit({requestId:randomUUID(),name:'Monthly Cover Donor',email:'monthly.cover@example.test',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',amount:'100.00',feeCover:'yes',quotedAmountCents:'10341'})
   assert.equal(monthly.status,303,await monthly.text())
   assert.equal([...sessions.values()].at(-1).amount_total,10341,'A new monthly plan starts with the currently configured gross-up total')
   if(process.env.COFFER_PAY004_BROWSER){const {feeCoverBrowser}=await import('./fee-cover-browser.mjs');await feeCoverBrowser(h,{campaignId:a.id,directory:process.env.COFFER_PAY004_BROWSER})}
- },{bindings:{STRIPE_SECRET_KEY:'sk_test_pay004_edge',STRIPE_WEBHOOK_SECRET:secret,MAIL_PROVIDER:'sendgrid'},outbound:edge})
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6000',STRIPE_WEBHOOK_SECRET:secret,MAIL_PROVIDER:'sendgrid'},outbound:edge})
 }
