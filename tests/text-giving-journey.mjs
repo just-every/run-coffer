@@ -16,7 +16,7 @@ export async function textGivingJourney(){
  }
  await run(async h=>{
   const d=await donor(h,'Synthetic Text Giver',{email:'synthetic-coffer-415@example.test',phone})
-  await h.command('sms.preference',{donorId:d.id,phone,timezone:'America/New_York',status:'granted',version:0,evidence:'Synthetic explicit request',capturedOn:new Date().toISOString().slice(0,10)})
+  await h.command('sms.preference',{donorId:d.id,phone,timezone:'America/New_York',status:'granted',version:0,evidence:'Synthetic explicit request',capturedOn:new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date())})
   await h.command('giving.connectTwilio',{account,token,from})
   const c=await h.api('/api/coffer/giving/campaigns',{name:'Synthetic reading fund',slug:'text-reading',description:'Books for the reading room.',fund:'Reading',goal:'5000'})
   await h.command('appealCode.define',{code:'TEXT26',name:'Synthetic text appeal'})

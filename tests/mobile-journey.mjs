@@ -8,7 +8,7 @@ export async function mobileJourney() {
  await run(async h=>{
   await reviewed(h)
   const d=await donor(h,'Maya Chen',{phone:'+12025550101'})
-  const day=new Date().toISOString().slice(0,10)
+  const day=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date())
   const original=await h.command('gift.record',{donorId:d.id,amount:'250',receivedOn:day,goods:'none',method:'check'})
   const owner=(await h.get('/auth/session')).operator
   const other=await donor(h,'Blake Rivera',{email:'synthetic-coffer-740@example.test'})

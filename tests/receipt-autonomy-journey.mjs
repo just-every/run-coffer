@@ -27,7 +27,7 @@ export async function receiptAutonomyJourney() {
   const unknown=(await h.get('/api/coffer/donors?q=Unknown%20benefit%20review')).donors[0]
   const gUnknown=(await h.get('/api/coffer/donors/'+unknown.id)).gifts[0]
   const gSmall=await gift(h,small,'25'),gBounce=await gift(h,bounced),gLarge=await gift(h,large,'2500'),gMissing=await gift(h,missing),gPrivate=await gift(h,privateDonor)
-  const recent=await gift(h,small,'500',{receivedOn:new Date().toISOString().slice(0,10)}),old=await gift(h,small,'500',{receivedOn:'2024-01-10'})
+  const recent=await gift(h,small,'500',{receivedOn:new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date())}),old=await gift(h,small,'500',{receivedOn:'2024-01-10'})
   const initial=await h.command('ack.prepare',{giftIds:[gBounce.id]})
   await h.command('ack.approve',{batchId:initial.id,version:1});await h.command('ack.send',{batchId:initial.id,version:2})
   const bounceLetter=(await h.get('/api/coffer/letters/'+initial.id)).letters[0]
