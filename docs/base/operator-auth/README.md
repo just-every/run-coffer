@@ -4,7 +4,7 @@ Portable server-only ESM: import `createOperatorAuth`, `createAuthHandler` and
 `createSignInHandler` from `./modules/operator-auth/index.mjs`. TypeScript
 declarations are `index.d.mts`. No framework or mail transport is bundled. Apply
 `accounts/schema/operator-auth.sql` once for a fresh auth database (and
-`identity/oidc/schema/oidc.sql` when the app offers identity providers). Preserve applied migration history in an existing
+`./identity/oidc/schema/oidc.sql` when the app offers identity providers). Preserve applied migration history in an existing
 store and follow “Adopting this version” below for its additive upgrade. Tables
 use the `oa_` namespace. This module does not seed any product data.
 
@@ -46,12 +46,12 @@ All public mutation APIs require POST, the exact configured request origin and
 `Origin` header, and reject cross-site Fetch Metadata. Never derive `origin` from
 request headers. `Host`, when supplied, must match the configured authority; local
 HTTP additionally requires an explicit matching loopback Host. Browser forms and
-JSON are accepted by the handler (8 KiB maximum). Parsed query/form parameters
+JSON are accepted by the handler (8 KiB maximum). Parsed query or form parameters
 with duplicate decoded names or JSON object keys are rejected with `invalid_input` before
 auth processing, including escaped names. POST tokens are accepted only in the
 body; a query token on a POST is rejected as an ambiguous credential source.
 Protect every private API, server function and document with
-`auth.getSession(request)`. Missing/invalid,
+`auth.getSession(request)`. Missing or invalid,
 expired, revoked, deactivated and disallowed sessions yield null; host violations
 throw `AuthError` with 403. Never return a private page then check in the browser.
 
@@ -61,9 +61,9 @@ Base's operator auth is the only staff sign-in, in three layers:
 
 | Directory | Holds | Interface |
 | --- | --- | --- |
-| `identity/` | Proving who a person is: the email link (`identity/email-link/`), identity providers over OpenID Connect (`identity/oidc/`, see [its README](identity/oidc/README.md)), and the admission that turns a verified principal into a session (`identity/admission.mjs`). | Outputs a **verified principal** `{issuer, subject, provider?, email?, emailVerified?, emailVerifiedAt?, amr?}`; `identity/index.mjs`. |
+| `identity/` | Proving who a person is: the email link (`./identity/email-link/`), identity providers over OpenID Connect (`./identity/oidc/`, see [its README](../../../src/modules/operator-auth/identity/oidc/README.md)), and the admission that turns a verified principal into a session (`./identity/admission.mjs`). | Outputs a **verified principal** `{issuer, subject, provider?, email?, emailVerified?, emailVerifiedAt?, amr?}`; `./identity/index.mjs`. |
 | `accounts/` | Who a person is in this app and what they may do: operators, roles, invitations, sessions, domain rules and step-up proofs in the `oa_` store (`accounts/store.mjs`, `accounts/schema/`). | The **accounts adapter interface** (`accounts/adapter.mjs`); Base's implementation over `oa_` is `accounts/oa.mjs`. |
-| `dev/` | Local-only dev sessions, personas and mode labels, loaded only from a local-only Worker entry. | `dev/index.mjs`; see "Local dev identity" below. |
+| `dev/` | Local-only dev sessions, personas and mode labels, loaded only from a local-only Worker entry. | `./dev/index.mjs`; see "Local dev identity" below. |
 
 The files at the root are shared by all three: HTTP and input checks, crypto,
 configuration and branding, the shared page frame (`page.mjs`), the key gate
@@ -74,19 +74,19 @@ and the sign-in page (`signin/`).
 ### Native composition
 
 `createOperatorAuth({ accounts, proofs, ... })` routes the complete service
-through the seed's native accounts, cookies, sessions and durable email/step-up
+through the seed's native accounts, cookies, sessions and durable email and step-up
 proof persistence. Both are required; partial injection fails closed. Native
-roles are generic types, and unsupported administration/provisioning explicitly
-refuses. Apply identity/dependency storage only, without OA account tables.
-See the [native adoption contract](docs/native-accounts.md) for exact APIs,
-transaction fences, optional capabilities, callback/trust settings and the
-Slate/HappyToHelp continuation steps.
+roles are generic types, and unsupported administration and provisioning explicitly
+refuses. Apply identity and dependency storage only, without OA account tables.
+See the [native adoption contract](../../../src/modules/operator-auth/docs/native-accounts.md) for exact APIs,
+transaction fences, optional capabilities, callback and trust settings and the
+Slate and HappyToHelp continuation steps.
 
 ### The accounts adapter interface
 
 Identity never decides who may enter; it asks the app's accounts. A seed that
 keeps its own tables (HappyToHelp, Slate) implements these methods over them and
-passes the adapter to `createAdmission` from `identity/index.mjs`:
+passes the adapter to `createAdmission` from `./identity/index.mjs`:
 
 | Method | Contract |
 | --- | --- |
@@ -113,7 +113,7 @@ version), domain rules in `oa_domain_rules`. `auth.accounts` exposes it and
 | --- | --- | --- |
 | `/auth/bootstrap` | POST | token, displayName, returnTo?; 303 with cookie and safe Location |
 | `/auth/magic-link` | POST | email, returnTo?; 202 `{status:'accepted', requiredProvider?}` for admitted/unknown/disallowed address. A native HTML form post (URL-encoded) gets a 303 back to the sign-in page with `notice=sent` instead. |
-| `/auth/confirm?token=…` | GET/HEAD | 200 confirmation form, or 400 expired/invalid; **no writes, no session cookie** |
+| `/auth/confirm?token=…` | GET or HEAD | 200 confirmation form, or 400 expired or invalid; **no writes, no session cookie** |
 | `/auth/confirm` | POST | token; consume once, create session and 303 to stored returnTo. A step-up link completes only in the session that asked for it and sets no new cookie. |
 | `/auth/session` | GET | session and operator, or 401 |
 | `/auth/signout` | POST | `{}`; revoke current session, clear cookie, 204 |
@@ -129,27 +129,27 @@ version), domain rules in `oa_domain_rules`. `auth.accounts` exposes it and
 | `/auth/domain-rules` | GET / POST | list rules; POST domain, provider (null lifts); owner only, step-up |
 | `/auth/providers` | GET | the pinned provider links; owner only |
 | `/auth/providers/unlink`, `/auth/providers/relink` | POST | provider; owner only, step-up |
-| `/auth/oidc/<id>/start`, `/auth/oidc/<id>/callback` | POST / GET | each provider's own routes (see [identity/oidc](identity/oidc/README.md)) |
-| `/auth/owner-signin?token=…` | GET/HEAD | 200 owner sign-in confirmation for a live `rer signin` link, or 400 invalid/used/expired; **no writes** |
+| `/auth/oidc/<id>/start`, `/auth/oidc/<id>/callback` | POST / GET | each provider's own routes (see [OIDC identity](../../../src/modules/operator-auth/identity/oidc/README.md)) |
+| `/auth/owner-signin?token=…` | GET or HEAD | 200 owner sign-in confirmation for a live `rer signin` link, or 400 invalid, used or expired; **no writes** |
 | `/auth/owner-signin` | POST | token; consume once for the active owner it names, 303 with cookie; see "Owner sign-in without mail" |
 | `/auth/email` | POST | email; the signed-in operator's own sign-in email; fresh step-up proof; 409 `email_in_use` |
 | `/auth/display-name` | POST | displayName; the signed-in operator's own name (1-120 characters); no step-up |
 
-Unknown `/auth/*` paths return 404. Unsupported methods return 405. Except for invalid/expired confirmation GET/HEAD documents, known public
+Unknown `/auth/*` paths return 404. Unsupported methods return 405. Except for invalid or expired confirmation GET or HEAD documents, known public
 errors are JSON `{error:code}`: invalid input 400, unauthenticated 401, policy/host/
-Origin rejection 403, missing resource 404, conflict/last owner 409, oversized input
-413, unsupported content type 415, rate limit 429, missing mail/database 503.
+Origin rejection 403, missing resource 404, conflict or last owner 409, oversized input
+413, unsupported content type 415, rate limit 429, missing mail or database 503.
 Internal errors are redacted as `auth_unavailable`. Methods throw typed AuthError;
 the Fetch adapter translates it. Every response has no-store headers. Successful
-confirmation GET/HEAD responses use `Referrer-Policy: strict-origin` so native
+confirmation GET or HEAD responses use `Referrer-Policy: strict-origin` so native
 form POSTs retain their Origin without exposing the token path or query in
 Referer; HTTPS-to-HTTP downgrade requests omit Referer. Other responses retain
-`Referrer-Policy: no-referrer`. Exact Origin/CSRF validation is unchanged.
+`Referrer-Policy: no-referrer`. Exact Origin and CSRF validation is unchanged.
 Do not log confirmation URLs, input tokens, cookies or provider message bodies.
 
 ## Confirmation and branding
 
-GET/HEAD confirmation uses a self-contained, responsive document. A magic link
+GET or HEAD confirmation uses a self-contained, responsive document. A magic link
 says “Confirm sign-in to Example”; an invitation says “Accept your invitation to
 Example”. Both explain that the link works once and show its remaining lifetime,
 rounded up to days for lifetimes of a day or more, otherwise minutes (singular
@@ -168,7 +168,7 @@ Optional `config.branding` fields are independently defaulted and validated:
 
 | Field | Default | Validation |
 | --- | --- | --- |
-| `productName` | `your workspace` | At most 80 UTF-16 code units before trimming, with at least one visible letter, number, punctuation or symbol; rejects C0/C1 controls, U+2028/U+2029 and default-ignorable code points, except contextual script joiners and emoji presentation described below |
+| `productName` | `your workspace` | At most 80 UTF-16 code units before trimming, with at least one visible letter, number, punctuation or symbol; rejects C0 and C1 controls, U+2028/U+2029 and default-ignorable code points, except contextual script joiners and emoji presentation described below |
 | `accentColor` | `#334155` | Exactly six hexadecimal digits after `#` |
 | `signInPath` | `/signin` | Same-origin absolute path, at most 2048 characters; no scheme, network-path reference, backslash or control characters, including encoded variants |
 | `mark` | Omitted | Same-origin root-relative image pathname, 2–2048 characters from ASCII letters, digits, `/`, `.`, `_`, `~` and `-`; no doubled slashes or `.`/`..` path segments, schemes, encodings, query strings, fragments, whitespace, quotes or angle brackets |
@@ -216,12 +216,12 @@ or CSS imports are included in the document. JSON errors, redirects and other re
 the original CSP. Do not add a broad inline-style allowance to an adopting seed.
 
 An application can compose its same-origin brand font head onto this document,
-as Base's foundation/reference do. Preserve the inline style hash, private
+as Base's foundation and reference do. Preserve the inline style hash, private
 headers and native form behavior; permit only same-origin styles and fonts,
 with no scripts or third-party resources. Set the conformance adapter's
 `confirmationFonts: true` for this composition. The same public auth scenarios
 then require one fixed same-origin stylesheet and primary font preload, the
-unchanged hash and restrictive CSP, and all existing token/session protections.
+unchanged hash and restrictive CSP, and all existing token and session protections.
 The standalone module's default conformance still requires no font resources.
 
 ## Sessions, tokens and policies
@@ -240,13 +240,13 @@ raw link tokens. `CompletedSession.cookie` is server-only and must only be emitt
 as Set-Cookie, never serialized into browser data.
 
 D1 batches transactionally claim setup, consume links, accept invitations, bind
-external identities and issue sessions. A unique token/session relation prevents
+external identities and issue sessions. A unique token and session relation prevents
 double consumption. Operator version fences invalidate **all** old links and
-sessions after status/role changes, including after reactivation. Mutation SQL
+sessions after status or role changes, including after reactivation. Mutation SQL
 rechecks the actor's active session and authority snapshot. Last active owner
-removal/demotion is rejected by SQL triggers, including competing mutations.
+removal or demotion is rejected by SQL triggers, including competing mutations.
 Reactivate never bypasses invitation acceptance. Retrying an invitation with the
-same email/role resends it and revokes older links; an existing active or
+same email and role resends it and revokes older links; an existing active or
 ordinarily inactive operator conflicts. An inactive operator with a durable
 cancellation marker can be reinvited as described below. Unknown addresses never
 become operators through sign-in.
@@ -256,15 +256,15 @@ policy with the pending operator as target. It changes only an `invited` operato
 to `inactive`, retaining the operator ID, bootstrap ledger and history. The SQL
 write fences the actor's session and authority version and the target's status
 and version. Its existing version trigger invalidates every outstanding link;
-GET/HEAD preview and POST confirmation then fail. A durable cancellation ledger
+GET or HEAD preview and POST confirmation then fail. A durable cancellation ledger
 and SQL trigger reject ordinary activation with `invitation_required`, even after
 credentials are pruned. A cancelled identity can receive a fresh invitation only
 when the requested role matches its recorded role. Reissue changes that same row
-back to `invited`, updates its display name, and leaves its ID and creation/history
+back to `invited`, updates its display name, and leaves its ID and creation and history
 intact. Its status trigger advances the version; the fenced D1 batch inserts a new
 link and revokes older unconsumed links. The cancellation ledger remains present
 while the replacement is pending. Cancelling that pending invitation again is
-allowed and refreshes the durable marker, so repeated cancel/reissue cycles retain
+allowed and refreshes the durable marker, so repeated cancel and reissue cycles retain
 the same guard. Existing active and ordinarily deactivated operators still conflict,
 as do role mismatches; a same-role pending invitation can still be resent with
 status 202. A completed invitation cannot be cancelled.
@@ -293,7 +293,7 @@ writes a ledger row. Keep the ledger and triggers on rollback, and never prune
 Invitations also bind their issuer's identity and authority version. Preview and
 confirmation require that issuer to remain active and allowed, and re-evaluate
 the configured `operators:invite` policy for the issued role. Confirmation fences
-that issuer/version in the same transaction as invitation acceptance and session
+that issuer and version in the same transaction as invitation acceptance and session
 creation. Changing the issuer's status or role permanently invalidates unused
 invitations, even after restoration; an authorized operator must issue a fresh
 link. Signing out or revoking just the issuing browser session does not invalidate
@@ -309,12 +309,12 @@ The same bootstrap policy applies to signed owner claims. Confirmation limits bi
 the presented opaque token instead of the address. `clientIp` is mandatory;
 unavailable addresses fail closed (503). Header trust belongs to the deployment
 boundary. Do not trust X-Forwarded-For.
-Periodically prune old oa_limits rows and expired tokens/sessions in an
+Periodically prune old oa_limits rows and expired tokens and sessions in an
 edition-owned maintenance job; preserve referenced rows or delete referencing
 sessions first. Never delete oa_bootstrap as maintenance.
 
 Default applied: **owner/admin/member**. Owner manages all operators; admin invites
-members and manages members; members view/revoke their own sessions. Only owners
+members and manages members; members view or revoke their own sessions. Only owners
 can promote roles. `rolePolicy({actor,action,target,role})` replaces this policy
 for product variations. It receives current persisted operators, never caller
 role claims; keep it deterministic and side-effect-free. Active operator, active
@@ -345,7 +345,7 @@ exists. Missing/failing/uncertain transport revokes the link and reports
 accepted only in local mode. Auth never claims mailbox receipt.
 
 Identity providers verify the whole protocol and hand the admission a verified
-principal; [identity/oidc/README.md](identity/oidc/README.md) describes them. The
+principal; [./identity/oidc/README.md](../../../src/modules/operator-auth/identity/oidc/README.md) describes them. The
 original server seams remain for existing callers:
 `auth.admitVerifiedIdentity(request, identity, {returnTo})` requires
 `{issuer,subject,email,emailVerified:true}` from an issuer in
@@ -377,20 +377,20 @@ Neither path provisions operators or changes roles. The subject map must come
 from trusted deployment configuration, never HTTP input or token claims.
 
 `admitVerifiedPassword(request, operatorId, {returnTo})` supports a seed's existing
-real password verifier. It requires POST/Origin and shares active-operator,
+real password verifier. It requires POST and Origin and shares active-operator,
 allow-list, version, domain-rule and session policy; an operator bound to a
 provider has no password admission. The caller must verify and rate-limit the
 password **before** invoking it. It neither creates an operator nor claims setup;
 there is no password checker or password endpoint in this module.
 
 For a loopback review session, configure `review:{enabled:true,operatorEmail}` and invoke
-`issueReviewSession`. It requires an already-active operator, POST/Origin, and
+`issueReviewSession`. It requires an already-active operator, POST and Origin, and
 literal loopback URL **and Host**. Non-loopback Host returns 403 regardless of
 flags or forwarded headers; admission of the resulting review cookie checks the
-same boundary every time. Review defaults/maxes at one hour. Disable the flag to
+same boundary every time. Review defaults and maxima at one hour. Disable the flag to
 invalidate review admission immediately. Bind the local review listener to a
 loopback interface; a forged Host is not network isolation. Production configuration
-must never enable review. No fixture/sample operator is created for review.
+must never enable review. No fixture or sample operator is created for review.
 
 ## The sign-in page
 
@@ -442,7 +442,7 @@ which refuses with `step_up_required` (403).
 The shared administrative actor guard applies that proof to every owner role
 grant or removal, owner invitation (new, reissued or reinstated after cancellation),
 owner invitation cancellation, and owner activation or deactivation. Unchanged
-roles/statuses and non-owner status changes retain their usual authorization.
+roles and statuses and non-owner status changes retain their usual authorization.
 The existing version fences and last-active-owner protection still apply after
 the proof succeeds.
 With the `RER_DEMO=1` demo guard active, the configured owner's authenticated
@@ -452,7 +452,7 @@ store; another visitor's session is refused. Ordinary hosted instances keep
 requiring the real proof described above.
 Creating a server-declared owner dev persona also requires the signed-in owner's
 fresh local proof in addition to the checkout key. Its creation repeats the actor
-session/version fence in the database write.
+session and version fence in the database write.
 
 ## Owner sign-in without mail (`rer signin`)
 
@@ -552,11 +552,11 @@ gets `signInUrl` on those `/auth/operators` records and offers the same action.
 existing atomic issuer, expiry, version and cancellation checks. Local sessions
 are always `dev` and require the checkout key on every request; hosted demo
 sessions belong only to that visitor's database. Production answers 404. The
-local persona list also includes invited/active people by email. Suppressed
+local persona list also includes invited or active people by email. Suppressed
 email-link form requests direct the admitted visitor to this same one-click
 entry rather than telling them to wait for mail.
 
-`dev/sign-in-as.mjs` is the test harness door: `signInAs({origin, key, as})`
+`./dev/sign-in-as.mjs` is the test harness door: `signInAs({origin, key, as})`
 returns the cookies a test browser or fetch client installs, and
 `readDevKey(root)` reads the checkout's key.
 
@@ -579,9 +579,9 @@ At the Base repository root, `pnpm run verify:operator-auth` runs the operator-a
 identity-provider and sign-in page `.test.mjs` suites; `pnpm run verify:modules` runs the module `.test.ts`
 suites. The default suite includes a static pre-ledger schema and populated-row
 upgrade fixture, exercising current handlers and persistent D1 with a fixed test
-clock; its provenance is documented in `tests/fixtures/pre-ledger/README.md`.
-`tests/prior-data.test.mjs` runs a store written by the auth-1 main's own API
-(`tests/fixtures/auth-1-store/README.md`) through these layers after the two
+clock; its provenance is documented in `./tests/fixtures/pre-ledger/README.md`.
+`./tests/prior-data.test.mjs` runs a store written by the auth-1 main's own API
+(`./tests/fixtures/auth-1-store/README.md`) through these layers after the two
 additive migrations below.
 The "cancelled before the ledger" fixture row represents a state reachable only
 by a direct database update, not through the cancellation API before its ledger
@@ -589,7 +589,7 @@ exists. The prior-data test executes every statement in the shipped migration
 and checks that the applied count matches the file's statement count.
 The pre-update source upgrade check is separate from those globs. Prepare
 an independently captured pre-update source snapshot containing the complete
-`operator-auth/` directory (including `tests/worker.mjs` and
+`operator-auth/` directory (including `./tests/worker.mjs` and
 `accounts/schema/invitation-cancellation.sql`) and `pre-cancellation.sql` at the snapshot
 root. With the frozen workspace dependencies installed, run:
 
@@ -597,13 +597,13 @@ root. With the frozen workspace dependencies installed, run:
 OA_BASELINE_SOURCE=/path/to/snapshot node --test ./modules/operator-auth/tests/reinvitation-upgrade.mjs
 ```
 
-Runtime tests use the locked Wrangler Miniflare/esbuild dependencies and run the
+Runtime tests use the locked Wrangler Miniflare and esbuild dependencies and run the
 bundled implementation in real workerd with D1. They create disposable test data and
 dispose runtimes. Adversarial request tests use a test-only envelope to preserve
 literal Host and Origin through Miniflare's local proxy; the production handler,
 crypto and D1 execute in workerd. These are module-level checks, not proof of an
 adopting seed's emitted browser transport or deployment. Each seed must wire its
-corresponding auth and browser checks into CI. Hosted provider/IdP proof and
+corresponding auth and browser checks into CI. Hosted provider or IdP proof and
 deployment remain separate.
 
 ## Adopting this version
@@ -626,7 +626,7 @@ the seed's served mark path as optional `mark: '/brand/mark.svg'`, and its
 served token stylesheet as optional `theme: '/rer-theme.css'`. Keep
 `MAIL_FROM` in auth config and provide a real `mailSender` that implements
 `send(message)`. The Base example builds it with `createMailSender` from
-[the mail module](../mail/README.md), using mail config fields `provider`, `mode`, `apiKey` and
+[the mail module](../../../src/modules/mail/README.md), using mail config fields `provider`, `mode`, `apiKey` and
 Cloudflare-only `accountId`; its sample maps `provider` to `MAIL_PROVIDER`,
 `apiKey` to `MAIL_API_KEY`, and Cloudflare `accountId` to `MAIL_ACCOUNT_ID`, with
 `mode: 'production'`. `MAIL_FROM` is a separate auth config field. If sending is
@@ -649,7 +649,7 @@ when it carries the durable cancellation marker. Same-role invitations that rema
 pending, including expired pending invitations, retain the existing resend path.
 Cancelled reissue preserves the identity row and history, creates a fresh invitation
 link, invalidates older links and retains the marker until a successful confirmation
-creates a session. Repeated cancellation/reissue is supported. Existing active or
+creates a session. Repeated cancellation and reissue is supported. Existing active or
 ordinarily inactive identities and role mismatches still conflict; an ordinary
 status change cannot accept a pending invitation.
 Pre-ledger cancelled identities have no cancellation record and remain refused
@@ -667,7 +667,7 @@ constraint (no table refers to `oa_sessions`), and creates
 confirming links, so a store without it fails closed. Unlike the cancellation
 migration, this file is also safe after the fresh schema. The reference seed
 applies it as `migrations/core/0007_dev_sessions.sql`;
-`tests/dev-sessions-upgrade.test.mjs` upgrades a populated store built from
+`./tests/dev-sessions-upgrade.test.mjs` upgrades a populated store built from
 the reference's earlier migrations and proves every stored session keeps its id
 and expiry. Native, review and password sessions retain usable authority after
 the later additive migrations. Legacy provider sessions require a new sign-in:
@@ -677,7 +677,7 @@ missing provider session provenance.
 **Layers, domain rules and step-up.** An existing store needs
 `accounts/schema/domain-rules-step-up.sql` (`oa_domain_rules`,
 `oa_step_up_challenges`) and, when it offers providers or had the earlier OIDC
-adapter, `identity/oidc/schema/oidc.sql` again (it adds `oa_identity_providers`
+adapter, `./identity/oidc/schema/oidc.sql` again (it adds `oa_identity_providers`
 and `oa_identity_provider_health`; every statement is `IF NOT EXISTS`), each as
 a new numbered migration before switching to this runtime. Both are additive and
 safe after the fresh schema; the runtime reads them when previewing links and
@@ -699,11 +699,11 @@ seed's present source and applied migrations before adopting. A seed owns its
 route configuration, CI and release; Base checks do not establish integrated
 adoption or deployment.
 
-The application-side dependency, owner-setting and logout protocol is documented in [dependencies](../dependencies/README.md). Existing stores default to provider sign-in off, and provider admission requires the app-owned setting.
+The application-side dependency, owner-setting and logout protocol is documented in [dependencies](../../../src/modules/dependencies/README.md). Existing stores default to provider sign-in off, and provider admission requires the app-owned setting.
 
 ## Owner-approved schedules
 
 OA accounts offer a bounded, hash-pinned scheduled policy door, separate from
-human sessions. Read [SCHEDULED-POLICY.md](SCHEDULED-POLICY.md) for the design,
+human sessions. Read [SCHEDULED-POLICY.md](../../../src/modules/operator-auth/SCHEDULED-POLICY.md) for the design,
 additive migration, declaration, owner approval and revocation flow and audit contract.
 The reference `/app/policies` screen and Worker scheduled handler show adoption.

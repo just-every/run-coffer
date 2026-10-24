@@ -166,7 +166,7 @@ Owner history and undo must include jobs from either authority.
    grant for this screen. Use `readImportDoorHistory` with the current owner
    predicate and the door key for approval metadata; local approvals are
    labelled `approved by`, Business approvals `approved via Business by`.
-6. **Erasure.** Include retained uploads/chunks, plan snapshots/chunks, archive
+6. **Erasure.** Include retained uploads and chunks, plan snapshots and chunks, archive
    bytes (`ik_door_archive_chunks`, withdrawn whole) and headers, approvals,
    namespace lineage and destination bindings (`ik_door_scopes`), apply-failure
    facts (`ik_door_apply_failures`) and grant metadata in the seed's
@@ -266,11 +266,11 @@ scope, expiry and approval rules do not change.
 [Spool PR 9](https://github.com/just-every/run-spool/pull/9) demonstrates the
 native integration: `migrations/core/0041_business_import_door.sql`,
 `src/domain/sentry-import/door.server.ts`, `source.ts`, `mapping.ts`, `targets.ts`
-and `context.ts`; settings/history in `business-routes.ts` and
+and `context.ts`; settings and history in `business-routes.ts` and
 `src/ui/workbench/BusinessImports.tsx`; custody in
 `src/domain/erasure/business-custody.ts`; public HTTP proof in
-`tests/business-import.mjs` using `tests/worker.mjs`, `tests/auth.mjs` and
-`tests/archive.mjs`. These paths are in Spool. Its Sentry parser and adapter are
+`./tests/business-import.mjs` using `./tests/worker.mjs`, `./tests/auth.mjs` and
+`./tests/archive.mjs`. These paths are in Spool. Its Sentry parser and adapter are
 reused, imports remain historical, and project erasure withdraws duplicate door
 custody. That PR still keeps `/api/imports/sentry`: finishing single-path adoption
 requires replacing that caller with the operator mount and deleting the old
@@ -353,7 +353,7 @@ export async function checkDoor({request, bytes, name, nativeSnapshot,
 }
 ```
 
-For a concrete grant client and harness see Spool's `tests/business-import.mjs`;
+For a concrete grant client and harness see Spool's `./tests/business-import.mjs`;
 its `grant`, `doorRequest`, `nativeSnapshot`, `startTestWorker` and `signIn`
 provide those network edges. Run with `nice -n 15 node <existing-test-journey>`
 after the seed's normal build. No `rer check` extension is required.

@@ -304,7 +304,7 @@
       "executable": false
     },
     "docs/base/operator-auth/README.md": {
-      "sha256": "f472b794a243ab42503d9160d3f563398fc7b262d5a96b4b3eb4d54779781be2",
+      "sha256": "24b08789134aae168503ca8f18da47f97cebc66153965dd8184c5d0de42454a6",
       "executable": false
     },
     "docs/base/operator-auth/SCHEDULED-POLICY.md": {
@@ -3848,7 +3848,7 @@
       "executable": false
     },
     "src/modules/import-kit/src/door/ADOPTING.md": {
-      "sha256": "8168ed815831985cf7ccf374094669ecf5934b522d997c538bde568c268c4709",
+      "sha256": "94ca2774de81e9f94c9c6fd02169030f09ea1c3fea61d24a9b164f076677a26a",
       "executable": false
     },
     "src/modules/import-kit/src/door/archive.ts": {
