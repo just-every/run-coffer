@@ -1,3 +1,4 @@
+import { pledgePaymentLink } from './pledge-checkout'
 import { renderPledgeReminder } from './pledge-templates'
 import { adjustPledge, linkPledgePlan } from './pledge-adjustments'
 import type { Bindings } from '../auth.server'
@@ -128,6 +129,8 @@ async function remind(c:Context,p:Row):Promise<Row>{
    await commit(c,[sql("UPDATE cf_pledge_installments SET reminder_merge_blanks=?,reminder_merge_checked_at=?,reminder_note=? WHERE id=? AND reminder_status='pending'",rendered.merge_blanks,c.now,note,row.id)])
    held.push({donorId:row.donor_id,installmentId:row.id,fields:blanks,reason:note});continue
   }
+  const link=await pledgePaymentLink(c.env,row.id,new Date(c.now))
+  if(link)rendered.body+='\n\nPay this installment: '+link
   const attempt=newId()
   await commit(c,[sql(`UPDATE cf_pledge_installments SET reminder_status='sending',attempt_id=?,attempt_started_at=?,recipient_email=?,recipient_contact_id=?,recipient_contact_version=?,reminder_subject=?,reminder_body=?,reminder_template_version=?,reminder_merge_blanks='[]',reminder_merge_checked_at=?
    WHERE id=? AND reminder_status='pending' AND EXISTS(SELECT 1 FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id

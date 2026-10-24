@@ -1,3 +1,4 @@
+import { completePledgeCheckout } from '../pledge-checkout'
 import { checkoutFailure, invoiceProtection, radarFailure } from './protection'
 import { fail, one } from '../db'
 import { observeRecovery } from '../agent/recovery'
@@ -56,6 +57,7 @@ export async function webhook(env: GivingEnv, request: Request, raw: string) {
  if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
   const saved = await one({ db: env.DB }, 'SELECT id FROM cf_giving_intents WHERE session_id=?', object.id)
   if (saved) await completed(env, object.id)
+  else await completePledgeCheckout(env,object.id)
  } else if(event.type==='checkout.session.async_payment_failed') {
   await checkoutFailure(env,object.id)
  } else if (['invoice.paid', 'invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.updated'].includes(event.type)) {

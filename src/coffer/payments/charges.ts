@@ -1,3 +1,4 @@
+import { pledgeSessionForCharge } from '../pledge-checkout'
 import { runGiftRules } from '../gift-rules'
 import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
 import { email, fail, one, sql, type Context } from '../db'
@@ -15,6 +16,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
  const charge = await stripe(env, '/charges/' + encodeURIComponent(chargeId))
  if (charge.status !== 'succeeded' || !charge.paid) return null
  if (charge.currency !== 'usd') fail('currency', 'Only USD payments can be reconciled.', 409)
+ if(charge.metadata?.coffer_pledge_checkout)await pledgeSessionForCharge(env,charge.metadata.coffer_pledge_checkout)
  const gross = cents(charge.amount), customerId = stripeId(charge.customer), pi = stripeId(charge.payment_intent)
  const refs = [charge.id, pi, stripeId(charge.invoice)].filter(Boolean)
  const savedIntent = customerId ? await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.customer_id=? ORDER BY i.created_at DESC LIMIT 1', customerId) : null

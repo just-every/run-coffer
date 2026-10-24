@@ -247,7 +247,7 @@ test('STEW-004: scheduled follow-up is a non-ask sent once per unpaid installmen
   assert.equal((await history()).solicitation.type,'stop')
   assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='pledge:'+pledge.installments[0].id).length,1)
   if(process.env.COFFER_FOLLOWUP_BROWSER){const {withBrowserWorker}=await import('./browser-worker.mjs');const {mkdir}=await import('node:fs/promises');await mkdir(process.env.COFFER_FOLLOWUP_BROWSER,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/donors/'+d.id);await page.locator('#pledges').getByText('Follow-up submitted',{exact:true}).waitFor();await page.locator('#pledges').scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.locator('#pledges').screenshot({path:process.env.COFFER_FOLLOWUP_BROWSER+'/STEW-004-followup-'+width+'.png'})}await page.close()})}
-  await h.command('consent.record',{donorId:d.id,channel:'email',status:'withdrawn',method:'donor request',evidence:'synthetic-coffer-1603',capturedOn:'2025-01-02'})
+  await h.command('consent.record',{donorId:d.id,channel:'email',status:'withdrawn',method:'email reply',evidence:'synthetic-coffer-1603',capturedOn:'2025-01-02'})
   await tick('2030-06-10T13:00:00Z');assert.equal(messages.length,1)
   await h.command('consent.record',{donorId:d.id,channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-1604',capturedOn:'2025-01-03'})
   await tick('2030-06-11T13:00:00Z');assert.equal(messages.length,2)
@@ -256,4 +256,56 @@ test('STEW-004: scheduled follow-up is a non-ask sent once per unpaid installmen
   const saved=await archive(h)
   await run(async fresh=>{await restore(fresh,saved);assert.equal((await fresh.get('/api/coffer/donors/'+d.id)).pledges[0].installments[0].followup_status,'submitted');await fresh.command('donor.erase',{donorId:d.id,confirm:'ERASE'});assert.doesNotMatch(JSON.stringify(await archive(fresh)),/synthetic\.restricted\.followup@example\.org|existing commitment/)})
  },{triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1605',MAIL_FROM:'pledges@example.test'},outbound:async request=>{assert.equal(new URL(request.url).hostname,'api.sendgrid.com');messages.push(await request.json());return new Response(null,{status:202,headers:messages.length===1?{'x-message-id':'synthetic-coffer-1606'}:{}})}})
+})
+
+test('STEW-004: quarterly pledge reminder and printed invoice pay exactly the unpaid installment through hosted checkout',async()=>{
+ const {createHmac}=await import('node:crypto'),messages=[]
+ const secret='synthetic-coffer-1701',edge={sessions:[],payment:null}
+ await run(async h=>{
+  await reviewed(h)
+  const d=await donor(h,'Synthetic Quarterly Checkout')
+  await h.command('consent.record',{donorId:d.id,channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-1702',capturedOn:'2025-01-01'})
+  await h.command('solicitation.set',{donorId:d.id,version:0,type:'stop',startsOn:'2025-01-01',source:'person',sourceRef:'synthetic-coffer-1703'})
+  const dates=[0,1,2,3].map(n=>{const d=new Date();d.setUTCDate(d.getUTCDate()+7);d.setUTCMonth(d.getUTCMonth()+n*3);return d.toISOString().slice(0,10)})
+  const pledge=await h.command('pledge.create',{donorId:d.id,amount:'400',pledgedOn:'2025-01-01',fund:'Library',installments:dates.map(dueOn=>({dueOn,amount:'100'}))})
+  await h.command('gift.record',{donorId:d.id,amount:'25',receivedOn:'2025-08-10',method:'check',goods:'none',fund:'Library',installmentId:pledge.installments[0].id})
+  assert.equal((await h.command('pledge.remind',{pledgeId:pledge.id})).submitted,1)
+  const reminder=messages.find(m=>m.content[0].value.includes('Pay this installment: '));assert.ok(reminder)
+  const payUrl=new URL(reminder.content[0].value.match(/Pay this installment: (https:\/\/\S+)/)[1]),payPath=payUrl.pathname+payUrl.search
+  const invoice=await (await h.request('/app/pledges/'+pledge.id+'/invoice')).text();assert.ok(invoice.includes(payUrl.pathname));assert.match(invoice,/Pay installment due/)
+  await h.request(payUrl.pathname,{as:''}).then(async r=>assert.equal(r.status,404,await r.text()))
+  const confirmation=await h.request(payPath,{as:''});assert.equal(confirmation.status,200);assert.match(await confirmation.text(),/Pay \$75\.00 with Stripe/)
+  const start=()=>h.request(payPath,{method:'POST',as:''})
+  const [first,replay]=await Promise.all([start(),start()]);assert.equal(first.status,303,await first.text());assert.equal(replay.status,303,await replay.text())
+  assert.equal(first.headers.get('location'),'https://checkout.stripe.com/c/pay/synthetic-coffer-1704');assert.equal(edge.sessions.length,1)
+  const session=edge.sessions[0];assert.equal(session.amount_total,7500);assert.equal(session.mode,'payment')
+  assert.equal((await h.get('/api/coffer/donors/'+d.id)).pledges[0].installments[0].remaining_cents,7500,'Unpaid provider sessions never create gifts')
+  if(process.env.COFFER_PLEDGE_PAY_BROWSER){const {withBrowserWorker}=await import('./browser-worker.mjs');const {mkdir}=await import('node:fs/promises');await mkdir(process.env.COFFER_PLEDGE_PAY_BROWSER,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/pledges/'+pledge.id+'/invoice');await page.getByRole('link',{name:/Pay installment due/}).first().waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:process.env.COFFER_PLEDGE_PAY_BROWSER+'/STEW-004-pay-invoice-'+width+'.png',fullPage:true});await page.getByRole('link',{name:/Pay installment due/}).first().click();await page.getByRole('button',{name:'Pay $75.00 with Stripe',exact:true}).waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:process.env.COFFER_PLEDGE_PAY_BROWSER+'/STEW-004-pay-confirm-'+width+'.png',fullPage:true})}await page.close()})}
+  session.status='complete';session.payment_status='paid';session.payment_intent='pi_synthetic_coffer_1705'
+  edge.payment={id:session.payment_intent,status:'succeeded',currency:'usd',amount_received:7500,created:Math.floor(Date.now()/1000),metadata:{coffer_pledge_checkout:session.metadata.coffer_pledge_checkout}}
+  for(const id of ['synthetic-coffer-1706','synthetic-coffer-1707']){
+   const raw=JSON.stringify({id,type:'checkout.session.completed',data:{object:{id:session.id}}}),t=Math.floor(Date.now()/1000),sig=createHmac('sha256',secret).update(`${t}.${raw}`).digest('hex')
+   const response=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw,headers:{'stripe-signature':`t=${t},v1=${sig}`}});assert.equal(response.status,200,await response.text())
+  }
+  const after=await h.get('/api/coffer/donors/'+d.id)
+  assert.equal(after.pledges[0].installments[0].remaining_cents,0);assert.equal(after.totals.lifetimeCents,10000)
+  assert.equal(after.gifts.filter(g=>g.source==='stripe').length,1)
+  assert.equal(after.pledges[0].installments[1].remaining_cents,10000)
+  assert.equal((await start()).status,409)
+  assert.match(await (await h.request(payPath,{as:''})).text(),/No payment is requested/)
+  const thanks=await h.request('/giving/pledge/thanks?session_id='+session.id,{as:''});assert.equal(thanks.status,200)
+  assert.equal((await h.get('/api/coffer/donors/'+d.id)).totals.lifetimeCents,10000)
+ },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1708',MAIL_FROM:'pledges@example.test',STRIPE_SECRET_KEY:'synthetic-coffer-1709',STRIPE_WEBHOOK_SECRET:secret},outbound:async request=>{
+  const u=new URL(request.url)
+  if(u.hostname==='api.sendgrid.com'){messages.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-1710'}})}
+  assert.equal(u.hostname,'api.stripe.com')
+  if(u.pathname==='/v1/checkout/sessions'&&request.method==='POST'){
+   const p=new URLSearchParams(await request.text()),checkout=p.get('metadata[coffer_pledge_checkout]')
+   let s=edge.sessions.find(s=>s.metadata.coffer_pledge_checkout===checkout)
+   if(!s){s={id:'cs_synthetic_coffer_1711',mode:p.get('mode'),status:'open',payment_status:'unpaid',currency:'usd',amount_total:Number(p.get('line_items[0][price_data][unit_amount]')),metadata:{coffer_pledge_checkout:checkout},url:'https://checkout.stripe.com/c/pay/synthetic-coffer-1704'};edge.sessions.push(s)}return Response.json(s)
+  }
+  if(u.pathname.startsWith('/v1/checkout/sessions/'))return Response.json(edge.sessions[0])
+  if(u.pathname.startsWith('/v1/payment_intents/'))return Response.json(edge.payment)
+  assert.fail('Unexpected pledge edge '+u.pathname)
+ }})
 })

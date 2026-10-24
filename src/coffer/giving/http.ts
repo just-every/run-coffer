@@ -1,3 +1,5 @@
+import { startPledgeCheckout, validatePledgeLink, completePledgeCheckout } from '../pledge-checkout'
+import { usd } from '../money'
 import { textLink } from './text'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { CofferError, fail } from '../db'
@@ -35,6 +37,20 @@ export async function givingResponse(request: Request, original: Bindings): Prom
    return Response.json({ received: true }, { headers })
   }
   if (!['GET', 'HEAD'].includes(request.method) && request.headers.get('origin') !== env.AUTH_ORIGIN) fail('invalid_origin', 'This request did not come from Coffer.', 403)
+  if(path==='/giving/pledge/thanks'&&request.method==='GET'){
+   const result=await completePledgeCheckout(env,url.searchParams.get('session_id')??'')
+   if(!result)fail('not_found','That pledge payment is unavailable.',404)
+   return page(result.paid?'Pledge payment recorded':'Payment is still processing',result.paid?'<p>Thank you. Your payment is recorded against your pledge installment.</p>':'<p>Stripe has not confirmed payment. Check again shortly.</p>')
+  }
+  const pledge=path.match(/^\/giving\/pledge\/([^/]+)$/)
+  if(pledge){
+   const id=decodeURIComponent(pledge[1]),i=await validatePledgeLink(env,id,url)
+   if(request.method==='POST')return givingRedirect(await startPledgeCheckout(env,id,url))
+   if(request.method!=='GET')fail('method_not_allowed','Use the payment button.',405)
+   const remaining=i.amount_cents-i.paid_cents
+   const response=await page('Pledge installment',remaining>0?`<p>${e(usd(remaining))} remains on the installment due ${e(i.due_on)}.</p><form method="post" action="${e(url.pathname+url.search)}"><button>Pay ${e(usd(remaining))} with Stripe</button></form><p>Card details go directly to Stripe.</p>`:'<p>This installment has no unpaid balance. No payment is requested.</p>')
+   response.headers.set('referrer-policy','no-referrer');return response
+  }
   const portal = await portalResponse(request, env); if (portal) return portal
   const media = path.match(/^\/give\/([a-z0-9-]+)\/media\/(image|video)$/)
   if (media && ['GET', 'HEAD'].includes(request.method)) return await campaignMediaResponse(request, { db: env.DB, env }, media[1], media[2])

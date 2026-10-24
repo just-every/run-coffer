@@ -25,6 +25,7 @@ export function printPledgeInvoice(invoice: Awaited<ReturnType<typeof pledgeInvo
  <p>Fund: ${e(p.fund)}<br>Pledged on ${e(longDay(p.pledged_on))}<br>Reference: ${e(p.id)}</p>
  <dl><dt>Original commitment</dt><dd>${money(p.amount_cents)}</dd><dt>Payments received</dt><dd>${money(p.paid_cents)}</dd><dt>Reductions / write-offs</dt><dd>${money(p.reduced_cents)}</dd><dt class="total">Remaining pledge balance</dt><dd class="total">${money(p.remaining_cents)}</dd></dl>
  ${rows ? `<h2>Unpaid installments</h2><table><thead><tr><th scope="col">Due date</th><th scope="col">After reductions</th><th scope="col">Paid</th><th scope="col">Remaining</th></tr></thead><tbody>${rows}</tbody></table>` : p.remaining_cents > 0 ? '<p>This pledge has no dated installment schedule. Please contact the organization to arrange payment.</p>' : ''}
+ ${unpaid.filter((i:any)=>invoice.paymentLinks[i.id]).map((i:any)=>`<p><a href="${e(invoice.paymentLinks[i.id])}">Pay installment due ${e(longDay(i.due_on))} · ${money(i.remaining_cents)}</a></p>`).join('')}
  <p>This pledge balance is not a tax receipt or a record of a new gift. If you have already sent payment, please contact us so we can match it to your pledge.</p></main></body></html>`, { headers: {
   'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'strict-origin', 'x-content-type-options': 'nosniff',
   'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",

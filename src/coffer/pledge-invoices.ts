@@ -1,3 +1,4 @@
+import { pledgePaymentLink } from './pledge-checkout'
 import { fail, id, one, today, type Context } from './db'
 import { letterRecipient } from './organizations'
 import { pledgeHistory } from './pledges'
@@ -11,5 +12,6 @@ export async function pledgeInvoice(c: Context, pledgeId: string) {
  if (!pledge) fail('NOT_FOUND', 'That pledge does not exist on a current donor record.', 404)
  const [s, donor, pledges] = await Promise.all([settings(c), one(c, 'SELECT * FROM cf_donors WHERE id=?', pledge.donor_id), pledgeHistory(c, pledge.donor_id)])
  const current = pledges.find(p => p.id === pledgeId)!
- return { organization: s.organisation, day: today(s.timezone, new Date(c.now)), recipient: await letterRecipient(c, donor!), pledge: current }
+ const paymentLinks=Object.fromEntries(await Promise.all(current.installments.filter((i:any)=>i.remaining_cents>0).map(async(i:any)=>[i.id,await pledgePaymentLink(c.env,i.id,new Date(c.now))])))
+ return { paymentLinks, organization: s.organisation, day: today(s.timezone, new Date(c.now)), recipient: await letterRecipient(c, donor!), pledge: current }
 }
