@@ -5,6 +5,7 @@ import { managed, stripe, type GivingEnv } from './stripe'
 
 /** Every Stripe event Coffer acts on: online giving, monthly plans, payments and payouts. */
 export const WEBHOOK_EVENTS: [string, string[]][] = [
+ ['Bank payment reconciliation', ['payment_intent.processing', 'payment_intent.succeeded', 'payment_intent.canceled']],
  ['Checkout', ['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.async_payment_failed']],
  ['Invoices (monthly gifts)', ['invoice.paid', 'invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.updated']],
  ['Subscriptions (monthly gifts)', ['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted']],

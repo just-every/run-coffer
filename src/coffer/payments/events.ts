@@ -1,3 +1,4 @@
+import { observeBankPayment } from './pending-bank'
 import { reconcileRefund } from './refunds'
 import { recordDispute } from './disputes'
 import { stripe, type GivingEnv } from '../giving/stripe'
@@ -8,6 +9,7 @@ import { stripeId, stripePages } from './stripe-data'
 
 export async function paymentEvent(env: GivingEnv, event: any) {
  const id = event.data.object.id, type = event.type
+ if (['payment_intent.processing','payment_intent.succeeded','payment_intent.canceled'].includes(type)) await observeBankPayment(env,id)
  if (['charge.succeeded', 'charge.updated', 'charge.refunded'].includes(type)) {
   const charge = await stripe(env, '/charges/' + encodeURIComponent(id))
   if (charge.status !== 'succeeded' || !charge.paid) return

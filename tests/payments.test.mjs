@@ -193,3 +193,60 @@ test('DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, st
  assert.equal(providerCalls,callsBeforeManaged)
  await paymentAdjustmentsJourney()
 })
+
+test('FIN-005: a month of pending ACH, late refunds, offline batches and posted payouts accounts for every cent',async()=>{
+ const {donor,reviewed}=await import('./harness.mjs')
+ const t=Math.floor(Date.now()/1000),month=new Date(t*1000).toISOString().slice(0,7),from=month+'-01',to=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10)
+ const c=charge('ch_reconciliation',10000,'Reading','synthetic-coffer-1501@example.test',300)
+ c.created=t
+ const bank={id:'pi_synthetic_coffer_1502',status:'processing',amount:4200,currency:'usd',created:t,payment_method_types:['us_bank_account'],metadata:{fund:'Reading'}}
+ const paid={id:'po_reconciliation',status:'paid',arrival_date:t,amount:9700,currency:'usd',automatic:true,reconciliation_status:'completed'}
+ const tx={id:'txn_reconciliation',source:c.id,type:'charge',amount:10000,fee:300,net:9700,currency:'usd',created:t}
+ c.balance_transaction=tx.id
+ const re={id:'re_reconciliation',status:'succeeded',charge:c.id,balance_transaction:'txn_reconciliation_refund'}
+ const rt={id:re.balance_transaction,source:re,type:'refund',amount:-2500,fee:0,net:-2500,currency:'usd',created:t}
+ let approved=false,proposal,hash
+ await run(async h=>{
+  await reviewed(h)
+  assert.equal((await deliver(h,'synthetic-coffer-1503','payment_intent.processing',bank.id,{bad:true})).status,400)
+  const path='/api/coffer/payments/reconciliation?from='+from+'&to='+to
+  assert.deepEqual((await h.get(path)).pending,[])
+  for(const eventId of ['synthetic-coffer-1504','synthetic-coffer-1505'])assert.equal((await deliver(h,eventId,'payment_intent.processing',bank.id)).status,200)
+  assert.equal((await h.get('/api/coffer/donors')).total,0,'Processing ACH never fabricates a received gift')
+  assert.equal((await deliver(h,'synthetic-coffer-1506','charge.succeeded',c.id)).status,200)
+  assert.equal((await deliver(h,'synthetic-coffer-1507','payout.paid',paid.id)).status,200)
+  const csv=await (await h.request('/api/coffer/payments/'+paid.id+'/evidence.csv')).text();hash=createHash('sha256').update(csv).digest('hex')
+  assert.equal((await h.api('/api/coffer/payments/'+paid.id+'/post',{documentId:'synthetic-coffer-1508'})).state,'proposed')
+  approved=true;assert.equal((await h.api('/api/coffer/payments/'+paid.id+'/post',{})).state,'posted')
+  assert.equal((await deliver(h,'synthetic-coffer-1509','refund.created',re.id)).status,200)
+  const d=await donor(h,'Synthetic Reconciliation Batch')
+  const batch=await h.command('giftBatch.create',{name:'Synthetic check deposit',receivedOn:from,fund:'Meals',method:'check',expected:'50'})
+  await h.command('giftBatch.add',{batchId:batch.id,version:1,donorId:d.id,amount:'50',reference:'synthetic-coffer-1510',goods:'none'})
+  await h.command('giftBatch.close',{batchId:batch.id,version:2})
+  const report=await h.get(path)
+  assert.deepEqual(report.funds,[{fund:'Meals',ledger_cents:5000,processor_cents:0,deposited_cents:5000,accounting_cents:0,pending_ach_cents:0},{fund:'Reading',ledger_cents:7500,processor_cents:7500,deposited_cents:9700,accounting_cents:9700,pending_ach_cents:4200}])
+  for(const f of report.funds)for(const [stage,left,right] of [['ledger_to_processor','ledger_cents','processor_cents'],['processor_to_deposit','processor_cents','deposited_cents'],['deposit_to_accounting','deposited_cents','accounting_cents']])assert.equal(report.differences.filter(d=>d.fund===f.fund&&d.stage===stage).reduce((n,d)=>n+d.amount_cents,0),f[left]-f[right])
+  assert.ok(report.differences.some(d=>d.sourceId===rt.id&&d.amount_cents===-2500&&d.explanation.startsWith('Refund after payout')))
+  assert.ok(report.differences.some(d=>d.sourceId===batch.id&&d.amount_cents===5000&&d.explanation.startsWith('Unposted')))
+  assert.equal(report.pending.length,1)
+  await h.get(path,{as:'',status:401})
+  const member=await h.person('synthetic-coffer-1511@example.test');await h.get(path,{as:member.cookie,status:403})
+  await h.get('/api/coffer/payments/reconciliation?from=2026-02-30&to=2026-03-01',{status:400})
+  if(process.env.COFFER_RECON_BROWSER){const {withBrowserWorker}=await import('./browser-worker.mjs');const {mkdir}=await import('node:fs/promises');await mkdir(process.env.COFFER_RECON_BROWSER,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+path.replace('/api/coffer/payments','/app/payouts'));await page.getByRole('heading',{name:'By fund',exact:true}).waitFor();assert.match(await page.locator('main').innerText(),/Pending ACH/);assert.match(await page.locator('main').innerText(),/Refund after payout/);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:process.env.COFFER_RECON_BROWSER+'/FIN-005-'+width+'.png',fullPage:true})}await page.close()})}
+  bank.status='succeeded';assert.equal((await deliver(h,'synthetic-coffer-1512','payment_intent.succeeded',bank.id)).status,200)
+  assert.equal((await h.get(path)).pending.length,0)
+  const empty=await h.get('/api/coffer/payments/reconciliation?from=2000-01-01&to=2000-01-31');assert.deepEqual(empty.funds,[])
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1513',STRIPE_WEBHOOK_SECRET:secret,PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+Buffer.from('synthetic-coffer-1514').toString('hex'),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Reading:'reading'})},outbound:async request=>{
+  const u=new URL(request.url)
+  if(u.hostname==='api.stripe.com'){
+   const objects=[c,bank,paid,tx,re,rt],object=objects.find(o=>u.pathname.endsWith('/'+o.id));if(object)return Response.json(object)
+   if(u.pathname==='/v1/balance_transactions')return Response.json({data:[tx],has_more:false})
+  }
+  if(u.hostname==='pantry.example.test'){
+   if(u.pathname==='/api/pantry/agent/context')return Response.json({accounts:['bank','fees','reading'].map(id=>({id,type:id==='bank'?'asset':id==='fees'?'expense':'income',subtype:id==='bank'?'bank':'other',active:1,revision:'synthetic-coffer-1515'})),documents:[{id:'synthetic-coffer-1508',sha256:hash}],proposals:proposal?[proposal]:[]})
+   if(request.method==='POST'){proposal={...await request.json(),id:'synthetic-coffer-1516',status:'proposed'};return Response.json(proposal)}
+   return Response.json({...proposal,status:approved?'approved':'proposed',result_kind:approved?'journal':null,result_id:approved?'synthetic-coffer-1517':null})
+  }
+  assert.fail('Unexpected reconciliation edge '+u.pathname)
+ }})
+})

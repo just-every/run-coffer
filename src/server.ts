@@ -1,3 +1,4 @@
+import { runPledgeFollowups } from './coffer/pledge-followups'
 import { prepareJanuaryStatements } from './coffer/annual-scheduler'
 import { advanceNcoa } from './coffer/addresses/scheduler'
 import { advanceMeetingBriefs } from './coffer/meeting-briefs'
@@ -46,6 +47,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     execution.waitUntil(advancePledgeTasks(runtimeBindings(env),tick))
     if(tick.getUTCHours()===13 && tick.getUTCMinutes()===0) {
       execution.waitUntil(runPledgeReminders(runtimeBindings(env),tick))
+      execution.waitUntil(runPledgeFollowups(runtimeBindings(env),tick))
       execution.waitUntil(runAgentJobs(runtimeBindings(env),tick))
     }
   },

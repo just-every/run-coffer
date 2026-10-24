@@ -1,3 +1,5 @@
+import { reconciliation } from './reconciliation'
+import { reconciliationPage } from './reconciliation-ui'
 import { adjustmentState, requestRefund } from './refunds'
 import { adjustmentsPage } from './adjustments-ui'
 import { feeReport } from './fee-report'
@@ -40,6 +42,10 @@ export async function paymentsResponse(request: Request, c: Context, env: Paymen
   const payoutId = new URL(request.url).searchParams.get('payoutId') || null
   const report = await feeReport(c, payoutId)
   return api ? json(report) : page('Processing fees', feeReportPage(report, payoutId), c.actor, 200, '/app/payouts')
+ }
+ if (suffix === '/reconciliation' && ['GET','HEAD'].includes(request.method)) {
+  const report=await reconciliation(c,new URL(request.url))
+  return api ? json(report) : page('Reconciliation',reconciliationPage(report),c.actor,200,'/app/payouts')
  }
  if (suffix === '/journal') {
   if (!['GET', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'Use GET to download a journal.', 405)

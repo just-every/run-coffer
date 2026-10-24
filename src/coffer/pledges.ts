@@ -92,7 +92,7 @@ export async function pledgeHistory(c: { db: D1Database }, donorId: string): Pro
   all(c, `SELECT p.*,COALESCE((SELECT SUM(g.amount_cents - CASE WHEN g.kind='reversal' THEN -1 ELSE 1 END *
    COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0))
    FROM cf_monetary_contributions g WHERE g.pledge_id=p.id),0) AS legacy_paid_cents FROM cf_pledge_totals p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
-  all(c, 'SELECT i.* FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=? ORDER BY i.position', donorId),
+  all(c, 'SELECT i.*,f.status AS followup_status FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id LEFT JOIN cf_pledge_followups f ON f.installment_id=i.id WHERE p.donor_id=? ORDER BY i.position', donorId),
   all(c,'SELECT a.* FROM cf_pledge_adjustments a JOIN cf_pledges p ON p.id=a.pledge_id WHERE p.donor_id=? ORDER BY a.created_at,a.id',donorId),
   all(c,'SELECT l.* FROM cf_pledge_plans l JOIN cf_pledges p ON p.id=l.pledge_id WHERE p.donor_id=?',donorId),
   all(c,'SELECT a.*,i.pledge_id FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=? ORDER BY a.created_at,a.id',donorId),

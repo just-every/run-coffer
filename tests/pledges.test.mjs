@@ -228,3 +228,32 @@ test('RCPT-010 / DONOR-013: reviewed pledge templates hold blanks, freeze litera
   await run(async fresh=>{await restore(fresh,saved);assert.equal((await fresh.get('/api/coffer/pledge-template')).version,3);const copy=(await fresh.get('/api/coffer/donors/'+d.id)).pledges.find(p=>p.id===pledge.id).installments[0];assert.equal(copy.reminder_body,installment.reminder_body);assert.equal(copy.reminder_template_version,2);await fresh.command('donor.erase',{donorId:d.id,confirm:'ERASE'});assert.doesNotMatch(JSON.stringify(await archive(fresh)),/synthetic-coffer-1404|synthetic-coffer-1405|Thank you \{\{literal\}\}|After preparation/)})
  },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1401',MAIL_FROM:'reminders@example.test'},outbound:async request=>{const u=new URL(request.url);assert.equal(u.origin,'https://api.sendgrid.com');assert.equal(u.pathname,'/v3/mail/send');messages.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-1403-'+messages.length}})}})
 })
+
+test('STEW-004: scheduled follow-up is a non-ask sent once per unpaid installment under current email permission',async()=>{
+ const messages=[]
+ await run(async h=>{
+  await reviewed(h)
+  const d=await donor(h,'Synthetic Restricted Followup')
+  await h.command('consent.record',{donorId:d.id,channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-1601',capturedOn:'2025-01-01'})
+  await h.command('solicitation.set',{donorId:d.id,version:0,type:'stop',startsOn:'2025-01-01',source:'person',sourceRef:'synthetic-coffer-1602'})
+  const pledge=await h.command('pledge.create',{donorId:d.id,amount:'400',pledgedOn:'2025-01-01',fund:'Library',installments:['2030-03-09','2030-06-09','2030-09-09','2030-12-09'].map(dueOn=>({dueOn,amount:'100'}))})
+  const tick=async at=>{const r=await h.mf.dispatchFetch(h.origin+'/cdn-cgi/local/scheduled?time='+Date.parse(at)+'&format=json');assert.equal(r.status,200,await r.text())}
+  await tick('2030-03-10T04:59:00Z');assert.equal(messages.length,0)
+  await tick('2030-03-10T05:00:00Z');assert.equal(messages.length,1)
+  assert.match(messages[0].content[0].value,/\$100\.00 remaining/)
+  await tick('2030-03-11T13:00:00Z');assert.equal(messages.length,1)
+  const history=()=>h.get('/api/coffer/donors/'+d.id)
+  assert.equal((await history()).pledges[0].installments[0].followup_status,'submitted')
+  assert.equal((await history()).solicitation.type,'stop')
+  assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='pledge:'+pledge.installments[0].id).length,1)
+  if(process.env.COFFER_FOLLOWUP_BROWSER){const {withBrowserWorker}=await import('./browser-worker.mjs');const {mkdir}=await import('node:fs/promises');await mkdir(process.env.COFFER_FOLLOWUP_BROWSER,{recursive:true});await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/donors/'+d.id);await page.locator('#pledges').getByText('Follow-up submitted',{exact:true}).waitFor();await page.locator('#pledges').scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.locator('#pledges').screenshot({path:process.env.COFFER_FOLLOWUP_BROWSER+'/STEW-004-followup-'+width+'.png'})}await page.close()})}
+  await h.command('consent.record',{donorId:d.id,channel:'email',status:'withdrawn',method:'donor request',evidence:'synthetic-coffer-1603',capturedOn:'2025-01-02'})
+  await tick('2030-06-10T13:00:00Z');assert.equal(messages.length,1)
+  await h.command('consent.record',{donorId:d.id,channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-1604',capturedOn:'2025-01-03'})
+  await tick('2030-06-11T13:00:00Z');assert.equal(messages.length,2)
+  assert.equal((await history()).pledges[0].installments[1].followup_status,'uncertain')
+  await tick('2030-06-12T13:00:00Z');assert.equal(messages.length,2,'Uncertain submissions are never automatically repeated')
+  const saved=await archive(h)
+  await run(async fresh=>{await restore(fresh,saved);assert.equal((await fresh.get('/api/coffer/donors/'+d.id)).pledges[0].installments[0].followup_status,'submitted');await fresh.command('donor.erase',{donorId:d.id,confirm:'ERASE'});assert.doesNotMatch(JSON.stringify(await archive(fresh)),/synthetic\.restricted\.followup@example\.org|existing commitment/)})
+ },{triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1605',MAIL_FROM:'pledges@example.test'},outbound:async request=>{assert.equal(new URL(request.url).hostname,'api.sendgrid.com');messages.push(await request.json());return new Response(null,{status:202,headers:messages.length===1?{'x-message-id':'synthetic-coffer-1606'}:{}})}})
+})
