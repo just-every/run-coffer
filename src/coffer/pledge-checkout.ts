@@ -47,7 +47,7 @@ export async function startPledgeCheckout(env: GivingEnv,id:string,url:URL) {
  }
  if(!saved||saved.amount_cents!==amount)fail('balance_changed','The installment balance changed. Reopen the link.',409)
  const session=saved!.session_id?await stripe(env,'/checkout/sessions/'+encodeURIComponent(saved!.session_id)):await stripe(env,'/checkout/sessions',{
-  mode:'payment','line_items[0][price_data][currency]':'usd','line_items[0][price_data][unit_amount]':amount,'line_items[0][price_data][product_data][name]':'Pledge installment · '+i.fund,'line_items[0][quantity]':1,
+  mode:'payment','allowed_payment_method_types[0]':'card','allowed_payment_method_types[1]':'link','line_items[0][price_data][currency]':'usd','line_items[0][price_data][unit_amount]':amount,'line_items[0][price_data][product_data][name]':'Pledge installment · '+i.fund,'line_items[0][quantity]':1,
   'metadata[coffer_pledge_checkout]':saved!.id,'payment_intent_data[metadata][coffer_pledge_checkout]':saved!.id,
   success_url:env.AUTH_ORIGIN+'/giving/pledge/thanks?session_id={CHECKOUT_SESSION_ID}',cancel_url:url.href,
  },'pledge-checkout-'+saved!.id)
