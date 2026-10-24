@@ -108,7 +108,7 @@ export async function recoveryNoticesJourney() {
   await action({action:'complete',stepId:phone.id,version:phone.version,evidence:'Spoke to donor; they will use their private portal.'},{headers:{'x-test-now':at(6)}})
   // A changed amount and an expiring current method both use the same guarded
   // approval path. Neither changes the amount or stores card details.
-  ana.paid=false;ana.status='past_due';ana.invoice='in_notice_ana_revised';ana.amount=3500;ana.method='synthetic-coffer-3005';ana.expiryOffset=1;ana.expiryBase=Date.parse(at(6))
+  ana.paid=false;ana.status='past_due';ana.invoice='in_notice_ana_revised';ana.amount=3500;ana.method='synthetic-coffer-3005';ana.expiryOffset=1;ana.expiryBase=Date.parse(localDay(at(6)))
   await edge.fail(h,ana,'evt_notice_amount_changed',at(6));await runAt(6)
   data=await state()
   assert.equal(data.steps.find(n=>n.invoice_id===ana.invoice).state,'awaiting_approval')
@@ -142,7 +142,7 @@ export async function recoveryNoticesJourney() {
   // A standard current-card warning uses the configured automatic path too.
   // The prior phone contact still enforces the same donor-wide interval.
   await action({action:'permission',donorId:ben.donor.id,version:2,enabled:true,channel:'email',intervalDays:2,maxNotices:3,sourceOn:day,evidence:'Donor explicitly reconfirmed recovery email as the permitted channel.'})
-  ben.method='synthetic-coffer-3007';ben.expiryOffset=1;ben.expiryBase=Date.parse(at(6));ben.status='active';ben.paid=true;ben.paidAt=Date.parse(at(6.5))
+  ben.method='synthetic-coffer-3007';ben.expiryOffset=1;ben.expiryBase=Date.parse(localDay(at(8)));ben.status='active';ben.paid=true;ben.paidAt=Date.parse(at(6.5))
   await edge.fail(h,ben,'evt_notice_ben_paid',at(6.5),'invoice.paid')
   const beforeStandardExpiry=portalMessages().length
   await runAt(6.5);assert.equal(portalMessages().length,beforeStandardExpiry)
