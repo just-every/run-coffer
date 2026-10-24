@@ -90,7 +90,7 @@ To honor an erasure request, the owner opens the donor, types `ERASE` and presse
 
 Local use needs no Cloudflare account. To host Coffer you need your own Cloudflare account with a workers.dev subdomain and an account API token with **Workers Scripts: Edit** and **D1: Edit**, plus a SendGrid account for mail. Coffer declares one D1 database; everything it creates belongs to your account.
 
-Hosted mail uses three Worker secrets: `MAIL_PROVIDER=sendgrid`, `MAIL_API_KEY` (a SendGrid API key with Mail Send permission) and `MAIL_FROM` (a sender address you verified in SendGrid). Receipts and statements only go through SendGrid. Stop the local app first (`rer deploy` refuses while `rer dev` holds the folder), then give the Cloudflare and mail settings through your environment (never in source or command arguments) and deploy:
+Hosted mail uses three Worker settings. Set `MAIL_PROVIDER` to `sendgrid`, and supply `MAIL_API_KEY` (a SendGrid API key with Mail Send permission) and `MAIL_FROM` (a sender address you verified in SendGrid). Receipts and statements only go through SendGrid. Stop the local app first (`rer deploy` refuses while `rer dev` holds the folder), then give the Cloudflare and mail settings through your environment (never in source or command arguments) and deploy:
 
 ```sh
 rer dev --stop

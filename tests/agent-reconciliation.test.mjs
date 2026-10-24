@@ -63,12 +63,12 @@ test('HTTP reconciliation corrects refunded amount and fund, syncs a missing cha
   const final=(await h.api('/api/coffer/agent/reconcile/run',{})).issues.find(i=>i.kind==='contribution'&&i.state==='open'&&i.source_id===saved.id)
   assert.deepEqual(final.proposed.changes,issue.proposed.changes,'Undo restores the previous fund allocation as well as its amount')
   assert.equal(final.evidence.entries.length,4,'Corrections and their opposites remain as immutable lines')
- },{bindings:{STRIPE_SECRET_KEY:'sk_test_reconciliation_edge'},outbound})
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1501'},outbound})
  const beforeManaged=calls.length
  await run(async h=>{
   const result=await h.api('/api/coffer/agent/reconcile/run',{})
   assert.equal(result.unavailable.length,1);assert.match(result.unavailable[0],/not available yet on RER Managed/)
- },{bindings:{STRIPE_SECRET_KEY:'sk_test_reconciliation_edge',RER_INSTALLATION_ID:'managed-reconcile',RER_MANAGEMENT_ORIGIN:'https://runeditrun.com'},outbound})
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1501',RER_INSTALLATION_ID:'managed-reconcile',RER_MANAGEMENT_ORIGIN:'https://runeditrun.com'},outbound})
  assert.equal(calls.length,beforeManaged)
 })
 
@@ -112,5 +112,5 @@ test('reconciliation verifies Pantry exact payload and posted journal without su
   assert.ok(result.issues.find(i=>i.kind==='pantry_posting'&&i.state==='open'),'A changed payload is surfaced even for a previously posted journal')
   assert.equal((await h.get('/api/coffer/payments/'+payout.id)).posting.external_id,'journal_reconcile')
   assert.equal(submissions,1)
- },{outbound,bindings:{STRIPE_SECRET_KEY:'sk_test_pantry_reconciliation',PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+'a'.repeat(43),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Meals:'meals'})}})
+ },{outbound,bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1502',PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+'a'.repeat(43),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Meals:'meals'})}})
 })
