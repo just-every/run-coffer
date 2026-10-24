@@ -185,7 +185,7 @@ export async function portalJourney(){
   const requested=(await h.get('/api/coffer/donors/'+person.id)).events.filter(e=>e.action==='portal.consentRegrantRequested')
   assert.equal(requested.length,1);assert.equal(requested[0].actor_id,'donor:'+person.id)
   assert.equal(JSON.parse(requested[0].detail).status,'pending')
-  await h.command('consent.record',{donorId:person.id,channel:'email',status:'granted',method:'web form',evidence:'Staff reviewed verified donor request at '+requested[0].at+' by '+person.id+' through their emailed portal sign-in.',capturedOn:requested[0].at.slice(0,10)})
+  await h.command('consent.record',{donorId:person.id,channel:'email',status:'granted',method:'web form',evidence:'Staff reviewed verified donor request at '+requested[0].at+' by '+person.id+' through their emailed portal sign-in.',capturedOn:new Intl.DateTimeFormat('en-CA',{timeZone:(await h.get('/api/coffer/settings')).timezone}).format(new Date(requested[0].at))})
   let reviewedConsent=(await h.get('/api/coffer/donors/'+person.id)).consents[0]
   assert.equal(reviewedConsent.status,'granted');assert.equal(reviewedConsent.recorded_by,'Morgan Lee');assert.equal(reviewedConsent.method,'web form');assert.ok(reviewedConsent.evidence.includes(requested[0].at))
   assert.match(await (await get('/giving/portal/communications')).text(),/current email permission is granted/)

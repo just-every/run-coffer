@@ -4,8 +4,9 @@ import {run,donor} from './harness.mjs'
 import {recoveryForm,recoveryNoticeEdge} from './recovery-notices-edge.mjs'
 
 export async function recoveryNoticesJourney() {
- const edge=recoveryNoticeEdge(),base=Date.now(),at=days=>new Date(base+days*86400000).toISOString(),day=new Date(base).toISOString().slice(0,10)
+ const edge=recoveryNoticeEdge(),base=Date.now(),at=days=>new Date(base+days*86400000).toISOString()
  await run(async h=>{
+  const timeZone=(await h.get('/api/coffer/settings')).timezone,localDay=instant=>new Intl.DateTimeFormat('en-CA',{timeZone}).format(new Date(instant)),day=localDay(base)
   const endpoint='/api/coffer/agent/recovery/notice-action',state=()=>h.get('/api/coffer/agent/recovery/notices'),action=(p,options={})=>h.api(endpoint,p,options),runAt=(days,options={})=>h.api('/api/coffer/agent/recovery/run',{}, {...options,headers:{...options.headers,'x-test-now':at(days)}})
   const ownerAt=async days=>{
    const headers={'x-test-now':at(days)},requested=await h.request('/auth/magic-link',{method:'POST',as:'',body:{email:'owner@example.test'},headers});assert.equal(requested.status,202)
@@ -52,7 +53,7 @@ export async function recoveryNoticesJourney() {
   assert.ok(JSON.parse(major.evidence).some(s=>s.kind==='gift'),'Major-donor history is cited')
   await h.command('gift.reverse',{giftId:majorGift.id,reason:'Synthetic original contribution was returned.'})
   const owner=(await h.get('/auth/session')).operator
-  await h.command('prospect.save',{donorId:mira.donor.id,ownerId:owner.id,stage:'cultivate',askAmount:'1000',expectedCloseOn:at(3).slice(0,10),nextStep:'Human review of the existing relationship.'})
+  await h.command('prospect.save',{donorId:mira.donor.id,ownerId:owner.id,stage:'cultivate',askAmount:'1000',expectedCloseOn:localDay(at(3)),nextStep:'Human review of the existing relationship.'})
   await runAt(0)
   major=(await state()).steps.find(n=>n.donor_id===mira.donor.id)
   assert.equal(major.state,'awaiting_approval','A recorded prospect requires review independently of net giving history')
