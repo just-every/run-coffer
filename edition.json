@@ -112,8 +112,8 @@
           "src/modules/import-kit/src/door/inventory.ts",
           "src/modules/import-kit/src/door/refusals.ts",
           "src/modules/import-kit/src/door/schema.ts",
-          "src/modules/operator-auth/README.md",
-          "src/modules/operator-auth/SCHEDULED-POLICY.md"
+          "docs/base/operator-auth/README.md",
+          "docs/base/operator-auth/SCHEDULED-POLICY.md"
         ],
         "origin": {
           "repository": "https://github.com/runeditrun/base",
@@ -201,11 +201,11 @@
             "originPath": "modules/import-kit/src/door/schema.ts"
           },
           {
-            "path": "src/modules/operator-auth/README.md",
+            "path": "docs/base/operator-auth/README.md",
             "originPath": "modules/operator-auth/README.md"
           },
           {
-            "path": "src/modules/operator-auth/SCHEDULED-POLICY.md",
+            "path": "docs/base/operator-auth/SCHEDULED-POLICY.md",
             "originPath": "modules/operator-auth/SCHEDULED-POLICY.md"
           }
         ]

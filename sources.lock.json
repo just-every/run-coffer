@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "just-every/run-coffer",
-  "manifest": "3413f5779a23ac13c940222dd0ecfbed1dc43ddc560c4c182110065752b0e53e",
+  "manifest": "492bc12aa2ee74c130b3cb0367da7872526b9b6ea00063b709688d54acfb54ff",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -125,8 +125,8 @@
           "src/modules/import-kit/src/door/inventory.ts",
           "src/modules/import-kit/src/door/refusals.ts",
           "src/modules/import-kit/src/door/schema.ts",
-          "src/modules/operator-auth/README.md",
-          "src/modules/operator-auth/SCHEDULED-POLICY.md"
+          "docs/base/operator-auth/README.md",
+          "docs/base/operator-auth/SCHEDULED-POLICY.md"
         ],
         "origin": {
           "repository": "https://github.com/runeditrun/base",
@@ -214,11 +214,11 @@
             "originPath": "modules/import-kit/src/door/schema.ts"
           },
           {
-            "path": "src/modules/operator-auth/README.md",
+            "path": "docs/base/operator-auth/README.md",
             "originPath": "modules/operator-auth/README.md"
           },
           {
-            "path": "src/modules/operator-auth/SCHEDULED-POLICY.md",
+            "path": "docs/base/operator-auth/SCHEDULED-POLICY.md",
             "originPath": "modules/operator-auth/SCHEDULED-POLICY.md"
           }
         ]
@@ -301,6 +301,14 @@
     },
     "docs/backup.md": {
       "sha256": "a59512fd17ce0b9a6e9db63b5a0d18d6f39751c320906a4d6c004425201e3369",
+      "executable": false
+    },
+    "docs/base/operator-auth/README.md": {
+      "sha256": "f472b794a243ab42503d9160d3f563398fc7b262d5a96b4b3eb4d54779781be2",
+      "executable": false
+    },
+    "docs/base/operator-auth/SCHEDULED-POLICY.md": {
+      "sha256": "0c28f9be024760cd4be63aac2bee277283381e6ab647cb1fe058dda7d2332356",
       "executable": false
     },
     "docs/CLAIMS.md": {
@@ -412,7 +420,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "3413f5779a23ac13c940222dd0ecfbed1dc43ddc560c4c182110065752b0e53e",
+      "sha256": "492bc12aa2ee74c130b3cb0367da7872526b9b6ea00063b709688d54acfb54ff",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -4695,20 +4703,12 @@
       "sha256": "d535aba35621d333cd6faae49fc3c6cb72e1d5718741f02d363cbe3e8eaf153c",
       "executable": false
     },
-    "src/modules/operator-auth/README.md": {
-      "sha256": "f472b794a243ab42503d9160d3f563398fc7b262d5a96b4b3eb4d54779781be2",
-      "executable": false
-    },
     "src/modules/operator-auth/rejected-response.mjs": {
       "sha256": "38c4e7621901173d0bca9bc62587486951ce24d2e0e31e97f26e1dfe406c9726",
       "executable": false
     },
     "src/modules/operator-auth/routes.mjs": {
       "sha256": "4f534707648a72d7fbe5b15bcbc10985a14de2f6872a0d8e7853d6fa782a838a",
-      "executable": false
-    },
-    "src/modules/operator-auth/SCHEDULED-POLICY.md": {
-      "sha256": "0c28f9be024760cd4be63aac2bee277283381e6ab647cb1fe058dda7d2332356",
       "executable": false
     },
     "src/modules/operator-auth/scheduled/definition.mjs": {
