@@ -29,6 +29,7 @@ async function logs(env: Bindings, path: string, body?: Row): Promise<Row> {
 
 export async function readReceiptDelivery(env: Bindings, letter: Row): Promise<null | Delivery> {
  assertReceiptMailAvailable(env)
+ if (env.MAIL_PROVIDER !== 'sendgrid') fail('mail_logs_unavailable', 'Delivery lookup is available only for SendGrid. Check this submission with your configured mail provider.', 503)
  const messageId = letter.message_id, recipient = letter.recipient_email
  if (typeof messageId !== 'string' || messageId.length > 200 || !SAFE_ID.test(messageId)) fail('mail_logs_missing_id', 'This receipt has no usable SendGrid message ID. Check it in SendGrid Email Logs.', 409)
  if (typeof recipient !== 'string' || !recipient || recipient.length > 254) invalid()

@@ -1,7 +1,7 @@
 import { newId, one, sql, type Context } from '../db'
 import { routingOwner } from '../relationship-owner'
 import { pledgeMailUnavailable } from '../pledges'
-import { sendSendGrid } from '../../modules/mail/src/sendgrid-email/index.mjs'
+import { sendDonorMail } from '../outbound-mail'
 import type { GivingEnv } from '../giving/stripe'
 import { paymentWrite } from './write'
 
@@ -18,7 +18,7 @@ export async function notifyAdjustment(env: GivingEnv, entryId: string, authorit
  if((await one(c,'SELECT id FROM cf_payment_notices WHERE entry_id=?',entryId))?.id!==noticeId || state==='unavailable')return
  try {
   const text=`Stripe recorded ${entry.kind.replaceAll('_',' ')} of $${(Math.abs(entry.amount_cents)/100).toFixed(2)}.\nGift: ${entry.gift_id}\nProcessor entry: ${entry.id}\nDonor record: ${env.AUTH_ORIGIN}/app/donors/${entry.donor_id}\nAn owner or admin reviews receipt corrections and dispute deadlines under Payouts → Refunds and disputes.\nProvider acceptance of this notice does not establish delivery.`
-  const result=await sendSendGrid({apiKey:env.MAIL_API_KEY!,message:{deliveryId:noticeId,from:env.MAIL_FROM!,to:[owner!.email],subject:'Coffer: Stripe gift adjustment',text}})
+  const result=await sendDonorMail(env,{deliveryId:noticeId,from:env.MAIL_FROM!,to:[owner!.email],subject:'Coffer: Stripe gift adjustment',text})
   if(result.providerMessageId)await env.DB.prepare("UPDATE cf_payment_notices SET status='submitted',submitted_at=? WHERE id=? AND status='uncertain'").bind(now,noticeId).run()
  } catch { /* Keep the durable uncertain state; no automatic repeat. */ }
  await paymentWrite(env,[sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,'stripe','Stripe','agent','payments.notice','payment',?,?, '{}')`,now,entryId,entry.donor_id)],authority)

@@ -1,7 +1,7 @@
 import { renderPledgeReminder } from './pledge-templates'
 import { adjustPledge, linkPledgePlan } from './pledge-adjustments'
 import type { Bindings } from '../auth.server'
-import { sendSendGrid, SendGridSendError } from '../modules/mail/src/sendgrid-email/index.mjs'
+import { donorMailUnavailable, sendDonorMail, DonorMailError } from './outbound-mail'
 import { requireRole } from './auth'
 import { addDays, all, commit, date, event, fail, guard, id, integer, newId, object, one, optional, sql, today, type Context, type Row, type Stmt } from './db'
 import { amount, usd } from './money'
@@ -9,10 +9,7 @@ import { longDate, settings } from './settings'
 
 /** User-facing availability is also the preflight: suppressed mail is never sent. */
 export function pledgeMailUnavailable(env?: Bindings): string | null {
- if (!env || env.RER_INSTALLATION_ID || env.RER_MANAGEMENT_ORIGIN) return 'Email sending is not available yet on RER Managed.'
- if (env.AUTH_LOCAL === 'true' || env.RER_DEMO === '1' || env.MAIL_PROVIDER === 'development') return 'Reminder email is suppressed in local and demo mode. No email is sent.'
- if (env.MAIL_PROVIDER !== 'sendgrid' || !env.MAIL_API_KEY?.trim() || !env.MAIL_FROM?.trim()) return 'Configure SendGrid and a sender address to send pledge reminders.'
- return null
+ return donorMailUnavailable(env)
 }
 
 export function schedule(p: Row, pledgedOn: string) {
@@ -116,7 +113,7 @@ async function remind(c:Context,p:Row):Promise<Row>{
  const donorId=optional(p.donorId,'Donor',100),pledgeId=optional(p.pledgeId,'Pledge',100)
  if(p.interactionId&&!donorId&&!pledgeId)fail('INPUT','Choose one donor or pledge when selecting an interaction.',400)
  const s=await settings(c),day=today(s.timezone,new Date(c.now))
- await commit(c,[sql("UPDATE cf_pledge_installments SET reminder_status='uncertain',reminder_note='Submission was interrupted. Check SendGrid before contacting the donor. No automatic resend.' WHERE reminder_status='sending' AND attempt_started_at<=?",new Date(Date.parse(c.now)-15*60_000).toISOString())])
+ await commit(c,[sql("UPDATE cf_pledge_installments SET reminder_status='uncertain',reminder_note='Submission was interrupted. Check the mail provider before contacting the donor. No automatic resend.' WHERE reminder_status='sending' AND attempt_started_at<=?",new Date(Date.parse(c.now)-15*60_000).toISOString())])
  const due=await all(c,`SELECT i.*,p.donor_id FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
   WHERE i.reminder_status='pending' AND i.remind_on<=? AND i.paid_cents<i.amount_cents AND (? IS NULL OR p.donor_id=?) AND (? IS NULL OR p.id=?) AND ${eligible}
   ORDER BY COALESCE(i.reminder_merge_checked_at,''),i.remind_on,i.id LIMIT 8`,day,donorId,donorId,pledgeId,pledgeId)
@@ -143,9 +140,9 @@ async function remind(c:Context,p:Row):Promise<Row>{
    await c.db.prepare("UPDATE cf_pledge_installments SET reminder_status='skipped',recipient_email=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL,reminder_note='The balance or recipient changed before submission. No email was sent.' WHERE id=? AND attempt_id=? AND reminder_status='sending'").bind(row.id,attempt).run();continue
   }
   let state='uncertain',messageId:string|null=null
-  try{const sent=await sendSendGrid({apiKey:c.env!.MAIL_API_KEY!,message:{deliveryId:attempt,from:c.env!.MAIL_FROM!,to:[i.recipient_email],subject:i.reminder_subject,text:i.reminder_body,customArgs:{coffer_installment_id:i.id,coffer_attempt_id:attempt,coffer_template_version:String(i.reminder_template_version)}}});messageId=sent.providerMessageId??null;state=messageId?'submitted':'uncertain'}
-  catch(error){if(error instanceof SendGridSendError&&['rejected','rate_limited'].includes(error.outcome))state='rejected'}
-  const note=state==='submitted'?'Accepted by SendGrid; delivery is not confirmed.':state==='rejected'?'SendGrid did not accept this reminder. No automatic resend.':'Email submission could not be confirmed. Check SendGrid before contacting the donor. No automatic resend.'
+  try{const sent=await sendDonorMail(c.env!,{deliveryId:attempt,from:c.env!.MAIL_FROM!,to:[i.recipient_email],subject:i.reminder_subject,text:i.reminder_body,customArgs:{coffer_installment_id:i.id,coffer_attempt_id:attempt,coffer_template_version:String(i.reminder_template_version)}});messageId=sent.providerMessageId??null;state=messageId?'submitted':'uncertain'}
+  catch(error){if(error instanceof DonorMailError&&['rejected','rate_limited'].includes(error.outcome))state='rejected'}
+  const note=state==='submitted'?'Accepted by the mail provider; delivery is not confirmed.':state==='rejected'?'The mail provider did not accept this reminder. No automatic resend.':'Email submission could not be confirmed. Check the mail provider before contacting the donor. No automatic resend.'
   const outcome=[sql("UPDATE cf_pledge_installments SET reminder_status=?,message_id=?,submitted_at=?,reminder_note=? WHERE id=? AND attempt_id=? AND reminder_status='sending'",state,messageId,c.now,note,i.id,attempt),event(c,'pledge.reminder','pledge',i.pledge_id,i.donor_id,{installmentId:i.id,state,templateVersion:i.reminder_template_version})]
   await c.db.batch(outcome.map(s=>c.db.prepare(s.sql).bind(...s.params)))
   if(state==='submitted')submitted++;else if(state==='rejected')rejected++;else uncertain++

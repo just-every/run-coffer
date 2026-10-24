@@ -164,7 +164,7 @@
       "executable": false
     },
     "deploy.json": {
-      "sha256": "6c0d81ebc7362afb7d8b15c13fcff213ed999471f4dbd669ee31f168d19e5905",
+      "sha256": "c268b30878d511a500443d977ccec765097b7ea0f8b9b46a7a7393b28616b3b6",
       "executable": false
     },
     "docs/AGENT-COMMANDS.md": {
@@ -272,11 +272,11 @@
       "executable": false
     },
     "docs/RECEIPTS.md": {
-      "sha256": "5dfc98bad775a87b318e14597b5f7dff37096fad059f43222d15d76f5582afd5",
+      "sha256": "b5687e33aa42619baad2ce95815a27ea7bde59d53c5bbbb7289b21a05bd5367c",
       "executable": false
     },
     "docs/site.json": {
-      "sha256": "17fb0e1db4327b059f21852f491febfa330825ca1a0c1971ab7a900728698a8c",
+      "sha256": "6a199553c5fe353d13236fe34540fb63408e1f5ac1d8dc4e6ec416edbb177a08",
       "executable": false
     },
     "docs/SOURCES.md": {
@@ -844,7 +844,7 @@
       "executable": false
     },
     "OPERATIONS.md": {
-      "sha256": "f4539614ef530e16a680f41a63679b7dc634c822e2844edfcc5403a86fa7ce7f",
+      "sha256": "6781ce673b50b0bc53637727388dc2a0f3b13ac9174709575aa30b533053bd56",
       "executable": false
     },
     "package.json": {
@@ -1232,11 +1232,11 @@
       "executable": false
     },
     "rer-project.json": {
-      "sha256": "f0c4bdd665bbf022e9f9e24c4728ade72303ec828ef424b92ad4f49c9af99104",
+      "sha256": "a9af57016a68992b18db3540946efb885b9fa3c1f869e13e1af81a8513318fdd",
       "executable": false
     },
     "rer-setup.json": {
-      "sha256": "9da802527ca8143f16e8c97ebf30ab4c2cb555b7b5b8e12a27fc0ce7c989c035",
+      "sha256": "4071b12090d14f73535cbfec09ef320b07eb1e5a6d07327902456aad9b3148ff",
       "executable": false
     },
     "RUN-LOCALLY.md": {
@@ -2240,7 +2240,7 @@
       "executable": false
     },
     "src/coffer/letter-delivery.ts": {
-      "sha256": "88a78648785f0951d693615b6c8e2e122fad5ee4f53c2a5538530f7469ea82a8",
+      "sha256": "643e8e7175cc62ff4f75ee70fda563383500124d8a7267efc0d5b693982409f9",
       "executable": false
     },
     "src/coffer/letter-templates.ts": {
@@ -2420,7 +2420,7 @@
       "executable": false
     },
     "src/coffer/payments/adjustment-notices.ts": {
-      "sha256": "d0d02479506b43e011b392a021de956de0a3e660c8a29ef222d70c90e8cde8d4",
+      "sha256": "784770a4ed4a64228f994518dc1c5e0b360b977e9dc8d3f55b0004587890f026",
       "executable": false
     },
     "src/coffer/payments/adjustments-ui.ts": {
@@ -2516,7 +2516,7 @@
       "executable": false
     },
     "src/coffer/pledges.ts": {
-      "sha256": "26075fb3c7e6f4cf16fec7f8d2654795e2a44a08fb9258e6a6668c5d38a471a3",
+      "sha256": "b408e3df8d936304952396f23b6c108ae248368f440955bf48ba558468691bbc",
       "executable": false
     },
     "src/coffer/portability/http.d.mts": {
@@ -2548,7 +2548,7 @@
       "executable": false
     },
     "src/coffer/receipt-activity.ts": {
-      "sha256": "1f16cc4445c8475baa6e12e19be14207159603316709f50a84471b31b198cac2",
+      "sha256": "19c6bb10a7bd84b7efffbd35f9dfdc6859fc55ccf5740040e56e0c3db40cd006",
       "executable": false
     },
     "src/coffer/receipt-corrections.ts": {
@@ -2560,7 +2560,7 @@
       "executable": false
     },
     "src/coffer/receipt-mail.ts": {
-      "sha256": "d11bfb0d59b08a0ee4a95d579ac9dc5fd92bc26a47e4e55207cc97cd3535ff78",
+      "sha256": "d4c389406f76a2ef9398d85f6bd5b940ff8df624a9b8f4b59b8f8c1682533440",
       "executable": false
     },
     "src/coffer/receipt-opens.ts": {
@@ -2852,7 +2852,7 @@
       "executable": false
     },
     "src/coffer/ui/letters.ts": {
-      "sha256": "ff8cb5c354c1f1a6e18ce684cfe61b4469bed4597a1e7ad5ca96066f4e853244",
+      "sha256": "450f22bdeef99026d02d89dde98fd08b916c54e0f784ce76f87e31b58b3bf923",
       "executable": false
     },
     "src/coffer/ui/major-gifts.ts": {
@@ -2896,7 +2896,7 @@
       "executable": false
     },
     "src/coffer/ui/pledges.ts": {
-      "sha256": "e3debd9a5c89c0c671b1f044bed4eff540850a7f0db3515444182805c06a8d7a",
+      "sha256": "2284eb3e7e85ea0f8088b3a2774a6b0c154674a3e006a258c67d49c4590cc77e",
       "executable": false
     },
     "src/coffer/ui/portfolios.ts": {
@@ -4792,7 +4792,7 @@
       "executable": false
     },
     "src/site/pages.tsx": {
-      "sha256": "28e6f6ad10a14d662ddf2a5d468b48e4673bd435889ea4377ecb5f67849dd9f9",
+      "sha256": "a416349f9f9011efc1528623c2a46a9caf95bf73ba201727bbeead8b7b105b73",
       "executable": false
     },
     "src/site/run.json": {
@@ -5580,7 +5580,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "eca7eb5c7043762cc8958e5fcc3646db5ae194122b265e25445edfe339bcf1af",
+      "sha256": "9e09609a319ca3058bbeb08db50f2d3af8c154afbf05b810fa919414111dd3ab",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

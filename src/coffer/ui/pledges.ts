@@ -20,7 +20,7 @@ const reminderLabel = (i: Row, day: string): string => {
  if (i.remaining_cents === 0) return chip(i.paid_cents ? 'Paid' : 'Reduced / written off', 'ok')
  if (i.reminder_status === 'submitted') return chip('Reminder submitted', 'info')
  if (i.reminder_status === 'sending') return chip('Submission in progress or unconfirmed', 'warn')
- if (i.reminder_status === 'uncertain') return chip('Submission uncertain · check SendGrid', 'warn')
+ if (i.reminder_status === 'uncertain') return chip('Submission uncertain · check provider', 'warn')
  if (i.reminder_status === 'rejected') return chip('Reminder not accepted', 'alarm')
  if (i.reminder_status === 'skipped') return chip('Reminder skipped', 'warn')
  return i.remind_on <= day ? chip('Reminder due', 'warn') : chip(`Remind ${longDay(i.remind_on)}`)
@@ -40,7 +40,7 @@ export async function pledgePanel(c: Context, history: Row, day: string, staff: 
  const gifts = (history.gifts ?? []).filter((g: Row) => g.kind === 'gift' && !g.reversed_by)
  const match = staff && installments && gifts.length ? `<details class="edit"><summary>Match a recorded gift to an installment</summary>${form('pledge.match', `${select('Recorded gift', 'giftId', gifts.map((g: Row) => [g.id, `${longDay(g.received_on)} · ${money(g.amount_cents)} · ${g.fund}`] as [string, string]))}${installments}${field('Amount to match (USD; blank uses unmatched balance)', 'allocationAmount', 'text', '', 'inputmode="decimal"')}`, 'Match gift', { donorId })}</details>` : ''
  const create = staff ? `<details class="edit"><summary>Record a pledge</summary>${form('pledge.create', pledgeFields(day) + select('Pledge campaign (optional)', 'campaignId', [['', 'No campaign'], ...(await campaigns(c)).map(r => [r.id, r.name + ' · ' + r.fund] as [string, string])]), 'Record pledge', { donorId })}</details>` : ''
- return box('Pledges', `${list}${unavailable ? `<p class="muted">${e(unavailable)}</p>` : '<p class="muted">Due reminders send once through SendGrid. Submitted means accepted by the provider; delivery is not confirmed.</p>'}${match}${create}`, 'pledges')
+ return box('Pledges', `${list}${unavailable ? `<p class="muted">${e(unavailable)}</p>` : '<p class="muted">Due reminders send once through the configured mail provider. Submitted means accepted by the provider; delivery is not confirmed.</p>'}${match}${create}`, 'pledges')
 }
 
 function pledgeChanges(p:Row,donorId:string,plans:Row[],staff:boolean):string {

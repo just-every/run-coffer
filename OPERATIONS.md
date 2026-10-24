@@ -76,9 +76,10 @@ or produce only the artifact with `node scripts/delivery/base/cli.mjs artifact -
 The generated output directories are disposable. The Managed workflow accepts
 manual dispatch only. No release tag is created by these commands.
 
-Managed authentication mail uses the assigned RER relay URL and private mail
-credential. Assisted authentication mail can use SendGrid, Resend or Cloudflare
-with the selected provider's own credentials and sender setup. Coffer's receipt
-and pledge-reminder delivery still requires SendGrid and explicitly refuses
-Managed installations. Do not treat successful authentication mail setup as
-proof that those donor-mail workflows are available on Managed hosting.
+Managed sign-in and donor mail use the assigned RER relay URL and private mail
+credential. Assisted installations use SendGrid, Resend or Cloudflare with the
+selected provider's credentials and verified sender. Receipts, pledge reminders
+and adjustment notices submit once and retain uncertain outcomes without retry.
+Only SendGrid supports Coffer's delivery lookup and signed delivery events.
+Managed mail refuses custom reply addresses because the relay cannot carry them.
+See docs/deployment.md for the provider inputs and hosted maintenance steps.

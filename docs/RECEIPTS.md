@@ -8,9 +8,9 @@ never depends on appeal consent, and a marketing opt-out does not stop it.
 Only donors without an email address, or whose earlier receipt bounced or drew
 a complaint, go to the print batch; so does a letter whose donor's address
 changed after approval. Email goes through the installation's
-`MAIL_PROVIDER=sendgrid`, `MAIL_API_KEY` and `MAIL_FROM` settings, the same
-provider and sender used for sign-in mail (see [Host it on Cloudflare](/docs/hosting#mail)).
-RER Managed provider calls are not available yet. Coffer on your own computer
+`MAIL_PROVIDER`, `MAIL_API_KEY` and `MAIL_FROM` settings, the same
+provider and sender used for sign-in mail (see [Coffer deployment details](/docs/deployment#mail)).
+RER Managed uses the assigned relay. Assisted hosting supports SendGrid, Resend and Cloudflare Email Sending. Coffer on your own computer
 sends no email: **Send approved letters** marks each letter that would have
 been emailed “Not emailed · email is off on this computer” and moves the rest
 to print, so you can try the whole flow without a mailbox.
@@ -19,7 +19,7 @@ Online gifts do not wait for a batch: each paid online gift's receipt is
 emailed as soon as the gift is recorded, at any amount. Choose **Hold online
 receipts for me to approve in Letters** in Letter settings to review them first.
 
-Submitted means SendGrid accepted the email; it does not mean delivered. To
+Submitted means the configured provider accepted the email; it does not mean delivered. To
 have delivery and bounces show up on their own, turn on SendGrid's Event
 Webhook: in SendGrid, open **Settings → Mail Settings → Event Webhook**, set the
 URL to `https://YOUR-INSTALL/api/coffer/mail/events`, select Delivered,

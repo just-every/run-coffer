@@ -37,7 +37,7 @@ export async function deliveryCommand(c: Context, command: string, p: Row): Prom
  }
  const letters = await batchLetters(c, batchId)
  if (await letterHash(b.settings_version, letters,await ackMailPieces(c,b.id)) !== b.content_hash) fail('CONTENT_CHANGED', 'These letters changed. Discard and prepare them again.')
- // Read availability before making any change; Managed never pretends to send.
+ // Read availability before making any change; unavailable providers never claim a submission.
  if (!c.env) fail('MAIL_UNAVAILABLE', 'Email sending is not available yet.', 503)
  // Local and demo mode switch email off (README): emailed letters are marked, never claimed as sent.
  const suppressed = mailSuppressed(c.env)

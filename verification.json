@@ -97,7 +97,8 @@
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm run test:receipts"
+        "pnpm run test:receipts",
+        "node --test tests/hosted-mail.test.mjs"
       ]
     },
     {

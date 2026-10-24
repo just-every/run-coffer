@@ -1,7 +1,7 @@
 import { receiptText } from './receipt-format'
 import { receiptReplyAddress } from './receipt-replies'
 import type { Bindings } from '../auth.server'
-import { sendSendGrid, SendGridSendError } from '../modules/mail/src/sendgrid-email/index.mjs'
+import { donorMailUnavailable, sendDonorMail, DonorMailError } from './outbound-mail'
 // The shared verifier has no TypeScript declaration; it owns strict DER-to-P1363 conversion.
 // @ts-expect-error Shared JavaScript mail module.
 import { verifyWebhook } from '../modules/mail/src/events/verify.mjs'
@@ -14,13 +14,11 @@ export const mailSuppressed = (env: Bindings) => env.AUTH_LOCAL === 'true' || en
 
 /** Receipt sending must never report development mail suppression as acceptance. */
 export function assertReceiptMailAvailable(env: Bindings): void {
- if (env.RER_INSTALLATION_ID || env.RER_MANAGEMENT_ORIGIN) fail('mail_unavailable', 'Email sending is not available yet on RER Managed.', 503)
- if (mailSuppressed(env)) fail('mail_unavailable', 'Receipt email is not available in local or demo mode.', 503)
- if (env.MAIL_PROVIDER && env.MAIL_PROVIDER !== 'sendgrid') fail('mail_unavailable', 'Receipt email is not available with this installation’s mail provider.', 503)
- if (env.MAIL_PROVIDER !== 'sendgrid' || !env.MAIL_API_KEY?.trim() || !env.MAIL_FROM?.trim()) fail('mail_unavailable', 'Configure SendGrid and a sender address to send receipt email.', 503)
+ const unavailable = donorMailUnavailable(env)
+ if (unavailable) fail('mail_unavailable', unavailable, 503)
 }
 
-/** One submission only: SendGrid acceptance is separate from confirmed delivery. */
+/** One submission only: Provider acceptance is separate from confirmed delivery. */
 export async function sendReceipt(env: Bindings, letter: Row): Promise<{ messageId: string }> {
  assertReceiptMailAvailable(env)
  const letterId = id(letter.id, 'Receipt letter'), attemptId = id(letter.attempt_id, 'Receipt email attempt')
@@ -29,21 +27,18 @@ export async function sendReceipt(env: Bindings, letter: Row): Promise<{ message
  const replyTo = await receiptReplyAddress(env, letter)
  let result
  try {
-  result = await sendSendGrid({
-   apiKey: env.MAIL_API_KEY!,
-   message: {
+  result = await sendDonorMail(env, {
     deliveryId: attemptId, from: env.MAIL_FROM!, to: [letter.recipient_email],
     subject: letter.subject, text: body, html: `<div>${String(body).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]!)).replace(/\n/g,'<br>')}</div>`, ...(replyTo ? { replyTo } : {}),
     customArgs: { coffer_letter_id: letterId, coffer_attempt_id: attemptId },
-   },
   })
  } catch (error) {
   // Never expose provider bodies, submitted donor data or credentials.
-  if (error instanceof SendGridSendError && error.outcome === 'rejected') fail('mail_rejected', 'SendGrid did not accept this receipt email.', 502)
-  if (error instanceof SendGridSendError && error.outcome === 'rate_limited') fail('mail_rate_limited', 'SendGrid is busy. This receipt email was not accepted.', 503)
+  if (error instanceof DonorMailError && error.outcome === 'rejected') fail('mail_rejected', 'The mail provider did not accept this receipt email.', 502)
+  if (error instanceof DonorMailError && error.outcome === 'rate_limited') fail('mail_rate_limited', 'The mail provider is busy. This receipt email was not accepted.', 503)
   fail('mail_uncertain', 'Receipt email acceptance could not be confirmed. Check delivery before sending again.', 502)
  }
- if (!result.providerMessageId) fail('mail_uncertain', 'SendGrid accepted the email without a message ID. Check delivery before sending again.', 502)
+ if (!result.providerMessageId) fail('mail_uncertain', 'The mail provider accepted the email without a message ID. Check delivery before sending again.', 502)
  return { messageId: result.providerMessageId }
 }
 

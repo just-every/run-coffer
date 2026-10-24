@@ -93,7 +93,7 @@
           "label": "Cloudflare Email Sending"
         }
       ],
-      "help": "Select the provider for sign-in mail. Donor receipts and pledge reminders require SendGrid and remain unavailable on Managed hosting."
+      "help": "Select the provider for sign-in and donor mail. SendGrid supports delivery tracking; RER managed mail uses the supplied relay."
     },
     {
       "name": "MAIL_FROM",

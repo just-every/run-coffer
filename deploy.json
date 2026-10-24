@@ -98,6 +98,16 @@
       "binding": "COFFER_REPLY_ADDRESS",
       "environment": "COFFER_REPLY_ADDRESS",
       "optional": true
+    },
+    {
+      "binding": "MAIL_RELAY_URL",
+      "environment": "MAIL_RELAY_URL",
+      "optional": true
+    },
+    {
+      "binding": "MAIL_ACCOUNT_ID",
+      "environment": "MAIL_ACCOUNT_ID",
+      "optional": true
     }
   ],
   "crons": [
