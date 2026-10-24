@@ -18,14 +18,12 @@ const summarize = (rows: Pick<RetentionRow, 'priorCents' | 'currentCents'>[]) =>
 
 /** Net contributions are attributed to their ledger dates, including refunds
  * and reversals. Fees and soft credits are not donor contributions. */
-export async function retention(c: Context, url: URL) {
- const scope = await retentionScope(c,url)
- const {year,priorYear,asOf,start,priorStart,end,donorSql,donorParams,fund,campaignId} = scope
- // The same split-aware signed ledger scopes history, cohorts and reconciliation.
+export async function retentionRecordSelection(c:Context,url:URL) {
+ const scope=await retentionScope(c,url)
+ const {start,priorStart,end,donorSql,donorParams,fund,campaignId}=scope
  const ledgerSql = `(? IS NULL OR fund=?) AND (? IS NULL OR campaign_id=?)`
  const ledgerParams = [fund,fund,campaignId,campaignId]
- const [donors, excluded, softCreditRows] = await Promise.all([
-  all<RetentionRow & { earlierCents: number }>(c, `WITH ledger AS (SELECT * FROM cf_fund_ledger WHERE ${ledgerSql}), annual AS (
+ return {scope,query:`WITH ledger AS (SELECT * FROM cf_fund_ledger WHERE ${ledgerSql}), annual AS (
    SELECT donor_id,CAST(substr(received_on,1,4) AS INTEGER)-CASE WHEN substr(received_on,6)<'${scope.monthDay}' THEN 1 ELSE 0 END AS year,SUM(amount_cents) AS cents
    FROM ledger WHERE received_on<? GROUP BY donor_id,year
   ), periods AS (
@@ -38,7 +36,16 @@ export async function retention(c: Context, url: URL) {
    COALESCE((SELECT MAX(cents) FROM annual a WHERE a.donor_id=d.id),0) AS earlierCents
   FROM periods p JOIN cf_donors d ON d.id=p.donor_id LEFT JOIN cf_households h ON h.id=d.household_id LEFT JOIN last_gifts g ON g.donor_id=d.id
   WHERE ${donorSql} AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
-  ORDER BY lower(d.name),d.id`, ...ledgerParams,priorStart, priorStart, start, start, priorStart, end, end,...donorParams),
+  ORDER BY lower(d.name),d.id`,params:[...ledgerParams,priorStart, priorStart, start, start, priorStart, end, end,...donorParams]}
+}
+
+export async function retention(c: Context, url: URL) {
+ const selected=await retentionRecordSelection(c,url),scope=selected.scope
+ const {year,priorYear,asOf,start,priorStart,end,donorSql,donorParams,fund,campaignId}=scope
+ const ledgerSql = `(? IS NULL OR fund=?) AND (? IS NULL OR campaign_id=?)`
+ const ledgerParams = [fund,fund,campaignId,campaignId]
+ const [donors, excluded, softCreditRows] = await Promise.all([
+  all<RetentionRow & { earlierCents: number }>(c,selected.query,...selected.params),
   all<{ priorCents: number; currentCents: number }>(c, `SELECT
    COALESCE(SUM(CASE WHEN l.received_on<? THEN l.amount_cents ELSE 0 END),0) AS priorCents,
    COALESCE(SUM(CASE WHEN l.received_on>=? THEN l.amount_cents ELSE 0 END),0) AS currentCents

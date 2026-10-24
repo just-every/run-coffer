@@ -1,4 +1,4 @@
-import { all, choice, integer, type Context, type Row } from './db'
+import { all, choice, fail, integer, type Context, type Row } from './db'
 import { retentionScope } from './retention-scope'
 import { DASHBOARD_DIMENSIONS, type DashboardDimension } from './dashboard-goals'
 import { CHANNEL_LABELS } from './attribution'
@@ -10,15 +10,33 @@ export const dashboardScope = (c: Context, url: URL) => {
  return retentionScope(c,q)
 }
 
-export async function dashboardLedger(c: Context, from: string, through: string) {
- return all(c, `SELECT l.*,CASE WHEN d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id) THEN d.name ELSE NULL END AS donor_name,
+export function dashboardLedgerSelection(from: string, through: string) {
+ return {query:`SELECT l.*,CASE WHEN d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id) THEN d.name ELSE NULL END AS donor_name,
   cm.name AS campaign_name,ga.appeal,a.name AS appeal_name,ch.channel,f.form_id,fc.name AS form_name
   FROM cf_fund_ledger l JOIN cf_donors d ON d.id=l.donor_id
   LEFT JOIN cf_campaigns cm ON cm.id=l.campaign_id
   LEFT JOIN cf_gift_appeals ga ON ga.gift_id=l.gift_id LEFT JOIN cf_appeal_codes a ON a.code=ga.appeal
   LEFT JOIN cf_gift_channels ch ON ch.gift_id=l.gift_id
   LEFT JOIN cf_dashboard_gift_forms f ON f.gift_id=l.gift_id LEFT JOIN cf_campaigns fc ON fc.id=f.form_id
-  WHERE l.received_on>=? AND l.received_on<=? ORDER BY l.received_on DESC,l.id,l.position`, from, through)
+  WHERE l.received_on>=? AND l.received_on<=? ORDER BY l.received_on DESC,l.id,l.position`,params:[from,through]}
+}
+
+export async function dashboardLedger(c: Context, from: string, through: string) {
+ const selection=dashboardLedgerSelection(from,through)
+ return all(c,selection.query,...selection.params)
+}
+
+export async function dashboardMoneySelection(c:Context,url:URL) {
+ const scope=await dashboardScope(c,url)
+ const period=choice(url.searchParams.get('period')||'current',['current','prior'] as const,'period')
+ const dimension=choice(url.searchParams.get('dimension')||'organization',DASHBOARD_DIMENSIONS,'dimension')
+ const key=url.searchParams.get('key')??''
+ // Cohort exports need the cohort's own consistent membership before they ship.
+ if(url.searchParams.get('cohort'))fail('INPUT','Dashboard cohort export is not implemented.',400)
+ const selection=dashboardLedgerSelection(period==='prior'?scope.priorStart:scope.start,period==='prior'?scope.priorEnd:scope.end)
+ const column={organization:"''",fund:'r.fund',campaign:"COALESCE(r.campaign_id,'')",appeal:"COALESCE(r.appeal,'')",channel:"COALESCE(r.channel,'')",form:"COALESCE(r.form_id,'')",month:'substr(r.received_on,6,2)'}[dimension]
+ return {query:`SELECT * FROM (${selection.query}) r WHERE ${column}=?`,params:[...selection.params,key],
+  parameters:{year:scope.year,period,dimension,key},scope}
 }
 
 export function dashboardGroup(row: Row, dimension: DashboardDimension): [string,string] {

@@ -1,4 +1,4 @@
-# List CSV exports
+# CSV exports
 
 The owner or an admin reviews a download at `/app/exports`. Members and agents
 receive 403. `GET /api/coffer/exports/{type}.csv?list=search` downloads the same
@@ -114,3 +114,71 @@ not use this donor-lifetime selection.
 The `solicitation` filter is `any`, `none`, `stop`, `channels` or `limit`; it evaluates active restrictions in the organization day, including merged originals. Constituent files add `solicitation_restrictions`, a JSON array of original donor id, type, dates, channels, maximum, period, source, source date and version. This array retains inactive/future restrictions with their dates. Owner/admin `list.solicitation` requires listId, version, type and reason, applies through the same live membership selection (1–500 records), and preserves per-record version/history/audit. General undoable bulk actions remain DONOR-007.
 
 `custom_fields` is a JSON object for the record’s defined constituent, gift or interaction values; `tags` is the constituent’s JSON tag array. Definitions, types and entry methods are available to the owner/admin at `/api/coffer/custom-fields`. Currency values in this object are exact integer-cent decimal strings; text, numbers, dates, years and checkbox answers retain their stored scalar representation, and pick-many values retain an array. A cleared value may be null. Ordinary notes have an empty custom object until their custom-field capability ships; confidential notes remain withheld. These fields are read in the same consistent, unpaged statement and included in the existing row/byte limits and audit.
+
+
+## Current report exports
+
+The same private CSV and preview routes accept `report=funds`, `report=states`,
+`report=attribution`, `report=custom-fields`, `report=honor-roll`,
+`report=dashboard-money`, `report=retention`, and
+`report=annual-lapses`. The fund screen also links each record type. Reports
+that have no implemented selector return 400; they never fall back to an
+unfiltered donor search. DATA-004 remains partial until every current report
+has its selection and public-door proof.
+
+Fund exports accept the report's inclusive `from` and `through` dates,
+`donorId` and `fund`. State exports use its `year`, `basis`, `fund`, `campaignId`,
+`formId`, `channel` and `solicitation`. Attribution uses inclusive `from` and
+`to`; custom fields use `field`, `from` and `through`. Honor rolls use inclusive
+`from` and `through`, selecting the original report's positive remaining gift
+balances. Annual lapse exports require `list=lybunt` or `list=sybunt` and accept
+`year`; additional donor-search filters are refused because that report does
+not apply them.
+
+For the monetary reports and custom-field reports, gifts are the report's own record type. Each
+original gift appears once, with `amount_cents` equal to the sum of its selected
+movements. An adjustment-only period can therefore show negative cents even
+when that gift's lifetime balance is zero. Its `gross_cents` retains the original
+amount; `adjustment_cents` is the selected amount minus that original gross.
+Fund, state, attribution, dashboard and custom-field allocations carry the selected signed
+fund movements; honor-roll allocations retain the current balances used by
+that report. Property appears only when the source report includes it, with
+zero monetary cents and its stated value separate. Monetary fund, state,
+attribution, dashboard money and honor-roll reports exclude property, just as their totals do.
+Constituents are the distinct live identities behind the selected records.
+Every other record type uses those constituents' complete lifetime history.
+
+Annual lapse cohorts own constituent rows. Every other type, including gifts,
+is their donor-lifetime history, independent of the cohort year. Each filename
+states the report, normalized selection parameters, scope and as-of timestamp;
+lifetime files explicitly say `lifetime`. The audit retains the same parameters
+and scope, full row count, as-of time and withheld-note statement. Erased and
+merged-away identities remain excluded. For gift-based reports, preview and
+audit expose `reportCents` and `reportExcludedCents`: retained anonymous financial
+amounts remain in the report total without disclosing those identities in CSVs.
+Exported gift cents plus those excluded cents reconcile to the monetary report.
+
+The shared selection is unpaged. Each export reads membership, selected record
+amounts, private record projections, complete counts and withheld-note counts
+in one statement. The ordinary bounds and formula escaping still apply.
+Preview and download are separate current snapshots. Fund totals and displayed
+pages now derive from the same unpaged record set; choosing a fund scopes both.
+Frozen artifacts keep their existing frozen download doors; this work does not
+replace them with a live record export.
+
+
+Dashboard money exports accept the resolved fiscal `year`, `period` (`current`
+or `prior`), `dimension` and `key` used by its money drilldown. They use the
+same unpaged ledger query as the dashboard. Cohort-specific money, goal,
+commitment and recurring dashboard metrics remain unavailable, with a clear
+400 response for an unsupported cohort selector. This does not mark the whole
+dashboard acceptance complete.
+
+
+Retention exports accept the native report's period and scopes plus `cohort`:
+`all`, `retained`, `new`, `lapsed`, `recaptured`, `upgraded`, `downgraded`,
+`unchanged`, or `adjustments`. Their own record type is constituents. Each
+preview returns `reportTotals` with the selected count and exact prior and
+current monetary cents from the same cohort snapshot; every other type is
+labelled lifetime. Search text stays out of the audit. Separate recognition
+and excluded-identity reconciliation metrics remain in the DATA-004 gap.

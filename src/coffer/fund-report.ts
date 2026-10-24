@@ -1,6 +1,5 @@
 import { restrictionLabel } from './restricted-funds'
 import { all, date, fail, id, integer, type Row } from './db'
-import { fundTotals } from './gift-splits'
 import { dollars } from './payments/exports'
 
 export function fundFilters(url: URL) {
@@ -12,18 +11,30 @@ export function fundFilters(url: URL) {
  return {from,through,donorId}
 }
 
-export async function fundEntries(c: {db:D1Database}, url: URL, page: number | null = 0) {
- const {from,through,donorId}=fundFilters(url), fund=url.searchParams.get('fund') || null
- return all(c, `SELECT l.*,d.name AS donor_name,c.name AS campaign,f.restriction,f.detail,f.release_on FROM cf_fund_ledger l JOIN cf_donors d ON d.id=l.donor_id LEFT JOIN cf_campaigns c ON c.id=l.campaign_id
+export function fundRecordSelection(url: URL) {
+ const filters=fundFilters(url), {from,through,donorId}=filters, fund=url.searchParams.get('fund') || null
+ return {filters:{...filters,fund},query:`SELECT l.*,d.name AS donor_name,c.name AS campaign,f.restriction,f.detail,f.release_on FROM cf_fund_ledger l JOIN cf_donors d ON d.id=l.donor_id LEFT JOIN cf_campaigns c ON c.id=l.campaign_id
  LEFT JOIN cf_funds f ON f.name=l.fund
- WHERE (? IS NULL OR l.received_on>=?) AND (? IS NULL OR l.received_on<=?) AND (? IS NULL OR l.donor_id=?) AND (? IS NULL OR l.fund=?)
- ORDER BY l.received_on DESC,l.created_at DESC,l.id,l.position${page===null?'':' LIMIT 51 OFFSET ?'}`, from,from,through,through,donorId,donorId,fund,fund,...(page===null?[]:[page*50]))
+ WHERE (? IS NULL OR l.received_on>=?) AND (? IS NULL OR l.received_on<=?) AND (? IS NULL OR l.donor_id=?) AND (? IS NULL OR l.fund=?)`,
+ params:[from,from,through,through,donorId,donorId,fund,fund]}
+}
+
+export async function fundEntries(c: {db:D1Database}, url: URL, page: number | null = 0) {
+ const s=fundRecordSelection(url)
+ return all(c,s.query+` ORDER BY l.received_on DESC,l.created_at DESC,l.id,l.position${page===null?'':' LIMIT 51 OFFSET ?'}`,...s.params,...(page===null?[]:[page*50]))
 }
 
 export async function fundReport(c: {db:D1Database},url:URL) {
- const filters=fundFilters(url), page=integer(Number(url.searchParams.get('page')??0),'Page',0,100000)
- const [funds,entries]=await Promise.all([fundTotals(c,filters),fundEntries(c,url,page)])
- return {funds,entries:entries.slice(0,50),more:entries.length>50,page}
+ const page=integer(Number(url.searchParams.get('page')??0),'Page',0,100000)
+ const records=await fundEntries(c,url,null),groups=new Map<string,{fund:string;cents:bigint;gifts:Set<string>}>()
+ for(const r of records){
+  const group=groups.get(r.fund)??{fund:r.fund,cents:0n,gifts:new Set<string>()}
+  group.cents+=BigInt(r.amount_cents)
+  if(r.kind==='gift'&&r.source!=='stripe-adjustment')group.gifts.add(r.gift_id)
+  groups.set(r.fund,group)
+ }
+ const funds=[...groups.values()].sort((a,b)=>a.fund.localeCompare(b.fund)).map(g=>({fund:g.fund,amount_cents:integer(Number(g.cents),'Fund contribution cents',-Number.MAX_SAFE_INTEGER),gift_count:g.gifts.size}))
+ return {funds,entries:records.slice(page*50,page*50+50),more:records.length>(page+1)*50,page}
 }
 
 const cell=(value:unknown,numeric=false)=>{

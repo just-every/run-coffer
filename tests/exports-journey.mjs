@@ -176,8 +176,10 @@ export async function exportsJourney(){
   for(const kind of ['lybunt','sybunt']){const annual=await get('/api/coffer/reports/annual-lapses?year=2026'),file=await download(h,'constituents',`list=${kind}&year=2026`);assert.deepEqual(file.rows.map(r=>r.id).sort(),annual.groups.find(g=>g.kind===kind).rows.map(r=>r.donorId).sort())}
   await get('/api/coffer/exports/gifts.csv?list=saved:missing',{status:404});await get('/api/coffer/exports/unknown.csv',{status:400})
   await get('/api/coffer/exports/gifts.csv?list=unknown',{status:400})
+  await reportExports(h,{main,split,reversed,property,result,member,asAgent,headers})
+  const beforeBackup=await download(h,'gifts',query)
   const backup=await archive(h),fresh=await installation({entry:'tests/advancing-clock-worker.ts'})
-  try{await restore(fresh,backup);assert.ok((await fresh.get('/api/coffer/lists')).lists.some(l=>l.id===list.id));const restored=await download(fresh,'gifts',query);assert.deepEqual(restored.rows,result.gifts)}finally{await fresh.close()}
+  try{await restore(fresh,backup);assert.ok((await fresh.get('/api/coffer/lists')).lists.some(l=>l.id===list.id));const restored=await download(fresh,'gifts',query);assert.deepEqual(restored.rows,beforeBackup.rows)}finally{await fresh.close()}
   if(process.env.COFFER_EXPORTS_BROWSER)await exportsBrowser(h,{listId:list.id,headers},process.env.COFFER_EXPORTS_BROWSER)
   const longNote='synthetic-coffer-400 '+'.'.repeat(7970)
   for(let i=0;i<520;i++)await command('interaction.record',{donorId:main.id,kind:'note',occurredOn:'2026-10-18',notes:longNote})
@@ -185,4 +187,138 @@ export async function exportsJourney(){
   assert.equal(tooLarge.error,'EXPORT_TOO_LARGE');assert.equal(tooLarge.details.rowCount,result.interactions.length+520)
   assert.equal((await get('/api/coffer/audit?action=export.csv')).rows.filter(r=>JSON.parse(r.detail).rowCount===tooLarge.details.rowCount).length,0,'A refused file is never logged as a successful CSV')
  },{entry:'tests/engagement-worker.ts',bindings:{STRIPE_SECRET_KEY:key,STRIPE_WEBHOOK_SECRET:secret,MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-39',MAIL_EVENT_PUBLIC_KEY:publicKey,COFFER_REPLY_ADDRESS:'synthetic-coffer-36@example.test'},outbound})
+}
+
+// Exercise report selection through the same HTTP doors as private list exports.
+async function reportExports(h,{main,split,reversed,property,result,member,asAgent,headers}){
+ const get=(path,options={})=>h.get(path,{...options,headers:{...headers,...options.headers}})
+ const query=new URLSearchParams({report:'funds',from:'2024-01-01',through:'2025-12-31',donorId:main.id})
+ const report=await get('/api/coffer/reports/funds?'+query)
+ const total=report.funds.reduce((n,r)=>n+r.amount_cents,0),files={}
+ for(const type of types){
+  const file=await download(h,type,query);files[type]=file.rows
+  const meta=await get('/api/coffer/exports/preview?type='+type+'&'+query)
+  assert.equal(meta.reportCents,total)
+  assert.equal(meta.rowCount,file.rows.length)
+  assert.equal(meta.selection.scope,type==='gifts'?'report-records':type==='constituents'?'report-constituents':'donor-lifetime')
+  assert.match(file.response.headers.get('content-disposition'),/report-funds.*from.*2024-01-01.*through.*2025-12-31/)
+  assert.equal(file.response.headers.get('content-disposition').includes('lifetime'),!['gifts','constituents'].includes(type))
+  assert.equal(file.response.headers.get('x-coffer-withheld'),'2 confidential staff notes withheld')
+  await get('/api/coffer/exports/'+type+'.csv?'+query,{as:member.cookie,status:403})
+  await get('/api/coffer/exports/'+type+'.csv?'+query,{...asAgent,status:403})
+  await get('/api/coffer/exports/'+type+'.csv?'+query,{as:'',status:401})
+ }
+ assert.deepEqual(files.constituents.map(r=>r.id),[main.id])
+ assert.equal(files.gifts.reduce((n,r)=>n+Number(r.amount_cents),0),total)
+ assert.equal(files.gifts.find(r=>r.id===reversed.id).amount_cents,'0')
+ assert.equal(files.gifts.filter(r=>r.id===split.id).length,1)
+ assert.ok(!files.gifts.some(r=>r.id===property.id),'Property is outside the monetary fund report')
+ for(const type of types.filter(t=>!['gifts','constituents'].includes(t)))assert.deepEqual(files[type],result[type].filter(r=>r.donor_id===main.id))
+ for(const fund of ['synthetic-coffer-10','synthetic-coffer-11']){
+  const scoped=new URLSearchParams(query);scoped.set('fund',fund)
+  const file=await download(h,'gifts',scoped),view=await get('/api/coffer/reports/funds?'+scoped)
+  assert.equal(file.rows.length,1)
+  assert.equal(Number(file.rows[0].amount_cents),view.funds[0].amount_cents)
+  assert.equal(JSON.parse(file.rows[0].allocations).length,1)
+  assert.equal(JSON.parse(file.rows[0].allocations)[0].net_cents,Number(file.rows[0].amount_cents))
+ }
+ const adjustments=new URLSearchParams(query);adjustments.set('from','2025-03-02');adjustments.set('through','2025-03-02')
+ assert.equal((await download(h,'gifts',adjustments)).rows.find(r=>r.id===reversed.id).amount_cents,'-1001','An adjustment-only period exports its negative movement, not the lifetime zero')
+ const refundQuery='report=funds&from=2025-01-01&through=2025-12-31'
+ const refunds=await download(h,'gifts',refundQuery)
+ assert.ok(refunds.rows.some(r=>r.gross_cents==='10003'&&r.amount_cents==='7658'&&r.refunded_cents==='2345'))
+ for(const basis of ['calendar','fiscal']){
+  const stateQuery='report=states&year=2024&basis='+basis+'&fund=synthetic-coffer-10'
+  const state=await get('/api/coffer/reports/states?'+stateQuery)
+  for(const type of types){
+   const file=await download(h,type,stateQuery),meta=await get('/api/coffer/exports/preview?type='+type+'&'+stateQuery)
+   assert.equal(meta.reportCents,state.totalCents)
+   if(type==='gifts')assert.equal(file.rows.reduce((n,r)=>n+Number(r.amount_cents),0),state.totalCents)
+   assert.equal(file.rows.length,type==='gifts'||type==='constituents'?1:result[type].filter(r=>r.donor_id===main.id).length)
+  }
+ }
+ await h.command('custom.define',{key:'synthetic_coffer_1001',label:'Synthetic coffer grouping',kind:'gift',type:'text',entry:'free-form'},{headers})
+ for(const [name,parameters,totalKey] of [['attribution','from=2023-01-01&to=2025-12-31','ledgerCents'],['custom-fields','from=2023-01-01&through=2025-12-31&field=synthetic_coffer_1001','totalCents']]){
+  const query='report='+name+'&'+parameters,report=await get('/api/coffer/reports/'+name+'?'+parameters)
+  let members=[]
+  for(const type of types){
+   const file=await download(h,type,query),meta=await get('/api/coffer/exports/preview?type='+type+'&'+query)
+   assert.equal(meta.reportCents,report[totalKey])
+   assert.equal(meta.rowCount,file.rows.length)
+   if(type==='constituents')members=file.rows.map(r=>r.id)
+   else assert.ok(file.rows.every(r=>members.includes(r.donor_id)))
+   if(type==='gifts'){
+    assert.equal(file.rows.reduce((n,r)=>n+Number(r.amount_cents),0)+meta.reportExcludedCents,report[totalKey])
+    assert.equal(meta.reportExcludedCents,888,'Anonymous retained money is reported without exporting the erased identity')
+    assert.equal(file.rows.filter(r=>r.id===split.id).length,1)
+    assert.equal(file.rows.find(r=>r.id===reversed.id).amount_cents,'0')
+    assert.equal(file.rows.some(r=>r.id===property.id),name==='custom-fields')
+   }
+  }
+ }
+ const recognition=await get('/api/coffer/reports/honor-roll?from=2023-01-01&through=2025-12-31')
+ for(const type of types){
+  const query='report=honor-roll&from=2023-01-01&through=2025-12-31',file=await download(h,type,query),meta=await get('/api/coffer/exports/preview?type='+type+'&'+query)
+  assert.equal(meta.reportCents,recognition.totalCents)
+  if(type==='gifts'){
+   assert.equal(file.rows.reduce((n,r)=>n+Number(r.amount_cents),0)+meta.reportExcludedCents,recognition.totalCents)
+   assert.equal(file.rows.length,recognition.rows.reduce((n,r)=>n+r.giftCount,0)-1,'The erased gift keeps its anonymous financial fact only')
+   assert.ok(!file.rows.some(r=>r.id===reversed.id||r.id===property.id))
+  }
+ }
+ const dashboard=await get('/api/coffer/reports/dashboard?year=2025')
+ for(const period of ['current','prior'])for(const type of types){
+  const query='report=dashboard-money&year=2025&period='+period,file=await download(h,type,query),meta=await get('/api/coffer/exports/preview?type='+type+'&'+query)
+  assert.equal(meta.reportCents,dashboard.summary[period+'Cents'])
+  if(type==='gifts')assert.equal(file.rows.reduce((n,r)=>n+Number(r.amount_cents),0)+meta.reportExcludedCents,meta.reportCents)
+ }
+ const dashboardFund='report=dashboard-money&year=2024&dimension=fund&key=synthetic-coffer-10'
+ const fundFile=await download(h,'gifts',dashboardFund)
+ assert.equal(Number(fundFile.rows[0].amount_cents),10001)
+ await get('/api/coffer/exports/gifts.csv?report=dashboard-money&cohort=new',{status:400})
+ const retained=await get('/api/coffer/retention?year=2025')
+ for(const cohort of ['all','retained','new','lapsed','recaptured','adjustments']){
+  const group=cohort==='all'?retained.totals:cohort==='adjustments'?retained.adjustments:retained.groups[cohort]
+  const ids=cohort==='all'?[...Object.values(retained.groups).flatMap(g=>g.rows),...retained.adjustments.rows].map(r=>r.donorId):group.rows.map(r=>r.donorId)
+  for(const type of types){
+   const query='report=retention&year=2025&cohort='+cohort,file=await download(h,type,query),meta=await get('/api/coffer/exports/preview?type='+type+'&'+query)
+   assert.deepEqual(meta.reportTotals,{count:group.count,priorCents:group.priorCents,currentCents:group.currentCents})
+   if(type==='constituents')assert.deepEqual(file.rows.map(r=>r.id).sort(),ids.sort())
+   else {assert.match(file.response.headers.get('content-disposition'),/lifetime/);assert.ok(file.rows.every(r=>ids.includes(r.donor_id)))}
+  }
+ }
+ const all=await download(h,'gifts','list=search&q=target')
+ assert.ok(all.rows.some(r=>r.id===property.id&&r.amount_cents==='0'&&r.stated_value_cents==='90009'))
+ for(const kind of ['lybunt','sybunt']){
+  const annualQuery='report=annual-lapses&list='+kind+'&year=2026'
+  const report=(await get('/api/coffer/reports/annual-lapses?year=2026')).groups.find(g=>g.kind===kind)
+  const members=await download(h,'constituents',annualQuery)
+  assert.deepEqual(members.rows.map(r=>r.id).sort(),report.rows.map(r=>r.donorId).sort())
+  for(const type of types){
+   const file=await download(h,type,annualQuery)
+   if(type!=='constituents')assert.match(file.response.headers.get('content-disposition'),/lifetime/)
+   if(type==='gifts'){
+    const lifetime=await Promise.all(report.rows.map(r=>get('/api/coffer/donors/'+r.donorId)))
+    assert.equal(file.rows.reduce((n,r)=>n+Number(r.amount_cents),0),lifetime.reduce((n,r)=>n+r.totals.lifetimeCents,0))
+   }
+  }
+ }
+ await get('/api/coffer/exports/gifts.csv?report=unknown',{status:400})
+ await get('/api/coffer/exports/gifts.csv?report=annual-lapses',{status:400})
+ const missing=await download(h,'gifts','report=funds&fund=synthetic-coffer-no-such-fund')
+ assert.equal(missing.rows.length,0)
+ for(let i=0;i<55;i++)await h.command('gift.record',{donorId:main.id,amount:'1.01',receivedOn:'2025-06-01',method:'check',goods:'none',fund:'synthetic-coffer-1000'},{headers})
+ const large='report=funds&fund=synthetic-coffer-1000&from=2025-01-01&through=2025-12-31'
+ const unpaged=await download(h,'gifts',large)
+ assert.equal(unpaged.rows.length,55)
+ const paged=await get('/api/coffer/reports/funds?'+large)
+ assert.equal(paged.entries.length,50);assert.equal(paged.more,true)
+ assert.equal(paged.funds[0].amount_cents,55*101)
+ assert.equal(unpaged.rows.reduce((n,r)=>n+Number(r.amount_cents),0),paged.funds[0].amount_cents)
+ const audit=(await get('/api/coffer/audit?action=export.csv')).rows.find(r=>JSON.parse(r.detail).selection.parameters?.fund==='synthetic-coffer-1000')
+ assert.ok(audit);assert.equal(JSON.parse(audit.detail).rowCount,55);assert.equal(JSON.parse(audit.detail).reportCents,5555)
+ if(process.env.COFFER_EXPORTS_BROWSER){
+  const {reportExportsBrowser}=await import('./exports-browser.mjs')
+  await reportExportsBrowser(h,{headers,query:large},process.env.COFFER_EXPORTS_BROWSER)
+ }
 }

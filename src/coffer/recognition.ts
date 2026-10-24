@@ -127,18 +127,24 @@ function levels(url: URL): RecognitionLevel[] {
  * in the inclusive period; later refunds reduce that original recognition.
  * Gift anonymity has its own row; donor anonymity groups the donor's gifts.
  * This proposal keeps names anonymous unless the donor opted into honor rolls. */
-export async function report(c: Context, url: URL) {
+export async function honorRollRecordSelection(c: Context, url: URL) {
  requireRole(c.actor, ['owner', 'admin'], 'export honor rolls')
  const from = date(url.searchParams.get('from'), 'From'), through = date(url.searchParams.get('through'), 'Through')
  if (from > through) fail('INPUT', 'From must be on or before Through.', 400)
  const bands = levels(url)
- const entries = await all(c, `SELECT g.donor_id,g.net_cents AS amount_cents,g.id AS original_id,
+ const query = `SELECT g.donor_id,g.id AS gift_id,g.fund,NULL AS campaign_id,g.net_cents AS amount_cents,g.id AS original_id,
   COALESCE(d.anonymous,0) AS donor_anonymous,COALESCE(d.honor_roll_opt_in,0) AS honor_roll_opt_in,
   d.recognition_name AS donor_name,COALESCE(r.anonymous,0) AS gift_anonymous,owner.erased_at
   FROM cf_gift_balances g JOIN cf_donors owner ON owner.id=g.donor_id
   LEFT JOIN cf_donor_recognition d ON d.donor_id=g.donor_id
   LEFT JOIN cf_gift_recognition r ON r.gift_id=g.id
-  WHERE g.received_on>=? AND g.received_on<=? AND g.net_cents>0 ORDER BY g.id`, from, through)
+  WHERE g.received_on>=? AND g.received_on<=? AND g.net_cents>0 ORDER BY g.id`
+ return {query,params:[from,through],parameters:{from,through},from,through,bands}
+}
+
+export async function report(c: Context, url: URL) {
+ const {query,params,from,through,bands}=await honorRollRecordSelection(c,url)
+ const entries=await all(c,query,...params)
  const grouped = new Map<string, { name: string; cents: number; gifts: Set<string> }>()
  let totalCents = 0
  for (const entry of entries) {

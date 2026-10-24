@@ -27,7 +27,7 @@ export function stateOf(region: unknown, country: unknown) {
  return STATES[code] ? code : BY_NAME.get(value.toLowerCase()) ?? UNKNOWN
 }
 
-export async function stateReport(c: Context, url: URL) {
+export async function stateRecordSelection(c: Context, url: URL) {
  const s = await settings(c), asOf = today(s.timezone, new Date(c.now)), q = url.searchParams
  const basis = choice(q.get('basis') || 'calendar', ['calendar', 'fiscal'] as const, 'year basis')
  const monthDay = basis === 'fiscal' ? s.fiscal_year_start : '01-01', current = Number(fiscalPeriod(asOf, monthDay).start.slice(0, 4))
@@ -39,14 +39,20 @@ export async function stateReport(c: Context, url: URL) {
  const channel = q.get('channel') ? choice(q.get('channel'), METHODS, 'channel') : null
  // Every monetary ledger entry in the period (gifts, reversals and refunds), each
  // placed by the address in effect on its gift's own received date.
- const entries = await all(c, `WITH e AS (
-   SELECT l.gift_id,l.donor_id,l.amount_cents,g.received_on AS gift_on FROM cf_fund_ledger l JOIN cf_gifts g ON g.id=l.gift_id
+ const query = `WITH e AS (
+   SELECT l.gift_id,l.donor_id,l.amount_cents,l.fund,l.campaign_id,g.received_on AS gift_on FROM cf_fund_ledger l JOIN cf_gifts g ON g.id=l.gift_id
    WHERE l.received_on>=? AND l.received_on<? AND (? IS NULL OR l.fund=?) AND (? IS NULL OR l.campaign_id=?) AND (? IS NULL OR l.method=?)
     AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_campaign_gifts cg WHERE cg.gift_id=l.gift_id AND cg.campaign_id=?)))
   SELECT e.*,CASE WHEN h.id IS NULL THEN d.region ELSE h.region END AS region,CASE WHEN h.id IS NULL THEN d.country ELSE h.country END AS country
   FROM e JOIN cf_donors d ON d.id=e.donor_id CROSS JOIN (SELECT ? AS choice,? AS day) sf
-  LEFT JOIN cf_donor_address_history h ON h.id=(SELECT x.id FROM cf_donor_address_history x WHERE x.donor_id=e.donor_id AND x.until_on>e.gift_on ORDER BY x.until_on,x.id LIMIT 1) WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')}`,
-  period.start, period.end, fund, fund, campaignId, campaignId, channel, channel, formId, formId,solicitation,asOf)
+  LEFT JOIN cf_donor_address_history h ON h.id=(SELECT x.id FROM cf_donor_address_history x WHERE x.donor_id=e.donor_id AND x.until_on>e.gift_on ORDER BY x.until_on,x.id LIMIT 1) WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')}`
+ const params = [period.start, period.end, fund, fund, campaignId, campaignId, channel, channel, formId, formId,solicitation,asOf]
+ return {s,asOf,basis,year,current,period,fund,campaignId,formId,channel,solicitation,query,params}
+}
+
+export async function stateReport(c: Context, url: URL) {
+ const {s,asOf,basis,year,current,period,fund,campaignId,formId,channel,solicitation,query,params}=await stateRecordSelection(c,url)
+ const entries=await all(c,query,...params)
  const observations=await all(c,"SELECT donor_id,at,json_extract(detail,'$.moveEffectiveMonth') AS month,json_extract(detail,'$.observedOn') AS observed FROM cf_events WHERE action='address.ncoa' AND json_extract(detail,'$.result')='moved' AND json_extract(detail,'$.moveEffectiveMonth') IS NOT NULL")
  const windows=new Map<string,{start:string;through:string}[]>()
  for(const o of observations){const group=windows.get(o.donor_id)??[];group.push({start:o.month+'-01',through:o.observed??today(s.timezone,new Date(o.at))});windows.set(o.donor_id,group)}
