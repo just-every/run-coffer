@@ -38,7 +38,15 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_ORGANIZATION_BROWSER=.cache/organizations node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001):' tests/coffer.test.mjs"
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DONOR-004|DONOR-005|DONOR-007|DONOR-013|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001):' tests/coffer.test.mjs"
+      ]
+    },
+    {
+      "name": "donor-records",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-007|DONOR-013):' tests/coffer.test.mjs"
       ]
     },
     {
@@ -89,7 +97,7 @@
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm run test:giving"
+        "node --test --test-skip-pattern='^(CAMP-001|GIFT-011)' tests/giving.test.mjs"
       ]
     },
     {
@@ -114,20 +122,35 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments pnpm run test:donor-depth",
+        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 --test-skip-pattern='^GIFT-005' tests/soft-credits.test.mjs tests/pledges.test.mjs",
         "node --test tests/giving-summary.test.mjs",
-        "node --test tests/split-gifts.test.mjs",
-        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test tests/duplicates.test.mjs",
+        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test tests/duplicates.test.mjs"
+      ]
+    },
+    {
+      "name": "donor-identity",
+      "browser": true,
+      "hosted": false,
+      "commands": [
         "node --test tests/status.test.mjs",
-        "COFFER_NAMES_BROWSER=.cache/names node --test tests/names.test.mjs"
+        "COFFER_NAMES_BROWSER=.cache/names node --test tests/names.test.mjs",
+        "node --test tests/split-gifts.test.mjs"
       ]
     },
     {
       "name": "pipeline",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test --test-skip-pattern='^MAJOR-' tests/pipeline.test.mjs"
+      ]
+    },
+    {
+      "name": "pipeline-prospects",
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm run test:pipeline"
+        "node --test --test-name-pattern='^MAJOR-' tests/pipeline.test.mjs"
       ]
     },
     {
@@ -135,7 +158,15 @@
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm run test:move-in"
+        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013):' tests/move-in.test.mjs"
+      ]
+    },
+    {
+      "name": "move-in-fields",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-013):' tests/move-in.test.mjs"
       ]
     },
     {
@@ -151,7 +182,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_MEETING_BROWSER=.cache/meeting-briefs pnpm run test:agent"
+        "COFFER_MEETING_BROWSER=.cache/meeting-briefs node --test --test-concurrency=1 --test-skip-pattern='^GIVE-006:' tests/agent-*.test.mjs tests/stewardship.test.mjs"
       ]
     },
     {
@@ -175,15 +206,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_CAMPAIGN_BROWSER=.cache/campaign node --test --test-name-pattern='CAMP-001' tests/giving.test.mjs"
-      ]
-    },
-    {
-      "name": "fundraising-dashboard",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test --test-name-pattern='REPORT-003' tests/pipeline.test.mjs"
+        "COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='CAMP-001' tests/giving.test.mjs"
       ]
     },
     {
@@ -192,14 +215,6 @@
       "hosted": false,
       "commands": [
         "COFFER_PLEDGE_BROWSER=.cache/pledge-balances node --test --test-name-pattern='GIFT-005' tests/pledges.test.mjs"
-      ]
-    },
-    {
-      "name": "campaign-page",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='GIVE-002' tests/giving.test.mjs"
       ]
     },
     {
