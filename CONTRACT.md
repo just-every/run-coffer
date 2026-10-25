@@ -456,7 +456,7 @@ An event has ticket types with the fair market value of the benefit, registratio
 
 Recorded event attendance feeds MAJOR-004 engagement scoring and its donor-page factors before event attendance ships. Ticket and registration gifts carry `GIFT-003`'s event channel and the event's defined appeal before tickets ship.
 
-Before event attendance ships, its actual attendance records join the DONOR-004 timeline and type/date filters.
+Before event attendance ships, its actual attendance records join the DONOR-004 timeline and type and date filters.
 
 The current event door has append-only ticket types and one named attendee per hosted checkout. The campaign and defined appeal are required; price and benefit value are fixed by the selected ticket. Paid registrations alone enter the private guest list. Check-in records the current staff actor and occurrence instant once. Attendance earns five base points per checked-in registration in the organization-calendar 365-day window, capped at 25; its default weight is zero until configured. Event management and guest reads adopt owner or admin authority only, with audit, no public attendee list and the existing reviewed online receipt policy. This conservative access default is pending ct approval; mapped questions, dietary notes and packages remain unimplemented.
 

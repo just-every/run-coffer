@@ -36,6 +36,8 @@ export async function fundraisingEventsJourney(){
   assert.equal((await h.get('/api/coffer/events?eventId='+event.id)).length,0,'Unpaid registrations do not enter the guest list')
   const session=[...sessions.keys()][0],thanks=await h.request('/giving/thanks?session_id='+session,{as:''});assert.equal(thanks.status,200,await thanks.text())
   assert.equal((await h.request('/giving/thanks?session_id='+session,{as:''})).status,200)
+  const changed=await h.request('/give/autumn-reading/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({...values,amount:'150',frequency:'once',appeal:'GALA26'}).toString()})
+  assert.equal(changed.status,409,'An event checkout cannot be reused as a different gift door')
   const guests=await h.get('/api/coffer/events?eventId='+event.id);assert.equal(guests.length,1)
   const registration=guests[0];assert.equal(registration.donor_id,guest.id)
   const history=await h.get('/api/coffer/donors/'+guest.id);assert.equal(history.gifts.length,1);assert.equal(history.gifts[0].goods_cents,6000)
