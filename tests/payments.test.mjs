@@ -2,9 +2,10 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {createHash,createHmac} from 'node:crypto'
 import {run} from './harness.mjs'
+import {fixedNow} from './fixed-clock.mjs'
 import {paymentAdjustmentsJourney} from './payment-adjustments-journey.mjs'
 
-const secret='synthetic_whsec_payments_network_edge',at=Math.floor(Date.now()/1000)
+const secret='synthetic_whsec_payments_network_edge',at=Date.parse(fixedNow)/1000
 const charge=(id,amount,fund,email,fee)=>({id,object:'charge',paid:true,status:'succeeded',amount,currency:'usd',created:at,metadata:{fund},billing_details:{name:email.split('@')[0],email},balance_transaction:'txn_'+id,amount_refunded:0,fee})
 const a=charge('ch_reading',10000,'Reading','maria@example.test',320),b=charge('ch_meals',5000,'Meals','jonah@example.test',175)
 const refund={id:'re_reading',object:'refund',status:'succeeded',charge:a.id,balance_transaction:'txn_refund'}
@@ -17,7 +18,7 @@ const manualEntry={...transaction(manualCharge),status:'available',available_on:
 const manualPayout={id:'po_manual',status:'paid',created:at+1,arrival_date:at+1,amount:5790,currency:'usd',automatic:false}
 
 async function deliver(h,id,type,objectId,{bad=false}={}) {
- const raw=JSON.stringify({id,type,data:{object:{id:objectId}}}),timestamp=Math.floor(Date.now()/1000)
+ const raw=JSON.stringify({id,type,data:{object:{id:objectId}}}),timestamp=Date.parse(fixedNow)/1000
  const sig=createHmac('sha256',bad?'invalid':secret).update(`${timestamp}.${raw}`).digest('hex')
  return h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'stripe-signature':`t=${timestamp},v1=${sig}`},body:raw})
 }
@@ -77,7 +78,7 @@ test('DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, st
   assert.equal(original.amount_cents,10000)
   const recognized=donors.find(d=>d.email==='jonah@example.test')
   await h.command('softCredit.record',{giftId:original.id,donorId:recognized.id,amount:'100'})
-  const due=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
+  const due=new Date(Date.parse(fixedNow)+7*86400000).toISOString().slice(0,10)
   const pledge=await h.command('pledge.create',{donorId:maria.id,amount:'100',fund:'Reading',pledgedOn:original.received_on,installments:[{dueOn:due,amount:'100'}]})
   await h.command('pledge.match',{giftId:original.id,installmentId:pledge.installments[0].id})
   for(const event of ['evt_refund','evt_refund','evt_refund_other_id'])assert.equal((await deliver(h,event,'refund.created',refund.id)).status,200)
@@ -179,7 +180,7 @@ test('DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, st
   assert.deepEqual(allFees.unmatched,{gross_cents:0,fee_cents:0,net_cents:0},'A dispute and its win cancel while remaining visible as unmatched lines')
   assert.equal(allFees.lines.filter(l=>!l.payout_id).length,2)
   assert.equal(allFees.totals.net_cents,17795)
- },{bindings,outbound})
+ },{entry:'tests/fixed-clock-worker.ts',bindings,outbound})
  const callsBeforeManaged=providerCalls
  await run(async h=>{
   const reply=await h.api('/api/coffer/payments/sync',{payoutId:payout.id},{status:503})
@@ -196,7 +197,7 @@ test('DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, st
 
 test('FIN-005: a month of pending ACH, late refunds, offline batches and posted payouts accounts for every cent',async()=>{
  const {donor,reviewed}=await import('./harness.mjs')
- const t=Math.floor(Date.now()/1000),month=new Date(t*1000).toISOString().slice(0,7),from=month+'-01',to=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10)
+ const t=Date.parse(fixedNow)/1000,month=new Date(t*1000).toISOString().slice(0,7),from=month+'-01',to=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10)
  const c=charge('ch_reconciliation',10000,'Reading','synthetic-coffer-1501@example.test',300)
  c.created=t
  const bank={id:'pi_synthetic_coffer_1502',status:'processing',amount:4200,currency:'usd',created:t,payment_method_types:['us_bank_account'],metadata:{fund:'Reading'}}
@@ -236,7 +237,7 @@ test('FIN-005: a month of pending ACH, late refunds, offline batches and posted 
   bank.status='succeeded';assert.equal((await deliver(h,'synthetic-coffer-1512','payment_intent.succeeded',bank.id)).status,200)
   assert.equal((await h.get(path)).pending.length,0)
   const empty=await h.get('/api/coffer/payments/reconciliation?from=2000-01-01&to=2000-01-31');assert.deepEqual(empty.funds,[])
- },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1513',STRIPE_WEBHOOK_SECRET:secret,PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+Buffer.from('synthetic-coffer-1514').toString('hex'),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Reading:'reading'})},outbound:async request=>{
+ },{entry:'tests/fixed-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1513',STRIPE_WEBHOOK_SECRET:secret,PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+Buffer.from('synthetic-coffer-1514').toString('hex'),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Reading:'reading'})},outbound:async request=>{
   const u=new URL(request.url)
   if(u.hostname==='api.stripe.com'){
    const objects=[c,bank,paid,tx,re,rt],object=objects.find(o=>u.pathname.endsWith('/'+o.id));if(object)return Response.json(object)

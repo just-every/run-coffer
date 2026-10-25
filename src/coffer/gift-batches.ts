@@ -33,21 +33,22 @@ export async function giftBatchCommand(c: Context, command: string, p: Row): Pro
   const reference = optional(p.reference,'Check number',100)
   if (batch.method === 'check' && !reference) fail('INPUT','Enter the check number.',400)
   const prior=command==='giftBatch.edit'?batch.entries.find(e=>e.id===entryId):null
+  const fund=optional(p.fund,'Fund',100)??prior?.fund??batch.fund
   const reply=optional(p.responseCode??p.appeal,'Response code',200)??prior?.appeal??batch.appeal
-  const write = await prepareGiftRecord(c, { ...p, method:batch.method, receivedOn:batch.received_on, fund:batch.fund, campaignId:batch.campaign_id, appeal:reply }, entryId)
+  const write = await prepareGiftRecord(c, { ...p, method:batch.method, receivedOn:batch.received_on, fund, campaignId:batch.campaign_id, appeal:reply }, entryId)
   const g = choice(p.goods,['none','provided'] as const,'goods or services answer'), goodsCents = g === 'none' ? 0 : amount(p,'goodsValue','Goods value'), goodsDescription = g === 'none' ? null : text(p.goodsDescription,'Goods description',300)
   await commit(c,[open(batchId,version),
    guard('EXISTS(SELECT 1 FROM cf_donors d WHERE id=? AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))','NOT_FOUND','Choose a current donor.',donorId),
    ...(command === 'giftBatch.add' ? [guard('(SELECT COUNT(*) FROM cf_batch_entries WHERE batch_id=?)<100','BATCH_FULL','Close this batch before starting another.',batchId),
-    sql('INSERT INTO cf_batch_entries(id,batch_id,donor_id,amount_cents,reference,goods,goods_cents,goods_description,created_at,custom_fields,appeal) VALUES(?,?,?,?,?,?,?,?,?,?,?)',entryId,batchId,donorId,write.result.amountCents,reference,g,goodsCents,goodsDescription,c.now,JSON.stringify(p.customFields??{}),write.result.appeal)] : [
+    sql('INSERT INTO cf_batch_entries(id,batch_id,donor_id,amount_cents,reference,goods,goods_cents,goods_description,created_at,custom_fields,appeal,fund) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',entryId,batchId,donorId,write.result.amountCents,reference,g,goodsCents,goodsDescription,c.now,JSON.stringify(p.customFields??{}),write.result.appeal,fund)] : [
     guard('EXISTS(SELECT 1 FROM cf_batch_entries WHERE id=? AND batch_id=?)','NOT_FOUND','That row is not in this batch.',entryId,batchId),
-    sql('UPDATE cf_batch_entries SET donor_id=?,amount_cents=?,reference=?,goods=?,goods_cents=?,goods_description=?,custom_fields=?,appeal=? WHERE id=?',donorId,write.result.amountCents,reference,g,goodsCents,goodsDescription,JSON.stringify(p.customFields??{}),write.result.appeal,entryId)]),
+    sql('UPDATE cf_batch_entries SET donor_id=?,amount_cents=?,reference=?,goods=?,goods_cents=?,goods_description=?,custom_fields=?,appeal=?,fund=? WHERE id=?',donorId,write.result.amountCents,reference,g,goodsCents,goodsDescription,JSON.stringify(p.customFields??{}),write.result.appeal,fund,entryId)]),
    sql('UPDATE cf_gift_batches SET version=version+1 WHERE id=?',batchId),event(c,command,'giftBatch',batchId,donorId,{entryId,amountCents:write.result.amountCents})])
   return { id:batchId,entryId,version:version+1 }
  }
  if (command === 'giftBatch.close') {
   if (!batch.entries.length || batch.total_cents !== batch.expected_cents) fail('UNBALANCED','The running total must equal the expected deposit total before closing.')
-  const writes = await Promise.all(batch.entries.map((entry: Row) => prepareGiftRecord(c, { customFields:JSON.parse(entry.custom_fields),donorId:entry.donor_id, amountCents:entry.amount_cents, receivedOn:batch.received_on, method:batch.method, reference:entry.reference, fund:batch.fund, campaignId:batch.campaign_id, appeal:entry.appeal??batch.appeal, channel:'mail', goods:entry.goods, goodsValueCents:entry.goods_cents, goodsDescription:entry.goods_description }, entry.id)))
+  const writes = await Promise.all(batch.entries.map((entry: Row) => prepareGiftRecord(c, { customFields:JSON.parse(entry.custom_fields),donorId:entry.donor_id, amountCents:entry.amount_cents, receivedOn:batch.received_on, method:batch.method, reference:entry.reference, fund:entry.fund??batch.fund, campaignId:batch.campaign_id, appeal:entry.appeal??batch.appeal, channel:'mail', goods:entry.goods, goodsValueCents:entry.goods_cents, goodsDescription:entry.goods_description }, entry.id)))
   await commit(c,[open(batchId,version),guard('(SELECT SUM(amount_cents) FROM cf_batch_entries WHERE batch_id=?)=(SELECT expected_cents FROM cf_gift_batches WHERE id=?)','UNBALANCED','The deposit no longer balances.',batchId,batchId),
    ...writes.flatMap(write=>write.statements),sql('UPDATE cf_batch_entries SET gift_id=id WHERE batch_id=?',batchId),
    sql("UPDATE cf_gift_batches SET status='closed',closed_at=?,closed_by=?,version=version+1 WHERE id=?",c.now,c.actor.name,batchId),

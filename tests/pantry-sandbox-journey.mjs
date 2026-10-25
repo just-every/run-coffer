@@ -45,7 +45,7 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
   ])accounts.push(await create(...input))
   const [bank,fee,...income]=accounts
   const fund=String(charge.metadata?.fund??'Unrestricted').trim()||'Unrestricted'
-  const fundAccounts={Unrestricted:income[0].id,Reading:income[1].id,Meals:income[2].id,[fund]:income[0].id}
+  const fundAccounts={Unrestricted:income[0].id,Reading:income[1].id,Meals:income[2].id};if(!Object.hasOwn(fundAccounts,fund))fundAccounts[fund]=income[0].id
   const agent=await pantry.command('agent.create',{name:'Coffer sandbox '+tag})
   let stripeRequests=0,proposalSubmissions=0
   // Pass requests to the actual providers. No Stripe or Pantry network substitutes.
@@ -63,12 +63,6 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
   }
   h=await installation({givingProtection:false,outbound,bindings:{STRIPE_SECRET_KEY:key,PANTRY_ORIGIN:pantry.origin,PANTRY_AGENT_TOKEN:agent.token,PANTRY_DEPOSIT_ACCOUNT:bank.id,PANTRY_FEE_ACCOUNT:fee.id,PANTRY_FUND_ACCOUNTS:JSON.stringify(fundAccounts)}})
   await reviewed(h)
-  await h.api('/api/coffer/payments/sync',{payoutId})
-  const matched=await h.api(`/api/coffer/payments/${payoutId}/match`,{entryIds:transactionId,confirm:'yes'})
-  assert.equal(matched.payout.complete,1);assert.equal(matched.payout.matched_cents,14535)
-  assert.equal(matched.lines.length,1);assert.equal(matched.lines[0].charge_id,chargeId)
-  assert.equal(sum(matched.splits,'gross_cents'),15000);assert.equal(sum(matched.splits,'fee_cents'),465)
-  const batch=await makeBatch(h)
   await withBrowserWorker(h,async(context,origin)=>{
    const page=await context.newPage();page.setDefaultTimeout(30_000)
    const capture=async(name,path,ownerPage=page)=>{
@@ -82,6 +76,20 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
      console.log(JSON.stringify({screenshot:file}))
     }
    }
+   await page.goto(origin+'/app/payouts')
+   await page.getByLabel('Payout ID (optional)',{exact:true}).fill(payoutId)
+   await page.getByRole('button',{name:'Sync from Stripe',exact:true}).click()
+   await page.getByRole('heading',{name:'Match a manual payout',exact:true}).waitFor()
+   await capture('payout-unmatched',null)
+   await page.getByLabel('Stripe balance transaction IDs',{exact:true}).fill(transactionId)
+   await page.getByRole('checkbox').check()
+   await page.getByRole('button',{name:'Match selected transactions',exact:true}).click()
+   await page.getByText('Matched gift amounts balance to this payout.',{exact:true}).waitFor()
+   const matched=await h.get('/api/coffer/payments/'+payoutId)
+   assert.equal(matched.payout.complete,1);assert.equal(matched.payout.matched_cents,14535)
+   assert.equal(matched.lines.length,1);assert.equal(matched.lines[0].charge_id,chargeId)
+   assert.equal(sum(matched.splits,'gross_cents'),15000);assert.equal(sum(matched.splits,'fee_cents'),465)
+   const batch=await makeBatch(h,{page,origin,capture})
    const native=await h.get('/api/coffer/gift-batches?id='+batch.id)
    assert.equal(native.total_cents,60000);assert.equal(native.entries.length,3)
    await capture('closed-check-batch',origin+'/app/gifts/batches?id='+batch.id)
@@ -139,7 +147,7 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
     assert.equal(journal.lines.filter(l=>l.account_id===bank.id).reduce((n,l)=>n+l.debit_cents-l.credit_cents,0),deposit)
     assert.equal(journal.lines.filter(l=>l.account_id===fee.id).reduce((n,l)=>n+l.debit_cents-l.credit_cents,0),fees)
     assert.equal(journal.lines.filter(l=>income.some(a=>a.id===l.account_id)).reduce((n,l)=>n+l.credit_cents-l.debit_cents,0),gross)
-    for(const split of splits)assert.equal(journal.lines.filter(l=>l.account_id===fundAccounts[split.fund]).reduce((n,l)=>n+l.credit_cents-l.debit_cents,0),split.gross_cents)
+    for(const split of splits){const lines=journal.lines.filter(l=>l.account_id===fundAccounts[split.fund]);assert.equal(lines.reduce((n,l)=>n+l.credit_cents-l.debit_cents,0),split.gross_cents);assert.ok(lines.every(l=>l.class_name===split.fund),'Fund classes survive Pantry approval')}
     await capture(kind+'-posted',uiPath)
     await pantry.page.goto(pantry.origin+'/app/books')
     await pantry.page.getByRole('tab',{name:'Journal entries',exact:true}).click()
@@ -160,16 +168,30 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
  }finally{if(h)await h.close();await pantry.close()}
 }
 
-async function makeBatch(h){
+async function makeBatch(h,{page,origin,capture}){
  const receivedOn='2026-10-24',people=await Promise.all(['Ada Check','Ben Check','Cora Check'].map(name=>donor(h,name)))
- const batch=await h.command('giftBatch.create',{name:'Sandbox three-check deposit',receivedOn,fund:'Reading',method:'check',expected:'600.00'})
- let version=batch.version
+ await page.goto(origin+'/app/gifts/batches')
+ await page.getByLabel('Batch name',{exact:true}).fill('Community program checks')
+ await page.getByLabel('Received on',{exact:true}).fill(receivedOn)
+ await page.getByLabel('Fund',{exact:true}).fill('Reading')
+ await page.getByLabel('Expected deposit total (USD)',{exact:true}).fill('600.00')
+ await page.getByRole('button',{name:'Start batch',exact:true}).click()
+ await page.getByRole('heading',{name:'Donor lookup',exact:true}).waitFor()
+ const id=new URL(page.url()).searchParams.get('id');assert.ok(id)
  for(const [i,person] of people.entries()){
-  const added=await h.command('giftBatch.add',{batchId:batch.id,version,donorId:person.id,amount:money((i+1)*10000),reference:'sandbox-check-'+(i+1),goods:'none'})
-  version=added.version
+  await page.getByLabel('Find donor by name, email, phone or legacy ID',{exact:true}).fill(person.name??['Ada Check','Ben Check','Cora Check'][i])
+  await page.getByRole('button',{name:'Find donor',exact:true}).click()
+  await page.getByRole('link',{name:'Select '+['Ada Check','Ben Check','Cora Check'][i],exact:true}).click()
+  await page.getByLabel('Gift amount (USD)',{exact:true}).fill(money((i+1)*10000))
+  await page.getByLabel('Gift fund',{exact:true}).fill(['Reading','Meals','Unrestricted'][i])
+  await page.getByLabel('Check number',{exact:true}).fill(String(4471+i))
+  if(i===0)await capture('check-entry',null)
+  await page.getByRole('button',{name:'Add gift',exact:true}).click()
+  await page.getByRole('heading',{name:'Batch rows',exact:true}).waitFor()
  }
- await h.command('giftBatch.close',{batchId:batch.id,version})
- return batch
+ await page.getByRole('button',{name:'Close batch',exact:true}).click()
+ await page.getByText('Closed deposit · 3 gifts · $600.00',{exact:true}).waitFor()
+ return {id}
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){

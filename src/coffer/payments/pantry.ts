@@ -9,6 +9,8 @@ export interface PaymentsEnv extends GivingEnv {
  PANTRY_DEPOSIT_ACCOUNT?: string
  PANTRY_FEE_ACCOUNT?: string
  PANTRY_FUND_ACCOUNTS?: string
+ PANTRY_FUND_CLASSES?: string
+ PANTRY_FUND_LOCATIONS?: string
  QBO_ACCOUNT_NAMES?: string
 }
 type Posting = {
@@ -62,6 +64,7 @@ export async function submitDeposit(c: Context, env: PaymentsEnv, deposit: Pantr
  const refs = accountIds.map(accountId => {
   const a = remote.accounts.find(a => a.id === accountId)
   if (!a || !a.active || ['receivable', 'payable'].includes(a.subtype) || !a.revision) fail('PANTRY_MAPPING', 'Choose active Pantry accounts outside receivable and payable control accounts.', 409)
+  if(journal.lines.some(l=>l.accountId===accountId&&(l.role==='deposit'?(a.type!=='asset'||a.subtype!=='bank'):a.type!==(l.role==='fee'?'expense':'income'))))fail('PANTRY_MAPPING','Map deposits to a bank asset, fees to an expense and funds to income accounts.',409)
   return { kind: 'account', id: a.id, revision: a.revision }
  })
  const installation = (await sha256(String(env.AUTH_ORIGIN))).slice(0, 16)
@@ -69,7 +72,7 @@ export async function submitDeposit(c: Context, env: PaymentsEnv, deposit: Pantr
  if (summary.length > 300) fail('PANTRY_PAYLOAD', 'The payout reference exceeds Pantry’s summary limit.', 400)
  const payload = { date: journal.date, memo: `Coffer ${kind === 'batch' ? 'check or cash batch' : 'Stripe payout'} ${id}`.slice(0, 500), documentId: docId,
   passages: csv.split('\r\n').filter(Boolean).flatMap(line => line.match(/[\s\S]{1,2000}/g) ?? []),
-  lines: journal.lines.map(({ accountId, debit, credit, memo }) => ({ accountId, debit, credit, memo })) }
+  lines: journal.lines.map(({ accountId, debit, credit, memo, className, locationName }) => ({ accountId, debit, credit, memo, ...(className?{className}:{}), ...(locationName?{locationName}:{}) })) }
  if (JSON.stringify(payload).length > 100_000) fail('PANTRY_PAYLOAD', 'This payout exceeds Pantry’s proposal size limit. Prepare its journal in Pantry.', 400)
  const hash = await sha256(JSON.stringify(payload)), known = remote.proposals.filter(p => p.summary === summary)
  if (known.length > 1 || known.length === 1 && await sha256(JSON.stringify(known[0].payload)) !== hash) fail('PANTRY_DUPLICATE', 'Pantry contains a different proposal for this payout. Reconcile it in Pantry.', 409)

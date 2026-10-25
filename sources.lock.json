@@ -2519,7 +2519,7 @@
       "executable": false
     },
     "src/coffer/gift-batches.ts": {
-      "sha256": "540c0e2be105fad513818971d8f8c711cd5b549cfbfbe5d2d2b626f52edaee00",
+      "sha256": "5c6e0ac5f8e1e24e05b4afc4f3de18b6cb18faef1b2d831a6ccd43c2818559e5",
       "executable": false
     },
     "src/coffer/gift-depth.ts": {
@@ -2999,7 +2999,7 @@
       "executable": false
     },
     "src/coffer/payments/exports.ts": {
-      "sha256": "0d94441174ccf92d9557c08f49753614ba0589dde0ff6dee59fe8296d7b4757f",
+      "sha256": "951d024383a9a790b973aba90d139bb51115408bfa722ef9e80b02e5e9292e11",
       "executable": false
     },
     "src/coffer/payments/fee-report-ui.ts": {
@@ -3019,7 +3019,7 @@
       "executable": false
     },
     "src/coffer/payments/pantry.ts": {
-      "sha256": "00141ab4d9721836c79c7ba984390953b8bcc669d069385bbcefd5b16c861169",
+      "sha256": "73cbded0d4e54763d463030bc6f884a0b2bd119c61e631d79986a99f629f6490",
       "executable": false
     },
     "src/coffer/payments/payouts.ts": {
@@ -3403,7 +3403,7 @@
       "executable": false
     },
     "src/coffer/ui/gift-batches.ts": {
-      "sha256": "28a43a1764a89c370ea87e28a9f7f0578402a66b49d92e704ea055285553875d",
+      "sha256": "795d734d6ef35436279af6bd65be285f43bc083036521034c42133ee4eba92d5",
       "executable": false
     },
     "src/coffer/ui/gift-depth.ts": {
@@ -5575,7 +5575,7 @@
       "executable": false
     },
     "tests/batch-deposits-journey.mjs": {
-      "sha256": "838b2f42a52c2b92f127c9f8bb3ed161c5431c9791ee8eb75b42db1d3ab2d163",
+      "sha256": "f4e2d87af854f6fe19603654e6e30aff978e229b363c1cfc8eef452d88bcdf4b",
       "executable": false
     },
     "tests/browser-journey.mjs": {
@@ -5999,7 +5999,7 @@
       "executable": false
     },
     "tests/pantry-sandbox-journey.mjs": {
-      "sha256": "0bb5795f20a777b7200d12c0dd7b07cfa696ce0a9c4cb4c9b75d4038e09a43c3",
+      "sha256": "7336b684dc120de16ec15cc701e7fbbaff4168d46e9178d4fee58c9d54eb1166",
       "executable": false
     },
     "tests/pantry-sandbox-runtime.mjs": {
@@ -6019,7 +6019,7 @@
       "executable": false
     },
     "tests/payments.test.mjs": {
-      "sha256": "8d2f57a9c5502dc37894b3bbd4befd6a5bab4a99bd4edc986245d63957c9d8aa",
+      "sha256": "10a1c01a809aa0fd9f7dc57f6cca27d969271d68527b058effeab69f3794d9f4",
       "executable": false
     },
     "tests/pipeline.test.mjs": {
