@@ -61,8 +61,8 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
   const reference = intent ? (refs.find(ref => ref.startsWith('in_')) ?? (pi || charge.id)) : charge.id
   await paymentWrite(env, [
    sql(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,source,created_at,created_by)
-    VALUES(?,1,?,'gift',?,?,'card',?,?,?,0,'stripe',?,'Stripe')`, giftId, donor.id, day(charge.created, (await settings(c)).timezone), gross, reference, fund, intent ? 'none' : 'unknown', now),
-   ...(intent ? [sql('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=?', intent.campaign_id, reference), ...onlineAttribution(intent, reference), sql("INSERT OR IGNORE INTO cf_dashboard_gift_forms(gift_id,form_id) SELECT id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'",intent.campaign_id,reference)] : []),
+    VALUES(?,1,?,'gift',?,?,'card',?,?,?,0,'stripe',?,?)`, giftId, donor.id, day(charge.created, (await settings(c)).timezone), gross, reference, fund, intent ? 'none' : 'unknown', now,intent?.staff_actor_name??'Stripe'),
+   ...(intent ? [sql('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=?', intent.campaign_id, reference), ...onlineAttribution(intent, reference), ...(!intent.staff_channel?[sql("INSERT OR IGNORE INTO cf_dashboard_gift_forms(gift_id,form_id) SELECT id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'",intent.campaign_id,reference)]:[])] : []),
    sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
     SELECT ?,'stripe','Stripe','agent','payments.gift','gift',id,donor_id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'
     AND NOT EXISTS(SELECT 1 FROM cf_events WHERE action='payments.gift' AND subject_id=cf_gifts.id)`, now, JSON.stringify({ chargeId, amountCents: gross }), reference),

@@ -7,8 +7,8 @@ import { settings } from './settings'
  * parts carry their own), appeal a defined `cf_appeal_codes` code and channel one
  * of CHANNELS. Totals by each dimension come from the fund ledger, so every
  * dimension sums to the ledger for the same dates. */
-export const CHANNELS = ['form', 'event', 'mail', 'email', 'text'] as const
-export const CHANNEL_LABELS: Record<string, string> = { form: 'Giving form', event: 'Event', mail: 'Mail piece', email: 'Email', text: 'Text-to-give' }
+export const CHANNELS = ['form', 'event', 'mail', 'email', 'text', 'phone'] as const
+export const CHANNEL_LABELS: Record<string, string> = { form: 'Giving form', event: 'Event', mail: 'Mail piece', email: 'Email', text: 'Text-to-give', phone: 'Phone' }
 export const NO_CAMPAIGN = 'No campaign', NO_APPEAL = 'No appeal', NO_CHANNEL = 'Channel not recorded'
 const CODE = /^[A-Za-z0-9][A-Za-z0-9 ._:#/&'-]{0,79}$/
 
@@ -53,7 +53,7 @@ export async function entryAttribution(c: Context, p: Row, fund: string, split: 
 export function onlineAttribution(intent: Row, reference: string): Stmt[] {
  const gift = "SELECT id FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'"
  return [
-  sql(`INSERT OR IGNORE INTO cf_gift_channels(gift_id,channel) SELECT id,? FROM (${gift})`, intent.giving_channel === 'text' ? 'text' : 'form', reference),
+  sql(`INSERT OR IGNORE INTO cf_gift_channels(gift_id,channel) SELECT id,? FROM (${gift})`, intent.staff_channel ?? (intent.giving_channel === 'text' ? 'text' : 'form'), reference),
   ...(intent.appeal ? [sql(`INSERT OR IGNORE INTO cf_gift_appeals(gift_id,appeal) SELECT id,? FROM (${gift})`, intent.appeal, reference)] : []),
  ]
 }

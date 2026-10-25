@@ -2243,7 +2243,7 @@
       "executable": false
     },
     "src/coffer/attribution.ts": {
-      "sha256": "48be22fc6f456769dc966ac3cd538112cf56bf205acb6a035f2144ddce4b025c",
+      "sha256": "f9e743721b6942c0e65e9b8653bb0aea2b00131c9ac7f5aa4f2a3f09a8563d82",
       "executable": false
     },
     "src/coffer/audit.ts": {
@@ -2619,7 +2619,7 @@
       "executable": false
     },
     "src/coffer/giving/recording.ts": {
-      "sha256": "2a1f08c4c5649fa381c0f667d428a8ada634c9fd8445e655fbd07ea8d69fc7ab",
+      "sha256": "6656adf4b973a2e3604835ee6f6d485a7ed43ec04cfcc25d94dcd6f6be320c88",
       "executable": false
     },
     "src/coffer/giving/setup.ts": {
@@ -2935,7 +2935,7 @@
       "executable": false
     },
     "src/coffer/payments/charges.ts": {
-      "sha256": "d4cc3cb7570e577e98cffa765c0c9f5297a568b45b3cd4c9a7a842bfe447144d",
+      "sha256": "2c33db5cae858dc4ce6536ceea8bac82fcb3f79661ca7ff82826422b673e3797",
       "executable": false
     },
     "src/coffer/payments/disputes.ts": {
