@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "bd378b0b71e271b7249e06684a5d097ab8cb122869c2e0529f9fea4711080a38",
+      "sha256": "067ce95d78ac988bd1a0783ba136bb2897047b227efbbb2d8a73c8b5656a9317",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5855,11 +5855,11 @@
       "executable": false
     },
     "tests/fundraising-events-browser.mjs": {
-      "sha256": "a7d635ba88e5d12a7b848959488c97a7497130a691e48b990ea2870d6ae57e5a",
+      "sha256": "ffcc891ca7d483a85571bce1ee3276401d04e932d53751e5d8c58ad7291663ac",
       "executable": false
     },
     "tests/fundraising-events-journey.mjs": {
-      "sha256": "cd490730f53808f352932326240408fa8e1328756a35ca3d7e851db23295b69a",
+      "sha256": "14cba90cc754fa85377c9c1519f2a798a18074bb8f22bc72b04d208d1ce2902a",
       "executable": false
     },
     "tests/gift-batches-journey.mjs": {
