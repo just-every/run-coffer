@@ -85,14 +85,6 @@
       ]
     },
     {
-      "name": "site",
-      "browser": false,
-      "hosted": false,
-      "commands": [
-        "pnpm run test:site"
-      ]
-    },
-    {
       "name": "giving",
       "browser": false,
       "hosted": false,

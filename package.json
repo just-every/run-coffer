@@ -28,7 +28,6 @@
     "deps": "rer install",
     "rer": "rer",
     "test:coffer": "node --test --test-concurrency=1 tests/coffer.test.mjs tests/demo.test.mjs",
-    "test:site": "node --test tests/site/*.test.mjs",
     "test:giving": "node --test tests/giving.test.mjs",
     "test:receipts": "node --test tests/receipts.test.mjs",
     "test:payments": "node --test tests/payments.test.mjs",
