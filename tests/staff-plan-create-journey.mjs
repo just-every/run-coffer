@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {withBrowserWorker} from './browser-worker.mjs'
 
-export async function staffPlanCreateJourney(h,edge,{person,sourceRef,campaign,member,directory}){
+export async function staffPlanCreateJourney(h,edge,{person,sourceRef,campaign,member,directory,plans,deliver}){
  const headers={'x-test-now':edge.state.now},endpoint='/api/coffer/giving/plans'
  const get=(path,options={})=>h.get(path,{...options,headers})
  const api=(body,options={})=>h.api(endpoint,body,{...options,headers})
@@ -58,4 +58,18 @@ export async function staffPlanCreateJourney(h,edge,{person,sourceRef,campaign,m
  assert.deepEqual(fees.byCampaign.map(r=>[r.id,r.gross_cents]),[[campaign.id,paid]])
  const attribution=await get('/api/coffer/reports/attribution?from=2026-01-01&to=2026-12-31')
  assert.equal(attribution.channel.find(r=>r.key==='phone').amountCents,paid)
+ const owner=(await get('/auth/session')).operator,messages=h.messages.length
+ for(const sub of [...plans,...[...edge.state.plans.values()].filter(p=>p.id.startsWith('sub_staff_recurring_'))]){
+  const id='in_exhausted_'+sub.id,bill={id,customer:sub.customer,currency:'usd',parent:{subscription_details:{subscription:sub.id}},status:'open',amount_paid:0,attempt_count:4,next_payment_attempt:null,status_transitions:{paid_at:null}}
+  edge.state.invoices.set(id,bill);sub.latest_invoice=id;sub.status='past_due'
+  await deliver('invoice.payment_failed',id)
+  bill.status='uncollectible';sub.status='unpaid'
+  await deliver('invoice.updated',id)
+  await deliver('invoice.updated',id,'replayed-exhausted-'+id)
+  const tasks=(await get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='recovery:'+id)
+  assert.equal(tasks.length,1,'Each new cadence and staff-created plan escalates an exhausted invoice once')
+  assert.equal(tasks[0].owner_id,owner.id)
+ }
+ assert.equal(h.messages.length,messages,'Unapproved new-plan recovery and staff escalation never send donor mail')
+
 }

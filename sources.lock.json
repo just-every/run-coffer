@@ -3483,7 +3483,7 @@
       "executable": false
     },
     "src/coffer/ui/recurring-health.ts": {
-      "sha256": "af4f19e04cc58fbc3a53dcd3bcd8402e291da494f6f6972e74b369fdc17728d6",
+      "sha256": "b3379b0c3033e49727def362a429c01d5048c61554be894cd3362d2c09fdd918",
       "executable": false
     },
     "src/coffer/ui/recurring-tasks.ts": {
@@ -6063,11 +6063,11 @@
       "executable": false
     },
     "tests/recurring-plans-browser.mjs": {
-      "sha256": "7583e4e6b848c1dd45ef0b23bbda60d6ad7d1f42f34f882568bc19dec71e1881",
+      "sha256": "3262a4e40d049c8f75dd7f209d30bd061f3412329e2effc23b564033a8d37aa8",
       "executable": false
     },
     "tests/recurring-plans-journey.mjs": {
-      "sha256": "2059fbb9789a8a09630bd3bf15760ff600e1c593577077c718fe87f502862fa1",
+      "sha256": "26d27db6f8195718e34d2adba201a1caa508d5690b017b115e7eff4a49928c0e",
       "executable": false
     },
     "tests/recurring-stripe-edge.mjs": {
@@ -6147,7 +6147,7 @@
       "executable": false
     },
     "tests/staff-plan-create-journey.mjs": {
-      "sha256": "aaad864851a4a7ef66b00d4796c4c2e3a09c5e7f4b1305141a8654008138f1a8",
+      "sha256": "89565dcefc477759c4dd8be8900e5e81a96620ab03e493b30692ff5660f3d276",
       "executable": false
     },
     "tests/state-report-journey.mjs": {
