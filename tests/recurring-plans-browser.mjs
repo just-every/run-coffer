@@ -28,6 +28,7 @@ export async function recurringPlansBrowser(h,edge,{monthly,person,sourceRef,dir
    await page.getByRole('heading',{name:'Year-round reading',exact:true}).waitFor()
    await page.getByLabel('Gift frequency',{exact:true}).selectOption('quarterly')
    await capture('giving-frequency',width)
+   await page.goto(origin+'/giving/thanks?session_id=cs_recurring_1');await page.getByRole('heading',{name:'Thank you for your gift',exact:true}).waitFor();await capture('giving-confirmed',width)
    await page.goto(origin+'/app/giving');await capture('giving',width)
    await page.getByRole('link',{name:'Manage recurring plans',exact:true}).click();await capture('plan-list',width)
    await page.goto(origin+'/app/giving/plans/'+monthly.id);await capture('plan-active',width)
