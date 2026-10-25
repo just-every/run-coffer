@@ -1,3 +1,6 @@
+import { eventRegistrationErasureStatements } from './privacy'
+import { eventGuests, fundraisingEvents } from './fundraising-events'
+import { eventsPage } from './ui/fundraising-events'
 import { scheduledReportDocument } from './ui/scheduled-report'
 import { scheduledReportLink } from './report-links'
 import { reportSchedules } from './report-schedules'
@@ -103,7 +106,7 @@ import { runtimeBindings } from '../auth.server'
 import { createPortability } from '@runeditrun/rer/modules/portability'
 import { createPortabilityHandler } from './portability/http.mjs'
 import policy from './archive-policy.mjs'
-import { identity, manager, originGuard, person, type Actor, type Authority } from './auth'
+import { identity, manager, originGuard, person, requireRole, type Actor, type Authority } from './auth'
 import { all, CofferError, fail, today, type Context } from './db'
 import { canonicalDonor } from './donor-merge'
 import { execute } from './commands'
@@ -406,6 +409,8 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const aliases = await c.db.prepare("SELECT email FROM cf_donor_aliases WHERE donor_id=? UNION SELECT value AS email FROM cf_contact_points WHERE donor_id=? AND kind='email' UNION SELECT json_extract(snapshot,'$.value') AS email FROM cf_contact_history WHERE donor_id=? AND json_extract(snapshot,'$.kind')='email'").bind(donorId,donorId,donorId).all<{email:string}>()
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now)
  const givingErasure = [
+  ...eventRegistrationErasureStatements(donorId,placeholder),
+  {sql:'DELETE FROM cf_saved_card_consents WHERE donor_id=?',params:[donorId]},
   { sql: "UPDATE cf_in_kind_acknowledgments SET subject='[erased]',body='[erased]' WHERE in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id=?)", params: [donorId] },
   { sql: "UPDATE cf_in_kind_revisions SET snapshot=json_set(snapshot,'$.description','Erased property contribution','$.goods_description',NULL),reason='[erased]' WHERE in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id=?)", params: [donorId] },
   { sql: "UPDATE cf_in_kind_gifts SET donor_id=?,description='Erased property contribution',goods_description=NULL,disposal_evidence=NULL,version=version+1 WHERE donor_id=?", params: [placeholder,donorId] },
@@ -459,6 +464,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command.startsWith('portfolio.')) return redirect('/app/portfolios')
  if (command.startsWith('research.')) return redirect('/app/research'+(input.returnDonorId?'?donorId='+encodeURIComponent(input.returnDonorId):''))
+ if (command.startsWith('event.')) return redirect('/app/events/'+encodeURIComponent(result.eventId??result.id))
  if (command.startsWith('volunteer.')) return redirect(input.returnDonorId?'/app/donors/'+encodeURIComponent(input.returnDonorId)+'#volunteering':'/app/volunteering')
  if (command.startsWith('grant.')) return redirect('/app/grants')
  if (command === 'taxReports.settings') return redirect('/app/reports/tax?'+new URLSearchParams({year:String(input.reportYear??''),basis:String(input.reportBasis??'calendar')}))
@@ -581,6 +587,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if(attachment) return proposalDownload(c,attachment[1])
  if (path === '/api/coffer/reports/tax') return json(await taxReport(c,url))
  if (path === '/api/coffer/research') return json(await researchState(c,url.searchParams.get('donorId')??undefined))
+ if(path==='/api/coffer/events'){requireRole(c.actor,['owner','admin'],'manage fundraising events');return json(url.searchParams.get('eventId')?await eventGuests(c,url.searchParams.get('eventId')!):await fundraisingEvents(c))}
  if (path === '/api/coffer/volunteering') return json(await volunteering(c,url.searchParams.get('donorId')??undefined,url.searchParams.get('year')||undefined))
  if (path === '/api/coffer/volunteering.csv') return download(await volunteerCsv(c,url.searchParams.get('year')||undefined),'coffer-volunteering')
  if (path === '/api/coffer/in-kind') return json(await inKindState(c,url.searchParams.get('donorId')??undefined))
@@ -657,6 +664,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const cultivation = path.match(/^\/app\/opportunities\/([^/]+)$/)
  if(cultivation) return show('Action plan and proposals',await cultivationPage(c,cultivation[1]))
  if (path === '/app/research') return show('Prospect research',await researchPage(c,url.searchParams.get('donorId')??undefined))
+ if(path==='/app/events'||/^\/app\/events\/[^/]+$/.test(path)){requireRole(c.actor,['owner','admin'],'manage fundraising events');return show('Fundraising events',await eventsPage(c,path==='/app/events'?undefined:decodeURIComponent(path.split('/').at(-1)!)))}
  if (path === '/app/volunteering') return show('Volunteer history',await volunteeringPage(c,url))
  if (path === '/app/grants') return show('Foundation and corporate grants',await grantsPage(c,url.searchParams.get('donorId')??undefined))
  if (path === '/app/engagement') return show('Engagement scores',await engagementPage(c))

@@ -1,3 +1,6 @@
+import { fundraisingEvent } from '../fundraising-events'
+import { registrationPage } from '../ui/fundraising-events'
+import { givingConnection } from './connections'
 import { startPledgeCheckout, validatePledgeLink, completePledgeCheckout } from '../pledge-checkout'
 import { usd } from '../money'
 import { textLink } from './text'
@@ -55,6 +58,24 @@ export async function givingResponse(request: Request, original: Bindings): Prom
    const remaining=i.amount_cents-i.paid_cents
    const response=await page('Pledge installment',remaining>0?`<p>${e(usd(remaining))} remains on the installment due ${e(i.due_on)}.</p><form method="post" action="${e(url.pathname+url.search)}"><button>Pay ${e(usd(remaining))} with Stripe</button></form><p>Card details go directly to Stripe.</p>`:'<p>This installment has no unpaid balance. No payment is requested.</p>')
    response.headers.set('referrer-policy','no-referrer');return response
+  }
+  const registration=path.match(/^\/giving\/events\/([a-z0-9-]+)(\/checkout)?$/)
+  if(registration){
+   const current=await fundraisingEvent({db:env.DB},registration[1])
+   if(request.method==='GET'&&!registration[2]){
+    const security=await givingConnection(env,'turnstile'),nonce=crypto.randomUUID().replaceAll('-','')
+    const response=await page(current.name,registrationPage(current,security?.siteKey??'')+`<script nonce="${nonce}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`)
+    response.headers.set('content-security-policy',response.headers.get('content-security-policy')!.replace("form-action 'self'","form-action 'self' https://checkout.stripe.com")+`; script-src 'nonce-${nonce}' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com`)
+    return response
+   }
+   if(request.method==='POST'&&registration[2]){
+    const data=Object.fromEntries(new URLSearchParams(await givingBody(request))),ticket=current.tickets.find(t=>t.id===data.ticketId)
+    if(!ticket)fail('INPUT','Choose a ticket type.',400)
+    const session=await checkout(env,request,current.campaign_slug,data,{...ticket,appeal_id:current.appeal_id})
+    if(typeof session.url!=='string'||new URL(session.url).hostname!=='checkout.stripe.com')fail('checkout_unavailable','The secure checkout is unavailable.',409)
+    return givingRedirect(session.url)
+   }
+   fail('method_not_allowed','Use the registration form.',405)
   }
   const portal = await portalResponse(request, env); if (portal) return portal
   const media = path.match(/^\/give\/([a-z0-9-]+)\/media\/(image|video)$/)

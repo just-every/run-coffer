@@ -68,13 +68,15 @@ const consentEvidence = (intent: Row) => `Ticked “Email me news and appeals”
 /** The reference and deterministic ID make return-page/webhook races harmless. */
 export async function recordGift(env: GivingEnv, intent: Row, reference: string, cents: number, paidAt: number, subscriptionId?: string) {
  if (!Number.isSafeInteger(cents) || cents <= 0 || !reference || !Number.isSafeInteger(paidAt)) fail('invalid_payment', 'Stripe returned an invalid gift.', 409)
+ const ticket=await one({db:env.DB},'SELECT * FROM cf_event_registrations WHERE intent_id=?',intent.id)
  const id = 'giving-' + reference, now = new Date().toISOString(), day = today((await settings({ db: env.DB })).timezone, new Date(paidAt * 1000))
  await env.DB.batch([
-  env.DB.prepare(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,source,created_at,created_by)
-   VALUES(?,1,?,'gift',?,?,'card',?,?,'none',0,'stripe',?,?)`).bind(id, intent.donor_id, day, cents, reference, intent.fund, now,intent.staff_actor_name??'Stripe'),
+  env.DB.prepare(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,goods_description,source,created_at,created_by)
+   VALUES(?,1,?,'gift',?,?,'card',?,?,?,?,?,'stripe',?,?)`).bind(id, intent.donor_id, day, cents, reference, intent.fund, ticket?'provided':'none',ticket?.benefit_cents??0,ticket?.benefit_description??null, now,intent.staff_actor_name??'Stripe'),
   env.DB.prepare('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=? AND kind=\'gift\'').bind(intent.campaign_id, reference),
-  ...(!intent.staff_channel?[env.DB.prepare("INSERT OR IGNORE INTO cf_dashboard_gift_forms(gift_id,form_id) SELECT id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'").bind(intent.campaign_id, reference)]:[]),
-  ...onlineAttribution(intent, reference).map(s=>env.DB.prepare(s.sql).bind(...s.params)),
+  ...(ticket?[env.DB.prepare('UPDATE cf_event_registrations SET donor_id=? WHERE intent_id=?').bind(intent.donor_id,intent.id)]:[]),
+  ...(!intent.staff_channel&&!ticket?[env.DB.prepare("INSERT OR IGNORE INTO cf_dashboard_gift_forms(gift_id,form_id) SELECT id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'").bind(intent.campaign_id, reference)]:[]),
+  ...onlineAttribution(ticket?{...intent,giving_channel:'event'}:intent, reference).map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...(subscriptionId ? [env.DB.prepare('INSERT OR IGNORE INTO cf_subscription_gifts(subscription_id,gift_id) VALUES(?,?)').bind(subscriptionId,id)] : []),
   ...[tributeGiftStatement(id,intent.id,now)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...[giftRecognitionStatement(id,intent)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),

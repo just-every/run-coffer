@@ -1,7 +1,8 @@
 import { portalTimeline } from './giving/portal-timeline'
-import { date, fail, type Context } from './db'
+import { settings } from './settings'
+import { date, fail, today, type Context, type Row } from './db'
 
-export const TIMELINE_KINDS=['call','meeting','email','note','visit','gift','pledge','receipt','appeal','task','volunteering','portal'] as const
+export const TIMELINE_KINDS=['call','meeting','email','note','visit','gift','pledge','receipt','appeal','task','volunteering','event','portal'] as const
 export function timelineFilter(url?:URL){
  const kind=url?.searchParams.get('timelineKind')??'',from=url?.searchParams.get('timelineFrom')??'',to=url?.searchParams.get('timelineTo')??''
  if(kind && !TIMELINE_KINDS.includes(kind as any))fail('INPUT','Choose a timeline activity type.',400)
@@ -12,6 +13,7 @@ export function timelineFilter(url?:URL){
 /** Current task and delivery sources augment the donor's existing history. */
 export async function timelineSources(c:Context,donorId:string){
  const queries=[
+  "SELECT 'event' AS kind,r.id,substr(r.checked_in_at,1,10) AS day,r.checked_in_at AS at,e.name AS title,'Checked in to event' AS body FROM cf_event_registrations r JOIN cf_fundraising_events e ON e.id=r.event_id WHERE r.donor_id=? AND r.checked_in_at IS NOT NULL",
   "SELECT 'appeal' AS kind,run_id AS id,substr(recorded_at,1,10) AS day,recorded_at AS at,'Deliberate solicitation inclusion' AS title,reason||' · chosen by '||actor_name AS body FROM cf_solicitation_inclusions WHERE donor_id=?",
   "SELECT 'email' AS kind,r.run_id AS id,substr(r.claimed_at,1,10) AS day,r.claimed_at AS at,'Text message' AS title,u.name||' · '||u.purpose||' · '||r.state AS body FROM cf_sms_recipients r JOIN cf_sms_runs u ON u.id=r.run_id WHERE r.donor_id=? AND r.claimed_at IS NOT NULL",
   "SELECT 'task' AS kind,id,substr(created_at,1,10) AS day,created_at AS at,'Call task' AS title,reason||' · '||status||' · due '||due_on AS body FROM cf_call_tasks WHERE donor_id=?",
@@ -22,6 +24,8 @@ export async function timelineSources(c:Context,donorId:string){
   "SELECT 'receipt' AS kind,e.id,substr(e.occurred_at,1,10) AS day,e.occurred_at AS at,CASE WHEN e.event='opened' THEN 'SendGrid provider-reported open' ELSE 'Receipt provider event' END AS title,CASE WHEN e.event='opened' THEN 'Provider-reported open, not proof of reading' ELSE e.event END AS body FROM cf_letter_events e JOIN cf_acks a ON a.id=e.letter_id WHERE a.donor_id=?",
   "SELECT 'appeal' AS kind,a.id,COALESCE(a.sent_on,substr(a.prepared_at,1,10)) AS day,a.prepared_at AS at,'Appeal' AS title,a.name||' · '||a.status AS body FROM cf_appeals a JOIN cf_appeal_recipients r ON r.appeal_id=a.id WHERE r.donor_id=? AND a.status<>'discarded'",
  ]
- const rows=await c.db.batch(queries.map(query=>c.db.prepare(query).bind(donorId)))
- return [...rows.flatMap(row=>row.results??[]),...await portalTimeline(c,donorId)]
+ const rows=await c.db.batch<Row>(queries.map(query=>c.db.prepare(query).bind(donorId)))
+ const zone=(await settings(c)).timezone
+ const sources=rows.flatMap(row=>row.results??[]).map(row=>row.kind==='event'?{...row,day:today(zone,new Date(String(row.at)))}:row)
+ return [...sources,...await portalTimeline(c,donorId)]
 }

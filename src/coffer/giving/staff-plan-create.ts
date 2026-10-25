@@ -7,6 +7,7 @@ import { planFacts } from './portal-plans'
 import { stripeId, syncSubscription } from './recording'
 import { invoice } from './webhooks'
 import { stripe, type GivingEnv } from './stripe'
+import { requireSavedCardConsent, savedCardConsent } from './saved-card-consent'
 
 const staff=(c:Context)=>requireRole(c.actor,['owner','admin'],'create recurring plans')
 const live=`d.erased_at IS NULL AND d.constituent_status='active' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)`
@@ -38,13 +39,14 @@ async function savedMethod(c:Context,customerId:string){
 const versionOf=(donor:Row,customerId:string,method:Row)=>sha256(JSON.stringify({donorId:donor.id,donorVersion:donor.version,customerId,...method}))
 export async function staffPlanCreateState(c:Context,donorId:string){
  const {donor,customerId}=await donorAccount(c,donorId),method=await savedMethod(c,customerId)
+ const cardConsent=await savedCardConsent(c,donor.id,customerId,method.paymentMethodId)
  const [campaigns,sources]=await Promise.all([
   all(c,'SELECT id,name,fund,closes_on FROM cf_campaigns WHERE active=1 ORDER BY name,id'),
   all(c,`SELECT 'interaction:'||id AS reference,'Phone call · '||occurred_on AS label FROM cf_interactions WHERE donor_id=? AND kind='call' UNION ALL SELECT 'document:'||id,title FROM cf_record_documents WHERE donor_id=?`,donor.id,donor.id),
  ])
  const pending=await one(c,"SELECT id,created_at FROM cf_portal_changes WHERE donor_id=? AND action='staff.create' AND state IN ('pending','uncertain') LIMIT 1",donor.id)
  await commit(c,[])
- return {donor,customerId,...method,version:await versionOf(donor,customerId,method),campaigns,sources,pending}
+ return {donor,customerId,...method,cardConsent,version:await versionOf(donor,customerId,{...method,consentId:cardConsent?.status==='granted'?cardConsent.id:null}),campaigns,sources,pending}
 }
 async function authorization(c:Context,donorId:string,reference:string,channel:string):Promise<{snapshot:string;guard:Stmt}>{
  const [kind,id,...rest]=reference.split(':')
@@ -77,25 +79,26 @@ export async function createStaffPlan(c:Context,input:Row){
  if(!campaign)fail('CAMPAIGN_UNAVAILABLE','Choose an active campaign.',409)
  if(campaign.closes_on&&today((await settings(c)).timezone,new Date(c.now))>campaign.closes_on)fail('CAMPAIGN_CLOSED','Choose a campaign that is still accepting gifts.',409)
  const evidence=await authorization(c,donorId,sourceRef,channel),method=await savedMethod(c,customerId)
- if(method.paymentMethodId!==paymentMethodId||version!==await versionOf(donor,customerId,method))fail('PAYMENT_METHOD_CHANGED','The saved payment method or constituent changed. Reload before confirming.',409)
+ const cardConsent=await requireSavedCardConsent(c,donorId,customerId,method.paymentMethodId)
+ if(method.paymentMethodId!==paymentMethodId||version!==await versionOf(donor,customerId,{...method,consentId:cardConsent.id}))fail('PAYMENT_METHOD_CHANGED','The saved payment method or constituent changed. Reload before confirming.',409)
  const custody=()=>guard(`EXISTS(SELECT 1 FROM cf_donors d JOIN cf_giving_customers gc ON gc.donor_id=d.id WHERE d.id=? AND d.version=? AND gc.customer_id=? AND ${live}) AND (SELECT count(*) FROM cf_giving_customers WHERE donor_id=?)=1 AND NOT EXISTS(SELECT 1 FROM cf_subscriptions WHERE customer_id=? AND donor_id<>?)`,'CUSTOMER_CHANGED','The constituent or saved Stripe customer changed. Review the pending request.',donorId,donor.version,customerId,donorId,customerId,donorId)
- await commit(c,[custody(),evidence.guard,guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=? AND active=1 AND name=? AND fund=? AND closes_on IS ?)','CAMPAIGN_CHANGED','The campaign changed. Review it before charging.',campaignId,campaign.name,campaign.fund,campaign.closes_on),guard("NOT EXISTS(SELECT 1 FROM cf_portal_changes WHERE donor_id=? AND action='staff.create' AND state IN ('pending','uncertain'))",'CREATE_PENDING','A previous creation request needs a Stripe result check.',donorId),guard('NOT EXISTS(SELECT 1 FROM cf_giving_intents WHERE id=?)','REQUEST_CHANGED','This request ID is already in use.',requestId),sql("INSERT INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,customer_id,donor_id,created_at,email_consent,requested_amount_cents,fee_cover_cents,giving_channel,billing_frequency,staff_actor_id,staff_actor_name,staff_channel) VALUES(?,?,?,?,?,'monthly',?,?,?,0,?,0,'form',?,?,?,?)",requestId,campaignId,donor.name,donor.email??'',cents,customerId,donorId,c.now,cents,frequency,c.actor.id,c.actor.name,channel),sql("INSERT INTO cf_portal_changes(id,donor_id,subscription_id,action,state,request,created_at) VALUES(?,?,NULL,'staff.create','pending',?,?)",requestId,donorId,JSON.stringify({input:payload,authorizationSnapshot:evidence.snapshot,paymentMethodType:method.paymentMethodType}),c.now),event(c,'staffPlan.creationRequested','givingIntent',requestId,donorId,{requestId,campaignId,frequency,amountCents:cents,sourceRef,channel,authorizationSnapshot:evidence.snapshot})])
+ await commit(c,[custody(),evidence.guard,cardConsent.guard,guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=? AND active=1 AND name=? AND fund=? AND closes_on IS ?)','CAMPAIGN_CHANGED','The campaign changed. Review it before charging.',campaignId,campaign.name,campaign.fund,campaign.closes_on),guard("NOT EXISTS(SELECT 1 FROM cf_portal_changes WHERE donor_id=? AND action='staff.create' AND state IN ('pending','uncertain'))",'CREATE_PENDING','A previous creation request needs a Stripe result check.',donorId),guard('NOT EXISTS(SELECT 1 FROM cf_giving_intents WHERE id=?)','REQUEST_CHANGED','This request ID is already in use.',requestId),sql("INSERT INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,customer_id,donor_id,created_at,email_consent,requested_amount_cents,fee_cover_cents,giving_channel,billing_frequency,staff_actor_id,staff_actor_name,staff_channel) VALUES(?,?,?,?,?,'monthly',?,?,?,0,?,0,'form',?,?,?,?)",requestId,campaignId,donor.name,donor.email??'',cents,customerId,donorId,c.now,cents,frequency,c.actor.id,c.actor.name,channel),sql("INSERT INTO cf_portal_changes(id,donor_id,subscription_id,action,state,request,created_at) VALUES(?,?,NULL,'staff.create','pending',?,?)",requestId,donorId,JSON.stringify({input:payload,authorizationSnapshot:evidence.snapshot,paymentMethodType:method.paymentMethodType,savedCardConsentId:cardConsent.id}),c.now),event(c,'staffPlan.creationRequested','givingIntent',requestId,donorId,{requestId,campaignId,frequency,amountCents:cents,sourceRef,channel,authorizationSnapshot:evidence.snapshot,savedCardConsentId:cardConsent.id})])
  const env=c.env as GivingEnv,product=await stripe(env,'products',{name:campaign.name,'metadata[coffer_intent]':requestId},'coffer-staff-product-'+requestId)
  if(typeof product.id!=='string'||!product.id)fail('STRIPE_UNCONFIRMED','Stripe did not confirm the billing product. The creation request needs review.',502)
  const chargingMethod=await savedMethod(c,customerId)
- if(chargingMethod.paymentMethodId!==paymentMethodId||version!==await versionOf(donor,customerId,chargingMethod))fail('PAYMENT_METHOD_CHANGED','The saved Stripe payment method changed before charging. Review the pending creation request.',409)
- await commit(c,[custody(),evidence.guard])
+ if(chargingMethod.paymentMethodId!==paymentMethodId||version!==await versionOf(donor,customerId,{...chargingMethod,consentId:cardConsent.id}))fail('PAYMENT_METHOD_CHANGED','The saved Stripe payment method changed before charging. Review the pending creation request.',409)
+ await commit(c,[custody(),evidence.guard,cardConsent.guard])
  const interval=frequency==='annually'?'year':'month',count=frequency==='quarterly'?3:1
  const sub=await stripe(env,'subscriptions',{customer:customerId,default_payment_method:paymentMethodId,collection_method:'charge_automatically',payment_behavior:'error_if_incomplete','payment_settings[save_default_payment_method]':'on_subscription','payment_settings[payment_method_types][0]':method.paymentMethodType,'items[0][price_data][currency]':'usd','items[0][price_data][product]':product.id,'items[0][price_data][unit_amount]':cents,'items[0][price_data][recurring][interval]':interval,'items[0][price_data][recurring][interval_count]':count,'items[0][quantity]':1,'metadata[coffer_intent]':requestId},'coffer-staff-subscription-'+requestId)
  const facts=planFacts(sub)
  if(typeof sub.id!=='string'||!sub.id||stripeId(sub.customer)!==customerId||sub.metadata?.coffer_intent!==requestId||sub.status!=='active'||facts.amountCents!==cents||facts.interval!==interval||facts.intervalCount!==count||facts.product!==product.id||facts.paused||sub.cancel_at_period_end)fail('STRIPE_UNCONFIRMED','Stripe did not confirm the requested active plan. Review the pending request before another charge.',502)
- await commit(c,[custody(),evidence.guard])
+ await commit(c,[custody(),evidence.guard,cardConsent.guard])
  const synced=await syncSubscription(env,sub.id,false)
  if(!synced||synced.intent.id!==requestId||synced.intent.donor_id!==donorId)fail('STRIPE_UNCONFIRMED','The created plan could not be linked safely. Review the pending request.',502)
  const verified=planFacts(synced.sub)
  if(synced.sub.status!=='active'||verified.amountCents!==cents||verified.interval!==interval||verified.intervalCount!==count||verified.product!==product.id||verified.paused||synced.sub.cancel_at_period_end)fail('STRIPE_UNCONFIRMED','The created plan changed during provider verification. Review its pending request.',502)
  const completed=new Date().toISOString()
- await commit(c,[custody(),evidence.guard,sql("UPDATE cf_portal_changes SET subscription_id=?,state='complete',completed_at=? WHERE id=? AND state='pending'",sub.id,completed,requestId),event({...c,now:completed},'staffPlan.create','subscription',sub.id,donorId,{requestId,campaignId,frequency,amountCents:cents,sourceRef,channel,authorizationSnapshot:evidence.snapshot})])
+ await commit(c,[custody(),evidence.guard,cardConsent.guard,sql("UPDATE cf_portal_changes SET subscription_id=?,state='complete',completed_at=? WHERE id=? AND state='pending'",sub.id,completed,requestId),event({...c,now:completed},'staffPlan.create','subscription',sub.id,donorId,{requestId,campaignId,frequency,amountCents:cents,sourceRef,channel,authorizationSnapshot:evidence.snapshot,savedCardConsentId:cardConsent.id})])
  if(stripeId(sub.latest_invoice))await invoice(env,stripeId(sub.latest_invoice))
  return {id:sub.id,requestId,state:'complete'}
 }

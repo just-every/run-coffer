@@ -1,3 +1,4 @@
+import { savedCardConsentPage, saveSavedCardConsent } from './portal-saved-card-consent'
 import { downloadProperty } from './portal-property'
 import { portalContext, uniquePortalEmail } from './portal-identity'
 import { givingHistory, downloadDocument, requestDocumentCopy } from './portal-documents'
@@ -14,7 +15,7 @@ import { cancellationPage, confirmationPage, invalidLinkPage, requestedPage, req
 
 const LINK_LIFETIME = 30 * 60_000, SESSION_LIFETIME = 60 * 60_000
 const TOKEN = /^[a-f0-9]{64}$/
-const routes = new Set(['/giving/portal', '/giving/portal/request', '/giving/portal/confirm', '/giving/portal/card', '/giving/portal/cancel', '/giving/portal/preferences','/giving/portal/history','/giving/portal/document','/giving/portal/copy','/giving/portal/communications','/giving/portal/plan','/giving/portal/card-return','/giving/portal/property'])
+const routes = new Set(['/giving/portal/saved-card','/giving/portal', '/giving/portal/request', '/giving/portal/confirm', '/giving/portal/card', '/giving/portal/cancel', '/giving/portal/preferences','/giving/portal/history','/giving/portal/document','/giving/portal/copy','/giving/portal/communications','/giving/portal/plan','/giving/portal/card-return','/giving/portal/property'])
 type Donor = { id: string; name: string; email: string | null }
 type Subscription = PortalSubscription & { customer_id: string; donor_id: string }
 const context = (env: GivingEnv) => ({ db: env.DB })
@@ -175,6 +176,10 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
  if (path === '/giving/portal/confirm') return confirm(request, env, read ? url.searchParams.get('token') ?? '' : (await form(request)).get('token') ?? '')
  const donor = await session(request, env)
  if (!donor) return read && path === '/giving/portal' ? requestPage() : redirect('/giving/portal')
+ if(path==='/giving/portal/saved-card'){
+  if(read)return savedCardConsentPage(env,donor,url.searchParams.get('saved')==='1')
+  await saveSavedCardConsent(env,donor,await form(request));return redirect('/giving/portal/saved-card?saved=1')
+ }
  if (path === '/giving/portal/preferences') {
   if(read)return donorRequestPage(env,donor,url.searchParams.get('saved')==='1')
   await saveDonorRequest(env,donor,await form(request))

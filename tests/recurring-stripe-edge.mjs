@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 
 // Stripe test clock, billing and ledger observations are faked only here.
 export function recurringStripeEdge() {
- const state={now:'2026-01-10T12:00:00.000Z',plans:new Map(),sessions:new Map(),invoices:new Map(),charges:new Map(),entries:[],sequence:0,staffSequence:0,mutations:[],uncertain:false,methodType:'card',customerDiscount:false}
+ const state={now:'2026-01-10T12:00:00.000Z',plans:new Map(),sessions:new Map(),invoices:new Map(),charges:new Map(),entries:[],sequence:0,staffSequence:0,mutations:[],uncertain:false,methodType:'card',customerDiscount:false,savedMethods:new Map()}
  const outbound=async request=>{
   const u=new URL(request.url),p=new URLSearchParams(await request.text()),path=u.pathname
   assert.equal(u.hostname,'api.stripe.com')
@@ -66,8 +66,8 @@ export function recurringStripeEdge() {
    return Response.json(sub)
   }
   if(path.startsWith('/v1/invoices/'))return Response.json(state.invoices.get(path.split('/').at(-1)))
-  if(path.startsWith('/v1/customers/')){const id=path.split('/').at(-1);return Response.json({id,balance:0,discount:state.customerDiscount?{id:'synthetic-coffer-7300'}:null,invoice_settings:{default_payment_method:'synthetic-coffer-'+(7200+Number(id.split('_').at(-1)))}})}
-  if(path.startsWith('/v1/payment_methods/')){const id=path.split('/').at(-1);return Response.json({id,customer:'cus_recurring_'+(Number(id.split('-').at(-1))-7200),type:state.methodType,card:{exp_month:12,exp_year:2028}})}
+  if(path.startsWith('/v1/customers/')){const id=path.split('/').at(-1);return Response.json({id,balance:0,discount:state.customerDiscount?{id:'synthetic-coffer-7300'}:null,invoice_settings:{default_payment_method:state.savedMethods.get(id)??'synthetic-coffer-'+(7200+Number(id.split('_').at(-1)))}})}
+  if(path.startsWith('/v1/payment_methods/')){const id=path.split('/').at(-1),customer=[...state.savedMethods].find(([,methodId])=>methodId===id)?.[0]??'cus_recurring_'+(Number(id.split('-').at(-1))-7200);return Response.json({id,customer,type:state.methodType,card:{exp_month:12,exp_year:2028,brand:'synthetic-coffer-card-metadata',last4:'synthetic-coffer-card-metadata'}})}
   if(path==='/v1/invoice_payments')return Response.json({data:[],has_more:false})
   if(path.startsWith('/v1/charges/'))return Response.json(state.charges.get(path.split('/').at(-1)))
   if(path==='/v1/payouts/po_staff_recurring')return Response.json({id:'po_staff_recurring',status:'paid',arrival_date:Date.parse(state.now)/1000,amount:state.entries.filter(e=>e.id.startsWith('txn_staff_')).reduce((s,e)=>s+e.net,0),currency:'usd',automatic:true,reconciliation_status:'completed'})
