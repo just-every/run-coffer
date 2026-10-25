@@ -456,3 +456,9 @@
 
 .coffer .phone-actions a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid var(--cf-line); border-radius: 8px; background: var(--rer-surface); text-decoration: none; }
 .coffer .phone-actions a:hover { border-color: var(--cf-violet-line); }
+
+/* Approved scheduled reports use the existing card with readable nested facts. */
+.coffer .report-document { overflow-wrap: anywhere; }
+.coffer .report-document dl { display: block; margin: 0; }
+.coffer .report-document dd { margin: 0 0 12px; }
+.coffer .report-document ol { padding-left: 20px; }

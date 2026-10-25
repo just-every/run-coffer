@@ -101,15 +101,17 @@ export async function reportSchedulesJourney(){
  await run(async h=>{
   await reviewed(h)
   const options={headers:{'x-test-now':'2026-10-18T02:00:00.000Z'}}
+  const linkedDonor=await donor(h,'Synthetic Scheduled Report Donor')
+  await h.command('gift.record',{donorId:linkedDonor.id,amount:'275',receivedOn:'2025-03-02',method:'check',goods:'none',fund:'Library'},options)
   await h.command('reportSchedule.save',{name:'Resend director report',reportPath:'/app/reports/dashboard?year=2025',recipients:'director@example.test',cadence:'weekly',startsAt:'2026-10-25T02:00',reviewed:'yes'},options)
   const tick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+Date.parse('2026-10-25T02:00:00Z'));assert.equal(tick.status,200,await tick.text())
   const message=h.messages.find(m=>m.subject==='Resend director report');assert.ok(message)
   const recipient=await h.person('director@example.test'),stranger=await h.person('synthetic-coffer-1605@example.test')
   const link=new URL(message.text.match(/https?:\/\/[^\s]+\/app\/scheduled-reports\/[^\s]+/)[0]),path=link.pathname
   for(const suffix of ['', '?download=1']){
-   const approved=await h.request(path+suffix,{as:recipient.cookie});assert.equal(approved.status,200);assert.ok((await approved.text()).includes('2025'))
-   const refused=await h.request(path+suffix,{as:stranger.cookie});assert.equal(refused.status,403);assert.doesNotMatch(await refused.text(),/currentCents|Riverbend Report Donor|coffer-report.json/)
-   const anonymous=await h.request(path+suffix,{as:''});assert.ok([303,401].includes(anonymous.status));assert.doesNotMatch(await anonymous.text(),/currentCents|Riverbend Report Donor|coffer-report.json/)
+   const approved=await h.request(path+suffix,{as:recipient.cookie});assert.equal(approved.status,200);const contents=await approved.text();assert.ok(contents.includes('2025'));assert.match(contents,suffix?/27500/:/275\.00/)
+   const refused=await h.request(path+suffix,{as:stranger.cookie});assert.equal(refused.status,403);assert.doesNotMatch(await refused.text(),/currentCents|27500|275\.00|Fundraising dashboard|coffer-report.json/)
+   const anonymous=await h.request(path+suffix,{as:''});assert.ok([303,401].includes(anonymous.status));assert.doesNotMatch(await anonymous.text(),/currentCents|27500|275\.00|Fundraising dashboard|coffer-report.json/)
   }
   const refusals=await h.get('/api/coffer/audit?action=reportSchedule.linkRefused');assert.equal(refusals.rows.length,2);assert.ok(refusals.rows.every(row=>row.actor_id===stranger.id))
   if(process.env.COFFER_REPORT_SCHEDULE_BROWSER)await reportSchedulesBrowser({...h,owner:recipient.cookie},process.env.COFFER_REPORT_SCHEDULE_BROWSER,'link:'+path)

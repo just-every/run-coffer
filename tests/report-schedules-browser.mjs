@@ -7,11 +7,8 @@ export async function reportSchedulesBrowser(h,directory,stage){
  await withBrowserWorker(h,async(context,origin)=>{
   await context.setExtraHTTPHeaders({'x-test-now':'2026-10-25T02:00:00Z'})
   const page=await context.newPage();page.setDefaultTimeout(15000)
-  const state=async()=>{
-   const response=await page.request.get(origin+'/api/coffer/report-schedules')
-   assert.equal(response.status(),200)
-   return response.json()
-  }
+  const state=()=>h.get('/api/coffer/report-schedules',{headers:{'x-test-now':'2026-10-25T02:00:00Z'}})
+  if(stage==='uncertain'||stage==='held')await page.goto(origin+'/app/report-schedules')
   const initial=stage==='uncertain'||stage==='held'?await state():null
   const uncertain=initial?.runs.filter(run=>run.status==='uncertain'&&!initial.runs.some(retry=>retry.retry_of===run.id)).slice(0,2)
   if(stage==='uncertain')assert.equal(uncertain.length,2,'Each viewport reviews a different unconfirmed run')
@@ -46,6 +43,7 @@ export async function reportSchedulesBrowser(h,directory,stage){
     await resend.click()
     assert.equal(await reviewed.evaluate(input=>input.validity.valueMissing),true,'Resend requires explicit duplicate acknowledgment')
     assert.equal((await state()).runs.length,before.runs.length,'Unchecked review does not send a report')
+    await page.keyboard.press('Escape')
     await row.scrollIntoViewIfNeeded()
     await page.screenshot({path:`${directory}/REPORT-005-uncertain-review-${width}.png`})
     await reviewed.check()
@@ -69,8 +67,9 @@ export async function reportSchedulesBrowser(h,directory,stage){
     await page.goto(origin+stage.slice(5))
     await page.getByRole('link',{name:'Download report attachment',exact:true}).waitFor()
     await page.getByRole('heading',{name:'Fundraising dashboard',exact:true}).waitFor()
-    assert.match(await page.locator('pre').innerText(),/currentCents/)
-    focus=page.locator('main')
+    await page.getByRole('heading',{name:'Report contents',exact:true}).waitFor()
+    assert.match(await page.locator('main').innerText(),/Current/)
+    focus=page.getByRole('heading',{name:'Fundraising dashboard',exact:true})
    }else{
     throw new Error('Unknown report schedule browser stage: '+stage)
    }

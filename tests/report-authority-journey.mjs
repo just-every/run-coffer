@@ -7,7 +7,7 @@ const at=value=>({headers:{'x-test-now':value}})
 
 // Use native invitations and sessions with the same SendGrid edge as the report.
 async function inviteAdmin(h,messages){
- const email='synthetic-coffer-report-approver@example.test'
+ const email='synthetic-coffer-1606@example.test'
  const invited=await h.request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email,role:'admin',displayName:'Report approver'}).toString()})
  assert.equal(invited.status,303)
  const mail=messages.findLast(m=>m.personalizations[0].to.some(p=>p.email===email))
@@ -40,7 +40,7 @@ async function authorityCase(authority,stage){
  await run(async h=>{
   await reviewed(h)
   const admin=await inviteAdmin(h,messages)
-  const recipients=stage==='between sends'?['synthetic-coffer-report-first@example.test','synthetic-coffer-report-second@example.test']:['synthetic-coffer-report-only@example.test']
+  const recipients=stage==='between sends'?['synthetic-coffer-1607@example.test','synthetic-coffer-1608@example.test']:['synthetic-coffer-1609@example.test']
   const recipient=recipients.at(-1)
   const input={name:`${authority} revoked ${stage}`,reportPath:'/app/reports/dashboard?year=2025',recipients:recipients.join(','),cadence:'weekly',startsAt:dueAt,reviewed:'yes'}
   const schedule=await h.command('reportSchedule.save',input,{...at(savedAt),as:admin.cookie})
@@ -110,12 +110,12 @@ async function authorityCase(authority,stage){
   const submissions=reports().length
   await tick(h)
   assert.equal(reports().length,submissions,'Another tick cannot resubmit a refused occurrence')
- },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-report-authority'},outbound:async request=>{
+ },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1611'},outbound:async request=>{
   assert.equal(new URL(request.url).origin,'https://api.sendgrid.com')
   const mail=await request.json();messages.push(mail)
   if(mail.attachments)await onReport()
   const uncertain=mail.attachments&&stage==='manual resend'
-  return new Response(null,{status:uncertain?500:202,headers:uncertain?{}:{'x-message-id':'synthetic-coffer-report-authority-message'}})
+  return new Response(null,{status:uncertain?500:202,headers:uncertain?{}:{'x-message-id':'synthetic-coffer-1610'}})
  }})
 }
 
