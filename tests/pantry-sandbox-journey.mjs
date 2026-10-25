@@ -92,6 +92,9 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
    assert.equal(matched.payout.complete,1);assert.equal(matched.payout.matched_cents,14535)
    assert.equal(matched.lines.length,1);assert.equal(matched.lines[0].charge_id,chargeId)
    assert.equal(sum(matched.splits,'gross_cents'),15000);assert.equal(sum(matched.splits,'fee_cents'),465)
+   const imported=(await h.get('/api/coffer/donors')).donors.find(d=>d.email===charge.receipt_email)
+   assert.ok(imported,'The Stripe gift has a matched donor')
+   await h.command('donor.update',{donorId:imported.id,version:imported.version,name:'Maya Rivera',email:imported.email})
    const batch=await makeBatch(h,{page,origin,capture})
    const native=await h.get('/api/coffer/gift-batches?id='+batch.id)
    assert.equal(native.total_cents,60000);assert.equal(native.entries.length,3)
@@ -172,7 +175,7 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
 }
 
 async function makeBatch(h,{page,origin,capture}){
- const receivedOn='2026-10-24',people=await Promise.all(['Ada Check','Ben Check','Cora Check'].map(name=>donor(h,name)))
+ const receivedOn='2026-10-24',people=await Promise.all(['Ada Morgan','Ben Ortiz','Cora Nguyen'].map(name=>donor(h,name)))
  await page.goto(origin+'/app/gifts/batches')
  await page.getByLabel('Batch name',{exact:true}).fill('Community program checks')
  await page.getByLabel('Received on',{exact:true}).fill(receivedOn)
@@ -182,9 +185,9 @@ async function makeBatch(h,{page,origin,capture}){
  await page.getByRole('heading',{name:'Donor lookup',exact:true}).waitFor()
  const id=new URL(page.url()).searchParams.get('id');assert.ok(id)
  for(const [i,person] of people.entries()){
-  await page.getByLabel('Find donor by name, email, phone or legacy ID',{exact:true}).fill(person.name??['Ada Check','Ben Check','Cora Check'][i])
+  await page.getByLabel('Find donor by name, email, phone or legacy ID',{exact:true}).fill(person.name??['Ada Morgan','Ben Ortiz','Cora Nguyen'][i])
   await page.getByRole('button',{name:'Find donor',exact:true}).click()
-  await page.getByRole('link',{name:'Select '+['Ada Check','Ben Check','Cora Check'][i],exact:true}).click()
+  await page.getByRole('link',{name:'Select '+['Ada Morgan','Ben Ortiz','Cora Nguyen'][i],exact:true}).click()
   await page.getByLabel('Gift amount (USD)',{exact:true}).fill(money((i+1)*10000))
   await page.getByLabel('Gift fund',{exact:true}).fill(['Reading','Meals','Unrestricted'][i])
   await page.getByLabel('Check number',{exact:true}).fill(String(4471+i))
