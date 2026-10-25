@@ -17,20 +17,17 @@ const outcome = (status: string) => {
 }
 
 function scheduleItem(schedule: Row) {
- return `<li><h3>${e(schedule.name)}</h3>
-  <p>${chip(schedule.enabled ? 'Active' : 'Paused', schedule.enabled ? 'info' : '')} · ${schedule.cadence === 'weekly' ? 'Weekly' : 'Monthly'}</p>
-  <p><a href="${e(schedule.report_path)}">Open saved report</a><br>${e(schedule.report_path)}</p>
-  <p><strong>Recipients:</strong> ${recipients(schedule.recipients)}</p>
-  <p><strong>${schedule.enabled ? 'Next send' : 'Saved next send'}:</strong> ${utc(schedule.next_at)}</p>
-  ${schedule.enabled ? form('reportSchedule.pause', '', 'Pause schedule', { scheduleId: schedule.id, version: schedule.version }) : ''}</li>`
+ return `<tr><td class="lead"><strong>${e(schedule.name)}</strong><br>${chip(schedule.enabled ? 'Active' : 'Paused', schedule.enabled ? 'info' : '')}</td>
+  <td data-label="Report"><a href="${e(schedule.report_path)}">Open saved report</a><br>${e(schedule.report_path)}</td>
+  <td data-label="Recipients">${recipients(schedule.recipients)}</td>
+  <td data-label="Next send">${schedule.cadence === 'weekly' ? 'Weekly' : 'Monthly'}<br>${utc(schedule.next_at)}</td>
+  <td data-label="Actions">${schedule.enabled ? form('reportSchedule.pause', '', 'Pause schedule', { scheduleId: schedule.id, version: schedule.version }) : 'Paused'}</td></tr>`
 }
 
 function runItem(run: Row) {
- return `<li><h3>${e(run.name)}</h3><p>${outcome(run.status)}</p>
-  <p><strong>Due:</strong> ${utc(run.due_at)}<br><strong>Attempted:</strong> ${utc(run.attempted_at)}</p>
-  ${run.detail ? `<p>${e(run.detail)}</p>` : ''}
-  ${run.message_id ? `<p><strong>Mail reference:</strong> ${e(run.message_id)}</p>` : ''}
-  <p><strong>Recipient:</strong> ${e(run.recipient)}<br><a href="${e(run.report_path)}">Open report</a></p></li>`
+ return `<tr><td class="lead"><strong>${e(run.name)}</strong><br>${e(run.recipient)}</td><td data-label="Outcome">${outcome(run.status)}${run.detail ? `<p>${e(run.detail)}</p>` : ''}</td>
+  <td data-label="Due">${utc(run.due_at)}</td><td data-label="Attempted">${utc(run.attempted_at)}</td>
+  <td data-label="Report"><a href="${e(run.report_path)}">Open report</a>${run.message_id ? `<br>Mail reference: ${e(run.message_id)}` : ''}</td></tr>`
 }
 
 export async function reportSchedulesPage(c: Context, url: URL) {
@@ -46,6 +43,6 @@ export async function reportSchedulesPage(c: Context, url: URL) {
   ${field('First send (UTC)', 'startsAt', 'datetime-local', '', 'required')}
   <label><input type="checkbox" name="reviewed" value="yes" required> I reviewed this report and authorize emailing its contents to these recipients on this schedule.</label>`, 'Save email schedule')
  return `${data.mailIssue?`<p class="notice" role="status">${e(data.mailIssue)}</p>`:''}${box('Schedule a report', `<p>Save the selected report URL, including its filters, for a weekly or monthly email. All schedule times are UTC. The attachment is the complete selected report as JSON.</p>${create}`)}
-  ${box('Saved report schedules', data.schedules.length ? `<ul class="list">${data.schedules.map(scheduleItem).join('')}</ul>` : empty('No report schedules saved yet.'))}
-  ${box('Mail outcomes', `<p>Email submitted means the mail provider accepted the request; it does not confirm delivery. Uncertain, rejected and held runs require review.</p>${data.runs.length ? `<ul class="list">${data.runs.map(runItem).join('')}</ul>` : empty('No scheduled report runs yet.')}`)}`
+  ${box('Saved report schedules', data.schedules.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Schedule</th><th>Report</th><th>Recipients</th><th>Next send (UTC)</th><th>Actions</th></tr></thead><tbody>${data.schedules.map(scheduleItem).join('')}</tbody></table></div>` : empty('No report schedules saved yet.'),'report-schedule-list')}
+  ${box('Mail outcomes', `<p>Email submitted means the mail provider accepted the request; it does not confirm delivery. Uncertain, rejected and held runs require review.</p>${data.runs.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Report and recipient</th><th>Outcome</th><th>Due (UTC)</th><th>Attempted (UTC)</th><th>Report</th></tr></thead><tbody>${data.runs.map(runItem).join('')}</tbody></table></div>` : empty('No scheduled report runs yet.')}`,'report-mail-outcomes')}`
 }

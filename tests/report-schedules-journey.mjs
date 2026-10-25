@@ -82,4 +82,15 @@ export async function reportSchedulesJourney(){
   if(!body.attachments)return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-1603'}})
   return new Response(null,{status:outcome==='accepted'?202:outcome==='rejected'?400:500,headers:outcome==='accepted'?{'x-message-id':'synthetic-coffer-1604'}:{}})
  }})
+ // The same attachment contract crosses the core provider adapter too.
+ await run(async h=>{
+  await reviewed(h)
+  const options={headers:{'x-test-now':'2026-10-18T02:00:00.000Z'}}
+  await h.command('reportSchedule.save',{name:'Resend director report',reportPath:'/app/reports/dashboard?year=2025',recipients:'director@example.test',cadence:'weekly',startsAt:'2026-10-25T02:00',reviewed:'yes'},options)
+  const tick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+Date.parse('2026-10-25T02:00:00Z'));assert.equal(tick.status,200,await tick.text())
+  const message=h.messages.find(m=>m.subject==='Resend director report');assert.ok(message)
+  assert.equal(JSON.parse(Buffer.from(message.attachments[0].content,'base64').toString()).selection,'/app/reports/dashboard?year=2025')
+  assert.equal((await h.get('/api/coffer/report-schedules')).runs[0].status,'submitted')
+ },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true})
+
 }
