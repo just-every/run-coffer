@@ -25,6 +25,7 @@ export async function recurringPlansBrowser(h,edge,{monthly,person,sourceRef,dir
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/give/recurring-reading')
+   await page.getByRole('heading',{name:'Year-round reading',exact:true}).waitFor()
    await page.getByLabel('Gift frequency',{exact:true}).selectOption('quarterly')
    await capture('giving-frequency',width)
    await page.goto(origin+'/app/giving');await capture('giving',width)
