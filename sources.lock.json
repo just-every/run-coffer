@@ -1287,7 +1287,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "88fc0baedb863e9fb0a8fa180db273a71b0a2677a64beefea0e85b35fc57b5aa",
+      "sha256": "bd8a0e350e3d574851e78a3cf42b430573630e215b677c2d3013c10d07ba45a0",
       "executable": false
     },
     "packaging.json": {
@@ -6034,10 +6034,6 @@
       "sha256": "efe8020b9cb68f5fecb330658d32c4f96170cc854c415a0f2997ad5b2f48a87c",
       "executable": false
     },
-    "tests/site/site.test.mjs": {
-      "sha256": "e7369609d53ac53548e85d6284e2263c95761cb47a19ed3011a2bf775929adad",
-      "executable": false
-    },
     "tests/sms-journey.mjs": {
       "sha256": "04c3208e6404a5b38545017374ff1338a4390574cb6bf47d1640be6bbf38a98c",
       "executable": false
@@ -6123,7 +6119,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "9dd7b68d568dd064e30b2cec81f71c619a994be81446780daac76dc582a2f71a",
+      "sha256": "5d2bfeaff4e6a96389b86265f9b9b6484d067ed35c234b0f430b09c581ffc33d",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
