@@ -814,6 +814,24 @@
       "name": "core-0131_dependency_keys_sealed.sql",
       "sha256": "9c8fa5f94c48a230f326cd4d666cbc2bd1e7d5a18327b89e65b339ac6a533d9a",
       "sql": "ALTER TABLE rer_dependency_installation ADD COLUMN keys_sealed INTEGER NOT NULL DEFAULT 0 CHECK(keys_sealed IN (0,1));\n-- Nonsecret version history lets restored rows name an unavailable retired key\n-- without confusing ciphertext tampering or a wrong current secret with restore.\nALTER TABLE rer_dependency_installation ADD COLUMN key_ids TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(key_ids) AND json_type(key_ids)='array');\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0132_coffer_pledge_followups.sql",
+      "sha256": "ceaedb7531d2b6c67cb68abb424f738091697e5ae4e9512cfa7ac0906ce56d00",
+      "sql": "-- One durable submission claim per installment; payment and identity stay native.\nCREATE TABLE cf_pledge_followups (\n installment_id TEXT PRIMARY KEY REFERENCES cf_pledge_installments(id),\n attempt_id TEXT NOT NULL UNIQUE, status TEXT NOT NULL,\n recipient_email TEXT, body TEXT, message_id TEXT, attempted_at TEXT NOT NULL\n);\nCREATE TRIGGER cf_pledge_followup_erasure AFTER UPDATE OF erased_at ON cf_donors WHEN NEW.erased_at IS NOT NULL BEGIN\n DELETE FROM cf_pledge_followups WHERE installment_id IN (SELECT i.id FROM cf_pledge_installments i JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=NEW.id);\nEND;\nCREATE TABLE cf_pending_bank_payments (\n id TEXT PRIMARY KEY, fund TEXT NOT NULL, amount_cents INTEGER NOT NULL CHECK(amount_cents>0),\n received_on TEXT NOT NULL, status TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0133_coffer_pledge_checkout.sql",
+      "sha256": "4c8a6c2f47e355e2a2f0a1b4bce65e037f0b3d75db824125effe47198ddda4cc",
+      "sql": "CREATE TABLE cf_pledge_checkouts (\n id TEXT PRIMARY KEY, installment_id TEXT NOT NULL REFERENCES cf_pledge_installments(id),\n amount_cents INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open', session_id TEXT UNIQUE, payment_id TEXT UNIQUE,\n created_at TEXT NOT NULL, gift_id TEXT REFERENCES cf_gifts(id)\n);\nCREATE UNIQUE INDEX cf_pledge_checkout_open ON cf_pledge_checkouts(installment_id) WHERE status='open';\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0134_coffer_report_schedules.sql",
+      "sha256": "d67c80ca6771928129f6d45c6ba4542e3425dc7090985a2e310c969a5d9260dd",
+      "sql": "CREATE TABLE cf_report_schedules (\n id TEXT PRIMARY KEY,name TEXT NOT NULL,report_path TEXT NOT NULL,recipients TEXT NOT NULL,\n cadence TEXT NOT NULL CHECK(cadence IN ('weekly','monthly')),anchor_day INTEGER NOT NULL,\n next_at TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,version INTEGER NOT NULL DEFAULT 1,\n approved_by TEXT NOT NULL,approver_version INTEGER NOT NULL,approved_at TEXT NOT NULL\n);\nCREATE INDEX cf_report_schedules_due ON cf_report_schedules(enabled,next_at);\nCREATE TABLE cf_report_runs (\n id TEXT PRIMARY KEY,schedule_id TEXT NOT NULL REFERENCES cf_report_schedules(id),\n due_at TEXT NOT NULL,recipient TEXT NOT NULL,status TEXT NOT NULL,\n attempted_at TEXT NOT NULL,message_id TEXT,detail TEXT,\n UNIQUE(schedule_id,due_at,recipient)\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

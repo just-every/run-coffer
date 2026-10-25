@@ -455,3 +455,8 @@ test('RCPT-010: welcome fields share the receipt catalog, hold missing recipient
   assert.fail(request.method+' '+path)
  }})
 })
+
+test('REPORT-005: saved selections send current weekly and monthly report attachments once to explicitly approved recipients',async()=>{
+ const {reportSchedulesJourney}=await import('./report-schedules-journey.mjs')
+ await reportSchedulesJourney()
+})

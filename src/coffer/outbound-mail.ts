@@ -28,7 +28,7 @@ export async function sendDonorMail(env: Bindings, message: Message): Promise<{ 
  const { customArgs: _customArgs, ...content } = message
  let result
  try {
-  result = await sender(env).send({ ...content, ...(env.MAIL_PROVIDER === 'rer' ? { messageKey: message.deliveryId } : {}) })
+  result = await sender(env).send({ ...content, ...(content.attachments ? {attachments:content.attachments.map((a: {filename:string;type?:string;content:string})=>({filename:a.filename,contentType:a.type,content:Uint8Array.from(atob(a.content),c=>c.charCodeAt(0))}))} : {}), ...(env.MAIL_PROVIDER === 'rer' ? { messageKey: message.deliveryId } : {}) })
  } catch {
   throw new SendGridSendError('ambiguous', 'Mail submission could not be confirmed. Check the provider before any retry.')
  }

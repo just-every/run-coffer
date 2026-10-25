@@ -13,6 +13,7 @@ import { area, box, chip, e, field, form, guide, money, select, when } from './c
 export function morePage(actor: Actor) {
  const boss = manager(actor)
  return `<ul class="tiles">
+  ${boss?'<li><a href="/app/report-schedules"><strong>Scheduled reports</strong><span>Email selected reports weekly or monthly.</span></a></li>':''}
   ${boss ? '<li><a href="/app/audit"><strong>Audit log</strong><span>Browse and export changes, approvals, downloads, sign-ins and agent actions.</span></a></li>' : ''}
   ${boss?'<li><a href="/app/exports"><strong>Export donor records</strong><span>Save live search lists and download CSVs by record type.</span></a></li>':''}
   ${boss?'<li><a href="/app/addresses"><strong>Addresses</strong><span>Verify postal addresses and review licensed change-of-address passes.</span></a></li>':''}

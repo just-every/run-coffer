@@ -1,3 +1,5 @@
+import { reportSchedules } from './report-schedules'
+import { reportSchedulesPage } from './ui/report-schedules'
 import { agentGrantsPanel } from './ui/agent-grants'
 import { reservePreparationGrant } from './agent-grants-legacy'
 import { agentGrantsState } from './agent-grants'
@@ -455,6 +457,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
  if(command.startsWith('agentGrant.'))return redirect('/app/data#agent-grants')
  if (command === 'agent.revoke') return redirect('/app/data')
+ if (command.startsWith('reportSchedule.')) return redirect('/app/report-schedules')
  if (command === 'dashboard.goal') return redirect('/app/reports/dashboard?year='+encodeURIComponent(String(input.year))+'#goals')
  if(command==='person.defaultsPreview')return page('Review name defaults',`<p>${result.changed} person records will change. Overrides and prepared documents are preserved.</p>${form('person.defaults','<p>Save these defaults for existing and new people.</p>','Save name defaults',result)}<p><a href="/app/settings">Back to settings</a></p>`,actor)
  if(command==='person.defaults')return redirect('/app/settings?saved=1')
@@ -504,6 +507,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if(url.pathname==='/api/coffer/report-schedules')return json(await reportSchedules(c))
  if(url.pathname==='/api/coffer/agent-grants')return json(await agentGrantsState(c))
  if(url.pathname==='/api/coffer/provider-fields'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages shared provider fields.',403);const conn=await savedConnection(c);return json({provider:conn?.provider??null,version:conn?.mergeVersion??1,fields:conn?.mergeSelection??[]})}
  const members=url.pathname.match(/^\/api\/coffer\/lists\/([^/]+)\/members$/);if(members){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reads a saved list.',403);return json({donorIds:(await listMembers(c,decodeURIComponent(members[1]))).ids})}
@@ -610,6 +614,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if(path==='/app/report-schedules')return show('Scheduled reports',await reportSchedulesPage(c,url))
  if(path==='/app/reports/custom-fields')return show('Gift custom fields',await customReportPage(c,url))
  if(path==='/app/reports/custom-fields.csv')return download(customReportCsv(await customReport(c,url)),'coffer-custom-gifts')
  if(path==='/app/addresses')return show('Addresses',await addressesPage(c))

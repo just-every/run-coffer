@@ -9,7 +9,8 @@ const link=(href:string,value:unknown)=>`<a href="${e(href)}">${e(value)}</a>`
 export async function dashboardPage(c: Context,url: URL) {
  if(url.searchParams.get('view')==='entries')return dashboardEntriesPage(c,url)
  const r=await dashboardReport(c,url), goalHref=dashboardHref(r.year)+'#goals', retentionHref=`/app/retention?basis=fiscal&year=${r.year}`
- const filter=`<form method="get" action="/app/reports/dashboard"><div class="fields">${field('Fiscal start year','year','number',r.year,'required min="1000" max="9998"')}</div><button>View dashboard</button></form>`
+ const scheduleLink=manager(c.actor)?`<p><a href="/app/report-schedules?${new URLSearchParams({reportPath:url.pathname+url.search})}">Schedule this report</a></p>`:''
+ const filter=`${scheduleLink}<form method="get" action="/app/reports/dashboard"><div class="fields">${field('Fiscal start year','year','number',r.year,'required min="1000" max="9998"')}</div><button>View dashboard</button></form>`
  const stats=`<div class="stats"><a class="stat" href="${e(r.summary.href)}"><strong>${money(r.summary.currentCents)}</strong><span>Raised this fiscal year</span></a><a class="stat" href="${e(r.summary.priorHref)}"><strong>${money(r.summary.priorCents)}</strong><span>Full prior fiscal year</span></a><a class="stat" href="${e(goalHref)}"><strong>${r.summary.goal?money(r.summary.goal.amount_cents):'Not set'}</strong><span>Explicit fiscal goal</span></a></div>`
  const tables=DASHBOARD_DIMENSIONS.filter(d=>d!=='organization').map(d=>{
   const rows=r.dimensions[d].map(row=>`<tr><td class="lead">${e(row.label)}</td><td data-label="Raised">${link(row.href,money(row.currentCents))}</td><td data-label="Full prior year">${link(row.priorHref,money(row.priorCents))}</td><td data-label="Goal">${link(goalHref,row.goal?money(row.goal.amount_cents):'Not set')}</td></tr>`).join('')
