@@ -27,7 +27,12 @@ export async function reportSchedulesJourney(){
   await h.command('reportSchedule.save',{...input,reviewed:''},{...options,status:400})
   await h.command('reportSchedule.save',{...input,reportPath:'https://example.test/report'},{...options,status:400})
   await h.command('reportSchedule.save',{...input,reportPath:'/app/donors'},{...options,status:400})
-  const member=await h.person('synthetic-coffer-1601@example.test')
+  const invitedEmail='synthetic-coffer-1601@example.test'
+  const invite=await h.request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email:invitedEmail,role:'member',displayName:'Report member'}).toString()});assert.equal(invite.status,303)
+  const inviteMail=messages.find(m=>m.personalizations[0].to.some(p=>p.email===invitedEmail))
+  const token=new URL(inviteMail.content.find(c=>c.type==='text/plain').value.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]).searchParams.get('token')
+  const confirm=await h.request('/auth/confirm',{method:'POST',as:'',body:{token}});assert.equal(confirm.status,303)
+  const member={cookie:confirm.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ')}
   await h.command('reportSchedule.save',input,{...options,as:member.cookie,status:403})
   await h.get('/api/coffer/report-schedules',{as:member.cookie,status:403})
   await h.get('/api/coffer/report-schedules',{as:'',status:401})
