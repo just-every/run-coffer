@@ -2987,7 +2987,7 @@
       "executable": false
     },
     "src/coffer/payments/exports.ts": {
-      "sha256": "e2a23b497d9aca2dfce4e61945f1095bc146206148b92da8e54735ed7b758a52",
+      "sha256": "0d94441174ccf92d9557c08f49753614ba0589dde0ff6dee59fe8296d7b4757f",
       "executable": false
     },
     "src/coffer/payments/fee-report-ui.ts": {
@@ -2999,11 +2999,11 @@
       "executable": false
     },
     "src/coffer/payments/http.ts": {
-      "sha256": "228e5c0df8c540ec1d1134a2c553df8fc553882e2d228f46609b1f46351ef76d",
+      "sha256": "7260985186c232bdf2e1ea61154d2363d3e486b7a6f61cee31cd26032542455b",
       "executable": false
     },
     "src/coffer/payments/pantry.ts": {
-      "sha256": "f0eef0a90e57941d8efa722c5257991871c77922c5fe6044b9e385b7120b893a",
+      "sha256": "00141ab4d9721836c79c7ba984390953b8bcc669d069385bbcefd5b16c861169",
       "executable": false
     },
     "src/coffer/payments/payouts.ts": {
@@ -3023,7 +3023,7 @@
       "executable": false
     },
     "src/coffer/payments/reconciliation.ts": {
-      "sha256": "ea14c851af61fa4ff8f0c87b1c3b4d34537e4a2fbd4efb0f08a8ed2547506484",
+      "sha256": "deb79cd51c47a99f08e5ccbbad5ec479ca82389853c9ec94837a8440479848e7",
       "executable": false
     },
     "src/coffer/payments/refunds.ts": {
@@ -3187,7 +3187,7 @@
       "executable": false
     },
     "src/coffer/restricted-funds.ts": {
-      "sha256": "b7c403a7743caa92297454b618aadd6ebea7d95b0b4528f45585e945c20fc0dd",
+      "sha256": "03435e1cf500216ff02e0a418f1785b7c1f131bcd95470557d1784844ae672ce",
       "executable": false
     },
     "src/coffer/retention-scope.ts": {
@@ -3387,7 +3387,7 @@
       "executable": false
     },
     "src/coffer/ui/gift-batches.ts": {
-      "sha256": "841f6153f3ac92b8d296ca9651e54c38b828e473ffe12996be853536ee89614e",
+      "sha256": "28a43a1764a89c370ea87e28a9f7f0578402a66b49d92e704ea055285553875d",
       "executable": false
     },
     "src/coffer/ui/gift-depth.ts": {
@@ -5991,7 +5991,7 @@
       "executable": false
     },
     "tests/payments.test.mjs": {
-      "sha256": "b176e62962d744244c8b90655779c4d8a316f570f73f04f0ab11950491892334",
+      "sha256": "8d2f57a9c5502dc37894b3bbd4befd6a5bab4a99bd4edc986245d63957c9d8aa",
       "executable": false
     },
     "tests/pipeline.test.mjs": {

@@ -62,7 +62,7 @@ test('DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, st
   }
   assert.fail(`Unexpected provider request ${request.method} ${u.origin}${path}`)
  }
- const bindings={STRIPE_SECRET_KEY:'sk_test_payments_edge',STRIPE_WEBHOOK_SECRET:secret,PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+'a'.repeat(43),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Reading:'reading',Meals:'meals'}),QBO_ACCOUNT_NAMES:JSON.stringify({bank:'Checking',fees:'Stripe fees',reading:'Reading donations',meals:'Meals donations'})}
+ const bindings={STRIPE_SECRET_KEY:'synthetic-coffer-1608',STRIPE_WEBHOOK_SECRET:secret,PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+'a'.repeat(43),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Reading:'reading',Meals:'meals'}),QBO_ACCOUNT_NAMES:JSON.stringify({bank:'Checking',fees:'Stripe fees',reading:'Reading donations',meals:'Meals donations'})}
  await run(async h=>{
   await h.command('fund.define',{name:'Reading',restriction:'purpose',detail:'Literacy instruction'})
   assert.equal((await deliver(h,'evt_bad','charge.succeeded',a.id,{bad:true})).status,400)
@@ -249,4 +249,8 @@ test('FIN-005: a month of pending ACH, late refunds, offline batches and posted 
   }
   assert.fail('Unexpected reconciliation edge '+u.pathname)
  }})
+})
+
+test('FIN-002: closed check deposits retain evidence, approval and uncertain-submission custody',async()=>{
+ const {batchDepositsJourney}=await import('./batch-deposits-journey.mjs');await batchDepositsJourney()
 })

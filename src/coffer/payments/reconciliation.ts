@@ -12,7 +12,7 @@ export async function reconciliation(c: Context, url: URL) {
   WHERE (e.received_on>=? AND e.received_on<=?) OR (p.arrival_on>=? AND p.arrival_on<=?)`,from,to,from,to))
  const deposits=await all(c,`SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents,o.state AS posting_state
   FROM cf_payouts p LEFT JOIN cf_payout_postings o ON o.payout_id=p.id WHERE p.arrival_on>=? AND p.arrival_on<=? AND p.status='paid'`,from,to)
- const batches=await all(c,"SELECT * FROM cf_gift_batches WHERE received_on>=? AND received_on<=? AND status='closed'",from,to)
+ const batches=await all(c,"SELECT b.*,o.state AS posting_state FROM cf_gift_batches b LEFT JOIN cf_batch_postings o ON o.batch_id=b.id WHERE b.received_on>=? AND b.received_on<=? AND b.status='closed'",from,to)
  const pending=await all(c,"SELECT * FROM cf_pending_bank_payments WHERE received_on>=? AND received_on<=? AND status='processing' ORDER BY received_on,id",from,to)
  const funds=new Map<string,Row>(),differences:Row[]=[],pairs=new Map<string,Row>()
  const fund=(name:string)=>{let f=funds.get(name);if(!f){f={fund:name,ledger_cents:0n,processor_cents:0n,deposited_cents:0n,accounting_cents:0n,pending_ach_cents:0n};funds.set(name,f)}return f}
@@ -29,7 +29,10 @@ export async function reconciliation(c: Context, url: URL) {
   if(deposited&&l.posting_state!=='posted')difference(l.fund,'deposit_to_accounting',l.payout_id,l.net_cents,'Payout not posted to accounting')
  }
  for(const p of pairs.values())difference(p.name,'ledger_to_processor',p.gift,p.ledger-p.processor,p.processor===0n?'Offline gift or unposted batch; no processor receipt':p.ledger===0n?'Processor transaction without a ledger contribution in this period':'Ledger and processor timing or imported refund baseline; review source records')
- for(const b of batches){fund(b.fund).deposited_cents+=BigInt(b.expected_cents);difference(b.fund,'processor_to_deposit',b.id,-b.expected_cents,'Closed offline batch bypasses the processor');difference(b.fund,'deposit_to_accounting',b.id,b.expected_cents,'Unposted check or cash batch')}
+ for(const b of batches){
+  const parts=await all(c,`SELECT COALESCE(a.fund,g.fund) AS fund,SUM(COALESCE(a.amount_cents,g.amount_cents)) AS cents FROM cf_batch_entries e JOIN cf_gifts g ON g.id=e.gift_id LEFT JOIN cf_gift_allocations a ON a.gift_id=g.id WHERE e.batch_id=? GROUP BY COALESCE(a.fund,g.fund)`,b.id)
+  for(const part of parts){const f=fund(part.fund);f.deposited_cents+=BigInt(part.cents);if(b.posting_state==='posted')f.accounting_cents+=BigInt(part.cents);difference(part.fund,'processor_to_deposit',b.id,-part.cents,'Closed offline batch bypasses the processor');if(b.posting_state!=='posted')difference(part.fund,'deposit_to_accounting',b.id,part.cents,'Unposted check or cash batch')}
+ }
  for(const p of deposits){
   const residual=p.amount_cents-p.matched_cents
   if(residual){const f=fund('Unallocated payout difference');f.deposited_cents+=BigInt(residual);if(p.posting_state==='posted')f.accounting_cents+=BigInt(residual);difference(f.fund,'processor_to_deposit',p.id,-residual,'Payout membership difference; review required');if(p.posting_state!=='posted')difference(f.fund,'deposit_to_accounting',p.id,residual,'Unallocated payout not posted to accounting')}

@@ -11,7 +11,7 @@ const safeText = (value: unknown) => {
  return /^[\s]*[=+\-@]/.test(s) ? `'${s}` : s
 }
 const csvCell = (value: unknown, numeric = false) => `"${(numeric ? String(value ?? '') : safeText(value)).replace(/"/g, '""')}"`
-const csv = (rows: unknown[][], numeric: number[] = []) => rows.map((row, i) => row.map((v, col) => csvCell(v, i > 0 && numeric.includes(col))).join(',')).join('\r\n') + '\r\n'
+export const csv = (rows: unknown[][], numeric: number[] = []) => rows.map((row, i) => row.map((v, col) => csvCell(v, i > 0 && numeric.includes(col))).join(',')).join('\r\n') + '\r\n'
 
 export function mapping(value: string | undefined, label: string): Record<string, string> {
  let parsed: unknown
@@ -39,25 +39,30 @@ export function payoutJournal(view: any, env: PaymentsEnv): { date: string; line
  if (p.status !== 'paid' || String(p.currency).toLowerCase() !== 'usd') fail('PAYOUT_NOT_READY', 'Only paid USD payouts can be posted or exported.')
  integer(p.amount_cents, 'Payout amount', -Number.MAX_SAFE_INTEGER)
  if (!p.complete || p.matched_cents !== p.amount_cents) fail('PAYOUT_NOT_READY', 'Match every payout transaction before posting or exporting.')
- const day = date(p.arrival_on, 'Payout arrival date'), funds = mapping(env.PANTRY_FUND_ACCOUNTS, 'PANTRY_FUND_ACCOUNTS')
+ return fundJournal({reference:`Stripe payout ${p.id}`,date:p.arrival_on,amountCents:p.amount_cents,splits:view.splits},env)
+}
+
+/** One balanced bank deposit, with income and fees retained by fund. */
+export function fundJournal(source: {reference:string;date:string;amountCents:number;splits:any[]},env:PaymentsEnv): {date:string;lines:JournalLine[]} {
+ const day = date(source.date, 'Deposit date'), funds = mapping(env.PANTRY_FUND_ACCOUNTS, 'PANTRY_FUND_ACCOUNTS')
  const deposit = text(env.PANTRY_DEPOSIT_ACCOUNT, 'Deposit account', 200), lines: JournalLine[] = []
  const add = (accountId: string, signed: number, memo: string, fund = '') => {
   integer(signed, 'Journal amount', -Number.MAX_SAFE_INTEGER)
   if (signed) lines.push({ accountId, debit: dollars(Math.max(0, signed)), credit: dollars(Math.max(0, -signed)), memo: memo.slice(0, 500), fund })
  }
- add(deposit, p.amount_cents, `Stripe payout ${p.id}`)
+ add(deposit, source.amountCents, source.reference)
  let gross = 0, fees = 0, net = 0
- for (const s of [...view.splits].sort((a, b) => String(a.fund).localeCompare(String(b.fund)))) {
+ for (const s of [...source.splits].sort((a, b) => String(a.fund).localeCompare(String(b.fund)))) {
   const fund = text(s.fund, 'Fund', 200), accountId = mapped(funds, fund, `fund ${fund}`)
   integer(s.gross_cents, 'Fund gross', -Number.MAX_SAFE_INTEGER)
   integer(s.fee_cents, 'Fund fees', -Number.MAX_SAFE_INTEGER)
   integer(s.net_cents, 'Fund net', -Number.MAX_SAFE_INTEGER)
   if (s.gross_cents - s.fee_cents !== s.net_cents) fail('PAYOUT_NOT_READY', 'The payout fund split does not balance.')
   gross += s.gross_cents; fees += s.fee_cents; net += s.net_cents
-  add(accountId, -s.gross_cents, `${restrictionLabel(s)} · ${fund} · Stripe gifts and refunds ${p.id}`, fund)
-  if (s.fee_cents) add(text(env.PANTRY_FEE_ACCOUNT, 'Stripe fee account', 200), s.fee_cents, `Stripe fees · ${fund} · ${p.id}`, fund)
+  add(accountId, -s.gross_cents, `${restrictionLabel(s)} · ${fund} · Gifts and refunds ${source.reference}`, fund)
+  if (s.fee_cents) add(text(env.PANTRY_FEE_ACCOUNT, 'Stripe fee account', 200), s.fee_cents, `Processing fees · ${fund} · ${source.reference}`, fund)
  }
- if (!Number.isSafeInteger(gross) || !Number.isSafeInteger(fees) || net !== p.amount_cents || gross - fees !== p.amount_cents || lines.length < 2 || lines.length > 200) fail('PAYOUT_NOT_READY', 'The payout requires a balanced journal of 2–200 lines.')
+ if (!Number.isSafeInteger(gross) || !Number.isSafeInteger(fees) || net !== source.amountCents || gross - fees !== source.amountCents || lines.length < 2 || lines.length > 200) fail('PAYOUT_NOT_READY', 'The payout requires a balanced journal of 2–200 lines.')
  return { date: day, lines }
 }
 

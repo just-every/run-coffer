@@ -10,6 +10,7 @@ export async function restrictedFundCommand(c: Context, command: string, p: Row)
   await commit(c, [
    guard('NOT EXISTS(SELECT 1 FROM cf_funds WHERE name=?)', 'FUND_DEFINED', 'This fund already has a definition. Use a new fund for a different restriction.', name),
    guard('NOT EXISTS(SELECT 1 FROM cf_payout_postings p JOIN cf_payout_entries e ON e.payout_id=p.payout_id JOIN cf_payment_entries l ON l.id=e.entry_id WHERE l.fund=?) AND NOT EXISTS(SELECT 1 FROM cf_payout_postings p JOIN cf_payout_entries e ON e.payout_id=p.payout_id JOIN cf_payment_entries l ON l.id=e.entry_id JOIN cf_gift_allocations a ON a.gift_id=l.gift_id WHERE a.fund=?)', 'FUND_POSTED', 'This fund already has an accounting submission. Its restriction cannot change.', name, name),
+   guard('NOT EXISTS(SELECT 1 FROM cf_batch_postings p JOIN cf_batch_entries e ON e.batch_id=p.batch_id JOIN cf_gifts g ON g.id=e.gift_id LEFT JOIN cf_gift_allocations a ON a.gift_id=g.id WHERE COALESCE(a.fund,g.fund)=?)','FUND_POSTED','This fund already has an accounting submission. Its restriction cannot change.',name),
    sql('INSERT INTO cf_funds VALUES(?,?,?,?,?)', name, restriction, detail, releaseOn, c.now),
    event(c, 'fund.define', 'fund', name, null, { restriction, releaseOn }),
   ])

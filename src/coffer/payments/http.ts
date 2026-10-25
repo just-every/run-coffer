@@ -1,3 +1,5 @@
+import { batchDeposit, batchEvidence, postBatchToPantry } from './batch-deposits'
+import { batchDepositPage } from './batch-ui'
 import { reconciliation } from './reconciliation'
 import { reconciliationPage } from './reconciliation-ui'
 import { adjustmentState, requestRefund } from './refunds'
@@ -50,6 +52,17 @@ export async function paymentsResponse(request: Request, c: Context, env: Paymen
  if (suffix === '/journal') {
   if (!['GET', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'Use GET to download a journal.', 405)
   return periodJournal(c, env, new URL(request.url))
+ }
+ const batchMatch=suffix.match(/^\/batches\/([^/]+)(?:\/(post|evidence\.csv))?$/)
+ if(batchMatch){
+  const batchId=id(decodeURIComponent(batchMatch[1]),'Batch ID'),action=batchMatch[2],view=await batchDeposit(c,batchId)
+  if(action==='post'&&request.method==='POST'){
+   const data=await input(),result=await postBatchToPantry(c,env,view,data.documentId||undefined)
+   return api?json(result):redirect('/app/payouts/batches/'+encodeURIComponent(batchId))
+  }
+  if(!['GET','HEAD'].includes(request.method)||action==='post')fail('method_not_allowed','Use the deposit buttons.',405)
+  if(action==='evidence.csv')return new Response(batchEvidence(view),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="coffer-batch-${batchId.replace(/[^a-zA-Z0-9_-]/g,'')}.csv"`,'cache-control':'no-store'}})
+  return api?json(view):page('Batch deposit',batchDepositPage(view,flags.pantryAvailable,flags.managed),c.actor,200,'/app/payouts')
  }
  const match = suffix.match(/^\/([^/]+)(?:\/(post|match|evidence\.csv|qbo\.csv|journal\.iif))?$/)
  if (match) {
