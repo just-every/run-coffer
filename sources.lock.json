@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e06814f785379ad8c93a60cbb51b4a3b227073d2995ea389ca64d778bc43cb58",
+      "sha256": "a5eaf6d3de3a33a8d3d5b37c400daa53788f40ae3c1fdcfac418301c713b7bd2",
       "executable": false
     },
     "AGENTS.md": {
@@ -607,7 +607,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "f0a4cf38075cb0c79c60ce1b60eda9c49c98e140bf06b4b8bbdb695940e9be40",
+      "sha256": "f65edaf66d9d0484d42167ccb472613b087fc97c6d59b5a71b60a82502e10752",
       "executable": false
     },
     "docs/COMMUNICATIONS.md": {
@@ -2559,7 +2559,7 @@
       "executable": false
     },
     "src/coffer/giving/manage-ui.ts": {
-      "sha256": "7ab80846fda967d585c82ba3aa65bb12952864e2e1507fac956389ccd59fdb3e",
+      "sha256": "d4cce15e3b4653ddfd33f1237e99f02a38d12aa3e153efee276704e35aba51b8",
       "executable": false
     },
     "src/coffer/giving/media.ts": {
