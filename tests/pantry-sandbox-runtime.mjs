@@ -32,7 +32,8 @@ export async function startPantry(checkout){
   clearInterval(progress)
   browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
   const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true})
-  const page=await context.newPage(),origin=new URL(ready).origin
+  const page=await context.newPage(),origin=new URL(open).origin
+  console.log(JSON.stringify({stage:'pantry-ready',origin,readyOrigin:new URL(ready).origin}))
   await page.goto(open,{timeout:120_000});open='';output=''
   if(new URL(page.url()).pathname==='/setup'){
    await page.locator('input[name=confirm]').check()
@@ -41,7 +42,7 @@ export async function startPantry(checkout){
   }
   const api=async(path,body)=>{
    const response=await context.request.fetch(origin+path,{method:body===undefined?'GET':'POST',headers:{origin},...(body===undefined?{}:{data:body})})
-   assert.equal(response.status(),200,`Pantry HTTP request refused: ${path}`)
+   if(response.status()!==200){const failure=await response.json().catch(()=>({}));throw Error(`Pantry HTTP ${response.status()} on ${path}; code ${String(failure.code??failure.error??'unknown')}`)}
    return response.json()
   }
   return {page,context,origin,api,command:(op,body={})=>api('/api/pantry/command/'+op,body),async close(){await browser.close();await stopOwnedTree(child.pid)}}
