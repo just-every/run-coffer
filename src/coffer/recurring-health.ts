@@ -39,7 +39,7 @@ export async function recurringHealth(c: Context, url: URL) {
    if(plan.start_known && start.slice(0,7)===m)newPlans++
    if(endDay?.slice(0,7)===m)canceledPlans++
    if(!state){unknownStatePlans++;continue}
-   if(ACTIVE.has(state.status)){donors.add(plan.donor_id);mrrCents+=state.amount_cents}
+   if(ACTIVE.has(state.status)&&!state.collection_paused){donors.add(plan.donor_id);mrrCents+=Math.round(state.amount_cents*(state.billing_interval==='week'?52/12:state.billing_interval==='day'?365/12:1)/(state.billing_interval==='year'?12*state.interval_count:state.interval_count))}
    if(!endDay || endDay>=m+'-01'){
     if(plan.start_known){duration+=Math.max(0,daysBetween(start,endDay??end));lengthPlans++}
     else unknownStartPlans++

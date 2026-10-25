@@ -2,7 +2,10 @@ import { startPledgeCheckout, validatePledgeLink, completePledgeCheckout } from 
 import { usd } from '../money'
 import { textLink } from './text'
 import { runtimeBindings, type Bindings } from '../../auth.server'
-import { CofferError, fail } from '../db'
+import { CofferError, fail, type Context } from '../db'
+import { requireRole, originGuard } from '../auth'
+import { staffPlans, staffPlanState, changeStaffPlan } from './staff-plans'
+import { staffPlansPage, staffPlanPage } from './manage-ui'
 import { e, page } from '../ui/common'
 import { campaign } from './campaigns'
 import { checkout } from './checkout'
@@ -75,4 +78,27 @@ export async function givingResponse(request: Request, original: Bindings): Prom
   const response = await page('Could not complete that', `<p role="alert">${e(message)}</p><p><a href="/giving/portal">Manage my giving</a></p>`, undefined, status)
   response.headers.set('referrer-policy', 'strict-origin'); return response
  }
+}
+
+
+/** Called after the native staff session has supplied its current authority. */
+export async function staffPlanResponse(request:Request,c:Context):Promise<Response|null>{
+ const url=new URL(request.url),match=url.pathname.match(/^\/(app|api\/coffer)\/giving\/plans(?:\/([^/]+))?$/)
+ if(!match)return null
+ requireRole(c.actor,['owner','admin'],'manage recurring plans')
+ originGuard(request,c.env!)
+ const api=match[1]==='api/coffer',id=match[2]?decodeURIComponent(match[2]):null
+ if(request.method==='GET'){
+  if(api)return Response.json(id?await staffPlanState(c,id):{plans:await staffPlans(c)},{headers})
+  return page(id?'Manage recurring plan':'Recurring plans',id?await staffPlanPage(c,id,url.searchParams.get('saved')==='1'):await staffPlansPage(c),c.actor,200,'/app/giving')
+ }
+ if(request.method!=='POST'||!id)fail('method_not_allowed','Use a recurring plan change form.',405)
+ const type=request.headers.get('content-type')??''
+ if(api&&!type.startsWith('application/json')||!api&&!type.startsWith('application/x-www-form-urlencoded'))fail('form_required','Use the plan change form or JSON transport.',415)
+ const body=await givingBody(request)
+ let input:Record<string,unknown>
+ if(api){try{input=JSON.parse(body)}catch{fail('INPUT','Send a JSON object.',400)}if(!input||typeof input!=='object'||Array.isArray(input))fail('INPUT','Send a JSON object.',400)}
+ else input=Object.fromEntries(new URLSearchParams(body))
+ const result=await changeStaffPlan(c,id,input)
+ return api?Response.json(result,{headers}):givingRedirect('/app/giving/plans/'+encodeURIComponent(id)+'?saved=1')
 }

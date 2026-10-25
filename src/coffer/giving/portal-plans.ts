@@ -18,7 +18,7 @@ export function validatePlan(value:Row,own:Row){
  if(value.id!==own.id||customer!==own.customer_id)fail('subscription_changed','This recurring gift could not be verified. Contact the organization.',409)
  if(!['active','trialing','past_due','unpaid','canceled','incomplete','incomplete_expired','paused'].includes(value.status)||typeof value.cancel_at_period_end!=='boolean')fail('stripe_error','Stripe returned an unreadable subscription.',502)
 }
-function planFacts(value:Row){
+export function planFacts(value:Row){
  const items=value.items?.data
  if(!Array.isArray(items)||items.length!==1||!items[0].id||items[0].quantity!==1)fail('plan_review','This plan needs the organization’s review before changing its schedule.',409)
  const item=items[0],price=item.price,product=typeof price?.product==='string'?price.product:price?.product?.id
@@ -29,7 +29,8 @@ function planFacts(value:Row){
 const frequencies=[['weekly','Weekly'],['monthly','Monthly'],['quarterly','Every three months'],['annually','Annually']] as [string,string][]
 const schedule=(frequency:string)=>({weekly:['week',1],monthly:['month',1],quarterly:['month',3],annually:['year',1]}[frequency]!)
 const frequency=(f:Row)=>f.interval==='week'&&f.intervalCount===1?'weekly':f.interval==='month'&&f.intervalCount===1?'monthly':f.interval==='month'&&f.intervalCount===3?'quarterly':f.interval==='year'&&f.intervalCount===1?'annually':''
-const token=(f:Row)=>sha256(JSON.stringify(f))
+export const planVersion=(f:Row)=>sha256(JSON.stringify(f))
+const token=planVersion
 const redirect=(location:string)=>new Response(null,{status:303,headers:{location,'cache-control':'no-store','referrer-policy':'no-referrer'}})
 
 export async function managePlanPage(env:GivingEnv,donor:PortalDonor,id:string,saved=false){

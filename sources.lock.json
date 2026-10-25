@@ -2523,7 +2523,7 @@
       "executable": false
     },
     "src/coffer/giving/checkout.ts": {
-      "sha256": "daf1a80f13a7032a1acf0df709a2f32fb3b711cbaf3dd282d751a82382d7ac26",
+      "sha256": "35de24c3e75a706ee35052d5de0a82ea70ca1fe650e61b91b853fc0ea29433f7",
       "executable": false
     },
     "src/coffer/giving/connections-ui.ts": {
@@ -2539,7 +2539,7 @@
       "executable": false
     },
     "src/coffer/giving/http.ts": {
-      "sha256": "3039d157b9602d01e0cd9ff3b14045a8fd11ca5f194ee395b43335a0ed4e3061",
+      "sha256": "91648e79db83bc940da6a715ae7b3bb08ba7f7f388c191bdfddd892af48b4ecb",
       "executable": false
     },
     "src/coffer/giving/image-metadata.ts": {
@@ -2551,7 +2551,7 @@
       "executable": false
     },
     "src/coffer/giving/manage-ui.ts": {
-      "sha256": "3266a69c0347cd6aca23f55b7cf2dbb40d5bb2827279ce9a71bfa6e50270198c",
+      "sha256": "cd43205772de15497aa104a9db503407f2b2b834f2d47306a7413fc38f730ff9",
       "executable": false
     },
     "src/coffer/giving/media.ts": {
@@ -2587,7 +2587,7 @@
       "executable": false
     },
     "src/coffer/giving/portal-plans.ts": {
-      "sha256": "31ba0281ab4ae5c813d98ded782542a317f19b9743f2ef41e66c0d2022a34fcf",
+      "sha256": "1cff5e7d95573998470497e785091e3ba4b9228c9b585d9ee75f4f36810e139d",
       "executable": false
     },
     "src/coffer/giving/portal-preferences.ts": {
@@ -2639,7 +2639,7 @@
       "executable": false
     },
     "src/coffer/giving/ui.ts": {
-      "sha256": "dacf0722325255d81a1aac8278dfd371bc4551ea1d27444d27c3b16002a13739",
+      "sha256": "661ed865bb8248060b0f90c91e0e0411646277f2ab58428f36faef2620004f3f",
       "executable": false
     },
     "src/coffer/giving/video.ts": {
@@ -2671,7 +2671,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "408e9401752ae61697fed0c743d78917b73f6c151119bc9ca81df015119f8bf7",
+      "sha256": "082a0f184cdee39884ab251f4b5d399b98f1f4e4c88c2b207fa7647e29f33e96",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3103,7 +3103,7 @@
       "executable": false
     },
     "src/coffer/recurring-health.ts": {
-      "sha256": "705afe0c5b071fd5bf11c6ddb194220c172567106b98733b2e38b827b6087d5e",
+      "sha256": "f6f6f9ab7865429ee3cfd11de563ba252100883b75fc5a8f615ea9c4f0e2b28f",
       "executable": false
     },
     "src/coffer/recurring-tasks.ts": {
@@ -5479,7 +5479,7 @@
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
-      "sha256": "49f88bf89bd2be45d60f531e0cf761e4d604f658c3ba6d8a5aac53be9182ff24",
+      "sha256": "473e2c8d03f86e7d5d3d929a64d6624dc0cd41f5f3f81f1403dc636712d9ba0f",
       "executable": false
     },
     "tests/annual-lapses-journey.mjs": {
@@ -5819,7 +5819,7 @@
       "executable": false
     },
     "tests/giving.test.mjs": {
-      "sha256": "ef1013c22350355b0f86cfe5372d2eadab48b47b8f8cc3fadf39cc85b0d85148",
+      "sha256": "c995e147f80a97c741d1ddb7a7fca94a7ce216aa55b6c978f93c92c5e9d761c9",
       "executable": false
     },
     "tests/grants-journey.mjs": {
