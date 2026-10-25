@@ -5915,7 +5915,7 @@
       "executable": false
     },
     "tests/pledges.test.mjs": {
-      "sha256": "6b8629bbb31d983282de4b5717cf88265f6ce1529dc48b8f93652e10602aca6f",
+      "sha256": "e6b97ac2b9ce88484f2d3447414749e300f5d6ec3ef8da2015c9e2f49fbb558d",
       "executable": false
     },
     "tests/portability-http.test.mjs": {
