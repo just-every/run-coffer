@@ -21,14 +21,22 @@ Run Pantry using `rer dev just-every/run-pantry`, or `rer dev` from a Pantry che
 - `PANTRY_DEPOSIT_ACCOUNT`: the bank ledger account ID.
 - `PANTRY_FEE_ACCOUNT`: the processing-fee expense account ID.
 - `PANTRY_FUND_ACCOUNTS`: JSON mapping each Coffer fund name to its Pantry income account ID.
+- `PANTRY_FUND_CLASSES`: optional JSON mapping of funds to Pantry class names; the fund name is the default class.
+- `PANTRY_FUND_LOCATIONS`: optional JSON mapping of funds to Pantry location names.
 
 In `.dev.vars`, keep JSON literal with single quotes, for example `PANTRY_FUND_ACCOUNTS='{"Reading":"reading-account-id","Meals":"meals-account-id"}'`. In a `rer deploy --env-file` input, write the JSON unquoted after `=` instead. Use the same format for `QBO_ACCOUNT_NAMES`.
 
-For each payout, download **evidence CSV**, upload the unmodified file in Pantry Documents and paste its document ID into Coffer. Coffer checks the source file's SHA-256 against Pantry, checks current active account revisions and submits one balanced journal proposal: bank net debit, fee debit and income credits split by fund, with refunds reducing their fund. Pantry retains the evidence and source passages.
+For each payout, download **evidence CSV**, upload the unmodified file in Pantry Documents and paste its document ID into Coffer. Coffer requires a bank asset for the deposit, an expense account for fees and income accounts for funds. It checks the source file's SHA-256 against Pantry, checks current active account revisions and submits one balanced journal proposal: bank net debit, fee debit and income credits split by fund, with refunds reducing their fund. Pantry retains the evidence and source passages.
 
 Approve the proposal in Pantry to post the deposit. Back in Coffer, choose **Refresh Pantry posting** to record its posted journal ID. A pending proposal is labelled awaiting approval, never posted. Interrupted submissions retain their claim; refresh recovers by proposal ID or verified marker and payload hash. An uncertain result is never automatically resent. Rejected or stale proposals stay visible for reconciliation in Pantry. A revoked Coffer session is checked again inside each write transaction.
 
 ## QuickBooks exports
+
+## Post a check batch
+
+In **Gifts → Batches**, enter each check with its fund; the batch fund supplies the default. A campaign batch retains its campaign’s fund requirement. Close the batch once the entered gifts equal the deposit total, then open **Pantry accounting** on the closed batch. Download its evidence CSV, upload the exact file in Pantry Documents, and submit its document ID for approval. The proposal debits the bank for the deposit and credits the mapped income accounts with each fund’s class and optional location. Checks retain their references in the evidence; there is no processor fee on an offline deposit.
+
+Approve and post in Pantry, then choose **Refresh Pantry posting** in Coffer. Proposed or uncertain submissions do not count as posted accounting. The reconciliation report includes the batch by its received date and each gift’s fund, and removes its unposted difference only after the journal ID is confirmed. A saved submission survives export and restore and is refreshed without another proposal.
 
 Set `QBO_ACCOUNT_NAMES` to JSON mapping the same mapped account IDs to exact QuickBooks account names (including parent names for subaccounts). Download the payout's journal CSV, then use QuickBooks Online **Settings → Import data → Journal entries** and map its debit, credit, account and class columns. Fund names become classes; configure class tracking in QuickBooks if used. Keep its duplicate journal-number warning enabled and reconcile the deterministic compact `CF-…` journal reference (the full payout ID stays in each line description). A file download does not establish that QuickBooks imported it. The separate IIF file targets QuickBooks Desktop, which accepts IIF; it is not a QBO API connection.
 
