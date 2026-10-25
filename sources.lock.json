@@ -5487,7 +5487,7 @@
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
-      "sha256": "16ce313f2e3d137d90fda040394b8cabcfe3ebb1c78da464568a1b85694521da",
+      "sha256": "7d8ac472fdc6256a9de14e5ecc5daa69a4c03dd844aada09a33900d75be56185",
       "executable": false
     },
     "tests/annual-lapses-journey.mjs": {
@@ -6055,7 +6055,7 @@
       "executable": false
     },
     "tests/recurring-plans-journey.mjs": {
-      "sha256": "bd441a2249cb605ff6b121d0cad048680517f87466fc3b0cefdadf2c5236e71d",
+      "sha256": "c712e60fadf61444950c82bd775af624febf641b01dfeba794868d54926145e3",
       "executable": false
     },
     "tests/recurring-stripe-edge.mjs": {

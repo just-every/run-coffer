@@ -27,7 +27,7 @@ function assertNoCardLastFour(value) {
 
 // Stripe and mail are the only fake boundaries. Operator authentication, donor
 // portal, webhook processing, scheduled reconciliation and ledger run unchanged.
-test('GIVE-006 / GIVE-003: each recurring cadence recovers on Stripe retries, escalates exhausted invoices and warns about expiring cards once', async t => {
+test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoices become owned calls, and expiring cards warn once', async t => {
  t.mock.timers.enable({apis:['Date'],now:Date.parse(fixedNow)})
  for(const frequency of ['monthly','quarterly','annually']) {
  const state = { intent: null, attempt: 1, paid: false, canceled: false, cardUpdated: false, paymentMethod: null, expiryOffset: 2, calls: [], invoiceId: 'in_recovery' }
@@ -200,7 +200,7 @@ test('GIVE-006 / GIVE-003: each recurring cadence recovers on Stripe retries, es
  }
 })
 
-test('DEV-002 / GIVE-003: explicit standing approval and donor permissions govern scheduled notices, named-lead review, real portal stops and recovery attribution',async()=>{
+test('DEV-002: explicit standing approval and donor permissions govern scheduled notices, named-lead review, real portal stops and recovery attribution',async()=>{
  const {recoveryNoticesJourney}=await import('./recovery-notices-journey.mjs')
  for(const frequency of ['monthly','quarterly','annually'])await recoveryNoticesJourney(frequency)
 })

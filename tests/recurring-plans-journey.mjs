@@ -81,7 +81,7 @@ export async function recurringPlansJourney(){
   const annualCall=await h.command('interaction.record',{donorId:annualPerson.id,kind:'call',occurredOn:'2026-06-10',notes:'The donor authorized a pause.'},{headers:headers()})
   const annualState=await get(annualPath);edge.state.uncertain=true
   const uncertain={action:'pause',version:annualState.version,requestId:randomUUID(),sourceRef:'interaction:'+annualCall.id,reason:'Donor requested a pause.',confirm:'yes'}
-  await api(annualPath,uncertain,{status:500});const requests=edge.state.mutations.length
+  await api(annualPath,uncertain,{status:502});const requests=edge.state.mutations.length
   await api(annualPath,uncertain,{status:409});await api(annualPath,{...uncertain,requestId:randomUUID()},{status:409})
   assert.equal(edge.state.mutations.length,requests,'Unknown financial outcomes remain held without provider retries')
   assert.equal((await get(annualPath)).pending.state,'pending')
