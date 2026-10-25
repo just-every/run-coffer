@@ -20,7 +20,7 @@ export async function campaignProgress(c: { db: D1Database }, campaignId: string
    WHERE g.net_cents>0 AND hard.erased_at IS NULL AND soft.erased_at IS NULL
    AND (EXISTS(SELECT 1 FROM cf_campaign_gifts cg WHERE cg.gift_id=g.id AND cg.campaign_id ${within})
     OR EXISTS(SELECT 1 FROM cf_gift_allocations a WHERE a.gift_id=g.id AND a.campaign_id ${within}))`, ids, ids),
-  all(c, `SELECT DISTINCT donor_id FROM cf_subscriptions WHERE campaign_id ${within} AND status IN ('active','trialing','past_due') AND cancel_at_period_end=0`, ids),
+  all(c, `SELECT DISTINCT s.donor_id FROM cf_subscriptions s WHERE s.campaign_id ${within} AND status IN ('active','trialing','past_due') AND cancel_at_period_end=0 AND NOT EXISTS(SELECT 1 FROM cf_portal_subscription_settings p WHERE p.subscription_id=s.id AND p.collection_paused=1)`, ids),
   all(c, `SELECT DISTINCT a.code,a.name FROM cf_appeal_codes a WHERE a.code IN (
    SELECT appeal FROM cf_campaign_appeals WHERE campaign_id ${within} UNION SELECT ga.appeal FROM cf_gift_appeals ga JOIN cf_fund_ledger l ON l.gift_id=ga.gift_id WHERE l.campaign_id ${within}) ORDER BY a.code`, ids, ids),
  ])

@@ -24,3 +24,8 @@ WHEN OLD.interval<>NEW.interval OR OLD.interval_count<>NEW.interval_count OR OLD
  INSERT INTO cf_subscription_history(subscription_id,observed_at,status,amount_cents,cancel_at_period_end,billing_interval,interval_count,collection_paused)
  SELECT s.id,NEW.observed_at,s.status,s.amount_cents,s.cancel_at_period_end,NEW.interval,NEW.interval_count,NEW.collection_paused FROM cf_subscriptions s WHERE s.id=NEW.subscription_id;
 END;
+
+-- Observe existing current schedules now without inventing earlier cadence history.
+INSERT INTO cf_subscription_history(subscription_id,observed_at,status,amount_cents,cancel_at_period_end,billing_interval,interval_count,collection_paused)
+ SELECT s.id,strftime('%Y-%m-%dT%H:%M:%fZ','now'),s.status,s.amount_cents,s.cancel_at_period_end,p.interval,p.interval_count,p.collection_paused
+ FROM cf_subscriptions s JOIN cf_portal_subscription_settings p ON p.subscription_id=s.id;

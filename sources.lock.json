@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d0fa59c65cb1f9a71ad53efef5096c18c8d554cca8552d23c2977186ebd288ea",
+      "sha256": "e06814f785379ad8c93a60cbb51b4a3b227073d2995ea389ca64d778bc43cb58",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0a550a4d06f0c021d5d5cfc357409756f073d7c554a065dcb57d4ced7649e035",
+      "sha256": "a575201b9dd0c3aa217b15c614c518064752d4e1996f16bda8add6193d7aee3b",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1283,7 +1283,7 @@
       "executable": false
     },
     "migrations/core/0136_coffer_plan_schedules.sql": {
-      "sha256": "f7607e995bbef441fe47b9385ffa486326a13669268df1c0237c0d5bd2431fda",
+      "sha256": "7ef2302649166d53fdd32f50d783ae336871eb91d24ca77834fd7745928fdc75",
       "executable": false
     },
     "migrations/core/0137_coffer_staff_plan_entry.sql": {
@@ -2267,7 +2267,7 @@
       "executable": false
     },
     "src/coffer/campaign-progress.ts": {
-      "sha256": "8c8e1fe9963c90dcc0d85a06f3922ecd9665c5729fd2dde0b9dac4d8a774e142",
+      "sha256": "b789d1acc4a5039d5872f87a941e9ec83c63461328a94eec0e32930e8f8abf70",
       "executable": false
     },
     "src/coffer/commands.ts": {
@@ -2527,7 +2527,7 @@
       "executable": false
     },
     "src/coffer/giving/campaigns.ts": {
-      "sha256": "b5571593c85485692daceb77bc5c54036ca1184cfb28be7215616718f005d261",
+      "sha256": "2c9e21500a0cc99e84d411860ffb98dc9cb72068d9ec6b033c02fa965a61caeb",
       "executable": false
     },
     "src/coffer/giving/checkout.ts": {
@@ -6067,7 +6067,7 @@
       "executable": false
     },
     "tests/recurring-plans-journey.mjs": {
-      "sha256": "26d27db6f8195718e34d2adba201a1caa508d5690b017b115e7eff4a49928c0e",
+      "sha256": "8abd7e33b82967ff08d8e19b6c581dbaa037d80e20a41bf302fef36b0fc51872",
       "executable": false
     },
     "tests/recurring-stripe-edge.mjs": {

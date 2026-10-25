@@ -8,7 +8,7 @@ const summary = `SELECT c.*,
  (SELECT COALESCE(SUM(g.amount_cents),0) FROM cf_fund_ledger g WHERE g.campaign_id=c.id) AS raised_cents,
  (SELECT COUNT(DISTINCT g.gift_id) FROM cf_fund_ledger g WHERE g.campaign_id=c.id AND g.kind='gift' AND g.source<>'stripe-adjustment') AS gift_count,
  (SELECT COUNT(DISTINCT remaining.donor_id) FROM (SELECT g.donor_id,SUM(g.amount_cents) AS cents FROM cf_fund_ledger g WHERE g.campaign_id=c.id GROUP BY g.donor_id HAVING SUM(g.amount_cents)>0) remaining) AS donor_count,
- (SELECT COUNT(DISTINCT donor_id) FROM cf_subscriptions s WHERE s.campaign_id=c.id AND s.status IN ('active','trialing','past_due') AND s.cancel_at_period_end=0) AS recurring_donors
+ (SELECT COUNT(DISTINCT donor_id) FROM cf_subscriptions s WHERE s.campaign_id=c.id AND s.status IN ('active','trialing','past_due') AND s.cancel_at_period_end=0 AND NOT EXISTS(SELECT 1 FROM cf_portal_subscription_settings p WHERE p.subscription_id=s.id AND p.collection_paused=1)) AS recurring_donors
  FROM cf_campaigns c`
 
 export const campaigns = (c: { db: D1Database }) => all(c, summary + ' WHERE c.active=1 ORDER BY c.created_at DESC')

@@ -74,6 +74,7 @@ export async function recurringPlansJourney(){
   await change('date',{nextBillingOn:'2026-06-10'})
   assert.equal((await get(path)).facts.nextBillingAt,Date.parse('2026-06-10T00:00:00Z')/1000)
   await change('pause');assert.equal((await get(path)).facts.paused,true)
+  assert.equal((await get('/api/coffer/giving/campaigns/'+campaign.id)).recurringDonors,2,'Paused collections leave active recurring campaign counts')
   const paused=await edge.advance('2026-05-10T12:00:00Z');assert.equal(paused.bills.length,0,'A paused monthly plan creates no installment')
   assert.equal((await get('/api/coffer/reports/recurring?from=2026-05&through=2026-05')).rows[0].mrrCents,5000,'Paused collections leave committed revenue')
   await change('resume');assert.equal((await get(path)).facts.paused,false)
