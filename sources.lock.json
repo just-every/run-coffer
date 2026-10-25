@@ -1286,6 +1286,10 @@
       "sha256": "f7607e995bbef441fe47b9385ffa486326a13669268df1c0237c0d5bd2431fda",
       "executable": false
     },
+    "migrations/core/0137_coffer_staff_plan_entry.sql": {
+      "sha256": "a7efbe6f062afb4cc47f606f9a51a57d4fb7f0d3e7d9f0a66593819d59868702",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -2543,7 +2547,7 @@
       "executable": false
     },
     "src/coffer/giving/http.ts": {
-      "sha256": "c64127860aab0f1cb0669aa5e1154bd7f55d5ac67818036788d7ef66e4b60b50",
+      "sha256": "576f4f287ad9e0fda550defadc771933e3ee80576c1e3d1823c73a20b6588814",
       "executable": false
     },
     "src/coffer/giving/image-metadata.ts": {
@@ -2555,7 +2559,7 @@
       "executable": false
     },
     "src/coffer/giving/manage-ui.ts": {
-      "sha256": "ed3fe4e6f2afa7f8d83f9c693937150c39dfb6c2b7e9d529f1af6e91ca3c9bc8",
+      "sha256": "7ab80846fda967d585c82ba3aa65bb12952864e2e1507fac956389ccd59fdb3e",
       "executable": false
     },
     "src/coffer/giving/media.ts": {
@@ -6059,7 +6063,7 @@
       "executable": false
     },
     "tests/recurring-stripe-edge.mjs": {
-      "sha256": "a8d59cc3f16b287a73266250b97fb82077c4e15a3893eec2bfe874172a898191",
+      "sha256": "d26a0d8f1ec6c60d9383d4018577f7e86bf82f733e871d2a7dca2a6801e33db0",
       "executable": false
     },
     "tests/relationships-browser.mjs": {

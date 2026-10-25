@@ -5,6 +5,8 @@ import { runtimeBindings, type Bindings } from '../../auth.server'
 import { CofferError, fail, type Context } from '../db'
 import { requireRole, originGuard } from '../auth'
 import { staffPlans, staffPlanState, changeStaffPlan } from './staff-plans'
+import { createStaffPlan, staffPlanCreateState } from './staff-plan-create'
+import { staffPlanCreatePage } from './staff-plan-create-ui'
 import { staffPlansPage, staffPlanPage } from './manage-ui'
 import { e, page } from '../ui/common'
 import { campaign } from './campaigns'
@@ -89,16 +91,17 @@ export async function staffPlanResponse(request:Request,c:Context):Promise<Respo
  originGuard(request,c.env!)
  const api=match[1]==='api/coffer',id=match[2]?decodeURIComponent(match[2]):null
  if(request.method==='GET'){
+  if(id==='new')return api?Response.json(await staffPlanCreateState(c,url.searchParams.get('donorId')??''),{headers}):page('Start recurring plan',await staffPlanCreatePage(c,url.searchParams.get('donorId')),c.actor,200,'/app/giving')
   if(api)return Response.json(id?await staffPlanState(c,id):{plans:await staffPlans(c)},{headers})
   return page(id?'Manage recurring plan':'Recurring plans',id?await staffPlanPage(c,id,url.searchParams.get('saved')==='1'):await staffPlansPage(c),c.actor,200,'/app/giving')
  }
- if(request.method!=='POST'||!id)fail('method_not_allowed','Use a recurring plan change form.',405)
+ if(request.method!=='POST'||(!id&&!api))fail('method_not_allowed','Use a recurring plan change form.',405)
  const type=request.headers.get('content-type')??''
  if(api&&!type.startsWith('application/json')||!api&&!type.startsWith('application/x-www-form-urlencoded'))fail('form_required','Use the plan change form or JSON transport.',415)
  const body=await givingBody(request)
  let input:Record<string,unknown>
  if(api){try{input=JSON.parse(body)}catch{fail('INPUT','Send a JSON object.',400)}if(!input||typeof input!=='object'||Array.isArray(input))fail('INPUT','Send a JSON object.',400)}
  else input=Object.fromEntries(new URLSearchParams(body))
- const result=await changeStaffPlan(c,id,input)
- return api?Response.json(result,{headers}):givingRedirect('/app/giving/plans/'+encodeURIComponent(id)+'?saved=1')
+ const result=await (!id||id==='new'?createStaffPlan(c,input):changeStaffPlan(c,id,input))
+ return api?Response.json(result,{headers}):givingRedirect('/app/giving/plans/'+encodeURIComponent(result.id)+'?saved=1')
 }

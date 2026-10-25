@@ -36,7 +36,7 @@ export async function givingManageResponse(c:Context){
 
 export async function staffPlansPage(c:Context){
  const plans=await staffPlans(c)
- return box('Adopted Stripe plans',plans.length?`<ul class="list">${plans.map(p=>`<li><a href="/app/giving/plans/${encodeURIComponent(p.id)}">${e(recurringLabel(p))}</a><br>${e(p.campaign_name)} · <a href="/app/donors/${encodeURIComponent(p.donor_id)}">Open constituent</a></li>`).join('')}</ul>`:empty('No adopted Stripe plans.'))+'<p>Starting a plan from a phone call or signed pledge requires secure staff payment entry. That entry is not available yet.</p>'
+ return box('Adopted Stripe plans',plans.length?`<ul class="list">${plans.map(p=>`<li><a href="/app/giving/plans/${encodeURIComponent(p.id)}">${e(recurringLabel(p))}</a><br>${e(p.campaign_name)} · <a href="/app/donors/${encodeURIComponent(p.donor_id)}">Open constituent</a></li>`).join('')}</ul>`:empty('No adopted Stripe plans.'))+'<p><a href="/app/giving/plans/new">Start an authorized saved-card plan</a></p>'
 }
 const changeTitles:Record<string,string>={'staffPlan.amount':'Future amount changed','staffPlan.date':'Billing date deferred','staffPlan.pause':'Collections paused','staffPlan.resume':'Collections resumed','staffPlan.cancel':'Cancellation scheduled','portal.change':'Donor changed amount or frequency','portal.pause':'Donor paused collections','portal.resume':'Donor resumed collections','portal.cancel':'Donor scheduled cancellation'}
 export async function staffPlanPage(c:Context,id:string,saved=false){
