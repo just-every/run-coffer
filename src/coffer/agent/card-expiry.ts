@@ -1,4 +1,4 @@
-import { policyConfigured } from './recovery-notices-rules'
+import { recoveryPolicyRequired, policyConfigured } from './recovery-notices-rules'
 import { advanceRecoveryNotices } from './recovery-notices'
 import { automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
 import { all, commit, fail, guard, newId, one, sql, today, type Context, type Row } from '../db'
@@ -44,7 +44,7 @@ export async function checkCardExpiry(c: Context, env: GivingEnv, current: Row) 
  await commit(c,[sql('DELETE FROM cf_card_expiry_notices WHERE subscription_id=? AND (expiry_year<>? OR expiry_month<>?)',saved.id,year,month)])
  const day=today((await settings(c)).timezone,new Date(c.now)), currentYear=Number(day.slice(0,4)), currentMonth=Number(day.slice(5,7))
  if (year!==currentYear+(currentMonth===12?1:0) || month!==(currentMonth===12?1:currentMonth+1)) return
- if(await policyConfigured(c)){
+ if(await policyConfigured(c)||await recoveryPolicyRequired(c,saved.id)){
   const key='expiry:'+saved.id+':'+year+'-'+String(month).padStart(2,'0'),previous=await one(c,'SELECT case_started_at FROM cf_recovery_steps WHERE invoice_id=? ORDER BY ordinal LIMIT 1',key)
   const intent=await one(c,"SELECT amount_cents FROM cf_giving_intents WHERE customer_id=? AND frequency='monthly' ORDER BY created_at LIMIT 1",saved.customer_id)
   await advanceRecoveryNotices(c,env,saved.id,key,'expiry',intent?.amount_cents??saved.amount_cents,previous?.case_started_at??c.now,{methodId,year,month})

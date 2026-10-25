@@ -46,6 +46,12 @@ export async function recurringPlansJourney(){
   const quarterly=await start('quarterly','75'),annual=await start('annually','300')
   assert.deepEqual([quarterly.items.data[0].price.recurring.interval,quarterly.items.data[0].price.recurring.interval_count],['month',3])
   assert.deepEqual([annual.items.data[0].price.recurring.interval,annual.items.data[0].price.recurring.interval_count],['year',1])
+  const waitingInvoice={id:'in_quarterly_waiting',customer:quarterly.customer,currency:'usd',parent:{subscription_details:{subscription:quarterly.id}},status:'open',amount_paid:0,attempt_count:1,next_payment_attempt:null,status_transitions:{paid_at:null}}
+  edge.state.invoices.set(waitingInvoice.id,waitingInvoice);quarterly.latest_invoice=waitingInvoice.id;quarterly.status='past_due'
+  const messages=h.messages.length
+  await deliver('invoice.payment_failed',waitingInvoice.id)
+  assert.equal(h.messages.length,messages,'New cadences never inherit legacy automatic notice permission')
+  assert.equal((await get('/api/coffer/agent')).recovery.rows.find(r=>r.subscription_id===quarterly.id).state,'waiting')
   const health=(await get('/api/coffer/reports/recurring?from=2026-04&through=2026-04')).rows[0]
   assert.equal(health.mrrCents,7500,'Quarterly and annual commitments normalize to monthly revenue')
   const call=await h.command('interaction.record',{donorId:person.id,kind:'call',occurredOn:'2026-04-10',notes:'Donor authorized the future amount, deferred date and collection changes during this call.'},{headers:headers()})

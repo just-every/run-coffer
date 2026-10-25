@@ -2135,7 +2135,7 @@
       "executable": false
     },
     "src/coffer/agent/card-expiry.ts": {
-      "sha256": "0d7c88a865dd6afa2df7a50572fcc44575145a11bfbb2f963f55c0c488ae271f",
+      "sha256": "3f81d1cea2fdf631fbf76c2bcf0e9c4909b3025698aa9676fa6791104e17fdc1",
       "executable": false
     },
     "src/coffer/agent/grants-ui.ts": {
@@ -2191,7 +2191,7 @@
       "executable": false
     },
     "src/coffer/agent/recovery-notices-rules.ts": {
-      "sha256": "81e658cae0b0712e445bf5d5dd0dc8acf017851519dbb80b61a15456b1aeb5f5",
+      "sha256": "79a7909f58a42ef37e6380e12d27f3543e37d7322ae37dc5aba1e94261d8b258",
       "executable": false
     },
     "src/coffer/agent/recovery-notices.ts": {
@@ -2207,7 +2207,7 @@
       "executable": false
     },
     "src/coffer/agent/recovery.ts": {
-      "sha256": "d66fb015b0957c47ec1aba5e0f65027178eebe31ff94fa6245884e0f57807cd7",
+      "sha256": "7b5e24eeae8d237af33e9f188593bbb5713337a5674fef3bfc3dd27984f3a291",
       "executable": false
     },
     "src/coffer/agent/stewardship-ui.ts": {
@@ -5487,7 +5487,7 @@
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
-      "sha256": "7d8ac472fdc6256a9de14e5ecc5daa69a4c03dd844aada09a33900d75be56185",
+      "sha256": "8ae7ab6d14921f07c2af441ba1a4dd0ecf129818f50fe83c5f922f72f059569b",
       "executable": false
     },
     "tests/annual-lapses-journey.mjs": {
@@ -6055,7 +6055,7 @@
       "executable": false
     },
     "tests/recurring-plans-journey.mjs": {
-      "sha256": "c712e60fadf61444950c82bd775af624febf641b01dfeba794868d54926145e3",
+      "sha256": "f7f7c41be318d5b8ed3f8e69a628216b92ae175c4fbda5437c1b18ea8818af11",
       "executable": false
     },
     "tests/recurring-stripe-edge.mjs": {

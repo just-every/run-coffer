@@ -29,7 +29,8 @@ function assertNoCardLastFour(value) {
 // portal, webhook processing, scheduled reconciliation and ledger run unchanged.
 test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoices become owned calls, and expiring cards warn once', async t => {
  t.mock.timers.enable({apis:['Date'],now:Date.parse(fixedNow)})
- for(const frequency of ['monthly','quarterly','annually']) {
+ const frequency='monthly'
+ {
  const state = { intent: null, attempt: 1, paid: false, canceled: false, cardUpdated: false, paymentMethod: null, expiryOffset: 2, calls: [], invoiceId: 'in_recovery' }
  const second={intent:null,invoiceId:'in_lapsed',canceled:false}
  const subscription = () => ({ id: 'sub_recovery', customer: 'cus_recovery', metadata: { coffer_intent: state.intent }, status: state.canceled ? 'canceled' : state.paid ? 'active' : 'past_due', cancel_at_period_end: false, items: { data: [{ quantity:1,price: { unit_amount: 2500,recurring:{interval:frequency==='annually'?'year':'month',interval_count:frequency==='quarterly'?3:1} } }] }, latest_invoice: state.invoiceId, default_payment_method: state.paymentMethod })

@@ -1,4 +1,4 @@
-import { policyConfigured } from './recovery-notices-rules'
+import { recoveryPolicyRequired, policyConfigured } from './recovery-notices-rules'
 import { advanceRecoveryNotices, settleRecoveryNotices } from './recovery-notices'
 import { automated, automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
 import { manager } from '../auth'
@@ -42,7 +42,7 @@ export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, in
  await settleRecoveryNotices(c,sub.id,current.id,state,state==='recovered'?new Date(current.status_transitions.paid_at*1000).toISOString():c.now)
  if (state === 'lapsed') await exhaustedTask(c,current.id,sub.id)
  if (state !== 'waiting' || previous?.state === 'recovered') return
- if(await policyConfigured(c)){await advanceRecoveryNotices(c,env,sub.id,current.id,'failure',intent.amount_cents,previous?.created_at??c.now);return}
+ if(await policyConfigured(c)||await recoveryPolicyRequired(c,sub.id)){await advanceRecoveryNotices(c,env,sub.id,current.id,'failure',intent.amount_cents,previous?.created_at??c.now);return}
  // One atomic claim across duplicate events and concurrent Worker instances.
  // A crash after the claim is deliberately visible as uncertain; sending again
  // would risk duplicate mail because emailPortalLink has no idempotent delivery API.

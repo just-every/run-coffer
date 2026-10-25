@@ -2,6 +2,8 @@ import { addDays, all, guard, one, today, type Context, type Row, type Stmt } fr
 import { settings } from '../settings'
 
 export const policyConfigured = async(c:Pick<Context,'db'>)=>!!(await one(c,'SELECT approved_at FROM cf_recovery_notice_policy WHERE id=1'))?.approved_at
+/** Newly offered cadences and staff mutations never inherit legacy notice consent. */
+export const recoveryPolicyRequired=async(c:Pick<Context,'db'>,subscriptionId:string)=>!!await one(c,`SELECT 1 FROM cf_subscriptions s WHERE s.id=? AND (EXISTS(SELECT 1 FROM cf_giving_intents i WHERE i.customer_id=s.customer_id AND i.billing_frequency IN ('quarterly','annually')) OR EXISTS(SELECT 1 FROM cf_portal_changes p WHERE p.subscription_id=s.id AND p.action LIKE 'staff.%'))`,subscriptionId)
 export const portalStopSql = `EXISTS(SELECT 1 FROM cf_events WHERE action='portal.paymentMethodUpdated' AND subject_kind='subscription' AND subject_id=? AND at>=?)`
 export async function noticeStop(c:Context,subscriptionId:string,caseKey:string,started:string,kind:string) {
  if(await one(c,'SELECT invoice_id FROM cf_recovery_closures WHERE invoice_id IN (?,?)',caseKey,'plan:'+subscriptionId))return 'Closed by a person'
