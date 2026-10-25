@@ -6007,7 +6007,7 @@
       "executable": false
     },
     "tests/pantry-sandbox-runtime.mjs": {
-      "sha256": "3c8265b52509488c4ca9bc39cd2428a1c032dc4c9129166ae9b00c8d333a040c",
+      "sha256": "1d908d57d89a4b49ffa4b1345fb71a8481f1eaaa22f7c56f314ecc2cfdff18e4",
       "executable": false
     },
     "tests/payment-adjustments-browser.mjs": {

@@ -35,6 +35,8 @@ export async function startPantry(checkout){
   const page=await context.newPage(),origin=new URL(open).origin
   console.log(JSON.stringify({stage:'pantry-ready',origin,readyOrigin:new URL(ready).origin}))
   await page.goto(open,{timeout:120_000});open='';output=''
+  await page.waitForURL(url=>['/setup','/app'].includes(url.pathname),{timeout:60_000})
+  console.log(JSON.stringify({stage:'pantry-native-session',path:new URL(page.url()).pathname}))
   if(new URL(page.url()).pathname==='/setup'){
    await page.locator('input[name=confirm]').check()
    await page.getByRole('button',{name:'Finish setup',exact:true}).click()
