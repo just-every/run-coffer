@@ -55,5 +55,5 @@ export async function staffPlanCreateJourney(h,edge,{person,sourceRef,campaign,m
  assert.deepEqual(fees.byForm.map(r=>[r.id,r.gross_cents]),[[null,paid]],'Staff payment entry never pretends to be a giving form')
  assert.deepEqual(fees.byCampaign.map(r=>[r.id,r.gross_cents]),[[campaign.id,paid]])
  const attribution=await get('/api/coffer/reports/attribution?from=2026-01-01&to=2026-12-31')
- assert.equal(attribution.byChannel.find(r=>r.id==='phone').amountCents,paid)
+ assert.equal(attribution.channel.find(r=>r.key==='phone').amountCents,paid)
 }

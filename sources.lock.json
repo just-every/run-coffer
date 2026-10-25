@@ -6071,7 +6071,7 @@
       "executable": false
     },
     "tests/recurring-stripe-edge.mjs": {
-      "sha256": "d26a0d8f1ec6c60d9383d4018577f7e86bf82f733e871d2a7dca2a6801e33db0",
+      "sha256": "e375323c0099d38e1be7c4df0355f1dfcbd663d1709fbe12904687fd97401d77",
       "executable": false
     },
     "tests/relationships-browser.mjs": {
@@ -6144,6 +6144,10 @@
     },
     "tests/split-gifts.test.mjs": {
       "sha256": "e62ed1bd10ba4229ae868fe6cced4b28c930556278aac98ebdd771976407e9c3",
+      "executable": false
+    },
+    "tests/staff-plan-create-journey.mjs": {
+      "sha256": "4269fde848a3441d0c55997b4ed20c329032f5ae12f3072ace66def7af576ed2",
       "executable": false
     },
     "tests/state-report-journey.mjs": {

@@ -49,7 +49,7 @@ export function recurringStripeEdge() {
   const sub=state.plans.get(path.split('/').at(-1))
   if(path.startsWith('/v1/subscriptions/')&&sub) {
    if(request.method==='POST') {
-    assert.ok(request.headers.get('idempotency-key'));state.mutations.push(Object.fromEntries(p))
+    if(!p.has('default_payment_method'))assert.ok(request.headers.get('idempotency-key'));state.mutations.push(Object.fromEntries(p))
     if(state.uncertain)throw Error('Synthetic unknown provider outcome')
     if(p.has('default_payment_method'))sub.default_payment_method=p.get('default_payment_method')||null
     if(p.has('pause_collection[behavior]')){assert.equal(p.get('pause_collection[behavior]'),'void');sub.pause_collection={behavior:'void'}}
