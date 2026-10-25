@@ -88,7 +88,7 @@ test('reconciliation verifies Pantry exact payload and posted journal without su
    if(u.pathname==='/v1/balance_transactions')return Response.json({data:[txn],has_more:false})
   }
   if(u.hostname==='pantry.example.test') {
-   if(u.pathname==='/api/pantry/agent/context')return Response.json({accounts:['bank','fees','meals'].map(id=>({id,type:id==='bank'?'asset':id==='fees'?'expense':'income',subtype:'other',active:1,revision:'r1'})),documents:[{id:'doc_reconcile',sha256:hash}],proposals:proposal?[proposal]:[]})
+   if(u.pathname==='/api/pantry/agent/context')return Response.json({accounts:['bank','fees','meals'].map(id=>({id,type:id==='bank'?'asset':id==='fees'?'expense':'income',subtype:id==='bank'?'bank':'other',active:1,revision:'r1'})),documents:[{id:'doc_reconcile',sha256:hash}],proposals:proposal?[proposal]:[]})
    if(u.pathname==='/api/pantry/agent/proposals' && request.method==='POST') {
     submissions++;proposal={...await request.json(),id:'proposal_reconcile',status:'proposed'};return Response.json(proposal)
    }

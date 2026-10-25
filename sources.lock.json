@@ -5547,7 +5547,7 @@
       "executable": false
     },
     "tests/agent-reconciliation.test.mjs": {
-      "sha256": "ad395d3e3cd0d812b23dd80fb5ad1866db667646cd4112122dda2ed981f679a4",
+      "sha256": "b007854f27f7639b0204282daa0b7c6ed15668250c7a4ac247021c1b962e77dd",
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
