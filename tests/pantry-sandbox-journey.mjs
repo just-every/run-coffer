@@ -94,7 +94,8 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
    assert.equal(sum(matched.splits,'gross_cents'),15000);assert.equal(sum(matched.splits,'fee_cents'),465)
    const imported=(await h.get('/api/coffer/donors')).donors.find(d=>d.email===charge.receipt_email)
    assert.ok(imported,'The Stripe gift has a matched donor')
-   await h.command('donor.update',{donorId:imported.id,version:imported.version,name:'Maya Rivera',email:imported.email})
+   const profile=(await h.get('/api/coffer/donors/'+imported.id)).donor
+   await h.command('donor.update',{donorId:profile.id,version:profile.version,name:'Maya Rivera',email:profile.email})
    const batch=await makeBatch(h,{page,origin,capture})
    const native=await h.get('/api/coffer/gift-batches?id='+batch.id)
    assert.equal(native.total_cents,60000);assert.equal(native.entries.length,3)
