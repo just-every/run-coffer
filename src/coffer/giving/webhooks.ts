@@ -32,7 +32,7 @@ export async function completed(env: GivingEnv, sessionId: string) {
  if (!saved) fail('not_found', 'That checkout is not available.', 404)
  const session = await stripe(env, '/checkout/sessions/' + encodeURIComponent(sessionId))
  if (session.metadata?.coffer_intent !== saved.id || stripeId(session.customer) !== saved.customer_id || session.currency !== 'usd' || session.amount_total !== saved.amount_cents) fail('invalid_payment', 'Stripe returned a different checkout.', 409)
- if (session.status !== 'complete' || session.payment_status !== 'paid') return { paid: false, monthly: saved.frequency === 'monthly' }
+ if (session.status !== 'complete' || session.payment_status !== 'paid') return { paid: false, recurring: saved.frequency === 'monthly' }
  const payment=saved.frequency!=='monthly'?await stripe(env,'/payment_intents/'+encodeURIComponent(stripeId(session.payment_intent))):null
  if(payment&&(payment.status!=='succeeded'||payment.currency!=='usd'||payment.amount_received!==saved.amount_cents))fail('invalid_payment','Payment has not completed.',409)
  const intent = await identify(env, saved.id, saved.customer_id)
@@ -43,7 +43,7 @@ export async function completed(env: GivingEnv, sessionId: string) {
  } else {
   await recordGift(env, intent, payment!.id, payment!.amount_received, payment!.created)
  }
- return { paid: true, monthly: saved.frequency === 'monthly' }
+ return { paid: true, recurring: saved.frequency === 'monthly' }
 }
 
 export async function webhook(env: GivingEnv, request: Request, raw: string) {

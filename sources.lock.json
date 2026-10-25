@@ -2543,7 +2543,7 @@
       "executable": false
     },
     "src/coffer/giving/http.ts": {
-      "sha256": "91648e79db83bc940da6a715ae7b3bb08ba7f7f388c191bdfddd892af48b4ecb",
+      "sha256": "c64127860aab0f1cb0669aa5e1154bd7f55d5ac67818036788d7ef66e4b60b50",
       "executable": false
     },
     "src/coffer/giving/image-metadata.ts": {
@@ -2655,7 +2655,7 @@
       "executable": false
     },
     "src/coffer/giving/webhooks.ts": {
-      "sha256": "5a3e266ca211bdc1c67af7dc6f134a79969f8ebcbe1b27925def7bb7044bf968",
+      "sha256": "f0436f0574afa45d3140bbf58578265db70e642e4ea8fc8981f212f7bd700a02",
       "executable": false
     },
     "src/coffer/grants.ts": {

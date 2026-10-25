@@ -59,7 +59,7 @@ export async function givingResponse(request: Request, original: Bindings): Prom
   if (media && ['GET', 'HEAD'].includes(request.method)) return await campaignMediaResponse(request, { db: env.DB, env }, media[1], media[2])
   if (path === '/giving/thanks' && request.method === 'GET') {
    const result = await completed(env, url.searchParams.get('session_id') ?? '')
-   const response = await page(result.paid ? 'Thank you for your gift' : 'Payment is still processing', result.paid ? `<p>Your ${result.monthly ? 'monthly ' : ''}gift has been recorded. Thank you for your support.</p><p><a href="/giving/portal">Manage my giving</a></p>` : '<p>Stripe has not confirmed payment yet. Please check this page again shortly.</p>')
+   const response = await page(result.paid ? 'Thank you for your gift' : 'Payment is still processing', result.paid ? `<p>Your ${result.recurring ? 'recurring ' : ''}gift has been recorded. Thank you for your support.</p><p><a href="/giving/portal">Manage my giving</a></p>` : '<p>Stripe has not confirmed payment yet. Please check this page again shortly.</p>')
    response.headers.set('referrer-policy', 'strict-origin'); return response
   }
   const m = path.match(/^\/give\/([a-z0-9-]+)(\/checkout)?$/)
