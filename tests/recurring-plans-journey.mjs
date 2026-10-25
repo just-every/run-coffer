@@ -92,5 +92,6 @@ export async function recurringPlansJourney(){
   assert.equal(edge.state.mutations.length,requests,'Unknown financial outcomes remain held without provider retries')
   assert.equal((await get(annualPath)).pending.state,'pending')
   if(process.env.COFFER_PLANS_BROWSER){const {recurringPlansBrowser}=await import('./recurring-plans-browser.mjs');await recurringPlansBrowser(h,edge,{monthly:annual,person:annualPerson,sourceRef:'interaction:'+annualCall.id,directory:process.env.COFFER_PLANS_BROWSER,phase:'pending'})}
+  const {staffPlanCreateJourney}=await import('./staff-plan-create-journey.mjs');await staffPlanCreateJourney(h,edge,{person,sourceRef,campaign,member,directory:process.env.COFFER_PLANS_BROWSER})
  },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-7103',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
 }

@@ -2630,6 +2630,14 @@
       "sha256": "968ccaa7ad50744668d8ee830a0c54a2ca68d69ea1d66485994f084d182030a1",
       "executable": false
     },
+    "src/coffer/giving/staff-plan-create-ui.ts": {
+      "sha256": "866242d00221b04d3e475cf61db6031d989c844a124486a8a7734b4eccabded8",
+      "executable": false
+    },
+    "src/coffer/giving/staff-plan-create.ts": {
+      "sha256": "19134bc679adea0eaf597e0af27916eac0dc47fb91094aa0256ec74e23bd98d0",
+      "executable": false
+    },
     "src/coffer/giving/staff-plans.ts": {
       "sha256": "53f09d3050247973f10589252eb975a542028e774d37f80b04f00e70a709a0b0",
       "executable": false
@@ -6059,7 +6067,7 @@
       "executable": false
     },
     "tests/recurring-plans-journey.mjs": {
-      "sha256": "f7f7c41be318d5b8ed3f8e69a628216b92ae175c4fbda5437c1b18ea8818af11",
+      "sha256": "2059fbb9789a8a09630bd3bf15760ff600e1c593577077c718fe87f502862fa1",
       "executable": false
     },
     "tests/recurring-stripe-edge.mjs": {
