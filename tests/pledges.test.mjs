@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
+import {fixedNow} from './fixed-clock.mjs'
 
 const day=offset=>new Date(Date.now()+offset*86400000).toISOString().slice(0,10)
 const receivedOn='2025-08-10'
@@ -258,7 +259,8 @@ test('STEW-004: scheduled follow-up is a non-ask sent once per unpaid installmen
  },{triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1605',MAIL_FROM:'pledges@example.test'},outbound:async request=>{assert.equal(new URL(request.url).hostname,'api.sendgrid.com');messages.push(await request.json());return new Response(null,{status:202,headers:messages.length===1?{'x-message-id':'synthetic-coffer-1606'}:{}})}})
 })
 
-test('STEW-004: quarterly pledge reminder and printed invoice pay exactly the unpaid installment through hosted checkout',async()=>{
+test('STEW-004: quarterly pledge reminder and printed invoice pay exactly the unpaid installment through hosted checkout',async t=>{
+ t.mock.timers.enable({apis:['Date'],now:Date.parse(fixedNow)})
  const {createHmac}=await import('node:crypto'),messages=[]
  const secret='synthetic-coffer-1701',edge={sessions:[],payment:null}
  await run(async h=>{
@@ -266,7 +268,9 @@ test('STEW-004: quarterly pledge reminder and printed invoice pay exactly the un
   const d=await donor(h,'Synthetic Quarterly Checkout')
   await h.command('consent.record',{donorId:d.id,channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-1702',capturedOn:'2025-01-01'})
   await h.command('solicitation.set',{donorId:d.id,version:0,type:'stop',startsOn:'2025-01-01',source:'person',sourceRef:'synthetic-coffer-1703'})
-  const dates=[0,1,2,3].map(n=>{const d=new Date();d.setUTCDate(d.getUTCDate()+7);d.setUTCMonth(d.getUTCMonth()+n*3);return d.toISOString().slice(0,10)})
+  // fixedNow is October 17 in New York: the first reminder is due today locally,
+  // even though UTC is already October 18. Keep the quarterly schedule fixed too.
+  const dates=['2026-10-24','2027-01-24','2027-04-24','2027-07-24']
   const pledge=await h.command('pledge.create',{donorId:d.id,amount:'400',pledgedOn:'2025-01-01',fund:'Library',installments:dates.map(dueOn=>({dueOn,amount:'100'}))})
   await h.command('gift.record',{donorId:d.id,amount:'25',receivedOn:'2025-08-10',method:'check',goods:'none',fund:'Library',installmentId:pledge.installments[0].id})
   assert.equal((await h.command('pledge.remind',{pledgeId:pledge.id})).submitted,1)
@@ -305,7 +309,7 @@ test('STEW-004: quarterly pledge reminder and printed invoice pay exactly the un
   assert.equal(followups.length,1);assert.match(followups[0].content[0].value,/\$100\.00 remaining/)
   assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='pledge:'+pledge.installments[1].id).length,1)
   await h.command('donor.erase',{donorId:d.id,confirm:'ERASE'});assert.equal((await h.request(payPath,{as:''})).status,404)
- },{triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1708',MAIL_FROM:'pledges@example.test',STRIPE_SECRET_KEY:'synthetic-coffer-1709',STRIPE_WEBHOOK_SECRET:secret},outbound:async request=>{
+ },{entry:'tests/fixed-clock-worker.ts',triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1708',MAIL_FROM:'pledges@example.test',STRIPE_SECRET_KEY:'synthetic-coffer-1709',STRIPE_WEBHOOK_SECRET:secret},outbound:async request=>{
   const u=new URL(request.url)
   if(u.hostname==='api.sendgrid.com'){messages.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-1710'}})}
   assert.equal(u.hostname,'api.stripe.com')
