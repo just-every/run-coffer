@@ -2979,7 +2979,7 @@
       "executable": false
     },
     "src/coffer/payments/batch-deposits.ts": {
-      "sha256": "2b3eb88b4edb9e21d39eb82f6a4c85b59ac820a5f1284597666d22eae16ab109",
+      "sha256": "593b6c6bf40ea630594e8289bce184abeb106a78c41087db79a094c6f2852756",
       "executable": false
     },
     "src/coffer/payments/batch-ui.ts": {
@@ -3023,7 +3023,7 @@
       "executable": false
     },
     "src/coffer/payments/pantry.ts": {
-      "sha256": "73cbded0d4e54763d463030bc6f884a0b2bd119c61e631d79986a99f629f6490",
+      "sha256": "e1f3c1e7d5bc9945f6c96e77bdae8129035d9f9f292bf10ad3372b5706ac227b",
       "executable": false
     },
     "src/coffer/payments/payouts.ts": {
@@ -5579,7 +5579,7 @@
       "executable": false
     },
     "tests/batch-deposits-journey.mjs": {
-      "sha256": "f4e2d87af854f6fe19603654e6e30aff978e229b363c1cfc8eef452d88bcdf4b",
+      "sha256": "835c17639175017e44ff9b9689aaafb6e72fa6fc10d12ee8f0b643c5e9a06d57",
       "executable": false
     },
     "tests/browser-journey.mjs": {

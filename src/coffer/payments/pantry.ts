@@ -18,7 +18,7 @@ type Posting = {
  proposal_id: string | null; payload_hash: string; summary: string; created_at: string
 }
 type DepositKind = 'payout' | 'batch'
-export type PantryDeposit = { id: string; kind: DepositKind; csv: string; journal: {date: string; lines: JournalLine[]}; guards: Stmt[] }
+export type PantryDeposit = { id: string; kind: DepositKind; prepare: () => {csv:string;journal:{date:string;lines:JournalLine[]};guards:Stmt[]} }
 const store = (kind: DepositKind) => kind === 'batch' ? {table:'cf_batch_postings',key:'batch_id'} : {table:'cf_payout_postings',key:'payout_id'}
 const saved = (c: Context, id: string, kind: DepositKind) => {const {table,key}=store(kind);return one<Posting>(c, `SELECT *,${key} AS source_id FROM ${table} WHERE ${key} = ?`, id)}
 
@@ -53,11 +53,11 @@ async function refresh(c: Context, conn: ReturnType<typeof connection>, row: Pos
 /** File one evidence-backed deposit; a person approves inside Pantry. */
 export async function submitDeposit(c: Context, env: PaymentsEnv, deposit: PantryDeposit, documentId?: string) {
  if (managed(env)) fail('not_available', 'Pantry is not available yet on RER Managed.', 503)
- const {kind,csv,journal}=deposit, id=text(deposit.id,'Deposit ID',200), {table,key}=store(kind), previous=await saved(c,id,kind)
+ const {kind}=deposit, id=text(deposit.id,'Deposit ID',200), {table,key}=store(kind), previous=await saved(c,id,kind)
  if(previous?.state==='posted')return previous
  const conn=connection(env)
  if(previous)return refresh(c,conn,previous,kind)
- const evidenceHash=await sha256(csv),remote=await context(conn)
+ const {csv,journal,guards}=deposit.prepare(),evidenceHash=await sha256(csv),remote=await context(conn)
  const docId = text(documentId, 'Uploaded Pantry document ID', 200), doc = remote.documents.find(d => d.id === docId)
  if (!doc || !(doc.sha256?.toLowerCase() === evidenceHash || doc.text === csv)) fail('PANTRY_EVIDENCE', 'Upload the exact payout evidence CSV in Pantry Documents, then enter its document ID.', 409)
  const accountIds = [...new Set(journal.lines.map(l => l.accountId))]
@@ -78,7 +78,7 @@ export async function submitDeposit(c: Context, env: PaymentsEnv, deposit: Pantr
  if (known.length > 1 || known.length === 1 && await sha256(JSON.stringify(known[0].payload)) !== hash) fail('PANTRY_DUPLICATE', 'Pantry contains a different proposal for this payout. Reconcile it in Pantry.', 409)
  try {
   await commit(c, [guard(`NOT EXISTS (SELECT 1 FROM ${table} WHERE ${key} = ?)`, 'PAYOUT_CLAIMED', 'This deposit already has a submission. Refresh its status.', id),
-   ...deposit.guards,
+   ...guards,
    sql(`INSERT INTO ${table}(${key},state,external_id,destination,posted_at,proposal_id,payload_hash,summary,created_at) VALUES(?,'sending',NULL,?,NULL,NULL,?,?,?)`, id, conn.origin, hash, summary, c.now)])
  } catch (error) {
   if (!(error instanceof CofferError) || error.code !== 'PAYOUT_CLAIMED') throw error
@@ -115,7 +115,7 @@ export async function reconciliationPosting(c: Context, env: PaymentsEnv, payout
 
 export async function postToPantry(c: Context, env: PaymentsEnv, view: any, documentId?: string) {
  const id=view.payout.id
- return submitDeposit(c,env,{id,kind:'payout',csv:evidenceCsv(view),journal:payoutJournal(view,env),guards:[
+ return submitDeposit(c,env,{id,kind:'payout',prepare:()=>({csv:evidenceCsv(view),journal:payoutJournal(view,env),guards:[
   guard("EXISTS(SELECT 1 FROM cf_payouts WHERE id=? AND status='paid' AND complete=1 AND amount_cents=?) AND (SELECT COUNT(*) FROM cf_payout_entries WHERE payout_id=?)=? AND NOT EXISTS(SELECT 1 FROM cf_payout_entries WHERE payout_id=? AND entry_id NOT IN (SELECT value FROM json_each(?)))", 'PAYOUT_CHANGED', 'The payout changed. Download fresh evidence before posting.', id, view.payout.amount_cents, id, view.lines.length, id, JSON.stringify(view.lines.map((line: any) => line.id)))
- ]},documentId)
+ ]})},documentId)
 }

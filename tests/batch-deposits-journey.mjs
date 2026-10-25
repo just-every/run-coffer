@@ -45,6 +45,7 @@ export async function batchDepositsJourney(){
   const uncertain=await h.api(path+'/post',{documentId:'synthetic-coffer-1603'},{as:admin.cookie});assert.equal(uncertain.state,'uncertain');assert.equal(uncertain.external_id,null)
   const pending=await h.api(path+'/post',{});assert.equal(pending.state,'proposed');assert.equal(submissions,1,'Refresh recovers the saved claim without resending')
   await h.api(path+'/post',{});assert.equal(submissions,1)
+  await h.command('fund.define',{name:'Meals',restriction:'purpose',detail:'Changed after submission'},{status:409})
   const reportPath='/api/coffer/payments/reconciliation?from=2026-10-01&to=2026-10-31'
   let report=await h.get(reportPath);assert.equal(report.funds[0].accounting_cents,0);assert.ok(report.differences.some(d=>d.sourceId===batch.id&&d.stage==='deposit_to_accounting'))
   approved=true

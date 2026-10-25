@@ -24,10 +24,12 @@ export function batchEvidence(view: Awaited<ReturnType<typeof batchDeposit>>) {
 }
 export async function postBatchToPantry(c:Context,env:PaymentsEnv,view:Awaited<ReturnType<typeof batchDeposit>>,documentId?:string){
  const {batch,lines,splits}=view
+ return submitDeposit(c,env,{id:batch.id,kind:'batch',prepare:()=>{
  if(batch.status!=='closed'||!lines.length||lines.reduce((n,l)=>n+l.amount_cents,0)!==batch.expected_cents)fail('BATCH_NOT_READY','Close a balanced batch before submitting its deposit.',409)
  const journal=fundJournal({reference:`${batch.method==='check'?'Check':'Cash'} batch ${batch.id}`,date:batch.received_on,amountCents:batch.expected_cents,splits},env)
- return submitDeposit(c,env,{id:batch.id,kind:'batch',csv:batchEvidence(view),journal,guards:[
+ return {csv:batchEvidence(view),journal,guards:[
   guard("EXISTS(SELECT 1 FROM cf_gift_batches WHERE id=? AND status='closed' AND version=? AND expected_cents=?)",'BATCH_CHANGED','The batch changed. Download fresh evidence before submitting.',batch.id,batch.version,batch.expected_cents),
   ...[...new Map(lines.map(l=>[l.gift_id,l])).values()].map(l=>guard('EXISTS(SELECT 1 FROM cf_gifts WHERE id=? AND version=?)','BATCH_CHANGED','A batch gift changed. Download fresh evidence before submitting.',l.gift_id,l.version))
- ]},documentId)
+ ]}
+ }},documentId)
 }
