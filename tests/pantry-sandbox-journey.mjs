@@ -85,7 +85,7 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
    await page.getByRole('heading',{name:'Match a manual payout',exact:true}).waitFor()
    await capture('payout-unmatched',null)
    await page.getByLabel('Stripe balance transaction IDs',{exact:true}).fill(transactionId)
-   await page.getByRole('checkbox').check()
+   await page.getByRole('checkbox',{name:'I checked that these transactions belong to this payout.',exact:true}).check()
    await page.getByRole('button',{name:'Match selected transactions',exact:true}).click()
    await page.getByText('Matched gift amounts balance to this payout.',{exact:true}).waitFor()
    const matched=await h.get('/api/coffer/payments/'+payoutId)
