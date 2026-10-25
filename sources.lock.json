@@ -1306,6 +1306,10 @@
       "sha256": "39140d8f0cead2139d46613195df5a040b55c958bcf70955ca752f78a78b8575",
       "executable": false
     },
+    "migrations/core/0143_coffer_batch_funds.sql": {
+      "sha256": "c4741543263e5fba6af4a6f94c283266db9f1fab759ef118c68981224959a62e",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -3403,7 +3407,7 @@
       "executable": false
     },
     "src/coffer/ui/gift-batches.ts": {
-      "sha256": "795d734d6ef35436279af6bd65be285f43bc083036521034c42133ee4eba92d5",
+      "sha256": "514c59f618ae519b807a70d080b0a7407e1a1c77d819ddb2099260a3e9941356",
       "executable": false
     },
     "src/coffer/ui/gift-depth.ts": {
