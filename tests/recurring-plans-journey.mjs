@@ -53,6 +53,7 @@ export async function recurringPlansJourney(){
   const member=await h.person('synthetic-coffer-7104@example.test')
   await get(path,{as:'',status:401});await get(path,{as:member.cookie,status:403})
   const original=await get(path)
+  assert.deepEqual(original.gifts.map(g=>g.id).sort(),history.gifts.map(g=>g.id).sort(),'All three received installments link to this exact plan')
   const change=async(action,extra={},options={})=>{const current=await get(path);return api(path,{action,requestId:randomUUID(),version:current.version,sourceRef,reason:'Donor instruction recorded in the attached call.',confirm:'yes',...extra},options)}
   const before=edge.state.mutations.length
   await change('amount',{amount:'35',sourceRef:'interaction:someone-else'},{status:409})
@@ -84,5 +85,6 @@ export async function recurringPlansJourney(){
   await api(annualPath,uncertain,{status:409});await api(annualPath,{...uncertain,requestId:randomUUID()},{status:409})
   assert.equal(edge.state.mutations.length,requests,'Unknown financial outcomes remain held without provider retries')
   assert.equal((await get(annualPath)).pending.state,'pending')
+  if(process.env.COFFER_PLANS_BROWSER){const {recurringPlansBrowser}=await import('./recurring-plans-browser.mjs');await recurringPlansBrowser(h,edge,{monthly:annual,person:annualPerson,sourceRef:'interaction:'+annualCall.id,directory:process.env.COFFER_PLANS_BROWSER,phase:'pending'})}
  },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-7103',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
 }

@@ -133,7 +133,7 @@ test('GIVE-006 / GIVE-003: each recurring cadence recovers on Stripe retries, es
   const pause = activity.find(row => row.kind === 'recovery.pause')
   assert.ok(pause.actor_id && pause.why && pause.undo_kind)
   const secondPerson=await donor(h,'Nico Second')
-  assert.equal((await h.request('/give/monthly-reading/checkout',form({name:'Nico Second',email:'nico.second@example.org',amount:'25.00',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}))).status,303)
+  assert.equal((await h.request('/give/monthly-reading/checkout',form({name:'Nico Second',email:'nico.second@example.org',amount:'25.00',frequency,'cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}))).status,303)
   await deliver('evt_second_failure','invoice.payment_failed',second.invoiceId)
   await h.api('/api/coffer/agent/recovery/run', {})
   data = await recovery()
