@@ -61,8 +61,9 @@ export async function invoiceProtection(env: GivingEnv, invoice: Row, subscripti
  const subscription=await stripe(env,'/subscriptions/'+encodeURIComponent(subscriptionId))
  if((typeof subscription.customer==='string'?subscription.customer:subscription.customer?.id)!==customer)return
  // Look up an existing association without creating a donor for a failed gift.
- const saved=await one({db:env.DB},'SELECT campaign_id FROM cf_giving_intents WHERE id=? AND customer_id=?',subscription.metadata?.coffer_intent??'',customer)
-  ??await one({db:env.DB},'SELECT campaign_id FROM cf_subscriptions WHERE id=? AND customer_id=?',subscriptionId,customer)
+ const intent=await one({db:env.DB},'SELECT campaign_id,staff_channel FROM cf_giving_intents WHERE id=? AND customer_id=?',subscription.metadata?.coffer_intent??'',customer)
+ if(intent?.staff_channel)return
+ const saved=intent??await one({db:env.DB},'SELECT campaign_id FROM cf_subscriptions WHERE id=? AND customer_id=?',subscriptionId,customer)
  if(saved)await providerFailure(env,saved.campaign_id,'invoice:'+invoice.id+':'+invoice.attempt_count,failed)
 }
 export async function radarFailure(env: GivingEnv,event: Row) {
@@ -75,8 +76,8 @@ export async function radarFailure(env: GivingEnv,event: Row) {
  if(!intentId)return
  const customer=typeof object.customer==='string'?object.customer:object.customer?.id
  if(!customer)return
- const saved=await one({db:env.DB},'SELECT campaign_id FROM cf_giving_intents WHERE id=? AND customer_id=?',intentId,customer)
- if(!saved)return
+ const saved=await one({db:env.DB},'SELECT campaign_id,staff_channel FROM cf_giving_intents WHERE id=? AND customer_id=?',intentId,customer)
+ if(!saved||saved.staff_channel)return
  const payment=charge?object.payment_intent:object.id
  const paymentId=typeof payment==='string'?payment:payment?.id
  const failedCharge=charge?object.id:object.last_payment_error?.charge

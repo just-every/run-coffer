@@ -18,6 +18,7 @@ export async function staffPlanCreateJourney(h,edge,{person,sourceRef,campaign,m
  edge.state.methodType='us_bank_account';await get(endpoint+'/new?donorId='+person.id,{status:409});edge.state.methodType='card'
  edge.state.customerDiscount=true;await api(input,{status:409});edge.state.customerDiscount=false
  assert.equal(edge.state.staffSequence,0,'Refused authorization, authority and billing state never charge')
+ const protection=await get('/api/coffer/giving/protection')
  const before=(await get('/api/coffer/donors/'+person.id)).gifts.length
  const created=await api(input);assert.equal(created.state,'complete')
  assert.equal((await api(input)).id,created.id);assert.equal(edge.state.staffSequence,1,'A completed create request cannot make a second subscription')
@@ -40,7 +41,7 @@ export async function staffPlanCreateJourney(h,edge,{person,sourceRef,campaign,m
    await page.getByLabel('Installment amount (USD)',{exact:true}).fill('15')
    await page.getByLabel('Billing frequency',{exact:true}).selectOption(width===1440?'quarterly':'annually')
    await page.getByLabel('Recorded authorization evidence',{exact:true}).selectOption(sourceRef)
-   await page.getByRole('checkbox').check()
+   await page.getByRole('checkbox',{name:/I verified the recorded authorization/}).check()
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    await page.screenshot({path:`${directory}/staff-plan-create-${width}.png`,fullPage:true})
    await page.getByRole('button',{name:'Charge and start plan',exact:true}).click()
@@ -49,6 +50,7 @@ export async function staffPlanCreateJourney(h,edge,{person,sourceRef,campaign,m
    await page.screenshot({path:`${directory}/staff-plan-created-${width}.png`,fullPage:true})
   }
  })
+ assert.deepEqual(await get('/api/coffer/giving/protection'),protection,'Staff recurring payments never count toward public card-testing protection')
  await h.api('/api/coffer/payments/sync',{payoutId:'po_staff_recurring'},{headers})
  const fees=await get('/api/coffer/payments/fees?payoutId=po_staff_recurring'),paid=directory?5000:2000,count=directory?3:1
  assert.deepEqual(fees.totals,{gross_cents:paid,fee_cents:103*count,net_cents:paid-103*count})

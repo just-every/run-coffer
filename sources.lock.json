@@ -2619,7 +2619,7 @@
       "executable": false
     },
     "src/coffer/giving/protection.ts": {
-      "sha256": "a888b91e7796b58cf4b1b1c8b7803043e7c848b955308bde1e57bbd03de9b17e",
+      "sha256": "65631349ccabc3e3b9b392547482af6f3734b7b47c4f67a6ec7531cafdf1ae73",
       "executable": false
     },
     "src/coffer/giving/recording.ts": {
@@ -6147,7 +6147,7 @@
       "executable": false
     },
     "tests/staff-plan-create-journey.mjs": {
-      "sha256": "4269fde848a3441d0c55997b4ed20c329032f5ae12f3072ace66def7af576ed2",
+      "sha256": "aaad864851a4a7ef66b00d4796c4c2e3a09c5e7f4b1305141a8654008138f1a8",
       "executable": false
     },
     "tests/state-report-journey.mjs": {
