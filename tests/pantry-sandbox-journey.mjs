@@ -174,9 +174,9 @@ async function makeBatch(h){
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
  const [pantryCheckout,directory,payoutId,transactionId,chargeId]=process.argv.slice(2)
- sandboxJourney({pantryCheckout,directory,payoutId,transactionId,chargeId}).catch(()=>{
+ sandboxJourney({pantryCheckout,directory,payoutId,transactionId,chargeId}).catch(error=>{
   // Never dump provider requests, process output, native cookies or credentials.
-  console.error('Pantry sandbox journey failed; no provider cleanup was performed.')
+  console.error('Pantry sandbox journey failed; no provider cleanup was performed.');console.error(String(error.stack).split('\n').filter(line=>line.trim().startsWith('at ')).join('\n'))
   process.exitCode=1
  })
 }

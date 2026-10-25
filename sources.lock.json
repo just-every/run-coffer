@@ -1302,6 +1302,10 @@
       "sha256": "bfc488e9f60ff13ab14e5b9e5d34ccaa6233e6cb1130315e3569ee65c21d5da6",
       "executable": false
     },
+    "migrations/core/0142_coffer_batch_postings.sql": {
+      "sha256": "39140d8f0cead2139d46613195df5a040b55c958bcf70955ca752f78a78b8575",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -2970,6 +2974,14 @@
       "sha256": "7acb8e896e29314a7a6e05590874cc2a44c61171b168ea74a08a15694e939389",
       "executable": false
     },
+    "src/coffer/payments/batch-deposits.ts": {
+      "sha256": "2b3eb88b4edb9e21d39eb82f6a4c85b59ac820a5f1284597666d22eae16ab109",
+      "executable": false
+    },
+    "src/coffer/payments/batch-ui.ts": {
+      "sha256": "25ab34d68fbc90546c33c38ba10eb25d8700aa5555d9bb5fc4ad3d7321cca556",
+      "executable": false
+    },
     "src/coffer/payments/charges.ts": {
       "sha256": "2c33db5cae858dc4ce6536ceea8bac82fcb3f79661ca7ff82826422b673e3797",
       "executable": false
@@ -3000,6 +3012,10 @@
     },
     "src/coffer/payments/http.ts": {
       "sha256": "7260985186c232bdf2e1ea61154d2363d3e486b7a6f61cee31cd26032542455b",
+      "executable": false
+    },
+    "src/coffer/payments/pantry-client.ts": {
+      "sha256": "7288cca3e248b92d1a5466661d4615acbe09d29499eea2af50f4b8782297d430",
       "executable": false
     },
     "src/coffer/payments/pantry.ts": {
@@ -5558,6 +5574,10 @@
       "sha256": "9557f73deb7ef6cc1bb9646f6a6134035815a0b8dc92b9aa8c0c85d5d273f3db",
       "executable": false
     },
+    "tests/batch-deposits-journey.mjs": {
+      "sha256": "838b2f42a52c2b92f127c9f8bb3ed161c5431c9791ee8eb75b42db1d3ab2d163",
+      "executable": false
+    },
     "tests/browser-journey.mjs": {
       "sha256": "eae02328b4369001c5dc7e11451b8eb0fa9aac62287f26999a116a9ddec95912",
       "executable": false
@@ -5976,6 +5996,14 @@
     },
     "tests/organizations-journey.mjs": {
       "sha256": "3891980309d2f0d39290d6259a4ad86f3a3392a682320db82ae4b7d09bacda4d",
+      "executable": false
+    },
+    "tests/pantry-sandbox-journey.mjs": {
+      "sha256": "0bb5795f20a777b7200d12c0dd7b07cfa696ce0a9c4cb4c9b75d4038e09a43c3",
+      "executable": false
+    },
+    "tests/pantry-sandbox-runtime.mjs": {
+      "sha256": "5509a07ff09a4669755852e92b0846bfdfd9e5ce45c30043892ac11ef631702d",
       "executable": false
     },
     "tests/payment-adjustments-browser.mjs": {

@@ -14,7 +14,8 @@ async function stopOwnedTree(root){
 
 export async function startPantry(checkout){
  // Invoke this journey under the repository's heavy-slot wrapper; keep real HOME.
- const child=spawn('rer',['dev'],{cwd:checkout,env:process.env,stdio:['ignore','pipe','pipe']})
+ const env={...process.env};delete env.STRIPE_SECRET_KEY
+ const child=spawn('rer',['dev'],{cwd:checkout,env,stdio:['ignore','pipe','pipe']})
  let output='',ready='',open='',ended=false,browser
  child.on('error',()=>{ended=true});child.on('exit',()=>{ended=true})
  const collect=chunk=>{
