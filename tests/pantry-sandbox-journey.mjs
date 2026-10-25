@@ -26,6 +26,9 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
   if('livemode' in data)assert.equal(data.livemode,false,'Only test objects are allowed')
   return data
  }
+ const [account,balance]=await Promise.all([stripeRead('account'),stripeRead('balance')])
+ assert.equal(account.country,'US');assert.equal(account.default_currency,'usd');assert.ok(balance.available.some(b=>b.currency==='usd'))
+ console.log(JSON.stringify({accountId:account.id,country:account.country,currency:account.default_currency,usdBalancePresent:true}))
  const [charge,payout,transaction]=await Promise.all([stripeRead('charges/'+chargeId),stripeRead('payouts/'+payoutId),stripeRead('balance_transactions/'+transactionId)])
  assert.equal(charge.livemode,false);assert.equal(payout.livemode,false)
  assert.equal(charge.paid,true);assert.equal(charge.status,'succeeded');assert.equal(charge.amount,15000)
