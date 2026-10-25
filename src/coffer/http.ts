@@ -1,3 +1,4 @@
+import { scheduledReportLink } from './report-links'
 import { reportSchedules } from './report-schedules'
 import { reportSchedulesPage } from './ui/report-schedules'
 import { agentGrantsPanel } from './ui/agent-grants'
@@ -112,7 +113,7 @@ import { settings } from './settings'
 import * as imports from './imports/index'
 import { readStripe } from './imports/live-stripe'
 import { available as stripeAvailable } from './giving/stripe'
-import { page, when } from './ui/common'
+import { page, when, e } from './ui/common'
 import { givingResponse } from './giving/http'
 import { paymentsResponse } from './payments/http'
 import { agentResponse } from './agent/http'
@@ -241,6 +242,12 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   }
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   if (!isApi && person(actor)) actor.org = (await settings(c)).organisation || undefined
+  const scheduledLink=path.match(/^\/app\/scheduled-reports\/([^/]+)$/)
+  if(scheduledLink&&request.method==='GET') {
+   const report=await scheduledReportLink(c,decodeURIComponent(scheduledLink[1]))
+   if(url.searchParams.get('download')==='1')return new Response(JSON.stringify(report,null,2),{headers:{...headers,'content-type':'application/json','content-disposition':'attachment; filename="coffer-report.json"'}})
+   return page(report.title,`<p><a href="${path}?download=1">Download report attachment</a></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${e(JSON.stringify(report,null,2))}</pre>`,actor)
+  }
   if(path==='/api/coffer/giving/protection'&&request.method==='GET'){if(!manager(actor))fail('FORBIDDEN','Only the owner or an admin reviews giving protection.',403);return json({forms:await protectionState(c)})}
   const documents=await documentsResponse(request,c,async()=>isApi?jsonBody(request):formBody(request,400000))
   if(documents)return documents

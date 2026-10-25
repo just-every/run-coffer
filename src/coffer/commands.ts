@@ -71,7 +71,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // Who may run each command. Agents prepare letters and appeal audiences; a
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
- 'reportSchedule.save': MANAGERS, 'reportSchedule.pause': MANAGERS,
+ 'reportSchedule.save': MANAGERS, 'reportSchedule.pause': MANAGERS, 'reportSchedule.resend': MANAGERS, 'reportSchedule.revokeRecipient': MANAGERS,
  'giving.protection': MANAGERS, 'giving.resume': MANAGERS,
  'giving.connectTwilio': MANAGERS, 'giving.keyword': MANAGERS,
  'contact.save': STAFF,

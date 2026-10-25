@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {run,donor,reviewed} from './harness.mjs'
+import {reportAuthorityJourney} from './report-authority-journey.mjs'
 import {reportSchedulesBrowser} from './report-schedules-browser.mjs'
 
 export async function reportSchedulesJourney(){
@@ -58,7 +59,7 @@ export async function reportSchedulesJourney(){
   for(const [i,[path,api]]of selections.entries()){
    const mail=sent.find(m=>m.subject==='Selected report '+i);assert.ok(mail,path)
    assert.deepEqual(mail.personalizations[0].to.map(p=>p.email),['director@example.test'])
-   assert.ok(mail.content[0].value.includes(h.origin+path))
+   assert.ok(mail.content[0].value.includes(h.origin+'/app/scheduled-reports/'))
    const attachment=JSON.parse(Buffer.from(mail.attachments[0].content,'base64').toString('utf8'))
    assert.equal(attachment.selection,path)
    assert.deepEqual(attachment.report,await h.get(api,{headers:{'x-test-now':'2026-10-25T02:00:00Z'}}))
@@ -78,7 +79,19 @@ export async function reportSchedulesJourney(){
    await tick('2026-10-25T02:00:00Z');const length=messages.length;await tick('2026-10-25T02:00:00Z');assert.equal(messages.length,length,'No repeat after a failed or unknown submission')
    const result=await h.get('/api/coffer/report-schedules');assert.ok(result.runs.filter(r=>r.schedule_id===schedule.id).every(r=>r.status===status));assert.equal(result.runs.filter(r=>r.schedule_id===schedule.id).length,2)
   }
-  const audit=await h.get('/api/coffer/audit?action=reportSchedule.save');assert.ok(JSON.stringify(audit).includes('explicitDisclosureApproval'))
+  outcome='accepted'
+  const uncertain=(await h.get('/api/coffer/report-schedules')).runs.filter(r=>r.status==='uncertain')
+  await h.command('reportSchedule.resend',{runId:uncertain[0].id,reviewed:'yes'},{as:member.cookie,status:403})
+  await h.command('reportSchedule.resend',{runId:uncertain[0].id},{status:400})
+  if(process.env.COFFER_REPORT_SCHEDULE_BROWSER)await reportSchedulesBrowser(h,process.env.COFFER_REPORT_SCHEDULE_BROWSER,'uncertain')
+  else for(const original of uncertain)await h.command('reportSchedule.resend',{runId:original.id,reviewed:'yes'})
+  const resent=(await h.get('/api/coffer/report-schedules')).runs.filter(r=>r.retry_of)
+  assert.equal(resent.length,2);assert.ok(resent.every(r=>r.status==='submitted'))
+  await h.command('reportSchedule.resend',{runId:uncertain[0].id,reviewed:'yes'},{status:409})
+  const length=messages.length;await tick('2026-10-25T02:00:00Z');assert.equal(messages.length,length,'Manual resend does not enable scheduler replay')
+  const audit=await h.get('/api/coffer/audit?action=reportSchedule.save')
+  for(const row of audit.rows){const detail=JSON.parse(row.detail);assert.equal(detail.approvedBy,row.actor_id);assert.equal(detail.explicitDisclosureApproval,true);const saved=(await h.get('/api/coffer/report-schedules')).schedules.find(s=>s.id===row.subject_id);assert.deepEqual(detail.recipients,JSON.parse(saved.recipients))}
+
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1602'},outbound:async request=>{
   assert.equal(new URL(request.url).origin,'https://api.sendgrid.com');const body=await request.json();messages.push(body)
   if(!body.attachments)return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-1603'}})
@@ -91,8 +104,19 @@ export async function reportSchedulesJourney(){
   await h.command('reportSchedule.save',{name:'Resend director report',reportPath:'/app/reports/dashboard?year=2025',recipients:'director@example.test',cadence:'weekly',startsAt:'2026-10-25T02:00',reviewed:'yes'},options)
   const tick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+Date.parse('2026-10-25T02:00:00Z'));assert.equal(tick.status,200,await tick.text())
   const message=h.messages.find(m=>m.subject==='Resend director report');assert.ok(message)
+  const recipient=await h.person('director@example.test'),stranger=await h.person('synthetic-coffer-1605@example.test')
+  const link=new URL(message.text.match(/https?:\/\/[^\s]+\/app\/scheduled-reports\/[^\s]+/)[0]),path=link.pathname
+  for(const suffix of ['', '?download=1']){
+   const approved=await h.request(path+suffix,{as:recipient.cookie});assert.equal(approved.status,200);assert.ok((await approved.text()).includes('2025'))
+   const refused=await h.request(path+suffix,{as:stranger.cookie});assert.equal(refused.status,403);assert.doesNotMatch(await refused.text(),/currentCents|Riverbend Report Donor|coffer-report.json/)
+   const anonymous=await h.request(path+suffix,{as:''});assert.ok([303,401].includes(anonymous.status));assert.doesNotMatch(await anonymous.text(),/currentCents|Riverbend Report Donor|coffer-report.json/)
+  }
+  const refusals=await h.get('/api/coffer/audit?action=reportSchedule.linkRefused');assert.equal(refusals.rows.length,2);assert.ok(refusals.rows.every(row=>row.actor_id===stranger.id))
+  if(process.env.COFFER_REPORT_SCHEDULE_BROWSER)await reportSchedulesBrowser({...h,owner:recipient.cookie},process.env.COFFER_REPORT_SCHEDULE_BROWSER,'link:'+path)
+
   assert.equal(JSON.parse(Buffer.from(message.attachments[0].content,'base64').toString()).selection,'/app/reports/dashboard?year=2025')
   assert.equal((await h.get('/api/coffer/report-schedules')).runs[0].status,'submitted')
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true})
+ await reportAuthorityJourney()
 
 }
