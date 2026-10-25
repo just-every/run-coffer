@@ -10,6 +10,7 @@ export async function reportSchedulesJourney(){
   const d=await donor(h,'Riverbend Report Donor')
   await h.command('gift.record',{donorId:d.id,amount:'125.50',receivedOn:'2025-03-02',method:'check',goods:'none',fund:'Library'},options)
   const selections=[
+   ['/app?year=2025','/api/coffer/reports/dashboard?year=2025'],
    ['/app/reports/dashboard?year=2025','/api/coffer/reports/dashboard?year=2025'],
    ['/app/reports/dashboard?year=2025&view=entries&dimension=fund&key=Library','/api/coffer/reports/dashboard/entries?year=2025&view=entries&dimension=fund&key=Library'],
    ['/app/retention?year=2025&basis=calendar&fund=Library','/api/coffer/retention?year=2025&basis=calendar&fund=Library'],
@@ -51,7 +52,8 @@ export async function reportSchedulesJourney(){
   await h.command('gift.record',{donorId:d.id,amount:'24.50',receivedOn:'2025-04-02',method:'check',goods:'none',fund:'Library'},options)
   const tick=async at=>{const r=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+Date.parse(at),{headers:{'x-test-now':at}});assert.equal(r.status,200,await r.text())}
   await tick('2026-10-25T01:59:00Z');assert.equal(messages.filter(m=>m.attachments).length,0)
-  await tick('2026-10-25T02:00:00Z');await tick('2026-10-25T02:00:00Z')
+  await Promise.all([tick('2026-10-25T02:00:00Z'),tick('2026-10-25T02:00:00Z')])
+  await tick('2026-10-25T02:00:00Z')
   const sent=messages.filter(m=>m.attachments)
   for(const [i,[path,api]]of selections.entries()){
    const mail=sent.find(m=>m.subject==='Selected report '+i);assert.ok(mail,path)

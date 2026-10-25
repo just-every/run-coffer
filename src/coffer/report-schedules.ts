@@ -1,5 +1,5 @@
 import { requireRole } from './auth'
-import { all, choice, commit, email, event, fail, guard, id, newId, one, sql, text, type Context, type Row } from './db'
+import { all, choice, commit, date, email, event, fail, guard, id, newId, one, sql, text, type Context, type Row } from './db'
 import { donorMailUnavailable } from './outbound-mail'
 import { availableReports, readScheduledReport, reportSelection } from './scheduled-report-selection'
 
@@ -23,7 +23,10 @@ export async function reportScheduleCommand(c:Context,command:string,p:Row):Prom
  const recipients=[...new Set(raw.map((v:unknown)=>email(v,'Recipient email')))]
  if(!recipients.length||recipients.length>20||recipients.includes(null))fail('INPUT','Choose between one and twenty valid recipient addresses.',400)
  const cadence=choice(p.cadence,['weekly','monthly'] as const,'schedule')
- const starts=text(p.startsAt,'First send',40),instant=new Date(/Z$|[+-]\d\d:\d\d$/.test(starts)?starts:starts+'Z')
+ const starts=text(p.startsAt,'First send',40)
+ if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?Z?$/.test(starts))fail('INPUT','First send must be a UTC date and time.',400)
+ date(starts.slice(0,10),'First send date')
+ const instant=new Date(starts.endsWith('Z')?starts:starts+'Z')
  if(!Number.isFinite(instant.getTime())||instant.getTime()<=Date.parse(c.now))fail('INPUT','First send must be a future UTC date and time.',400)
  // Validate the actual report and every selected filter before approving outbound work.
  await readScheduledReport(c,selection.path)
