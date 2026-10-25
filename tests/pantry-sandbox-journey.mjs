@@ -62,7 +62,7 @@ export async function sandboxJourney({pantryCheckout,directory,payoutId,transact
     assert.equal(url.pathname,'/api/pantry/agent/proposals')
     proposalSubmissions++
    }
-   return fetch(request)
+   return fetch(request.url,{method:request.method,headers:Object.fromEntries(request.headers),redirect:'manual',...(['GET','HEAD'].includes(request.method)?{}:{body:await request.arrayBuffer()})})
   }
   h=await installation({givingProtection:false,outbound,bindings:{STRIPE_SECRET_KEY:key,PANTRY_ORIGIN:pantry.origin,PANTRY_AGENT_TOKEN:agent.token,PANTRY_DEPOSIT_ACCOUNT:bank.id,PANTRY_FEE_ACCOUNT:fee.id,PANTRY_FUND_ACCOUNTS:JSON.stringify(fundAccounts)}})
   await reviewed(h)
@@ -201,7 +201,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
  const [pantryCheckout,directory,payoutId,transactionId,chargeId]=process.argv.slice(2)
  sandboxJourney({pantryCheckout,directory,payoutId,transactionId,chargeId}).catch(error=>{
   // Never dump provider requests, process output, native cookies or credentials.
-  console.error('Pantry sandbox journey failed; no provider cleanup was performed.');console.error(String(error.stack).split('\n').filter(line=>line.trim().startsWith('at ')).join('\n'))
+  console.error('Pantry sandbox journey failed; no provider cleanup was performed.');console.error(String(error.message).replace(/https?:\/\/\S+/g,'[url]').replace(/(?:sk_test_|rk_test_|pantry_agent_)\S+/g,'[credential]').slice(0,1200));console.error(String(error.stack).split('\n').filter(line=>line.trim().startsWith('at ')).join('\n'))
   process.exitCode=1
  })
 }

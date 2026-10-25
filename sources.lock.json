@@ -691,7 +691,7 @@
       "executable": false
     },
     "docs/PAYMENTS.md": {
-      "sha256": "158f5a812d3b2e489213bf0847eaf09682046f122b646bb26507dcd7524332bf",
+      "sha256": "3caf812db66b01ea3216d76b3aacaaa0e6f96b61252aa65849945f01d6c66cbd",
       "executable": false
     },
     "docs/people.md": {
@@ -6003,7 +6003,7 @@
       "executable": false
     },
     "tests/pantry-sandbox-journey.mjs": {
-      "sha256": "6d653d1cd4a5795176d003cf52b6223902bfd959d755a9cd36c3d38b75f714dd",
+      "sha256": "33e94964131ad07247c68fc9c4e7c6a4d36e097978e6a00fa70d626fbb4b446d",
       "executable": false
     },
     "tests/pantry-sandbox-runtime.mjs": {
