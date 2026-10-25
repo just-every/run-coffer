@@ -86,7 +86,7 @@
     },
     {
       "name": "giving",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
         "COFFER_EVENTS_BROWSER=.cache/events node --test --test-skip-pattern='^(CAMP-001|GIFT-011|GIVE-003)' tests/giving.test.mjs"
