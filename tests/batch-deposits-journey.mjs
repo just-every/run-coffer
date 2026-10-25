@@ -3,11 +3,11 @@ import {createHash} from 'node:crypto'
 import {run,donor,reviewed,archive,restore,installation} from './harness.mjs'
 
 export async function batchDepositsJourney(){
- let evidenceHash='',proposal=null,submissions=0,approved=false
+ let evidenceHash='',proposal=null,submissions=0,approved=false,badBank=true
  const bindings={PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+Buffer.from('synthetic-coffer-1601').toString('hex'),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Housing:'housing',Meals:'meals',Reading:'reading'}),PANTRY_FUND_CLASSES:JSON.stringify({Housing:'Housing program'}),PANTRY_FUND_LOCATIONS:JSON.stringify({Housing:'Brisbane'})}
  const outbound=async request=>{
   const u=new URL(request.url);assert.equal(u.hostname,'pantry.example.test')
-  if(u.pathname==='/api/pantry/agent/context')return Response.json({accounts:['bank','housing','meals','reading'].map(id=>({id,type:id==='bank'?'asset':'income',subtype:id==='bank'?'bank':'other',active:1,revision:'synthetic-coffer-1602'})),documents:[{id:'synthetic-coffer-1603',sha256:evidenceHash}],proposals:proposal?[proposal]:[]})
+  if(u.pathname==='/api/pantry/agent/context')return Response.json({accounts:['bank','housing','meals','reading'].map(id=>({id,type:id==='bank'?'asset':'income',subtype:id==='bank'&&!badBank?'bank':'other',active:1,revision:'synthetic-coffer-1602'})),documents:[{id:'synthetic-coffer-1603',sha256:evidenceHash}],proposals:proposal?[proposal]:[]})
   if(request.method==='POST'){
    submissions++
    proposal={...await request.json(),id:'synthetic-coffer-1604',status:'proposed'}
@@ -42,6 +42,9 @@ export async function batchDepositsJourney(){
   const csv=await (await h.request(path+'/evidence.csv')).text();assert.match(csv,/4471/);assert.match(csv,/50.00/)
   await h.api(path+'/post',{documentId:'synthetic-coffer-1603'},{status:409});assert.equal(submissions,0,'Wrong evidence cannot create a submission')
   evidenceHash=createHash('sha256').update(csv).digest('hex')
+  const invalidMapping=await h.api(path+'/post',{documentId:'synthetic-coffer-1603'},{status:409})
+  assert.equal(invalidMapping.error,'PANTRY_MAPPING');assert.equal(submissions,0,'A non-bank deposit account never crosses the submission edge')
+  badBank=false
   const uncertain=await h.api(path+'/post',{documentId:'synthetic-coffer-1603'},{as:admin.cookie});assert.equal(uncertain.state,'uncertain');assert.equal(uncertain.external_id,null)
   const pending=await h.api(path+'/post',{});assert.equal(pending.state,'proposed');assert.equal(submissions,1,'Refresh recovers the saved claim without resending')
   await h.api(path+'/post',{});assert.equal(submissions,1)
