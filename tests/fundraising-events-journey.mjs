@@ -32,8 +32,11 @@ export async function fundraisingEventsJourney(){
   const values={requestId:randomUUID(),ticketId:ticket.id,name:guest.name,email:guest.email,amount:'1',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token'}
   const post=async(data,options={})=>h.request('/giving/events/literacy-gala/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(data).toString(),...options})
   assert.equal((await post({...values,ticketId:'unknown'})).status,400)
-  const checkout=await post(values);assert.equal(checkout.status,303,await checkout.text())
   assert.equal((await h.get('/api/coffer/events?eventId='+event.id)).length,0,'Unpaid registrations do not enter the guest list')
+  if(process.env.COFFER_EVENTS_BROWSER){
+   const {purchaseGalaTicket}=await import('./fundraising-events-browser.mjs')
+   values.requestId=await purchaseGalaTicket(h,{event,ticket,guest,directory:process.env.COFFER_EVENTS_BROWSER,sessions})
+  }else{const checkout=await post(values);assert.equal(checkout.status,303,await checkout.text())}
   const session=[...sessions.keys()][0],thanks=await h.request('/giving/thanks?session_id='+session,{as:''});assert.equal(thanks.status,200,await thanks.text())
   assert.equal((await h.request('/giving/thanks?session_id='+session,{as:''})).status,200)
   const changed=await h.request('/give/autumn-reading/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({...values,amount:'150',frequency:'once',appeal:'GALA26'}).toString()})

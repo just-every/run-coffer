@@ -55,3 +55,24 @@ export async function eventsBrowser(h,{event,registration,guest,campaign,letter,
   }
  })
 }
+
+export async function purchaseGalaTicket(h,{event,ticket,guest,directory,sessions}){
+ await mkdir(directory,{recursive:true})
+ return withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage();await page.setViewportSize({width:390,height:1000})
+  const network=await context.newCDPSession(page);await network.send('Network.enable');await network.send('Network.setBlockedURLs',{urls:['https://checkout.stripe.com/*']})
+  await page.goto(origin+'/giving/events/'+event.slug)
+  await page.getByLabel('Attendee name',{exact:true}).fill(guest.name)
+  await page.getByLabel('Email',{exact:true}).fill(guest.email)
+  await page.getByLabel('Ticket type',{exact:true}).selectOption(ticket.id)
+  const requestId=await page.locator('[name="requestId"]').inputValue()
+  await page.screenshot({path:`${directory}/CAMP-002-gala-purchase-390.png`,fullPage:true})
+  const submitted=page.waitForResponse(r=>r.url().endsWith('/checkout')&&r.request().method()==='POST')
+  await page.getByRole('button',{name:'Register with Stripe',exact:true}).click()
+  const response=await submitted;assert.equal(response.status(),303);assert.match(response.headers()['location'],/^https:\/\/checkout\.stripe\.com\//)
+  const session=[...sessions.keys()].at(-1);assert.ok(session)
+  await page.goto(origin+'/giving/thanks?session_id='+session)
+  await page.getByRole('heading',{name:'Thank you for your gift',exact:true}).waitFor()
+  return requestId
+ })
+}
