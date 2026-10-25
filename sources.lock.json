@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "7d5a4c55ab85da2b2e654a52b36256fa7d29246ef43669ab61cbd0b971fb8e8e",
+      "sha256": "d0fa59c65cb1f9a71ad53efef5096c18c8d554cca8552d23c2977186ebd288ea",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "76072a7e82dc49261e119b6c2a3712186ba30a1f5e9f497a85fa5158051fdb24",
+      "sha256": "0a550a4d06f0c021d5d5cfc357409756f073d7c554a065dcb57d4ced7649e035",
       "executable": false
     },
     "deploy-demo.json": {
@@ -2555,7 +2555,7 @@
       "executable": false
     },
     "src/coffer/giving/manage-ui.ts": {
-      "sha256": "5c235591ec985591d733ba901978147f742d2045fee2054cd216ed90190a30c6",
+      "sha256": "ed3fe4e6f2afa7f8d83f9c693937150c39dfb6c2b7e9d529f1af6e91ca3c9bc8",
       "executable": false
     },
     "src/coffer/giving/media.ts": {
