@@ -200,7 +200,7 @@ test('GIVE-006 / GIVE-003: each recurring cadence recovers on Stripe retries, es
  }
 })
 
-test('DEV-002: explicit standing approval and donor permissions govern scheduled notices, named-lead review, real portal stops and recovery attribution',async()=>{
+test('DEV-002 / GIVE-003: explicit standing approval and donor permissions govern scheduled notices, named-lead review, real portal stops and recovery attribution',async()=>{
  const {recoveryNoticesJourney}=await import('./recovery-notices-journey.mjs')
- await recoveryNoticesJourney()
+ for(const frequency of ['monthly','quarterly','annually'])await recoveryNoticesJourney(frequency)
 })

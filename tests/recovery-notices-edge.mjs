@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import {createHmac,randomUUID} from 'node:crypto'
 
 export const recoveryForm=(values,as='',headers={})=>({method:'POST',as,headers:{'content-type':'application/x-www-form-urlencoded',...headers},raw:new URLSearchParams(values).toString()})
-export function recoveryNoticeEdge() {
+export function recoveryNoticeEdge(frequency='monthly') {
  const plans=['ana','ben','mira'].map(id=>({id,name:id==='mira'?'Mira Major':id==='ben'?'Ben Recovery':'Ana Recovery',email:`${id}.notices@example.test`,amount:2500,status:'past_due',paid:false,attempt:1,invoice:'in_notice_'+id,method:null,expiryOffset:2,intent:null,hostedReturn:null}))
  const secret='synthetic-coffer-3001',calls=[],invoices=new Map()
- const subscription=p=>({id:'sub_notice_'+p.id,customer:'cus_notice_'+p.id,metadata:{coffer_intent:p.intent},status:p.status,cancel_at_period_end:false,default_payment_method:null,items:{data:[{id:'si_notice_'+p.id,quantity:1,price:{id:'price_notice_'+p.id,product:'prod_notice_'+p.id,unit_amount:p.amount,currency:'usd',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}}}]},latest_invoice:p.invoice,created:Math.floor(Date.parse('2025-01-01T12:00:00Z')/1000)})
+ const subscription=p=>({id:'sub_notice_'+p.id,customer:'cus_notice_'+p.id,metadata:{coffer_intent:p.intent},status:p.status,cancel_at_period_end:false,default_payment_method:null,items:{data:[{id:'si_notice_'+p.id,quantity:1,price:{id:'price_notice_'+p.id,product:'prod_notice_'+p.id,unit_amount:p.amount,currency:'usd',recurring:{interval:frequency==='annually'?'year':'month',interval_count:frequency==='quarterly'?3:1,usage_type:'licensed'}}}]},latest_invoice:p.invoice,created:Math.floor(Date.parse('2025-01-01T12:00:00Z')/1000)})
  const outbound=async request=>{
   const url=new URL(request.url),data=new URLSearchParams(await request.text());calls.push([request.method,url.pathname])
   assert.equal(url.hostname,'api.stripe.com')

@@ -1282,6 +1282,10 @@
       "sha256": "ac1593d33812adce45c30e82f883c7f185c4a4f940096b5f66cce79293d4053e",
       "executable": false
     },
+    "migrations/core/0136_coffer_plan_schedules.sql": {
+      "sha256": "f7607e995bbef441fe47b9385ffa486326a13669268df1c0237c0d5bd2431fda",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -2620,6 +2624,10 @@
     },
     "src/coffer/giving/setup.ts": {
       "sha256": "968ccaa7ad50744668d8ee830a0c54a2ca68d69ea1d66485994f084d182030a1",
+      "executable": false
+    },
+    "src/coffer/giving/staff-plans.ts": {
+      "sha256": "53f09d3050247973f10589252eb975a542028e774d37f80b04f00e70a709a0b0",
       "executable": false
     },
     "src/coffer/giving/stripe.ts": {
@@ -5479,7 +5487,7 @@
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
-      "sha256": "473e2c8d03f86e7d5d3d929a64d6624dc0cd41f5f3f81f1403dc636712d9ba0f",
+      "sha256": "f7fe8313fc5f834781a9309b6685f079d40c7d7905349ddf8d4955341233c771",
       "executable": false
     },
     "tests/annual-lapses-journey.mjs": {
@@ -6027,11 +6035,11 @@
       "executable": false
     },
     "tests/recovery-notices-edge.mjs": {
-      "sha256": "dfe2b945b7108f9f180c5b566868cd57383895c70fdf45bfd2e2c99463423b90",
+      "sha256": "efda8ce753d561b65eab872cf2696fdaa706d36cc7ff905fc4405ffe9f727699",
       "executable": false
     },
     "tests/recovery-notices-journey.mjs": {
-      "sha256": "355134efc60edb8ee896bd6680e14d730a23cffa652f9d765143c90acb648221",
+      "sha256": "6d51af7b11cd370cf5d6d3e2a57f731e281dcf8bf630279ab9cbb7fec97f000b",
       "executable": false
     },
     "tests/recurring-browser.mjs": {
@@ -6040,6 +6048,18 @@
     },
     "tests/recurring-health-journey.mjs": {
       "sha256": "55440486abb571ca2b2958e4c1f06bd32d1cc235a913cc33dc36e6db30e9618f",
+      "executable": false
+    },
+    "tests/recurring-plans-browser.mjs": {
+      "sha256": "3ee2f95b272f32eb519fe26f0ceb5a579f892cf2f1416c3fd4d8c0c3cd66d8ae",
+      "executable": false
+    },
+    "tests/recurring-plans-journey.mjs": {
+      "sha256": "f7e837e98187467910e89ee237a87fffc84619b50a298d60c9d644c3aeadff92",
+      "executable": false
+    },
+    "tests/recurring-stripe-edge.mjs": {
+      "sha256": "a8d59cc3f16b287a73266250b97fb82077c4e15a3893eec2bfe874172a898191",
       "executable": false
     },
     "tests/relationships-browser.mjs": {

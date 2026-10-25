@@ -3,8 +3,8 @@ import {randomUUID} from 'node:crypto'
 import {run,donor} from './harness.mjs'
 import {recoveryForm,recoveryNoticeEdge} from './recovery-notices-edge.mjs'
 
-export async function recoveryNoticesJourney() {
- const edge=recoveryNoticeEdge(),base=Date.now(),at=days=>new Date(base+days*86400000).toISOString()
+export async function recoveryNoticesJourney(frequency='monthly') {
+ const edge=recoveryNoticeEdge(frequency),base=Date.now(),at=days=>new Date(base+days*86400000).toISOString()
  await run(async h=>{
   const timeZone=(await h.get('/api/coffer/settings')).timezone,localDay=instant=>new Intl.DateTimeFormat('en-CA',{timeZone}).format(new Date(instant)),day=localDay(base)
   const endpoint='/api/coffer/agent/recovery/notice-action',state=()=>h.get('/api/coffer/agent/recovery/notices'),action=(p,options={})=>h.api(endpoint,p,options),runAt=(days,options={})=>h.api('/api/coffer/agent/recovery/run',{}, {...options,headers:{...options.headers,'x-test-now':at(days)}})
@@ -22,7 +22,7 @@ export async function recoveryNoticesJourney() {
    p.donor=await donor(h,p.name,{email:p.email})
    await consent(p,'granted')
    await h.command('interaction.record',{donorId:p.donor.id,kind:'call',occurredOn:day,notes:'Donor confirmed private portal recovery contact is welcome.',who:'Recovery care team'})
-   const checkout=await h.request('/give/notice-reading/checkout',recoveryForm({name:p.name,email:p.email,amount:'25',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}))
+   const checkout=await h.request('/give/notice-reading/checkout',recoveryForm({name:p.name,email:p.email,amount:'25',frequency,'cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}))
    assert.equal(checkout.status,303,await checkout.text())
    if(p.id!=='ben')await action({action:'permission',donorId:p.donor.id,version:0,enabled:true,channel:'email',intervalDays:2,maxNotices:2,sourceOn:day,evidence:'Donor explicitly authorized up to two recovery notices at least two days apart.'})
   }
