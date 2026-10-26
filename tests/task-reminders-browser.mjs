@@ -20,7 +20,7 @@ export async function taskRemindersBrowser(h,data,directory){
   await page.goto(origin+'/app/settings')
   const team=page.locator('#task-team')
   await team.getByLabel('Manager for casey',{exact:true}).selectOption(data.manager.id)
-  await team.locator('li').filter({has:page.getByText('casey',{exact:true})}).getByRole('status').getByText('Saved',{exact:true}).waitFor()
+  await team.locator('li').filter({has:page.getByText('casey',{exact:true})}).getByRole('status').filter({hasText:'Saved'}).waitFor()
   await shot('team-managers',page.locator('#task-team'))
   await shot('escalation-delay',page.locator('#task-settings'))
   await as(data.assignee)

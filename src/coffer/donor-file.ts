@@ -26,6 +26,9 @@ const PARENTS: Record<string, string> = {
 }
 // Rows that reach a donor but are not records about them.
 export const NOT_IN_FILE: Record<string, string> = {
+ cf_task_notices: 'Internal staff reminders do not form part of a donor data request.',
+ cf_development_followups: 'Internal commitment follow-up notes and approvals are withheld; native source records remain included.',
+ cf_development_reminders: 'Internal reminder approval and staff recipient details are withheld.',
  cf_donor_tokens: 'Hashed one-time access tokens are credentials, not records about the donor.',
  cf_erased_stripe_customers: 'Only erased placeholders appear here.',
 }

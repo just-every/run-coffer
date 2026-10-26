@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict'
+import {run,donor,reviewed} from './harness.mjs'
+
+export async function developmentFollowupsJourney(){
+ await run(async h=>{
+  await reviewed(h)
+  let now='2026-10-26T12:00:00Z'
+  const headers=()=>({'x-test-now':now})
+  const command=(name,input,options={})=>h.command(name,input,{...options,headers:headers()})
+  const api=(path,input,options={})=>h.api('/api/coffer/agent/followups'+path,input,{...options,headers:headers()})
+  const state=()=>h.get('/api/coffer/agent/followups',{headers:headers()})
+  const owner=(await h.get('/auth/session')).operator,manager=await h.person('relationship-manager@example.test'),reportOwner=await h.person('report-owner@example.test')
+  const person=await donor(h,'Rosa Morgan'),foundation=await donor(h,'Riverbend Foundation'),employer=await donor(h,'Riverbend Industries'),employee=await donor(h,'Blair Chen')
+  for(const d of [person,employer])await command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-9101',capturedOn:'2026-10-20'})
+  const portfolio=await command('portfolio.save',{name:'Reading room partners',managerId:manager.id,untouchedDays:30})
+  for(const d of [person,foundation,employer])await command('portfolio.assign',{donorId:d.id,portfolioId:portfolio.id})
+  const pledge=await command('pledge.create',{donorId:person.id,amount:'120',pledgedOn:'2026-10-20',fund:'Library',installments:[{dueOn:'2026-10-23',amount:'120'}]})
+  const installment=(await h.get('/api/coffer/donors/'+person.id)).pledges.find(p=>p.id===pledge.id).installments[0]
+  await command('fund.define',{name:'Reading access',restriction:'purpose',detail:'Community reading access'})
+  let grant=await command('grant.save',{donorId:foundation.id,program:'Reading room support',requestedAmount:'500',loiDueOn:'2026-10-19',proposalDueOn:'2026-10-20',reportDueOn:'2026-10-23'})
+  grant=await command('grant.status',{grantId:grant.id,version:grant.version,status:'loi_submitted',recordedOn:'2026-10-19',evidence:'Foundation inquiry confirmation'})
+  grant=await command('grant.status',{grantId:grant.id,version:grant.version,status:'proposal_submitted',recordedOn:'2026-10-20',evidence:'Proposal uploaded with board approval'})
+  await command('grant.award',{grantId:grant.id,version:grant.version,awardAmount:'500',awardedOn:'2026-10-21',fund:'Reading access',evidence:'Signed foundation award',ownerId:reportOwner.id,installments:[{dueOn:'2026-11-20',amount:'500'}]})
+  const original=await command('gift.record',{donorId:employee.id,amount:'80',receivedOn:'2026-10-20',fund:'Library',method:'check',goods:'none'})
+  const match=await command('match.record',{giftId:original.id,employerDonorId:employer.id,amount:'80',dueBy:'2026-10-23'})
+  await api('/run',{}, {as:'',status:401});await api('/run',{}, {as:manager.cookie,status:403})
+  let current=await api('/run',{});assert.deepEqual(current.findings.map(f=>f.kind).sort(),['installment','match','report'])
+  assert.equal(h.messages.filter(m=>/Follow-up on your commitment|Grant report follow-up/.test(m.subject)).length,0,'discovery does not send without approval')
+  const initial=current.findings.map(f=>f.id)
+  await api('/run',{});assert.deepEqual((await state()).findings.map(f=>f.id).sort(),initial.sort())
+  const approve=async f=>api('/approve',{id:f.id,version:f.version,recipientEmail:f.recipient_email,body:f.body,authorityNote:'Owner reviewed this existing commitment and authorizes this exact reminder.'})
+  const paymentFinding=current.findings.find(f=>f.kind==='installment')
+  await api('/approve',{id:paymentFinding.id,version:paymentFinding.version,recipientEmail:paymentFinding.recipient_email,body:paymentFinding.body+' Changed',authorityNote:'Reviewed'},{status:409})
+  if(process.env.COFFER_DEVELOPMENT_BROWSER){const {developmentFollowupsBrowser}=await import('./development-followups-browser.mjs');await developmentFollowupsBrowser(h,{stage:'approve',now},process.env.COFFER_DEVELOPMENT_BROWSER)}
+  else {for(const f of current.findings)await approve(f);await api('/run',{})}
+  current=await state();assert.equal(current.reminders.filter(r=>r.status==='submitted').length,3)
+  const delivered=h.messages.length;await Promise.all([api('/run',{}),api('/run',{})]);assert.equal(h.messages.length,delivered,'replayed agent runs do not send twice')
+  assert.ok(h.messages.some(m=>JSON.stringify(m.to).includes('report-owner@example.test')&&m.subject==='Grant report follow-up'))
+  now='2026-10-28T12:00:00Z';current=await api('/run',{})
+  assert.equal(current.escalations.length,3);assert.ok(current.escalations.every(t=>t.owner_id===manager.id&&t.is_ask===0))
+  await api('/run',{});assert.equal((await state()).escalations.length,3)
+  await api('/resolve',{id:paymentFinding.id,version:paymentFinding.version,resolution:'paid',note:'No payment yet'},{status:409})
+  await command('gift.record',{donorId:person.id,amount:'120',receivedOn:'2026-10-28',fund:'Library',method:'check',goods:'none',pledgeId:pledge.id,installmentId:installment.id})
+  if(process.env.COFFER_DEVELOPMENT_BROWSER){const {developmentFollowupsBrowser}=await import('./development-followups-browser.mjs');await developmentFollowupsBrowser(h,{stage:'resolve',now},process.env.COFFER_DEVELOPMENT_BROWSER)}
+  else for(const f of current.findings)await api('/resolve',{id:f.id,version:f.version,resolution:f.kind==='installment'?'paid':f.kind==='report'?'revised':'written_off',note:f.kind==='installment'?'Pledge check matched to installment.':f.kind==='report'?'Director approved the revised report deadline with the funder.':'Employer declined this match; owner recorded the reason.',...(f.kind==='report'?{dueOn:'2026-11-06',approveRevision:true}:{})})
+  current=await state()
+  assert.equal(current.findings.filter(f=>f.resolution).length,3)
+  const resolved=current.findings.find(f=>f.kind==='installment');assert.equal(resolved.resolution,'paid');assert.equal(resolved.source_settled,1)
+  const revised=current.findings.find(f=>f.kind==='report');assert.equal(revised.resolution,'revised')
+  const nativeGrant=(await h.get('/api/coffer/grants',{headers:headers()})).grants.find(g=>g.id===grant.id);assert.equal(nativeGrant.tasks[0].due_on,'2026-11-06')
+  const written=current.findings.find(f=>f.kind==='match');assert.equal(written.resolution,'written_off');assert.equal(written.resolution_scope,'followup_disposition');assert.equal(written.source_remaining_cents,8000)
+  assert.ok(current.escalations.every(t=>t.status==='done'))
+  assert.ok(current.reminders.every(r=>r.status==='submitted'))
+  await api('/run',{});assert.equal((await state()).findings.find(f=>f.source_id===match.id).resolution,'written_off')
+  await command('donor.erase',{donorId:employer.id,confirm:'ERASE'})
+  assert.ok(!(await state()).findings.some(f=>f.id===written.id));assert.ok(!(await state()).reminders.some(r=>r.followup_id===written.id))
+ },{entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:'2026-10-26T12:00:00Z'}})
+}
