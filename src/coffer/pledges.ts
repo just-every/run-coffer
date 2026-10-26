@@ -101,11 +101,11 @@ export async function pledgeHistory(c: { db: D1Database }, donorId: string): Pro
  return pledges.map(p => {
   const rows: Row[] = installments.filter(i => i.pledge_id === p.id).map(i => ({ ...i, remaining_cents: Math.max(0,i.amount_cents-i.paid_cents), due_cents: i.due_on<=day?Math.max(0,i.amount_cents-i.paid_cents):0, overdue_cents:i.due_on<day?Math.max(0,i.amount_cents-i.paid_cents):0 }))
   const paid = p.legacy_paid_cents + rows.reduce((n, i) => n + i.paid_cents, 0)
-  return { ...p, paid_cents: paid, remaining_cents: Math.max(0, p.amount_cents - p.reduced_cents - paid), installments: rows, adjustments: adjustments.filter(a=>a.pledge_id===p.id), plan: plans.find(l=>l.pledge_id===p.id)??null, allocations: allocations.filter(a=>a.pledge_id===p.id) }
+  return { ...p, api_review_note:p.api_review_required?'Automatic pledge email is held by the public API scope policy.':null, paid_cents: paid, remaining_cents: Math.max(0, p.amount_cents - p.reduced_cents - paid), installments: rows, adjustments: adjustments.filter(a=>a.pledge_id===p.id), plan: plans.find(l=>l.pledge_id===p.id)??null, allocations: allocations.filter(a=>a.pledge_id===p.id) }
  })
 }
 
-const eligible = `(SELECT status FROM cf_consents k WHERE k.donor_id=d.id AND k.channel='email' ORDER BY k.id DESC LIMIT 1)='granted'
+const eligible = `p.api_review_required=0 AND (SELECT status FROM cf_consents k WHERE k.donor_id=d.id AND k.channel='email' ORDER BY k.id DESC LIMIT 1)='granted'
  AND d.erased_at IS NULL AND d.constituent_status='active' AND d.email IS NOT NULL
  AND NOT EXISTS(SELECT 1 FROM cf_acks bad WHERE bad.donor_id=d.id AND bad.recipient_email=d.email AND bad.delivery_status IN ('bounced','complained'))`
 

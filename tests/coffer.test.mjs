@@ -369,3 +369,5 @@ test('MOBILE-001: phone lookup, call, meeting, gift and tasks use direct actions
 test('DEV-012: named and preparation grants enforce scope, template approval, atomic limits and immediate stops through HTTP, MCP and scheduled jobs',async()=>{const {agentGrantsJourney}=await import('./agent-grants-journey.mjs');const {automationGrantsJourney}=await import('./automation-grants-journey.mjs');await agentGrantsJourney();await automationGrantsJourney()})
 
 test('API-002: signed native events retain failed delivery attempts, backoff and explicit replay',async()=>{const {webhooksJourney}=await import('./webhooks-journey.mjs');await webhooksJourney()})
+
+test('API-001: scoped versioned records enforce acknowledgment authority and atomic idempotency', async () => { const {restApiJourney}=await import('./rest-api-journey.mjs'); await restApiJourney() })

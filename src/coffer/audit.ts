@@ -1,3 +1,4 @@
+import { apiAuditPath } from './api/custody'
 import { all, commit, date, event, fail, one, type Context } from './db'
 import { manager } from './auth'
 import { csv } from './csv'
@@ -62,7 +63,7 @@ export async function auditCsv(c: Context, url: URL) {
  * credential or contact details enter these rows. */
 export async function recordRequest(c: Context, request: Request, response: Response) {
  if (response.status >= 400 || request.method === 'HEAD') return
- const path = new URL(request.url).pathname
+ const url = new URL(request.url), path = url.pathname.startsWith('/api/coffer/v1/') ? apiAuditPath(url) : url.pathname
  const exported = response.headers.has('content-disposition')
  if (!exported && request.method === 'GET' && c.actor.role !== 'agent') return
  await commit(c,[event(c,exported ? 'export.download' : c.actor.role === 'agent' && request.method === 'GET' ? 'agent.read' : 'request.change',

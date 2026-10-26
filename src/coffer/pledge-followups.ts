@@ -11,7 +11,7 @@ export async function runPledgeFollowups(env: Bindings, at: Date) {
  const s=await settings(c), day=today(s.timezone,at)
  await commit(c,[sql("UPDATE cf_pledge_followups SET status='uncertain' WHERE status='sending' AND attempted_at<=?",new Date(at.getTime()-15*60_000).toISOString())])
  const current=`FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
-  WHERE i.due_on<? AND i.amount_cents>i.paid_cents AND d.erased_at IS NULL AND d.constituent_status='active'
+  WHERE p.api_review_required=0 AND i.due_on<? AND i.amount_cents>i.paid_cents AND d.erased_at IS NULL AND d.constituent_status='active'
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
   AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted'
   AND EXISTS(SELECT 1 FROM cf_contact_points cp WHERE cp.donor_id=d.id AND cp.kind='email' AND cp.active=1 AND cp.is_primary=1 AND cp.value=d.email)

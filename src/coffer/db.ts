@@ -7,7 +7,10 @@ export class CofferError extends Error {
 export function fail(code: string, message: string, status = 409, details: unknown = null): never { throw new CofferError(code, message, status, details) }
 
 export type Stmt = { sql: string; params: unknown[]; check?: { condition: string; code: string; message: string } }
-export type Context = { db: D1Database; actor: Actor; authority: Authority; now: string; env?: Bindings }
+/** Reviewed local-only adapters may collect native writes, then publish them
+ * with their own receipt in one transaction. Never use with provider calls. */
+export type TransactionPlan = { statements: Stmt[]; commits: number }
+export type Context = { db: D1Database; actor: Actor; authority: Authority; now: string; env?: Bindings; transactionPlan?: TransactionPlan }
 export type Row = Record<string, any>
 
 export const sql = (text: string, ...params: unknown[]): Stmt => ({ sql: text, params })
@@ -24,14 +27,15 @@ export async function all<T = Row>(c: { db: D1Database }, text: string, ...param
 }
 
 /** The audit row for a change: identifiers and amounts only, never donor personal data. */
-export function event(c: { now: string; actor: { id: string; name: string; role: string; grant?: { id: string; version: number }; preparationGrant?: {id:string;version:number} } }, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}, table: 'cf_events' | 'cf_access_events' = 'cf_events'): Stmt {
+export function event(c: { now: string; actor: { id: string; name: string; role: string; grant?: { id: string; version: number }; preparationGrant?: {id:string;version:number}; apiKey?: {id:string;scope:string} } }, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}, table: 'cf_events' | 'cf_access_events' = 'cf_events'): Stmt {
  return sql(`INSERT INTO ${table}(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,?,?,?,?,?)`,
-  c.now, c.actor.id, c.actor.name, c.actor.role, action, subjectKind, subjectId, donorId, JSON.stringify({ ...detail, ...((c.actor.grant??c.actor.preparationGrant) ? { grantId: (c.actor.grant??c.actor.preparationGrant)!.id, grantVersion: (c.actor.grant??c.actor.preparationGrant)!.version } : {}) }))
+  c.now, c.actor.id, c.actor.name, c.actor.role, action, subjectKind, subjectId, donorId, JSON.stringify({ ...detail, ...(c.actor.apiKey ? {apiKeyId:c.actor.apiKey.id,apiKeyScope:c.actor.apiKey.scope}:{}), ...((c.actor.grant??c.actor.preparationGrant) ? { grantId: (c.actor.grant??c.actor.preparationGrant)!.id, grantVersion: (c.actor.grant??c.actor.preparationGrant)!.version } : {}) }))
 }
 
 /** One D1 transaction: the caller's current authority, then the writes and
  * their guards. A failed guard is re-read to report which promise broke. */
-export async function commit(c: { db: D1Database; authority: Authority }, statements: Stmt[]) {
+export async function commit(c: { db: D1Database; authority: Authority; transactionPlan?: TransactionPlan }, statements: Stmt[]) {
+ if(c.transactionPlan){c.transactionPlan.statements.push(...statements);if(statements.length)c.transactionPlan.commits++;return}
  const batch = [guard(c.authority.sql, 'SESSION_CHANGED', 'Your access changed. Sign in again.', ...c.authority.params), ...statements, sql('DELETE FROM cf_assert')]
  try { await c.db.batch(batch.map(s => c.db.prepare(s.sql).bind(...s.params))) } catch (error) {
   const text = String(error)

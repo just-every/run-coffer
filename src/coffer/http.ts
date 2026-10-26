@@ -1,3 +1,6 @@
+import { apiErasureStatements } from './api/custody'
+import { restApiResponse } from './api/http'
+import { apiKeysPage, apiKeySecretPage } from './ui/api-keys'
 import { auctionState, auctionUploadResponse } from './auction'
 import { auctionPage } from './auction-ui'
 import { auctionErasureStatements } from './auction-custody'
@@ -230,6 +233,8 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
  return response
 }
 async function cofferHandler(request: Request, original: Bindings): Promise<Response | null> {
+ const rest=await restApiResponse(request,original)
+ if(rest){if(rest.context)responseAuthorities.set(request,rest.context);return rest.response}
  if (new URL(request.url).pathname === '/api/coffer/sms/webhook') return smsWebhook(request,runtimeBindings(original))
  if (new URL(request.url).pathname === '/api/coffer/mail/events') return receiptEvents(request, original)
  const publicGiving = await givingResponse(request, original); if (publicGiving) return publicGiving
@@ -444,7 +449,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   { sql: "UPDATE cf_subscriptions SET donor_id=?,customer_id='' WHERE donor_id=?", params: [placeholder, donorId] },
  ]
  // The placeholder must exist before its references move; delete the old donor last.
- const nativeStatements = [...webhookErasureStatements(donorId), ...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,?)", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder, JSON.stringify({reason})] }]
+ const nativeStatements = [...apiErasureStatements(donorId), ...webhookErasureStatements(donorId), ...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,?)", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder, JSON.stringify({reason})] }]
  const result: any = await imports.erase(c.db, c.actor, donorId, authority, { nativeStatements, checkpoint })
  await purgeDocuments(c)
  return { erased: donorId, donorId: placeholder, receiptId: result.receiptId ?? result.id }
@@ -491,6 +496,8 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
  if(command.startsWith('agentGrant.'))return redirect('/app/data#agent-grants')
  if (command === 'agent.revoke') return redirect('/app/data')
+ if(command==='apiKey.create')return page('Public API key',apiKeySecretPage(result.token),actor,200,'/app/settings')
+ if(command==='apiKey.revoke')return redirect('/app/api-keys')
  if(command==='webhook.subscribe')return page('Webhook signing key',webhookSecretPage(result.secret),actor,200,'/app/settings')
  if(command.startsWith('webhook.'))return redirect('/app/webhooks')
  if (command.startsWith('reportSchedule.')) return redirect('/app/report-schedules')
@@ -654,6 +661,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if(path==='/app/api-keys')return show('Public API keys',await apiKeysPage(c))
  if(path==='/app/webhooks')return show('Webhooks',await webhookPage(c,url.searchParams.get('before')))
  if(path==='/app/report-schedules')return show('Scheduled reports',await reportSchedulesPage(c,url))
  if(path==='/app/reports/custom-fields')return show('Gift custom fields',await customReportPage(c,url))
