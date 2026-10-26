@@ -18,7 +18,8 @@ export async function eventPackagesJourney(){
  }
  await run(async h=>{
   await reviewed(h)
-  const buyer=await donor(h,'Synthetic Coffer Table Buyer',{email:'synthetic-coffer-table-buyer@example.test'}),guest=await donor(h,'Synthetic Coffer Table Guest',{email:'synthetic-coffer-table-guest@example.test'}),twin=await donor(h,'Synthetic Coffer Guest Separate Record')
+  const person=async(name,email)=>({...await donor(h,name,{email}),name,email})
+  const buyer=await person('Synthetic Coffer Table Buyer','synthetic-coffer-table-buyer@example.test'),guest=await person('Synthetic Coffer Table Guest','synthetic-coffer-table-guest@example.test'),twin=await donor(h,'Synthetic Coffer Guest Separate Record')
   const campaign=await h.api('/api/coffer/giving/campaigns',{name:'Synthetic Coffer package campaign',slug:'synthetic-coffer-packages',description:'Literacy programs supported by the gala.',fund:'Reading',goal:'60000'})
   await h.command('appealCode.define',{code:'SYNTHETIC-PACKAGES',name:'Synthetic Coffer package appeal'})
   const event=await h.command('event.create',{name:'Synthetic Coffer package gala',slug:'synthetic-coffer-package-gala',campaignId:campaign.id,appeal:'SYNTHETIC-PACKAGES',startsOn:'2026-10-17'})

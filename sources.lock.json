@@ -3555,7 +3555,7 @@
       "executable": false
     },
     "src/coffer/ui/event-registration.ts": {
-      "sha256": "baca5b0cba5d053c80763a3721cec06c5bd08f5f1fdfd012aff19fa0688f71a8",
+      "sha256": "7a8fd7509d8b0dbf120a57719aac81da9f6b78652fa11f01f6637a3eebe7ca5a",
       "executable": false
     },
     "src/coffer/ui/exports.ts": {
@@ -5919,7 +5919,7 @@
       "executable": false
     },
     "tests/event-packages-journey.mjs": {
-      "sha256": "981d88b685d627b26535c1f920804f721ed090ef6eba97702b579c5c5bb734d0",
+      "sha256": "fa5c33a680e4d2ef663e5c5a36718a54b07235557ee8c95e4e7a3139181ba111",
       "executable": false
     },
     "tests/exports-browser.mjs": {

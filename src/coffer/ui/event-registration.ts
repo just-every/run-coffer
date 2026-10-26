@@ -6,7 +6,7 @@ export function eventQuestionInput(q:Row,prefix:string,labelPrefix=''){
  if(q.entry==='pick-many')return `<fieldset><legend>${e(label)}${q.required?' (required)':''}</legend>${choices.map((value:string)=>`<label><input type="checkbox" name="${e(name)}" value="${e(value)}"> ${e(value)}</label>`).join('')}</fieldset>`
  if(q.entry==='pick-one'||q.type==='checkbox')return select(label,name,q.type==='checkbox'?[['','Choose an answer'],['true','Yes'],['false','No']]:[['','Choose an answer'],...choices.map((v:string)=>[v,v])],'',required+` aria-label="${e(label)}"`)
  const type=q.type==='date'?'date':q.type==='number'||q.type==='year'?'number':'text'
- return field(label,name,type,'',required+(q.type==='currency'?' inputmode="decimal"':'')+(type==='text'?' maxlength="2000"':''))
+ return field(label,name,type,'',required+(q.type==='currency'?' inputmode="decimal"':'')+(type==='text'?' maxlength="2000"':'')+(type==='number'?(q.type==='year'?' min="1000" max="9999"':' step="any"'):''))
 }
 export function registrationPage(event:Row,siteKey:string,selectedTicketId?:string){
  const tickets:Row[]=event.tickets,questions:Row[]=event.questions??[],selected=tickets.find(t=>t.id===selectedTicketId)??tickets.find(t=>t.kind==='single'||!t.kind)??tickets[0]
