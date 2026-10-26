@@ -15,6 +15,8 @@ export const ERASED = 'Erased donor'
 export function donorErasureStatements(donor: { id: string; email: string | null; emails?: string[] }, placeholderId: string, now: string): D1Sql[] {
   const donorId = donor.id
   return [
+    sql('DELETE FROM cf_hygiene_proposals WHERE donor_id=? OR related_donor_id=? OR evidence_id IN (SELECT id FROM cf_hygiene_evidence WHERE donor_id=?)',donorId,donorId,donorId),
+    sql('DELETE FROM cf_hygiene_evidence WHERE donor_id=?',donorId),
     ...[donorId, donor.email,...(donor.emails??[])].filter(Boolean).map(value => sql('INSERT OR IGNORE INTO cf_erasures(hash,erased_at) VALUES(?,?)', erasureHash(value!), now)),
     sql('INSERT INTO cf_donors(id,version,name,source,source_ref,created_at,erased_at) SELECT ?,1,?,source,NULL,?,? FROM cf_donors WHERE id=?', placeholderId, ERASED, now, now, donorId),
     sql('UPDATE cf_communications SET name_fields=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL WHERE donor_id=?',donorId),

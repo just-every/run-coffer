@@ -43,7 +43,7 @@ function quietCommunications(source:string,target:string):Stmt[] {
 
 /** Both original identities and emails remain import aliases. The ledger keeps
  * amounts, dates and references; a private journal owns the reversible data. */
-export async function mergeDonor(c: Context, p: Row): Promise<Row> {
+export async function mergeDonor(c: Context, p: Row, tail: Stmt[] = []): Promise<Row> {
  requireRole(c.actor,['owner','admin'],'merge donor records')
  const source = id(p.sourceDonorId, 'Source donor'), target = id(p.donorId, 'Surviving donor')
  if (source === target) fail('INPUT', 'Choose two different donor records.', 400)
@@ -112,7 +112,8 @@ export async function mergeDonor(c: Context, p: Row): Promise<Row> {
  statements.push(sql('UPDATE cf_recovery_permissions SET enabled=0,version=version+1 WHERE donor_id=?',source))
  statements.push(sql('DELETE FROM cf_card_expiry_notices WHERE subscription_id IN (SELECT id FROM cf_subscriptions WHERE donor_id=?)',source))
  statements.push(sql('UPDATE cf_donor_meetings SET donor_id=?,version=version+1 WHERE donor_id=?',target,source))
- for (const table of ['cf_record_documents','cf_donor_address_history','cf_research_results','cf_volunteering','cf_event_registrations','cf_planned_gifts','cf_legacy_memberships','cf_recurring_task_series','cf_pledges','cf_acks','cf_events','cf_soft_credits','cf_gift_tributes','cf_giving_customers','cf_giving_intents','cf_subscriptions','cf_communications','cf_reply_tasks']) statements.push(sql(`UPDATE ${table} SET donor_id=? WHERE donor_id=?`,target,source))
+ statements.push(...tail,sql("UPDATE cf_hygiene_proposals SET status='stale' WHERE status='pending' AND (donor_id IN (?,?) OR related_donor_id IN (?,?))",source,target,source,target))
+ for (const table of ['cf_hygiene_evidence','cf_record_documents','cf_donor_address_history','cf_research_results','cf_volunteering','cf_event_registrations','cf_planned_gifts','cf_legacy_memberships','cf_recurring_task_series','cf_pledges','cf_acks','cf_events','cf_soft_credits','cf_gift_tributes','cf_giving_customers','cf_giving_intents','cf_subscriptions','cf_communications','cf_reply_tasks']) statements.push(sql(`UPDATE ${table} SET donor_id=? WHERE donor_id=?`,target,source))
  statements.push(
   sql('DELETE FROM cf_appeal_recipients WHERE donor_id=? AND appeal_id IN (SELECT appeal_id FROM cf_appeal_recipients WHERE donor_id=?)',source,target),
   sql('UPDATE cf_appeal_recipients SET donor_id=? WHERE donor_id=?',target,source),

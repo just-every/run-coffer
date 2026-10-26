@@ -1,3 +1,5 @@
+import { hygieneState, recordHygieneEvidence, runHygiene, reviewHygiene } from './hygiene'
+import { hygienePage } from './hygiene-ui'
 import { callRanking, rankCalls } from '../call-ranking'
 import { callOutcomes } from '../call-outcomes'
 import { callRankingPage } from '../ui/call-ranking'
@@ -36,6 +38,7 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  const prefix=api?'/api/coffer/agent':'/app/agent',tail=path.slice(prefix.length)
  if (request.method==='GET' || request.method==='HEAD') {
   if(api) {
+   if(tail==='/hygiene')return json(await hygieneState(c))
    if(tail==='/calls')return json(await callRanking(c,url.searchParams.get('managerId')??undefined,url.searchParams.get('runId')??undefined))
    if(tail==='/calls/outcomes')return json(await callOutcomes(c,url.searchParams.get('runId')!))
    if(tail==='/followups')return json(await developmentFollowups(c))
@@ -48,7 +51,8 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
    fail('NOT_FOUND','That agent page does not exist.',404)
   }
   let content:string,title:string
-  if(tail==='/calls'){title='Call priorities';content=await callRankingPage(c,url)}
+  if(tail==='/hygiene'){title='Database hygiene';content=await hygienePage(c)}
+  else if(tail==='/calls'){title='Call priorities';content=await callRankingPage(c,url)}
   else if(tail==='/followups'){title='Follow commitments';content=await developmentFollowupsPage(c)}
   else if(tail==='/grants'){title='Background agent grants';content=await automationGrantPanel(c)}
   else if(tail==='/setup'){title='Agent AI setup';content=await setupPage(c)}
@@ -64,7 +68,10 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  }
  if(request.method!=='POST')fail('METHOD','Use the agent page buttons.',405)
  const p=await body();let result:any,back='/app/agent'
- if(tail==='/calls/run'){result=await rankCalls(c,p);back='/app/agent/calls?managerId='+encodeURIComponent(result.run.manager_id)+'&runId='+encodeURIComponent(result.run.id)}
+ if(tail==='/hygiene/run'){result=await runHygiene(c);back='/app/agent/hygiene'}
+ else if(tail==='/hygiene/evidence'){result=await recordHygieneEvidence(c,p);back='/app/agent/hygiene'}
+ else if(tail==='/hygiene/review'){result=await reviewHygiene(c,p);back='/app/agent/hygiene'}
+ else if(tail==='/calls/run'){result=await rankCalls(c,p);back='/app/agent/calls?managerId='+encodeURIComponent(result.run.manager_id)+'&runId='+encodeURIComponent(result.run.id)}
  else if(tail==='/followups/run'){result=await runDevelopmentFollowups(c);back='/app/agent/followups'}
  else if(tail==='/followups/approve'){result=await approveDevelopmentReminder(c,p);back='/app/agent/followups'}
  else if(tail==='/followups/reply'){result=await recordDevelopmentReply(c,p);back='/app/agent/followups'}
@@ -93,7 +100,7 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  } else fail('NOT_FOUND','Unknown agent action.',404)
  return api?json(result):redirect(back)
 }
-const nav=()=>`<p class="actions"><a href="/app/agent">Activity</a><a href="/app/agent/reconcile">Reconcile</a><a href="/app/agent/recovery">Monthly recovery</a><a href="/app/agent/followups">Commitments</a><a href="/app/agent/calls">Call priorities</a><a href="/app/agent/receipts">Missing receipts</a><a href="/app/agent/appeals">Appeal delivery</a><a href="/app/agent/stewardship">Stewardship</a><a href="/app/agent/setup">AI setup</a><a href="/app/agent/grants">Background grants</a></p>`
+const nav=()=>`<p class="actions"><a href="/app/agent">Activity</a><a href="/app/agent/reconcile">Reconcile</a><a href="/app/agent/recovery">Monthly recovery</a><a href="/app/agent/followups">Commitments</a><a href="/app/agent/calls">Call priorities</a><a href="/app/agent/receipts">Missing receipts</a><a href="/app/agent/appeals">Appeal delivery</a><a href="/app/agent/hygiene">Database hygiene</a><a href="/app/agent/stewardship">Stewardship</a><a href="/app/agent/setup">AI setup</a><a href="/app/agent/grants">Background grants</a></p>`
 async function overview(c:Context,env:GivingEnv,url:URL) {
   return `<p>Reconcile gifts, follow failed monthly plans, prepare missing receipts and draft personal stewardship. Every proposal keeps its sources and reason. People approve corrections, receipts and messages.</p>${managed(env)?'<p class="notice">Provider integrations are not available yet on RER Managed.</p>':''}<ul class="tiles"><li><a href="/app/agent/calls"><strong>Prioritize weekly calls</strong><span>Rank explained calls within each manager’s capacity and compare recorded outcomes.</span></a></li><li><a href="/app/agent/followups"><strong>Follow commitments</strong><span>Approve overdue installment, grant report and matching-gift reminders; record their outcomes.</span></a></li><li><a href="/app/agent/reconcile"><strong>Reconcile gifts</strong><span>Compare Stripe, the gift ledger and Pantry; review, apply and undo corrections.</span></a></li><li><a href="/app/agent/recovery"><strong>Recover monthly gifts</strong><span>Private card-update email, Stripe retry schedule and recovered or lapsed outcomes.</span></a></li><li><a href="/app/agent/receipts"><strong>Find missing receipts</strong><span>Prepare missing and bounced receipts for a person to approve.</span></a></li><li><a href="/app/agent/stewardship"><strong>Draft from donor history</strong><span>Gifts, funds, conversations and tributes, with sources to review before sending.</span></a></li></ul>${await activityTable(c,url)}`
 }

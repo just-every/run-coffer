@@ -43,3 +43,8 @@ test('DEV-003 / RCPT-010: missing and bounced receipts keep human review or expl
  },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_EVENT_PUBLIC_KEY:publicKey},outbound:async r=>{assert.equal(new URL(r.url).hostname,'api.sendgrid.com');submissions++;return new Response(null,{status:202,headers:{'x-message-id':'agent-receipt-message'}})}})
  await receiptAutonomyJourney()
 })
+
+test('DEV-008: evidence-backed hygiene proposals require human review and use audited native commands',async()=>{
+ const {hygieneJourney}=await import('./hygiene-journey.mjs')
+ await hygieneJourney()
+})

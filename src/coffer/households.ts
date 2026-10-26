@@ -1,6 +1,6 @@
 import { organizationFields } from './organizations'
 import { requireRole } from './auth'
-import { all, commit, event, fail, guard, id, integer, newId, one, optional, sql, text, type Context, type Row } from './db'
+import { all, commit, event, fail, guard, id, integer, newId, one, optional, sql, text, type Context, type Row, type Stmt } from './db'
 import { NAME_FIELDS, computedHouseholdNames, householdDefaults, householdMembers, HOUSEHOLD_TOKENS } from './household-names'
 import { householdTotals } from './household-totals'
 import { STATUSES, statusChange } from './status'
@@ -14,7 +14,7 @@ export async function householdState(c:Context,householdId:string,query:{year?:n
  const head=members.find(m=>m.id===household.head_donor_id)
  return {household,members,names,computed,defaults,headStatus:head?.constituent_status==='deceased'?'deceased':head?'selected':'none',totals}
 }
-export async function householdCommand(c:Context,command:string,p:Row):Promise<Row|undefined> {
+export async function householdCommand(c:Context,command:string,p:Row,tail:Stmt[]=[]):Promise<Row|undefined> {
  if(command==='donor.profile') {
   requireRole(c.actor,['owner','admin','member'],'edit name parts')
   const donorId=id(p.donorId,'Donor'),version=integer(p.version,'Donor version',1)
@@ -29,7 +29,7 @@ export async function householdCommand(c:Context,command:string,p:Row):Promise<R
   const formal=override('formalSalutation','formal_salutation'),envelope=override('envelopeName','envelope_name')
   const h=donor.household_id?await one(c,'SELECT * FROM cf_households WHERE id=?',donor.household_id):null
   if(h?.head_donor_id===donorId&&kind==='organization')fail('HEAD_INELIGIBLE','Clear this household head before changing to an organization.')
-  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND erased_at IS NULL)','VERSION','This donor changed. Refresh before saving.',donorId,version),...(h?[guard('EXISTS(SELECT 1 FROM cf_households WHERE id=? AND version=?)','VERSION','The household changed. Refresh before saving.',h.id,p.householdVersion??h.version)]:[]),sql(`UPDATE cf_donors SET version=version+1,name=?,${fields.map(([,column])=>column+'=?').join(',')},constituent_kind=?,constituent_status=?,status_reason=?,deceased_on=?,status_changed_at=?,status_changed_by=?,organization_type=?,website=?,ein=?,informal_salutation=?,formal_salutation=?,envelope_name=? WHERE id=?`,displayName,...values,kind,status,change.columns.status_reason,change.columns.deceased_on,change.columns.status_changed_at,change.columns.status_changed_by,org.organizationType,org.website,org.ein,org.salutation,formal,envelope,donorId),...(h?[sql('UPDATE cf_households SET version=version+1 WHERE id=?',h.id),event(c,'household.names','household',h.id,null,{oldHead:h.head_donor_id,newHead:h.head_donor_id,overridesSet:[],overridesCleared:[]})]:[]),event(c,command,'donor',donorId,donorId,{status,kind}),...change.after])
+  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND erased_at IS NULL)','VERSION','This donor changed. Refresh before saving.',donorId,version),...(h?[guard('EXISTS(SELECT 1 FROM cf_households WHERE id=? AND version=?)','VERSION','The household changed. Refresh before saving.',h.id,p.householdVersion??h.version)]:[]),sql(`UPDATE cf_donors SET version=version+1,name=?,${fields.map(([,column])=>column+'=?').join(',')},constituent_kind=?,constituent_status=?,status_reason=?,deceased_on=?,status_changed_at=?,status_changed_by=?,organization_type=?,website=?,ein=?,informal_salutation=?,formal_salutation=?,envelope_name=? WHERE id=?`,displayName,...values,kind,status,change.columns.status_reason,change.columns.deceased_on,change.columns.status_changed_at,change.columns.status_changed_by,org.organizationType,org.website,org.ein,org.salutation,formal,envelope,donorId),...(h?[sql('UPDATE cf_households SET version=version+1 WHERE id=?',h.id),event(c,'household.names','household',h.id,null,{oldHead:h.head_donor_id,newHead:h.head_donor_id,overridesSet:[],overridesCleared:[]})]:[]),event(c,command,'donor',donorId,donorId,{status,kind}),...change.after,...tail])
   return {id:donorId,version:version+1}
  }
  if(command==='household.defaultsPreview') {

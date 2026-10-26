@@ -47,7 +47,7 @@ function household(name: string | null, c: Context): { statements: Stmt[]; value
  return { statements: [sql('INSERT INTO cf_households(id,name,created_at) SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_households WHERE lower(name)=lower(?))', newId(), name, c.now, name)], value: '(SELECT id FROM cf_households WHERE lower(name)=lower(?))' }
 }
 
-export async function donorCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
+export async function donorCommand(c: Context, command: string, p: Row, tail: Stmt[] = []): Promise<Row | undefined> {
  if (command === 'donor.create') {
   const donorId = newId(), name = text(p.name, 'Donor name'), mail = email(p.email), a = address(p), h = household(optional(p.household, 'Household'), c)
   const org=organizationFields(p)
@@ -77,7 +77,7 @@ export async function donorCommand(c: Context, command: string, p: Row): Promise
    sql(`UPDATE cf_donors SET version=version+1,name=?,email=?,phone=?,address_line1=?,address_line2=?,city=?,region=?,postal_code=?,country=?,household_id=${h.value} WHERE id=?`,
     name, mail, a.phone, verified.address_line1, verified.address_line2, verified.city, verified.region, verified.postal_code, verified.country, ...(h.value === 'NULL' ? [] : [optional(p.household, 'Household')]), donorId),
    sql('DELETE FROM cf_address_moves WHERE donor_id=?', donorId),
-   ...checked.statements, ...membership.after, event(c, 'donor.update', 'donor', donorId, donorId)])
+   ...checked.statements, ...membership.after, event(c, 'donor.update', 'donor', donorId, donorId), ...tail])
   return { id: donorId, version: version + 1 }
  }
  if (command === 'consent.record') {

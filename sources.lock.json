@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "1ff7919820c6f54495c29f8b50c3dcce8374ec6cc5cd637f28d33468694af269",
+      "sha256": "aa3ca502caee0d602e89d48f991e50450fedff339934a1e0f3938f431bdf6baa",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8160d994948fd1c4ca03f2732621a18746340a7335bc28635ab2b2e0add149eb",
+      "sha256": "735246d9cfbcec915914f6a1ddd64cab54fc9b53bd56cc7e1a62f68b6dec8c00",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1336,6 +1336,10 @@
     },
     "migrations/core/0149_coffer_call_ranking.sql": {
       "sha256": "29ec9958c4e70f9a3874a54ef930ca0a714b00067542eab18edf97ff603ef2d5",
+      "executable": false
+    },
+    "migrations/core/0150_coffer_hygiene.sql": {
+      "sha256": "408870d1cdb3ed950da8d41ddc039c220b51d49498a2c2b6f6a1f1b24bd147aa",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2199,7 +2203,15 @@
       "executable": false
     },
     "src/coffer/agent/http.ts": {
-      "sha256": "c2c655681c64f91134e60ce51ebc999797a29e080403e4dfe868fad80c4a0605",
+      "sha256": "fd54bcb8bc2f9cf8997a5930e9de9cd2450606395ad0402f41529acbc3f5c620",
+      "executable": false
+    },
+    "src/coffer/agent/hygiene-ui.ts": {
+      "sha256": "b8abb0a1940d77966f7f11099f88d39df59d02c347173a68c1f8821786692b1b",
+      "executable": false
+    },
+    "src/coffer/agent/hygiene.ts": {
+      "sha256": "78f936ce45dd34b765e3f2a43221a2c142795397d12bfd4499b9508d82f72aed",
       "executable": false
     },
     "src/coffer/agent/jobs.ts": {
@@ -2503,7 +2515,7 @@
       "executable": false
     },
     "src/coffer/donor-file.ts": {
-      "sha256": "d154994fe0ba67ff2d35cc023ab339a78342bb955a1cae93439232fb7e34c981",
+      "sha256": "b5265dfe3cf09fc36d769ab55f465fd249abf8ee5e33539371eae9782638f533",
       "executable": false
     },
     "src/coffer/donor-households.ts": {
@@ -2511,11 +2523,11 @@
       "executable": false
     },
     "src/coffer/donor-merge.ts": {
-      "sha256": "355ac3c17421dd4177dc13175794ffe1b4acafa39e00c9c6ee94d64705904f77",
+      "sha256": "9db5593f62681c023e1ada2bcef1ef01a30a1f8dfdcd59b2b957d5e2be22d71b",
       "executable": false
     },
     "src/coffer/donors.ts": {
-      "sha256": "3e0eab7c72e8d1c4aae367f9b03e87123f1cfc5b4c330c85d687a68bc4548d00",
+      "sha256": "bba1da3d4eadb5b79a99202dc45cbcac187b49ef3e63237dc665c1fc0fc427bc",
       "executable": false
     },
     "src/coffer/duplicates.ts": {
@@ -2767,7 +2779,7 @@
       "executable": false
     },
     "src/coffer/households.ts": {
-      "sha256": "3deb9901faab0ced960f177cffdbe11bf7f8a8970ea9069e2b6484f7b27d0fa3",
+      "sha256": "ecfd4d2ca3995dd92114963c86c29af8c27de9f37229346da83d14fab7220b6a",
       "executable": false
     },
     "src/coffer/http.ts": {
@@ -2783,7 +2795,7 @@
       "executable": false
     },
     "src/coffer/imports/erasure.ts": {
-      "sha256": "e55b557bf93f2d3ce2dd89ab8a25055f21297ddfd3b75e71565dca57d097bf89",
+      "sha256": "4ebc38f9543562f290bffd130073964ca099afeec5082e0d33574a2a26d727d1",
       "executable": false
     },
     "src/coffer/imports/index.ts": {
@@ -2819,7 +2831,7 @@
       "executable": false
     },
     "src/coffer/imports/targets.ts": {
-      "sha256": "404af9d853cc8dd3b26eec5608d00eb3a1f5a48b0b9a9b566f5a22d2c57f9fa0",
+      "sha256": "b228c2263b6f38f678c6455d25ec2d6dc48f2294b3d2da79aa7ac1189fe59e88",
       "executable": false
     },
     "src/coffer/imports/types.ts": {
@@ -2899,7 +2911,7 @@
       "executable": false
     },
     "src/coffer/merge-journal.ts": {
-      "sha256": "f2491b4775e5be4d270ee923e2384e751f588d54708f7e095b2d5c5942c4ec69",
+      "sha256": "bcdc04c31f636da9949798114e95bb2003e45f08a085acc2810b4edb26ad8379",
       "executable": false
     },
     "src/coffer/money.ts": {
@@ -2959,7 +2971,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "be9775695231f15a5b43ca2961f451a56713a24bb113e41947ac113217221db1",
+      "sha256": "0a3fbb76fda52357ae1ff797967a5156b44cee6a46d462ee1b9bc7c503dd22be",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -5623,7 +5635,7 @@
       "executable": false
     },
     "tests/agent-receipts.test.mjs": {
-      "sha256": "896151f09ca4afbda9c5cd93d4307a7fe3a9808a8ad27aa503b1176409af0833",
+      "sha256": "465b969ab7d0687549366de0cd92554a2e46e9fb40ce56e26160492b95619c7b",
       "executable": false
     },
     "tests/agent-reconciliation.test.mjs": {
@@ -6028,6 +6040,14 @@
     },
     "tests/households-journey.mjs": {
       "sha256": "0329abbd0f55cba608b026ecaa191c958c8c62b910a4ff83cd419bb92dfddf24",
+      "executable": false
+    },
+    "tests/hygiene-browser.mjs": {
+      "sha256": "a5c4146fc2eca92d74a1299cf320541cdfed9982a6a1914c998d81afa2966ec1",
+      "executable": false
+    },
+    "tests/hygiene-journey.mjs": {
+      "sha256": "b8a5679e74965cfaa3fc956d78911209ed0f55bdb5c009da4fc1ba4a918bb1e6",
       "executable": false
     },
     "tests/import-refunds-journey.mjs": {
