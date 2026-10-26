@@ -2215,7 +2215,7 @@
       "executable": false
     },
     "src/coffer/agent/development-report-http.ts": {
-      "sha256": "90551d03eb8cf3de90c94fc76758a130285d810fde888befd93760cbaa8a09e9",
+      "sha256": "8d8b96871dd6ac2de732ce7e96d969b820f880f020f8f5f8e7051af9ae3ac2e5",
       "executable": false
     },
     "src/coffer/agent/development-report-scheduler.ts": {
@@ -2227,7 +2227,7 @@
       "executable": false
     },
     "src/coffer/agent/development-report-ui.ts": {
-      "sha256": "aca22dc16321716fb91496c697bcea38f8a707b3c71c2a52ba1f10bdeeff4b8d",
+      "sha256": "2a2ddd2e05f622e81093856b48be39046be5f909a9fa532b5b6a117226e0612b",
       "executable": false
     },
     "src/coffer/agent/development-report.ts": {
@@ -5807,7 +5807,7 @@
       "executable": false
     },
     "tests/development-report-browser.mjs": {
-      "sha256": "3ac35b16d841f21fb3f292c37fafd896a5ae5cd454af2c538bfb5804c164c382",
+      "sha256": "9533064ddd26417e715f031130b46572253b78b7a455f3d48ae8c7dc64538505",
       "executable": false
     },
     "tests/development-report-journey.mjs": {

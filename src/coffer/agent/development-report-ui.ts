@@ -2,7 +2,7 @@ import type { Context, Row } from '../db'
 import { today } from '../db'
 import { settings } from '../settings'
 import { area, box, chip, e, empty, field, hidden, money, moment, select } from '../ui/common'
-import { developmentReportFacts } from './development-report-sources'
+import { developmentMonth, developmentReportFacts } from './development-report-sources'
 import { developmentReports } from './development-report'
 import { developmentReportDocument } from './development-report-document'
 
@@ -39,16 +39,25 @@ export async function developmentReportPage(c:Context,url:URL) {
  const state=await developmentReports(c,month),selected=url.searchParams.get('id'),reports=selected?state.reports.filter(r=>r.id===selected):state.reports
  const enabled=state.grant?.enabled&&state.grant?.donor_ids===null
  const draft=action('draft',field('Reporting month','month','month',month,'required'),'Prepare monthly draft')
- const schedule=state.schedule!,scheduleForm=action('schedule',select('Monthly preparation schedule','enabled',[['no','Stopped'],['yes','Enabled']],schedule.enabled?'yes':'no','aria-label="Monthly preparation schedule"')+
+ const current=reports[0],earlier=reports.slice(1),render=(r:Row)=>reportCard(r,state.deliveries.filter(d=>d.report_id===r.id),s.timezone)
+ return box('Prepare a monthly report',`${enabled?draft:'<p class="notice">Enable the complete-ledger report drafting grant in report settings.</p>'}
+ <p><a href="/app/agent/reports?month=${e(month)}&sources=1">Review source facts</a> · <a href="/app/settings/development-reports?month=${e(month)}">Report settings</a></p>
+ <details><summary>Sources and director approval</summary><p>${e(state.policy)}</p><p>Annual retention and current pipeline figures keep their actual periods. Preparing a draft never sends email.</p></details>`)+
+ (current?render(current):empty('No monthly development report prepared for this month.'))+
+ (earlier.length?`<details><summary>Earlier reports (${earlier.length})</summary>${earlier.map(render).join('')}</details>`:'')
+}
+export async function developmentReportSettingsPage(c:Context,url:URL) {
+ const s=await settings(c),month=(await developmentMonth(c,url.searchParams.get('month')??today(s.timezone,new Date(c.now)).slice(0,7))).month
+ const state=await developmentReports(c),schedule=state.schedule!
+ const scheduleForm=action('schedule',select('Monthly preparation schedule','enabled',[['no','Stopped'],['yes','Enabled']],schedule.enabled?'yes':'no','aria-label="Monthly preparation schedule"')+
   field('Preparation day of month','dayOfMonth','number',schedule.day_of_month,'required min="1" max="28"')+
   '<label><input type="checkbox" name="reviewed" value="yes"> I authorize preparing the previous completed month on this organization-calendar day. Every report still needs director review and explicit send approval.</label>',
-  'Save monthly preparation',{version:schedule.version})
- return box('Monthly development report',`<p>${e(state.policy)}</p><p>Drafting reads source reports and never sends email. Annual retention and the current pipeline keep their own displayed periods.</p>
- ${enabled?draft:'<p class="notice">Enable the complete-ledger monthly report drafting grant before preparing a report. It grants preparation only.</p><p><a href="/app/agent/grants">Manage background grants</a></p>'}
- <p><a href="/app/agent/reports?month=${e(month)}&sources=1">Review notable gifts and overdue source facts</a></p>`)+
- box('Monthly preparation',`<p>The monthly schedule prepares the prior completed calendar month on the selected organization-calendar day, or on its next tick. It never approves or sends a report. Stopping the named drafting grant or global agent switch stops preparation.</p>${schedule.hold_reason?`<p role="alert">${e(schedule.hold_reason)}</p>`:''}${scheduleForm}`)+
- (reports.length?reports.map(r=>reportCard(r,state.deliveries.filter(d=>d.report_id===r.id),s.timezone)).join(''):empty('No monthly development report prepared for this month.'))
+  'Save monthly preparation',{version:schedule.version,month})
+ return `<p><a href="/app/settings">Settings</a> · <a href="/app/agent/reports?month=${e(month)}">Development reports</a></p>`+
+ box('Monthly preparation',`<p>Prepare the previous completed calendar month on the selected organization-calendar day. This schedule never approves or sends a report.</p>
+ <p><a href="/app/agent/grants">Manage the report drafting grant</a></p>${schedule.hold_reason?`<p role="alert">${e(schedule.hold_reason)}</p>`:''}${scheduleForm}`)
 }
+
 export async function developmentReportSourcesPage(c:Context,month:string) {
  const facts=await developmentReportFacts(c,month)
  return box('Notable received gifts',`<p>Positive signed contributions for ${e(facts.from)} through ${e(facts.through)}, grouped by gift identity. Source links remain subject to ordinary record access.</p>${facts.notable.length?`<ul>${facts.notable.map(g=>`<li>${g.donorId?`<a href="/app/donors/${e(g.donorId)}">${e(g.donorName)}</a>`:e(g.donorName)}: ${e(money(g.amountCents))}</li>`).join('')}</ul>`:empty('No positive received contributions.')}`,'notable')+
