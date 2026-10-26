@@ -65,6 +65,8 @@ export async function callPrioritiesJourney(){
   const reply=await h.request('/test-email',{method:'POST',headers:headers(),body:{from:recipientEmail,to:'replies@example.test',headers:{subject:'Re: Reading room update','message-id':'<synthetic-coffer-9204@example.test>'},raw:'Content-Type: text/plain; charset=utf-8\r\n\r\nPlease call me about the reading room.'}})
   assert.equal(reply.status,200);assert.equal((await reply.json()).forwarded.length,1)
   await command('calls.rank',{managerId:manager.id},{as:manager.cookie,status:403})
+  await command('task.teamSave',{operatorId:manager.id,managerId:owner.id,weeklyCallCapacity:5,version:0},{as:manager.cookie,status:403})
+  await command('calls.policy',{version:1,windowDays:1},{as:manager.cookie,status:403})
   await get('/api/coffer/agent/calls',{as:'',status:401})
   if(!process.env.COFFER_CALLS_BROWSER){
    await command('task.teamSave',{operatorId:manager.id,managerId:owner.id,weeklyCallCapacity:5,version:0})

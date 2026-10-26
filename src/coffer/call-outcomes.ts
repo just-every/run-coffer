@@ -107,7 +107,7 @@ export async function callOutcomes(c: Context, runId: string) {
    priorFrom: report.prior.from, priorThrough: report.prior.through, asOf, timezone: report.timezone },
   definition: { retention: 'REPORT-001: positive net ledger giving in both the complete prior fiscal year and the run fiscal year.',
    denominator: 'Available assigned and overflow constituents with positive prior fiscal-year net giving; held constituents are excluded. Rates are ratios from zero to one and remain pending until the fiscal year closes.',
-   giftWindow: `Positive current net monetary gifts received from the logged call date through ${run.window_days} days later, both dates included, observed only through the organization date. Reversed gifts, in-kind gifts and soft credits are excluded. An unfinished window without a gift remains pending.`,
+   giftWindow: `Positive current net monetary gifts received from the logged call date through ${run.window_days} ${run.window_days===1?'day':'days'} later, both dates included, observed only through the organization date. Reversed gifts, in-kind gifts and soft credits are excluded. An unfinished window without a gift remains pending.`,
    comparison: 'Called and uncalled outcomes are observational; no causal effect is attributed to a call.' },
  }
 }

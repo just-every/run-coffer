@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8a9b648d313d7e0893778b1ed929acca72f961beb8d54e31aca5242b2176af2e",
+      "sha256": "1ff7919820c6f54495c29f8b50c3dcce8374ec6cc5cd637f28d33468694af269",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d92f0c2471719a2e6bf10de25f3bac7c8f518ff6e4b9606c28c9e312cf321ecc",
+      "sha256": "8160d994948fd1c4ca03f2732621a18746340a7335bc28635ab2b2e0add149eb",
       "executable": false
     },
     "deploy-demo.json": {
@@ -607,7 +607,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "c3ca2e0badd864a31141b76b5464f29c9d94a004bbb774241e9c74721490d2bc",
+      "sha256": "7331ff48ea2ddc955c5b0db70b4fe968c923db0f0ee781c9cfb09246e992d8ad",
       "executable": false
     },
     "docs/COMMUNICATIONS.md": {
@@ -2315,7 +2315,7 @@
       "executable": false
     },
     "src/coffer/call-outcomes.ts": {
-      "sha256": "04241d2cbbf8f2636843afed8df12aec8ceeb6d555e13cfc11f631bec3e78dd5",
+      "sha256": "58b948530aa08f07bfed7a2bc58e514edd25bdf4c3ee69bc9933072981c4338b",
       "executable": false
     },
     "src/coffer/call-ranking-scheduler.ts": {
@@ -2323,7 +2323,7 @@
       "executable": false
     },
     "src/coffer/call-ranking.ts": {
-      "sha256": "5bbea475e96cf8b91e31e0b3d38b03c01039b52c700d67a1087fbfad44bf9d3a",
+      "sha256": "3e5f46aa87849d7808ed0dec8cd990e0b7a845ec5b24b966d4abd07e0ef0c883",
       "executable": false
     },
     "src/coffer/call-tasks.ts": {
@@ -3371,7 +3371,7 @@
       "executable": false
     },
     "src/coffer/ui/call-ranking.ts": {
-      "sha256": "8087ca0a5b7165dd1948b5d31125349779d16bb94f4677b35e305eb10275f5d4",
+      "sha256": "f6565bc2ac54f926feb96121954016ad7e3b9a03ed6c59a482693f43d3366461",
       "executable": false
     },
     "src/coffer/ui/call-tasks.ts": {
@@ -5671,11 +5671,11 @@
       "executable": false
     },
     "tests/call-priorities-browser.mjs": {
-      "sha256": "d3526dc6946f269e17869346a0d5eb33200f76159b2bb264596e1c7f760bca5b",
+      "sha256": "19db70f627961f215b3058eb20e397ed266e01859ebffbbf5a66184111cfb480",
       "executable": false
     },
     "tests/call-priorities-journey.mjs": {
-      "sha256": "747b1c8b7478e380eb337ff1570481992a4df3361dcb0d32dce886f9a0731dd5",
+      "sha256": "f62fd64532f687d01663c9e01794b120c29d631a7f3419a3f6fe982d2ae1da3d",
       "executable": false
     },
     "tests/campaign-browser.mjs": {

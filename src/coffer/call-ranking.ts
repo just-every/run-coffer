@@ -67,12 +67,12 @@ function scored(source:Row,day:string,week:string,start:string):Row {
  const flags={reply:source.replies.length>0,pledge:source.pledges.length>0,lapse,upgrade,silent,anniversary:!!anniversary}
  const score=Object.entries(flags).reduce((n,[key,yes])=>n+(yes?scoring[key as keyof typeof scoring]:0),0)
  const parts:string[]=[]
- if(flags.reply)parts.push(`Unanswered reply ${source.replies[0].id} received ${source.replies[0].at.slice(0,10)} (${source.replies.length} open).`)
- if(flags.pledge)parts.push(`Unpaid pledge installment ${source.pledges[0].id}, due ${source.pledges[0].dueOn}, ${usd(source.pledges.reduce((n:number,p:Row)=>n+p.cents,0))} overdue in total.`)
- if(lapse)parts.push(`Lapse risk: prior fiscal giving ${usd(prior)}, current fiscal giving ${usd(current)}; last net gift ${last?.id??'none'}${last?` on ${last.on}`:''}.`)
+ if(flags.reply)parts.push(`Unanswered donor reply received ${source.replies[0].at.slice(0,10)} (${source.replies.length} open).`)
+ if(flags.pledge)parts.push(`Unpaid pledge installment due ${source.pledges[0].dueOn}, ${usd(source.pledges.reduce((n:number,p:Row)=>n+p.cents,0))} overdue in total.`)
+ if(lapse)parts.push(`Lapse risk: prior fiscal giving ${usd(prior)}, current fiscal giving ${usd(current)}; last net gift ${last?`on ${last.on}`:'not recorded'}.`)
  if(upgrade)parts.push(`Giving increased: ${usd(current)} this fiscal year versus ${usd(prior)} in the prior fiscal year.`)
- if(silent)parts.push(`No meaningful contact in 90 days; ${lastContact?`last contact ${lastContact.id} on ${lastContact.on}`:`none recorded since first net gift ${first.id} on ${first.on}`}.`)
- if(anniversary)parts.push(`First-gift anniversary ${anniversary}: gift ${first.id} received ${first.on}.`)
+ if(silent)parts.push(`No meaningful contact in 90 days; ${lastContact?`last contact on ${lastContact.on}`:`none recorded since first net gift on ${first.on}`}.`)
+ if(anniversary)parts.push(`First-gift anniversary ${anniversary}: first gift received ${first.on}.`)
  const hasRestriction=source.restrictions.some((r:Row)=>r.type!=='none'&&r.startsOn<=day&&(!r.endsOn||r.endsOn>=day))
  return {...source,score,isAsk:!hasRestriction&&(lapse||upgrade),restricted:hasRestriction,reason:parts.join(' '),amount:Math.max(0,current,prior,source.pledges.reduce((n:number,p:Row)=>n+p.cents,0)),
   facts:{asOf:day,fiscalStart:period.start,priorFiscalStart:period.previousStart,priorCents:prior,currentCents:current,
