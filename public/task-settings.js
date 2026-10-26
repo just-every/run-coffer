@@ -1,6 +1,6 @@
 for (const form of document.querySelectorAll('form[data-task-setting]')) {
  const button=form.querySelector('button'),status=document.createElement('p')
- status.setAttribute('role','status');form.append(status);button.hidden=true
+ status.setAttribute('role','status');form.append(status);button.remove()
  form.addEventListener('change',async()=>{
   if(form.dataset.saving)return
   const values=Object.fromEntries(new FormData(form)),command=values.command;delete values.command
