@@ -6,7 +6,7 @@ export async function hygieneJourney(){
  await run(async h=>{
   await reviewed(h)
   const first=await donor(h,'Marisol Alvarez',{phone:'202-555-0191'}),duplicate=await donor(h,'Marisol Alvarez',{email:'marisol.copy@example.org',phone:'2025550191'})
-  const returned=await donor(h,'Rosa Morgan',{addressLine1:'8 River Road'}),family=await donor(h,'Helen Morgan'),addressed=await donor(h,'Avery Bennett')
+  const returned=await donor(h,'Rosa Morgan',{addressLine1:'8 River Road'}),family=await donor(h,'Helen Morgan',{addressLine1:'11 Cedar Road'}),addressed=await donor(h,'Avery Bennett',{addressLine1:'15 Ash Street'})
   const root='/api/coffer/agent/hygiene',state=()=>h.get(root),history=id=>h.get('/api/coffer/donors/'+id)
   const before=(await history(returned.id)).donor
   await h.api(root+'/evidence',{donorId:returned.id,source:'returned_mail',kind:'status',constituentStatus:'inactive',evidence:'Letter RMA-42 returned marked moved; owner proposes no current outreach.'})
@@ -16,7 +16,7 @@ export async function hygieneJourney(){
   const prepared=await h.api(root+'/run',{})
   assert.equal((await history(returned.id)).donor.constituent_status,before.constituent_status)
   assert.equal((await history(returned.id)).donor.version,before.version)
-  assert.equal((await history(addressed.id)).donor.address_line1,'1 Main Street')
+  assert.equal((await history(addressed.id)).donor.address_line1,'15 Ash Street')
   assert.equal((await h.get('/api/coffer/duplicates')).count,1)
   assert.equal((await state()).proposals.length,prepared.proposals.length)
   assert.equal((await h.api(root+'/run',{})).proposals.length,prepared.proposals.length,'Repeat preparation does not duplicate proposals')
@@ -35,7 +35,7 @@ export async function hygieneJourney(){
   const address=choose('address',addressed.id)
   await h.api(root+'/review',{id:address.id,decision:'accept',confirm:'ACCEPT'})
   assert.equal((await history(addressed.id)).donor.address_line1,'27 Oak Lane')
-  assert.ok((await h.get('/api/coffer/donors/'+addressed.id+'/addresses')).history.some(a=>a.address_line1==='1 Main Street'))
+  assert.ok((await h.get('/api/coffer/donors/'+addressed.id+'/addresses')).history.some(a=>a.address_line1==='15 Ash Street'))
   const salutation=choose('salutation',first.id)
   await h.api(root+'/review',{id:salutation.id,decision:'accept',confirm:'ACCEPT'})
   assert.equal((await history(first.id)).donor.informal_salutation,'Marisol Alvarez')

@@ -6047,7 +6047,7 @@
       "executable": false
     },
     "tests/hygiene-journey.mjs": {
-      "sha256": "b8a5679e74965cfaa3fc956d78911209ed0f55bdb5c009da4fc1ba4a918bb1e6",
+      "sha256": "e0534248192091d966aebe510c040673bb667907327c702a34f6e9a3fe59e817",
       "executable": false
     },
     "tests/import-refunds-journey.mjs": {
