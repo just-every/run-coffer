@@ -272,3 +272,8 @@ test('CAMP-005: reviewed auction results retain gross payments, benefits, purcha
  const {auctionResultsJourney}=await import('./auction-results-journey.mjs')
  await auctionResultsJourney()
 })
+
+
+test('CAMP-002: table and sponsorship packages keep reviewed guest answers private and account for benefits',{timeout:300000},async()=>{
+ const {eventPackagesJourney}=await import('./event-packages-journey.mjs');await eventPackagesJourney()
+})
