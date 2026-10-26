@@ -22,7 +22,7 @@ export async function developmentFollowupsPage(c: Context) {
   const reply=f.reply_at?`<p>${chip('Reply recorded','ok')} ${when(f.reply_at,s.timezone)} · ${e(f.reply_note)}</p>`
    :!f.resolution?`<details><summary>Record a reply</summary>${action('reply',area('Reply evidence','note','','required maxlength="4000"'),'Record reply',values)}</details>`:''
   const resolve=!f.resolution?`<details><summary>Record resolution</summary>${action('resolve',
-   select('Resolution','resolution',[['paid',f.kind==='report'?'Report completed':'Paid from recorded gifts'],['revised','Revised deadline with approval'],['written_off','Written off follow-up only']])+
+   select('Resolution','resolution',[['paid',f.kind==='report'?'Report completed':'Paid from recorded gifts'],['revised','Revised deadline with approval'],['written_off','Written off follow-up only']],'','aria-label="Resolution"')+
    `<p>Payment and report completion must already be recorded at the source. Writing off this follow-up leaves the financial balance unchanged.</p>`+
    area('Resolution evidence, approval or write-off reason','note','','required maxlength="4000"')+
    `<details><summary>Approve a revised deadline</summary>${field('New deadline','dueOn','date')}<label><input type="checkbox" name="approveRevision" value="1"> I approve this change to the source deadline.</label></details>`,

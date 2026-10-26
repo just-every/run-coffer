@@ -37,7 +37,7 @@ export async function developmentFollowupsBrowser(h,{stage,now},directory){
    await shot('relationship-escalations')
    for(const [name,resolution,note] of [['Rosa Morgan','paid','Pledge check matched to installment.'],['Riverbend Foundation','revised','Director approved the revised report deadline with the funder.'],['Riverbend Industries','written_off','Employer declined this match; owner recorded the reason.']]){
     const card=page.locator('section.card').filter({has:page.getByRole('heading',{name,exact:true})})
-    await card.getByText('Record resolution',{exact:true}).click()
+    await card.locator('summary').filter({hasText:/^Record resolution$/}).click()
     await card.getByLabel('Resolution',{exact:true}).selectOption(resolution)
     await card.getByLabel('Resolution evidence, approval or write-off reason').fill(note)
     if(resolution==='revised'){
