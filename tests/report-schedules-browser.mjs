@@ -69,6 +69,7 @@ export async function reportSchedulesBrowser(h,directory,stage){
     await page.getByRole('heading',{name:'Fundraising dashboard',exact:true}).waitFor()
     await page.getByRole('heading',{name:'Report contents',exact:true}).waitFor()
     assert.match(await page.locator('main').innerText(),/Current/)
+    assert.match(await page.locator('main').innerText(),/300\.00/,'The recipient sees current ledger figures after snapshot cleanup')
     focus=page.getByRole('heading',{name:'Fundraising dashboard',exact:true})
    }else{
     throw new Error('Unknown report schedule browser stage: '+stage)

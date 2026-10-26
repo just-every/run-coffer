@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {run,donor,reviewed} from './harness.mjs'
+import {run,donor,reviewed,archive} from './harness.mjs'
 import {reportAuthorityJourney} from './report-authority-journey.mjs'
 import {reportSchedulesBrowser} from './report-schedules-browser.mjs'
 
@@ -91,6 +91,7 @@ export async function reportSchedulesJourney(){
   const length=messages.length;await tick('2026-10-25T02:00:00Z');assert.equal(messages.length,length,'Manual resend does not enable scheduler replay')
   const audit=await h.get('/api/coffer/audit?action=reportSchedule.save')
   for(const row of audit.rows){const detail=JSON.parse(row.detail);assert.equal(detail.approvedBy,row.actor_id);assert.equal(detail.explicitDisclosureApproval,true);const saved=(await h.get('/api/coffer/report-schedules')).schedules.find(s=>s.id===row.subject_id);assert.deepEqual(detail.recipients,JSON.parse(saved.recipients))}
+  await assertReportSnapshotCleanup(h,messages.filter(message=>message.attachments))
 
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1602'},outbound:async request=>{
   assert.equal(new URL(request.url).origin,'https://api.sendgrid.com');const body=await request.json();messages.push(body)
@@ -114,11 +115,44 @@ export async function reportSchedulesJourney(){
    const anonymous=await h.request(path+suffix,{as:''});assert.ok([303,401].includes(anonymous.status));assert.doesNotMatch(await anonymous.text(),/currentCents|27500|275\.00|Fundraising dashboard|coffer-report.json/)
   }
   const refusals=await h.get('/api/coffer/audit?action=reportSchedule.linkRefused');assert.equal(refusals.rows.length,2);assert.ok(refusals.rows.every(row=>row.actor_id===stranger.id))
-  if(process.env.COFFER_REPORT_SCHEDULE_BROWSER)await reportSchedulesBrowser({...h,owner:recipient.cookie},process.env.COFFER_REPORT_SCHEDULE_BROWSER,'link:'+path)
-
   assert.equal(JSON.parse(Buffer.from(message.attachments[0].content,'base64').toString()).selection,'/app/reports/dashboard?year=2025')
   assert.equal((await h.get('/api/coffer/report-schedules')).runs[0].status,'submitted')
+  await assertReportSnapshotCleanup(h,[message])
+  await h.command('gift.record',{donorId:linkedDonor.id,amount:'25',receivedOn:'2025-04-02',method:'check',goods:'none',fund:'Library'},options)
+  const current=await h.request(path+'?download=1',{as:recipient.cookie})
+  assert.equal(current.status,200)
+  assert.equal((await current.json()).report.summary.currentCents,30000,'An approved link regenerates the report after cleanup')
+  assert.equal(JSON.parse(Buffer.from(message.attachments[0].content,'base64').toString()).report.summary.currentCents,27500,'The provider received the original due report')
+  await assertReportSnapshotCleanup(h,[message])
+  if(process.env.COFFER_REPORT_SCHEDULE_BROWSER)await reportSchedulesBrowser({...h,owner:recipient.cookie},process.env.COFFER_REPORT_SCHEDULE_BROWSER,'link:'+path)
+  const preserved=await h.get('/api/coffer/report-schedules'),schedule=preserved.schedules[0]
+  await h.command('reportSchedule.pause',{scheduleId:schedule.id,version:schedule.version})
+  const paused=await h.get('/api/coffer/report-schedules')
+  assert.equal(paused.schedules[0].enabled,0,'Schedule controls remain usable after snapshot cleanup')
+  assert.deepEqual(paused.runs,preserved.runs,'Pausing after cleanup preserves the submission references')
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true})
  await reportAuthorityJourney()
 
+}
+
+async function assertReportSnapshotCleanup(h,messages){
+ const before=await h.get('/api/coffer/report-schedules'),backup=await archive(h)
+ const rows=backup.filter(part=>part.kind==='part').flatMap(part=>part.items).filter(item=>item.kind==='row')
+ const serialized=JSON.stringify(rows)
+ assert.doesNotMatch(serialized,/generatedAt|currentCents|coffer-report\.json/,'The private archive retains no generated report envelope, figures or attachment')
+ for(const message of messages)for(const attachment of message.attachments){
+  assert.ok(!serialized.includes(attachment.content),'No encoded report snapshot remains in durable data')
+  assert.ok(!serialized.includes(JSON.stringify(Buffer.from(attachment.content,'base64').toString('utf8'))),'No serialized report snapshot remains in durable data')
+ }
+ for(const schedule of before.schedules){
+  const saved=rows.find(item=>item.table==='cf_report_schedules'&&item.row.id===schedule.id)?.row
+  assert.ok(saved,'Private schedule metadata survives snapshot cleanup')
+  for(const key of ['report_path','recipients','approved_by','next_at','version'])assert.deepEqual(saved[key],schedule[key])
+ }
+ for(const run of before.runs){
+  const saved=rows.find(item=>item.table==='cf_report_runs'&&item.row.id===run.id)?.row
+  assert.ok(saved,'Safe outcome references survive snapshot cleanup')
+  for(const key of ['schedule_id','recipient','status','message_id','retry_of'])assert.deepEqual(saved[key],run[key])
+ }
+ assert.deepEqual(await h.get('/api/coffer/report-schedules'),before,'Cleanup preserves private schedule and outcome reads')
 }
