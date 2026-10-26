@@ -37,7 +37,7 @@ export async function developmentReports(c:Context,month?:string) {
  const approvals=await all(c,'SELECT * FROM cf_development_report_approvals ORDER BY approved_at DESC,id DESC LIMIT 500')
  const grant=await one(c,'SELECT * FROM cf_automation_grants WHERE id=?',REPORT_GRANT)
  const schedule=await one(c,'SELECT * FROM cf_development_report_schedule WHERE id=1')
- return {reports:reports.map(r=>({...r,sourceDocument:JSON.parse(r.sources),directorNotes:JSON.parse(r.notes),recipientAddresses:JSON.parse(r.recipients)})),deliveries,approvals,grant,schedule,policy:DEVELOPMENT_REPORT_POLICY}
+ return {reports:reports.map((r):Row=>({...r,sourceDocument:JSON.parse(r.sources),directorNotes:JSON.parse(r.notes),recipientAddresses:JSON.parse(r.recipients)})),deliveries,approvals,grant,schedule,policy:DEVELOPMENT_REPORT_POLICY}
 }
 export async function draftDevelopmentReport(c:Context,p:Row,scheduleVersion?:number) {
  reportStaff(c)

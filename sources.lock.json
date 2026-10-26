@@ -2231,7 +2231,7 @@
       "executable": false
     },
     "src/coffer/agent/development-report.ts": {
-      "sha256": "1b1cdbb0d8c022c5bbac6c02ad53c941d54634158f8d57a161d78a0b9d8641ac",
+      "sha256": "af10479bcbc95761558a39f1f0687612fc9c07d88cc6cc1f2885067c41288b34",
       "executable": false
     },
     "src/coffer/agent/grants-ui.ts": {
