@@ -83,6 +83,18 @@ export async function webhooksJourney(){
   assert.equal((await log(h)).deliveries.find(d=>d.id===waiting.id).status,'held','Revoked approval stops queued disclosure')
   assert.equal(received.some(r=>r.deliveryId===waiting.id),false)
   if(process.env.COFFER_WEBHOOK_BROWSER)await webhooksBrowser(h,process.env.COFFER_WEBHOOK_BROWSER)
+  failing=true
+  const stoppedGift=await h.command('gift.record',{donorId:d.id,amount:'14.25',receivedOn:'2026-10-17',method:'cash',goods:'none'},{headers})
+  let stopped=(await log(h)).deliveries.find(x=>x.subject_id===stoppedGift.id)
+  for(let attempt=0;attempt<10&&stopped.status!=='exhausted';attempt++){
+   await tick(h,stopped.next_at)
+   stopped=(await log(h)).deliveries.find(x=>x.id===stopped.id)
+  }
+  assert.equal(stopped.status,'exhausted','Repeated failures eventually stop automatic delivery')
+  const stoppedCount=received.filter(x=>x.deliveryId===stopped.id).length
+  await tick(h,new Date(Date.parse(stopped.next_at)+86400000).toISOString())
+  assert.equal(received.filter(x=>x.deliveryId===stopped.id).length,stoppedCount,'Exhausted delivery waits for explicit replay')
+  failing=false
   await h.command('webhook.pause',{subscriptionId:quiet.id,version:1})
   await h.command('webhook.pause',{subscriptionId:quiet.id,version:1},{status:409})
   const before=received.length
