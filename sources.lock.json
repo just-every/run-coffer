@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d6165edb2125e1198f73a193534efb0b2d116609a6451ea6ba558bfa5df08f18",
+      "sha256": "4fef8036e12aa98b0953ee6ff8b528f41e79abc59c72ffaa2a47c67309ad71e2",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5803,7 +5803,7 @@
       "executable": false
     },
     "tests/acknowledgment-filters-browser.mjs": {
-      "sha256": "ed77412cb307c8c7c57a9e56693f10737e80fa278e9b0e516e389d552f7ac8de",
+      "sha256": "b5115621bae91b08c47bd2216a05032ae2009cf3833c9c0ff57c77acb1ef3ad3",
       "executable": false
     },
     "tests/acknowledgment-filters-journey.mjs": {
@@ -6407,7 +6407,7 @@
       "executable": false
     },
     "tests/receipt-autonomy-journey.mjs": {
-      "sha256": "bb5041514726afbc2eb0d6f267cbf786baf0d8e5dabcfc1f159c8b61761cdecc",
+      "sha256": "9c391a62a22117acade594ea080a4959253457bfb251aeba556e39f11f231a56",
       "executable": false
     },
     "tests/receipt-corrections-journey.mjs": {

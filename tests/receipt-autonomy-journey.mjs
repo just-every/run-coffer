@@ -67,7 +67,7 @@ export async function receiptAutonomyJourney() {
   const limitedRun=await h.api(endpoint+'/run',{});assert.equal(limitedRun.sent,0);assert.match(limitedRun.batches.find(b=>b.heldReason).heldReason,/daily receipt limit/)
   assert.equal((await ack(h,small,limited)).status,'not acknowledged')
   const imports={source:'bloomerang',files:[file('constituents.csv',[['Account Number','Name'],['synthetic-coffer-4','Imported receipt status']]),file('gifts.csv',[
-   ['Transaction Number','Account Number','Gift Type','Gift Date','Amount','Non-Deductible Amount','Acknowledged?','Acknowledgement Date','Acknowledgement Method','Acknowledgment Interaction ID'],
+   ['Transaction Number','Account Number','Gift Type','Gift Date','Amount','Non-Deductible Amount','Acknowledged?','Acknowledgement Date','Acknowledgement Method','Acknowledgment Reference'],
    ['synthetic-coffer-5','synthetic-coffer-4','Donation','2026-01-11','500','0','Yes','2026-01-12','letter','synthetic-coffer-8'],
    ['synthetic-coffer-6','synthetic-coffer-4','Donation','2026-01-12','500','0','Do Not Acknowledge','','',''],
    ['synthetic-coffer-7','synthetic-coffer-4','Donation','2024-01-12','500','0','No','','',''],
@@ -79,6 +79,8 @@ export async function receiptAutonomyJourney() {
   const importedDonor=(await h.get('/api/coffer/donors?q=Imported%20receipt%20status')).donors[0]
   const imported=(await h.get('/api/coffer/donors/'+importedDonor.id)).gifts
   assert.deepEqual(new Set(imported.map(g=>g.acknowledgment.status)),new Set(['acknowledged','do not acknowledge','not acknowledged']))
+  const sourceLetter=imported.find(g=>g.reference==='bloomerang:synthetic-coffer-5').acknowledgment
+  assert.deepEqual([sourceLetter.acknowledged_on,sourceLetter.method,sourceLetter.source_reference,sourceLetter.link],['2026-01-12','letter','synthetic-coffer-8',null],'An opaque source letter reference retains its facts without claiming a native conversation')
   const importedProposals=(await h.get('/api/coffer/agent')).missingReceipts
   assert.ok(!imported.some(g=>importedProposals.some(p=>p.id===g.id)))
   const background=(await h.get('/api/coffer/agent/grants')).find(g=>g.id==='receipts')

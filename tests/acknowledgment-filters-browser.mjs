@@ -42,7 +42,7 @@ export async function acknowledgmentFiltersBrowser(h,{saved,call,phone,g300,g600
     await page.getByLabel('Thank-you method',{exact:true}).selectOption('phone call')
     await page.getByLabel('Linked acknowledgment record',{exact:true}).fill(call.id)
     const form=status.locator('xpath=ancestor::form')
-    await form.getByRole('button').first().click()
+    await (name==='gifts'?form.getByRole('button',{name:'Filter gifts',exact:true}):form.getByRole('button').first()).click()
     assert.equal(new URL(page.url()).searchParams.get('ackLink'),call.id)
     if(name==='fund')assert.equal(new URL(page.url()).searchParams.get('fund'),'Literacy')
     await page.getByLabel('Acknowledgment status',{exact:true}).waitFor({state:'attached'})
@@ -68,7 +68,8 @@ export async function acknowledgmentFiltersBrowser(h,{saved,call,phone,g300,g600
     }
     await capture(name+'-filters',width)
     await page.getByLabel('Linked acknowledgment record',{exact:true}).fill('synthetic-coffer-no-link')
-    await page.getByLabel('Acknowledgment status',{exact:true}).locator('xpath=ancestor::form').getByRole('button').first().click()
+    const emptyForm=page.getByLabel('Acknowledgment status',{exact:true}).locator('xpath=ancestor::form')
+    await (name==='gifts'?emptyForm.getByRole('button',{name:'Filter gifts',exact:true}):emptyForm.getByRole('button').first()).click()
     assert.equal(await page.getByText('$400.00',{exact:true}).count(),0,'No selected gift remains after a mismatched link')
     if(name==='dashboard')assert.equal(await page.locator('.stats .stat strong').first().innerText(),'$0.00')
     else await page.locator('.empty').first().waitFor()
