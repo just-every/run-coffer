@@ -26,6 +26,8 @@ const PARENTS: Record<string, string> = {
 }
 // Rows that reach a donor but are not records about them.
 export const NOT_IN_FILE: Record<string, string> = {
+ cf_auction_jobs: 'Complete source files contain other bidders and stay private.',
+ cf_auction_donors: 'Internal undo snapshots contain complete imported contact records.',
  cf_development_report_donors: 'Internal board reports combine several constituents and their source facts remain available in their own records.',
  cf_hygiene_evidence: 'Private forwarded source evidence is withheld from donor files.',
  cf_hygiene_proposals: 'Internal review proposals can contain counterpart data and are withheld from donor files.',
@@ -132,6 +134,7 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
   const found = rows.get(t.name); if (!found?.length) continue
   records[t.name.slice(3)] = found.map(r => {
    const out: Row = { ...r }
+   if(t.name==='cf_auction_rows')for(const key of ['candidates','match_reason','gift_snapshot','property_snapshot','bidder_key','planned_donor_id'])delete out[key]
    if(out.name_fields){const names=JSON.parse(out.name_fields);if(names._attention&&!ids.includes(names._attention)){out.name_fields='[third party withheld]';if(t.name==='cf_communications'){out.subject='[third party withheld]';out.body='[third party withheld]'}if(t.name==='cf_appeal_recipients'){out.merge_fields='[third party withheld]';out.rendered_subject='[third party withheld]';out.rendered_body='[third party withheld]'}}}
    if(t.name==='cf_acks'||t.name==='cf_in_kind_acknowledgments') {
     const key=t.name==='cf_acks'?'address':'recipient_address'

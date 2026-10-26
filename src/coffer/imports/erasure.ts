@@ -13,7 +13,7 @@ export const ERASED = 'Erased donor'
  * the charity's ledger keeps its amounts and dates. Contact details, consent
  * evidence, letter text, appeal addresses and gift notes are removed. One-way
  * hashes of the email and donor ID stop a later move-in reviving the person. */
-export function donorErasureStatements(donor: { id: string; email: string | null; emails?: string[] }, placeholderId: string, now: string): D1Sql[] {
+export function donorErasureStatements(donor: { id: string; email: string | null; emails?: string[] }, placeholderId: string, now: string, afterPlaceholder: D1Sql[] = []): D1Sql[] {
   const donorId = donor.id
   return [
     ...developmentReportErasureStatements(donorId),
@@ -21,6 +21,7 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     sql('DELETE FROM cf_hygiene_evidence WHERE donor_id=?',donorId),
     ...[donorId, donor.email,...(donor.emails??[])].filter(Boolean).map(value => sql('INSERT OR IGNORE INTO cf_erasures(hash,erased_at) VALUES(?,?)', erasureHash(value!), now)),
     sql('INSERT INTO cf_donors(id,version,name,source,source_ref,created_at,erased_at) SELECT ?,1,?,source,NULL,?,? FROM cf_donors WHERE id=?', placeholderId, ERASED, now, now, donorId),
+    ...afterPlaceholder,
     sql('UPDATE cf_communications SET name_fields=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL WHERE donor_id=?',donorId),
     // A household snapshot can name a person whose donor ID is not the
     // statement's addressee. Erasure redacts that whole historical piece.

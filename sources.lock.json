@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "bdfb1558cd211f3358527fc2cfdea83320c2a860011b58f4e1fdbf42e417e556",
+      "sha256": "90b9d14e80abedd2d2211f67259a47f0fccc7dbdf68117f209d6ed7cb38cb1c8",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "cda2beb8adfaf21e8e445daf738ab64b42a944727ea6b5405ecec435c2092293",
+      "sha256": "044576321219b7ba50e9765f8a25b73c1f92441febef6262b093754858ed7689",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1344,6 +1344,10 @@
     },
     "migrations/core/0151_coffer_development_reports.sql": {
       "sha256": "afb750fbcc14c20100baed4651b0eab808e54bce98e1e246ed0bd74bb48d99d7",
+      "executable": false
+    },
+    "migrations/core/0152_coffer_auctions.sql": {
+      "sha256": "aeaa3359c23d7f93d78170e1f5bbb0b054498bc3821d7a7fe0cbfd13203333a9",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2350,6 +2354,38 @@
       "sha256": "54a401fd3a3e1aa3285723ed65336be0f6b744f90597f64f5d714d30d07de5f1",
       "executable": false
     },
+    "src/coffer/auction-core.ts": {
+      "sha256": "3aa6059263c0e9c4c3041b12366905a31bc02d67e94aff19c9e354875cb1eca7",
+      "executable": false
+    },
+    "src/coffer/auction-csv.ts": {
+      "sha256": "9955364fd4cc7a3c074f3e567537c007d0afd5288fb834e0628d65a64c764064",
+      "executable": false
+    },
+    "src/coffer/auction-custody.ts": {
+      "sha256": "5e970d6cec160bc92c8c8e0f139be4bba73240b7961afd886881217fc0eb03fc",
+      "executable": false
+    },
+    "src/coffer/auction-review.ts": {
+      "sha256": "9ae025dae19b4c045a68bd8093aa6a95e4cb1ce835bab8f955376b49dfb6075c",
+      "executable": false
+    },
+    "src/coffer/auction-ui.ts": {
+      "sha256": "d540e938adbfef32bc4721934de99cd8c80397b8f30c65b8b1e732c6d6420f99",
+      "executable": false
+    },
+    "src/coffer/auction-undo.ts": {
+      "sha256": "c89cf44a3df961839814b8d1175eadc00d3b66837121f5658955f260e9caa107",
+      "executable": false
+    },
+    "src/coffer/auction-write.ts": {
+      "sha256": "f4295fd77c119fb6a3d6a86207d96ae1367847579605f75e10a7baa68fcb0295",
+      "executable": false
+    },
+    "src/coffer/auction.ts": {
+      "sha256": "adac5f16b4dbea7237029026c9aa853a350419ec6ef7c3b47d47f8fd74e68558",
+      "executable": false
+    },
     "src/coffer/audit.ts": {
       "sha256": "2edebb19d802696839885b29770a5dd1bf539df6fa6a1618282b2d87b9b93f87",
       "executable": false
@@ -2383,7 +2419,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "022cbbe330859cd82110f8f34460fcbd6e09267b6030a2800d839d6a2e175f4a",
+      "sha256": "85f38d84b713f58c8af910b65682d921233495cfd831a580b444ef697fe20511",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2551,7 +2587,7 @@
       "executable": false
     },
     "src/coffer/donor-file.ts": {
-      "sha256": "47a9d3f483cc7a43ded349bb27d604a633d0bd8a4ec4434d9d3b3baf5836f48e",
+      "sha256": "67666fc0cf095479d059cc6011d9a83c4bea4ce20ae7f483a9b0fd9b6c627450",
       "executable": false
     },
     "src/coffer/donor-households.ts": {
@@ -2559,11 +2595,11 @@
       "executable": false
     },
     "src/coffer/donor-merge.ts": {
-      "sha256": "0639e5ef30878a0b92b1bba7a2b0a52d2f5cec8282781394e681bffcc5d65ffa",
+      "sha256": "00842df7e65019dd29e9a192c2b18167f50810f202812123287a947ed1342625",
       "executable": false
     },
     "src/coffer/donors.ts": {
-      "sha256": "bba1da3d4eadb5b79a99202dc45cbcac187b49ef3e63237dc665c1fc0fc427bc",
+      "sha256": "12ca678f659d0617cdfff7df4d49bb232ee3ab824ecb4288376ea257b61a6f73",
       "executable": false
     },
     "src/coffer/duplicates.ts": {
@@ -2819,7 +2855,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "5d5a8b528aa131a4748603f22aa9ad5a03416de05c68a878f8d4f19818fdbbfa",
+      "sha256": "6bcbfb564060bdaedc17ba072f3b62265e68841561a8b075908ccfca063f2364",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -2831,7 +2867,7 @@
       "executable": false
     },
     "src/coffer/imports/erasure.ts": {
-      "sha256": "382d3f0cbe8eedc2b5815d574be93cfdbd4c321f71e689762e463c78d5cff685",
+      "sha256": "288586968d3050c0f8581d7225ae3d7547a958e082a574120834aecc7459583b",
       "executable": false
     },
     "src/coffer/imports/index.ts": {
@@ -2867,7 +2903,7 @@
       "executable": false
     },
     "src/coffer/imports/targets.ts": {
-      "sha256": "fc7b8ed3f4a1e0ab875c79f4d87d3baf87f6726623af67c6efa2640164c407f2",
+      "sha256": "1d91c09637357cb9deba03856c6be8de6cad0d868ec2807e3d97d4d5ba5033c7",
       "executable": false
     },
     "src/coffer/imports/types.ts": {
@@ -2947,7 +2983,7 @@
       "executable": false
     },
     "src/coffer/merge-journal.ts": {
-      "sha256": "e7bb61d268936f409bd666e8ac18f5c5556dc84278dffc246280af793a4f8602",
+      "sha256": "53b93dcaddd95847c08c1884402f45a74168710d40683b9c5458cd9fb66b61e7",
       "executable": false
     },
     "src/coffer/money.ts": {
@@ -3007,7 +3043,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "f3ff5ccfa92f549dc2b5a2003b2329c6900627719cea1aafa6f91bdbd43d2f56",
+      "sha256": "8ae264578bb294794972cc2abe11eff82cc8057e14555e7808f2b027a41897e9",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -3487,7 +3523,7 @@
       "executable": false
     },
     "src/coffer/ui/donors.ts": {
-      "sha256": "ba6d758f7c94a48023beb5494cb712756d6f9975dcf15b30f1437bf12c989b25",
+      "sha256": "1046994ac4dfc940b5dd9dbad65a587e937da7e5576b8f311d3d811a2095578d",
       "executable": false
     },
     "src/coffer/ui/duplicates.ts": {
@@ -3507,7 +3543,7 @@
       "executable": false
     },
     "src/coffer/ui/fundraising-events.ts": {
-      "sha256": "04eab3ee94612b97341167e67a27640ef07365339c9f82d5034de484a5a88c99",
+      "sha256": "4ece9797893fd502cc72e26ebcfcf5572c1bf5cd41d9ac2bbdd5d4b3cea14107",
       "executable": false
     },
     "src/coffer/ui/gift-acknowledgments.ts": {
@@ -5694,6 +5730,14 @@
       "sha256": "04c629ca88ea16c1eb16a8d1fe16ec5db57ffe82b59b383d8e52bd2564d42ae8",
       "executable": false
     },
+    "tests/auction-results-browser.mjs": {
+      "sha256": "4bd298438cd50d5da82d2f294f8968628a2b323fd95c65a70fb9b9db6fe0aa15",
+      "executable": false
+    },
+    "tests/auction-results-journey.mjs": {
+      "sha256": "ae37ef4c83e0ac6605cc18a24014fde0b5b67beb64e50a2bed39908ed86cb7cf",
+      "executable": false
+    },
     "tests/audit.test.mjs": {
       "sha256": "ea27be9c35ee9f432f7a5af71b9cf4578899a270b6f97a3128cc7e9b3a4256cb",
       "executable": false
@@ -6055,7 +6099,7 @@
       "executable": false
     },
     "tests/giving.test.mjs": {
-      "sha256": "f4519f444943777bd4644f65b76a75e9d81d1ff1a853283b3027ed0b4b6ad544",
+      "sha256": "d565bbf1197b78a0a9dd694e829e2a6a16b097d2a19bd1d3876d9406ca041c9e",
       "executable": false
     },
     "tests/grants-journey.mjs": {
@@ -6455,7 +6499,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "2de3f75c25fe7986023b9b3fbf7f8d06208d535154b491af9169fc7999d4ebf0",
+      "sha256": "fa06fa77fb3f0247ee89193d7fdc2d7a97f9d9ec8642509fc0cce86cae3c9c49",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

@@ -1,3 +1,6 @@
+import { auctionState, auctionUploadResponse } from './auction'
+import { auctionPage } from './auction-ui'
+import { auctionErasureStatements } from './auction-custody'
 import { developmentReportResponse } from './agent/development-report-http'
 import { taskTeam } from './task-team'
 import { webhookState, webhookErasureStatements } from './webhooks'
@@ -259,6 +262,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    return page(report.title,scheduledReportDocument(report,path),actor)
   }
   if(path==='/api/coffer/giving/protection'&&request.method==='GET'){if(!manager(actor))fail('FORBIDDEN','Only the owner or an admin reviews giving protection.',403);return json({forms:await protectionState(c)})}
+  const auctionUpload=await auctionUploadResponse(request,c)
+  if(auctionUpload)return auctionUpload
   const documents=await documentsResponse(request,c,async()=>isApi?jsonBody(request):formBody(request,400000))
   if(documents)return documents
   const developmentReport=await developmentReportResponse(request,c,async()=>isApi?jsonBody(request):Object.fromEntries(await formBody(request)))
@@ -414,7 +419,8 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  if (!donor) fail('NOT_FOUND', 'That donor does not exist or was already erased.', 404)
  const checkpoint = await imports.portabilityCheckpoint(c.db)
  const aliases = await c.db.prepare("SELECT email FROM cf_donor_aliases WHERE donor_id=? UNION SELECT value AS email FROM cf_contact_points WHERE donor_id=? AND kind='email' UNION SELECT json_extract(snapshot,'$.value') AS email FROM cf_contact_history WHERE donor_id=? AND json_extract(snapshot,'$.kind')='email'").bind(donorId,donorId,donorId).all<{email:string}>()
- const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now)
+ const auctionErasure=await auctionErasureStatements(c,donorId,placeholder)
+ const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)
  const givingErasure = [
   ...eventRegistrationErasureStatements(donorId,placeholder),
   {sql:'DELETE FROM cf_saved_card_consents WHERE donor_id=?',params:[donorId]},
@@ -446,6 +452,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.fields','marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
+ if(command.startsWith('auction.'))return redirect('/app/events/'+encodeURIComponent(result.eventId)+'/auctions?jobId='+encodeURIComponent(result.jobId))
  if(command.startsWith('giving.'))return redirect('/app/giving/setup?saved=1')
  if(command==='pledgeTemplate.save')return redirect('/app/settings?saved=1#pledge-template')
  if(command==='custom.define'||command==='custom.renameChoice'||command==='tag.define'||command==='tag.category')return redirect('/app/settings?saved=1#custom-field-definitions')
@@ -537,6 +544,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 
 async function api(c: Context, url: URL): Promise<Response> {
  if(url.pathname==='/api/coffer/webhooks')return json(await webhookState(c))
+ if(url.pathname==='/api/coffer/auctions')return json(await auctionState(c,url.searchParams.get('eventId')??'',url.searchParams.get('jobId')??undefined))
  if(url.pathname==='/api/coffer/report-schedules')return json(await reportSchedules(c))
  if(url.pathname==='/api/coffer/agent-grants')return json(await agentGrantsState(c))
  if(url.pathname==='/api/coffer/provider-fields'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages shared provider fields.',403);const conn=await savedConnection(c);return json({provider:conn?.provider??null,version:conn?.mergeVersion??1,fields:conn?.mergeSelection??[]})}
@@ -679,6 +687,8 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const cultivation = path.match(/^\/app\/opportunities\/([^/]+)$/)
  if(cultivation) return show('Action plan and proposals',await cultivationPage(c,cultivation[1]))
  if (path === '/app/research') return show('Prospect research',await researchPage(c,url.searchParams.get('donorId')??undefined))
+ const auctionPath=path.match(/^\/app\/events\/([^/]+)\/auctions$/)
+ if(auctionPath)return show('Auction results',await auctionPage(c,decodeURIComponent(auctionPath[1]),url.searchParams.get('jobId')??undefined,{q:url.searchParams.get('q')??undefined,rowId:url.searchParams.get('matchRow')??undefined}))
  if(path==='/app/events'||/^\/app\/events\/[^/]+$/.test(path)){requireRole(c.actor,['owner','admin'],'manage fundraising events');return show('Fundraising events',await eventsPage(c,path==='/app/events'?undefined:decodeURIComponent(path.split('/').at(-1)!)))}
  if (path === '/app/volunteering') return show('Volunteer history',await volunteeringPage(c,url))
  if (path === '/app/grants') return show('Foundation and corporate grants',await grantsPage(c,url.searchParams.get('donorId')??undefined))
