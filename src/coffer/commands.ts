@@ -1,3 +1,4 @@
+import { webhookCommand } from './webhooks'
 import { fundraisingEventCommand } from './fundraising-events'
 import { reportScheduleCommand } from './report-schedules'
 import { reservePreparationGrant } from './agent-grants-legacy'
@@ -72,6 +73,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // Who may run each command. Agents prepare letters and appeal audiences; a
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
+ 'webhook.subscribe': MANAGERS, 'webhook.pause': MANAGERS, 'webhook.replay': MANAGERS,
  'event.create': MANAGERS, 'event.ticket': MANAGERS, 'event.checkIn': MANAGERS,
  'reportSchedule.save': MANAGERS, 'reportSchedule.pause': MANAGERS, 'reportSchedule.resend': MANAGERS, 'reportSchedule.revokeRecipient': MANAGERS,
  'giving.protection': MANAGERS, 'giving.resume': MANAGERS,
@@ -128,7 +130,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agentGrant.')) return (await agentGrantCommand(c,command,p))!
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [fundraisingEventCommand,reportScheduleCommand,protectionCommand,givingConnectionCommand,restorePendingCommand,profileFieldCommand,pledgeTemplateCommand,contactCommand,listTasksCommand,profileBulkCommand,bulkListCommand,customChoiceCommand,tagCommand,customFieldCommand,addressCommand, contributionTypeCommand, giftRulesCommand, solicitationCommand, smsCommand, giftBatchCommand, savedListCommand, personDefaultsCommand, organizationContactCommand, householdCommand, statusCommand, meetingQuestionCommand, meetingCommand, tributeNotificationCommand, receiptTaskCommand, letterTemplateCommand, dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [webhookCommand,fundraisingEventCommand,reportScheduleCommand,protectionCommand,givingConnectionCommand,restorePendingCommand,profileFieldCommand,pledgeTemplateCommand,contactCommand,listTasksCommand,profileBulkCommand,bulkListCommand,customChoiceCommand,tagCommand,customFieldCommand,addressCommand, contributionTypeCommand, giftRulesCommand, solicitationCommand, smsCommand, giftBatchCommand, savedListCommand, personDefaultsCommand, organizationContactCommand, householdCommand, statusCommand, meetingQuestionCommand, meetingCommand, tributeNotificationCommand, receiptTaskCommand, letterTemplateCommand, dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) {
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }

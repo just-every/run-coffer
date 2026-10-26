@@ -1,3 +1,4 @@
+import { runWebhooks } from './coffer/webhooks/delivery'
 import { runScheduledReports } from './coffer/report-scheduler'
 import { runPledgeFollowups } from './coffer/pledge-followups'
 import { prepareJanuaryStatements } from './coffer/annual-scheduler'
@@ -41,6 +42,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     execution.waitUntil(runMarketingSync(runtimeBindings(env),new Date(controller.scheduledTime)))
     execution.waitUntil(runWelcome(runtimeBindings(env),new Date(controller.scheduledTime)))
     const tick=new Date(controller.scheduledTime)
+    execution.waitUntil(runWebhooks(runtimeBindings(env),tick))
     execution.waitUntil(runScheduledReports(runtimeBindings(env),tick))
     execution.waitUntil(prepareJanuaryStatements(runtimeBindings(env),tick))
     execution.waitUntil(advanceNcoa(runtimeBindings(env),tick))

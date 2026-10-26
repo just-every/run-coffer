@@ -1098,6 +1098,8 @@ Before the public API ships, its journey asserts `RCPT-012` read/write authority
 
 Signed webhooks for gift created and reversed, donor created and updated, plan failed and canceled, task assigned and form submitted, retried with backoff and replayable from a delivery log.
 
+Current native semantics: subscriptions are installation-specific, explicitly approved and audited by an owner or admin. Payloads contain only an event ID, type, occurrence timestamp and the changed record ID. HTTPS receivers verify HMAC-SHA256 over the signature timestamp, a dot and the exact request bytes; event IDs remain stable across automatic retries and explicit replays. Initial call, recurring and grant task assignments and changed call or grant owners emit task events. A form submission means that a public giving or event checkout successfully obtained its first provider session; a plan cancellation means its first scheduled or immediate cancellation, and a failure is the first failed observation of an invoice. Ledger gift and reversal inserts include current import and hosted-payment doors; donor updates follow versioned native record changes. Failed delivery attempts retry after increasing delays, stop after six attempts and remain in the delivery log; a reviewed replay creates a separate delivery with the original event ID. Endpoint pause and changed approver authority stop queued work; an already submitted request may complete. Redirects are never followed, response bodies are never retained, and public-network enforcement uses the Worker's existing strictly-public fetch boundary. Signing keys are sealed under this installation's session secret, shown once and excluded with webhook approvals and delivery state from archives. Donor erasure removes associated webhook identifiers and delivery history. Future API-001 transports, API-003 connectors and TEAM-001 roles inherit explicit endpoint approval, current authority, identifier-only disclosure, signing, replay lineage and custody guards before shipping. These conservative defaults await ct approval; they do not change the acceptance below.
+
 *Acceptance:* An HTTP journey subscribes an endpoint, records a gift, verifies the signature, fails one delivery and sees the retry and replay.
 
 #### API-003 — Zapier and Crank.
@@ -1372,8 +1374,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 73 | 35 | 22 | 130 |
-| All | 82 | 35 | 22 | 139 |
+| Target and push further | 73 | 36 | 21 | 130 |
+| All | 82 | 36 | 21 | 139 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1493,7 +1495,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `TEAM-002` | Single sign-on and two-step sign-in | target | partial | `src/modules/operator-auth/identity/oidc` | Base sign-in supports an OIDC provider; requiring SSO and a second factor are not offered in Coffer. |
 | `TEAM-003` | Audit log | target | done | `src/coffer/audit.ts`, `src/coffer/ui/audit.ts`, `migrations/core/0041_coffer_audit.sql`, `migrations/core/0043_coffer_access_audit.sql`, `tests/audit.test.mjs` |  |
 | `API-001` | Public REST API | target | partial | `src/coffer/http.ts`, `src/coffer/commands.ts`, `tests/coffer.test.mjs` | Authenticated donor reads and a command API exist; no versioned public API, OpenAPI document, scoped keys or idempotency keys. |
-| `API-002` | Webhooks | target | missing |  | No webhooks. |
+| `API-002` | Webhooks | target | partial | `tests/coffer.test.mjs` — "API-002: signed native events retain failed delivery attempts, backoff and explicit replay", via `tests/webhooks-journey.mjs` — "webhooksJourney" (authenticated subscription, gift recording, HMAC verification, retained failures, increasing backoff, replay and all eight event kinds); `tests/webhooks-browser.mjs` — "webhooksBrowser" (Settings, subscription, signing key, pause and delivery-log replay at 1440 and 390) | Conservative default ADOPTED pending ct approval: owner or admin, explicit audited endpoint disclosure and retry consent, identifier-only event facts, six bounded automatic attempts, reviewed duplicate-aware replay, current approver authority, no redirected delivery, installation-only keys and approvals, and erasure of associated webhook history. No live receiver or Stripe claim; receiver and Stripe network edges are faked. |
 | `API-003` | Zapier and Crank | target | missing |  | No Zapier app or Crank connector. |
 | `API-004` | MCP endpoint | target | done | `src/coffer/mcp.ts`, `src/coffer/http.ts`, `docs/MCP.md`, `tests/coffer.test.mjs`, `tests/mcp-journey.mjs`, `tests/mcp-browser.mjs` |  |
 | `MOBILE-001` | Phone-ready web app | target | done | `tests/coffer.test.mjs` — "MOBILE-001: phone lookup, call, meeting, gift and tasks use direct actions with visible restrictions and every staff screen fits"; `tests/mobile-journey.mjs` — "mobileJourney" proves two-action lookup, call/meeting save and gift entry, the giving summary, owned tasks and adjacent active/do-not-solicit badges through native pages. It follows current staff navigation including populated campaign, receipt/print, appeal, opportunity and pledge/invoice screens, asserting no document overflow at 390 and 1440. The same journey proves 300 ms hover tooltips and immediate keyboard-focus tooltips on visible icon controls at both widths. | None for current staff screens. Future staff screens inherit the 390-pixel and tooltip rules. |

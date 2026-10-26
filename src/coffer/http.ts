@@ -1,3 +1,5 @@
+import { webhookState } from './webhooks'
+import { webhookPage, webhookSecretPage } from './ui/webhooks'
 import { eventRegistrationErasureStatements } from './privacy'
 import { eventGuests, fundraisingEvents } from './fundraising-events'
 import { eventsPage } from './ui/fundraising-events'
@@ -179,6 +181,7 @@ async function formInput(data: FormData) {
  const customKeys=[...new Set([...data.keys()].filter(key=>key.startsWith('custom.')))]
  if(customKeys.length)input.customFields=Object.fromEntries(customKeys.filter(key=>data.getAll(key).some(value=>String(value).trim()!=='')).map(key=>[key.slice(7),data.has('many.'+key)?data.getAll(key):data.get(key)]))
  if(input.command==='custom.set'&&data.has('customMany'))input.value=data.getAll('customValues')
+ if(input.command==='webhook.subscribe')input.events=data.getAll('events')
  if(input.command==='agentGrant.save')input.permissions=data.getAll('permissions')
  if (input.command === 'sms.prepare') input.donorIds=data.getAll('donorIds')
  if (input.command === 'research.screen') input.donorIds=data.getAll('donorIds')
@@ -474,6 +477,8 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command === 'agent.create') return page('Agent key created', `<p>Copy this key once into your agent’s private environment. It will not be shown again.</p><pre class="secret">${esc(result.token)}</pre><p>Expires ${esc(when(new Date(result.expiresAt).toISOString(), timeZone))}.</p><p><a href="/app/data">Back to data &amp; access</a></p>`, actor)
  if(command.startsWith('agentGrant.'))return redirect('/app/data#agent-grants')
  if (command === 'agent.revoke') return redirect('/app/data')
+ if(command==='webhook.subscribe')return page('Webhook signing key',webhookSecretPage(result.secret),actor,200,'/app/settings')
+ if(command.startsWith('webhook.'))return redirect('/app/webhooks')
  if (command.startsWith('reportSchedule.')) return redirect('/app/report-schedules')
  if (command === 'dashboard.goal') return redirect('/app/reports/dashboard?year='+encodeURIComponent(String(input.year))+'#goals')
  if(command==='person.defaultsPreview')return page('Review name defaults',`<p>${result.changed} person records will change. Overrides and prepared documents are preserved.</p>${form('person.defaults','<p>Save these defaults for existing and new people.</p>','Save name defaults',result)}<p><a href="/app/settings">Back to settings</a></p>`,actor)
@@ -524,6 +529,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
+ if(url.pathname==='/api/coffer/webhooks')return json(await webhookState(c))
  if(url.pathname==='/api/coffer/report-schedules')return json(await reportSchedules(c))
  if(url.pathname==='/api/coffer/agent-grants')return json(await agentGrantsState(c))
  if(url.pathname==='/api/coffer/provider-fields'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages shared provider fields.',403);const conn=await savedConnection(c);return json({provider:conn?.provider??null,version:conn?.mergeVersion??1,fields:conn?.mergeSelection??[]})}
@@ -632,6 +638,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
+ if(path==='/app/webhooks')return show('Webhooks',await webhookPage(c))
  if(path==='/app/report-schedules')return show('Scheduled reports',await reportSchedulesPage(c,url))
  if(path==='/app/reports/custom-fields')return show('Gift custom fields',await customReportPage(c,url))
  if(path==='/app/reports/custom-fields.csv')return download(customReportCsv(await customReport(c,url)),'coffer-custom-gifts')

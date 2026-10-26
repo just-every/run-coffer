@@ -16,8 +16,8 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 73 | 35 | 22 | 130 |
-| All | 82 | 35 | 22 | 139 |
+| Target and push further | 73 | 36 | 21 | 130 |
+| All | 82 | 36 | 21 | 139 |
 
 ## Target
 
@@ -167,7 +167,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 ### Integrations and API
 
 111. **`API-001` Public REST API** (partial). An HTTP journey creates a read-only key and a gift-entry key, reads donors with the first, is refused a write, records a gift idempotently with the second, sets and reads a donor's "do not solicit" restriction with a full key, and validates responses against the OpenAPI document. Before the public API ships, its journey asserts `RCPT-012` read/write authority.
-112. **`API-002` Webhooks** (missing). An HTTP journey subscribes an endpoint, records a gift, verifies the signature, fails one delivery and sees the retry and replay.
+112. **`API-002` Webhooks** (partial). An HTTP journey subscribes an endpoint, records a gift, verifies the signature, fails one delivery and sees the retry and replay. `tests/coffer.test.mjs` — "API-002: signed native events retain failed delivery attempts, backoff and explicit replay" runs `webhooksJourney` in `tests/webhooks-journey.mjs`; `webhooksBrowser` in `tests/webhooks-browser.mjs` covers the native Settings path at 1440 and 390. The conservative endpoint approval, payload, authority, retry, replay, retention and archive defaults stated in API-002 await ct approval. Future API-001, API-003 and TEAM-001 doors inherit those obligations. Receiver and Stripe edges are faked; no live-provider claim.
 113. **`API-003` Zapier and Crank** (missing). A Zapier CLI validation of the app passes, and a Crank flow triggered by a Coffer gift creates a task through the API.
 114. **`API-004` MCP endpoint** (done). An MCP client lists donors and drafts an acknowledgment batch through the endpoint, which a person then approves; a write outside its grant is refused. The clause-named journey also reads context, prepares a consent-checked appeal, preserves preparer/approver identities and frozen hash, tests current discovery/legacy initialization, malformed content/metadata/method/body/origin and anonymous/cookie refusals, and proves key expiry/revocation. Native human review and approval run at 1440/390; DEV-012 inherits future wider-grant MCP parity.
 
