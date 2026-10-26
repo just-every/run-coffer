@@ -5915,7 +5915,7 @@
       "executable": false
     },
     "tests/event-packages-browser.mjs": {
-      "sha256": "fa0542fc431632b16253c4b1ab8ef21fa13ed01832486dd3932aef02a3e692a3",
+      "sha256": "61019a14ef18546c8602b7c0302d653375b35bc909f9e8f69a8fffe266e276c1",
       "executable": false
     },
     "tests/event-packages-journey.mjs": {

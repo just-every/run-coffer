@@ -54,8 +54,8 @@ export async function packageStaffBrowser(h,{event,guest,registration,directory}
   const row=page.locator('.list > li').filter({has:page.getByRole('heading',{name:guest.name,exact:true})})
   await row.getByText('Review guest and answers',{exact:true}).click();await row.getByLabel('Find donor for '+guest.name,{exact:true}).fill(guest.email);await row.getByRole('button',{name:'Find guest donor',exact:true}).click()
   const review=page.locator('form').filter({has:page.getByRole('button',{name:`Accept guest ${guest.name} as ${guest.name}`,exact:true})})
-  await review.getByLabel('I reviewed this guest identity and the submitted answers',{exact:true}).check();await shot(page,directory,'guest-match-review',390)
+  await review.getByLabel('I reviewed this guest identity and the submitted answers',{exact:true}).check();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await shot(page,directory,'guest-match-review',width)}
   await review.getByRole('button',{name:`Accept guest ${guest.name} as ${guest.name}`,exact:true}).click()
-  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/events/'+event.id);await shot(page,directory,'guest-reviewed',width);await page.goto(origin+'/app/donors/'+guest.id+'?timelineKind=event');await shot(page,directory,'package-guest-timeline',width)}
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/events/'+event.id);await shot(page,directory,'guest-reviewed',width);await page.goto(origin+'/app/donors/'+guest.id+'?timelineKind=event');await shot(page,directory,'package-guest-timeline',width);for(const part of ['timeline','engagement'])await page.locator('#'+part).screenshot({path:`${directory}/CAMP-002-package-${part}-${width}.png`});await page.locator('#custom-fields summary').filter({hasText:'Reading sessions'}).click();await page.locator('#custom-fields').screenshot({path:`${directory}/CAMP-002-package-custom-fields-${width}.png`})}
  })
 }
