@@ -5,7 +5,7 @@ import { box, e, empty, field, form, select } from './common'
 export async function apiKeysPage(c: Context) {
  const {keys}=await keyState(c)
  const create=form('apiKey.create',field('Key label','label','text','','required maxlength="100" autocomplete="off"')+
-  select('Permissions','scope',[['read-only','Read only'],['gift-entry','Gift entry'],['full','Full native records']],'read-only')+
+  select('Permissions','scope',[['read-only','Read only'],['gift-entry','Gift entry'],['full','Full native records']],'read-only','aria-label="Permissions"')+
   field('Expiry date (UTC, optional)','expiresOn','date','','')+
   '<details><summary>Scope and expiry policy</summary><p>Read only can read native records. Gift entry can read constituents, gifts, pledges, funds and campaigns and record gifts for existing donors. Full adds the documented native record changes. Keys cannot approve endpoints, send messages, administer credentials, erase donors or change payment plans. Gift entry holds when published gift rules require effects beyond this scope.</p><p>Keys expire after 30 days by default, at most 90 days. They stop immediately when revoked or when their creating owner or admin changes role or account state. Keep the key in your own secret store.</p></details>','Create API key')
  return `<p><a href="/app/settings">Back to Settings</a></p><p><a href="/api/coffer/v1/openapi.json">OpenAPI document</a></p>
