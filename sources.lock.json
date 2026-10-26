@@ -3671,7 +3671,7 @@
       "executable": false
     },
     "src/coffer/ui/gifts.ts": {
-      "sha256": "50deb2df2dadf022f899efc3ffa05e0d0b0fc91fa4ea9b3d7039f1d075340c12",
+      "sha256": "ce2972047de70fb295f45e28910eed166838dd85fd2d72cd46eddb5238584374",
       "executable": false
     },
     "src/coffer/ui/giving-summary.ts": {
