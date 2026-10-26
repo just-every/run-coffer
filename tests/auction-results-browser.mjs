@@ -12,7 +12,14 @@ export async function auctionResultsBrowser(h,{event,jobId,directory}){
    await page.setViewportSize({width,height:1000})
    const shot=async name=>{
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Auction forms fit the viewport')
-    for(const control of await page.locator('a,button').all())if(await control.isVisible())assert.ok((await control.innerText()).trim()||await control.getAttribute('aria-label'),'Every action has a visible or accessible name')
+    for(const control of await page.locator('a,button').all()){
+     if(!await control.isVisible())continue
+     const info=await control.evaluate(el=>({text:el.innerText.trim(),tip:el.querySelector('[role="tooltip"]')?.textContent?.trim()}))
+     if(info.text&&!info.tip)continue
+     assert.ok(info.tip,'Icon controls have a tooltip')
+     await control.focus();assert.equal(await control.locator('[role="tooltip"]').evaluate(el=>getComputedStyle(el).visibility),'visible')
+     await control.hover();await page.waitForTimeout(350);assert.equal(await control.locator('[role="tooltip"]').evaluate(el=>getComputedStyle(el).visibility),'visible')
+    }
     await page.screenshot({path:`${directory}/CAMP-005-${name}-${width}.png`,fullPage:name!=='bidder-balances'})
    }
    await page.goto(origin+'/app/events/'+event.id)
