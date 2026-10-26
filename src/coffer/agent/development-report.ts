@@ -3,7 +3,7 @@ import { all, commit, email, event, fail, guard, id, integer, newId, one, sha256
 import { developmentReportSources, reportStaff } from './development-report-sources'
 export { developmentReportFacts, developmentReportSources } from './development-report-sources'
 
-export const DEVELOPMENT_REPORT_POLICY='Conservative default pending director-role policy: a current owner or admin explicitly approves the exact report and named recipients. Only a person triggers submission. Source changes require a new draft; no submission is automatically retried.'
+export const DEVELOPMENT_REPORT_POLICY='The director reviews the exact report and named recipients through a current owner or admin account. Only a person triggers submission. Source changes require a new draft; no submission is automatically retried.'
 export const REPORT_GRANT='development_reports'
 const sourceClock='(SELECT revision FROM cf_development_report_clock WHERE id=1)'
 export const reportHash=(r:Row)=>sha256(JSON.stringify([r.subject,r.introduction,r.notes,r.sources,r.recipients]))

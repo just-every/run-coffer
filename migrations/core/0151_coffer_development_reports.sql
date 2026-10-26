@@ -1,4 +1,4 @@
--- Human-triggered drafting only. No report is automatically sent.
+-- Draft preparation requires explicit authority. No report is automatically sent.
 INSERT INTO cf_automation_grants(id,name,enabled,commands,daily_limit)
 VALUES('development_reports','Monthly development report drafting',0,'["developmentReport.draft"]',12);
 CREATE TABLE cf_development_reports (

@@ -1343,7 +1343,7 @@
       "executable": false
     },
     "migrations/core/0151_coffer_development_reports.sql": {
-      "sha256": "7b3e8134c304c861f2a87c831298c6d4cd129c8ca80e163c9ad018d56ea4e240",
+      "sha256": "afb750fbcc14c20100baed4651b0eab808e54bce98e1e246ed0bd74bb48d99d7",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2227,11 +2227,11 @@
       "executable": false
     },
     "src/coffer/agent/development-report-ui.ts": {
-      "sha256": "e12c30adea0ca64e8d132c9c31632de2e460cc1f0014a45338bbdce21aadbd74",
+      "sha256": "aca22dc16321716fb91496c697bcea38f8a707b3c71c2a52ba1f10bdeeff4b8d",
       "executable": false
     },
     "src/coffer/agent/development-report.ts": {
-      "sha256": "603edea511d233c66d6106400342e4fcef6f6955eb88fe7d0e1e6b9efe715f89",
+      "sha256": "1b1cdbb0d8c022c5bbac6c02ad53c941d54634158f8d57a161d78a0b9d8641ac",
       "executable": false
     },
     "src/coffer/agent/grants-ui.ts": {

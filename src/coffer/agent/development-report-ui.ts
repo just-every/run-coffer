@@ -12,15 +12,15 @@ const states:Record<string,string>={draft:'Draft for director review',approved:'
 function editor(r:Row) {
  const notes=JSON.parse(r.notes),sources=JSON.parse(r.sources)
  return `<details><summary>Edit report and recipients</summary>${action('save',field('Report subject','subject','text',r.subject,'required maxlength="200"')+
-  area('Director introduction','introduction',r.introduction,'maxlength="2000"')+
-  sources.sections.map((section:Row)=>area(section.title+' commentary',section.key+'Note',notes[section.key]??'','maxlength="2000"')).join('')+
-  area('Approved recipient email addresses','recipients',JSON.parse(r.recipients).join('\n'),'required rows="3"')+
+  area('Director introduction','introduction',r.introduction,'aria-label="Director introduction" maxlength="2000"')+
+  sources.sections.map((section:Row)=>area(section.title+' commentary',section.key+'Note',notes[section.key]??'',`aria-label="${e(section.title+' commentary')}" maxlength="2000"`)).join('')+
+  area('Approved recipient email addresses','recipients',JSON.parse(r.recipients).join('\n'),'aria-label="Approved recipient email addresses" required rows="3"')+
   '<p class="muted">Director commentary accepts prose. All numerical claims stay in the linked source figures. Changing a figure requires preparing a fresh draft from its source report. Saving any edit removes approval.</p>',
   'Save director edits',{id:r.id,version:r.version})}</details>`
 }
 function approval(r:Row) {
  if(r.status==='draft')return `<details><summary>Review exact report disclosure</summary>${action('approve',
-  '<p>Review the report above and its saved recipient addresses before approving.</p>'+area('Director approval authority','authorityNote','','required maxlength="1000"')+
+  '<p>Review the report above and its saved recipient addresses before approving.</p>'+area('Director approval authority','authorityNote','','aria-label="Director approval authority" required maxlength="1000"')+
   '<label><input type="checkbox" name="reviewed" value="yes" required> I am the director or explicitly authorized by the director, and approve this exact report for these named recipients.</label>',
   'Approve exact report',{id:r.id,version:r.version,contentHash:r.content_hash})}</details>`
  if(r.status==='approved')return action('send','<label><input type="checkbox" name="confirm" value="SEND" required> Send this exact approved report to its named recipients. Email cannot be recalled.</label>','Send approved report',{id:r.id,version:r.version,contentHash:r.content_hash})
