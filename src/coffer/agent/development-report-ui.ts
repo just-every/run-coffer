@@ -39,7 +39,7 @@ export async function developmentReportPage(c:Context,url:URL) {
  const state=await developmentReports(c,month),selected=url.searchParams.get('id'),reports=selected?state.reports.filter(r=>r.id===selected):state.reports
  const enabled=state.grant?.enabled&&state.grant?.donor_ids===null
  const draft=action('draft',field('Reporting month','month','month',month,'required'),'Prepare monthly draft')
- const schedule=state.schedule!,scheduleForm=action('schedule',select('Monthly preparation schedule','enabled',[['no','Stopped'],['yes','Enabled']],schedule.enabled?'yes':'no')+
+ const schedule=state.schedule!,scheduleForm=action('schedule',select('Monthly preparation schedule','enabled',[['no','Stopped'],['yes','Enabled']],schedule.enabled?'yes':'no','aria-label="Monthly preparation schedule"')+
   field('Preparation day of month','dayOfMonth','number',schedule.day_of_month,'required min="1" max="28"')+
   '<label><input type="checkbox" name="reviewed" value="yes"> I authorize preparing the previous completed month on this organization-calendar day. Every report still needs director review and explicit send approval.</label>',
   'Save monthly preparation',{version:schedule.version})

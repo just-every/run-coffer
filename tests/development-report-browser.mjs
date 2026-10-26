@@ -15,7 +15,8 @@ export async function developmentReportBrowser(h,{month,now},directory){
   }
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
-   await page.goto(origin+'/app/agent/reports?month='+month)
+   const opened=await page.goto(origin+'/app/agent/reports?month='+month)
+   assert.equal(opened.status(),200,await page.locator('body').innerText())
    await page.getByLabel('Monthly preparation schedule',{exact:true}).selectOption('yes')
    await page.getByLabel('Preparation day of month',{exact:true}).fill('26')
    await page.getByRole('checkbox',{name:/I authorize preparing the previous completed month/}).check()
