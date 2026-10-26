@@ -128,11 +128,12 @@ export async function developmentReportJourney(){
    const {developmentReportBrowser}=await import('./development-report-browser.mjs')
    await developmentReportBrowser(h,{month,now},process.env.COFFER_DEVELOPMENT_REPORT_BROWSER)
   }
+  const retainedIds=(await d.state()).reports.map(r=>r.id).sort()
   const savedArchive=await archive(h),fresh=await installation({entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:now},triggerHandlers:true})
   try{
    await restore(fresh,savedArchive)
    const retained=await fresh.get(reportApi+'?month='+month,at)
-   assert.equal(retained.reports.length,redacted.reports.length,'Retained reports survive an archive restore')
+   assert.deepEqual(retained.reports.map(r=>r.id).sort(),retainedIds,'The exact retained reports survive an archive restore')
    assert.equal(retained.schedule.enabled,0,'Schedule authority stays stopped on the destination installation')
    assert.equal((await fresh.get('/api/coffer/agent/grants',at)).find(g=>g.id==='development_reports').enabled,0)
    assert.equal(fresh.messages.filter(m=>m.subject===ready.subject).length,0,'Restore never resubmits a retained report')
