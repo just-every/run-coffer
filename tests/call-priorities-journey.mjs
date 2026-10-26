@@ -66,8 +66,10 @@ export async function callPrioritiesJourney(){
   assert.equal(reply.status,200);assert.equal((await reply.json()).forwarded.length,1)
   await command('calls.rank',{managerId:manager.id},{as:manager.cookie,status:403})
   await get('/api/coffer/agent/calls',{as:'',status:401})
-  await command('task.teamSave',{operatorId:manager.id,managerId:owner.id,weeklyCallCapacity:5,version:0})
-  await command('calls.policy',{version:1,windowDays:1})
+  if(!process.env.COFFER_CALLS_BROWSER){
+   await command('task.teamSave',{operatorId:manager.id,managerId:owner.id,weeklyCallCapacity:5,version:0})
+   await command('calls.policy',{version:1,windowDays:1})
+  }
   const data={manager,owner,protectedDonor,now,setNow:value=>{now=value}}
   let ranked
   if(process.env.COFFER_CALLS_BROWSER){const {callPrioritiesBrowser}=await import('./call-priorities-browser.mjs');ranked=await callPrioritiesBrowser(h,{...data,stage:'rank'},process.env.COFFER_CALLS_BROWSER)}
