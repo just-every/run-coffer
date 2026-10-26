@@ -42,7 +42,7 @@ CREATE TRIGGER cf_development_reserve_installment AFTER INSERT ON cf_development
 END;
 CREATE VIEW cf_development_sources AS
  SELECT 'installment' AS kind,i.id AS source_id,p.donor_id,i.due_on,MAX(0,i.amount_cents-i.paid_cents) AS amount_cents,
- json_array(p.version,p.donor_id,i.due_on,i.amount_cents,i.paid_cents) AS source_token,p.fund||' pledge installment' AS title,
+ json_array(p.version,p.donor_id,d.version,(SELECT MAX(id) FROM cf_consents WHERE donor_id=d.id AND channel='email'),i.due_on,i.amount_cents,i.paid_cents) AS source_token,p.fund||' pledge installment' AS title,
  d.email AS recipient_email,NULL AS owner_id,
  (i.amount_cents>0 AND i.paid_cents>=i.amount_cents) AS settled,
  (i.amount_cents>i.paid_cents) AS outstanding,
@@ -56,14 +56,14 @@ CREATE VIEW cf_development_sources AS
  LEFT JOIN cf_pledge_followups old ON old.installment_id=i.id
  WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)
  UNION ALL
- SELECT 'report',t.id,g.donor_id,t.due_on,0,json_array(t.version,g.version,g.donor_id,t.due_on,t.owner_id,t.status),t.title,
+ SELECT 'report',t.id,g.donor_id,t.due_on,0,json_array(t.version,g.version,g.donor_id,o.version,t.due_on,t.owner_id,t.status),t.title,
  o.email,t.owner_id,t.status='done',t.status='open',d.constituent_status='active',
  CASE WHEN o.id IS NULL OR o.status<>'active' OR o.role NOT IN ('owner','admin','member') THEN 'Assign a current report owner' ELSE NULL END
  FROM cf_grant_tasks t JOIN cf_grants g ON g.id=t.grant_id JOIN cf_donors d ON d.id=g.donor_id LEFT JOIN oa_operators o ON o.id=t.owner_id
  WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)
  UNION ALL
  SELECT 'match',m.id,m.employer_donor_id,m.due_by,MAX(0,m.amount_cents-COALESCE(actual.net_cents,0)),
- json_array(m.due_by,m.amount_cents,m.employer_donor_id,original.donor_id,m.received_gift_id,COALESCE(actual.net_cents,0),original.net_cents),
+ json_array(m.due_by,m.amount_cents,m.employer_donor_id,d.version,(SELECT MAX(id) FROM cf_consents WHERE donor_id=d.id AND channel='email'),original.donor_id,m.received_gift_id,COALESCE(actual.net_cents,0),original.net_cents),
  'Employer matching gift',d.email,NULL,
  (actual.donor_id=m.employer_donor_id AND actual.net_cents>=m.amount_cents AND actual.net_cents>0),
  (original.net_cents>0 AND (actual.id IS NULL OR actual.donor_id<>m.employer_donor_id OR actual.net_cents<m.amount_cents)),d.constituent_status='active',
