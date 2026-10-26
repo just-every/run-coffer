@@ -8,7 +8,7 @@ export function developmentReportMergeStatements(sourceId:string,targetId:string
   sql(`INSERT OR IGNORE INTO cf_development_report_donors(report_id,donor_id)
    SELECT report_id,? FROM cf_development_report_donors WHERE donor_id=?`,targetId,sourceId)]
 }
-/** Execute before donor/contact erasure. Exact approved artifacts are redacted
+/** Execute before donor and contact erasure. Exact approved artifacts are redacted
  * rather than silently recomputed or reused under their old approval. */
 export function developmentReportErasureStatements(donorId:string):Stmt[] {
  const contacts="SELECT lower(value) FROM cf_contact_points WHERE donor_id=? AND kind='email'"

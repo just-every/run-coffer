@@ -2207,7 +2207,7 @@
       "executable": false
     },
     "src/coffer/agent/development-report-custody.ts": {
-      "sha256": "340b146ce74355eba0d7efc65f8a0390c7e08fab6e2893a0f050f849bd257e5c",
+      "sha256": "3f563ee024820124a7b086b2f8b5975444393a96e6c2059b1d235de8da5eb77e",
       "executable": false
     },
     "src/coffer/agent/development-report-delivery.ts": {
