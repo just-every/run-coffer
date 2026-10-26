@@ -1384,7 +1384,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 76 | 37 | 17 | 130 |
+| Target and push further | 77 | 36 | 17 | 130 |
 | All | 86 | 36 | 17 | 139 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
