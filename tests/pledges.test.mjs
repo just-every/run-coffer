@@ -228,6 +228,8 @@ test('RCPT-010 / DONOR-013: reviewed pledge templates hold blanks, freeze litera
   const saved=await archive(h)
   await run(async fresh=>{await restore(fresh,saved);assert.equal((await fresh.get('/api/coffer/pledge-template')).version,3);const copy=(await fresh.get('/api/coffer/donors/'+d.id)).pledges.find(p=>p.id===pledge.id).installments[0];assert.equal(copy.reminder_body,installment.reminder_body);assert.equal(copy.reminder_template_version,2);await fresh.command('donor.erase',{donorId:d.id,confirm:'ERASE'});assert.doesNotMatch(JSON.stringify(await archive(fresh)),/synthetic-coffer-1404|synthetic-coffer-1405|Thank you \{\{literal\}\}|After preparation/)})
  },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1401',MAIL_FROM:'reminders@example.test'},outbound:async request=>{const u=new URL(request.url);assert.equal(u.origin,'https://api.sendgrid.com');assert.equal(u.pathname,'/v3/mail/send');messages.push(await request.json());return new Response(null,{status:202,headers:{'x-message-id':'synthetic-coffer-1403-'+messages.length}})}})
+ const {pledgeApiReleaseJourney}=await import('./pledge-api-release-journey.mjs')
+ await pledgeApiReleaseJourney()
 })
 
 test('STEW-004: scheduled follow-up is a non-ask sent once per unpaid installment under current email permission',async()=>{

@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "204a63d3e3829b50d1a4e66c6ec57aa9334a0d88994d1a129854b39cccbb6068",
+      "sha256": "4a9afcf8c78a8df0597b0a44397b84dd6924d6d1461c00c33718b6f8d5aa8520",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a4beb9eb6e591f912d1d501940a4b55f50ae33c336dcd21089dfcf87da25a901",
+      "sha256": "36b7d808d99ad46cb53df9d6732e1e04b596a9dd40a349717e0fae05da79fafa",
       "executable": false
     },
     "deploy-demo.json": {
@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/REST-API.md": {
-      "sha256": "677059177f16eb639d6cac6a061b20adb1af238643e5661b1a8b404b56809bbf",
+      "sha256": "f7fe2535afa7a518c0bb70437b2a73ad02940c8985fbe28d7347ebe6ec6a768a",
       "executable": false
     },
     "docs/site.json": {
@@ -719,7 +719,7 @@
       "executable": false
     },
     "docs/WEBHOOKS.md": {
-      "sha256": "05e7df1f7e6f1bee4666562ed38fdc8b91c8ead77337c42247d0d50e1b99576c",
+      "sha256": "c51171bf9dbfb99d6787e1886ef949e7a5b0db7adf160527d8635c0da0fc303c",
       "executable": false
     },
     "edition.json": {
@@ -2147,7 +2147,7 @@
       "executable": false
     },
     "src/coffer/addresses/entry.ts": {
-      "sha256": "25a4977cc39d7d4e5a3f861cff697d80bdeff8c5f3a1a9936a2bb66976bc0842",
+      "sha256": "c281414ea19d4848a5a86bd398e5f632ce1e7ab903db1ce872fb24acf2789bde",
       "executable": false
     },
     "src/coffer/addresses/mail.ts": {
@@ -2354,8 +2354,12 @@
       "sha256": "e649168a41e225ca25da4feb91ff383130596e881f6d9a981b6cc56fc8bc34f6",
       "executable": false
     },
+    "src/coffer/api/effects.ts": {
+      "sha256": "0be0e760d92f102ede4cec351acb93b815b61f168958206e20be78de4ca4322c",
+      "executable": false
+    },
     "src/coffer/api/http.ts": {
-      "sha256": "d2448255c4304456832e2cebf861c02cc9248f4d1e9444f5a6ffa9dd82d66cb8",
+      "sha256": "1000f6c7411b0f5e8108c58001c2303b003fea902744ed645810ce17f1920915",
       "executable": false
     },
     "src/coffer/api/keys.ts": {
@@ -2363,7 +2367,7 @@
       "executable": false
     },
     "src/coffer/api/openapi.ts": {
-      "sha256": "05d0472fac1b9230cbd13bc6d9ec7580aa3f961f7e8b54263912a3fb14de73cf",
+      "sha256": "d0ed4833c3e4b2cc34edb1c0bfea069493fd72304a665c25fb4ba00b4ab8f308",
       "executable": false
     },
     "src/coffer/api/reads.ts": {
@@ -2375,7 +2379,7 @@
       "executable": false
     },
     "src/coffer/api/writes.ts": {
-      "sha256": "06dba2c1645ac87e7afdc72239b4f7c7b71aeb3f7ee2f9e4512596cbfebc1c86",
+      "sha256": "180b8e30204ddbd4ec2baf15f93219332acac1205c85c80aa778c10200e78a96",
       "executable": false
     },
     "src/coffer/appeal-results.ts": {
@@ -2459,11 +2463,11 @@
       "executable": false
     },
     "src/coffer/campaign-progress.ts": {
-      "sha256": "b789d1acc4a5039d5872f87a941e9ec83c63461328a94eec0e32930e8f8abf70",
+      "sha256": "71340589dd5092f7e206b098ab2c0d240cff684f8d022f42415c77ef80570dd7",
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "e4aa81280dac14dcfbbfa939f7455040b7a90a459739a58e7e018c80b158edc8",
+      "sha256": "f47b018d51372d2b4d17f381e50131b14ad1b0620c98e327d908cd58978146a4",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2738,6 +2742,10 @@
       "sha256": "561f66af808d5a9c4abe58343cc07868ceb843cde6c30f88801454e651af2214",
       "executable": false
     },
+    "src/coffer/giving/campaign-publication.ts": {
+      "sha256": "20a1077a1e3181f84fba64ff12c39b9bce58ea42fac456eee5d331a3bee1cabe",
+      "executable": false
+    },
     "src/coffer/giving/campaigns.ts": {
       "sha256": "231a3cd2ada5631fb513a83bf49a77cce7319823ba7740c180106479ffeb1847",
       "executable": false
@@ -2771,7 +2779,7 @@
       "executable": false
     },
     "src/coffer/giving/manage-ui.ts": {
-      "sha256": "df14dcd5bb4ae461fcf969a2bb65cc297ba702fe032fe4111d0e1ff66785b4a0",
+      "sha256": "76449c0be931a00b9e21272c29ac434f45ee2452d7807aa8651e6a5787b15888",
       "executable": false
     },
     "src/coffer/giving/media.ts": {
@@ -2911,7 +2919,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "b04bb4cb9d7d60e45a0a0f18223a6169f0d6b8653b6826ecc7420cab8aafc6b3",
+      "sha256": "1c5e138f6a1dfb34e94072a8f3b969422f3a98652045415632db114558225822",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3282,12 +3290,16 @@
       "sha256": "88f78f8e01987ebbc63883e13d7df7e0ed10923fb0eba34e8b5183684365ab6b",
       "executable": false
     },
+    "src/coffer/pledge-review.ts": {
+      "sha256": "2ce1d0dadd10db6be1b3f800030d994e677a072928854f196eb6f6c172e9f0e8",
+      "executable": false
+    },
     "src/coffer/pledge-templates.ts": {
       "sha256": "75bbdeea0bbd1fe01c3e8338943b4715e84de784315bd75b8306dbf1e61723e7",
       "executable": false
     },
     "src/coffer/pledges.ts": {
-      "sha256": "11e63dd68c2d4bb68e855764d8cb2a9ecb96262593d971a4bc58a06eca17ffda",
+      "sha256": "b93f8626a22360cc4bef4fc989ec32fc512771ada04c2ee0641af40eb0780e02",
       "executable": false
     },
     "src/coffer/portability/http.d.mts": {
@@ -3523,7 +3535,7 @@
       "executable": false
     },
     "src/coffer/ui/campaign-progress.ts": {
-      "sha256": "adc648d1c87dd164679b6aba75cc424fcae0187a2d5811c70abe12a5eea50446",
+      "sha256": "e2e1bc4a37de1a4a83d526b6a0a6cd710c78961b4d1440b9cfa5cf00e89cc418",
       "executable": false
     },
     "src/coffer/ui/common.ts": {
@@ -3718,12 +3730,16 @@
       "sha256": "8a4daf5c53ffc33483e40e43242dadcd2997d2e4789cc093bdc018119d95222a",
       "executable": false
     },
+    "src/coffer/ui/pledge-review.ts": {
+      "sha256": "e5564c415970919782494429e9ebd9a9081e72f043e054497127da91e8d182ee",
+      "executable": false
+    },
     "src/coffer/ui/pledge-template.ts": {
       "sha256": "44436e3d1cd76d1a6ce1911aff2de682b61bcab25122a4c24618810275ff3291",
       "executable": false
     },
     "src/coffer/ui/pledges.ts": {
-      "sha256": "49e74f616733c3623b2cf4fdc7ba9508c83861ac44c2594bb762a81370491852",
+      "sha256": "0f2973fc44b5bc2be33cc03018f1a878612f34fcc251e10e2bb3faf80860e8ac",
       "executable": false
     },
     "src/coffer/ui/portfolios.ts": {
@@ -6318,6 +6334,10 @@
       "sha256": "aa3af814252a194af5c16acb4ff25b756a9cf90d295b39caa68185befa3773de",
       "executable": false
     },
+    "tests/pledge-api-release-journey.mjs": {
+      "sha256": "44914d7b7cafdf6aeb92626f910fb22a3276c201454a16d5fcf49639dfe87b43",
+      "executable": false
+    },
     "tests/pledge-balances-browser.mjs": {
       "sha256": "5e1b5ac17862498adf145324dccb5927034b943e9eaf4652043851134d4475eb",
       "executable": false
@@ -6331,7 +6351,7 @@
       "executable": false
     },
     "tests/pledges.test.mjs": {
-      "sha256": "e6b97ac2b9ce88484f2d3447414749e300f5d6ec3ef8da2015c9e2f49fbb558d",
+      "sha256": "f3cd2971d68cc19e3a9b4aeb45c8a242bafb9a4b8882f4785a92f249dc8673d6",
       "executable": false
     },
     "tests/portability-http.test.mjs": {
@@ -6459,11 +6479,15 @@
       "executable": false
     },
     "tests/rest-api-browser.mjs": {
-      "sha256": "3fb9b1ae83c0e180b2b1635d2bcbd80facaceb7d977222fc65745f6e032c80f0",
+      "sha256": "7c44891b8d7953061fe9e6ae4601ac9569d7c5c036030644bde530b89a44d6b2",
       "executable": false
     },
     "tests/rest-api-journey.mjs": {
-      "sha256": "94aa8fb8c0b4322f6cd696340af962dc52580312b5237d43153580eadcb27fc8",
+      "sha256": "26b805f01e9a1d534aa97eebab36e67808121cab808ab288f2fa90477e9fe6c0",
+      "executable": false
+    },
+    "tests/rest-api-native.mjs": {
+      "sha256": "7ad12bff9ef1ce6958439f636c7c89cb13a474cea752bf4725f089a2037a58c7",
       "executable": false
     },
     "tests/rest-api-payments.mjs": {
@@ -6574,6 +6598,10 @@
       "sha256": "34c5cf816ef0431e66d36b2181ccd1fe156a853d1bd5210334db0e308e278c71",
       "executable": false
     },
+    "tests/webhook-history-journey.mjs": {
+      "sha256": "a266207738630f26e39534b4795a4292c34beddd5c5ce97df0ac4b9d08b86505",
+      "executable": false
+    },
     "tests/webhook-sources-journey.mjs": {
       "sha256": "d5c2345912fd53f31a523ac7cfb88c4b58cc17225b7163f3ac994d83fbb15196",
       "executable": false
@@ -6583,7 +6611,7 @@
       "executable": false
     },
     "tests/webhooks-journey.mjs": {
-      "sha256": "c6f25d2fbc97b79af7151be48479e419c4498e095128b578464c21a772e7db69",
+      "sha256": "e3c68db41d40f2f67eb4297b248e36ac8596a3ec272631577d154ae8a78a51b9",
       "executable": false
     },
     "tests/worker.ts": {

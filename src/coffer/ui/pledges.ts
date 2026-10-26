@@ -1,4 +1,8 @@
 import { campaigns } from '../giving/campaigns'
+import { manager } from '../auth'
+import { pledgeTemplate } from '../pledge-templates'
+import { settings } from '../settings'
+import { pledgeEmailReview } from './pledge-review'
 import type { Context, Row } from '../db'
 import { pledgeMailUnavailable } from '../pledges'
 import { area, box, chip, e, empty, field, form, longDay, money, select } from './common'
@@ -30,9 +34,11 @@ const reminderLabel = (i: Row, day: string): string => {
 export async function pledgePanel(c: Context, history: Row, day: string, staff: boolean): Promise<string> {
  const pledges: Row[] = history.pledges, donorId: string = history.donor.id
  const unavailable = pledgeMailUnavailable(c.env)
+ const review = manager(c.actor) && pledges.some(p => p.api_review_required) ? await Promise.all([pledgeTemplate(c), settings(c)]) : null
  const list = pledges.length ? `<ul class="list">${pledges.map(p => `<li id="pledge-${e(p.id)}"><strong>${money(p.amount_cents)} pledged ${longDay(p.pledged_on)} to ${e(p.fund)}</strong><br>${money(p.paid_cents)} paid · ${money(p.remaining_cents)} still to come
   ${p.api_review_required ? '<p class="notice" role="status">Automatic pledge email is held by the public API scope policy.</p>' : ''}
   ${p.installments?.length ? `<ul>${p.installments.map((i: Row) => `<li>${longDay(i.due_on)} · ${money(i.amount_cents)} scheduled · ${money(i.paid_cents)} paid · ${money(i.remaining_cents)} remaining · ${money(i.due_cents)} due · ${money(i.overdue_cents)} overdue ${i.due_on < day && i.remaining_cents > 0 ? chip('Overdue', 'alarm') : ''} ${p.api_review_required?chip('Email held','warn'):reminderLabel(i, day)} ${i.followup_status ? chip('Follow-up '+i.followup_status,'info') : ''}${i.reminder_note ? `<p class="muted">${e(i.reminder_note)}</p>` : ''}${i.reminder_body?`<details><summary>Read reminder wording · version ${e(i.reminder_template_version)}</summary><p>${e(i.reminder_subject)}</p><p class="preserve">${e(i.reminder_body)}</p></details>`:''}</li>`).join('')}</ul>` : '<p class="muted">This older pledge has no installment schedule.</p>'}
+  ${p.api_review_required && review ? pledgeEmailReview(p, history.donor, review[0], review[1]) : ''}
   ${pledgeChanges(p,donorId,history.subscriptions??[],staff)}
   ${staff ? `<p><a href="/app/pledges/${e(p.id)}/invoice">${p.remaining_cents > 0 ? 'Print pledge invoice' : 'Print pledge balance'}</a></p>` : ''}
   ${staff && !p.api_review_required && !unavailable && p.installments?.some((i: Row) => i.reminder_status === 'pending' && i.remind_on <= day && i.remaining_cents > 0) ? form('pledge.remind', '<p>Send only unpaid installments whose reminder date has arrived and whose donor has email permission. Empty template fields stay pending.</p>'+select('Reminder email contact','emailType',[['','Primary'],['personal','Personal'],['work','Work'],['other','Other']])+select('Interaction for custom fields (optional)','interactionId',[['','No interaction selected'],...(history.depth?.interactions??[]).map((i:Row)=>[i.id,i.occurred_on+' · '+i.kind] as [string,string])]), 'Send due reminders', { donorId, pledgeId: p.id }) : ''}</li>`).join('')}</ul>` : empty('No pledges.')

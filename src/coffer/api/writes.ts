@@ -61,9 +61,6 @@ export async function prepareWrite(c:Context,operation:WriteOperation):Promise<s
  if(command==='interaction.record'&&!['call','meeting','email'].includes(p.kind))fail('INPUT','The public interaction API records calls, meetings and email interactions.',400)
  let result:Row|null|undefined
  if(command==='gift.record'){
-  // Published rules may notify a provider after the ledger commits. A replay
-  // must not conceal that missing or uncertain side effect or repeat the gift.
-  c.transactionPlan.statements.push(guard('NOT EXISTS(SELECT 1 FROM cf_gift_rules WHERE published_at IS NOT NULL)','API_GIFT_RULES','Use native gift entry while published gift rules are active.'))
   result=await giftCommand(c,command,p)
  }else if(command==='solicitation.set'){
   const write=await solicitationWriteStatements(c,p)
@@ -77,7 +74,6 @@ export async function prepareWrite(c:Context,operation:WriteOperation):Promise<s
  }else if(command.startsWith('donor.')){
   result=await execute(c,command,p)
  }else if(command==='consent.record'){
-  if(p.channel==='email')fail('API_PROVIDER_EFFECT','Email consent needs the native preference synchronization door.',409)
   result=await donorCommand(c,command,p)
  }else{
   // Reviewed commands above have no network effects. Their existing authority,

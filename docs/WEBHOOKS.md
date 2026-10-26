@@ -31,5 +31,8 @@ The conservative retention default has no automatic expiry: every retained
 delivery and attempt is available through Older deliveries and Newest deliveries.
 Associated history and identifiers are removed when the donor is erased.
 Webhook keys, endpoint approvals and delivery state are excluded from archives,
-so restoring an archive cannot resume disclosure. Ct approval of the newly
-explicit retention default remains pending.
+so restoring an archive cannot resume disclosure.
+
+Ct approved the explicit retention default with riders on 26 October 2026 at pin 3bff3d085ae0e39f8a59b6c6c5593ec705b42b66. API-002 remains partial. History access beyond the first page is asserted; complete expected delivery and attempt reconciliation, replay lineage across that complete set and cursor exhaustion remain unproved. Archive exclusion and associated donor erasure are unchanged.
+
+The subsequent `tests/webhook-history-journey.mjs` reconciliation now proves the complete retained delivery and attempt set, nested replay lineage and terminal cursor exhaustion. Production network, live delivery and key-continuity Gaps remain in CONTRACT.md.

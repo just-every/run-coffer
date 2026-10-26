@@ -7,6 +7,7 @@ import { writeOperation, writeScope, prepareWrite } from './writes'
 import { idempotentWrite, rateLimit, RATE_LIMIT } from './transaction'
 import { openApiDocument } from './openapi'
 import { apiAuditPath } from './custody'
+import { completeNativeEffects } from './effects'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','x-coffer-api-version':'1','x-ratelimit-limit':String(RATE_LIMIT)}
 const json=(value:unknown,status=200,extra:Record<string,string>={})=>Response.json(value,{status,headers:{...headers,...extra}})
@@ -51,6 +52,7 @@ export async function restApiResponse(request:Request,original:Bindings):Promise
   if(!operation)fail('OPERATION_FORBIDDEN','This operation is outside the public API allowlist.',403)
   writeScope(auth.scope,operation)
   const saved=await idempotentWrite(c,request,auth.principal,body,staged=>prepareWrite(staged,operation))
+  await completeNativeEffects(c,operation,saved.result.id)
   return {response:json(saved.result,200,{'idempotency-replayed':String(saved.replayed)}),context:c}
  }catch(error){
   if(error instanceof CofferError)return {response:json({error:error.code,message:error.message},error.status,error.status===429?{'retry-after':String(60-Math.floor(Date.now()/1000)%60)}:{}),context:c}

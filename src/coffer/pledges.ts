@@ -1,4 +1,5 @@
 import { pledgePaymentLink } from './pledge-checkout'
+import { releasePledgeEmail } from './pledge-review'
 import { renderPledgeReminder } from './pledge-templates'
 import { adjustPledge, linkPledgePlan } from './pledge-adjustments'
 import type { Bindings } from '../auth.server'
@@ -32,6 +33,7 @@ export function schedule(p: Row, pledgedOn: string) {
 }
 
 export async function pledgeCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
+ if (command === 'pledge.releaseEmail') return releasePledgeEmail(c, p)
  if (!['pledge.create', 'pledge.remind', 'pledge.match', 'pledge.reduce', 'pledge.writeOff', 'pledge.linkPlan'].includes(command)) return undefined
  requireRole(c.actor, ['owner', 'admin', 'member'], 'manage pledges')
  if (command === 'pledge.linkPlan') return linkPledgePlan(c,p)

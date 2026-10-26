@@ -113,7 +113,7 @@ export const ACCESS: Record<string, Role[]> = {
  'gift.acknowledge': STAFF, 'gift.resetAcknowledgment': STAFF, 'gift.doNotAcknowledge': MANAGERS,
  'softCredit.acknowledge': STAFF, 'softCredit.resetAcknowledgment': STAFF, 'softCredit.doNotAcknowledge': MANAGERS,
  'softCredit.record': STAFF, 'softCredit.remove': STAFF, 'tribute.record': STAFF, 'match.record': STAFF, 'match.receive': STAFF,
- 'pledge.remind': STAFF, 'pledge.match': STAFF, 'pledge.reduce': STAFF, 'pledge.writeOff': STAFF, 'pledge.linkPlan': STAFF,
+ 'pledge.remind': STAFF, 'pledge.match': STAFF, 'pledge.reduce': STAFF, 'pledge.writeOff': STAFF, 'pledge.linkPlan': STAFF, 'pledge.releaseEmail': MANAGERS,
  'gift.reverse': MANAGERS, 'gift.classify': MANAGERS, 'settings.update': MANAGERS, 'letterTemplate.save': MANAGERS, 'letterTemplate.retire': MANAGERS,
  'ack.correct': MANAGERS, 'ack.prepareStatements': MANAGERS, 'ack.send': MANAGERS, 'ack.checkDelivery': MANAGERS, 'ack.printed': MANAGERS, 'ack.prepare': PREPARERS, 'ack.approve': MANAGERS, 'ack.discard': MANAGERS, 'ack.export': MANAGERS, 'ack.markSent': MANAGERS,
  'marketing.sync': MANAGERS, 'marketing.connectMango': MANAGERS, 'marketing.connectMailchimp': MANAGERS, 'marketing.chooseAudience': MANAGERS, 'marketing.check': MANAGERS, 'marketing.disconnect': MANAGERS, 'marketing.refresh': MANAGERS, 'appeal.send': MANAGERS, 'welcome.publish': MANAGERS, 'welcome.run': MANAGERS, 'reply.complete': STAFF, 'reply.proposeStop': STAFF, 'reply.confirmStop': STAFF, 'reply.reverseStop': STAFF,

@@ -16,7 +16,7 @@ Gift reads use the native contribution ledger, including processor refund
 adjustments and property gifts; property values remain separate from monetary
 contribution amounts.
 
-The implemented scope default is conservative and awaits ct approval:
+The implemented scope default is conservative and approved with riders by ct:
 
 - Read only reads current constituents, gifts, pledges, plans, interactions,
   tasks, opportunities, funds, campaigns and soft credits. Constituent reads
@@ -24,17 +24,21 @@ The implemented scope default is conservative and awaits ct approval:
 - Gift entry reads constituents, gifts, pledges, funds and campaigns and records
   gifts against current donors. It cannot change constituent facts or settings.
 - Full adds only the documented local record operations: constituent creation,
-  versioned updates and status, non-email consent, solicitation restrictions,
+  versioned updates and status, synchronized consent, solicitation restrictions,
   gift and soft-credit acknowledgment, pledges, interactions, tasks,
   opportunities, funds and inactive campaign drafts. Current native role,
   version, donor custody and solicitation guards still apply.
 
 There is no public provider-send, credential administration, export, merge,
-erasure, campaign-publication or plan-mutation operation. Gift entry refuses
-while published gift rules would require additional effects. Constituent entry
-refuses while address processing requires a provider call. Email consent uses
-the native synchronization door. API-created pledges have an explicit held state
-for automatic reminder and follow-up email; releasing it remains unimplemented.
+erasure, campaign-publication or plan-mutation operation. Gift entry uses the native durable once-only published rules.
+Constituent entry uses enabled native address verification; a provider failure
+leaves the donor unchanged. Email consent uses native sender synchronization,
+preserving provider opt-outs and holding sending when synchronization is pending.
+API-created pledges hold automatic reminder and follow-up email until a current
+owner or admin reviews the pledge, schedule and reminder wording on the donor
+page and explicitly releases the hold. Release sends nothing. API campaign drafts
+appear in Giving for native current-snapshot review and publication. Plan
+changes use their existing native authorization and confirmation doors.
 Previously approved webhook subscriptions still receive identifier-only native
 events under their current endpoint approval and signing guards.
 
@@ -59,5 +63,6 @@ reason. Agent credentials cannot use these writes. Gift and soft-credit statuses
 are independent, stale versions refuse, and reason or note text never enters
 the acknowledgment audit.
 
-API-001 remains partial pending ct approval of the scope and credential-custody
-defaults and the named provider-operation gaps in CONTRACT.md.
+Ct approved the scope and credential-custody defaults with riders on 26 October 2026 at pin 3bff3d085ae0e39f8a59b6c6c5593ec705b42b66. API-001 remains partial for its named API-origin provider-door gaps in CONTRACT.md. Idempotency receipts are scoped to the recorded principal and installation; replacement credentials or archive restoration do not carry an asserted replay-continuity guarantee.
+
+The subsequent native workflows close the API-origin Gaps from that dated ruling: approved address processing, synchronized email consent, once-only published gift rules, native pledge email review and release, native draft publication and approved native plan transitions. API-001 is now DONE for its retained target; provider edges in its HTTP acceptance remain faked.

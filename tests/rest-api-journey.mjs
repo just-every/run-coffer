@@ -3,6 +3,7 @@ import {createHmac} from 'node:crypto'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
 import {apiPaymentSource} from './rest-api-payments.mjs'
 import {restApiBrowser} from './rest-api-browser.mjs'
+import {apiNativeEdges,addressEntry,consentSync} from './rest-api-native.mjs'
 
 const prefix='/api/coffer/v1',day='2026-10-25',clock={entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,bindings:{COFFER_TEST_NOW:'2026-10-27T12:00:00.000Z',SMARTY_AUTH_ID:'synthetic-coffer-4101',SMARTY_AUTH_TOKEN:'synthetic-coffer-4102',MELISSA_SMARTMOVER_KEY:'synthetic-coffer-4103'}}
 const giftInput=donorId=>({donorId,amountCents:123456,receivedOn:day,method:'check',goods:'none',reference:'synthetic-coffer-4001'})
@@ -26,7 +27,7 @@ function validate(value,schema,document,path='response'){
 function validateReferences(value,document){if(!value||typeof value!=='object')return;if(value.$ref)assert.ok(document.components.schemas[value.$ref.split('/').at(-1)],value.$ref);for(const child of Object.values(value))validateReferences(child,document)}
 
 export async function restApiJourney(){
- const received=[],payments=apiPaymentSource()
+ const received=[],payments=apiPaymentSource(),native=apiNativeEdges()
  await run(async h=>{
   await reviewed(h)
   const d=await donor(h,'synthetic-coffer-4002',{email:'synthetic-coffer-4002@example.test'}),other=await donor(h,'synthetic-coffer-4003',{email:'synthetic-coffer-4003@example.test'})
@@ -86,8 +87,7 @@ export async function restApiJourney(){
   const edited=await checked(donorPath,{key:readOnly},'/donors/{id}');assert.equal(edited.value.data.name,'synthetic-coffer-4107');assert.equal(edited.value.data.version,2)
   await write(donorPath,{...donorInput,version:1},{status:409},'/donors/{id}')
   await h.command('address.processing',{version:0,enabled:'yes',pafSigner:'synthetic-coffer-4108',pafSignedOn:day,pafLicensee:'synthetic-coffer-4109',pafReference:'synthetic-coffer-4110',reviewed:'yes'})
-  await write('/donors',{name:'synthetic-coffer-4111',email:'synthetic-coffer-4111@example.test'},{method:'POST',status:409})
-  await write(donorPath,{...donorInput,version:2},{status:409},'/donors/{id}')
+  await addressEntry(h,write,checked,native,{donorPath,donorInput})
   await h.command('address.processing',{version:1,enabled:false})
   const stop='/donors/'+d.id+'/solicitation'
   await write(stop,{version:0,type:'stop',startsOn:day},{key:entry,status:403},'/donors/{id}/solicitation')
@@ -119,6 +119,7 @@ export async function restApiJourney(){
   await write(creditAck,{status:'not acknowledged',version:1},{as:member.cookie},'/soft-credits/{id}/acknowledgment')
   await write(creditAck,{status:'do not acknowledge',version:2,reason:'synthetic-coffer-4021'},{as:member.cookie,status:403},'/soft-credits/{id}/acknowledgment')
   await write(creditAck,{status:'do not acknowledge',version:2,reason:'synthetic-coffer-4021'},{},'/soft-credits/{id}/acknowledgment')
+  await consentSync(h,write,checked,native,{donorId:other.id,email:'synthetic-coffer-4003@example.test',day})
   await h.command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-4112',capturedOn:day})
   const pledge=await write('/pledges',{donorId:d.id,amountCents:10000,pledgedOn:day,installments:[{dueOn:day,amountCents:10000}]},{method:'POST'},'/pledges')
   assert.ok(pledge.value.id)
@@ -141,7 +142,21 @@ export async function restApiJourney(){
   assert.equal((await checked('/campaigns/'+draft.value.id,{key:readOnly},'/campaigns/{id}')).value.data.active,0)
   assert.equal((await h.request('/give/synthetic-coffer-4113',{as:''})).status,404)
   assert.equal((await h.get('/api/coffer/giving/campaigns')).campaigns.some(row=>row.id===draft.value.id),false)
+  const publication=await h.get('/api/coffer/giving/campaigns/'+draft.value.id)
+  await h.api('/api/coffer/giving/campaigns/'+draft.value.id+'/publish',{version:publication.publicationVersion,reviewed:true},{...bearer(full),status:401})
+  await h.api('/api/coffer/giving/campaigns/'+draft.value.id+'/publish',{version:publication.publicationVersion,reviewed:true},{as:member.cookie,status:403})
+  await h.api('/api/coffer/giving/campaigns/'+draft.value.id+'/publish',{version:publication.publicationVersion},{status:400})
+  await h.api('/api/coffer/giving/campaigns/'+draft.value.id+'/fee-cover',{version:publication.campaign.fee_cover_version,feeCoverEnabled:false})
+  await h.api('/api/coffer/giving/campaigns/'+draft.value.id+'/publish',{version:publication.publicationVersion,reviewed:true},{status:409})
+  const reviewedDraft=await h.get('/api/coffer/giving/campaigns/'+draft.value.id)
+  await h.api('/api/coffer/giving/campaigns/'+draft.value.id+'/publish',{version:reviewedDraft.publicationVersion,reviewed:true})
+  assert.equal((await checked('/campaigns/'+draft.value.id,{key:readOnly},'/campaigns/{id}')).value.data.active,1)
+  assert.equal((await h.request('/give/synthetic-coffer-4113',{as:''})).status,200)
   const sourcePlan={id:'sub_syntheticcoffer4115',customer:'cus_syntheticcoffer4116',created:Date.parse(day+'T12:00:00Z')/1000,status:'active',currency:'usd',metadata:{},cancel_at_period_end:false,items:{data:[{quantity:1,price:{type:'recurring',currency:'usd',unit_amount:4000,billing_scheme:'per_unit',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}}}]}}
+  Object.assign(sourcePlan,{collection_method:'charge_automatically',billing_cycle_anchor:Date.parse(day+'T12:00:00Z')/1000,current_period_end:Date.parse('2026-11-25T12:00:00Z')/1000})
+  Object.assign(sourcePlan.items.data[0],{id:'synthetic-coffer-4270'})
+  sourcePlan.items.data[0].price.product='synthetic-coffer-4271'
+  native.state.plans.set(sourcePlan.id,sourcePlan)
   const snapshot={customers:[{object:'list',data:[{id:sourcePlan.customer,name:'synthetic-coffer-4117',email:'synthetic-coffer-4117@example.test',created:sourcePlan.created}]}],charges:[{object:'list',data:[]}],subscriptions:[{object:'list',data:[sourcePlan]}],noGoodsOrServices:true}
   const preview=await h.api('/api/coffer/imports/preview',snapshot)
   let job=await h.api('/api/coffer/imports/apply',{...snapshot,fingerprint:preview.fingerprint})
@@ -149,6 +164,22 @@ export async function restApiJourney(){
   const plan=await checked('/plans/'+sourcePlan.id,{key:readOnly},'/plans/{id}')
   assert.equal(plan.value.data.amount_cents,4000);assert.equal(plan.value.data.status,'active');assert.equal(Object.hasOwn(plan.value.data,'customer_id'),false)
   const memberPlan=await checked('/plans/'+sourcePlan.id,{as:member.cookie},'/plans/{id}');assert.equal(memberPlan.value.data.id,sourcePlan.id)
+  const planPath='/api/coffer/giving/plans/'+sourcePlan.id
+  const planSource=await h.command('interaction.record',{donorId:plan.value.data.donor_id,kind:'call',occurredOn:day,notes:'synthetic-coffer-4272'})
+  const planState=await h.get(planPath),planChange={action:'pause',requestId:crypto.randomUUID(),version:planState.version,sourceRef:'interaction:'+planSource.id,reason:'synthetic-coffer-4273',confirm:'yes'}
+  await h.api(planPath,planChange,{...bearer(full),status:401})
+  await h.api(planPath,planChange,{as:member.cookie,status:403})
+  await h.api(planPath,{...planChange,confirm:'no'},{status:400})
+  await h.api(planPath,planChange)
+  await h.api(planPath,planChange)
+  assert.equal(native.state.planWrites,1,'Native plan replay never repeats a provider mutation')
+  assert.equal((await checked('/plans/'+sourcePlan.id,{key:readOnly},'/plans/{id}')).value.data.collection_paused,1)
+  for(const [action,extra] of [['resume',{}],['amount',{amountCents:5000}],['cancel',{}]]){
+   const current=await h.get(planPath)
+   await h.api(planPath,{...planChange,...extra,action,version:current.version,requestId:crypto.randomUUID()})
+  }
+  const changedPlan=(await checked('/plans/'+sourcePlan.id,{key:readOnly},'/plans/{id}')).value.data
+  assert.equal(changedPlan.collection_paused,0);assert.equal(changedPlan.amount_cents,5000);assert.equal(changedPlan.cancel_at_period_end,1)
   await write('/donors/'+d.id+'/consents',{channel:'mail',status:'granted',method:'paper form',evidence:'synthetic-coffer-4029',capturedOn:day},{method:'POST'},'/donors/{id}/consents')
   await checked('/donors/'+d.id+'/consents',{key:readOnly},'/donors/{id}/consents')
   await write('/donors/'+d.id+'/status',{version:1,constituentStatus:'inactive',statusReason:'synthetic-coffer-4030'},{},'/donors/{id}/status')
@@ -202,14 +233,33 @@ export async function restApiJourney(){
   await call('/donors',{key:expired,headers:{'x-test-now':'2026-10-28T12:00:00.000Z'},status:401})
   const published=await h.command('giftRule.save',{name:'synthetic-coffer-4036',kind:'first_tag',tag:'synthetic-coffer-4037'})
   await h.command('giftRule.publish',{ruleId:published.id,version:published.version,reviewed:true})
-  const guarded=await create('gift-entry','synthetic-coffer-4038')
-  await call('/gifts',{key:guarded,method:'POST',body:{...giftInput(other.id),reference:'synthetic-coffer-4039'},headers:{'idempotency-key':'synthetic-coffer-4040'},status:409})
-  assert.deepEqual((await call('/gifts?donorId='+other.id,{key:readOnly})).value.data.map(row=>row.id),[property.id],'A refused API write leaves only the existing property gift')
+  const nativeOwner=(await h.get('/auth/session')).operator.id
+  const callRule=await h.command('giftRule.save',{name:'synthetic-coffer-4280',kind:'amount_call',minimumCents:1,ownerId:nativeOwner})
+  const noticeRule=await h.command('giftRule.save',{name:'synthetic-coffer-4281',kind:'fund_notify',fund:'Unrestricted',provider:'slack'})
+  for(const rule of [callRule,noticeRule])await h.command('giftRule.publish',{ruleId:rule.id,version:rule.version,reviewed:true})
+  const guarded=await create('gift-entry','synthetic-coffer-4038'),ruleDonor=await donor(h,'synthetic-coffer-4282',{email:'synthetic-coffer-4282@example.test'})
+  const ruleOperation={key:guarded,method:'POST',body:{...giftInput(ruleDonor.id),reference:'synthetic-coffer-4039'},headers:{'idempotency-key':'synthetic-coffer-4040'}}
+  const ruleGifts=await Promise.all([call('/gifts',ruleOperation),call('/gifts',ruleOperation)])
+  assert.equal(ruleGifts[0].value.id,ruleGifts[1].value.id)
+  await call('/gifts',ruleOperation)
+  const ruleState=await h.get('/api/coffer/gift-rules'),firings=ruleState.firings.filter(row=>row.gift_id===ruleGifts[0].value.id)
+  assert.equal(firings.length,3);assert.equal(new Set(firings.map(row=>row.rule_id)).size,3)
+  assert.equal(ruleState.tags.filter(row=>row.donor_id===ruleDonor.id).length,1)
+  assert.equal(native.state.notices.length,1,'Concurrent API entry and replay use the native once-only notice claim')
+  assert.equal(firings.find(row=>row.action==='fund_notify').status,'submitted')
+  const thankYou=(await checked('/tasks?donorId='+ruleDonor.id,{key:readOnly},'/tasks')).value.data
+  assert.equal(thankYou.length,1);assert.equal(thankYou[0].is_ask,0)
+  native.state.noticeFailure=true
+  const uncertain={...ruleOperation,body:{...giftInput(ruleDonor.id),reference:'synthetic-coffer-4283'},headers:{'idempotency-key':'synthetic-coffer-4284'}}
+  const uncertainGift=await call('/gifts',uncertain);await call('/gifts',uncertain)
+  assert.equal(native.state.notices.length,2,'An unconfirmed provider notice is never resent by idempotency replay')
+  assert.equal((await h.get('/api/coffer/gift-rules')).firings.find(row=>row.gift_id===uncertainGift.value.id&&row.action==='fund_notify').status,'rejected')
   const limited=await create('read-only','synthetic-coffer-4041')
   let throttled
   for(let i=0;i<200;i++){const response=await h.request(prefix+'/openapi.json',{...bearer(limited)});if(response.status===429){throttled=response;break}assert.equal(response.status,200);await response.arrayBuffer()}
   assert.ok(throttled,'Repeated requests reach the durable rate limit');assert.ok(Number(throttled.headers.get('retry-after'))>0)
- },{...clock,bindings:{...clock.bindings,...payments.bindings},outbound:async request=>{
+ },{...clock,bindings:{...clock.bindings,...payments.bindings,GIFT_RULE_SLACK_URL:'https://hooks.slack.com/services/synthetic-coffer-4290/synthetic-coffer-4291/synthetic-coffer-4292'},outbound:async request=>{
+  const nativeResult=await native.outbound(request);if(nativeResult)return nativeResult
   if(new URL(request.url).hostname==='api.stripe.com')return payments.outbound(request)
   assert.equal(new URL(request.url).hostname,'receiver.example.test','Public API local writes do not make unapproved provider calls')
   const body=await request.text();received.push({body,event:JSON.parse(body),signature:request.headers.get('coffer-signature')})

@@ -1,11 +1,11 @@
-import { all, fail, one } from './db'
+import { all } from './db'
+import { campaignPublication } from './giving/campaign-publication'
 import { allocateCents } from './gift-splits'
 
 /** CAMP-001: received money is the signed fund ledger; commitments and
  * recognition are separate. Dates describe the plan, never hide corrections. */
 export async function campaignProgress(c: { db: D1Database }, campaignId: string) {
- const campaign = await one(c, 'SELECT * FROM cf_campaigns WHERE id=?', campaignId)
- if (!campaign) fail('NOT_FOUND', 'That campaign does not exist.', 404)
+ const publication = await campaignPublication(c,campaignId), campaign=publication.campaign
  const scope = await all(c, `WITH RECURSIVE tree AS (
   SELECT * FROM cf_campaigns WHERE id=? UNION ALL SELECT child.* FROM cf_campaigns child JOIN tree p ON child.parent_id=p.id
  ) SELECT * FROM tree`, campaignId)
@@ -43,7 +43,7 @@ export async function campaignProgress(c: { db: D1Database }, campaignId: string
   }
  }
  const raisedCents = entries.reduce((sum, r) => sum + r.amount_cents, 0)
- return { campaign, campaigns: scope, funds: [...new Set(scope.map(r => r.fund))], appeals,
+ return { campaign, publicationVersion:publication.version, campaigns: scope, funds: [...new Set(scope.map(r => r.fund))], appeals,
   forms: scope.filter(r => r.active).map(r => ({ campaignId: r.id, name: r.name, path: '/give/' + r.slug })), entries, pledges,
   raisedCents, pledgedOutstandingCents: pledges.reduce((sum, p) => sum + Math.max(0, p.outstanding_cents), 0), softCreditCents,
   giftCount: gifts.size, donorCount: donors.size, newDonors: firsts.filter(r => gifts.has(r.id)).length,

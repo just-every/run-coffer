@@ -135,6 +135,7 @@ import { agentResponse } from './agent/http'
 import { crmMoveInResponse } from './move-in/http'
 import { updateFeeCover } from './giving/fee-cover'
 import { createCampaign, campaigns } from './giving/campaigns'
+import { publishCampaign } from './giving/campaign-publication'
 import { givingManageResponse } from './giving/manage-ui'
 import { checkStripe, givingSetupPage } from './giving/setup'
 import { invitePerson, people } from './people'
@@ -281,6 +282,12 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if(staffPlans)return staffPlans
   const payments = await paymentsResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
   if (payments) return payments
+  const publication=path.match(/^\/(api\/coffer|app)\/giving\/campaigns\/([^/]+)\/publish$/)
+  if(publication){
+   if(request.method!=='POST')fail('method_not_allowed','Use the campaign review form.',405)
+   const result=await publishCampaign(c,decodeURIComponent(publication[2]),isApi?await jsonBody(request):Object.fromEntries(await formBody(request)))
+   return isApi?json(result):redirect('/app/giving/campaigns/'+encodeURIComponent(result.id))
+  }
   const feeCover = path.match(/^\/(api\/coffer|app)\/giving\/campaigns\/([^/]+)\/fee-cover$/)
   if (feeCover) {
    if (request.method !== 'POST') fail('method_not_allowed', 'Use the fee-cover form.', 405)

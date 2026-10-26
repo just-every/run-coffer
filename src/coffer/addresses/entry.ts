@@ -9,12 +9,15 @@ import { addressFingerprint, addressProcessing, checkStatement, postalAddress } 
  * a verification or replaces the address a person entered. */
 export async function enteredAddress(c:Context,donor:Row) {
  const processing=await addressProcessing(c)
- if(c.transactionPlan){
-  if(processing.enabled)fail('API_PROVIDER_EFFECT','Use native donor entry while address processing is enabled.',409)
-  c.transactionPlan.statements.push(guard('NOT EXISTS(SELECT 1 FROM cf_address_processing WHERE enabled=1)','ADDRESS_CONNECTION_CHANGED','Address processing changed; use native donor entry.'))
+ if(!processing.enabled){
+  // A concurrently enabled connection must not let a staged entry bypass the
+  // same processing that a native entry would perform.
+  if(c.transactionPlan)c.transactionPlan.statements.push(guard('NOT EXISTS(SELECT 1 FROM cf_address_processing WHERE enabled=1)','ADDRESS_CONNECTION_CHANGED','Address processing changed; refresh before saving.'))
   return {donor,statements:[]}
  }
- if(!processing.enabled)return {donor,statements:[]}
+ // Staging must retain the native pre-provider authority check as well as the
+ // final transaction check; revoked credentials cannot submit entered data.
+ if(c.transactionPlan)await commit({...c,transactionPlan:undefined},[])
  const result=await verifySmartyAddress({address:postalAddress(donor),identity:{id:donor.id,name:donor.name,kind:donor.constituent_kind??'person'},authId:c.env?.SMARTY_AUTH_ID??'',authToken:c.env?.SMARTY_AUTH_TOKEN??''})
  if(result.status==='error')fail('ADDRESS_PROVIDER','Smarty could not verify this address. Nothing was saved; retry after checking the connection.',502)
  const replacement=result.address

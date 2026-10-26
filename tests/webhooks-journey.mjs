@@ -5,6 +5,7 @@ import {webhooksBrowser,webhooksHistoryBrowser} from './webhooks-browser.mjs'
 import {verifyWebhook} from '../src/coffer/webhooks/receiver.mjs'
 import {webhookSourcesJourney} from './webhook-sources-journey.mjs'
 import {recurringStripeEdge} from './recurring-stripe-edge.mjs'
+import {webhookHistoryJourney} from './webhook-history-journey.mjs'
 
 const events=['gift.created','gift.reversed','donor.created','donor.updated','plan.failed','plan.canceled','task.assigned','form.submitted']
 const subscription={name:'Riverbend operations',endpoint:'https://receiver.example.test/events',events,reviewed:'yes'}
@@ -166,6 +167,7 @@ export async function webhooksJourney(){
   assert.equal(new URL(request.url).hostname,'receiver.example.test')
   return receiver(request)
  }})
+ await webhookHistoryJourney()
  await webhookSourceJourney()
  await webhookSourcesJourney()
 }
