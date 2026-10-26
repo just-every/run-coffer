@@ -39,7 +39,7 @@ export async function importAcknowledgmentJourney() {
    assert.ok(p.diagnostics.some(d=>d.code==='ACKNOWLEDGMENT_LINK'&&d.file==='gifts.csv'&&d.row===2))
    await post(h,'apply',{id:p.id,fingerprint:p.fingerprint,acceptedReason:'A link must still match its source evidence.'},{status:409})
   }
-  for (const [index,value,code] of [[8,'Pigeon post','ACKNOWLEDGMENT_METHOD'],[6,'do not acknowledge','ACKNOWLEDGMENT_LINK']]) {
+  for (const [index,value,code] of [[8,'Pigeon post','ACKNOWLEDGMENT_METHOD'],[8,'constructor','ACKNOWLEDGMENT_METHOD'],[6,'do not acknowledge','ACKNOWLEDGMENT_LINK']]) {
    const invalid=await post(h,'preview',input({giftRows:rows.map((r,i)=>i?r:r.map((v,j)=>j===index?value:v))}))
    assert.equal(invalid.canApply,false);assert.ok(invalid.diagnostics.some(d=>d.code===code&&d.row===2))
   }
