@@ -39,5 +39,6 @@ export async function prepareEventCheckout(db:D1Database,intentId:string,ticket:
  // A concurrent different request cannot add any seats to the winning snapshot.
  for(const g of guests)statements.push(db.prepare(`INSERT OR IGNORE INTO cf_event_registrations(id,event_id,ticket_type_id,donor_id,intent_id,attendee_name,price_cents,benefit_cents,benefit_description,created_at,seat_number,attendee_email,dietary_notes,answers_json,is_buyer)
  SELECT ?,?,?,NULL,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM cf_event_orders WHERE intent_id=? AND input_hash=? AND paid_at IS NULL)`).bind(g.id,snapshot.event_id,ticket.id,intentId,g.attendee_name,snapshot.price_cents,snapshot.benefit_cents,snapshot.benefit_description,now,g.seat_number,g.attendee_email,g.dietary_notes,JSON.stringify(g.answers),g.is_buyer,intentId,inputHash))
+ statements.push(db.prepare('DELETE FROM cf_assert'))
  return {order:{...snapshot,input_hash:prior?prior.input_hash:inputHash},guests,statements}
 }

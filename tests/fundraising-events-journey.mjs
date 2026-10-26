@@ -81,4 +81,5 @@ export async function fundraisingEventsJourney(){
   const protectedRestore=await installation({entry:'tests/fixed-clock-worker.ts'})
   try{await restore(protectedRestore,saved,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}});assert.equal((await protectedRestore.get('/api/coffer/events?eventId='+event.id)).length,0)}finally{await protectedRestore.close()}
  },{entry:'tests/fixed-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-8001'},outbound})
+ const {eventPackagesJourney}=await import('./event-packages-journey.mjs');await eventPackagesJourney()
 }

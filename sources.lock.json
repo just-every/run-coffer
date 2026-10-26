@@ -2615,7 +2615,7 @@
       "executable": false
     },
     "src/coffer/event-checkout.ts": {
-      "sha256": "0f8cbc5cd31dca83eb93a2a233cc0da2f8482773c4c5fe8a93e26a1b5551f20e",
+      "sha256": "ecc15b5c08687fc736042c62f202700d0076acb403c14cfa71fd28aa309975b8",
       "executable": false
     },
     "src/coffer/event-guest-review.ts": {
@@ -5914,6 +5914,14 @@
       "sha256": "5aa94c7a923ae24b029773a11f28bf3e875023d6800172fcc8faa7b7488896b3",
       "executable": false
     },
+    "tests/event-packages-browser.mjs": {
+      "sha256": "9328310c5864a55485ba432bc474f4ec0404926844491082435df724183b095f",
+      "executable": false
+    },
+    "tests/event-packages-journey.mjs": {
+      "sha256": "981d88b685d627b26535c1f920804f721ed090ef6eba97702b579c5c5bb734d0",
+      "executable": false
+    },
     "tests/exports-browser.mjs": {
       "sha256": "a0da009c7c7c869e8ad0865865a2e1d66410587619737a60417784798cb9d4c2",
       "executable": false
@@ -6103,7 +6111,7 @@
       "executable": false
     },
     "tests/fundraising-events-journey.mjs": {
-      "sha256": "9b1009b85f40a54f4047eea2e77bbf0f2a051464ad958a19f3f814832a0f313f",
+      "sha256": "dc6f81edbf4659d3e53995e26bbec6c2efcb424506aeca81353ccd0ef5996a98",
       "executable": false
     },
     "tests/gift-batches-journey.mjs": {
