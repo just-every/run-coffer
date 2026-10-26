@@ -6527,7 +6527,7 @@
       "executable": false
     },
     "tests/webhooks-browser.mjs": {
-      "sha256": "8ee79af84237e5bab0382e621658aeca6343e0b1ee910d18e06b1a5920059eb9",
+      "sha256": "ea01870ce5fa677f5af6d4a437c2016ec300dc3c3d22ec1ee0a489fce3e17160",
       "executable": false
     },
     "tests/webhooks-journey.mjs": {

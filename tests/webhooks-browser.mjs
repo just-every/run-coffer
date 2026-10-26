@@ -100,6 +100,8 @@ export async function webhooksBrowser(h,directory){
    await page.screenshot({path:`${directory}/API-002-replacement-${width}.png`,fullPage:true,mask:[replacementSecret]})
    await page.getByRole('link',{name:'Back to webhooks',exact:true}).click()
    await page.waitForURL('**/app/webhooks')
+   const replacement=(await state(h)).subscriptions.find(item=>item.name==='Replacement '+width)
+   await submit(page,row(page,'endpoint',replacement.id).getByRole('button',{name:'Pause endpoint',exact:true}))
    const current=await state(h)
    const delivery=current.deliveries.find(delivery=>terminal.has(delivery.status)&&!replayed.has(delivery.id)&&current.subscriptions.some(subscription=>subscription.id===delivery.subscription_id&&subscription.enabled&&subscription.approved))
    assert.ok(delivery,'The fixture supplies an enabled endpoint with a terminal delivery for each viewport')
