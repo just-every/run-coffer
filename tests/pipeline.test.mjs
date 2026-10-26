@@ -162,3 +162,5 @@ test('REPORT-003: fiscal dashboard, explicit goals, exact ledger drilldowns, coh
 test('STEW-001: daily task reminders, manager escalation and owner fallback preserve timeline completion',async()=>{const {taskRemindersJourney}=await import('./task-reminders-journey.mjs');await taskRemindersJourney()})
 
 test('DEV-010: overdue pledge installments, grant reports and employer matches receive approved reminders, escalation and recorded resolution',async()=>{const {developmentFollowupsJourney}=await import('./development-followups-journey.mjs');await developmentFollowupsJourney()})
+
+test('DEV-005: weekly manager call priorities preserve capacity, non-ask restrictions, overflow and observed giving and retention',async()=>{const {callPrioritiesJourney}=await import('./call-priorities-journey.mjs');await callPrioritiesJourney()})

@@ -1,3 +1,4 @@
+import { rankCalls, saveCallRankPolicy } from './call-ranking'
 import { taskTeamCommand } from './task-team'
 import { webhookCommand } from './webhooks'
 import { fundraisingEventCommand } from './fundraising-events'
@@ -74,6 +75,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // Who may run each command. Agents prepare letters and appeal audiences; a
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
+ 'calls.rank':MANAGERS, 'calls.policy':MANAGERS,
  'task.teamSave':['owner','admin'], 'task.create':STAFF, 'task.policy':MANAGERS, 'task.reminders':STAFF,
  'webhook.subscribe': MANAGERS, 'webhook.pause': MANAGERS, 'webhook.replay': MANAGERS,
  'event.create': MANAGERS, 'event.ticket': MANAGERS, 'event.checkIn': MANAGERS,
@@ -129,6 +131,8 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if (command === 'ack.prepareStatements') return prepareStatements(c, p)
  if (command === 'donor.merge') return mergeDonor(c, p)
  if (command === 'donor.unmerge') return undoMerge(c, p)
+ if(command==='calls.rank')return rankCalls(c,p)
+ if(command==='calls.policy')return saveCallRankPolicy(c,p)
  if (command === 'settings.update') return settingsCommand(c, p)
  if (command.startsWith('agentGrant.')) return (await agentGrantCommand(c,command,p))!
  if (command.startsWith('agent.')) return agentKey(c, command, p)

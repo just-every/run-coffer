@@ -1330,6 +1330,14 @@
       "sha256": "27195a504bf12b3ec3560eff104c182d6275c7a6ae09f35f9b996a8e0ab551b9",
       "executable": false
     },
+    "migrations/core/0148_coffer_call_capacity.sql": {
+      "sha256": "375c0b38e450aa25646434972311a69d89dc641d6538ab6ebd54ce297aba39f8",
+      "executable": false
+    },
+    "migrations/core/0149_coffer_call_ranking.sql": {
+      "sha256": "29ec9958c4e70f9a3874a54ef930ca0a714b00067542eab18edf97ff603ef2d5",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -2187,15 +2195,15 @@
       "executable": false
     },
     "src/coffer/agent/grants-ui.ts": {
-      "sha256": "48919a8c2ce986447a44b0562ddbfb493d10721e61aa8778ad0c6db63317d58a",
+      "sha256": "c9c25608077b8d6ba27c7474e0aabc4eb373370fb092db566cc161d026582902",
       "executable": false
     },
     "src/coffer/agent/http.ts": {
-      "sha256": "6e7c7dbb390d4f8c4bd23456e3b5ea2bfc9b758973d4cdd9f3b7afba3a372d9e",
+      "sha256": "c2c655681c64f91134e60ce51ebc999797a29e080403e4dfe868fad80c4a0605",
       "executable": false
     },
     "src/coffer/agent/jobs.ts": {
-      "sha256": "92f2a9a6ab2c3350bd11a678ada4c15c47fc7f84fa0cb03c7ac9791f306b5888",
+      "sha256": "2647862120b570266998f19d213dd1790329c0e3733b79973863b97763fff26d",
       "executable": false
     },
     "src/coffer/agent/journey-delivery.ts": {
@@ -2306,6 +2314,18 @@
       "sha256": "b7aa92a385241744b9c4f36af9fd3a41da1af2f3583fab50d16010167b9d49ad",
       "executable": false
     },
+    "src/coffer/call-outcomes.ts": {
+      "sha256": "04241d2cbbf8f2636843afed8df12aec8ceeb6d555e13cfc11f631bec3e78dd5",
+      "executable": false
+    },
+    "src/coffer/call-ranking-scheduler.ts": {
+      "sha256": "a57e5e1bc29d3a17b75e18f3d21aa7f624a6c32f4710e937c9d30104469e0f52",
+      "executable": false
+    },
+    "src/coffer/call-ranking.ts": {
+      "sha256": "5bbea475e96cf8b91e31e0b3d38b03c01039b52c700d67a1087fbfad44bf9d3a",
+      "executable": false
+    },
     "src/coffer/call-tasks.ts": {
       "sha256": "e0346c04e47080f1ff1f70c01882fe72a25b4d764d1b4eca077437011ce96257",
       "executable": false
@@ -2315,7 +2335,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "379e1fd2eb46f318c28d1ff05aeb22b9872e76f4b30736ca5672c8f57315c146",
+      "sha256": "022cbbe330859cd82110f8f34460fcbd6e09267b6030a2800d839d6a2e175f4a",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2751,7 +2771,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "0043e196ce6f4de51d1d605383279b4e4fbd76ef29ebe0ae51109ad7e388b08e",
+      "sha256": "c00cdcfc56b57cec33716d82cf6e544dbc416cd016447288c6b178aba88c6eb3",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -2879,7 +2899,7 @@
       "executable": false
     },
     "src/coffer/merge-journal.ts": {
-      "sha256": "1db160eb469eb1d0eefcc26748d794c911369485c64032c9963f26721de428c6",
+      "sha256": "f2491b4775e5be4d270ee923e2384e751f588d54708f7e095b2d5c5942c4ec69",
       "executable": false
     },
     "src/coffer/money.ts": {
@@ -3303,7 +3323,7 @@
       "executable": false
     },
     "src/coffer/task-team.ts": {
-      "sha256": "45d0387434d7a02c5ad05c36beba4f9043a231f0c1cb4bbfac1906b5c272074d",
+      "sha256": "02ddd84dec987f3e951faf66db84cd1db40a919e5e5a06ba2664705d83afaae2",
       "executable": false
     },
     "src/coffer/tax-reports.ts": {
@@ -3348,6 +3368,10 @@
     },
     "src/coffer/ui/audit.ts": {
       "sha256": "a9dc67cc758cc6cea22db4cd239a97f0476b0659451b8eb4064126a979551804",
+      "executable": false
+    },
+    "src/coffer/ui/call-ranking.ts": {
+      "sha256": "8087ca0a5b7165dd1948b5d31125349779d16bb94f4677b35e305eb10275f5d4",
       "executable": false
     },
     "src/coffer/ui/call-tasks.ts": {
@@ -3519,7 +3543,7 @@
       "executable": false
     },
     "src/coffer/ui/more.ts": {
-      "sha256": "0f078c8745eea206631d95031ae155bcef9ff123a140428611a727d916f81a22",
+      "sha256": "1f0c3dec36a08a44d7548a0b84b96751574ecf25b351010f0ba1ed0517af9fe6",
       "executable": false
     },
     "src/coffer/ui/move-in.ts": {
@@ -3615,7 +3639,7 @@
       "executable": false
     },
     "src/coffer/ui/task-team.ts": {
-      "sha256": "62a26ea1f0868ec128388dc1b744171393b5381c522952ee29133429d05fbc96",
+      "sha256": "60fc14fadb291ff6dd79c9309f851a9e54781062d47f98bc08327e82b289769f",
       "executable": false
     },
     "src/coffer/ui/tax-reports.ts": {
@@ -5646,6 +5670,14 @@
       "sha256": "0f1412bcd34314e0b7d7386304ea48b0f9a83eef7adb02a77236f31de68e3da1",
       "executable": false
     },
+    "tests/call-priorities-browser.mjs": {
+      "sha256": "d3526dc6946f269e17869346a0d5eb33200f76159b2bb264596e1c7f760bca5b",
+      "executable": false
+    },
+    "tests/call-priorities-journey.mjs": {
+      "sha256": "4b21e5e1c994637185d4c35e01d6a103cf1e7b075099ebcd8c03a5587148a419",
+      "executable": false
+    },
     "tests/campaign-browser.mjs": {
       "sha256": "5e04ec655fd8a69a2ee06fc816c9cb07bfe25dfa693689569d95031f850cdc12",
       "executable": false
@@ -5755,7 +5787,7 @@
       "executable": false
     },
     "tests/engagement-worker.ts": {
-      "sha256": "bb522e56400eb8ca437e581fdc64359c86a876de31b692dd1fc4c9ee6e0d760a",
+      "sha256": "5aa94c7a923ae24b029773a11f28bf3e875023d6800172fcc8faa7b7488896b3",
       "executable": false
     },
     "tests/exports-browser.mjs": {
@@ -6091,7 +6123,7 @@
       "executable": false
     },
     "tests/pipeline.test.mjs": {
-      "sha256": "29fa0f03047ad3ded31836a10d2f311bc70d66a9d8b391c4d2e978df319e4af5",
+      "sha256": "184fd660ab75cbd35469a240290374cfc81f4bd3f14920e25336b8e835cd0d79",
       "executable": false
     },
     "tests/planned-giving-journey.mjs": {
@@ -6351,7 +6383,7 @@
       "executable": false
     },
     "tests/worker.ts": {
-      "sha256": "60cae06db8d2b63c9b3767bbc228202e553158320519b7716d5b5fa3fffd5851",
+      "sha256": "ffb1f0e25a70498c198270cdefbc608947cc05e6c5ba9a141a1873c98e8300d1",
       "executable": false
     },
     "tsconfig.json": {

@@ -4,7 +4,7 @@ import worker from './worker'
 import { receiveReply } from '../src/coffer/communications/replies'
 const RealDate=Date
 export default {scheduled:worker.scheduled,async fetch(request:Request,env:any) {
- const value=request.headers.get('x-test-now'),instant=value?RealDate.parse(value):RealDate.now()
+ const value=request.headers.get('x-test-now'),instant=value?RealDate.parse(value):(env.COFFER_TEST_NOW?RealDate.parse(env.COFFER_TEST_NOW):RealDate.now())
  globalThis.Date=class extends RealDate {constructor(...args:any[]){super(...(args.length?args:[instant]) as [any])}static now(){return instant}} as DateConstructor
  try {
   if(new URL(request.url).pathname==='/test-email') {

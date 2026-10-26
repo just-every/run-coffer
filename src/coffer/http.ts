@@ -465,6 +465,8 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (CONNECT.has(command)) return redirect('/app/appeals/connect')
  if (command.startsWith('welcome.') || command.startsWith('marketing.') || command.startsWith('reply.')) return redirect('/app/appeals')
  if (command.startsWith('fund.')) return redirect('/app/funds/restrictions')
+ if(command==='calls.policy')return redirect('/app/settings?saved=1#call-priorities')
+ if(command==='calls.rank')return redirect('/app/agent/calls?managerId='+encodeURIComponent(result.run.manager_id)+'&runId='+encodeURIComponent(result.run.id))
  if(command==='task.teamSave'||command==='task.policy')return redirect('/app/settings?saved=1#task-settings')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command.startsWith('portfolio.')) return redirect('/app/portfolios')
