@@ -16,7 +16,8 @@ export function acknowledgment(r: SourceRow, softCredit = false): ParsedAcknowle
  const get = (name: string) => r.get(field(name))
  const raw = get('acknowledgmentStatus'), date = get('acknowledgmentDate')
  const rawMethod = get('acknowledgmentMethod'), reason = get('acknowledgmentReason') || null
- const method = rawMethod ? methods[normalizeLabel(rawMethod)] || null : null
+ const methodKey = normalizeLabel(rawMethod)
+ const method = rawMethod && Object.hasOwn(methods,methodKey) ? methods[methodKey] : null
  if (rawMethod && !method) r.error('ACKNOWLEDGMENT_METHOD', `Acknowledgment method “${rawMethod}” needs review. Export email, letter, phone call, in person, handwritten note, or other.`, field('acknowledgmentMethod'))
  const template = get('acknowledgmentTemplate'), reference = get('acknowledgmentReference'), optOut = get('acknowledgmentOptOut'), interactionExternalId = get('acknowledgmentInteraction') || null
  if (!raw && !date && !rawMethod && !reason && !template && !reference && !optOut && !interactionExternalId) return undefined
