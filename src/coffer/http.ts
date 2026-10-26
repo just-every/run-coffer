@@ -1,3 +1,4 @@
+import { developmentReportResponse } from './agent/development-report-http'
 import { taskTeam } from './task-team'
 import { webhookState, webhookErasureStatements } from './webhooks'
 import { webhookPage, webhookSecretPage } from './ui/webhooks'
@@ -260,6 +261,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if(path==='/api/coffer/giving/protection'&&request.method==='GET'){if(!manager(actor))fail('FORBIDDEN','Only the owner or an admin reviews giving protection.',403);return json({forms:await protectionState(c)})}
   const documents=await documentsResponse(request,c,async()=>isApi?jsonBody(request):formBody(request,400000))
   if(documents)return documents
+  const developmentReport=await developmentReportResponse(request,c,async()=>isApi?jsonBody(request):Object.fromEntries(await formBody(request)))
+  if(developmentReport)return developmentReport
   const agent = await agentResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
   if (agent) return agent
   const crmMoveIn = await crmMoveInResponse(request, c, { jsonBody, formBody })

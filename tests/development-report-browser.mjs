@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict'
+import {mkdir} from 'node:fs/promises'
+import {withBrowserWorker} from './browser-worker.mjs'
+
+export async function developmentReportBrowser(h,{month,now},directory){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  await context.setExtraHTTPHeaders({'x-test-now':now})
+  const page=await context.newPage();page.setDefaultTimeout(15000)
+  const shot=async(name)=>{
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Report fits viewport')
+   const unnamed=await page.locator('button,a,[role=button]').evaluateAll(nodes=>nodes.filter(n=>n.checkVisibility()&&!(n.innerText||'').trim()&&!n.getAttribute('aria-label')&&!n.getAttribute('title')).map(n=>n.outerHTML.slice(0,150)))
+   assert.deepEqual(unnamed,[],'Visible controls have text or an accessible tooltip')
+   await page.screenshot({path:`${directory}/DEV-011-${name}.png`,fullPage:false})
+  }
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/agent/reports?month='+month)
+   await page.getByLabel('Monthly preparation schedule',{exact:true}).selectOption('yes')
+   await page.getByLabel('Preparation day of month',{exact:true}).fill('26')
+   await page.getByRole('checkbox',{name:/I authorize preparing the previous completed month/}).check()
+   await page.getByRole('button',{name:'Save monthly preparation',exact:true}).scrollIntoViewIfNeeded();await shot('monthly-preparation-'+width)
+   await page.getByRole('button',{name:'Save monthly preparation',exact:true}).click()
+   await page.goto(origin+'/app/agent/reports?month='+month)
+   await page.getByRole('button',{name:'Prepare monthly draft',exact:true}).click()
+   const cards=page.locator('section.card').filter({has:page.getByRole('heading',{name:'Development report — '+month,exact:true})})
+   const card=cards.first()
+   await card.getByText('Draft for director review',{exact:true}).waitFor()
+   await shot('draft-'+width)
+   await card.getByText('Edit report and recipients',{exact:true}).click()
+   await card.getByLabel('Director introduction',{exact:true}).fill('The director reviewed the current fundraising context.')
+   await card.getByLabel('Raised against goal commentary',{exact:true}).fill('The board should prioritize stewardship.')
+   await card.getByLabel('Approved recipient email addresses',{exact:true}).fill('board-browser@example.test')
+   await card.getByRole('button',{name:'Save director edits',exact:true}).click()
+   await card.getByText('Review exact report disclosure',{exact:true}).click()
+   await card.getByLabel('Director approval authority',{exact:true}).fill('The owner is acting with explicit director authority for this report.')
+   const review=card.getByRole('checkbox',{name:/I am the director/})
+   assert.equal(await review.isChecked(),false)
+   await review.scrollIntoViewIfNeeded();await shot('review-'+width)
+   await review.check();await card.getByRole('button',{name:'Approve exact report',exact:true}).click()
+   await card.getByText('Approved for named recipients',{exact:true}).waitFor()
+   assert.equal(await card.getByRole('checkbox',{name:/Send this exact approved report/}).isChecked(),false)
+   await card.getByRole('button',{name:'Send approved report',exact:true}).scrollIntoViewIfNeeded();await shot('approved-'+width)
+   await card.getByRole('checkbox',{name:/Send this exact approved report/}).check()
+   await card.getByRole('button',{name:'Send approved report',exact:true}).click()
+   await card.getByRole('heading',{name:'Recipient outcomes',exact:true}).waitFor()
+   assert.ok((await card.innerText()).includes('Email submitted'))
+   assert.equal(await card.getByRole('button',{name:'Send approved report',exact:true}).count(),0)
+   await card.getByRole('heading',{name:'Recipient outcomes',exact:true}).scrollIntoViewIfNeeded();await shot('submitted-'+width)
+   const numberLink=card.locator('a[data-source-api]').first(),href=await numberLink.getAttribute('href')
+   await numberLink.click();assert.equal(new URL(page.url()).pathname,new URL(href,origin).pathname)
+   await shot('source-'+width)
+   await page.goto(origin+'/app/agent/reports?month='+month+'&sources=1')
+   await page.getByRole('heading',{name:'Current overdue follow-up',exact:true}).waitFor();await shot('overdue-source-'+width)
+  }
+ })
+}

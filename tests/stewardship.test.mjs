@@ -158,3 +158,9 @@ test('DEV-006: schedule, day-ahead source-linked brief, existing research bounda
  const {meetingBriefJourney}=await import('./meeting-briefs-journey.mjs')
  await meetingBriefJourney()
 })
+
+
+test('DEV-011: monthly development reports cite their sources and require exact director approval before submission',async()=>{
+ const {developmentReportJourney}=await import('./development-report-journey.mjs')
+ await developmentReportJourney()
+})

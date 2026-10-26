@@ -26,6 +26,7 @@ const PARENTS: Record<string, string> = {
 }
 // Rows that reach a donor but are not records about them.
 export const NOT_IN_FILE: Record<string, string> = {
+ cf_development_report_donors: 'Internal board reports combine several constituents and their source facts remain available in their own records.',
  cf_hygiene_evidence: 'Private forwarded source evidence is withheld from donor files.',
  cf_hygiene_proposals: 'Internal review proposals can contain counterpart data and are withheld from donor files.',
  cf_task_notices: 'Internal staff reminders do not form part of a donor data request.',

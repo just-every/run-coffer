@@ -46,7 +46,7 @@ export async function saveAutomationGrant(c: Context,p:Row) {
  if(p.scope==='selected') {
   donors=String(p.donorIds??'').split(/[\s,]+/).filter(Boolean).map(x=>id(x,'Donor identifier'))
   if(!donors.length || donors.length>500)fail('INPUT','Select 1–500 donors.',400)
-  if(['reconciliation','statements'].includes(key))fail('INPUT','This background grant requires the complete ledger; stop it to remove that authority.',400)
+  if(['reconciliation','statements','development_reports'].includes(key))fail('INPUT','This background grant requires the complete ledger; stop it to remove that authority.',400)
  }
  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_automation_grants WHERE id=? AND version=?)','VERSION','This background grant changed. Refresh.',key,version),
   ...(donors?[guard('(SELECT count(*) FROM cf_donors WHERE id IN(SELECT value FROM json_each(?)) AND erased_at IS NULL)=?','GRANT_SCOPE','Choose current donors.',JSON.stringify([...new Set(donors)]),new Set(donors).size)]:[]),

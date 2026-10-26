@@ -1,3 +1,4 @@
+import { advanceDevelopmentReports } from './coffer/agent/development-report-scheduler'
 import { runTaskReminders } from './coffer/call-tasks'
 import { runWebhooks } from './coffer/webhooks/delivery'
 import { runScheduledReports } from './coffer/report-scheduler'
@@ -43,6 +44,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     execution.waitUntil(runMarketingSync(runtimeBindings(env),new Date(controller.scheduledTime)))
     execution.waitUntil(runWelcome(runtimeBindings(env),new Date(controller.scheduledTime)))
     const tick=new Date(controller.scheduledTime)
+    execution.waitUntil(advanceDevelopmentReports(runtimeBindings(env),tick))
     execution.waitUntil(runTaskReminders(runtimeBindings(env),tick))
     execution.waitUntil(runWebhooks(runtimeBindings(env),tick))
     execution.waitUntil(runScheduledReports(runtimeBindings(env),tick))

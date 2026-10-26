@@ -1,3 +1,4 @@
+import { developmentReportMergeStatements } from './agent/development-report-custody'
 import { mergeStatements as recognitionMergeStatements } from './recognition'
 import { solicitationCustodyGuards, solicitationMergeCustody } from './solicitation-custody'
 import { reassignmentReason } from './reassignment-reasons'
@@ -112,7 +113,7 @@ export async function mergeDonor(c: Context, p: Row, tail: Stmt[] = []): Promise
  statements.push(sql('UPDATE cf_recovery_permissions SET enabled=0,version=version+1 WHERE donor_id=?',source))
  statements.push(sql('DELETE FROM cf_card_expiry_notices WHERE subscription_id IN (SELECT id FROM cf_subscriptions WHERE donor_id=?)',source))
  statements.push(sql('UPDATE cf_donor_meetings SET donor_id=?,version=version+1 WHERE donor_id=?',target,source))
- statements.push(...tail,sql("UPDATE cf_hygiene_proposals SET status='stale' WHERE status='pending' AND (donor_id IN (?,?) OR related_donor_id IN (?,?))",source,target,source,target))
+ statements.push(...developmentReportMergeStatements(source,target),...tail,sql("UPDATE cf_hygiene_proposals SET status='stale' WHERE status='pending' AND (donor_id IN (?,?) OR related_donor_id IN (?,?))",source,target,source,target))
  for (const table of ['cf_hygiene_evidence','cf_record_documents','cf_donor_address_history','cf_research_results','cf_volunteering','cf_event_registrations','cf_planned_gifts','cf_legacy_memberships','cf_recurring_task_series','cf_pledges','cf_acks','cf_events','cf_soft_credits','cf_gift_tributes','cf_giving_customers','cf_giving_intents','cf_subscriptions','cf_communications','cf_reply_tasks']) statements.push(sql(`UPDATE ${table} SET donor_id=? WHERE donor_id=?`,target,source))
  statements.push(
   sql('DELETE FROM cf_appeal_recipients WHERE donor_id=? AND appeal_id IN (SELECT appeal_id FROM cf_appeal_recipients WHERE donor_id=?)',source,target),
@@ -176,6 +177,7 @@ export async function undoMerge(c:Context,p:Row):Promise<Row> {
   sql('DELETE FROM cf_identity_ingest'),
   sql("DELETE FROM cf_donor_address_history WHERE donor_id IN (?,?) AND source='undo'",merge.source_id,merge.target_id),
   sql('DELETE FROM cf_address_moves WHERE donor_id=?',merge.target_id),
+  ...developmentReportMergeStatements(merge.source_id,merge.target_id),
   ...advanceEarlierMergeVersions(tables,mergeId),
   ...households.map(h=>{const before=JSON.parse(h.before_value),after=JSON.parse(h.after_value);return event(c,'household.unmerge','household',before.id,null,{mergeId,oldHead:after.head_donor_id,newHead:before.head_donor_id,overridesSet:[],overridesCleared:[],membershipChanged:true})}),
   // Undo does not resurrect access tokens or restart cancelled email journeys.
