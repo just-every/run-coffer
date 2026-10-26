@@ -6,7 +6,7 @@ export const WEBHOOK_EVENTS = ['gift.created','gift.reversed','donor.created','d
 export async function webhookState(c: Context) {
  requireRole(c.actor,['owner','admin'],'manage webhooks')
  const [subscriptions,deliveries,attempts] = await Promise.all([
-  all(c,'SELECT id,name,endpoint,events,enabled,version FROM cf_webhook_subscriptions ORDER BY created_at DESC,id'),
+  all(c,`SELECT s.id,s.name,s.endpoint,s.events,s.enabled,s.version,CASE WHEN EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=s.approved_by AND o.version=s.approver_version AND o.status='active' AND o.role IN ('owner','admin')) THEN 1 ELSE 0 END AS approved FROM cf_webhook_subscriptions s ORDER BY s.created_at DESC,s.id`),
   all(c,`SELECT d.*,e.event_type,e.subject_id,e.occurred_at,s.name AS endpoint_name FROM cf_webhook_deliveries d JOIN cf_webhook_events e ON e.id=d.event_id JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id ORDER BY d.created_at DESC,d.id LIMIT 100`),
   all(c,`SELECT a.* FROM cf_webhook_attempts a WHERE a.delivery_id IN (SELECT id FROM cf_webhook_deliveries ORDER BY created_at DESC,id LIMIT 100) ORDER BY attempted_at,id`)
  ])

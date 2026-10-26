@@ -3603,7 +3603,7 @@
       "executable": false
     },
     "src/coffer/ui/webhooks.ts": {
-      "sha256": "c27d3591a57a6479b3b7f981a67021f108e43c56650a226707e97d73df7230bf",
+      "sha256": "8e8ad72e2a2e7303ce2eb1c93313132df918699f2d2a60ae303963effaa0b4b1",
       "executable": false
     },
     "src/coffer/volunteering.ts": {
@@ -3611,7 +3611,7 @@
       "executable": false
     },
     "src/coffer/webhooks.ts": {
-      "sha256": "e153be147af92316eb0ac6a2d0a222fe4392e12334a6e31603291944cac53ca7",
+      "sha256": "f83300b1b5301b6867737a2bb0e3bdfc8a75d922b84c024039d93d806a10d2d8",
       "executable": false
     },
     "src/coffer/webhooks/delivery.ts": {
@@ -6295,7 +6295,7 @@
       "executable": false
     },
     "tests/webhooks-browser.mjs": {
-      "sha256": "c614d2f5af23165086335136f126a82cdde13f7c962361f29bf3d39202a68b87",
+      "sha256": "cfa45769cf6e804bb6bdd5b73c80ead1a4e69b213ca5e5a721d72f1bb14b373e",
       "executable": false
     },
     "tests/webhooks-journey.mjs": {

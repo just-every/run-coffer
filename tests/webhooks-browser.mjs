@@ -13,12 +13,12 @@ async function fits(page,width){
 }
 
 async function submit(page,button,keyboard=false){
- const response=page.waitForResponse(response=>new URL(response.url()).pathname==='/app/actions'&&response.request().method()==='POST')
- const navigation=page.waitForNavigation({waitUntil:'load'})
- if(keyboard)await page.keyboard.press('Enter')
- else await button.click()
- assert.ok([200,303].includes((await response).status()),'Webhook action completes through its real command')
- await navigation
+ const [response]=await Promise.all([
+  page.waitForResponse(response=>new URL(response.url()).pathname==='/app/actions'&&response.request().method()==='POST'),
+  page.waitForNavigation({waitUntil:'load'}),
+  keyboard?page.keyboard.press('Enter'):button.click(),
+ ])
+ assert.ok([200,303].includes(response.status()),'Webhook action completes through its real command; HTTP '+response.status())
 }
 
 export async function webhooksBrowser(h,directory){
@@ -88,11 +88,11 @@ export async function webhooksBrowser(h,directory){
    assert.equal((await state(h)).subscriptions.find(subscription=>subscription.id===connected.id).enabled,0,'Native pause stops this subscription')
    assert.equal(await row(page,'endpoint',connected.id).getByRole('button').count(),0,'Paused endpoints offer no resume or delete action')
    const current=await state(h)
-   const delivery=current.deliveries.find(delivery=>terminal.has(delivery.status)&&!replayed.has(delivery.id)&&current.subscriptions.some(subscription=>subscription.id===delivery.subscription_id&&subscription.enabled))
+   const delivery=current.deliveries.find(delivery=>terminal.has(delivery.status)&&!replayed.has(delivery.id)&&current.subscriptions.some(subscription=>subscription.id===delivery.subscription_id&&subscription.enabled&&subscription.approved))
    assert.ok(delivery,'The fixture supplies an enabled endpoint with a terminal delivery for each viewport')
    replayed.add(delivery.id)
    for(const item of current.deliveries){
-    const enabled=current.subscriptions.some(subscription=>subscription.id===item.subscription_id&&subscription.enabled)
+    const enabled=current.subscriptions.some(subscription=>subscription.id===item.subscription_id&&subscription.enabled&&subscription.approved)
     if(!enabled||!terminal.has(item.status))assert.equal(await row(page,'delivery',item.id).getByText('Replay this delivery',{exact:true}).count(),0,'In-flight and paused deliveries cannot be replayed')
    }
    const original=row(page,'delivery',delivery.id)

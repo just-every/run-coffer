@@ -16,7 +16,7 @@ const labels: Record<string, string> = {
 
 function subscriptionItem(subscription: Subscription) {
  return `<li id="webhook-endpoint-${e(subscription.id)}"><strong>${e(subscription.name)}</strong>
-  <p class="muted">${subscription.enabled ? 'Active' : 'Paused'} · <code>${e(subscription.endpoint)}</code></p>
+  <p class="muted">${!subscription.enabled ? 'Paused' : subscription.approved ? 'Active' : 'Approval changed — connect a newly approved endpoint'} · <code>${e(subscription.endpoint)}</code></p>
   <details><summary>Subscribed events (${subscription.events.length})</summary><ul class="list">${subscription.events.map(event => `<li><code>${e(event)}</code></li>`).join('')}</ul></details>
   ${subscription.enabled ? form('webhook.pause', '<p>Pausing stops future deliveries and automatic retries for this endpoint.</p>', 'Pause endpoint', { subscriptionId: subscription.id, version: subscription.version }, 'secondary') : ''}</li>`
 }
@@ -27,7 +27,7 @@ function attemptHistory(attempts: Attempt[]) {
 }
 
 function deliveryItem(delivery: Delivery, subscription: Subscription | undefined, attempts: Attempt[]) {
- const active = !!subscription?.enabled
+ const active = !!subscription?.enabled && !!subscription?.approved
  const retry = !active ? 'Endpoint paused; retries stopped.' : ['pending', 'failed'].includes(delivery.status)
   ? `Next attempt: ${utc(delivery.next_at)}` : delivery.status === 'sending' ? 'Attempt in progress.' : 'No automatic retry scheduled.'
  const replay = active && terminal.has(delivery.status) ? `<details><summary>Replay this delivery</summary>${form('webhook.replay', '<label><input type="checkbox" name="reviewed" value="yes" required> I checked the receiver and approve another delivery. It may duplicate an earlier delivery; automatic retries may also produce duplicates.</label>', 'Queue replay', { deliveryId: delivery.id }, 'secondary')}</details>` : ''
