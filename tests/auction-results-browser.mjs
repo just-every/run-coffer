@@ -13,7 +13,7 @@ export async function auctionResultsBrowser(h,{event,jobId,directory}){
    const shot=async name=>{
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Auction forms fit the viewport')
     for(const control of await page.locator('a,button').all())if(await control.isVisible())assert.ok((await control.innerText()).trim()||await control.getAttribute('aria-label'),'Every action has a visible or accessible name')
-    await page.screenshot({path:`${directory}/CAMP-005-${name}-${width}.png`,fullPage:true})
+    await page.screenshot({path:`${directory}/CAMP-005-${name}-${width}.png`,fullPage:name!=='bidder-balances'})
    }
    await page.goto(origin+'/app/events/'+event.id)
    await shot('event')

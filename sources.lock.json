@@ -5731,7 +5731,7 @@
       "executable": false
     },
     "tests/auction-results-browser.mjs": {
-      "sha256": "4bd298438cd50d5da82d2f294f8968628a2b323fd95c65a70fb9b9db6fe0aa15",
+      "sha256": "805a83b31c4749b3cefb2d3428e44717e012137183ece67166f0287152bc126b",
       "executable": false
     },
     "tests/auction-results-journey.mjs": {
