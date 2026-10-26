@@ -17,6 +17,7 @@ export async function developmentReportBrowser(h,{month,now},directory){
    await page.setViewportSize({width,height:1000})
    const opened=await page.goto(origin+'/app/agent/reports?month='+month)
    assert.equal(opened.status(),200,await page.locator('body').innerText())
+   await shot('held-history-'+width)
    await page.getByRole('link',{name:'Report settings',exact:true}).click()
    await page.getByLabel('Monthly preparation schedule',{exact:true}).selectOption('yes')
    await page.getByLabel('Preparation day of month',{exact:true}).fill('26')

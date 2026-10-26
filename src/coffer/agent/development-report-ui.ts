@@ -28,7 +28,7 @@ function approval(r:Row) {
 }
 function reportCard(r:Row,deliveries:Row[],timezone:string) {
  const recipients=JSON.parse(r.recipients)
- return box(r.subject,`<p>${chip(states[r.status]??r.status)} · Prepared ${e(moment(r.prepared_at,timezone))}</p>
+ return box(r.subject,`<p>${chip(r.custody_hold?'Held':states[r.status]??r.status)} · Prepared ${e(moment(r.prepared_at,timezone))}</p>
  ${r.custody_hold?`<p role="alert">${e(r.custody_hold)}</p>`:''}<p>Named recipients: ${recipients.length?recipients.map(e).join(', '):'Save recipients before approval.'}</p>
  ${developmentReportDocument(r)}${!r.custody_hold&&['draft','approved'].includes(r.status)?editor(r):''}${!r.custody_hold?approval(r):''}
  ${deliveries.length?`<h3>Recipient outcomes</h3><ul>${deliveries.map(d=>`<li>${e(d.recipient)}: ${e(states[d.status]??d.status)}${d.detail?` — ${e(d.detail)}`:''}</li>`).join('')}</ul>`:''}`,'development-report-'+r.id)
