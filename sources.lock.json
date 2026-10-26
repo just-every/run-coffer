@@ -1315,7 +1315,7 @@
       "executable": false
     },
     "migrations/core/0144_coffer_webhooks.sql": {
-      "sha256": "34cff585dd73672481205e660750130c9eac8374375a755a30b0c5dbb2ec324a",
+      "sha256": "0c86697c15e71247e09ae513d6260738a2a8becdb917bbd246708c4533a7ee01",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2731,7 +2731,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "87caf3a1adb92b4c4876a4be5af11ba4d348bd5ccc919db533f562580548249c",
+      "sha256": "b6f4eef6b0f6febfdc39ef6b7129ae3452633b1c4a3891a2e35f3b7cff0957cc",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3611,7 +3611,7 @@
       "executable": false
     },
     "src/coffer/webhooks.ts": {
-      "sha256": "04a35aa04d52bb4881967b873437542728782510130b47197f507a1d529158dc",
+      "sha256": "e153be147af92316eb0ac6a2d0a222fe4392e12334a6e31603291944cac53ca7",
       "executable": false
     },
     "src/coffer/webhooks/delivery.ts": {

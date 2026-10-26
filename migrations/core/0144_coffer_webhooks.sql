@@ -52,14 +52,6 @@ BEGIN INSERT INTO cf_webhook_events(id,event_type,subject_id,occurred_at) VALUES
 CREATE TRIGGER cf_webhook_form AFTER UPDATE OF session_id ON cf_giving_intents
 WHEN (OLD.session_id IS NULL AND NEW.session_id IS NOT NULL) AND EXISTS(SELECT 1 FROM cf_webhook_subscriptions WHERE enabled=1)
 BEGIN INSERT INTO cf_webhook_events(id,event_type,subject_id,occurred_at) VALUES(lower(hex(randomblob(16))),'form.submitted',NEW.id,strftime('%Y-%m-%dT%H:%M:%fZ','now')); END;
-CREATE TRIGGER cf_webhook_erasure AFTER UPDATE OF erased_at ON cf_donors
-WHEN OLD.erased_at IS NULL AND NEW.erased_at IS NOT NULL BEGIN
- DELETE FROM cf_webhook_events WHERE subject_id=OLD.id
- OR subject_id IN (SELECT id FROM cf_gifts WHERE donor_id=OLD.id)
- OR subject_id IN (SELECT id FROM cf_subscriptions WHERE donor_id=OLD.id)
- OR subject_id IN (SELECT id FROM cf_giving_intents WHERE donor_id=OLD.id)
- OR subject_id IN (SELECT id FROM cf_call_tasks WHERE donor_id=OLD.id);
-END;
 CREATE TRIGGER cf_webhook_recurring_task AFTER INSERT ON cf_recurring_tasks
 WHEN EXISTS(SELECT 1 FROM cf_webhook_subscriptions WHERE enabled=1) BEGIN
  INSERT INTO cf_webhook_events(id,event_type,subject_id,occurred_at) VALUES(lower(hex(randomblob(16))),'task.assigned',NEW.id,NEW.created_at);
@@ -80,4 +72,10 @@ CREATE TRIGGER cf_webhook_recurring_task_removed BEFORE DELETE ON cf_recurring_t
 END;
 CREATE TRIGGER cf_webhook_grant_task_removed BEFORE DELETE ON cf_grant_tasks BEGIN
  DELETE FROM cf_webhook_events WHERE event_type='task.assigned' AND subject_id=OLD.id;
+END;
+CREATE TRIGGER cf_webhook_gift_removed BEFORE DELETE ON cf_gifts BEGIN
+ DELETE FROM cf_webhook_events WHERE subject_id=OLD.id AND event_type IN ('gift.created','gift.reversed');
+END;
+CREATE TRIGGER cf_webhook_donor_removed BEFORE DELETE ON cf_donors BEGIN
+ DELETE FROM cf_webhook_events WHERE subject_id=OLD.id AND event_type IN ('donor.created','donor.updated');
 END;

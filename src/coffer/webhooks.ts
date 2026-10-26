@@ -39,3 +39,14 @@ export async function webhookCommand(c: Context, command: string, p: Row): Promi
  await commit(c,[guard(`EXISTS(SELECT 1 FROM cf_webhook_deliveries d JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id JOIN oa_operators o ON o.id=s.approved_by WHERE d.id=? AND d.status IN ('delivered','exhausted','held') AND s.enabled=1 AND o.version=s.approver_version AND o.status='active' AND o.role IN ('owner','admin'))`,'WEBHOOK_REPLAY','Only a completed delivery with current endpoint approval can be replayed.',deliveryId),sql("INSERT INTO cf_webhook_deliveries(id,subscription_id,event_id,status,next_at,replay_of,created_at) VALUES(?,?,?,'pending',?,?,?)",replayId,delivery.subscription_id,delivery.event_id,c.now,deliveryId,c.now),event(c,command,'webhook_delivery',replayId,null,{replayOf:deliveryId,explicitDuplicateApproval:true})])
  return {id:replayId}
 }
+
+/** Run before native erasure moves records to their anonymous placeholder. */
+export function webhookErasureStatements(donorId: string) {
+ return [sql(`DELETE FROM cf_webhook_events WHERE subject_id=?
+ OR subject_id IN (SELECT id FROM cf_gifts WHERE donor_id=?)
+ OR subject_id IN (SELECT id FROM cf_subscriptions WHERE donor_id=?)
+ OR subject_id IN (SELECT id FROM cf_giving_intents WHERE donor_id=?)
+ OR subject_id IN (SELECT id FROM cf_call_tasks WHERE donor_id=?)
+ OR subject_id IN (SELECT t.id FROM cf_recurring_tasks t JOIN cf_recurring_task_series s ON s.id=t.series_id WHERE s.donor_id=?)
+ OR subject_id IN (SELECT t.id FROM cf_grant_tasks t JOIN cf_grants g ON g.id=t.grant_id WHERE g.donor_id=?)`,...Array(7).fill(donorId))]
+}

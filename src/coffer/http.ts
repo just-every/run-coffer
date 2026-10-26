@@ -1,4 +1,4 @@
-import { webhookState } from './webhooks'
+import { webhookState, webhookErasureStatements } from './webhooks'
 import { webhookPage, webhookSecretPage } from './ui/webhooks'
 import { eventRegistrationErasureStatements } from './privacy'
 import { eventGuests, fundraisingEvents } from './fundraising-events'
@@ -434,7 +434,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   { sql: "UPDATE cf_subscriptions SET donor_id=?,customer_id='' WHERE donor_id=?", params: [placeholder, donorId] },
  ]
  // The placeholder must exist before its references move; delete the old donor last.
- const nativeStatements = [...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,?)", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder, JSON.stringify({reason})] }]
+ const nativeStatements = [...webhookErasureStatements(donorId), ...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,?)", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder, JSON.stringify({reason})] }]
  const result: any = await imports.erase(c.db, c.actor, donorId, authority, { nativeStatements, checkpoint })
  await purgeDocuments(c)
  return { erased: donorId, donorId: placeholder, receiptId: result.receiptId ?? result.id }
