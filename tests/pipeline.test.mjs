@@ -158,3 +158,5 @@ test('MAJOR-005: restricted WealthEngine screening retains estimates with proven
 })
 
 test('REPORT-003: fiscal dashboard, explicit goals, exact ledger drilldowns, cohorts, recurring sources and pipeline',async()=>{const {dashboardJourney}=await import('./dashboard-journey.mjs');await dashboardJourney()})
+
+test('STEW-001: daily task reminders, manager escalation and owner fallback preserve timeline completion',async()=>{const {taskRemindersJourney}=await import('./task-reminders-journey.mjs');await taskRemindersJourney()})

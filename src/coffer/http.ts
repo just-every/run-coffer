@@ -1,3 +1,4 @@
+import { taskTeam } from './task-team'
 import { webhookState, webhookErasureStatements } from './webhooks'
 import { webhookPage, webhookSecretPage } from './ui/webhooks'
 import { eventRegistrationErasureStatements } from './privacy'
@@ -92,7 +93,7 @@ import { fundReportPage } from './ui/fund-report'
 import { welcomeState } from './communications/welcome'
 import { preferenceState } from './communications/preferences'
 import { replyTasks } from './communications/replies'
-import { callTasks, taskCandidates, taskOwners } from './call-tasks'
+import { callTasks, taskCandidates, taskOwners, taskNotices, taskPolicy } from './call-tasks'
 import { statusNotices } from './status'
 import { lapses } from './lapses'
 import { annualLapses } from './annual-lapses'
@@ -464,6 +465,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (CONNECT.has(command)) return redirect('/app/appeals/connect')
  if (command.startsWith('welcome.') || command.startsWith('marketing.') || command.startsWith('reply.')) return redirect('/app/appeals')
  if (command.startsWith('fund.')) return redirect('/app/funds/restrictions')
+ if(command==='task.teamSave'||command==='task.policy')return redirect('/app/settings?saved=1#task-settings')
  if (command.startsWith('task.')) return redirect('/app/calls?owner=&status=' + (command === 'task.complete' ? 'done' : 'active'))
  if (command.startsWith('portfolio.')) return redirect('/app/portfolios')
  if (command.startsWith('research.')) return redirect('/app/research'+(input.returnDonorId?'?donorId='+encodeURIComponent(input.returnDonorId):''))
@@ -583,7 +585,8 @@ async function api(c: Context, url: URL): Promise<Response> {
  if ((m = match(/^\/api\/coffer\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
  if (path === '/api/coffer/reports/annual-lapses') return json(await annualLapses(c,url.searchParams.has('year') ? Number(url.searchParams.get('year')) : undefined))
  if (path === '/api/coffer/lapses') return json(await lapses(c))
- if (path === '/api/coffer/tasks') { const candidates = await taskCandidates(c); return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: candidates.sources, excluded: candidates.excluded }) }
+ if(path==='/api/coffer/task-team')return json(await taskTeam(c))
+ if (path === '/api/coffer/tasks') { const candidates = await taskCandidates(c); return json({ tasks: await callTasks(c,url.searchParams.get('owner'),url.searchParams.get('status')), owners: await taskOwners(c), sources: candidates.sources, excluded: candidates.excluded, notices:await taskNotices(c,url.searchParams.get('owner')||c.actor.id), policy:await taskPolicy(c) }) }
  if (path === '/api/coffer/status-notices') return json({ notices: await statusNotices(c) })
  if (path === '/api/coffer/retention') return json(await retention(c,url))
  if (path === '/api/coffer/portfolios') return json(await portfolioReport(c,url))
