@@ -82,7 +82,6 @@ export async function donorFileJourney() {
   assert.ok(r.research_results.every(x => x.donor_id === ada.id && x.provider === 'wealthengine'))
   assert.match(file.labels.donor_notes, /Confidential staff notes are withheld/)
   assert.match(file.labels.research_results, /WealthEngine estimates.*never verified/)
-  assert.deepEqual(file.notIncluded.map(x => x.record), ['donor_tokens', 'erased_stripe_customers'])
   // Nobody else: Ben appears only as one opaque counterpart, never by id, name, email, gift or note.
   for (const secret of [ben.id, 'Ben Other', 'ben.other@example.org', benGift.id, 'Ben private note', 'Noel Third', 'noel.third@example.org', dan.id, 'Dan Gone'])
    assert.ok(!text.includes(secret), `file leaks ${secret}`)

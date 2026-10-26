@@ -46,7 +46,8 @@ const descriptions = [
  owned('cf_recurring_task_series'),
  owned('cf_recurring_tasks',`n.series_id IN (SELECT id FROM cf_recurring_task_series WHERE donor_id IN ${pair})`),
  owned('cf_subscriptions'), owned('cf_communications'), owned('cf_reply_tasks'), owned('cf_receipt_address_tasks',`n.letter_id IN (SELECT id FROM cf_acks WHERE donor_id IN ${pair})`,['id'],false), owned('cf_call_tasks'),
- owned('cf_task_notices',`n.task_id IN (SELECT id FROM cf_call_tasks WHERE donor_id IN ${pair})`,['id'],false),
+ // Staff delivery history follows stable task IDs through undo. Restored task
+ // versions make stale notices ineligible; a scheduler notice is no donor edit.
  owned('cf_development_followups'),
  owned('cf_development_reminders',`n.followup_id IN (SELECT id FROM cf_development_followups WHERE donor_id IN ${pair})`,['id'],false),
  owned('cf_employer_matches',`n.employer_donor_id IN ${pair} OR n.gift_id IN (${gifts}) OR n.received_gift_id IN (${gifts})`),
