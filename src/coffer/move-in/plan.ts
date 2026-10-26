@@ -1,5 +1,6 @@
 import { planCustomValues, type CustomImportWrite } from './custom-fields'
 import { planSolicitationImports } from './solicitation-import'
+import { planAcknowledgmentImports } from './acknowledgment-import'
 import { all, fail, guard, sha256, type Context, type Row, type Stmt } from '../db'
 import { computedHouseholdNames } from '../household-names'
 import type { HouseholdChange } from './household-writes'
@@ -26,7 +27,7 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
+const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
@@ -34,7 +35,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const source = parsed.source
  const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
- const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
+ const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
  const existing = new Map(mappings.map(m=>[`${m.kind}:${m.source_key}`,m]))
  const merges = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'into_id',into_id) AS snapshot FROM cf_donor_merges ORDER BY donor_id`)
@@ -176,10 +177,6 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
    if(tributeRows.some(t=>t.gift_id===id) && !existing.has(`tribute:${await sourceKey(g.externalId)}`))diagnostic(`Gift ${g.externalId} already has a tribute in Coffer that did not come from this source move-in. Resolve that tribute before importing; it will not be overwritten.`,g.location,'error','TRIBUTE_CONFLICT','Tribute')
    await add('tribute',{externalId:g.externalId,location:g.location,...t},{gift_id:id,version:1,kind:t.kind,honoree:t.honoree,notified_name:t.notifiedName||null,notified_email:t.notifiedEmail||null,notified_address:t.notifiedAddress||null,amount_permission:0,group_key:`${t.kind}:${t.honoree.trim().replace(/\s+/g,' ').toLowerCase()}`,source_group:t.sourceGroup||null,donor_id:null,created_at:c.now,created_by:c.actor.name},undefined,donorId)
   }
-  if(g.acknowledgment) {
-   const a=g.acknowledgment
-   await add('acknowledgment',{externalId:g.externalId,location:g.location,...a},{gift_id:id,status:a.status,acknowledged_on:a.acknowledgedOn,method:a.method,batch_id:null,letter_id:null,reason:a.reason,source_reference:a.sourceReference,source:({'lgl':'Little Green Light','bloomerang':'Bloomerang','re-nxt':"Raiser's Edge NXT"})[source],updated_at:c.now,updated_by:c.actor.name},undefined,donorId)
-  }
   const prior=mappings.find(m=>m.kind==='gift' && m.native_id===id)
   const cents=prior?(giftBalances.find(b=>b.id===id)?.net_cents??0):g.amountCents
   if(cents>0)accumulate(plan.totals,cents,g.receivedOn,g.fund,g.donorExternalId)
@@ -226,6 +223,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(['call','meeting','email'].includes(n.type))await add('interaction',n,{donor_id:donorId,kind:n.type,occurred_on:n.date,who:`${source} export`,notes:n.text,next_step:null,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
   else await add('note',n,{donor_id:donorId,occurred_on:n.date,body:n.text,source,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
+ await planAcknowledgmentImports(c,parsed,plan,existing,add,readSet)
  await planCustomValues(c,parsed,plan,existing)
  // Never expose a partial transaction as an option when inputs exceed D1's bound.
  if(!preview && plan.effects.length>3000)fail('MOVE_IN_LIMIT','Split this export into smaller reviews (at most 1,000 source rows).',400)

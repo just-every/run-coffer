@@ -1,3 +1,4 @@
+import { acknowledgmentPredicate } from './acknowledgment-filters'
 import { all, choice, commit, date, event, fail, guard, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { settings } from './settings'
 
@@ -65,12 +66,13 @@ export async function attributionRecordSelection(c: Context, url: URL) {
  const asOf = today((await settings(c)).timezone, new Date(c.now)), q = url.searchParams
  const from = q.get('from') ? date(q.get('from'), 'From') : `${asOf.slice(0, 4)}-01-01`, to = q.get('to') ? date(q.get('to'), 'To') : asOf
  if (from > to) fail('INPUT', 'The start date must be on or before the end date.', 400)
+ const acknowledgment=acknowledgmentPredicate(url,'l.gift_id')
  const query = `SELECT l.donor_id,l.gift_id,l.amount_cents,l.kind,l.source,l.fund,l.campaign_id,cm.name AS campaign,a.code AS appeal,a.name AS appeal_name,ch.channel
   FROM cf_fund_ledger l LEFT JOIN cf_campaigns cm ON cm.id=l.campaign_id
   LEFT JOIN cf_gift_appeals ga ON ga.gift_id=l.gift_id LEFT JOIN cf_appeal_codes a ON a.code=ga.appeal
   LEFT JOIN cf_gift_channels ch ON ch.gift_id=l.gift_id
-  WHERE l.received_on>=? AND l.received_on<=?`
- return {query,params:[from,to],parameters:{from,to},from,to}
+  WHERE l.received_on>=? AND l.received_on<=? AND ${acknowledgment.sql}`
+ return {query,params:[from,to,...acknowledgment.params],parameters:{from,to,...acknowledgment.filters},from,to}
 }
 
 export async function attributionReport(c: Context, url: URL) {

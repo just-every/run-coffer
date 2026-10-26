@@ -16,9 +16,12 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   // Include each explicit head's actual source row in the first household part.
   // This resolves matches before headship is set, even across chunk boundaries.
   for (const id of ids) { const h=households.get(donors.get(id)?.householdKey||''); if (h?.headExternalId) ids.add(h.headExternalId) }
+  const linked = new Set([...(fill.gifts ?? []), ...(fill.softCredits ?? [])].map(g => g.acknowledgment?.interactionExternalId).filter(Boolean))
+  const notes = [...new Map([...(fill.notes ?? []), ...parsed.notes.filter(n => linked.has(n.externalId))].map(n => [n.externalId, n])).values()]
+  for (const n of notes) ids.add(n.donorExternalId)
   const ds = [...ids].map(id => donors.get(id)).filter(d => d !== undefined)
   parts.push({ source: parsed.source, donors: ds, households: [...new Set(ds.map(d => d.householdKey).filter(Boolean))].map(k => households.get(k)!).filter(Boolean),
-   gifts: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [], solicitCodes: parsed.solicitCodes, solicitations:(parsed.solicitations??[]).filter(r=>ids.has(r.donorExternalId)), channelWithdrawals:(parsed.channelWithdrawals??[]).filter(r=>ids.has(r.donorExternalId)), ...fill })
+   gifts: [], relationships: [], softCredits: [], pledges: [], installments: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [], solicitCodes: parsed.solicitCodes, solicitations:(parsed.solicitations??[]).filter(r=>ids.has(r.donorExternalId)), channelWithdrawals:(parsed.channelWithdrawals??[]).filter(r=>ids.has(r.donorExternalId)), ...fill, notes })
  }
  // A part also stays under PART_BYTES of its own records, so long notes never push one past D1's 2 MB value limit.
  const chunks = <T>(rows: T[], size = PART_RECORDS) => {

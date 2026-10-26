@@ -1,9 +1,10 @@
+import { GIFT_FILTERS, acknowledgmentFilters, acknowledgmentSql } from './acknowledgment-filters'
 import { centsDecimal } from './money'
 import { customValue } from './custom-fields'
 import { choice, date, fail, one, optional, text, type Row, type Context } from './db'
 
 export const DONOR_FILTER_FIELDS=[['name','Display name'],['prefix','Prefix'],['first_name','First name'],['middle_name','Middle name'],['last_name','Last name'],['suffix','Suffix'],['nickname','Nickname'],['email','Primary email'],['phone','Primary phone'],['address_line1','Street'],['address_line2','Address second line'],['city','City'],['region','State or region'],['postal_code','Postal code'],['country','Country'],['constituent_kind','Person or organization'],['organization_type','Organization type'],['website','Website'],['ein','Organization EIN'],['informal_salutation','Informal salutation override'],['formal_salutation','Formal salutation override'],['envelope_name','Envelope name override'],['constituent_status','Status'],['status_reason','Status reason'],['deceased_on','Date of death'],['source','Source'],['created_at','Created at']] as const
-export const ADVANCED_FILTERS=['givingFrom','givingThrough','minGiven','maxGiven','lastGiftFrom','lastGiftThrough','fund','campaignId','managerId','tag','emailConsent','mailConsent','ackStatus','customKey','customValue','status','minScore','maxScore','lapsed','fieldKey','fieldValue','fieldOperator'] as const
+export const ADVANCED_FILTERS=['givingFrom','givingThrough','minGiven','maxGiven','lastGiftFrom','lastGiftThrough','fund','campaignId','managerId','tag','emailConsent','mailConsent',...GIFT_FILTERS,'customKey','customValue','status','minScore','maxScore','lapsed','fieldKey','fieldValue','fieldOperator'] as const
 export function advancedFilters(p:Row):Record<string,string>{
  const result:Record<string,string>={}
  for(const key of ADVANCED_FILTERS)result[key]=p[key]===undefined||p[key]===null||p[key]===''?'':text(p[key],key,200)
@@ -12,7 +13,7 @@ export function advancedFilters(p:Row):Record<string,string>{
  for(const key of ['minGiven','maxGiven'])if(result[key]&&!/^\d{1,12}(?:\.\d{1,2})?$/.test(result[key]))fail('INPUT','Giving bounds are nonnegative USD with at most two decimal places.',400)
  if(result.minGiven&&result.maxGiven&&Number(result.minGiven)>Number(result.maxGiven))fail('INPUT','Minimum giving must not exceed maximum giving.',400)
  for(const key of ['emailConsent','mailConsent'])choice(result[key],['','granted','withdrawn','unknown'],'consent answer')
- choice(result.ackStatus,['','not acknowledged','acknowledged','do not acknowledge'],'acknowledgment status')
+ Object.assign(result,acknowledgmentFilters(p))
  for(const key of ['minScore','maxScore'])if(result[key]&&(!/^\d{1,3}(?:\.\d{1,2})?$/.test(result[key])||Number(result[key])>100))fail('INPUT','Engagement scores range from 0 to 100 with at most two decimals.',400)
  if(result.minScore&&result.maxScore&&Number(result.minScore)>Number(result.maxScore))fail('INPUT','Minimum score must not exceed maximum score.',400)
  choice(result.lapsed,['','at_risk','current','unknown'],'giving lapse status')
@@ -40,7 +41,7 @@ export function advancedListSql(definition:string,donor='d') {
  AND ${consent('email')} AND ${consent('mail')}
  AND (${f('tag')}='' OR EXISTS(SELECT 1 FROM (SELECT donor_id,tag FROM cf_donor_rule_tags UNION SELECT donor_id,tag FROM cf_donor_tags) WHERE donor_id=${donor}.id AND tag=${f('tag')}))
  AND (${f('managerId')}='' OR EXISTS(SELECT 1 FROM cf_portfolio_members pm JOIN cf_portfolios pp ON pp.id=pm.portfolio_id WHERE pm.donor_id=${donor}.id AND pp.manager_id=${f('managerId')}))
- AND (${f('ackStatus')}='' OR EXISTS(SELECT 1 FROM cf_gift_balances gb LEFT JOIN cf_gift_acknowledgments ga ON ga.gift_id=gb.id WHERE gb.donor_id=${donor}.id AND gb.net_cents>0 AND COALESCE(ga.status,'not acknowledged')=${f('ackStatus')}))
+ AND ((${GIFT_FILTERS.map(k=>`${f(k)}=''`).join(' AND ')}) OR EXISTS(SELECT 1 FROM cf_gift_balances gb WHERE gb.donor_id=${donor}.id AND gb.net_cents>0 AND ${acknowledgmentSql(f,'gb.id')}))
  AND (${f('customKey')}='' OR EXISTS(SELECT 1 FROM cf_custom_values cv JOIN cf_custom_fields cf ON cf.key=cv.field_key WHERE cv.donor_id=${donor}.id AND cf.key=${f('customKey')} AND EXISTS(SELECT 1 FROM json_each(cv.value) j WHERE CASE WHEN cf.type='currency' THEN CAST(j.value AS INTEGER)=CAST(replace(${f('customValue')},'.','') AS INTEGER) ELSE CAST(j.value AS TEXT)=${f('customValue')} END)))`
 }
 

@@ -37,7 +37,7 @@ export async function softCreditAckCommand(c: Context, command: string, p: Row):
   guard('COALESCE((SELECT version FROM cf_soft_credit_acknowledgments WHERE soft_credit_id=?),0)=?', 'VERSION', 'This acknowledgment changed. Refresh before saving.', creditId, version),
   ...evidence,
   sql(`INSERT INTO cf_soft_credit_acknowledgments(soft_credit_id,version,status,acknowledged_on,method,interaction_id,note_id,reason,updated_at,updated_by)
-   VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(soft_credit_id) DO UPDATE SET version=excluded.version,status=excluded.status,acknowledged_on=excluded.acknowledged_on,method=excluded.method,interaction_id=excluded.interaction_id,note_id=excluded.note_id,reason=excluded.reason,updated_at=excluded.updated_at,updated_by=excluded.updated_by`, creditId, version + 1, status, acknowledgedOn, method, interactionId, noteId, reason, c.now, c.actor.name),
+   VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(soft_credit_id) DO UPDATE SET version=excluded.version,status=excluded.status,acknowledged_on=excluded.acknowledged_on,method=excluded.method,interaction_id=excluded.interaction_id,note_id=excluded.note_id,reason=excluded.reason,updated_at=excluded.updated_at,updated_by=excluded.updated_by,source='Coffer',source_reference=NULL`, creditId, version + 1, status, acknowledgedOn, method, interactionId, noteId, reason, c.now, c.actor.name),
   event(c, command, 'softCredit', creditId, credit.donor_id, { oldStatus:credit.old_status, source:'manual', status, acknowledgedOn, method, interactionId, noteId, version: version + 1 }),
  ])
  return { id: creditId, donorId: credit.donor_id, version: version + 1, status, acknowledgedOn, method, interactionId, noteId, reason }

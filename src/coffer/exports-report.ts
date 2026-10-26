@@ -30,7 +30,7 @@ export async function reportSelection(c:Context,url:URL):Promise<ExportSelection
  if(report==='funds'||report==='states'||report==='attribution'||report==='custom-fields'||report==='honor-roll'||report==='dashboard-money'){
   const state=report==='states'?await stateRecordSelection(c,url):null
   const other=report==='dashboard-money'?await dashboardMoneySelection(c,url):report==='honor-roll'?await honorRollRecordSelection(c,url):report==='attribution'?await attributionRecordSelection(c,url):report==='custom-fields'?await customRecordSelection(c,url):null
-  const s=other?{query:other.query,params:other.params,filters:other.parameters}:state?{query:state.query,params:state.params,filters:{basis:state.basis,year:state.year,fund:state.fund,campaignId:state.campaignId,formId:state.formId,channel:state.channel,solicitation:state.solicitation}}:fundRecordSelection(url)
+  const s=other?{query:other.query,params:other.params,filters:other.parameters}:state?{query:state.query,params:state.params,filters:state.parameters}:fundRecordSelection(url)
   const dashboard=other&&'scope' in other?other:null
   const timezone=dashboard?dashboard.scope.timezone:state?state.s.timezone:String((await one(c,'SELECT timezone FROM cf_settings WHERE id=1'))!.timezone)
   const calendarCurrent=dashboard?`fiscal_year_start='${dashboard.scope.monthDay}'`:state?`fiscal_year_start='${state.s.fiscal_year_start}'`:'1'

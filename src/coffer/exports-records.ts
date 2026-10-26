@@ -7,7 +7,7 @@ type RecordSpec = { columns: string[]; query: string }
 const columns = (value: string) => value.split(' ')
 
 const constituentColumns = columns('id version name prefix first_name middle_name last_name suffix nickname constituent_kind organization_type website ein email phone address_line1 address_line2 city region postal_code country household_id informal_salutation formal_salutation envelope_name constituent_status status_reason deceased_on status_changed_at created_at')
-const giftColumns = columns('id donor_id kind received_on amount_cents gross_cents adjustment_cents refunded_cents stated_value_cents description quantity fund campaign_id allocations method pledge_id created_at custom_fields')
+const giftColumns = columns('id donor_id kind received_on amount_cents gross_cents adjustment_cents refunded_cents stated_value_cents description quantity fund campaign_id allocations method pledge_id created_at custom_fields acknowledgment_status acknowledged_on acknowledgment_method acknowledgment_link')
 const pledgeColumns = columns('id donor_id version pledged_on due_by amount_cents reduced_cents paid_cents remaining_cents fund campaign_id created_at custom_fields')
 const planColumns = columns('id donor_id campaign_id amount_cents status cancel_at_period_end failed_attempts recovered updated_at')
 const consentColumns = columns('id donor_id channel status method evidence captured_on recorded_at recorded_by')
@@ -57,3 +57,14 @@ export const exportRecords: Record<ExportType, RecordSpec> = {
 }
 
 export const recordJson = (type: ExportType) => `json_object(${exportRecords[type].columns.flatMap(k=>[`'${k}'`,`r.${k}`]).join(',')})`
+
+const giftQuery=exportRecords.gifts.query
+exportRecords.gifts.query=`SELECT gr.*,
+ COALESCE(ga.status,CASE WHEN EXISTS(SELECT 1 FROM cf_prior_acknowledgements ap WHERE ap.gift_id=gr.id) THEN 'acknowledged' ELSE 'not acknowledged' END) AS acknowledgment_status,
+ ga.acknowledged_on,ga.method AS acknowledgment_method,
+ CASE WHEN ga.letter_id IS NOT NULL THEN json_object('kind','letter','id',ga.letter_id,'batchId',ga.batch_id)
+ WHEN ga.communication_id IS NOT NULL THEN json_object('kind','message','id',ga.communication_id)
+ WHEN ga.interaction_id IS NOT NULL THEN json_object('kind','interaction','id',ga.interaction_id)
+ WHEN ga.note_id IS NOT NULL THEN json_object('kind','note','id',ga.note_id)
+ WHEN ga.source_reference IS NOT NULL THEN json_object('kind','source','id',ga.source_reference) ELSE NULL END AS acknowledgment_link
+ FROM (${giftQuery}) gr LEFT JOIN cf_gift_acknowledgments ga ON ga.gift_id=gr.id`

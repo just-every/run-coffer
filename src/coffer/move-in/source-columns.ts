@@ -25,8 +25,9 @@ const common: Record<string, string[]> = {
  acknowledgmentMethod: ['Acknowledgment Method', 'Acknowledgement Method'],
  acknowledgmentReason: ['Acknowledgment Reason', 'Acknowledgement Reason', 'Do Not Acknowledge Reason'],
  acknowledgmentOptOut: ['Do Not Acknowledge', 'Do Not Acknowledge?'],
- acknowledgmentReference: ['Acknowledgment Reference', 'Acknowledgement Reference', 'Acknowledgment Interaction ID', 'Acknowledgement Interaction ID'],
- note: ['Note', 'Notes', 'Note Text', 'Description'], noteId: ['Note ID', 'Note Number'], noteDate: ['Note Date'], noteType: ['Note Type', 'Note Category'],
+ acknowledgmentReference: ['Acknowledgment Reference', 'Acknowledgement Reference'],
+ acknowledgmentInteraction: ['Acknowledgment Interaction ID', 'Acknowledgement Interaction ID', 'Acknowledgment Action ID', 'Acknowledgement Action ID'],
+ note: ['Note', 'Notes', 'Note Text', 'Description'], noteId: ['Note ID', 'Note Number', 'Interaction ID', 'Action ID', 'Contact Report ID'], noteDate: ['Note Date', 'Interaction Date', 'Action Date', 'Contact Report Date'], noteType: ['Note Type', 'Note Category', 'Interaction Type', 'Action Type', 'Contact Report Type'],
  relationshipId: ['Relationship ID'], relatedDonor: ['Related Constituent ID', 'Related Account Number', 'Relationship Constituent ID'], relationshipType: ['Relationship Type', 'Relationship'],
  softId: ['Soft Credit ID', 'Soft Credit Number'], softDonor: ['Soft Credit Constituent ID', 'Soft Credit Account Number', 'Soft Credit Recipient ID'],
  softAmount: ['Soft Credit Amount', 'Soft Credited Amount'], softGift: ['Original Gift ID', 'Original Transaction Number', 'Soft Credit Gift ID', 'Related Gift ID'],
@@ -57,6 +58,9 @@ export function normalizeLabel(value: string) { return value.toLowerCase().repla
 export function columnFields(source: ImportSource): Map<string, string> {
  const fields = new Map<string, string>()
  for(const kind of ['email','phone','address'])for(let n=1;n<=(kind==='address'?2:3);n++){const key=kind+(n===1?'':n);for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+n+' '+suffix),key+suffix);if(n===1)for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+suffix),key+suffix);if(n>1&&kind!=='address')for(const label of [kind+' '+n,kind+' Address '+n])fields.set(normalizeLabel(label),key);if(n>1&&kind==='address')for(const [suffix,label] of [['Line1','Street'],['Line2','Street 2'],['City','City'],['Region','State'],['PostalCode','Postal Code'],['Country','Country']])fields.set(normalizeLabel('Address '+n+' '+label),key+suffix)}
- for (const [key, labels] of Object.entries({ ...common, ...vendor[source] })) for (const label of labels) fields.set(normalizeLabel(label), key)
+ for (const [key, labels] of Object.entries({ ...common, ...vendor[source] })) for (const label of labels) {
+  fields.set(normalizeLabel(label), key)
+  if (key.startsWith('acknowledgment')) fields.set(normalizeLabel(`Soft Credit ${label}`), `soft${key[0].toUpperCase()}${key.slice(1)}`)
+ }
  return fields
 }

@@ -22,11 +22,12 @@ export async function exportSnapshot(c: Context, type: ExportType, url: URL) {
  requireRole(c.actor,['owner','admin'],'export donor records')
  const s = await exportSelection(c,url), spec = exportRecords[type]
  const reportGifts=s.reportType==='gifts'&&type==='gifts'
- const recordQuery=reportGifts?reportGiftRecords(spec.query,'report' in s.selection&&s.selection.report==='honor-roll'):spec.query
+ const recordQuery=reportGifts?reportGiftRecords(spec.query,'report' in s.selection&&s.selection.report==='honor-roll'):s.giftSelection&&type==='gifts'?`SELECT * FROM (${spec.query}) WHERE (SELECT filtered FROM gift_selection)=0 OR id IN(SELECT id FROM selected_gifts)`:spec.query
  const query = `WITH ${s.ctes}, records AS MATERIALIZED (${recordQuery}),
  record_json AS MATERIALIZED (SELECT ${recordJson(type)} AS data FROM records r),
  totals AS (SELECT count(*) AS row_count,COALESCE(SUM(length(CAST(data AS BLOB))),0) AS byte_count FROM record_json),
  metadata AS (SELECT t.*,? AS as_of,c.timezone,c.name_defaults,c.timezone=? AS calendar_current,c.selection_current,
+  ${s.giftSelection?'(SELECT filtered FROM gift_selection)':'0'} AS gift_filtered,
   (SELECT count(*) FROM members) AS member_count,(SELECT version FROM selected_list) AS list_version,
   (SELECT name FROM selected_list) AS list_name,(SELECT definition FROM filters) AS definition,
   ${s.reportType==='gifts'?'(SELECT COALESCE(SUM(amount_cents),0) FROM report_entries)':'NULL'} AS report_cents,
@@ -42,7 +43,7 @@ export async function exportSnapshot(c: Context, type: ExportType, url: URL) {
  if (!meta?.calendar_current) fail('SETTINGS_CHANGED','The organization calendar changed. Refresh the export.',409)
  if (s.source === 'saved' && meta.list_version == null) fail('NOT_FOUND','That saved list does not exist.',404)
  const selection = {...s.selection,...(s.source==='saved'?{version:meta.list_version,
-  filters:Object.fromEntries(Object.entries(JSON.parse(meta.definition)).map(([k,v])=>[k,k==='relationship'||k==='volunteer'?v:Boolean(v)]))}:{}),scope:s.reportType===type?'report-records':s.reportType&&type==='constituents'?'report-constituents':'donor-lifetime'}
+  filters:Object.fromEntries(Object.entries(JSON.parse(meta.definition)).map(([k,v])=>[k,k==='relationship'||k==='volunteer'?v:Boolean(v)]))}:{}),scope:meta.gift_filtered&&type==='gifts'?'matching-gifts':s.reportType===type?'report-records':s.reportType&&type==='constituents'?'report-constituents':'donor-lifetime'}
  const withheld = {confidentialStaffNotes:Number(meta.withheld),statement:`${meta.withheld} confidential staff notes withheld`}
  const metadata = {source:s.source,listId:s.savedId,listName:meta.list_name??null,listVersion:meta.list_version??null,
   type,selection,reportCents:meta.report_cents??null,reportTotals:meta.report_totals?JSON.parse(meta.report_totals):null,reportExcludedCents:meta.report_excluded_cents??null,rowCount:Number(meta.row_count),memberCount:Number(meta.member_count),asOf:meta.as_of,timezone:meta.timezone,withheld}

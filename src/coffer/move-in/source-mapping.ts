@@ -75,7 +75,10 @@ function softCredit(r: SourceRow, out: ParsedImport, inline = false) {
  const externalId = r.get('softId') || (!inline ? r.get('giftId') : '') || provenanceId(r, 'credit'), pledgeExternalId = r.get('pledgeId')
  if (!giftExternalId) r.error('SOFT_GIFT', 'Fill Related Gift ID with the original received gift’s ID. A credited donor name cannot identify the gift.')
  if (!donorExternalId) r.error('SOFT_DONOR', 'Fill Constituent ID with the person being recognized.')
- if (giftExternalId && donorExternalId && amountCents !== null) out.softCredits.push({ location: r.location, externalId, donorExternalId, giftExternalId, amountCents, pledgeExternalId })
+ const specific = acknowledgment(r, true), shared = inline ? undefined : acknowledgment(r)
+ if (specific && shared && JSON.stringify(specific) !== JSON.stringify(shared)) r.error('ACKNOWLEDGMENT_CONFLICT', 'The soft-credit acknowledgment columns disagree. Export one consistent acknowledgment history for this credit.')
+ const creditAcknowledgment = specific ?? shared
+ if (giftExternalId && donorExternalId && amountCents !== null) out.softCredits.push({ location: r.location, externalId, donorExternalId, giftExternalId, amountCents, pledgeExternalId, ...(creditAcknowledgment ? { acknowledgment: creditAcknowledgment } : {}) })
 }
 function method(r: SourceRow) {
  const raw = r.get('method'), key = normalizeLabel(raw)

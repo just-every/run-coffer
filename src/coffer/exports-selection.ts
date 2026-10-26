@@ -1,3 +1,4 @@
+import { GIFT_FILTERS, acknowledgmentSql } from './acknowledgment-filters'
 import { reportSelection } from './exports-report'
 import { manager } from './auth'
 import { engagementScores } from './engagement'
@@ -10,7 +11,7 @@ import type { ExportType } from './exports-records'
 
 export type ExportSelection = {
  source:string; savedId:string|null; timezone:string; year:number; through:string
- ctes:string; params:unknown[]; scoreCurrentSql:string; reportType?:ExportType; reportTotalsSql?:string
+ ctes:string; params:unknown[]; scoreCurrentSql:string; reportType?:ExportType; reportTotalsSql?:string; giftSelection?:boolean
  selection:{source:string;listId?:string|null;year?:number|null;filters?:Record<string,unknown>;report?:string;parameters?:Record<string,unknown>}
 }
 
@@ -77,5 +78,5 @@ export async function exportSelection(c: Context, url: URL):Promise<ExportSelect
  const params = [savedId??'',source,JSON.stringify(filters),through,source,source,String(year),String(year),source,String(year-1),scores===null?null:JSON.stringify(scores),scores===null?null:JSON.stringify(scores)]
  const selection = {source,listId:savedId,year:source==='lybunt'||source==='sybunt'?year:null,
   filters:Object.fromEntries(Object.entries(filters).map(([k,v])=>[k,k==='relationship'||k==='volunteer'?v:Boolean(v)]))}
- return {source,savedId,timezone,year,through,ctes,params,selection:report?{...selection,report}:selection,scoreCurrentSql,reportType:report?'constituents' as const:undefined}
+ return {source,savedId,timezone,year,through,ctes:ctes+`, gift_selection AS (SELECT CASE WHEN ${GIFT_FILTERS.map(k=>`COALESCE(json_extract(f.definition,'$.${k}'),'')<>''`).join(' OR ')} THEN 1 ELSE 0 END AS filtered FROM filters f), selected_gifts AS MATERIALIZED (SELECT gb.id FROM cf_gift_balances gb JOIN members m ON m.id=gb.donor_id CROSS JOIN filters f WHERE gb.net_cents>0 AND ${acknowledgmentSql(k=>`json_extract(f.definition,'$.${k}')`,'gb.id')})`,params,giftSelection:true,selection:report?{...selection,report}:selection,scoreCurrentSql,reportType:report?'constituents' as const:undefined}
 }

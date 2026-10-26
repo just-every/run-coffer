@@ -1,3 +1,4 @@
+import { acknowledgmentFilterFields } from './acknowledgment-filters'
 import { settings } from '../settings'
 import { today } from '../db'
 import { all, type Context, type Row } from '../db'
@@ -19,7 +20,7 @@ export async function recognitionPanel(c:Context,donorId:string,gifts:Row[]){
 export async function honorRollPage(c:Context,url:URL){
  const configuration=await settings(c),year=Number(today(configuration.timezone,new Date(c.now)).slice(0,4)),selected=url.searchParams.has('from')&&url.searchParams.has('through')
  const from=url.searchParams.get('from')??`${year}-01-01`,through=url.searchParams.get('through')??`${year}-12-31`,levelUsd=url.searchParams.get('levelUsd')??'500',levelName=url.searchParams.get('levelName')??'Leadership'
- const filters=`<form method="get" action="/app/reports/honor-roll"><div class="fields">${field('Received from','from','date',from,'required')}${field('Received through','through','date',through,'required')}${field('Higher giving level (USD)','levelUsd','text',levelUsd,'required inputmode="decimal"')}${field('Higher level name','levelName','text',levelName,'required maxlength="100"')}</div><button>Show honor roll</button></form>`
+ const filters=`<form method="get" action="/app/reports/honor-roll"><div class="fields">${field('Received from','from','date',from,'required')}${field('Received through','through','date',through,'required')}${field('Higher giving level (USD)','levelUsd','text',levelUsd,'required inputmode="decimal"')}${field('Higher level name','levelName','text',levelName,'required maxlength="100"')}${acknowledgmentFilterFields(url)}</div><button>Show honor roll</button></form>`
  const help='<p>Positive remaining monetary gifts received in this inclusive period, after all recorded refunds. Soft credits and property values are excluded. Names need the donor’s recognition permission; anonymous gifts have separate rows. This is recognition, not a tax statement.</p>'
  if(!selected)return box('Honor roll',help+filters+empty('Choose a received-date period to prepare the honor roll.'))
  const prepared=honorRollUrl(url),value=await report(c,prepared),download='/app/reports/honor-roll.csv?'+prepared.searchParams.toString()

@@ -52,7 +52,7 @@ async function sourceAcknowledgments(h,source) {
  const input=(giftRows=rows)=>({source,files:[file('constituents.csv',[[donorId,'Name'],['ACK_PERSON','Imported acknowledgment donor']]),file('gifts.csv',[
   [giftId,donorId,'Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount','Goods Description',status,date,method,reason,reference,optOut],
   ...giftRows.map(([id,on,amount,goods,...ack])=>[id,'ACK_PERSON',type,on,amount,'Check',goods,goods==='60'?'Dinner':'',...ack]),
- ])]})
+ ]),...(source==='bloomerang'?[file('interactions.csv',[['Interaction ID',donorId,'Interaction Date','Interaction Type','Note'],['interaction-48','ACK_PERSON','2026-09-02','email','Source thank-you email']])]:[])]})
  for(const broken of [rows.map((r,i)=>i===0?r.map((v,j)=>j===4?'queued':v):r),rows.map((r,i)=>i===0?r.map((v,j)=>j===5?'2026-02-30':v):r),rows.map((r,i)=>i===0?[...r.slice(0,8),'','sometimes']:r)]) {
   const review=await post(h,'preview',input(broken))
   assert.equal(review.canApply,false,'Unknown status, invalid source date and unknown opt-out flag require review')
@@ -70,7 +70,7 @@ async function sourceAcknowledgments(h,source) {
  const history=await h.get(`/api/coffer/donors/${person.id}`),gifts=Object.fromEntries(history.gifts.map(g=>[g.reference.split(':')[1],g]))
  assert.equal(history.totals.lifetimeCents,205000+vendorRows.length*50000)
  assert.deepEqual(['ACK_FULL','ACK_NO_DETAILS','ACK_SKIP','ACK_DUE'].map(k=>gifts[k].acknowledgment.status),['acknowledged','acknowledged','do not acknowledge','not acknowledged'])
- assert.deepEqual(['acknowledged_on','method','reason','source','batch_id','letter_id'].map(k=>gifts.ACK_FULL.acknowledgment[k]),['2026-09-02','personal email','Source thank-you',label,null,null])
+ assert.deepEqual(['acknowledged_on','method','reason','source','batch_id','letter_id'].map(k=>gifts.ACK_FULL.acknowledgment[k]),['2026-09-02','email','Source thank-you',label,null,null])
  assert.deepEqual(['acknowledged_on','method','reason'].map(k=>gifts.ACK_NO_DETAILS.acknowledgment[k]),[null,null,null],'An acknowledged source gift never invents missing details')
  assert.equal(gifts.ACK_SKIP.acknowledgment.reason,'Donor requested no letter')
  assert.equal(gifts.ACK_OLD.before_acknowledge_from,true);assert.equal(gifts.ACK_DUE.before_acknowledge_from,false)
@@ -85,7 +85,10 @@ async function sourceAcknowledgments(h,source) {
   assert.deepEqual(['status','acknowledged_on','method','source_reference'].map(k=>gifts.ACK_LINK.acknowledgment[k]),['acknowledged',null,null,'Legacy letter 42'],'A linked NXT letter establishes acknowledged without inventing a date or method')
   assert.equal(gifts.ACK_DATE_SKIP.acknowledgment.status,'do not acknowledge','NXT status wins over date and linked letter')
   assert.equal(gifts.ACK_FLAG_SKIP.acknowledgment.status,'do not acknowledge','NXT opt-out flag wins over date and linked letter')
- } else assert.equal(gifts.ACK_FULL.acknowledgment.source_reference,'interaction-48','Bloomerang keeps the source interaction reference')
+ } else {
+  assert.equal(gifts.ACK_FULL.acknowledgment.source_reference,'Interaction: interaction-48','Bloomerang keeps the source interaction reference')
+  assert.equal(gifts.ACK_FULL.acknowledgment.link.id,history.depth.interactions.find(i=>i.notes==='Source thank-you email').id,'The source ID resolves to the imported native conversation')
+ }
  assert.deepEqual(['goods','goods_cents','goods_description'].map(k=>gifts.ACK_DUE[k]),['provided',6000,'Dinner'])
  assert.equal(gifts.ACK_NO_DETAILS.goods,'none')
  assert.equal(gifts.ACK_UNKNOWN.goods,'unknown')

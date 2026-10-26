@@ -10,7 +10,6 @@ export const tables = {
  installment: { table: 'cf_pledge_installments', key: 'id', columns: ['id','pledge_id','position','due_on','amount_cents','remind_on','reminder_status'] },
  gift: { table: 'cf_gifts', key: 'id', columns: ['id','version','donor_id','kind','reverses','received_on','amount_cents','method','reference','fund','pledge_id','goods','goods_cents','goods_description','note','source','created_at','created_by'] },
  tribute: { table: 'cf_gift_tributes', key: 'gift_id', columns: ['gift_id','version','kind','honoree','notified_name','notified_email','notified_address','amount_permission','group_key','source_group','donor_id','created_at','created_by'] },
- acknowledgment: { table: 'cf_gift_acknowledgments', key: 'gift_id', columns: ['gift_id','status','acknowledged_on','method','batch_id','letter_id','reason','source_reference','source','updated_at','updated_by'] },
  campaign: { table: 'cf_gift_appeals', key: 'gift_id', columns: ['gift_id','appeal'] },
  channel: { table: 'cf_gift_channels', key: 'gift_id', columns: ['gift_id','channel'] },
  allocation: { table: 'cf_pledge_allocations', key: 'id', columns: ['id','installment_id','gift_id','amount_cents','created_at','created_by'] },
@@ -18,7 +17,20 @@ export const tables = {
  softCredit: { table: 'cf_soft_credits', key: 'id', columns: ['id','gift_id','donor_id','amount_cents','created_at','created_by'] },
  note: { table: 'cf_donor_notes', key: 'id', columns: ['id','donor_id','occurred_on','body','source','recorded_at','recorded_by'] },
  interaction: { table: 'cf_interactions', key: 'id', columns: ['id','donor_id','kind','occurred_on','who','notes','next_step','recorded_at','recorded_by'] },
+ acknowledgment: { table: 'cf_gift_acknowledgments', key: 'gift_id', columns: ['gift_id','version','status','acknowledged_on','method','batch_id','letter_id','interaction_id','note_id','communication_id','outcome_unknown','reason','source_reference','source','updated_at','updated_by','updated_by_id','updated_by_role','change_source'] },
+ softCreditAcknowledgment: { table: 'cf_soft_credit_acknowledgments', key: 'soft_credit_id', columns: ['soft_credit_id','version','status','acknowledged_on','method','interaction_id','note_id','reason','updated_at','updated_by','source','source_reference'] },
 } as const
 export type Kind = keyof typeof tables
 export const kinds = Object.keys(tables) as Kind[]
 export const snapshot = (kind: Kind, alias = 'n') => `json_object(${tables[kind].columns.map(column => `'${column}',${alias}.${column}`).join(',')})`
+
+/** Older import snapshots predate the acknowledgment custody columns. Their
+ * implicit database defaults still fence any later version or linked record. */
+export const custodySnapshot = (kind: Kind, alias = 'r') => {
+ if (kind !== 'acknowledgment') return `${alias}.snapshot`
+ const defaults: Record<string,string> = {version:'1',outcome_unknown:'0',updated_by_id:"'coffer-import'",updated_by_role:"'owner'",change_source:"'automatic'"}
+ return `json_object(${tables.acknowledgment.columns.map(column => {
+  const value = `json_extract(${alias}.snapshot,'$.${column}')`
+  return `'${column}',${defaults[column] ? `COALESCE(${value},${defaults[column]})` : value}`
+ }).join(',')})`
+}

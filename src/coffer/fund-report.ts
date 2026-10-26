@@ -1,3 +1,4 @@
+import { acknowledgmentPredicate } from './acknowledgment-filters'
 import { restrictionLabel } from './restricted-funds'
 import { all, date, fail, id, integer, type Row } from './db'
 import { dollars } from './payments/exports'
@@ -13,10 +14,11 @@ export function fundFilters(url: URL) {
 
 export function fundRecordSelection(url: URL) {
  const filters=fundFilters(url), {from,through,donorId}=filters, fund=url.searchParams.get('fund') || null
- return {filters:{...filters,fund},query:`SELECT l.*,d.name AS donor_name,c.name AS campaign,f.restriction,f.detail,f.release_on FROM cf_fund_ledger l JOIN cf_donors d ON d.id=l.donor_id LEFT JOIN cf_campaigns c ON c.id=l.campaign_id
+ const acknowledgment=acknowledgmentPredicate(url,'l.gift_id')
+ return {filters:{...filters,fund,...acknowledgment.filters},query:`SELECT l.*,d.name AS donor_name,c.name AS campaign,f.restriction,f.detail,f.release_on FROM cf_fund_ledger l JOIN cf_donors d ON d.id=l.donor_id LEFT JOIN cf_campaigns c ON c.id=l.campaign_id
  LEFT JOIN cf_funds f ON f.name=l.fund
- WHERE (? IS NULL OR l.received_on>=?) AND (? IS NULL OR l.received_on<=?) AND (? IS NULL OR l.donor_id=?) AND (? IS NULL OR l.fund=?)`,
- params:[from,from,through,through,donorId,donorId,fund,fund]}
+ WHERE (? IS NULL OR l.received_on>=?) AND (? IS NULL OR l.received_on<=?) AND (? IS NULL OR l.donor_id=?) AND (? IS NULL OR l.fund=?) AND ${acknowledgment.sql}`,
+ params:[from,from,through,through,donorId,donorId,fund,fund,...acknowledgment.params]}
 }
 
 export async function fundEntries(c: {db:D1Database}, url: URL, page: number | null = 0) {

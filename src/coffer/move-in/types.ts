@@ -21,11 +21,11 @@ export type ParsedGift = Located & {
 export type ParsedTribute = { kind: 'honor' | 'memory'; honoree: string; notifiedName?: string; notifiedEmail?: string; notifiedAddress?: string; sourceGroup?: string }
 export type ParsedAcknowledgment = {
  status: 'acknowledged' | 'not acknowledged' | 'do not acknowledge'
- acknowledgedOn: string | null; method: string | null; reason: string | null; sourceReference: string | null
+ acknowledgedOn: string | null; method: string | null; reason: string | null; sourceReference: string | null; interactionExternalId?: string | null
 }
 export type ParsedHousehold = Located & { externalId: string; name: string; headExternalId?: string; addressee?: string; formal?: string; informal?: string }
 export type ParsedRelationship = Located & { externalId: string; donorExternalId: string; relatedDonorExternalId: string; type: string }
-export type ParsedSoftCredit = Located & { externalId: string; donorExternalId: string; giftExternalId: string; amountCents: number; pledgeExternalId: string }
+export type ParsedSoftCredit = Located & { externalId: string; donorExternalId: string; giftExternalId: string; amountCents: number; pledgeExternalId: string; acknowledgment?: ParsedAcknowledgment }
 export type ParsedPledge = Located & { externalId: string; donorExternalId: string; pledgedOn: string; amountCents: number; fund: string; note: string }
 export type ParsedInstallment = Located & { externalId: string; pledgeExternalId: string; dueOn: string; amountCents: number }
 export type ParsedNote = Located & { externalId: string; donorExternalId: string; text: string; date: string; type: string }

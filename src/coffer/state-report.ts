@@ -1,3 +1,4 @@
+import { acknowledgmentPredicate } from './acknowledgment-filters'
 import { solicitationFilter, solicitationFilterSql } from './solicitation-filter'
 import { all, choice, fail, id, integer, today, type Context, type Row } from './db'
 import { fiscalPeriod } from './giving-summary'
@@ -37,6 +38,7 @@ export async function stateRecordSelection(c: Context, url: URL) {
  const solicitation=solicitationFilter(q.get('solicitation'))
  const fund = q.get('fund') || null, campaignId = q.get('campaignId') ? id(q.get('campaignId'), 'Campaign') : null, formId = q.get('formId') ? id(q.get('formId'), 'Form') : null
  const channel = q.get('channel') ? choice(q.get('channel'), METHODS, 'channel') : null
+ const acknowledgment=acknowledgmentPredicate(url,'e.gift_id')
  // Every monetary ledger entry in the period (gifts, reversals and refunds), each
  // placed by the address in effect on its gift's own received date.
  const query = `WITH e AS (
@@ -45,13 +47,14 @@ export async function stateRecordSelection(c: Context, url: URL) {
     AND (? IS NULL OR EXISTS(SELECT 1 FROM cf_campaign_gifts cg WHERE cg.gift_id=l.gift_id AND cg.campaign_id=?)))
   SELECT e.*,CASE WHEN h.id IS NULL THEN d.region ELSE h.region END AS region,CASE WHEN h.id IS NULL THEN d.country ELSE h.country END AS country
   FROM e JOIN cf_donors d ON d.id=e.donor_id CROSS JOIN (SELECT ? AS choice,? AS day) sf
-  LEFT JOIN cf_donor_address_history h ON h.id=(SELECT x.id FROM cf_donor_address_history x WHERE x.donor_id=e.donor_id AND x.until_on>e.gift_on ORDER BY x.until_on,x.id LIMIT 1) WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')}`
- const params = [period.start, period.end, fund, fund, campaignId, campaignId, channel, channel, formId, formId,solicitation,asOf]
- return {s,asOf,basis,year,current,period,fund,campaignId,formId,channel,solicitation,query,params}
+  LEFT JOIN cf_donor_address_history h ON h.id=(SELECT x.id FROM cf_donor_address_history x WHERE x.donor_id=e.donor_id AND x.until_on>e.gift_on ORDER BY x.until_on,x.id LIMIT 1) WHERE ${solicitationFilterSql('d.id','sf.choice','sf.day')} AND ${acknowledgment.sql}`
+ const params = [period.start, period.end, fund, fund, campaignId, campaignId, channel, channel, formId, formId,solicitation,asOf,...acknowledgment.params]
+ const filters={fund,campaignId,formId,channel,solicitation,...acknowledgment.filters}
+ return {s,asOf,basis,year,current,period,fund,campaignId,formId,channel,solicitation,query,params,filters,parameters:{basis,year,...filters}}
 }
 
 export async function stateReport(c: Context, url: URL) {
- const {s,asOf,basis,year,current,period,fund,campaignId,formId,channel,solicitation,query,params}=await stateRecordSelection(c,url)
+ const {s,asOf,basis,year,current,period,query,params,filters}=await stateRecordSelection(c,url)
  const entries=await all(c,query,...params)
  const observations=await all(c,"SELECT donor_id,at,json_extract(detail,'$.moveEffectiveMonth') AS month,json_extract(detail,'$.observedOn') AS observed FROM cf_events WHERE action='address.ncoa' AND json_extract(detail,'$.result')='moved' AND json_extract(detail,'$.moveEffectiveMonth') IS NOT NULL")
  const windows=new Map<string,{start:string;through:string}[]>()
@@ -66,7 +69,7 @@ export async function stateReport(c: Context, url: URL) {
  const rows: Row[] = [...groups].sort(([a], [b]) => order(a).localeCompare(order(b))).map(([key, g]) => ({
   state: STATES[key] ? key : null, label: STATES[key] ?? key, donors: g.donors.size, gifts: g.gifts.size,moveWindowGifts:g.moveWindowGifts.size, amountCents: g.cents }))
  return {
-  basis, year, start: period.start, through: year === current ? asOf : addDay(period.end, -1), filters: { fund, campaignId, formId, channel, solicitation },
+  basis, year, start: period.start, through: year === current ? asOf : addDay(period.end, -1), filters,
   rows,moveWindowGiftCount:new Set(entries.filter(inMoveWindow).map(e=>e.gift_id)).size, totalCents: rows.reduce((sum, r) => sum + r.amountCents, 0),
   campaigns: await all(c, 'SELECT id,name,slug FROM cf_campaigns ORDER BY lower(name)'), funds: (await all(c, 'SELECT DISTINCT fund FROM cf_fund_ledger ORDER BY fund')).map(r => r.fund),
  }

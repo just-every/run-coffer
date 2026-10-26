@@ -1,3 +1,4 @@
+import { acknowledgmentPredicate } from './acknowledgment-filters'
 import { requireRole } from './auth'
 import { csv } from './csv'
 import { all, commit, date, event, fail, guard, id, integer, one, optional, sql, text, type Context, type Row, type Stmt } from './db'
@@ -132,14 +133,15 @@ export async function honorRollRecordSelection(c: Context, url: URL) {
  const from = date(url.searchParams.get('from'), 'From'), through = date(url.searchParams.get('through'), 'Through')
  if (from > through) fail('INPUT', 'From must be on or before Through.', 400)
  const bands = levels(url)
+ const acknowledgment=acknowledgmentPredicate(url,'g.id')
  const query = `SELECT g.donor_id,g.id AS gift_id,g.fund,NULL AS campaign_id,g.net_cents AS amount_cents,g.id AS original_id,
   COALESCE(d.anonymous,0) AS donor_anonymous,COALESCE(d.honor_roll_opt_in,0) AS honor_roll_opt_in,
   d.recognition_name AS donor_name,COALESCE(r.anonymous,0) AS gift_anonymous,owner.erased_at
   FROM cf_gift_balances g JOIN cf_donors owner ON owner.id=g.donor_id
   LEFT JOIN cf_donor_recognition d ON d.donor_id=g.donor_id
   LEFT JOIN cf_gift_recognition r ON r.gift_id=g.id
-  WHERE g.received_on>=? AND g.received_on<=? AND g.net_cents>0 ORDER BY g.id`
- return {query,params:[from,through],parameters:{from,through},from,through,bands}
+  WHERE g.received_on>=? AND g.received_on<=? AND g.net_cents>0 AND ${acknowledgment.sql} ORDER BY g.id`
+ return {query,params:[from,through,...acknowledgment.params],parameters:{from,through,...acknowledgment.filters},from,through,bands}
 }
 
 export async function report(c: Context, url: URL) {

@@ -1,3 +1,4 @@
+import { importedAcknowledgmentEvents } from './acknowledgment-import'
 import { customFields } from '../custom-fields'
 import { importedCustomWrites, customImportUndoGuards, customImportUndoWrites } from './custom-fields'
 import { solicitationImportHistory, restrictionReconciliation } from './solicitation-import'
@@ -10,7 +11,7 @@ import { compare } from './reconcile'
 import { importedHouseholdWrites, importHouseholdUndoFence, importHouseholdUndoWrites } from './household-writes'
 import { stageParts } from './stage'
 import { accumulate, emptyTotals } from './source-totals'
-import { kinds, snapshot, tables, type Kind } from './tables'
+import { custodySnapshot, kinds, snapshot, tables, type Kind } from './tables'
 import { compact, ordered, reportOf, store } from './review'
 import type { Diagnostic, ParseInput, ParsedImport } from './types'
 
@@ -93,6 +94,7 @@ export async function continueApply(c: Context,id:string) {
   const writes:Stmt[]=[...plan.checks,guard('EXISTS(SELECT 1 FROM cf_move_in_parts WHERE job_id=? AND position=? AND applied_at IS NULL)','MOVE_IN_CHANGED','This part was applied in another window. Refresh the journal.',id,next.position)]
   writes.push(sql('INSERT INTO cf_identity_ingest VALUES(1)'))
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
+  writes.push(...importedAcknowledgmentEvents(c,plan,job.source,id))
   writes.push(...importedCustomWrites(c,plan,job.source,id))
   writes.push(...solicitationImportHistory(c,plan.effects,job.source,id))
   writes.push(...importedHouseholdWrites(c,plan.householdChanges,job.source,id))
@@ -171,7 +173,7 @@ export async function undo(c: Context,id:string) {
  const writes:Stmt[]=[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state IN ('applying','completed') AND redacted=0)",'MOVE_IN_CHANGED','This import changed. Refresh its journal.',id)]
  for(const kind of kinds) {
   const t=tables[kind]
-  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>r.snapshot))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
+  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>${custodySnapshot(kind)}))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
  writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
@@ -185,6 +187,10 @@ export async function undo(c: Context,id:string) {
   ['cf_gifts','donor_id','donor','gift','id'],['cf_pledges','donor_id','donor','pledge','id'],['cf_relationships','donor_id','donor','relationship','id'],['cf_relationships','related_donor_id','donor','relationship','id'],
   ['cf_soft_credits','donor_id','donor','softCredit','id'],['cf_soft_credits','gift_id','gift','softCredit','id'],['cf_donor_notes','donor_id','donor','note','id'],['cf_interactions','donor_id','donor','interaction','id'],
   ['cf_gift_acknowledgments','gift_id','gift','acknowledgment','gift_id'],
+  ['cf_gift_acknowledgments','interaction_id','interaction','acknowledgment','gift_id'],
+  ['cf_soft_credit_acknowledgments','interaction_id','interaction','softCreditAcknowledgment','soft_credit_id'],
+  ['cf_soft_credit_acknowledgments','note_id','note','softCreditAcknowledgment','soft_credit_id'],
+  ['cf_soft_credit_acknowledgments','soft_credit_id','softCredit','softCreditAcknowledgment','soft_credit_id'],
   ['cf_donors','household_id','household','donor','id'],['cf_pledge_installments','pledge_id','pledge','installment','id'],['cf_pledge_allocations','installment_id','installment','allocation','id'],['cf_pledge_allocations','gift_id','gift','allocation','id'],
   ['cf_consents','donor_id','donor','consent','id'],['cf_solicitation','donor_id','donor','solicitation','donor_id'],['cf_solicitation_asks','donor_id','donor',null,'donor_id'],['cf_solicitation_recipients','donor_id','donor',null,'donor_id'],['cf_solicitation_inclusions','donor_id','donor',null,'donor_id'],['cf_acks','gift_id','gift',null,'id'],['cf_appeal_recipients','donor_id','donor',null,'donor_id'],['cf_gift_tributes','gift_id','gift','tribute','gift_id'],['cf_tribute_notifications','gift_id','gift',null,'id'],['cf_employer_matches','gift_id','gift',null,'id'],['cf_gifts','reverses','gift',null,'id'],['cf_gift_allocations','gift_id','gift',null,'id'],
   ['cf_planned_gifts','donor_id','donor',null,'id'],['cf_legacy_memberships','donor_id','donor',null,'id'],['cf_planned_distributions','gift_id','gift',null,'gift_id'],
@@ -224,7 +230,7 @@ function contents(part: ParsedImport) {
  const rows=part[main].map(x=>x.location), files=[...new Set(rows.map(l=>l.file))]
  return `${part[main].length} ${kindName[main]} from ${files.map(f=>{const r=rows.filter(l=>l.file===f).map(l=>l.row);return `${f} rows ${Math.min(...r)}–${Math.max(...r)}`}).join(', ')}`
 }
-const label=(kind: Kind)=>({contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
+const label=(kind: Kind)=>({contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',softCreditAcknowledgment:'soft-credit acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
 /** Unique indexes that commit() reports by name. */
 const UNIQUE_CODES: Record<string,[string,string[]]> = {DUPLICATE_EMAIL:['cf_donors',['email']],DUPLICATE_REFERENCE:['cf_gifts',['source','reference']],DUPLICATE_HOUSEHOLD:['cf_households',['name']]}
 /** A database refusal names its part, the rows behind it and the reason, never only "the operation failed". */

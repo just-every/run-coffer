@@ -55,3 +55,10 @@ test('RCPT-009: household postal appeals freeze consenting addressees, distinct 
 test('RCPT-004: January statements, migration benefit facts, approved copy delivery and corrected reissues',async()=>{const {annualStatementsJourney}=await import('./annual-statements-journey.mjs');await annualStatementsJourney()})
 
 test('COMM-007: frozen asks, coded batch replies, mailing results and inherited household custody',async()=>{const {mailAppealsJourney}=await import('./mail-appeals-journey.mjs');await mailAppealsJourney()})
+
+test('RCPT-012: saved waiting gifts, read-only report filters and reviewed source acknowledgment links',async()=>{
+ const {acknowledgmentFiltersJourney}=await import('./acknowledgment-filters-journey.mjs')
+ await acknowledgmentFiltersJourney()
+ const {importAcknowledgmentJourney}=await import('./import-ack-journey.mjs')
+ await importAcknowledgmentJourney()
+})

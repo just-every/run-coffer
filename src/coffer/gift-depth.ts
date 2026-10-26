@@ -69,7 +69,7 @@ export async function donorGiftDepth(c: { db: D1Database; actor?:Actor }, donorI
  const [credits, tributes, matches] = await Promise.all([
   all(c, `SELECT s.*,g.donor_id AS gift_donor_id,g.received_on,g.amount_cents AS gift_amount_cents,d.name AS gift_donor_name,credited.name AS credited_donor_name,
     COALESCE(a.status,'not acknowledged') AS acknowledgment_status,COALESCE(a.version,0) AS acknowledgment_version,
-    a.acknowledged_on,a.method AS acknowledgment_method,a.reason AS acknowledgment_reason,a.interaction_id,a.note_id,
+    a.source AS acknowledgment_source,a.source_reference AS acknowledgment_source_reference,a.acknowledged_on,a.method AS acknowledgment_method,a.reason AS acknowledgment_reason,a.interaction_id,a.note_id,
     CASE WHEN COALESCE(n.confidential,0)=0 OR ?=1 THEN COALESCE(i.notes,n.body) ELSE NULL END AS acknowledgment_content,
     MIN(s.amount_cents,g.net_cents) AS recognized_cents,CASE WHEN ${ACTIVE} AND credited.erased_at IS NULL THEN 1 ELSE 0 END AS active
    FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id JOIN cf_donors d ON d.id=g.donor_id JOIN cf_donors credited ON credited.id=s.donor_id
@@ -89,6 +89,7 @@ export async function donorGiftDepth(c: { db: D1Database; actor?:Actor }, donorI
  ])
  for (const credit of credits) credit.acknowledgment = {
   status: credit.acknowledgment_status, version: credit.acknowledgment_version,
+  ...(credit.acknowledgment_source?{source:credit.acknowledgment_source,sourceReference:credit.acknowledgment_source_reference}:{}),
   acknowledgedOn: credit.acknowledged_on, method: credit.acknowledgment_method, reason: credit.acknowledgment_reason,
   link: credit.interaction_id || credit.note_id ? { kind: credit.interaction_id ? 'interaction' : 'note', id: credit.interaction_id || credit.note_id, content: credit.acknowledgment_content } : null,
  }

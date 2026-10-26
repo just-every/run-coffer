@@ -1,3 +1,4 @@
+import { acknowledgmentPredicate } from './acknowledgment-filters'
 // The Gifts screen's reads: every recorded gift, newest first, with its donor,
 // monthly plan, campaign and acknowledgement state, filtered by tab and by the
 // strip's scope (one campaign, or one fund in a year); plus the selected donor's
@@ -47,11 +48,12 @@ function scoped(scope: GiftScope): [string, unknown[]] {
  return ["g.id IN (SELECT gift_id FROM cf_fund_ledger WHERE kind='gift' AND fund=? AND received_on>=? AND received_on<=?)", [scope.fund, `${scope.year}-01-01`, `${scope.year}-12-31`]]
 }
 
-export async function giftList(c: Context, tab: GiftTab, page: number, scope: GiftScope = null, query = '') {
+export async function giftList(c: Context, tab: GiftTab, page: number, scope: GiftScope = null, query = '', url = new URL('https://coffer.invalid')) {
  const s = await settings(c), day = today(s.timezone), overdueBefore = addDays(day, -s.target_days)
  const [where, params] = filter(tab, s.threshold_cents, overdueBefore), [scopeWhere, scopeParams] = scoped(scope)
- const within = `${scopeWhere} AND (?='' OR g.reference=?)`
- scopeParams.push(query.trim().slice(0,100),query.trim().slice(0,100))
+ const ack=acknowledgmentPredicate(url,'g.id')
+ const within = `${scopeWhere} AND (?='' OR g.reference=?) AND ${ack.sql}`
+ scopeParams.push(query.trim().slice(0,100),query.trim().slice(0,100),...ack.params)
  const [rows, counts, total] = await Promise.all([
   all(c, `${COLUMNS} AND ${where} AND ${within} ORDER BY g.received_on DESC,g.created_at DESC,g.id LIMIT ? OFFSET ?`, ...params, ...scopeParams, GIFT_PAGE, page * GIFT_PAGE),
   one(c, `SELECT (SELECT count(*) FROM (${COLUMNS} AND ${ATTENTION} AND ${within})) AS attention,(SELECT count(*) FROM (${COLUMNS} AND (${DUE}) AND ${within})) AS letters,(SELECT count(*) FROM (${COLUMNS} AND ${within})) AS gifts,(SELECT count(*) FROM (${COLUMNS} AND (${DUE}))) AS letters_all`, s.threshold_cents, overdueBefore, ...scopeParams, s.threshold_cents, ...scopeParams, ...scopeParams, s.threshold_cents),

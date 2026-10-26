@@ -708,6 +708,8 @@ Authority and evidence (ct, 21 Oct 2026). Until `TEAM-001` separates fundraiser 
 
 The status, its date, method and link can be filtered on in saved lists and reports (`DONOR-007`, `REPORT-004`) and are read and written through the API (`API-001`). The importers carry each source's status (`MOVE-001` to `MOVE-006`). API writes follow `RCPT-011`'s authority, version and audit rules; a filter never changes a status, and an import sets one only through its reviewed apply.
 
+Current gift lists and received-gift reports apply status, inclusive thank-you dates, method and linked record to the same original gift. Gift over means a strictly greater positive remaining monetary balance in USD; it is separate from a donor's aggregate giving filter. Saved gift downloads return only those matching gifts, while other record types retain their disclosed donor lifetime scope. A reviewed historical cutoff supplies acknowledged status only when no explicit source or native status exists; it invents no date, method or link. Current LGL, Bloomerang and configured NXT exports resolve source interaction IDs through importer custody, require the matching donor and any supplied date and method, and never treat a source reference as proof of a Coffer send. Current gift and independent soft-credit source facts enter only through reviewed apply. `REPORT-004` and `MOVE-004` to `MOVE-006` inherit these filters, source facts, reviewed apply, matching linked evidence, replay, undo and custody obligations before adding their missing doors.
+
 *Acceptance:* A saved list of not-acknowledged gifts over $250 returns only the gifts still waiting. The API reads the status and writes it under `RCPT-011`'s authority, and each importer journey (`MOVE-001` to `MOVE-006`) reads the source's statuses with their date, method and linked interaction.
 
 ### Communication
@@ -920,7 +922,7 @@ Received-money figures open the exact signed ledger allocation entries, includin
 
 Staff build reports on constituents, gifts, pledges, opportunities and interactions with columns, filters, grouping and totals on any field, custom fields included (`DONOR-005`), save and share them, and export CSV or Excel (.xlsx). A saved definition can be edited later and exported as a JSON file that imports into another Coffer installation. Before saved definitions ship, REPORT-004 feeds their current selected definition into the REPORT-005 schedule and attachment door with its existing authority and disclosure rules.
 
-Before reports ship, their journeys assert the `RCPT-012` acknowledgment-status filter. Builder CSV and .xlsx exports use `DATA-004` report-record selection, `DATA-002` columns, exclusions and owner/admin authority until `TEAM-001`.
+Before reports ship, their journeys assert the `RCPT-012` acknowledgment-status filter. Wider report doors inherit RCPT-012 same-gift status, date, method and linked-record filters, read-only selection and matching gift export scope. Builder CSV and .xlsx exports use `DATA-004` report-record selection, `DATA-002` columns, exclusions and owner/admin authority until `TEAM-001`.
 
 *Acceptance:* An HTTP journey saves a gifts-by-fund-by-month report, shares it with a member, and exports it as CSV and .xlsx with the same rows and totals that match the ledger; it then adds a column to the saved definition, exports the definition as JSON, imports it into a second installation and gets the same totals there.
 
@@ -1002,6 +1004,8 @@ Before this door ships, it carries GIFT-008 tribute honorees, source groups and 
 
 Household import follows `DONOR-003`: only an explicitly flagged source head is carried, with source system and import date; inferred and unflagged households have no head. Source household addressee and salutations remain unchanged as overrides where different from computation. Preview counts households with and without heads; undo stops at any household a person has since changed.
 
+Before this door ships, its journey asserts RCPT-012 source gift and independent soft-credit acknowledgment status, date, method and linked interaction through reviewed apply, without inventing missing historical facts, with matching constituent evidence and guarded replay and undo.
+
 *Acceptance:* An HTTP journey with the Neon edge faked imports a fixture organization with memberships and events and reads matching totals, an account's salutation unchanged, a pick-one account custom field with its pick list and values, one acknowledged and one not-acknowledged donation with their statuses, and an event registration with its fair market value as its goods value, maps a fixture do-not-solicit account to the restriction so the next appeal excludes it with that reason, and reads a tribute's total equal to the source. The same journey asserts ACK-001 acknowledgment exclusions and source goods answers through the new import door. Its clause-named journey asserts GIFT-008 notification/tribute parity before the new door ships. Its household journey asserts explicit source heads only with source/import-date provenance, no inferred or unflagged head, source household addressee/salutations preserved as overrides where needed, preview counts with/without heads and refusal of undo after a person changes the household (`DONOR-003`).
 
 #### MOVE-005 — From Givebutter and Zeffy.
@@ -1014,6 +1018,8 @@ Before this door ships, it carries GIFT-008 tribute honorees, source groups and 
 
 Household import follows `DONOR-003`: only an explicitly flagged source head is carried, with source system and import date; inferred and unflagged households have no head. Source household addressee and salutations remain unchanged as overrides where different from computation. Preview counts households with and without heads; undo stops at any household a person has since changed.
 
+Before this door ships, its journey asserts RCPT-012 source gift and independent soft-credit acknowledgment status, date, method and linked interaction through reviewed apply, without inventing missing historical facts, with matching constituent evidence and guarded replay and undo.
+
 *Acceptance:* An HTTP journey imports fixture Givebutter and Zeffy data and reads gifts with campaign and fee totals equal to the source, a Givebutter monthly plan with its processor customer and payment method references ready for `MOVE-009`, a donor's first and last name in their name parts, a custom form question's answer as that donor's custom field value, a ticket purchase with its fair market value as its goods value, and a receipted gift as acknowledged by email on its receipt date. The same journey asserts ACK-001 acknowledgment exclusions and source goods answers through the new import door. Its clause-named journey asserts GIFT-008 notification/tribute parity before the new door ships. Its household journey asserts explicit source heads only with source/import-date provenance, no inferred or unflagged head, source household addressee/salutations preserved as overrides where needed, preview counts with/without heads and refusal of undo after a person changes the household (`DONOR-003`).
 
 #### MOVE-006 — Any spreadsheet.
@@ -1025,6 +1031,8 @@ Before this import door ships, its source statuses and goods answers must confor
 Before this door ships, it carries GIFT-008 tribute honorees, source groups and signed imported totals without inventing donor amount permission.
 
 Household import follows `DONOR-003`: only an explicitly flagged source head is carried, with source system and import date; inferred and unflagged households have no head. Source household addressee and salutations remain unchanged as overrides where different from computation. Preview counts households with and without heads; undo stops at any household a person has since changed.
+
+Before this door ships, its journey asserts RCPT-012 source gift and independent soft-credit acknowledgment status, date, method and linked interaction through reviewed apply, without inventing missing historical facts, with matching constituent evidence and guarded replay and undo.
 
 *Acceptance:* A browser journey maps a gifts spreadsheet, translates two fund names, maps its acknowledged and non-deductible columns, previews matches to existing donors, applies, reads an acknowledged gift and a gift with its non-deductible amount as goods value, and undoes. The same journey asserts ACK-001 acknowledgment exclusions and source goods answers through the new import door. Its clause-named journey asserts GIFT-008 notification/tribute parity before the new door ships. Its household journey asserts explicit source heads only with source/import-date provenance, no inferred or unflagged head, source household addressee/salutations preserved as overrides where needed, preview counts with/without heads and refusal of undo after a person changes the household (`DONOR-003`).
 

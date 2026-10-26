@@ -1,3 +1,4 @@
+import { acknowledgmentPredicate } from './acknowledgment-filters'
 import { requireRole } from './auth'
 import { customDisplay, customFields } from './custom-fields'
 import { all, date, fail, integer, type Context, type Row } from './db'
@@ -46,6 +47,7 @@ export async function customRecordSelection(c: Context, url: URL) {
  const selected = key ? fields.find(f => f.key === key) : fields[0]
  if (key && !selected) fail('INPUT', 'Choose a defined gift custom field.', 400)
  const field = selected ?? null
+ const acknowledgment=acknowledgmentPredicate(url,'COALESCE(l.reverses,p.gift_id,l.id)')
 
 
  const query = `SELECT l.id,l.fund,NULL AS campaign_id,l.donor_id,d.name AS donor_name,l.received_on,l.kind,
@@ -55,9 +57,9 @@ export async function customRecordSelection(c: Context, url: URL) {
   LEFT JOIN cf_payment_entries p ON l.source='stripe-adjustment' AND p.id=l.id
   LEFT JOIN cf_custom_values v ON v.field_key=? AND v.record_id=COALESCE(l.reverses,p.gift_id,l.id)
    AND v.donor_id=l.donor_id AND d.erased_at IS NULL
-  WHERE ? IS NOT NULL AND (? IS NULL OR l.received_on>=?) AND (? IS NULL OR l.received_on<=?)
+  WHERE ? IS NOT NULL AND (? IS NULL OR l.received_on>=?) AND (? IS NULL OR l.received_on<=?) AND ${acknowledgment.sql}
   ORDER BY l.received_on DESC,l.created_at DESC,l.id`
- return {query,params:[field?.key??null,field?.key??null,from,from,through,through],fields,field,from,through,parameters:{field:field?.key??null,from,through}}
+ return {query,params:[field?.key??null,field?.key??null,from,from,through,through,...acknowledgment.params],fields,field,from,through,parameters:{field:field?.key??null,from,through,...acknowledgment.filters}}
 }
 
 export async function report(c: Context, url: URL): Promise<CustomReport> {
