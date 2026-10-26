@@ -96,7 +96,7 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
    if (NOT_IN_FILE[t.name] || (!t.donors.length && !t.parents.length)) continue
    const terms: string[] = [], params: string[] = []
    for (const k of t.donors) { terms.push(`${k} IN (SELECT value FROM json_each(?))`); params.push(JSON.stringify(ids)) }
-   for (const k of t.parents) { const p = own.get(PARENTS[k]); if (p?.size) { terms.push(`${k} IN (SELECT value FROM json_each(?))`); params.push(JSON.stringify([...p])) } }
+   for (const k of t.name==='cf_event_registrations'?[]:t.parents) { const p = own.get(PARENTS[k]); if (p?.size) { terms.push(`${k} IN (SELECT value FROM json_each(?))`); params.push(JSON.stringify([...p])) } }
    if (terms.length) reads.push({ t, sql: `SELECT * FROM ${t.name} WHERE ${terms.join(' OR ')}`, params })
   }
   const results = await c.db.batch(reads.map(r => c.db.prepare(r.sql).bind(...r.params)))

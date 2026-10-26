@@ -1350,6 +1350,10 @@
       "sha256": "aeaa3359c23d7f93d78170e1f5bbb0b054498bc3821d7a7fe0cbfd13203333a9",
       "executable": false
     },
+    "migrations/core/0153_coffer_event_packages.sql": {
+      "sha256": "73dad1b9d14691e15aedd64142cd0b7c715be0fc8749b1dce116e0bde085204e",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -2419,7 +2423,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "85f38d84b713f58c8af910b65682d921233495cfd831a580b444ef697fe20511",
+      "sha256": "07d15f1bfd61fe8eb5331e6977226d89835bac22ca0ff801158933e468295537",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2587,7 +2591,7 @@
       "executable": false
     },
     "src/coffer/donor-file.ts": {
-      "sha256": "67666fc0cf095479d059cc6011d9a83c4bea4ce20ae7f483a9b0fd9b6c627450",
+      "sha256": "d4d9b804bb21301c8fa944fc68455da7fcc1a6e16a86f0e869e0012dfa39bf23",
       "executable": false
     },
     "src/coffer/donor-households.ts": {
@@ -2608,6 +2612,18 @@
     },
     "src/coffer/engagement.ts": {
       "sha256": "c703e3493fa610a15b37a7000cab5685ca9046441499db83f21c2e5e6905f195",
+      "executable": false
+    },
+    "src/coffer/event-checkout.ts": {
+      "sha256": "0f8cbc5cd31dca83eb93a2a233cc0da2f8482773c4c5fe8a93e26a1b5551f20e",
+      "executable": false
+    },
+    "src/coffer/event-guest-review.ts": {
+      "sha256": "81abd03d86382ae1a7dcbad37ff1932f26555addb7f2a01fc2e208d3ef05a396",
+      "executable": false
+    },
+    "src/coffer/event-questions.ts": {
+      "sha256": "6612dc21ba229ce40bff61b3f601155340443b9bff11a6e170d53040dde78feb",
       "executable": false
     },
     "src/coffer/exports-http.ts": {
@@ -2639,7 +2655,7 @@
       "executable": false
     },
     "src/coffer/fundraising-events.ts": {
-      "sha256": "222ab8c4e11cc6f1c8b59e54f6719ab54b7aa50f6ad1d6b61dc4d6a2bba18a64",
+      "sha256": "faad9cf9bed0f121241335db77b5f751a5554556d705dcf44a22f2f5418bcbed",
       "executable": false
     },
     "src/coffer/gift-ack-receipt.ts": {
@@ -2687,7 +2703,7 @@
       "executable": false
     },
     "src/coffer/giving/checkout.ts": {
-      "sha256": "9f863d1e82f1ecd4009c50ad80c8ea3e15b6142a8581b7a03c8ef77710413963",
+      "sha256": "d466d200b96d17b8369073a5c96130bd5419a66080d84e29843dcabfd5413fe2",
       "executable": false
     },
     "src/coffer/giving/connections-ui.ts": {
@@ -2703,7 +2719,7 @@
       "executable": false
     },
     "src/coffer/giving/http.ts": {
-      "sha256": "601726649c7dcf484e6faf540c8093f47cfae3b6825b81a790881754c9019c1b",
+      "sha256": "437a2d494b68aece2077b066f0994f58bf724474175308f018c3c7d2e299f5cb",
       "executable": false
     },
     "src/coffer/giving/image-metadata.ts": {
@@ -2783,7 +2799,7 @@
       "executable": false
     },
     "src/coffer/giving/recording.ts": {
-      "sha256": "414cfe84e7997bf512705a2cfc1cdf7d4593a2b7c80a0823edafdcd51f4c69b9",
+      "sha256": "fbb142d89d9e041aa32deba27d0efb088056ce2bba6fd1ea12923d3332d4095a",
       "executable": false
     },
     "src/coffer/giving/saved-card-consent.ts": {
@@ -2855,7 +2871,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "6bcbfb564060bdaedc17ba072f3b62265e68841561a8b075908ccfca063f2364",
+      "sha256": "c8cec6b4ebb39813adbdea3134689e3b4305da3d9eb6dc0537eb47331508d695",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3259,7 +3275,7 @@
       "executable": false
     },
     "src/coffer/privacy.ts": {
-      "sha256": "a3db39f2c9a3dbe9e0a60773b795bbb7562e7a10ca17f332ca09a1870aed619e",
+      "sha256": "5be7529d0a7296f8c06cbc65ed39e0f212d63e664d3c1bc928f266d33e1be452",
       "executable": false
     },
     "src/coffer/reassignment-reasons.ts": {
@@ -3534,6 +3550,14 @@
       "sha256": "bc95dadc85e0304cdfa913181f4b072d028bddccf6abec6fb2a011f3efc00909",
       "executable": false
     },
+    "src/coffer/ui/event-admin.ts": {
+      "sha256": "9e3783309167a6b0e2c056f806950fb7396d0eaf0aa31c69030097df0ee0560b",
+      "executable": false
+    },
+    "src/coffer/ui/event-registration.ts": {
+      "sha256": "baca5b0cba5d053c80763a3721cec06c5bd08f5f1fdfd012aff19fa0688f71a8",
+      "executable": false
+    },
     "src/coffer/ui/exports.ts": {
       "sha256": "9cad134a59442163888639b8e9f6c3490bf5cb7fc0325091d9589fddd10f3564",
       "executable": false
@@ -3543,7 +3567,7 @@
       "executable": false
     },
     "src/coffer/ui/fundraising-events.ts": {
-      "sha256": "4ece9797893fd502cc72e26ebcfcf5572c1bf5cd41d9ac2bbdd5d4b3cea14107",
+      "sha256": "e79139aa4adc61cabd94636ac9073035c4fabdc76f232963b7f14db9a79432b6",
       "executable": false
     },
     "src/coffer/ui/gift-acknowledgments.ts": {

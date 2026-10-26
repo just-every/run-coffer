@@ -9,6 +9,7 @@ import { campaign } from './campaigns'
 import { feeCoverTotal } from './fee-cover'
 import { trackedAppeal } from './tracked-link'
 import { requireStripe, stripe, type GivingEnv } from './stripe'
+import { prepareEventCheckout } from '../event-checkout'
 
 export async function limit(env: GivingEnv, key: string, max = 10) {
  const window = Math.floor(Date.now() / 600000), hashed = await sha256(key)
@@ -35,8 +36,9 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const id = text(p.requestId, 'Checkout request', 100)
  if (!/^[0-9a-f-]{36}$/.test(id)) fail('INPUT', 'Reload the donation page and try again.', 400)
  const prior = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
- const priorRegistration=await one({db:env.DB},'SELECT * FROM cf_event_registrations WHERE intent_id=?',id)
+ const priorRegistration=await one({db:env.DB},'SELECT * FROM cf_event_orders WHERE intent_id=?',id)
  if(prior && (ticket?(!priorRegistration||priorRegistration.ticket_type_id!==ticket.id):Boolean(priorRegistration)))fail('checkout_changed','Reload before changing a checkout between a gift and an event ticket.',409)
+ const eventCheckout=ticket?await prepareEventCheckout(env.DB,id,ticket,p,name,mail):null
  const covers = p.feeCover === 'yes'
  // A saved request retains its quoted rate even after campaign settings change.
  const rate = prior ? prior.fee_cover_rate_bps : c.fee_cover_rate_bps
@@ -51,7 +53,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const storedTribute=tribute??{kind:null,honoree:null,notified_name:null,notified_email:null,notified_address:null,amount_permission:0}
  await env.DB.batch([
   env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at,anonymous,wall_opt_in,recognition_name,appeal,requested_amount_cents,fee_cover_cents,fee_cover_rate_bps,fee_cover_fixed_cents,giving_channel,billing_frequency) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, storedFrequency, consent, new Date().toISOString(),recognition.anonymous,recognition.wallOptIn,recognition.recognitionName,appeal,base,cents-base,covers?rate:null,covers?fixed:null,linkedText?'text':'form',frequency),
-  ...(ticket?[env.DB.prepare('INSERT OR IGNORE INTO cf_event_registrations(id,event_id,ticket_type_id,donor_id,intent_id,attendee_name,price_cents,benefit_cents,benefit_description,checked_in_at,checked_in_by,created_at) VALUES(?,?,?,NULL,?,?,?,?,?,NULL,NULL,?)').bind(id,ticket.event_id,ticket.id,id,name,ticket.price_cents,ticket.benefit_cents,ticket.benefit_description,new Date().toISOString())]:[]),
+  ...(eventCheckout?eventCheckout.statements:[]),
   env.DB.prepare('INSERT OR IGNORE INTO cf_giving_tributes(intent_id,kind,honoree,notified_name,notified_email,notified_address,amount_permission) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM cf_giving_intents WHERE id=? AND name=? AND email=? AND amount_cents=? AND frequency=?)').bind(id,storedTribute.kind,storedTribute.honoree,storedTribute.notified_name,storedTribute.notified_email,storedTribute.notified_address,storedTribute.amount_permission,id,name,mail,cents,storedFrequency),
  ])
  const intent = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
@@ -59,8 +61,8 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const savedTribute=await one({db:env.DB},'SELECT kind,honoree,notified_name,notified_email,notified_address,amount_permission FROM cf_giving_tributes WHERE intent_id=?',id)
  if(JSON.stringify(savedTribute)!==JSON.stringify(storedTribute))fail('checkout_changed','Reload the donation page before changing this tribute.',409)
  if (intent.giving_channel !== (linkedText ? 'text' : 'form')) fail('checkout_changed', 'Reload the donation page before changing the source.', 409)
- const registration=await one({db:env.DB},'SELECT * FROM cf_event_registrations WHERE intent_id=?',id)
- if(ticket?(!registration||registration.ticket_type_id!==ticket.id||registration.price_cents!==ticket.price_cents||registration.benefit_cents!==ticket.benefit_cents):Boolean(registration))fail('checkout_changed','Reload the registration before changing its ticket.',409)
+ const registration=await one({db:env.DB},'SELECT * FROM cf_event_orders WHERE intent_id=?',id)
+ if(ticket?(!registration||registration.ticket_type_id!==ticket.id||registration.price_cents!==ticket.price_cents||registration.benefit_cents!==ticket.benefit_cents||registration.input_hash!==eventCheckout!.order.input_hash):Boolean(registration))fail('checkout_changed','Reload the registration before changing its ticket or guests.',409)
  if (intent.session_id) return provider(env, '/checkout/sessions/' + encodeURIComponent(intent.session_id))
  // An unverified public email must not reveal an existing Stripe customer's saved details.
  const customer = (await provider(env, '/customers', { name, email: mail, 'metadata[coffer_install]': env.AUTH_ORIGIN }, 'customer-' + id)).id

@@ -80,7 +80,7 @@ export const ACCESS: Record<string, Role[]> = {
  'calls.rank':MANAGERS, 'calls.policy':MANAGERS,
  'task.teamSave':['owner','admin'], 'task.create':STAFF, 'task.policy':MANAGERS, 'task.reminders':STAFF,
  'webhook.subscribe': MANAGERS, 'webhook.pause': MANAGERS, 'webhook.replay': MANAGERS,
- 'event.create': MANAGERS, 'event.ticket': MANAGERS, 'event.checkIn': MANAGERS,
+ 'event.create': MANAGERS, 'event.ticket': MANAGERS, 'event.checkIn': MANAGERS, 'event.question': MANAGERS, 'event.matchGuest': MANAGERS,
  'reportSchedule.save': MANAGERS, 'reportSchedule.pause': MANAGERS, 'reportSchedule.resend': MANAGERS, 'reportSchedule.revokeRecipient': MANAGERS,
  'giving.protection': MANAGERS, 'giving.resume': MANAGERS,
  'giving.connectTwilio': MANAGERS, 'giving.keyword': MANAGERS,

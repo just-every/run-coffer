@@ -422,7 +422,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const auctionErasure=await auctionErasureStatements(c,donorId,placeholder)
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)
  const givingErasure = [
-  ...eventRegistrationErasureStatements(donorId,placeholder),
+  ...eventRegistrationErasureStatements(donorId,placeholder,[donor.email,...aliases.results.map(a=>a.email)].filter((value):value is string=>Boolean(value))),
   {sql:'DELETE FROM cf_saved_card_consents WHERE donor_id=?',params:[donorId]},
   { sql: "UPDATE cf_in_kind_acknowledgments SET subject='[erased]',body='[erased]' WHERE in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id=?)", params: [donorId] },
   { sql: "UPDATE cf_in_kind_revisions SET snapshot=json_set(snapshot,'$.description','Erased property contribution','$.goods_description',NULL),reason='[erased]' WHERE in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id=?)", params: [donorId] },
@@ -689,7 +689,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/research') return show('Prospect research',await researchPage(c,url.searchParams.get('donorId')??undefined))
  const auctionPath=path.match(/^\/app\/events\/([^/]+)\/auctions$/)
  if(auctionPath)return show('Auction results',await auctionPage(c,decodeURIComponent(auctionPath[1]),url.searchParams.get('jobId')??undefined,{q:url.searchParams.get('q')??undefined,rowId:url.searchParams.get('matchRow')??undefined}))
- if(path==='/app/events'||/^\/app\/events\/[^/]+$/.test(path)){requireRole(c.actor,['owner','admin'],'manage fundraising events');return show('Fundraising events',await eventsPage(c,path==='/app/events'?undefined:decodeURIComponent(path.split('/').at(-1)!)))}
+ if(path==='/app/events'||/^\/app\/events\/[^/]+$/.test(path)){requireRole(c.actor,['owner','admin'],'manage fundraising events');return show('Fundraising events',await eventsPage(c,path==='/app/events'?undefined:decodeURIComponent(path.split('/').at(-1)!),{q:url.searchParams.get('q')??undefined,registrationId:url.searchParams.get('matchGuest')??undefined}))}
  if (path === '/app/volunteering') return show('Volunteer history',await volunteeringPage(c,url))
  if (path === '/app/grants') return show('Foundation and corporate grants',await grantsPage(c,url.searchParams.get('donorId')??undefined))
  if (path === '/app/engagement') return show('Engagement scores',await engagementPage(c))

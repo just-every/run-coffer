@@ -64,13 +64,22 @@ export async function givingResponse(request: Request, original: Bindings): Prom
    const current=await fundraisingEvent({db:env.DB},registration[1])
    if(request.method==='GET'&&!registration[2]){
     const security=await givingConnection(env,'turnstile'),nonce=crypto.randomUUID().replaceAll('-','')
-    const response=await page(current.name,registrationPage(current,security?.siteKey??'')+`<script nonce="${nonce}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`)
+    const response=await page(current.name,registrationPage(current,security?.siteKey??'',url.searchParams.get('ticketId')??undefined)+`<script nonce="${nonce}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`)
     response.headers.set('content-security-policy',response.headers.get('content-security-policy')!.replace("form-action 'self'","form-action 'self' https://checkout.stripe.com")+`; script-src 'nonce-${nonce}' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com`)
     return response
    }
    if(request.method==='POST'&&registration[2]){
-    const data=Object.fromEntries(new URLSearchParams(await givingBody(request))),ticket=current.tickets.find(t=>t.id===data.ticketId)
+    const formData=new URLSearchParams(await givingBody(request)),data:Record<string,any>=Object.fromEntries(formData),ticket=current.tickets.find(t=>t.id===data.ticketId)
     if(!ticket)fail('INPUT','Choose a ticket type.',400)
+    const answers=(prefix:string)=>Object.fromEntries((current.questions??[]).flatMap((q:Record<string,any>)=>{
+     const values=formData.getAll(prefix+q.field_key)
+     return values.length?[[q.field_key,q.entry==='pick-many'?values:values[0]]]:[]
+    }))
+    if(ticket.kind&&ticket.kind!=='single')data.guests=Array.from({length:Number(ticket.seats)},(_,i)=>{
+     const prefix='guest'+(i+1)
+     return {name:data[prefix+'Name'],email:data[prefix+'Email'],dietaryNotes:data[prefix+'DietaryNotes'],buyer:data[prefix+'Buyer']==='yes',answers:answers(prefix+'_answer_')}
+    })
+    else data.answers=answers('answer_')
     const session=await checkout(env,request,current.campaign_slug,data,{...ticket,appeal_id:current.appeal_id})
     if(typeof session.url!=='string'||new URL(session.url).hostname!=='checkout.stripe.com')fail('checkout_unavailable','The secure checkout is unavailable.',409)
     return givingRedirect(session.url)
