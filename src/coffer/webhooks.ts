@@ -10,7 +10,7 @@ export async function webhookState(c: Context) {
   all(c,`SELECT d.*,e.event_type,e.subject_id,e.occurred_at,s.name AS endpoint_name FROM cf_webhook_deliveries d JOIN cf_webhook_events e ON e.id=d.event_id JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id ORDER BY d.created_at DESC,d.id LIMIT 100`),
   all(c,`SELECT a.* FROM cf_webhook_attempts a WHERE a.delivery_id IN (SELECT id FROM cf_webhook_deliveries ORDER BY created_at DESC,id LIMIT 100) ORDER BY attempted_at,id`)
  ])
- return {subscriptions:subscriptions.map(s=>({...s,events:JSON.parse(s.events)})),deliveries,attempts}
+ return {subscriptions:subscriptions.map((s):Row & {events:string[]}=>({...s,events:JSON.parse(s.events)})),deliveries,attempts}
 }
 export async function webhookCommand(c: Context, command: string, p: Row): Promise<Row|undefined> {
  if (!command.startsWith('webhook.')) return

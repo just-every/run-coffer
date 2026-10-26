@@ -26,6 +26,7 @@ export async function webhooksJourney(){
   await h.command('webhook.subscribe',subscription,{...agent,status:403})
   await h.get('/api/coffer/webhooks',{...agent,status:403})
   await h.command('webhook.subscribe',subscription,{headers:{origin:'https://elsewhere.test'},status:403})
+  await h.get('/api/coffer/webhooks',{headers:{host:'elsewhere.test'},status:403})
   const signed=await h.command('webhook.subscribe',subscription)
   const quiet=await h.command('webhook.subscribe',{...subscription,name:'Donor changes only',events:['donor.updated']})
   const d=await donor(h,'Riverbend Webhook Donor',{addressLine1:null,email:'synthetic-coffer-1802@example.test'},{headers})
@@ -66,6 +67,21 @@ export async function webhooksJourney(){
   const replayAfter=(await log(h)).deliveries.find(x=>x.id===replay.id)
   assert.equal(replayAfter.status,'delivered');assert.equal(replayAfter.replay_of,target.id);assert.equal(replayAfter.event_id,target.event_id)
   assert.equal((await log(h)).deliveries.find(x=>x.id===target.id).attempts,3,'Replay retains original history')
+  for(const attempt of received){
+   const delivery=(await log(h)).deliveries.find(d=>d.id===attempt.deliveryId)
+   const secret=delivery.subscription_id===signed.id?signed.secret:quiet.secret
+   const [t,v]=attempt.signature.split(',').map(part=>part.split('=')[1])
+   assert.equal(v,createHmac('sha256',secret).update(t+'.'+attempt.body).digest('hex'),'Every emitted event uses its endpoint key')
+  }
+  const admin=await h.person('synthetic-coffer-1803@example.test','admin')
+  const approval=await h.command('webhook.subscribe',{...subscription,name:'Revoked approver',events:['donor.created']},{as:admin.cookie})
+  await donor(h,'Authority Check',{addressLine1:null})
+  await h.api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})
+  await h.get('/api/coffer/webhooks',{as:admin.cookie,status:401})
+  const waiting=(await log(h)).deliveries.find(d=>d.subscription_id===approval.id)
+  await tick(h,new Date(Date.parse(waiting.next_at)+1000).toISOString())
+  assert.equal((await log(h)).deliveries.find(d=>d.id===waiting.id).status,'held','Revoked approval stops queued disclosure')
+  assert.equal(received.some(r=>r.deliveryId===waiting.id),false)
   if(process.env.COFFER_WEBHOOK_BROWSER)await webhooksBrowser(h,process.env.COFFER_WEBHOOK_BROWSER)
   await h.command('webhook.pause',{subscriptionId:quiet.id,version:1})
   await h.command('webhook.pause',{subscriptionId:quiet.id,version:1},{status:409})
@@ -78,7 +94,7 @@ export async function webhooksJourney(){
   const copy=await installation();try{await restore(copy,exported);assert.equal((await log(copy)).subscriptions.length,0);assert.equal((await log(copy)).deliveries.length,0)}finally{await copy.close()}
   await h.command('donor.erase',{donorId:d.id,confirm:'ERASE'})
   const erased=await log(h)
-  assert.equal(erased.deliveries.filter(x=>['donor.created','donor.updated','gift.created','gift.reversed'].includes(x.event_type)).length,0,'Erasure removes private webhook identifiers and their delivery history')
+  assert.equal(erased.deliveries.filter(x=>[d.id,gift.id,...queued.deliveries.map(x=>x.subject_id)].includes(x.subject_id)).length,0,'Erasure removes private webhook identifiers and their delivery history')
   const audit=(await h.get('/api/coffer/audit?action=webhook.subscribe')).rows
   assert.ok(audit.length>=2);assert.ok(audit.every(x=>JSON.parse(x.detail).explicitDisclosureApproval===true))
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,outbound:async request=>{
@@ -118,9 +134,13 @@ async function webhookSourceJourney(){
   for(const kind of ['form.submitted','donor.created','plan.failed','plan.canceled','task.assigned'])assert.equal(types.filter(x=>x===kind).length,1,kind+' captured once through its public door')
   const when=new Date(Math.max(...state.deliveries.map(d=>Date.parse(d.next_at)))+1000).toISOString()
   await tick(h,when)
-  for(const kind of ['form.submitted','plan.failed','plan.canceled','task.assigned'])assert.ok(delivered.some(x=>x.type===kind),'Delivered '+kind)
+  for(const kind of ['form.submitted','plan.failed','plan.canceled','task.assigned']){
+   const delivery=delivered.find(x=>x.event.type===kind);assert.ok(delivery,'Delivered '+kind)
+   const [t,v]=delivery.signature.split(',').map(part=>part.split('=')[1])
+   assert.equal(v,createHmac('sha256',signed.secret).update(t+'.'+delivery.body).digest('hex'),'Signed '+kind)
+  }
  },{triggerHandlers:true,bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1816',STRIPE_WEBHOOK_SECRET:'synthetic-coffer-1811'},outbound:async request=>{
-  if(new URL(request.url).hostname==='receiver.example.test'){delivered.push(await request.json());return new Response(null,{status:204})}
+  if(new URL(request.url).hostname==='receiver.example.test'){const body=await request.text();delivered.push({event:JSON.parse(body),body,signature:request.headers.get('coffer-signature')});return new Response(null,{status:204})}
   return edge.outbound(request)
  }})
 }

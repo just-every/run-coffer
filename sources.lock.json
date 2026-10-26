@@ -3611,7 +3611,7 @@
       "executable": false
     },
     "src/coffer/webhooks.ts": {
-      "sha256": "09ef8a4b15bcf3c884056bfcd24e0bc5fa386d713c0a9f598f7d1fbb173ca987",
+      "sha256": "04a35aa04d52bb4881967b873437542728782510130b47197f507a1d529158dc",
       "executable": false
     },
     "src/coffer/webhooks/delivery.ts": {
@@ -6299,7 +6299,7 @@
       "executable": false
     },
     "tests/webhooks-journey.mjs": {
-      "sha256": "cccf345fdb5a69834e88eefe18fc7083a08159f13d6566a4fd66ca46870c2dd7",
+      "sha256": "6899a62ecf984eaea08e111dfc6895f9942ea42af098fafc1cdcadd86866d7ac",
       "executable": false
     },
     "tests/worker.ts": {
