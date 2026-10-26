@@ -15,7 +15,7 @@ export async function hygieneState(c:Context) {
   all(c,`SELECT p.*,d.name AS donor_name,r.name AS related_name FROM cf_hygiene_proposals p JOIN cf_donors d ON d.id=p.donor_id LEFT JOIN cf_donors r ON r.id=p.related_donor_id WHERE d.erased_at IS NULL ORDER BY p.created_at DESC,p.id`),
   all(c,`SELECT e.*,d.name AS donor_name FROM cf_hygiene_evidence e JOIN cf_donors d ON d.id=e.donor_id WHERE ${live} ORDER BY e.recorded_at DESC,e.id`)
  ])
- return {donors,proposals:proposals.map(p=>({...p,input:JSON.parse(p.input_json)})),evidence:evidence.map(p=>({...p,correction:JSON.parse(p.correction)}))}
+ return {donors,proposals:proposals.map((p):Row=>({...p,input:JSON.parse(p.input_json)})),evidence:evidence.map((p):Row=>({...p,correction:JSON.parse(p.correction)}))}
 }
 
 export async function recordHygieneEvidence(c:Context,p:Row) {

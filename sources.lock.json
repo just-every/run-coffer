@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "aa3ca502caee0d602e89d48f991e50450fedff339934a1e0f3938f431bdf6baa",
+      "sha256": "f1a73795969c28fd504519219eb2e255fdfdcc4b62306410a0d91c23fdb4f12f",
       "executable": false
     },
     "AGENTS.md": {
@@ -2211,7 +2211,7 @@
       "executable": false
     },
     "src/coffer/agent/hygiene.ts": {
-      "sha256": "78f936ce45dd34b765e3f2a43221a2c142795397d12bfd4499b9508d82f72aed",
+      "sha256": "ada5f9f81654e161909f997e874b39f0915d26bb1e71a363f02db3dd95091271",
       "executable": false
     },
     "src/coffer/agent/jobs.ts": {
@@ -6411,7 +6411,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "4f32919f3a88b109bf8b576ba11c28f8484ffb4d25b7eba50b70c9fa358b458c",
+      "sha256": "2b256a651222cd994be9b05339d0b96ebebfff1d6f56025cb6b239cac57f8b5b",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
