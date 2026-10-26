@@ -12,6 +12,10 @@ Use the Bearer authorization scheme under `/api/coffer/v1`. The authenticated
 resource paths, request bodies and response envelopes. Native signed-in sessions
 can also use these routes under their existing role and same-origin rules.
 
+Gift reads use the native contribution ledger, including processor refund
+adjustments and property gifts; property values remain separate from monetary
+contribution amounts.
+
 The implemented scope default is conservative and awaits ct approval:
 
 - Read only reads current constituents, gifts, pledges, plans, interactions,

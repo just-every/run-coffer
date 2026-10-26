@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "394559ef0f98b766c53f7acf6546928e7959e4591bb16cfa98443adf20b03b82",
+      "sha256": "a4beb9eb6e591f912d1d501940a4b55f50ae33c336dcd21089dfcf87da25a901",
       "executable": false
     },
     "deploy-demo.json": {
@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/REST-API.md": {
-      "sha256": "c961a8b27a6f5882cc291ed5118276a394c260e6f0a58a82ccffcc07ac7930c0",
+      "sha256": "677059177f16eb639d6cac6a061b20adb1af238643e5661b1a8b404b56809bbf",
       "executable": false
     },
     "docs/site.json": {
@@ -2363,11 +2363,11 @@
       "executable": false
     },
     "src/coffer/api/openapi.ts": {
-      "sha256": "5978147beaa0984b3b05efd481afa36b2ab709a651a8ca4de7e1eb3eabbe70fc",
+      "sha256": "05d0472fac1b9230cbd13bc6d9ec7580aa3f961f7e8b54263912a3fb14de73cf",
       "executable": false
     },
     "src/coffer/api/reads.ts": {
-      "sha256": "d8a3dc0a4c64add02c2639676d478000596dd2712fb4520796a0f244e4f10e8a",
+      "sha256": "bfb68888be5aa372b32a98be8c41e0e911766604bb522f8c53d046b1ffc16a55",
       "executable": false
     },
     "src/coffer/api/transaction.ts": {
@@ -6463,7 +6463,11 @@
       "executable": false
     },
     "tests/rest-api-journey.mjs": {
-      "sha256": "ca44fca7bf7bb28c67e3399200236642e390fa6431365b78e3fc7847ca71a0b3",
+      "sha256": "94aa8fb8c0b4322f6cd696340af962dc52580312b5237d43153580eadcb27fc8",
+      "executable": false
+    },
+    "tests/rest-api-payments.mjs": {
+      "sha256": "e2c457e3df326f985a7c8ebdbec3c7fc2c501b0d46a208b05885c1582cbe4dd6",
       "executable": false
     },
     "tests/restricted-funds-browser.mjs": {

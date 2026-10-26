@@ -17,7 +17,7 @@ export type ApiResource=typeof API_RESOURCES[number]
 const live=`d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`
 const pick=(row:Row,fields:string[])=>Object.fromEntries(fields.filter(f=>row[f]!==undefined).map(f=>[f,row[f]]))
 const donorFields='id version name email phone address_line1 address_line2 city region postal_code country constituent_kind constituent_status deceased_on status_reason'.split(' ')
-const giftFields='id version donor_id kind reverses received_on amount_cents method reference fund pledge_id goods goods_cents goods_description source created_at'.split(' ')
+const giftFields='id version donor_id kind reverses received_on amount_cents method reference fund pledge_id goods goods_cents goods_description source created_at property_id property_description quantity stated_value_cents'.split(' ')
 const planFields='id donor_id campaign_id amount_cents status cancel_at_period_end failed_attempts recovered next_attempt_at updated_at campaign interval interval_count collection_paused'.split(' ')
 
 async function resourceRows(c:Context,resource:ApiResource,url:URL,recordId?:string):Promise<Row[]>{
@@ -33,7 +33,7 @@ async function resourceRows(c:Context,resource:ApiResource,url:URL,recordId?:str
   return rows.map(d=>({...pick(d,donorFields),consents:consents.filter(k=>k.donor_id===d.id),solicitation:restrictions.find(r=>r.donor_id===d.id)}))
  }
  if(resource==='gifts'){
-  const rows=await select('cf_gifts','g','g.*')
+  const rows=await select('cf_contribution_ledger','g','g.*')
   await Promise.all([withGiftAcknowledgments(c,rows),withReceiptBenefits(c,rows)])
   const allocations=await allGiftAllocations(c,rows.map(g=>g.id))
   return rows.map(g=>({...pick(g,giftFields),acknowledgment:g.acknowledgment,allocations:allocations.filter(a=>a.gift_id===(g.reverses??g.id))}))

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {createHmac} from 'node:crypto'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
+import {apiPaymentSource} from './rest-api-payments.mjs'
 import {restApiBrowser} from './rest-api-browser.mjs'
 
 const prefix='/api/coffer/v1',day='2026-10-25',clock={entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,bindings:{COFFER_TEST_NOW:'2026-10-27T12:00:00.000Z',SMARTY_AUTH_ID:'synthetic-coffer-4101',SMARTY_AUTH_TOKEN:'synthetic-coffer-4102',MELISSA_SMARTMOVER_KEY:'synthetic-coffer-4103'}}
@@ -25,7 +26,7 @@ function validate(value,schema,document,path='response'){
 function validateReferences(value,document){if(!value||typeof value!=='object')return;if(value.$ref)assert.ok(document.components.schemas[value.$ref.split('/').at(-1)],value.$ref);for(const child of Object.values(value))validateReferences(child,document)}
 
 export async function restApiJourney(){
- const received=[]
+ const received=[],payments=apiPaymentSource()
  await run(async h=>{
   await reviewed(h)
   const d=await donor(h,'synthetic-coffer-4002',{email:'synthetic-coffer-4002@example.test'}),other=await donor(h,'synthetic-coffer-4003',{email:'synthetic-coffer-4003@example.test'})
@@ -152,6 +153,15 @@ export async function restApiJourney(){
   await checked('/donors/'+d.id+'/consents',{key:readOnly},'/donors/{id}/consents')
   await write('/donors/'+d.id+'/status',{version:1,constituentStatus:'inactive',statusReason:'synthetic-coffer-4030'},{},'/donors/{id}/status')
   assert.equal((await checked('/donors/'+d.id+'/status',{key:readOnly},'/donors/{id}/status')).value.data.constituent_status,'inactive')
+  const property=await h.command('inKind.save',{donorId:other.id,description:'Books for Riverbend readers',quantity:'20',statedValue:'100',receivedOn:day,goods:'none'})
+  const propertyRead=await checked('/gifts/'+property.id,{key:readOnly},'/gifts/{id}')
+  assert.equal(propertyRead.value.data.kind,'in_kind');assert.equal(propertyRead.value.data.amount_cents,0);assert.equal(propertyRead.value.data.property_description,'Books for Riverbend readers')
+  const processor=await payments.populate(h)
+  const processorRows=(await checked('/gifts?donorId='+processor.donorId,{key:readOnly},'/gifts')).value.data
+  assert.deepEqual(processorRows.map(row=>row.id).sort(),processor.gifts.map(row=>row.id).sort(),'Public gifts include every signed native ledger entry')
+  assert.equal(processorRows.reduce((sum,row)=>sum+row.amount_cents,0),processor.netCents,'API monetary facts reconcile with native contributions after a provider refund')
+  const adjustment=processorRows.find(row=>row.source==='stripe-adjustment');assert.ok(adjustment)
+  await checked('/gifts/'+adjustment.id,{key:readOnly},'/gifts/{id}')
   for(const resource of ['donors','gifts','pledges','plans','interactions','tasks','opportunities','funds','campaigns','soft-credits'])await checked('/'+resource,{key:readOnly})
   const first=(await checked('/donors?limit=1',{key:readOnly},'/donors')).value
   const second=(await checked('/donors?limit=1&after='+first.page.next,{key:readOnly},'/donors')).value
@@ -194,12 +204,13 @@ export async function restApiJourney(){
   await h.command('giftRule.publish',{ruleId:published.id,version:published.version,reviewed:true})
   const guarded=await create('gift-entry','synthetic-coffer-4038')
   await call('/gifts',{key:guarded,method:'POST',body:{...giftInput(other.id),reference:'synthetic-coffer-4039'},headers:{'idempotency-key':'synthetic-coffer-4040'},status:409})
-  assert.equal((await call('/gifts?donorId='+other.id,{key:readOnly})).value.data.length,0)
+  assert.deepEqual((await call('/gifts?donorId='+other.id,{key:readOnly})).value.data.map(row=>row.id),[property.id],'A refused API write leaves only the existing property gift')
   const limited=await create('read-only','synthetic-coffer-4041')
   let throttled
   for(let i=0;i<200;i++){const response=await h.request(prefix+'/openapi.json',{...bearer(limited)});if(response.status===429){throttled=response;break}assert.equal(response.status,200);await response.arrayBuffer()}
   assert.ok(throttled,'Repeated requests reach the durable rate limit');assert.ok(Number(throttled.headers.get('retry-after'))>0)
- },{...clock,outbound:async request=>{
+ },{...clock,bindings:{...clock.bindings,...payments.bindings},outbound:async request=>{
+  if(new URL(request.url).hostname==='api.stripe.com')return payments.outbound(request)
   assert.equal(new URL(request.url).hostname,'receiver.example.test','Public API local writes do not make unapproved provider calls')
   const body=await request.text();received.push({body,event:JSON.parse(body),signature:request.headers.get('coffer-signature')})
   return new Response(null,{status:204})
