@@ -3,14 +3,21 @@ import { all, choice, commit, event, fail, guard, id, newId, one, sql, text, typ
 import { sealWebhookKey, webhookEndpoint } from './webhooks/security'
 
 export const WEBHOOK_EVENTS = ['gift.created','gift.reversed','donor.created','donor.updated','plan.failed','plan.canceled','task.assigned','form.submitted'] as const
-export async function webhookState(c: Context) {
+/** History is retained until associated donor erasure; paging never deletes it. */
+export async function webhookState(c: Context, before?: string | null) {
  requireRole(c.actor,['owner','admin'],'manage webhooks')
- const [subscriptions,deliveries,attempts] = await Promise.all([
+ let cursor: string[] | undefined
+ if (before) {
+  try { cursor=JSON.parse(atob(before)) } catch { fail('INPUT','Invalid delivery history cursor.',400) }
+  if (!Array.isArray(cursor) || cursor.length!==2 || cursor.some(v=>typeof v!=='string'||v.length>100)) fail('INPUT','Invalid delivery history cursor.',400)
+ }
+ const [subscriptions,rows] = await Promise.all([
   all(c,`SELECT s.id,s.name,s.endpoint,s.events,s.enabled,s.version,CASE WHEN EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=s.approved_by AND o.version=s.approver_version AND o.status='active' AND o.role IN ('owner','admin')) THEN 1 ELSE 0 END AS approved FROM cf_webhook_subscriptions s ORDER BY s.created_at DESC,s.id`),
-  all(c,`SELECT d.*,e.event_type,e.subject_id,e.occurred_at,s.name AS endpoint_name FROM cf_webhook_deliveries d JOIN cf_webhook_events e ON e.id=d.event_id JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id ORDER BY d.created_at DESC,d.id LIMIT 100`),
-  all(c,`SELECT a.* FROM cf_webhook_attempts a WHERE a.delivery_id IN (SELECT id FROM cf_webhook_deliveries ORDER BY created_at DESC,id LIMIT 100) ORDER BY attempted_at,id`)
+  all(c,`SELECT d.*,e.event_type,e.subject_id,e.occurred_at,s.name AS endpoint_name FROM cf_webhook_deliveries d JOIN cf_webhook_events e ON e.id=d.event_id JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id ${cursor?'WHERE (d.created_at,d.id)<(?,?)':''} ORDER BY d.created_at DESC,d.id DESC LIMIT 101`,...(cursor??[]))
  ])
- return {subscriptions:subscriptions.map((s):Row & {events:string[]}=>({...s,events:JSON.parse(s.events)})),deliveries,attempts}
+ const deliveries=rows.slice(0,100),last=deliveries.at(-1)
+ const attempts=deliveries.length?await all(c,`SELECT * FROM cf_webhook_attempts WHERE delivery_id IN (${deliveries.map(()=>'?').join(',')}) ORDER BY attempted_at,id`,...deliveries.map(d=>d.id)):[]
+ return {subscriptions:subscriptions.map((s):Row & {events:string[]}=>({...s,events:JSON.parse(s.events)})),deliveries,attempts,nextCursor:rows.length>100&&last?btoa(JSON.stringify([last.created_at,last.id])):null}
 }
 export async function webhookCommand(c: Context, command: string, p: Row): Promise<Row|undefined> {
  if (!command.startsWith('webhook.')) return
@@ -44,9 +51,10 @@ export async function webhookCommand(c: Context, command: string, p: Row): Promi
 export function webhookErasureStatements(donorId: string) {
  return [sql(`DELETE FROM cf_webhook_events WHERE subject_id=?
  OR subject_id IN (SELECT id FROM cf_gifts WHERE donor_id=?)
+ OR subject_id IN (SELECT p.id FROM cf_payment_entries p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?)
  OR subject_id IN (SELECT id FROM cf_subscriptions WHERE donor_id=?)
  OR subject_id IN (SELECT id FROM cf_giving_intents WHERE donor_id=?)
  OR subject_id IN (SELECT id FROM cf_call_tasks WHERE donor_id=?)
  OR subject_id IN (SELECT t.id FROM cf_recurring_tasks t JOIN cf_recurring_task_series s ON s.id=t.series_id WHERE s.donor_id=?)
- OR subject_id IN (SELECT t.id FROM cf_grant_tasks t JOIN cf_grants g ON g.id=t.grant_id WHERE g.donor_id=?)`,...Array(7).fill(donorId))]
+ OR subject_id IN (SELECT t.id FROM cf_grant_tasks t JOIN cf_grants g ON g.id=t.grant_id WHERE g.donor_id=?)`,...Array(8).fill(donorId))]
 }

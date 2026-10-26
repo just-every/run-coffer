@@ -39,8 +39,8 @@ function deliveryItem(delivery: Delivery, subscription: Subscription | undefined
   <td data-label="Attempts">${attemptHistory(attempts)}</td><td data-label="Action">${replay}</td></tr>`
 }
 
-export async function webhookPage(c: Context) {
- const data = await webhookState(c)
+export async function webhookPage(c: Context, before?: string | null) {
+ const data = await webhookState(c,before)
  const subscriptions = new Map(data.subscriptions.map(subscription => [subscription.id, subscription]))
  const attempts = new Map<string, Attempt[]>()
  for (const attempt of data.attempts) {
@@ -58,7 +58,7 @@ export async function webhookPage(c: Context) {
  return `<p><a href="/app/settings">Back to Settings</a></p>
   ${box('Endpoints', data.subscriptions.length ? `<ul class="list">${data.subscriptions.map(subscriptionItem).join('')}</ul>` : empty('No endpoints connected yet. Connect your first endpoint below.'), 'webhook-endpoints')}
   ${box('Connect an endpoint', data.subscriptions.length ? `<details class="edit"><summary>Add an endpoint</summary>${create}</details>` : create, 'webhook-connect')}
-  ${box('Delivery log', `<p>Receivers must deduplicate using the event ID. Automatic retries and manual replays can deliver the same event more than once.</p>${data.deliveries.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Endpoint and event</th><th>Outcome and next attempt (UTC)</th><th>Attempt history</th><th>Action</th></tr></thead><tbody>${data.deliveries.map(delivery => deliveryItem(delivery, subscriptions.get(delivery.subscription_id), attempts.get(delivery.id) ?? [])).join('')}</tbody></table></div>` : empty('No deliveries yet. New matching events will appear here.')}`, 'webhook-deliveries')}`
+  ${box('Delivery log', `<details><summary>Delivery and retention policy</summary><p>History stays in this installation until the associated donor is erased. Archives exclude webhook keys, approvals and history. For key replacement, pause the old endpoint and connect a newly approved endpoint with its new signing key. Old history stays with the old endpoint.</p></details><p>Receivers must verify the signature timestamp is within five minutes of their current clock and deduplicate using the event ID. Automatic retries and manual replays can deliver the same event more than once.</p>${data.deliveries.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Endpoint and event</th><th>Outcome and next attempt (UTC)</th><th>Attempt history</th><th>Action</th></tr></thead><tbody>${data.deliveries.map(delivery => deliveryItem(delivery, subscriptions.get(delivery.subscription_id), attempts.get(delivery.id) ?? [])).join('')}</tbody></table></div>` : empty('No deliveries yet. New matching events will appear here.')}`, 'webhook-deliveries')}<nav aria-label="Delivery history">${before?'<a href="/app/webhooks">Newest deliveries</a> ':''}${data.nextCursor?`<a href="/app/webhooks?before=${encodeURIComponent(data.nextCursor)}">Older deliveries</a>`:''}</nav>`
 }
 
 export function webhookSecretPage(secret: string) {

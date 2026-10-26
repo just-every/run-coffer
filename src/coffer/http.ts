@@ -543,7 +543,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 }
 
 async function api(c: Context, url: URL): Promise<Response> {
- if(url.pathname==='/api/coffer/webhooks')return json(await webhookState(c))
+ if(url.pathname==='/api/coffer/webhooks')return json(await webhookState(c,url.searchParams.get('before')))
  if(url.pathname==='/api/coffer/auctions')return json(await auctionState(c,url.searchParams.get('eventId')??'',url.searchParams.get('jobId')??undefined))
  if(url.pathname==='/api/coffer/report-schedules')return json(await reportSchedules(c))
  if(url.pathname==='/api/coffer/agent-grants')return json(await agentGrantsState(c))
@@ -654,7 +654,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const path = url.pathname, actor = c.actor
  if (!person(actor)) fail('person_required', 'Agent keys use the /api/coffer endpoints.', 403)
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
- if(path==='/app/webhooks')return show('Webhooks',await webhookPage(c))
+ if(path==='/app/webhooks')return show('Webhooks',await webhookPage(c,url.searchParams.get('before')))
  if(path==='/app/report-schedules')return show('Scheduled reports',await reportSchedulesPage(c,url))
  if(path==='/app/reports/custom-fields')return show('Gift custom fields',await customReportPage(c,url))
  if(path==='/app/reports/custom-fields.csv')return download(customReportCsv(await customReport(c,url)),'coffer-custom-gifts')
