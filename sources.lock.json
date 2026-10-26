@@ -2343,7 +2343,7 @@
       "executable": false
     },
     "src/coffer/archive-policy.mjs": {
-      "sha256": "7a6512795aad5f94eaefb341066170a4f8c9c95b23d34541c71fadd288b61295",
+      "sha256": "0b4fc74d70595a90697c33f8aa3d41223d3e856075561cb72c3ea8e8df13ed9e",
       "executable": false
     },
     "src/coffer/attribution.ts": {
@@ -5811,7 +5811,7 @@
       "executable": false
     },
     "tests/development-report-journey.mjs": {
-      "sha256": "c6a76bb859b5dc0217eb27029bbf62fd9c62ab52878958d5a591ccee5105db68",
+      "sha256": "77e749da62f4be2bee89f1420f02511ca104d12bde8721295d4c34a4dfcebd75",
       "executable": false
     },
     "tests/document-fixtures.mjs": {

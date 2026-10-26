@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {run,donor,reviewed} from './harness.mjs'
+import {run,donor,reviewed,archive,restore,installation} from './harness.mjs'
 
 const now='2026-10-26T12:00:00.000Z',month='2026-09',at={headers:{'x-test-now':now}}
 const pointer=(value,path)=>path.split('/').slice(1).reduce((row,key)=>row[key.replace(/~1/g,'/').replace(/~0/g,'~')],value)
@@ -128,6 +128,15 @@ export async function developmentReportJourney(){
    const {developmentReportBrowser}=await import('./development-report-browser.mjs')
    await developmentReportBrowser(h,{month,now},process.env.COFFER_DEVELOPMENT_REPORT_BROWSER)
   }
+  const savedArchive=await archive(h),fresh=await installation({entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:now},triggerHandlers:true})
+  try{
+   await restore(fresh,savedArchive)
+   const retained=await fresh.get(reportApi+'?month='+month,at)
+   assert.equal(retained.reports.length,redacted.reports.length,'Retained reports survive an archive restore')
+   assert.equal(retained.schedule.enabled,0,'Schedule authority stays stopped on the destination installation')
+   assert.equal((await fresh.get('/api/coffer/agent/grants',at)).find(g=>g.id==='development_reports').enabled,0)
+   assert.equal(fresh.messages.filter(m=>m.subject===ready.subject).length,0,'Restore never resubmits a retained report')
+  }finally{await fresh.close()}
   const audit=await h.get('/api/coffer/audit?action=developmentReport.draft',at)
   assert.ok(audit.rows.some(a=>JSON.parse(a.detail).grantId==='automation:development_reports'))
  },{entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:now},triggerHandlers:true})
