@@ -29,7 +29,7 @@ export async function developmentFollowups(c: Context) {
    legacy.status AS legacy_reminder_status,legacy.attempted_at AS legacy_reminder_attempted_at,legacy.message_id AS legacy_reminder_message_id,
    CASE WHEN f.resolution='written_off' THEN 'followup_disposition' ELSE 'native_source' END AS resolution_scope
    FROM cf_development_followups f JOIN cf_donors d ON d.id=f.donor_id LEFT JOIN cf_development_sources s ON s.kind=f.kind AND s.source_id=f.source_id
-   LEFT JOIN cf_pledge_followups legacy ON f.kind='installment' AND legacy.installment_id=f.source_id AND legacy.status<>'development_managed'
+   LEFT JOIN cf_pledge_followups legacy ON f.kind='installment' AND legacy.installment_id=f.source_id AND legacy.status<>'review'
    WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY f.resolved_at IS NOT NULL,f.due_on,f.id`),
   all(c,'SELECT * FROM cf_development_reminders ORDER BY approved_at,id'),
   all(c,"SELECT t.* FROM cf_call_tasks t WHERE t.source_kind='development' ORDER BY t.created_at,t.id"),

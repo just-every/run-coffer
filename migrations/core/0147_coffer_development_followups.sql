@@ -38,7 +38,7 @@ END;
 -- Reserve the old one-time overdue sender as soon as a reviewable finding exists.
 CREATE TRIGGER cf_development_reserve_installment AFTER INSERT ON cf_development_followups WHEN NEW.kind='installment' BEGIN
  INSERT OR IGNORE INTO cf_pledge_followups(installment_id,attempt_id,status,attempted_at)
- VALUES(NEW.source_id,'development:'||NEW.id,'development_managed',NEW.created_at);
+ VALUES(NEW.source_id,'development:'||NEW.id,'review',NEW.created_at);
 END;
 CREATE VIEW cf_development_sources AS
  SELECT 'installment' AS kind,i.id AS source_id,p.donor_id,i.due_on,MAX(0,i.amount_cents-i.paid_cents) AS amount_cents,
@@ -47,7 +47,7 @@ CREATE VIEW cf_development_sources AS
  (i.amount_cents>0 AND i.paid_cents>=i.amount_cents) AS settled,
  (i.amount_cents>i.paid_cents) AS outstanding,
  d.constituent_status='active' AS active,
- CASE WHEN old.status IS NOT NULL AND old.status<>'development_managed' THEN 'Existing pledge follow-up: '||old.status
+ CASE WHEN old.status IS NOT NULL AND old.status<>'review' THEN 'Existing pledge follow-up: '||old.status
  WHEN (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1) IS NOT 'granted' THEN 'Current email consent is required'
  WHEN NOT EXISTS(SELECT 1 FROM cf_contact_points cp WHERE cp.donor_id=d.id AND cp.kind='email' AND cp.active=1 AND cp.is_primary=1 AND cp.value=d.email) THEN 'Current primary email is required'
  WHEN EXISTS(SELECT 1 FROM cf_acks a WHERE a.donor_id=d.id AND a.recipient_email=d.email AND a.delivery_status IN ('bounced','complained')) THEN 'Email delivery is held'

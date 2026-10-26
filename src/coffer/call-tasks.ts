@@ -47,7 +47,7 @@ export async function callTaskCommand(c: Context, command: string, p: Row): Prom
  if(command==='task.policy'){
   requireRole(c.actor,['owner','admin'],'change task escalation')
   const version=integer(Number(p.version),'Version',1),delay=integer(Number(p.escalationDays),'Business days',1,30)
-  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_task_policy WHERE id=1 AND version=?)','VERSION','Task settings changed.',version),sql('UPDATE cf_task_policy SET escalation_days=?,version=version+1 WHERE id=1',delay),event(c,command,'settings','task-policy',null,{escalationDays:delay})])
+  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND task_policy_version=?)','VERSION','Task settings changed.',version),sql('UPDATE cf_settings SET task_escalation_days=?,task_policy_version=task_policy_version+1 WHERE id=1',delay),event(c,command,'settings','task-policy',null,{escalationDays:delay})])
   return taskPolicy(c)
  }
  if(command==='task.reminders'){
@@ -103,7 +103,7 @@ export async function callTaskCommand(c: Context, command: string, p: Row): Prom
 }
 
 
-export const taskPolicy=(c:Context)=>one(c,'SELECT * FROM cf_task_policy WHERE id=1').then(r=>r!)
+export const taskPolicy=(c:Context)=>one(c,'SELECT task_policy_version AS version,task_escalation_days AS escalation_days FROM cf_settings WHERE id=1').then(r=>r!)
 /** Weekends do not consume escalation delay; escalation begins after the final business day. */
 export function businessDue(due:string,delay:number){
  let day=due,left=delay
