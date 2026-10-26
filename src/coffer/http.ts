@@ -505,7 +505,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (command === 'agent.revoke') return redirect('/app/data')
  if(command==='apiKey.create')return page('Public API key',apiKeySecretPage(result.token),actor,200,'/app/settings')
  if(command==='apiKey.revoke')return redirect('/app/api-keys')
- if(command==='webhook.subscribe')return page('Webhook signing key',webhookSecretPage(result.secret),actor,200,'/app/settings')
+ if(['webhook.subscribe','webhook.rotate','webhook.recover'].includes(command))return page('Webhook signing key',webhookSecretPage(result.secret),actor,200,'/app/settings')
  if(command.startsWith('webhook.'))return redirect('/app/webhooks')
  if (command.startsWith('reportSchedule.')) return redirect('/app/report-schedules')
  if (command === 'dashboard.goal') return redirect('/app/reports/dashboard?year='+encodeURIComponent(String(input.year))+'#goals')

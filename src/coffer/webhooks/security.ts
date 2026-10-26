@@ -10,6 +10,7 @@ export function webhookEndpoint(value: unknown): string {
  return url.href
 }
 const bytes = (value: string) => new TextEncoder().encode(value)
+export const freshWebhookKey = () => [...crypto.getRandomValues(new Uint8Array(32))].map(n=>n.toString(16).padStart(2,'0')).join('')
 async function key(env: Bindings) {
  if (!env.SESSION_SECRET) fail('WEBHOOK_SECRET', 'Signing-key storage is unavailable.')
  return crypto.subtle.importKey('raw', await crypto.subtle.digest('SHA-256', bytes('coffer:webhooks:v1:' + env.SESSION_SECRET)), 'AES-GCM', false, ['encrypt', 'decrypt'])

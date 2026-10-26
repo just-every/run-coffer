@@ -82,6 +82,7 @@ export const ACCESS: Record<string, Role[]> = {
  'task.teamSave':['owner','admin'], 'task.create':STAFF, 'task.policy':MANAGERS, 'task.reminders':STAFF,
  'apiKey.create': MANAGERS, 'apiKey.revoke': MANAGERS,
  'webhook.subscribe': MANAGERS, 'webhook.pause': MANAGERS, 'webhook.replay': MANAGERS,
+ 'webhook.rotate': MANAGERS, 'webhook.retireOverlap': MANAGERS, 'webhook.recover': MANAGERS, 'webhook.resume': MANAGERS, 'webhook.migrateReplay': MANAGERS,
  'event.create': MANAGERS, 'event.ticket': MANAGERS, 'event.checkIn': MANAGERS, 'event.question': MANAGERS, 'event.matchGuest': MANAGERS,
  'reportSchedule.save': MANAGERS, 'reportSchedule.pause': MANAGERS, 'reportSchedule.resend': MANAGERS, 'reportSchedule.revokeRecipient': MANAGERS,
  'giving.protection': MANAGERS, 'giving.resume': MANAGERS,

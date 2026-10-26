@@ -58,7 +58,7 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
    const cookie=confirmed.headers.getSetCookie().map(x=>x.split(';')[0]).join('; '),session=await api('/auth/session',undefined,{as:cookie})
    return {cookie,id:session.operator.id,session}
   }
-  return {mf,origin,owner,messages,request,api,command,get,person,verifiedMail,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  return {mf,origin,owner,messages,request,api,command,get,person,verifiedMail,async replaceBindings(next){Object.assign(bindings,next);await mf.setOptions(options());await mf.ready},async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(error){await mf.dispose();await rm(directory,{recursive:true,force:true});throw error}
 }
 export async function run(fn,options){const h=await installation(options);try{return await fn(h)}finally{await h.close()}}

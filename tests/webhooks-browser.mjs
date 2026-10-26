@@ -87,7 +87,7 @@ export async function webhooksBrowser(h,directory){
    await pause.focus()
    await submit(page,pause,true)
    assert.equal((await state(h)).subscriptions.find(subscription=>subscription.id===connected.id).enabled,0,'Native pause stops this subscription')
-   assert.equal(await row(page,'endpoint',connected.id).getByRole('button').count(),0,'Paused endpoints offer no resume or delete action')
+   assert.equal(await row(page,'endpoint',connected.id).getByRole('button',{name:'Pause endpoint',exact:true}).count(),0,'Paused endpoints do not offer another pause action')
    await page.locator('#webhook-connect').getByText('Add an endpoint',{exact:true}).click()
    await panel.getByLabel('Endpoint name',{exact:true}).fill('Replacement '+width)
    await panel.getByLabel('Endpoint URL',{exact:true}).fill(connected.endpoint)
@@ -153,6 +153,85 @@ export async function webhooksHistoryBrowser(h,directory){
    await page.screenshot({path:`${directory}/API-002-history-${width}.png`,fullPage:true})
    await page.getByRole('link',{name:'Newest deliveries',exact:true}).click()
    assert.equal(new URL(page.url()).search,'','Newest history returns without a cursor')
+  }
+  await page.close()
+ })
+}
+
+
+export async function webhooksContinuityBrowser(h,directory,{targetId,deliveryId,recoveryIds}={}){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  page.setDefaultTimeout(15000)
+  for(const [index,width] of [1440,390].entries()){
+   await page.setViewportSize({width,height:1000})
+   let endpoint
+   if(recoveryIds)endpoint={id:recoveryIds[index]}
+   else endpoint=await h.command('webhook.subscribe',{name:'synthetic-coffer-'+(2340+index),endpoint:'https://receiver.example.test/synthetic-coffer-'+(2340+index),events:['donor.updated'],reviewed:'yes'})
+   await page.goto(origin+'/app/settings')
+   await page.getByRole('link',{name:'Webhooks',exact:true}).click()
+   const endpointRow=row(page,'endpoint',endpoint.id)
+   await endpointRow.getByText('Manage signing keys',{exact:true}).click()
+   const action=recoveryIds?'Approve fresh key':'Rotate signing key'
+   const actionForm=endpointRow.locator('form').filter({has:page.getByRole('button',{name:action,exact:true})})
+   if(!recoveryIds){
+    const minutes=actionForm.getByLabel('Overlap minutes',{exact:true})
+    await minutes.focus();await minutes.fill('10');await page.keyboard.press('Tab')
+    assert.equal(await actionForm.locator('input[name=reviewed]').evaluate(node=>node===document.activeElement),true,'Overlap choice leads to explicit approval by keyboard')
+   }
+   const approved=actionForm.locator('input[name=reviewed]'),button=actionForm.getByRole('button',{name:action,exact:true})
+   await button.click()
+   assert.equal(await approved.evaluate(node=>node.validity.valueMissing),true,'Key custody changes require explicit approval')
+   await page.keyboard.press('Escape');await approved.focus();await page.keyboard.press('Space');await page.keyboard.press('Tab')
+   assert.equal(await button.evaluate(node=>node===document.activeElement),true,'Custody approval leads to its keyboard action')
+   await submit(page,button,true)
+   const secret=page.locator('[data-webhook-secret]')
+   assert.equal(await secret.evaluate(node=>node.readOnly&&node.value.length>0),true)
+   await fits(page,width)
+   await page.screenshot({path:`${directory}/API-002-${recoveryIds?'recovery':'rotation'}-secret-${width}.png`,fullPage:true,mask:[secret]})
+   await page.getByRole('link',{name:'Back to webhooks',exact:true}).click()
+   assert.equal(await page.locator('[data-webhook-secret]').count(),0)
+   await endpointRow.getByText('Manage signing keys',{exact:true}).click()
+   const saved=(await state(h)).subscriptions.find(item=>item.id===endpoint.id)
+   if(recoveryIds){
+    assert.equal(saved.enabled,0,'Recovery stays paused for receiver setup')
+    assert.equal(saved.key_available,true)
+    await fits(page,width)
+    await endpointRow.screenshot({path:`${directory}/API-002-recovery-paused-${width}.png`})
+    continue
+   }
+   assert.equal(saved.previous_key,1,'Reviewed overlap retains both signing keys')
+   await fits(page,width)
+   await endpointRow.screenshot({path:`${directory}/API-002-overlap-${width}.png`})
+   const retire=endpointRow.locator('form').filter({has:page.getByRole('button',{name:'Retire previous key',exact:true})})
+   await retire.locator('input[name=reviewed]').check()
+   await submit(page,retire.getByRole('button',{name:'Retire previous key',exact:true}))
+   await submit(page,endpointRow.getByRole('button',{name:'Pause endpoint',exact:true}))
+   await endpointRow.getByText('Manage signing keys',{exact:true}).click()
+   const resume=endpointRow.locator('form').filter({has:page.getByRole('button',{name:'Resume endpoint',exact:true})})
+   await resume.locator('input[name=reviewed]').check()
+   await submit(page,resume.getByRole('button',{name:'Resume endpoint',exact:true}))
+   assert.equal((await state(h)).subscriptions.find(item=>item.id===endpoint.id).enabled,1)
+   await endpointRow.getByText('Manage signing keys',{exact:true}).click()
+   await fits(page,width)
+   await endpointRow.screenshot({path:`${directory}/API-002-resumed-${width}.png`})
+   const deliveryRow=row(page,'delivery',deliveryId)
+   await deliveryRow.getByText('Replay to replacement',{exact:true}).click()
+   const migration=deliveryRow.locator('form').filter({has:page.locator('input[name=subscriptionId][value='+JSON.stringify(targetId)+']')})
+   const prior=(await state(h)).deliveries,count=prior.length
+   await migration.getByRole('button',{name:'Queue replacement replay',exact:true}).click()
+   assert.equal(await migration.locator('input[name=reviewed]').evaluate(node=>node.validity.valueMissing),true)
+   assert.equal((await state(h)).deliveries.length,count,'Replacement disclosure requires review')
+   await page.keyboard.press('Escape');await migration.locator('input[name=reviewed]').check()
+   await fits(page,width)
+   await deliveryRow.screenshot({path:`${directory}/API-002-replacement-review-${width}.png`})
+   await submit(page,migration.getByRole('button',{name:'Queue replacement replay',exact:true}))
+   const migrated=(await state(h)).deliveries.find(item=>item.replay_of===deliveryId&&item.subscription_id===targetId&&!prior.some(old=>old.id===item.id))
+   assert.ok(migrated,'Native replacement replay retains its parent')
+   assert.equal(migrated.status,'pending')
+   await row(page,'delivery',migrated.id).screenshot({path:`${directory}/API-002-replacement-queued-${width}.png`})
+   await fits(page,width)
   }
   await page.close()
  })

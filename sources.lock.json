@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "4a9afcf8c78a8df0597b0a44397b84dd6924d6d1461c00c33718b6f8d5aa8520",
+      "sha256": "3e3144bfb1627f3ae7be4ad69b906d318791706ab712baf191ebb0941a26b4bf",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "36b7d808d99ad46cb53df9d6732e1e04b596a9dd40a349717e0fae05da79fafa",
+      "sha256": "bcd83a8c703214a7df0bc9ef73950a9a51221e31468fcb3bb739e28c447bbf04",
       "executable": false
     },
     "deploy-demo.json": {
@@ -719,7 +719,7 @@
       "executable": false
     },
     "docs/WEBHOOKS.md": {
-      "sha256": "c51171bf9dbfb99d6787e1886ef949e7a5b0db7adf160527d8635c0da0fc303c",
+      "sha256": "ab492907a35aad8ba35b0ddb17504b412cd8024b2ca8fcc181a6c41018fa114c",
       "executable": false
     },
     "edition.json": {
@@ -1364,6 +1364,10 @@
     },
     "migrations/core/0155_coffer_webhook_sources.sql": {
       "sha256": "8d0d1e3bcc89fc16855f369adc04ccb232f6c7a175f605568da255f847575ad1",
+      "executable": false
+    },
+    "migrations/core/0156_coffer_webhook_continuity.sql": {
+      "sha256": "1aefa8212a930416c3c22eabdd26f8e827247903a914ec085bd9ac2474c16aa8",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2467,7 +2471,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "f47b018d51372d2b4d17f381e50131b14ad1b0620c98e327d908cd58978146a4",
+      "sha256": "094005129d06cdfd4f2950697d69a7e8a8cc52e9ea26511590a58da73d0c8612",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2919,7 +2923,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "1c5e138f6a1dfb34e94072a8f3b969422f3a98652045415632db114558225822",
+      "sha256": "b08f9c4687ddd67ec2faf21ea5e3de2e8b6d66bbab2e8113ca1188933b0590e4",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3827,7 +3831,7 @@
       "executable": false
     },
     "src/coffer/ui/webhooks.ts": {
-      "sha256": "916619df48c678fc8d43a14f076284be3495917ba0ac8c2e9afa03749b933453",
+      "sha256": "c95894688cd039a975dfb652a765c3510d0676683bb37f13685bdf3e3b13eb09",
       "executable": false
     },
     "src/coffer/volunteering.ts": {
@@ -3835,19 +3839,23 @@
       "executable": false
     },
     "src/coffer/webhooks.ts": {
-      "sha256": "1546f2cd05d24e4df8bc873a73ca9294c3c4b7594f3ec3aec7e3aa844fb2154b",
+      "sha256": "e363033102c0d7659d826e88ec38821f7c51fcead9b8686d6f6923946537b799",
+      "executable": false
+    },
+    "src/coffer/webhooks/continuity.ts": {
+      "sha256": "7cf2a942ab32238c693c0cc2f4136dbb8087f470c188b1d5a884b8f7eaef94ba",
       "executable": false
     },
     "src/coffer/webhooks/delivery.ts": {
-      "sha256": "eea94de6635f2227fb834a60a67caa58e484fefcf4dcca367e6efb1f5d181997",
+      "sha256": "98f0c6527c951d26c94be6db99c7e64af65bbb831459609022ac3b735f04585a",
       "executable": false
     },
     "src/coffer/webhooks/receiver.mjs": {
-      "sha256": "79ed182ef19daed57df876cc491c38af6f3bb37980897937477aac80939bc020",
+      "sha256": "388a2f035a78dc7652a8733df56827a52fa005f0d5c230e5ec4e33af390e904c",
       "executable": false
     },
     "src/coffer/webhooks/security.ts": {
-      "sha256": "a65e5c631b8b85260e8820de025c87b0aa872fd15e6a03d14a89e004025218e9",
+      "sha256": "2eb3e6eb0721759aa0d2134567e6411a4b07a1b2fd3fc2c2f633e7b27e04ea07",
       "executable": false
     },
     "src/coffer/year-end.ts": {
@@ -6203,7 +6211,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "7148e2bfb1589887c2b115de196b2fab919b7b3e8209d004f3ffd630242de2f5",
+      "sha256": "37d61e5ee75c976db48e7cb2de4d1f9d764bc5c2a5b63d83928e6a24e9e8ecfc",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -6598,8 +6606,12 @@
       "sha256": "34c5cf816ef0431e66d36b2181ccd1fe156a853d1bd5210334db0e308e278c71",
       "executable": false
     },
+    "tests/webhook-continuity-journey.mjs": {
+      "sha256": "9c5d3a317bea21cce5b14d7a167a97dc41907345fc91e71d9b1c083b225ef89d",
+      "executable": false
+    },
     "tests/webhook-history-journey.mjs": {
-      "sha256": "a266207738630f26e39534b4795a4292c34beddd5c5ce97df0ac4b9d08b86505",
+      "sha256": "0984ee75b2801bbab3589714d388a4b4d7c842e12719a065ffda49b83cbffa28",
       "executable": false
     },
     "tests/webhook-sources-journey.mjs": {
@@ -6607,11 +6619,43 @@
       "executable": false
     },
     "tests/webhooks-browser.mjs": {
-      "sha256": "ea01870ce5fa677f5af6d4a437c2016ec300dc3c3d22ec1ee0a489fce3e17160",
+      "sha256": "05ae59d519d4ffa1fdc951c7e3b914f654051f13ba84a7e7aa9c9a8eb66ac9cc",
       "executable": false
     },
     "tests/webhooks-journey.mjs": {
-      "sha256": "e3c68db41d40f2f67eb4297b248e36ac8596a3ec272631577d154ae8a78a51b9",
+      "sha256": "ddae5af3ed5057c2b51d9ee70ee3eccb2bf74996938800a081a9086fbc3c8ad1",
+      "executable": false
+    },
+    "tests/webhooks-sandbox-journey.mjs": {
+      "sha256": "8ef5f31f1238a69cabb27e4955d65df4c8855dd186125015847e72b8d9ddbde1",
+      "executable": false
+    },
+    "tests/webhooks-sandbox-receiver.ts": {
+      "sha256": "b8df78d5929ca5418405752c8c9c65a88518dd9f763bbbc4813a03e3d5c439b4",
+      "executable": false
+    },
+    "tests/webhooks-sandbox-worker.ts": {
+      "sha256": "5ffba9345d199c0e2cda7c1e77e868b6ebc1dc6349182e71b05ca9a658287ef8",
+      "executable": false
+    },
+    "tests/webhooks-sandbox/cloudflare.mjs": {
+      "sha256": "3f7d0d692fad6658206b194eed88787b4cbad1f42fb9b12c898df22c677fad21",
+      "executable": false
+    },
+    "tests/webhooks-sandbox/http.mjs": {
+      "sha256": "c131f8d62cf447cfb7813f69a907eeb9982d53eea22292cc57c18fad6ca29169",
+      "executable": false
+    },
+    "tests/webhooks-sandbox/proof.mjs": {
+      "sha256": "496eb3b4d8ce72f5e68c3e50aeac93741d3f1291edfa5eb42755f4010e023a5d",
+      "executable": false
+    },
+    "tests/webhooks-sandbox/stripe-proof.mjs": {
+      "sha256": "08068b5791e9aea7dd5d333cf0e391ca26c071ba8d08a017ae63475da80eb6bc",
+      "executable": false
+    },
+    "tests/webhooks-sandbox/stripe.mjs": {
+      "sha256": "5e6deec55ab91631f775820aa08c9a1ddf2fd320b2edb07513ba0e7a4266c038",
       "executable": false
     },
     "tests/worker.ts": {

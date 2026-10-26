@@ -18,18 +18,27 @@ export async function runWebhooks(env: Bindings, at=new Date()) {
   const e=await one(c,'SELECT * FROM cf_webhook_events WHERE id=?',claimed.event_id)
   if (!e) continue
   await env.DB.prepare("UPDATE cf_webhook_attempts SET status='uncertain' WHERE delivery_id=? AND status='sending'").bind(claimed.id).run()
+  let signature:string
+  const body=JSON.stringify({id:e.id,type:e.event_type,occurredAt:e.occurred_at,data:{id:e.subject_id}})
+  try {
+   const timestamp=String(Math.floor(at.getTime()/1000))
+   signature=await webhookSignature(await openWebhookKey(env,s!.sealed_secret),timestamp,body)
+   if (s!.previous_sealed_secret && s!.overlap_until>now) signature+=','+(await webhookSignature(await openWebhookKey(env,s!.previous_sealed_secret),timestamp,body)).split(',')[1]
+  } catch {
+   // Unreadable installation keys need explicit fresh-key recovery, not retries.
+   await env.DB.prepare("UPDATE cf_webhook_deliveries SET status='held',lease_token=NULL,lease_until=NULL WHERE id=? AND lease_token=?").bind(claimed.id,lease).run()
+   continue
+  }
   if (claimed.attempts>=MAX_ATTEMPTS) { await env.DB.prepare("UPDATE cf_webhook_deliveries SET status='exhausted',lease_token=NULL,lease_until=NULL WHERE id=? AND lease_token=?").bind(claimed.id,lease).run(); continue }
   const attemptId=newId(),attempt=claimed.attempts+1
   // Recheck disclosure authority in the batch immediately preceding fetch.
   await env.DB.batch([
-   env.DB.prepare(`INSERT INTO cf_webhook_attempts(id,delivery_id,attempted_at,status) SELECT ?,?,?,'sending' FROM cf_webhook_deliveries d JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id JOIN oa_operators o ON o.id=s.approved_by WHERE d.id=? AND d.lease_token=? AND s.enabled=1 AND o.status='active' AND o.role IN ('owner','admin') AND o.version=s.approver_version`).bind(attemptId,claimed.id,now,claimed.id,lease),
+   env.DB.prepare(`INSERT INTO cf_webhook_attempts(id,delivery_id,attempted_at,status) SELECT ?,?,?,'sending' FROM cf_webhook_deliveries d JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id JOIN oa_operators o ON o.id=s.approved_by WHERE d.id=? AND d.lease_token=? AND s.enabled=1 AND s.version=? AND o.status='active' AND o.role IN ('owner','admin') AND o.version=s.approver_version`).bind(attemptId,claimed.id,now,claimed.id,lease,s!.version),
    env.DB.prepare('UPDATE cf_webhook_deliveries SET attempts=? WHERE id=? AND lease_token=? AND EXISTS(SELECT 1 FROM cf_webhook_attempts WHERE id=?)').bind(attempt,claimed.id,lease,attemptId)
   ])
   if (!await one(c,'SELECT id FROM cf_webhook_attempts WHERE id=?',attemptId)) continue
   let status:number|null=null
   try {
-   const body=JSON.stringify({id:e.id,type:e.event_type,occurredAt:e.occurred_at,data:{id:e.subject_id}})
-   const signature=await webhookSignature(await openWebhookKey(env,s!.sealed_secret),String(Math.floor(at.getTime()/1000)),body)
    const response=await fetch(webhookEndpoint(s!.endpoint),{method:'POST',redirect:'manual',signal:AbortSignal.timeout(10000),headers:{'content-type':'application/json','coffer-signature':signature,'coffer-event-id':e.id,'coffer-delivery-id':claimed.id},body})
    status=response.status
    await response.body?.cancel()

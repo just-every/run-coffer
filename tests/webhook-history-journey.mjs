@@ -39,9 +39,12 @@ export async function webhookHistoryJourney(){
   await tick(now+1000)
   await replay(chain)
   for(let index=0;index<205;index++)await replay(expected.get(initial.deliveries[index%2].id))
+  const replacement=await h.command('webhook.subscribe',{name:'Riverbend replacement history',endpoint:endpoint+'-replacement',events:['gift.created'],reviewed:'yes'},{headers:{'x-test-now':at}})
+  const migrated=await h.command('webhook.migrateReplay',{subscriptionId:replacement.id,version:1,deliveryId:original.id,reviewed:'yes'},{headers:{'x-test-now':at}})
+  expected.set(migrated.id,{...expected.get(original.id),id:migrated.id,subscription_id:replacement.id,replay_of:original.id,status:'delivered'})
   // Drain every known pending replay; the scheduler intentionally bounds each tick.
-  for(let batch=0;batch<Math.ceil(206/25);batch++)await tick(now+1000)
-  assert.equal(submissions.length,12+208,'Every reviewed replay submits once')
+  for(let batch=0;batch<Math.ceil(207/25);batch++)await tick(now+1000)
+  assert.equal(submissions.length,12+209,'Every reviewed replay submits once')
 
   const deliveries=[],attempts=[],deliveryIds=new Set(),attemptIds=new Set(),cursors=new Set()
   let cursor,pages=0,history
@@ -77,7 +80,7 @@ export async function webhookHistoryJourney(){
   assert.deepEqual(exhausted.attempts,[],'Terminal history contains no orphan attempts')
   assert.equal(exhausted.nextCursor,null,'The empty terminal page has no continuation')
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,outbound:async request=>{
-  assert.equal(request.url,endpoint)
+  assert.ok([endpoint,endpoint+'-replacement'].includes(request.url))
   const event=await request.json(),delivery_id=request.headers.get('coffer-delivery-id'),row=expected.get(delivery_id)
   assert.ok(row,'Every network delivery was created through a known native door')
   assert.equal(event.id,row.event_id,'Replay submits its original stable event identity')
