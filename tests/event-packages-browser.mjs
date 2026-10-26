@@ -42,7 +42,7 @@ export async function packageRegistrationBrowser(h,{event,table,sponsor,buyer,gu
    await shot(page,directory,'table-registration',width)
   }
   const submitted=page.waitForResponse(r=>r.url().endsWith('/checkout')&&r.request().method()==='POST')
-  await page.getByRole('button',{name:'Register with Stripe',exact:true}).click();const response=await submitted;assert.equal(response.status(),303,await response.text());assert.match(response.headers().location,/^https:\/\/checkout\.stripe\.com\//)
+  await page.getByRole('button',{name:'Register with Stripe',exact:true}).click();const response=await submitted;assert.equal(response.status(),303,response.status()===303?'Secure checkout redirect':await response.text());assert.match(response.headers().location,/^https:\/\/checkout\.stripe\.com\//)
   return requestId
  })
 }
