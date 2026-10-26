@@ -10,7 +10,7 @@ for (const form of document.querySelectorAll('form[data-task-setting]')) {
    const response=await fetch('/api/coffer/commands',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command,input:values})})
    const result=await response.json()
    if(!response.ok)throw Error(result.message||'Could not save this change.')
-   form.elements.version.value=String(result.version);status.textContent='Saved'
+   if(form.elements.version)form.elements.version.value=String(result.version);status.textContent='Saved'
   }catch(error){status.textContent=error.message+' Your selection is kept.'}
   finally{delete form.dataset.saving;for(const control of controls)control.disabled=false}
  })
