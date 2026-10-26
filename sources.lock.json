@@ -2383,7 +2383,7 @@
       "executable": false
     },
     "src/coffer/auction.ts": {
-      "sha256": "adac5f16b4dbea7237029026c9aa853a350419ec6ef7c3b47d47f8fd74e68558",
+      "sha256": "fb41f8c4e0fe1ea1ac347968f81c48b7fdd1e441a18caf0e1257531232b97985",
       "executable": false
     },
     "src/coffer/audit.ts": {

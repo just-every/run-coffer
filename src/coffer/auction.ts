@@ -38,7 +38,7 @@ export async function auctionDonorRows(c:Context,donorId:string){
  FROM cf_auction_rows r JOIN cf_auction_jobs j ON j.id=r.job_id JOIN cf_fundraising_events e ON e.id=j.event_id WHERE r.donor_id=? AND j.state IN('applied','redacted') ORDER BY r.received_on DESC,r.id`,id(donorId,'Donor'))
 }
 
-/** Call after the shared origin/session guard. Normal forms use /app/actions;
+/** Call after the shared origin and session guard. Normal forms use /app/actions;
  * the file form needs this bounded multipart adapter before the page GET. */
 export async function auctionUploadResponse(request:Request,c:Context):Promise<Response|null>{
  const match=new URL(request.url).pathname.match(/^\/app\/events\/([^/]+)\/auctions\/upload$/)
