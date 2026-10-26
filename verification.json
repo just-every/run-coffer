@@ -94,10 +94,10 @@
     },
     {
       "name": "receipts",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:receipts",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters pnpm run test:receipts",
         "node --test tests/hosted-mail.test.mjs"
       ]
     },
