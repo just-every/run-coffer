@@ -163,7 +163,7 @@ async function run(c: Context,options:{emailType?:string}={}): Promise<Row> {
    AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.version=? AND (d.email=? OR EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id=d.id AND p.id=? AND p.version=? AND p.active=1 AND p.kind='email' AND p.value=?))) AND julianday(due_at)<=julianday(?) AND ${allowed} AND ${cap.condition}
    AND NOT EXISTS(SELECT 1 FROM cf_welcome_steps prior WHERE prior.donor_id=cf_welcome_steps.donor_id
     AND prior.status='pending' AND CASE prior.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END
-     <CASE cf_welcome_steps.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END)`, claim,c.now,row.id,queued.donor_id,rendered.version,rendered.recipient.email,rendered.recipient.selected_email_contact_id,rendered.recipient.selected_email_contact_version,rendered.recipient.email,c.now,...cap.params!),sql(`INSERT OR IGNORE INTO cf_journey_slots SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM cf_welcome_steps WHERE id=? AND status='uncertain' AND note=?)`,row.id,queued.donor_id,today((await settings(c)).timezone,new Date(c.now)),row.id,claim)])
+     <CASE cf_welcome_steps.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END)`, claim,c.now,row.id,queued.donor_id,rendered.version,rendered.recipient.email,rendered.recipient.selected_email_contact_id,rendered.recipient.selected_email_contact_version,rendered.recipient.email,c.now,...cap.params!),sql(`INSERT INTO cf_journey_slots SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM cf_welcome_steps WHERE id=? AND status='uncertain' AND note=?) ON CONFLICT(step_id) DO UPDATE SET reserved_on=excluded.reserved_on`,row.id,queued.donor_id,today((await settings(c)).timezone,new Date(c.now)),row.id,claim)])
   const step = await one(c, `SELECT s.*,
    COALESCE(v.subject,CASE s.step WHEN 'thank' THEN w.thank_subject WHEN 'impact' THEN w.impact_subject ELSE w.ask_subject END) AS subject,
    COALESCE(v.body,CASE s.step WHEN 'thank' THEN w.thank_body WHEN 'impact' THEN w.impact_body ELSE w.ask_body END) AS body,v.list_name
@@ -201,7 +201,10 @@ async function run(c: Context,options:{emailType?:string}={}): Promise<Row> {
 async function outcome(c: Context, stepId: string, claim: string, state: string, note: string) {
  // The prior authorized claim owns its result even if the session was revoked
  // while the provider responded. It can update only that exact claim.
- await c.db.prepare("UPDATE cf_welcome_steps SET status=?,note=? WHERE id=? AND status='uncertain' AND note=?").bind(state, note, stepId, claim).run()
+ await c.db.batch([
+  c.db.prepare("UPDATE cf_welcome_steps SET status=?,note=? WHERE id=? AND status='uncertain' AND note=?").bind(state, note, stepId, claim),
+  c.db.prepare("DELETE FROM cf_journey_slots WHERE step_id=? AND EXISTS(SELECT 1 FROM cf_welcome_steps WHERE id=? AND status='pending' AND note=?)").bind(stepId,stepId,note),
+ ])
 }
 
 export async function runWelcome(env: Bindings, at: Date): Promise<Row> {

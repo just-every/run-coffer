@@ -11,7 +11,10 @@ import { submitMessage } from './outbound'
 
 const order=`CASE step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END`
 async function settle(c:Context,id:string,claim:string,status:string,note:string){
- await c.db.prepare("UPDATE cf_journey_steps SET status=?,note=? WHERE id=? AND status='uncertain' AND note=?").bind(status,note,id,claim).run()
+ await c.db.batch([
+  c.db.prepare("UPDATE cf_journey_steps SET status=?,note=? WHERE id=? AND status='uncertain' AND note=?").bind(status,note,id,claim),
+  c.db.prepare("DELETE FROM cf_journey_slots WHERE step_id=? AND EXISTS(SELECT 1 FROM cf_journey_steps WHERE id=? AND status='pending' AND note=?)").bind(id,id,note),
+ ])
 }
 export async function runJourneys(c:Context):Promise<Row>{
  await enrollJourneys(c)
@@ -49,7 +52,7 @@ export async function runJourneys(c:Context):Promise<Row>{
   const classification=await prepareSolicitationRun(c,{kind:'welcome',id:s.id,channel:'email',isAsk:!!s.is_ask,donorIds:[s.donor_id]})
   const claim='Submission claim '+newId()+'. No automatic retry.'
   await commit(c,[...classification.statements,sql(`UPDATE cf_journey_steps SET status='uncertain',note=?,claimed_at=?,merge_blanks='[]' WHERE id=? AND status='pending' AND ${cap.condition}
-   AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.version=? AND ${journeyLive} AND ${journeyConsent})`,claim,c.now,s.id,...cap.params!,s.donor_id,rendered.version),sql(`INSERT OR IGNORE INTO cf_journey_slots SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM cf_journey_steps WHERE id=? AND status='uncertain' AND note=?)`,s.id,s.donor_id,today((await settings(c)).timezone,new Date(c.now)),s.id,claim)])
+   AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.version=? AND ${journeyLive} AND ${journeyConsent})`,claim,c.now,s.id,...cap.params!,s.donor_id,rendered.version),sql(`INSERT INTO cf_journey_slots SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM cf_journey_steps WHERE id=? AND status='uncertain' AND note=?) ON CONFLICT(step_id) DO UPDATE SET reserved_on=excluded.reserved_on`,s.id,s.donor_id,today((await settings(c)).timezone,new Date(c.now)),s.id,claim)])
   if(!await one(c,"SELECT id FROM cf_journey_steps WHERE id=? AND status='uncertain' AND note=?",s.id,claim))continue
   const finalReason=await enrollmentReason(c,e,j)
   if(finalReason){await settle(c,s.id,claim,'cancelled',finalReason);await stopEnrollment(c,e.id,finalReason);cancelled++;continue}
@@ -61,7 +64,6 @@ export async function runJourneys(c:Context):Promise<Row>{
   }catch(error){
    const message=await one(c,'SELECT id FROM cf_communications WHERE message_key=?',s.message_key)
    await settle(c,s.id,claim,message?'uncertain':'pending',message?'Submission uncertain; no automatic retry.':'Provider submission did not begin. Check the connection.')
-   if(!message)await commit(c,[sql('DELETE FROM cf_journey_slots WHERE step_id=?',s.id)])
    throw error
   }
  }

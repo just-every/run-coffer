@@ -2,8 +2,11 @@ import { manager } from '../auth'
 import { taskOwners } from '../call-tasks'
 import { all, type Context, type Row } from '../db'
 import { settings } from '../settings'
-import { area, box, chip, e, empty, field, form, moment, money, select, when } from '../ui/common'
+import { area, box, chip as sharedChip, e, empty, field, form, moment, money, select, when } from '../ui/common'
 import { journeyState } from './journeys'
+
+const journeyStyles = '<link rel="stylesheet" href="/journeys.css">'
+const chip = (value: unknown, tone = '') => sharedChip(value, tone).replace('class="chip', 'class="chip cf-journey-chip')
 
 const triggers: [string, string][] = [
  ['gift_amount', 'Gift over an amount'], ['lapse', 'No gift in twelve months'],
@@ -73,7 +76,7 @@ export async function journeysPanel(c: Context): Promise<string> {
  const enrollments = state.enrollments.map((row: Row) => `<li><a href="/app/donors/${e(row.donor_id)}">${e(row.name)}</a> · ${e(row.journey_name)} ${chip(states[row.status] ?? row.status)}
   <ul>${row.steps.map((step: Row) => `<li>${e(stageNames[step.step] ?? step.step)} · Due ${when(step.due_at, s.timezone)} ${chip(step.status, step.status === 'uncertain' ? 'warn' : '')}${step.note ? `<p class="muted">${e(step.note)}</p>` : ''}</li>`).join('')}</ul></li>`).join('')
  const run = canManage && state.journeys.length ? form('journey.run', '<p>Check current eligibility and run due stages under the shared frequency cap.</p>', 'Run due journeys') : ''
- return box('Stewardship journeys', explanation + cap + run, 'stewardship-journeys')
+ return journeyStyles + box('Stewardship journeys', explanation + cap + run, 'stewardship-journeys')
   + (canManage ? box('Publish a new journey', `<details class="edit"><summary>Build a three-stage journey</summary>${publishForm(c, owners, lists, events)}</details>`) : '')
   + (state.mergeReview.length?box('Empty journey fields',`<ul>${state.mergeReview.map((r:Row)=>`<li><a href="/app/donors/${e(r.donor_id)}">${e(r.name)}</a> · ${e(r.journey_name)}: ${r.fields.map((f:string)=>`<code>{{${e(f)}}}</code>`).join(', ')}</li>`).join('')}</ul>`):'')
   + box('Published journeys', journeys ? `<ul class="list">${journeys}</ul><p class="muted">Gift responses count only when a gift carries the published stage’s response code.</p>` : empty('No stewardship journeys published yet.'))
@@ -81,11 +84,11 @@ export async function journeysPanel(c: Context): Promise<string> {
 }
 
 export function journeyDonorPanel(rows: Row[]): string {
- return box('Stewardship journeys', rows.length ? `<ul class="list">${rows.map(row => `<li><strong>${e(row.journey_name)}</strong> ${chip(states[row.status] ?? row.status)}<p class="muted">Enrolled ${e(moment(row.enrolled_at, 'UTC'))} UTC</p></li>`).join('')}</ul>` : empty('No stewardship journey enrollments.'))
+ return journeyStyles + box('Stewardship journeys', rows.length ? `<ul class="list">${rows.map(row => `<li><strong>${e(row.journey_name)}</strong> ${chip(states[row.status] ?? row.status)}<p class="muted">Enrolled ${e(moment(row.enrolled_at, 'UTC'))} UTC</p></li>`).join('')}</ul>` : empty('No stewardship journey enrollments.'))
 }
 
 export async function journeySettingsPanel(c:Context):Promise<string>{
  if(!manager(c.actor))return ''
  const state=await journeyState(c)
- return box('Journey email frequency',form('journey.cap',field('Organization calendar days per journey email','capDays','number',state.capDays,'required min="1" max="365" step="1"')+'<p>Across the welcome series and other journeys, reserve one email slot per donor in this many organization calendar days. Uncertain submissions keep their reservation. Tasks, waits and transactional notices do not consume it.</p><label><input type="checkbox" name="confirm" value="yes" required> Apply this cap to all journeys.</label>','Save journey frequency'),'journey-frequency')
+ return box('Journey email frequency',form('journey.cap',field('Organization calendar days per journey email','capDays','number',state.capDays,'required min="1" max="365" step="1"')+'<p>Across the welcome series and other journeys, reserve one email slot per donor in this many organization calendar days. Uncertain submissions keep their reservation. Tasks, waits and transactional notices do not consume it.</p><p class="muted">Changes save automatically.</p>','Save journey frequency').replace('<form ', '<form data-task-setting '),'journey-frequency')
 }

@@ -1,0 +1,2 @@
+/* Keep journey status labels readable without changing chips on other screens. */
+.coffer .chip.cf-journey-chip { font-size: 13px; }

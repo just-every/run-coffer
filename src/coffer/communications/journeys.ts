@@ -11,11 +11,11 @@ export async function journeyCommand(c:Context,command:string,p:Row):Promise<Row
  if(!['journey.publish','journey.run','journey.stop','journey.cap'].includes(command))return
  requireRole(c.actor,['owner','admin'],'publish and run journeys')
  if(command==='journey.run')return runJourneys(c)
- if(p.confirm!=='yes')fail('CONFIRMATION_REQUIRED','Explicitly approve this journey change.',400)
  if(command==='journey.cap'){
   const capDays=integer(Number(p.capDays),'Days between journey emails',1,365)
   await commit(c,[sql('UPDATE cf_journey_policy SET cap_days=? WHERE id=1',capDays),event(c,command,'journey','cap',null,{capDays})]);return {capDays}
  }
+ if(p.confirm!=='yes')fail('CONFIRMATION_REQUIRED','Explicitly approve this journey change.',400)
  if(command==='journey.stop'){
   const journeyId=id(p.journeyId,'Journey')
   await commit(c,[guard('EXISTS(SELECT 1 FROM cf_journeys WHERE id=? AND stopped_at IS NULL)','JOURNEY_CHANGED','Choose an active journey.',journeyId),sql('UPDATE cf_journeys SET stopped_at=? WHERE id=?',c.now,journeyId),sql("UPDATE cf_journey_enrollments SET status='stopped',stopped_at=? WHERE journey_id=? AND status='active'",c.now,journeyId),sql("UPDATE cf_journey_steps SET status='cancelled',note='A person stopped this journey.' WHERE status='pending' AND enrollment_id IN(SELECT id FROM cf_journey_enrollments WHERE journey_id=?)",journeyId),event(c,command,'journey',journeyId,null,{confirmed:true})]);return {id:journeyId,stopped:true}
