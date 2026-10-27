@@ -1,4 +1,4 @@
-import { recoveryPolicyRequired, policyConfigured } from './recovery-notices-rules'
+import { recoveryPolicyRequired, policyConfigured, legacyRecoveryPolicy } from './recovery-notices-rules'
 import { advanceRecoveryNotices, settleRecoveryNotices } from './recovery-notices'
 import { automated, automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
 import { manager } from '../auth'
@@ -49,12 +49,12 @@ export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, in
  if(previous && previous.notice_state!=='pending')return
  await claimAutomation(c,'recovery.notice',1,intent.donor_id)
  const claimId=newId()
- await commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NULL)','POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),sql(`UPDATE cf_agent_recovery SET notice_state='sending',notice_event_id=?,notice_at=?,notice_claim_id=?
+ await commit(c,[guard(legacyRecoveryPolicy,'POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),sql(`UPDATE cf_agent_recovery SET notice_state='sending',notice_event_id=?,notice_at=?,notice_claim_id=?
   WHERE invoice_id=? AND notice_state='pending' AND state='waiting'`,failureEventId??null,c.now,claimId,current.id)])
  if(!await one(c,'SELECT invoice_id FROM cf_agent_recovery WHERE invoice_id=? AND notice_claim_id=?',current.id,claimId))return
  await action(c, { kind: 'recovery.card_link_requested', subjectId: current.id, summary: 'Requested one private card-update email.', why: 'The monthly invoice failed. Email cannot be unsent; an interrupted send needs review before any new invitation.' })
  let notice = 'failed'
- try { notice = await emailPortalLink(env, intent.donor_id, 'Update your card for your monthly gift',{authorize:()=>commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NULL)','POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),guard("EXISTS(SELECT 1 FROM cf_agent_recovery WHERE invoice_id=? AND state='waiting' AND notice_claim_id=?)",'RECOVERY_STOPPED','The recovery notice was stopped.',current.id,claimId)])}) ? 'sent' : 'skipped' } catch { /* Persist failure; never automatically repeat an uncertain external send. */ }
+ try { notice = await emailPortalLink(env, intent.donor_id, 'Update your card for your monthly gift',{authorize:()=>commit(c,[guard(legacyRecoveryPolicy,'POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),guard("EXISTS(SELECT 1 FROM cf_agent_recovery WHERE invoice_id=? AND state='waiting' AND notice_claim_id=?)",'RECOVERY_STOPPED','The recovery notice was stopped.',current.id,claimId)])}) ? 'sent' : 'skipped' } catch { /* Persist failure; never automatically repeat an uncertain external send. */ }
  await commit(c,[sql('UPDATE cf_agent_recovery SET notice_state=?,notice_at=? WHERE invoice_id=?',notice,new Date().toISOString(),current.id)])
  await action(c, { kind: `recovery.card_link_${notice}`, subjectId: current.id, summary: notice === 'sent' ? 'Private card-update email accepted by the mail provider.' : notice === 'skipped' ? 'Card-update email unavailable: donor has no deliverable account.' : 'Card-update email failed or its delivery is uncertain.', why: notice === 'sent' ? 'The donor can update their card in the secure giving portal. This email cannot be unsent.' : 'No automatic resend is scheduled. Review delivery before contacting the donor through the existing giving portal.' })
 }

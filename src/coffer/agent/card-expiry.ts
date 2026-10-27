@@ -1,4 +1,4 @@
-import { recoveryPolicyRequired, policyConfigured } from './recovery-notices-rules'
+import { recoveryPolicyRequired, policyConfigured, legacyRecoveryPolicy } from './recovery-notices-rules'
 import { advanceRecoveryNotices } from './recovery-notices'
 import { automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
 import { all, commit, fail, guard, newId, one, sql, today, type Context, type Row } from '../db'
@@ -53,12 +53,12 @@ export async function checkCardExpiry(c: Context, env: GivingEnv, current: Row) 
  if(await one(c,'SELECT subscription_id FROM cf_card_expiry_notices WHERE subscription_id=? AND payment_method_id=? AND expiry_year=? AND expiry_month=?',saved.id,methodId,year,month))return
  await claimAutomation(c,'recovery.expiry',1,saved.donor_id)
  const claimId=newId()
- await commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NULL)','POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),sql(`INSERT OR IGNORE INTO cf_card_expiry_notices(subscription_id,payment_method_id,expiry_year,expiry_month,claim_id,state,checked_at)
+ await commit(c,[guard(legacyRecoveryPolicy,'POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),sql(`INSERT OR IGNORE INTO cf_card_expiry_notices(subscription_id,payment_method_id,expiry_year,expiry_month,claim_id,state,checked_at)
   SELECT s.id,?,?,?,?,'sending',? FROM cf_subscriptions s JOIN cf_donors d ON d.id=s.donor_id
   WHERE s.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`,methodId,year,month,claimId,c.now,saved.id)])
  if (!await one(c,'SELECT subscription_id FROM cf_card_expiry_notices WHERE claim_id=?',claimId)) return
  let state='failed'
- try { state=await emailPortalLink(env,saved.donor_id,'Your monthly gift card expires next month',{authorize:()=>commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NULL)','POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),guard('EXISTS(SELECT 1 FROM cf_card_expiry_notices WHERE subscription_id=? AND claim_id=? AND payment_method_id=?)','CARD_CHANGED','The current default card changed.',saved.id,claimId,methodId)])})?'sent':'skipped' } catch { /* Keep an uncertain send visible; do not resend automatically. */ }
+ try { state=await emailPortalLink(env,saved.donor_id,'Your monthly gift card expires next month',{authorize:()=>commit(c,[guard(legacyRecoveryPolicy,'POLICY_CHANGED','An explicit recovery notice policy now controls sending.'),guard('EXISTS(SELECT 1 FROM cf_card_expiry_notices WHERE subscription_id=? AND claim_id=? AND payment_method_id=?)','CARD_CHANGED','The current default card changed.',saved.id,claimId,methodId)])})?'sent':'skipped' } catch { /* Keep an uncertain send visible; do not resend automatically. */ }
  await commit(c,[sql('UPDATE cf_card_expiry_notices SET state=?,checked_at=? WHERE subscription_id=? AND claim_id=?',state,c.now,saved.id,claimId)])
  await action(c,{kind:'recovery.expiry_'+state,subjectId:saved.id,summary:state==='sent'?'Card-expiry portal warning accepted by the mail provider.':state==='skipped'?'No deliverable account for the card-expiry warning.':'Card-expiry email failed or delivery is uncertain.',why:'The current default card expires next calendar month in the organization’s time zone. This is a transactional notice, not an ask.'})
 }
