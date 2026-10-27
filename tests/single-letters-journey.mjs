@@ -41,9 +41,10 @@ export async function singleLettersJourney(){
    letterId=new URL(page.url()).pathname.split('/').at(-1)
    const body=await page.locator('.body').innerText();assert.match(body,/Dear Bob,/);assert.match(body,/\$350\.00/);assert.match(body,/Envelope The Smith Family/)
    await shot('prepared')
-   assert.equal((await h.request(`/app/single-letters/${letterId}/letters.pdf`)).status,409)
+   for(const suffix of ['/letters.pdf','/letters.pdf?labels=1','/letters.pdf?envelopes=1','/print','/print?labels=1','/print?envelopes=1','/merge.zip','/merge.docx'])assert.equal((await h.request('/app/single-letters/'+letterId+suffix)).status,409,'Every local output requires approval of the prepared copy')
    const approval={letterId,version:1,contentHash:await page.locator('input[name=contentHash]').inputValue()}
    await h.command('singleLetter.approve',{...approval,contentHash:'synthetic-coffer-932'},{status:409})
+   await h.command('singleLetter.approve',{...approval,version:2},{status:409})
    for(const access of [{as:member.cookie},agentAccess])await h.command('singleLetter.approve',approval,{...access,status:403})
    await page.getByRole('button',{name:'Approve this letter',exact:true}).click()
    await page.getByRole('link',{name:'Download letter PDF',exact:true}).waitFor();await shot('approved')
