@@ -6038,6 +6038,14 @@
       "sha256": "d60b370b733242a8842e27de15850bd10bb6852caad18fe40e08e558f8cbb264",
       "executable": false
     },
+    "tests/communication-authority-journey.mjs": {
+      "sha256": "c328f1218f8c0eccc5cebbc29ef0eea6c08276aae2713d9233dc5d9010665bd7",
+      "executable": false
+    },
+    "tests/communication-claims-journey.mjs": {
+      "sha256": "c6254397498461624b5ec609eef6013279dd7097929b6c324c7945fedcba9d27",
+      "executable": false
+    },
     "tests/communication-frequency-journey.mjs": {
       "sha256": "955e028bf44a77fa7f48abc8d18e5e9e84bea78307686293dc44052233614aa5",
       "executable": false
@@ -6048,6 +6056,10 @@
     },
     "tests/communication-preferences-journey.mjs": {
       "sha256": "010a077ec8199f1e2c26f1ec823e5dcbd10a9ecbbc63ea6dbd17ac5e27f82611",
+      "executable": false
+    },
+    "tests/communication-provider-journey.mjs": {
+      "sha256": "7e66b6884790d2e42c0bc00079746ffc23860923e1998df6b93826cc15684c6e",
       "executable": false
     },
     "tests/communications.test.mjs": {
