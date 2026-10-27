@@ -25,6 +25,7 @@ export async function quickbooksJourney(){
   assert.equal((await h.request('/api/coffer/payments',{headers:{'sec-fetch-site':'cross-site'}})).status,403)
   await h.api(payoutPath+'/post',{confirm:'yes'},{status:409});assert.equal(edge.requests.length,0)
   const tampered=await h.request('/app/settings/quickbooks/callback?state=synthetic-coffer-invalid&realmId=1234567890&code=synthetic-coffer-1703');assert.equal(tampered.status,409);assert.equal(edge.exchanges,0)
+  await quickbooksBrowser(h,{payoutId:edge.payout.id,phase:'connect'})
   const {callback,response}=await connectQuickbooks(h,edge);assert.equal(response.status,303,(await response.text()).match(/role="alert"[^>]*>([^<]+)/)?.[1])
   assert.equal((await h.request(callback)).status,409);assert.equal(edge.exchanges,1,'The authorization code is exchanged only once')
   const connected=await h.get(root);assert.deepEqual(connected.connection,{realm_id:'1234567890',sandbox:1,connected_at:'2026-10-18T02:00:00.000Z'});assert.ok(!JSON.stringify(connected).includes('synthetic-coffer-access'))
