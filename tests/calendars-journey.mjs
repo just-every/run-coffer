@@ -59,6 +59,9 @@ export async function calendarsJourney() {
   const logged=await h.command('calendar.log',log,{as:member.cookie})
   assert.equal(logged.startsAt,'2026-10-20T16:00:00.000Z');assert.equal(logged.prepareAt,'2026-10-19T16:00:00.000Z')
   assert.equal((await h.command('calendar.log',log,{as:member.cookie})).id,logged.id)
+  calendarEvent.start.dateTime='2026-10-20T16:15:00Z'
+  await h.command('calendar.log',log,{as:member.cookie,status:409})
+  calendarEvent.start.dateTime='2026-10-20T16:00:00Z'
   await h.command('calendar.log',{...log,donorId:other.id},{as:member.cookie,status:409})
   assert.deepEqual((await h.get('/api/coffer/donors/'+d.id)).timelineSources.filter(x=>x.kind==='meeting').map(x=>[x.id,x.title,x.day]),[[logged.id,'Google Calendar meeting','2026-10-20']])
   const interaction=await h.command('interaction.record',{donorId:d.id,kind:'meeting',occurredOn:'2026-10-17',who:'Morgan Lee',notes:'Ada reviewed the library proposal and asked for a Saturday visit.'},{as:member.cookie})

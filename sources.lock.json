@@ -2519,7 +2519,7 @@
       "executable": false
     },
     "src/coffer/calendars/google.ts": {
-      "sha256": "c45953d807e32e2a47e0ec0b898fd71a78bd6798c2177a572c599cacd36411ca",
+      "sha256": "4642f09f3f2da9026a244cdba27706cd19faccf941bf1fd6725272115d82b7f3",
       "executable": false
     },
     "src/coffer/call-outcomes.ts": {
@@ -6055,7 +6055,7 @@
       "executable": false
     },
     "tests/calendars-journey.mjs": {
-      "sha256": "54bad20df59fb61f98f158eb9e0d706b6114e0f1da8537b7510c93b5d9bfd175",
+      "sha256": "45378f84651aef1732c89cb02822ae61dc2a02976d4cd7eb037e26791a497755",
       "executable": false
     },
     "tests/call-priorities-browser.mjs": {
