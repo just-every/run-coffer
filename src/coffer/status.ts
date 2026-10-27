@@ -30,7 +30,7 @@ export async function statusChange(c: Context, donor: Row, p: Row, status: strin
   const [calls, repeating, journey, owner] = await Promise.all([
    one(c, "SELECT count(*) AS n FROM cf_call_tasks WHERE donor_id=? AND status IN ('open','snoozed')", donor.id),
    one(c, "SELECT count(*) AS n FROM cf_recurring_tasks t JOIN cf_recurring_task_series s ON s.id=t.series_id WHERE s.donor_id=? AND t.status='open'", donor.id),
-   one(c, "SELECT count(*) AS n FROM cf_welcome_enrollments WHERE donor_id=? AND status='active'", donor.id),
+   one(c, "SELECT (SELECT count(*) FROM cf_welcome_enrollments WHERE donor_id=? AND status='active')+(SELECT count(*) FROM cf_journey_enrollments WHERE donor_id=? AND status='active') AS n", donor.id,donor.id),
    routingOwner(c.db, donor.id)])
   const closed = { callTasks: calls!.n, repeatingTasks: repeating!.n, journeys: journey!.n }
   Object.assign(detail, { closed })

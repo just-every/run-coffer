@@ -1,3 +1,4 @@
+import { journeyCap } from './journey-cap'
 import { communicationReasons } from './preference-rules'
 import { customAllowed, customMerge } from '../custom-fields'
 import { LETTER, checkTemplate, longDate, goodsStatement } from '../settings'
@@ -29,13 +30,13 @@ const allowed = `EXISTS(SELECT 1 FROM cf_welcome_enrollments e JOIN cf_donors d 
 const stepNames = ['thank', 'impact', 'ask'] as const
 
 export const WELCOME_FIELDS=[...LETTER,'last_gift']
-async function content(c:Context,value:unknown,label:string,body=false){
+export async function journeyContent(c:Context,value:unknown,label:string,body=false){
  const valueText=body?longText(value,label):text(value,label,200)
  if(!body&&/[\r\n]/.test(valueText))fail('INPUT',`${label} must be one line.`,400)
  checkTemplate(valueText,label,await customAllowed(c,WELCOME_FIELDS),[])
  return valueText
 }
-async function stepMessage(c:Context,step:Row,options:{emailType?:string}={}){
+export async function journeyMessage(c:Context,step:Row,options:{emailType?:string}={}){
  const d=await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',step.donor_id)
  if(!d)fail('DONOR_CHANGED','The welcome recipient is no longer available.')
  const [recipient,s,gift]=await Promise.all([letterRecipient(c,d,options),settings(c),one(c,'SELECT * FROM cf_gift_balances WHERE id=? AND donor_id=? AND net_cents>0',step.first_gift_id,d.id)])
@@ -61,9 +62,9 @@ export async function welcomeCommand(c: Context, command: string, p: Row): Promi
   const enrolled=await one(c,"SELECT COUNT(*) AS n FROM cf_welcome_enrollments WHERE status='active' AND donor_id IN(SELECT value FROM json_each(?))",JSON.stringify(members.ids))
   return {listId,active:enrolled!.n,excluded:members.ids.length-enrolled!.n,submitted:0}
  }
- const thankSubject = await content(c,p.thankSubject, 'Thank-you subject'), thankBody = await content(c,p.thankBody, 'Thank-you message', true)
- const impactSubject = await content(c,p.impactSubject, 'Impact subject'), impactBody = await content(c,p.impactBody, 'Impact message', true)
- const askSubject = await content(c,p.askSubject, 'Second-ask subject'), askBody = await content(c,p.askBody, 'Second-ask message', true)
+ const thankSubject = await journeyContent(c,p.thankSubject, 'Thank-you subject'), thankBody = await journeyContent(c,p.thankBody, 'Thank-you message', true)
+ const impactSubject = await journeyContent(c,p.impactSubject, 'Impact subject'), impactBody = await journeyContent(c,p.impactBody, 'Impact message', true)
+ const askSubject = await journeyContent(c,p.askSubject, 'Second-ask subject'), askBody = await journeyContent(c,p.askBody, 'Second-ask message', true)
  const impactDays = integer(Number(p.impactDays), 'Impact days after first gift', 1, 365)
  const askDays = integer(Number(p.askDays), 'Second-ask days after first gift', impactDays + 1, 730)
  const publicationId = newId()
@@ -145,7 +146,7 @@ async function run(c: Context,options:{emailType?:string}={}): Promise<Row> {
   const preference=queued.step==='ask'?(await communicationReasons(c,[queued.donor_id],'email')).get(queued.donor_id):null
   const restricted=queued.step==='ask'?(await solicitationReason(c,queued.donor_id,'email',c.now)??(preference?{reason:preference,lastAskOn:null}:null)):null
   if(restricted){await commit(c,[sql("UPDATE cf_welcome_steps SET status='cancelled',note=? WHERE id=? AND status='pending'",restricted.reason+(restricted.reason==='solicitation limit'&&restricted.lastAskOn?' · Last ask '+restricted.lastAskOn:''),row.id),event(c,'welcome.askSkipped','welcome',row.id,queued.donor_id,restricted)]);cancelled++;continue}
-  const rendered=await stepMessage(c,queued,options),blanks:string[]=JSON.parse(rendered.merge_blanks)
+  const rendered=await journeyMessage(c,queued,options),blanks:string[]=JSON.parse(rendered.merge_blanks)
   if(!rendered.recipient.email&&!blanks.includes('email'))blanks.push('email')
   rendered.merge_blanks=JSON.stringify(blanks)
   if(blanks.length){await commit(c,[sql("UPDATE cf_welcome_steps SET merge_blanks=?,merge_checked_at=?,note=? WHERE id=? AND status='pending'",rendered.merge_blanks,c.now,'Missing merge fields: '+blanks.join(', ')+'. No provider handoff; fill the values before running again.',row.id)]);held.push({donorId:queued.donor_id,stepId:queued.id,fields:blanks});continue}
@@ -153,14 +154,16 @@ async function run(c: Context,options:{emailType?:string}={}): Promise<Row> {
    const classification=await prepareSolicitationRun(c,{kind:'welcome',id:row.id,channel:'email',isAsk:queued.step==='ask',donorIds:[queued.donor_id]})
    await commit(c,classification.statements)
   }
+  const cap=await journeyCap(c,queued.donor_id,row.id)
+  if(!cap.allowed)continue
   const claim = `Submission claim ${newId()}. Interrupted submissions are not retried automatically.`
   // 'uncertain' is the durable pre-send claim. Only this unique claim holder
   // may submit; a crashed Worker leaves visible uncertainty, never a retry.
   await commit(c, [sql(`UPDATE cf_welcome_steps SET status='uncertain',note=?,merge_blanks='[]',merge_checked_at=? WHERE id=? AND status='pending'
-   AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.version=? AND (d.email=? OR EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id=d.id AND p.id=? AND p.version=? AND p.active=1 AND p.kind='email' AND p.value=?))) AND julianday(due_at)<=julianday(?) AND ${allowed}
+   AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.version=? AND (d.email=? OR EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id=d.id AND p.id=? AND p.version=? AND p.active=1 AND p.kind='email' AND p.value=?))) AND julianday(due_at)<=julianday(?) AND ${allowed} AND ${cap.condition}
    AND NOT EXISTS(SELECT 1 FROM cf_welcome_steps prior WHERE prior.donor_id=cf_welcome_steps.donor_id
     AND prior.status='pending' AND CASE prior.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END
-     <CASE cf_welcome_steps.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END)`, claim,c.now,row.id,queued.donor_id,rendered.version,rendered.recipient.email,rendered.recipient.selected_email_contact_id,rendered.recipient.selected_email_contact_version,rendered.recipient.email,c.now)])
+     <CASE cf_welcome_steps.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END)`, claim,c.now,row.id,queued.donor_id,rendered.version,rendered.recipient.email,rendered.recipient.selected_email_contact_id,rendered.recipient.selected_email_contact_version,rendered.recipient.email,c.now,...cap.params!),sql(`INSERT OR IGNORE INTO cf_journey_slots SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM cf_welcome_steps WHERE id=? AND status='uncertain' AND note=?)`,row.id,queued.donor_id,today((await settings(c)).timezone,new Date(c.now)),row.id,claim)])
   const step = await one(c, `SELECT s.*,
    COALESCE(v.subject,CASE s.step WHEN 'thank' THEN w.thank_subject WHEN 'impact' THEN w.impact_subject ELSE w.ask_subject END) AS subject,
    COALESCE(v.body,CASE s.step WHEN 'thank' THEN w.thank_body WHEN 'impact' THEN w.impact_body ELSE w.ask_body END) AS body,v.list_name

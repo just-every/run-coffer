@@ -3,10 +3,10 @@ import { settings } from './settings'
 
 /** Interrupted submission claims and Mango handoffs are held until a person
  * resolves them or the sender confirms the exact message. Alias g is a gift. */
-export const UNRESOLVED_THANK_YOU = `EXISTS(SELECT 1 FROM cf_welcome_enrollments e JOIN cf_welcome_steps s ON s.donor_id=e.donor_id AND s.step='thank'
+export const UNRESOLVED_THANK_YOU = `(EXISTS(SELECT 1 FROM cf_welcome_enrollments e JOIN cf_welcome_steps s ON s.donor_id=e.donor_id AND s.step='thank'
  JOIN cf_communications m ON m.message_key=s.message_key WHERE e.first_gift_id=g.id
  AND (m.status IN ('preparing','uncertain','listed') OR (m.status='submitted' AND m.thank_recorded_at IS NULL))
- AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND k.change_source='manual' AND k.updated_at>=m.created_at))`
+ AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND k.change_source='manual' AND k.updated_at>=m.created_at)) OR EXISTS(SELECT 1 FROM cf_journey_enrollments e JOIN cf_journey_steps s ON s.enrollment_id=e.id AND s.step='thank' JOIN cf_journey_templates t ON t.journey_id=e.journey_id AND t.step=s.step AND t.kind='email' AND t.is_ask=0 JOIN cf_communications m ON m.message_key=s.message_key WHERE e.gift_id=g.id AND (m.status IN ('preparing','uncertain','listed') OR (m.status='submitted' AND m.thank_recorded_at IS NULL)) AND NOT EXISTS(SELECT 1 FROM cf_gift_acknowledgments k WHERE k.gift_id=g.id AND k.change_source='manual' AND k.updated_at>=m.created_at)))`
 
 /** One projection for donor histories and the gift ledger. A reviewed historical
  * cutoff supplies no invented thank-you date, method or external message link. */
@@ -37,8 +37,8 @@ export async function communicationAcknowledgment(c: Context, message: Row, disp
  let stepId=message.source_kind==='welcome'?message.source_id:null
  if(message.source_kind==='appeal')stepId=(await one(c,"SELECT json_extract(segment,'$.resendOf') AS step_id FROM cf_appeals WHERE id=?",message.source_id))?.step_id
  if(!stepId)return
- const step=await one(c,`SELECT s.step,e.first_gift_id FROM cf_welcome_steps s JOIN cf_welcome_enrollments e ON e.donor_id=s.donor_id WHERE s.id=?`,stepId)
- if(!step||step.step!=='thank')return
+ const step=await one(c,`SELECT s.step,e.first_gift_id FROM cf_welcome_steps s JOIN cf_welcome_enrollments e ON e.donor_id=s.donor_id WHERE s.id=? UNION ALL SELECT s.step,e.gift_id AS first_gift_id FROM cf_journey_steps s JOIN cf_journey_enrollments e ON e.id=s.enrollment_id JOIN cf_journey_templates t ON t.journey_id=e.journey_id AND t.step=s.step WHERE s.id=? AND t.kind='email' AND t.is_ask=0`,stepId,stepId)
+ if(!step||step.step!=='thank'||!step.first_gift_id)return
  const accepted=['accepted','sent','delivered'].includes(disposition)
  const failed=['bounced','dropped','not_sent','rejected','suppressed'].includes(disposition)
  const giftId=step.first_gift_id,day=today((await settings(c)).timezone,new Date(c.now))

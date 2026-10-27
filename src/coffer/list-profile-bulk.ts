@@ -11,15 +11,17 @@ const profileColumns=['constituent_status','status_reason','deceased_on','status
 const originals=(donorId:string)=>({sql:'SELECT s.* FROM cf_solicitation s WHERE s.donor_id=? OR s.donor_id IN(SELECT donor_id FROM cf_donor_merges WHERE into_id=?) ORDER BY s.donor_id',params:[donorId,donorId]})
 export async function snapshot(c:Context,donorId:string) {
  const restriction=originals(donorId)
- const [profile,custom,restrictions,calls,series,enrollments,steps]=await Promise.all([
+ const [profile,custom,restrictions,calls,series,enrollments,steps,journeyEnrollments,journeySteps]=await Promise.all([
   one(c,`SELECT ${profileColumns.join(',')} FROM cf_donors WHERE id=?`,donorId),
   all(c,'SELECT * FROM cf_custom_values WHERE record_id=? ORDER BY field_key',donorId),all(c,restriction.sql,...restriction.params),
   all(c,'SELECT * FROM cf_call_tasks WHERE donor_id=? ORDER BY id',donorId),
   all(c,'SELECT t.* FROM cf_recurring_tasks t JOIN cf_recurring_task_series s ON s.id=t.series_id WHERE s.donor_id=? ORDER BY t.id',donorId),
   all(c,'SELECT * FROM cf_welcome_enrollments WHERE donor_id=? ORDER BY donor_id',donorId),
   all(c,'SELECT * FROM cf_welcome_steps WHERE donor_id=? ORDER BY id',donorId),
+  all(c,'SELECT * FROM cf_journey_enrollments WHERE donor_id=? ORDER BY id',donorId),
+  all(c,'SELECT * FROM cf_journey_steps WHERE donor_id=? ORDER BY id',donorId),
  ])
- return {profile,custom,restrictions,calls,series,enrollments,steps}
+ return {profile,custom,restrictions,calls,series,enrollments,steps,journeyEnrollments,journeySteps}
 }
 type Snapshot=Awaited<ReturnType<typeof snapshot>>
 const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b)
@@ -28,10 +30,10 @@ async function assertSnapshot(c:Context,donorId:string,expected:Snapshot) {
 }
 export function stateGuard(donorId:string,expected:Snapshot):Stmt {
  // The same-transaction fingerprint includes every store an undo can restore.
- const tables=[['cf_custom_values','record_id','field_key'],['cf_call_tasks','donor_id','id'],['cf_welcome_enrollments','donor_id','donor_id'],['cf_welcome_steps','donor_id','id']] as const
+ const tables=[['cf_custom_values','record_id','field_key'],['cf_call_tasks','donor_id','id'],['cf_welcome_enrollments','donor_id','donor_id'],['cf_welcome_steps','donor_id','id'],['cf_journey_enrollments','donor_id','id'],['cf_journey_steps','donor_id','id']] as const
  const parts: string[]=[],params:unknown[]=[]
  for(const [table,key,order] of tables){
-  const rows=table==='cf_custom_values'?expected.custom:table==='cf_call_tasks'?expected.calls:table==='cf_welcome_enrollments'?expected.enrollments:expected.steps
+  const rows=table==='cf_custom_values'?expected.custom:table==='cf_call_tasks'?expected.calls:table==='cf_welcome_enrollments'?expected.enrollments:table==='cf_welcome_steps'?expected.steps:table==='cf_journey_enrollments'?(expected.journeyEnrollments??[]):(expected.journeySteps??[])
   // json_object keys use trusted schema columns only, never request fields.
   if(rows.length){const cols=Object.keys(rows[0]);parts.push(`(SELECT json_group_array(json_object(${cols.flatMap(k=>["'"+k+"'",k]).join(',')})) FROM (SELECT * FROM ${table} WHERE ${key}=? ORDER BY ${order}))=?`);params.push(donorId,JSON.stringify(rows))}
   else {parts.push(`NOT EXISTS(SELECT 1 FROM ${table} WHERE ${key}=?)`);params.push(donorId)}
@@ -110,11 +112,11 @@ export async function profileBulkCommand(c:Context,command:string,p:Row,options:
  // Persist snapshots within the mutation batch using SQL reads. The before state
  // is checked above; the after state is materialized after every consequence.
  const schema=new Map<string,string[]>()
- for(const table of ['cf_custom_values','cf_solicitation','cf_call_tasks','cf_recurring_tasks','cf_welcome_enrollments','cf_welcome_steps'])schema.set(table,(await all(c,`PRAGMA table_info(${table})`)).map(r=>String(r.name)))
+ for(const table of ['cf_custom_values','cf_solicitation','cf_call_tasks','cf_recurring_tasks','cf_welcome_enrollments','cf_welcome_steps','cf_journey_enrollments','cf_journey_steps'])schema.set(table,(await all(c,`PRAGMA table_info(${table})`)).map(r=>String(r.name)))
  const snapshotSql=(donorId:string)=>{
   const obj=(table:string,where:string,order:string,keys:string[])=>`(SELECT json_group_array(json_object(${keys.flatMap(k=>["'"+k+"'",k]).join(',')})) FROM (SELECT * FROM ${table} WHERE ${where} ORDER BY ${order}))`
   const literal="'"+donorId.replaceAll("'","''")+"'",props=["'profile'",`json_object(${profileColumns.flatMap(k=>["'"+k+"'",`(SELECT ${k} FROM cf_donors WHERE id=${literal})`]).join(',')})`]
-  for(const [key,table,where,order] of [['custom','cf_custom_values',`record_id=${literal}`,'field_key'],['restrictions','cf_solicitation',`donor_id=${literal} OR donor_id IN(SELECT donor_id FROM cf_donor_merges WHERE into_id=${literal})`,'donor_id'],['calls','cf_call_tasks',`donor_id=${literal}`,'id'],['series','cf_recurring_tasks',`series_id IN(SELECT id FROM cf_recurring_task_series WHERE donor_id=${literal})`,'id'],['enrollments','cf_welcome_enrollments',`donor_id=${literal}`,'donor_id'],['steps','cf_welcome_steps',`donor_id=${literal}`,'id']])props.push("'"+key+"'",obj(table,where,order,schema.get(table)!))
+  for(const [key,table,where,order] of [['custom','cf_custom_values',`record_id=${literal}`,'field_key'],['restrictions','cf_solicitation',`donor_id=${literal} OR donor_id IN(SELECT donor_id FROM cf_donor_merges WHERE into_id=${literal})`,'donor_id'],['calls','cf_call_tasks',`donor_id=${literal}`,'id'],['series','cf_recurring_tasks',`series_id IN(SELECT id FROM cf_recurring_task_series WHERE donor_id=${literal})`,'id'],['enrollments','cf_welcome_enrollments',`donor_id=${literal}`,'donor_id'],['steps','cf_welcome_steps',`donor_id=${literal}`,'id'],['journeyEnrollments','cf_journey_enrollments',`donor_id=${literal}`,'id'],['journeySteps','cf_journey_steps',`donor_id=${literal}`,'id']])props.push("'"+key+"'",obj(table,where,order,schema.get(table)!))
   return `json_object(${props.join(',')})`
  }
  const receipts:Stmt[]=[]

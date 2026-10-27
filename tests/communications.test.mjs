@@ -481,3 +481,30 @@ test('REPORT-005: saved selections send current weekly and monthly report attach
  const {reportSchedulesJourney}=await import('./report-schedules-journey.mjs')
  await reportSchedulesJourney()
 })
+
+
+test('STEW-003: published journeys enroll live giving cohorts and hold shared-frequency work with current consent and custody',async()=>{
+ const {stewardshipJourneys}=await import('./stewardship-journeys.mjs')
+ await stewardshipJourneys()
+})
+
+
+test('STEW-003: the minute scheduler advances published welcome steps once and stops a repeat giver',async()=>{
+ const {welcomeClockJourney}=await import('./journey-actions.mjs')
+ await welcomeClockJourney()
+})
+
+test('STEW-003: reply branches create owned tasks once, waits send nothing, and list custody requires explicit resume',async()=>{
+ const {journeyActions}=await import('./journey-actions.mjs')
+ await journeyActions()
+})
+
+test('STEW-003: shared welcome caps retain uncertain claims and merged donor custody without automatic retry',async()=>{
+ const {journeyCapCustody}=await import('./journey-custody.mjs')
+ await journeyCapCustody()
+})
+
+test('STEW-003: an anniversary enrolls on the calendar day and its later steps remain active',async()=>{
+ const {anniversaryJourney}=await import('./journey-custody.mjs')
+ await anniversaryJourney()
+})
