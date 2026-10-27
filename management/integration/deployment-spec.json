@@ -997,19 +997,25 @@
     },
     {
       "binding": "DB",
-      "name": "core-0163_coffer_sms_registration.sql",
+      "name": "core-0163_coffer_calendars.sql",
+      "sha256": "f5d584f22ed06551381c8bd0ac278dcc057e3314cc712bd5c779a255919788c4",
+      "sql": "ALTER TABLE cf_donor_meetings ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';\nALTER TABLE cf_donor_meetings ADD COLUMN source_ref TEXT;\nALTER TABLE cf_donor_meetings ADD COLUMN source_operator_id TEXT;\nCREATE UNIQUE INDEX cf_meeting_source ON cf_donor_meetings(source,source_operator_id,source_ref);\n\n-- Transient authorization and booking capabilities never leave this installation.\nCREATE TABLE cf_calendar_oauth (\n operator_id TEXT PRIMARY KEY,\n operator_version INTEGER NOT NULL,\n state_hash TEXT NOT NULL UNIQUE,\n app_sealed TEXT NOT NULL,\n expires_at TEXT NOT NULL\n);\nCREATE TABLE cf_meeting_links (\n id TEXT PRIMARY KEY,\n donor_id TEXT NOT NULL REFERENCES cf_donors(id) ON DELETE CASCADE,\n operator_id TEXT NOT NULL,\n operator_version INTEGER NOT NULL,\n token_hash TEXT NOT NULL UNIQUE,\n sealed_token TEXT NOT NULL,\n connection_sealed TEXT NOT NULL,\n expires_at TEXT NOT NULL,\n revoked_at TEXT,\n created_at TEXT NOT NULL\n);\nCREATE TRIGGER cf_meeting_link_erasure AFTER UPDATE OF erased_at ON cf_donors\nWHEN OLD.erased_at IS NULL AND NEW.erased_at IS NOT NULL\nBEGIN DELETE FROM cf_meeting_links WHERE donor_id=NEW.id; END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0164_coffer_sms_registration.sql",
       "sha256": "283cc81ac038f2be53f23297fda52a7b6b71266d735cddb70490d1450983dbd6",
       "sql": "-- Approval is evidence fetched from Twilio, never an operator assertion.\nCREATE TABLE cf_sms_registration (\n id INTEGER PRIMARY KEY CHECK(id=1),\n version INTEGER NOT NULL CHECK(version>=1),\n account_sid TEXT NOT NULL,\n messaging_service_sid TEXT NOT NULL,\n campaign_sid TEXT NOT NULL,\n sender TEXT NOT NULL,\n campaign_status TEXT NOT NULL,\n sender_registered INTEGER NOT NULL CHECK(sender_registered IN (0,1)),\n approved INTEGER NOT NULL CHECK(approved IN (0,1)),\n checked_at TEXT NOT NULL,\n provider_updated_at TEXT,\n connection_sealed TEXT,\n CHECK(approved=0 OR (campaign_status='VERIFIED' AND sender_registered=1))\n);\n"
     },
     {
       "binding": "DB",
-      "name": "core-0164_coffer_sms_schedules.sql",
+      "name": "core-0165_coffer_sms_schedules.sql",
       "sha256": "1dbff81de2dd0bbae9b3c8d49faf25525d8d27d0e200bbe597f7649bd2ffff3e",
       "sql": "CREATE TABLE cf_sms_schedules (\n run_id TEXT PRIMARY KEY REFERENCES cf_sms_runs(id) ON DELETE CASCADE,\n scheduled_at TEXT NOT NULL,\n scheduled_by TEXT NOT NULL,\n state TEXT NOT NULL CHECK(state IN ('scheduled','paused','complete','cancelled')),\n note TEXT NOT NULL DEFAULT '',\n updated_at TEXT NOT NULL\n);\nCREATE TRIGGER cf_sms_schedule_stop AFTER UPDATE OF state ON cf_sms_runs\nWHEN NEW.state IN ('discarded','redacted') BEGIN\n UPDATE cf_sms_schedules SET state='cancelled',note='The text run was discarded or redacted.' WHERE run_id=NEW.id;\nEND;\n"
     },
     {
       "binding": "DB",
-      "name": "core-0165_coffer_sms_number_status.sql",
+      "name": "core-0166_coffer_sms_number_status.sql",
       "sha256": "b029a8cc122768004431d5f038858e3ba85f972bc38d8921febec8c17d9a83b3",
       "sql": "-- Pool membership alone is not exact-number A2P registration evidence.\nALTER TABLE cf_sms_registration ADD COLUMN number_campaign_sid TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN phone_number_sid TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN number_configured_at TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN number_status TEXT NOT NULL DEFAULT 'unknown';\nALTER TABLE cf_sms_registration ADD COLUMN number_status_at TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN number_event_id TEXT;\nUPDATE cf_sms_registration SET approved=0,version=version+1;\n"
     }
