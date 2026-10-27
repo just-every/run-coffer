@@ -1,6 +1,6 @@
 import { communicationReasons } from './communications/preference-rules'
 import { prepareSolicitationRun, solicitationAskStatements, solicitationReasons, solicitationState } from './solicitation'
-import { all, fail, one, type Context, type Row } from './db'
+import { all, fail, guard, one, type Context, type Row } from './db'
 
 export const askFlag=(p:Row,defaultValue=true)=>p.isAsk===undefined?defaultValue:p.isAsk===true||p.isAsk==='true'||p.isAsk==='1'
 export async function phoneHolds(c:Context,donorIds:string[],isAsk:boolean) {
@@ -34,5 +34,5 @@ export async function completedAsk(c:Context,task:Row,p:Row) {
  if(!task.is_ask)return []
  const classification=await prepareSolicitationRun(c,{kind:'call',id:task.id,channel:'phone',isAsk:true,donorIds:[task.donor_id],includes:p.includeReason?[{donorId:task.donor_id,reason:p.includeReason}]:[]})
  if(classification.excluded.length)fail('SOLICITATION_RESTRICTED',classification.excluded[0].reason)
- return [...classification.statements,...await solicitationAskStatements(c,'call',task.id,[task.donor_id],classification)]
+ return [guard("COALESCE((SELECT status FROM cf_consents WHERE donor_id=? AND channel='phone' ORDER BY id DESC LIMIT 1),'unknown')<>'withdrawn'",'PHONE_CONSENT','Phone consent is withdrawn; no ask call may be completed through this task.',task.donor_id),...classification.statements,...await solicitationAskStatements(c,'call',task.id,[task.donor_id],classification)]
 }

@@ -23,6 +23,16 @@ export function mergeMessage(template: string, values: Row) {
  const fields: Row = {...(values.name_fields ? JSON.parse(values.name_fields) : nameMergeFields(values)),donor_name:values.name,total_given:usd(values.total_cents??0),last_gift:values.last_gift||'No gift recorded',gift_count:String(values.gift_count??0)}
  return fillFields(template,{...fields,...(typeof values.merge_fields==='string'?JSON.parse(values.merge_fields):values.merge_fields??{})})
 }
+async function handoffGuards(c:Context,input:MessageInput,donorId:string,recipient:Row){
+ const donor=await one(c,'SELECT * FROM cf_donors WHERE id=?',donorId)
+ if(!donor)fail('DONOR_CHANGED','This donor is no longer available.',409)
+ const current=await profileRecipient(c,donor!,{emailType:input.emailType})
+ if(current.email!==recipient.email||current.selected_email_contact_id!==recipient.selected_email_contact_id||current.selected_email_contact_version!==recipient.selected_email_contact_version)fail('CONTACT_CHANGED','The email contact changed before handoff.',409)
+ await commit(c,[...await solicitationRunGuards(c,input.sourceKind,input.sourceId,[donorId]),...(input.sourceKind==='welcome'?await journeySendGuards(c,input.sourceId):[]),
+  guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.erased_at IS NULL AND d.constituent_status='active' AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s consent or status changed before handoff.',donorId),
+  ...(current.selected_email_contact_id?[guard(`EXISTS(SELECT 1 FROM cf_contact_points WHERE id=? AND donor_id=? AND kind='email' AND active=1 AND value=? AND version=?)`,'CONTACT_CHANGED','The email contact changed before handoff.',current.selected_email_contact_id,donorId,current.email,current.selected_email_contact_version)]:[]),
+ ])
+}
 export async function submitMessage(c: Context,input:MessageInput):Promise<Row> {
  const previous=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
  if(previous) return previous
@@ -60,7 +70,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
    return savedResult(c,row.id,'suppressed')
   }
   await commit(c,[...await solicitationRunGuards(c,input.sourceKind,input.sourceId,[d.id]),...(input.sourceKind==='welcome'?await journeySendGuards(c,input.sourceId):[])])
-  await composeMailchimpCampaign(conn,row,draft)
+  await composeMailchimpCampaign(conn,row,draft,()=>handoffGuards(c,input,d.id,currentNames))
   await c.db.batch([
    c.db.prepare("UPDATE cf_communications SET status='submitted',submitted_at=?,note='Submitted to the email provider; email handoff is not yet confirmed.' WHERE id=?").bind(c.now,row.id),
    c.db.prepare(event(c,'marketing.submitted',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,provider:conn.provider,campaignId:draft.campaignId}).sql).bind(...event(c,'marketing.submitted',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,provider:conn.provider,campaignId:draft.campaignId}).params),
@@ -83,7 +93,7 @@ async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConne
   if(!donor)fail('CONSENT_CHANGED','The recipient’s consent or status changed before handoff.',409)
   await commit(c,[...await solicitationRunGuards(c,input.sourceKind,input.sourceId,[d.id]),...(input.sourceKind==='welcome'?await journeySendGuards(c,input.sourceId):[])])
   const selected=await profileRecipient(c,donor!,{emailType:input.emailType});if(selected.email!==row.email||input.expectedContactId&&(selected.selected_email_contact_id!==input.expectedContactId||selected.selected_email_contact_version!==input.expectedContactVersion))fail('CONTACT_CHANGED','The email contact changed before handoff.',409)
-  const contact=await listInMango(conn,{...selected,remote_profile_fields:existingFields},(await settings(c)).organisation,input.listName,{donorName:d.name,totalGiven:usd(d.total_cents??0),lastGift:d.last_gift||'',giftCount:Number(d.gift_count??0)})
+  const contact=await listInMango(conn,{...selected,remote_profile_fields:existingFields},(await settings(c)).organisation,input.listName,{donorName:d.name,totalGiven:usd(d.total_cents??0),lastGift:d.last_gift||'',giftCount:Number(d.gift_count??0)},()=>handoffGuards(c,input,d.id,selected))
   const listed=contact.emailStatus==='subscribed'
   const note=listed?`On the Mango list “${input.listName}”. Mango sends once a person approves a campaign for that list in Mango.`:`Mango keeps this address opted out (${contact.emailStatus}). No email will go to it.`
   await commit(c,[sql('UPDATE cf_communications SET status=?,campaign_id=?,submitted_at=?,note=? WHERE id=?',listed?'listed':'suppressed',(contact.segmentIds??[]).join(',')||null,c.now,note,row.id),

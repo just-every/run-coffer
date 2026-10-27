@@ -19,6 +19,9 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  if(latest)Object.assign(donor,latest)
  const conn = await requireConnection(c), label = providerTitle(conn.provider)
  let contact = await providerContact(conn, donor.email)
+ // Validate before profile or signup writes, but preserve a known opt-out even
+ // when its mapped metadata is malformed. The final import still holds sending.
+ if(!contact||!restricted(contact))await importProviderPreferences(c,donorId,conn.provider,contact,true)
  if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) contact = await syncMailchimpNames(conn, donor)
  let state = 'pending', note = 'Confirm the donor’s subscription with the email provider before sending.'
  if (contact && restricted(contact) && donor.consent === 'granted') {

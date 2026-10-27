@@ -1,4 +1,7 @@
 import {communicationPreferencesBrowser} from './communication-preferences-browser.mjs'
+import {communicationClaimsJourney} from './communication-claims-journey.mjs'
+import {communicationProviderJourney} from './communication-provider-journey.mjs'
+import {communicationAuthorityJourney} from './communication-authority-journey.mjs'
 import {channelFrequencyJourney} from './communication-frequency-journey.mjs'
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
@@ -51,6 +54,7 @@ export async function communicationPreferencesJourney({browser=true}={}){
   await prepareVerifiedMail(h,{headers:{'x-test-now':at}})
   const mailBefore=await prepare('Synthetic independent mail channel','mail');assert.equal(mailBefore.recipients,3,'Email frequency never consumes a mail slot')
   const originalRestriction=(await file(a)).solicitation
+  const beforePortal={preferences:await get(a),consents:(await file(a)).consents}
   const login=await signInPortal(h,'synthetic-coffer-9106@example.test'),as=login.cookie
   // URLSearchParams needs one pair per selected topic, as the native form sends.
   const portalSave=async(channel,topics,frequency='unlimited',extra={})=>{
@@ -61,6 +65,20 @@ export async function communicationPreferencesJourney({browser=true}={}){
   assert.equal((await portalSave('sms',['newsletter','events'])).status,303)
   assert.equal((await portalSave('phone',['newsletter','events'])).status,303)
   assert.equal((await portalSave('email',['newsletter','events'],'monthly')).status,303)
+  const appended=(await file(a)).consents
+  assert.deepEqual(appended.slice(4),beforePortal.consents,'Portal writes preserve every earlier consent row')
+  assert.deepEqual(appended.slice(0,4).sort((x,y)=>x.channel.localeCompare(y.channel)).map(p=>({channel:p.channel,status:p.status,method:p.method,evidence:p.evidence,captured_on:p.captured_on,recorded_at:p.recorded_at,recorded_by:p.recorded_by})),[
+   {channel:'email',status:'granted',method:'portal',evidence:'Communication preferences version 2; channel permission retained',captured_on:'2026-10-15',recorded_at:'2026-10-15T16:00:00.000Z',recorded_by:'Authenticated donor portal'},
+   ...['mail','phone','sms'].map(channel=>({channel,status:'granted',method:'portal',evidence:'Communication preferences version 1; channel permission retained',captured_on:'2026-10-15',recorded_at:'2026-10-15T16:00:00.000Z',recorded_by:'Authenticated donor portal'}))
+  ])
+  const afterPortal=await get(a)
+  assert.deepEqual(afterPortal.history.filter(p=>p.source!=='portal'),beforePortal.preferences.history)
+  assert.deepEqual(afterPortal.history.filter(p=>p.source==='portal').map(p=>({channel:p.channel,version:p.version,topics:p.topics,frequency:p.frequency,source:p.source,recorded_at:p.recorded_at,recorded_by:p.recorded_by})),[
+   {channel:'email',version:2,topics:['events','newsletter'],frequency:'monthly',source:'portal',recorded_at:'2026-10-15T16:00:00.000Z',recorded_by:'Authenticated donor portal'},
+   ...['mail','phone','sms'].map(channel=>({channel,version:1,topics:['events','newsletter'],frequency:'unlimited',source:'portal',recorded_at:'2026-10-15T16:00:00.000Z',recorded_by:'Authenticated donor portal'}))
+  ])
+  assert.deepEqual((await file(a)).events.filter(e=>e.action==='communication.preferences'&&e.actor_role==='donor').map(e=>({actor_id:e.actor_id,actor_name:e.actor_name,at:e.at})),Array.from({length:4},()=>({actor_id:'donor:'+a.id,actor_name:'Authenticated donor portal',at:'2026-10-15T16:00:00.000Z'})))
+
   assert.equal((await portalSave('email',['appeals'],'unlimited',{donorId:b.id})).status,403)
   const stale=portalForm({action:'preferences',channel:'email',version:'0',frequency:'unlimited',topics:'appeals',confirm:'yes'},as)
   assert.equal((await h.request('/giving/portal/communications',stale)).status,409)
@@ -68,7 +86,9 @@ export async function communicationPreferencesJourney({browser=true}={}){
   assert.equal((await h.request('/giving/portal/communications',{...stale,headers:{...stale.headers,origin:'https://other.example.test'}})).status,403)
   await prepareVerifiedMail(h,{headers:{'x-test-now':at}})
   const mail=await prepare('Synthetic topics mail','mail');assert.equal(mail.excluded.topic,1)
+  assert.deepEqual((await h.get('/api/coffer/appeals/'+mail.id)).recipients.map(r=>r.donor_id).sort(),[b.id,c.id].sort(),'Postal topic exclusion removes Amelia alone')
   const email=await prepare('Synthetic topics email');assert.equal(email.excluded.topic,1)
+  assert.deepEqual((await h.get('/api/coffer/appeals/'+email.id)).recipients.map(r=>r.donor_id),[b.id],'Email topic and frequency exclusions retain Jordan alone')
   const newsletter=await prepare('Synthetic retained newsletter','email',{purpose:'newsletter'});assert.equal(newsletter.recipients,3,'Newsletter retains its topic despite appeal limits and removal')
   const sms=await h.command('sms.prepare',{name:'Synthetic topic text',purpose:'appeal',donorIds:[a.id],body:'Synthetic appeal'})
   assert.deepEqual(sms.excluded.map(r=>r.reason),['topic'])
@@ -99,6 +119,7 @@ export async function communicationPreferencesJourney({browser=true}={}){
   await h.command('marketing.constantContactSync',{donorId:b.id});assert.equal((await file(b)).current.email.id,withdrawal.id,'Repeated provider withdrawal is idempotent')
   if(browser)await communicationPreferencesBrowser(h,as,a.id,owner,newsletterId)
   await h.command('marketing.constantContactDisconnect',{})
+  await communicationAuthorityJourney(h,at)
   const source=await donor(h,'Synthetic Preference Original',{email:'synthetic-coffer-9111@example.test'}),target=await donor(h,'Synthetic Preference Survivor',{email:'synthetic-coffer-9112@example.test'})
   await prefs(source,'email',['newsletter'],'quarterly')
   const originalSource=await get(source),originalTarget=await get(target)
@@ -117,4 +138,6 @@ export async function communicationPreferencesJourney({browser=true}={}){
    assert.equal((await copied.get('/api/coffer/donors/'+a.id+'/preferences')).history.length,0,'Erasure removes preference custody')
   },{entry:'tests/engagement-worker.ts',bindings:{COFFER_TEST_NOW:at}})
  },options)
+ await communicationClaimsJourney()
+ await communicationProviderJourney()
 }
