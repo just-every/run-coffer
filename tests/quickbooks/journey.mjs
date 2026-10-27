@@ -55,6 +55,11 @@ export async function quickbooksJourney(){
   edge.refuse=false;edge.lose=true
   attempt=await h.api(payoutPath+'/post',{confirm:'yes'})
   assert.equal(attempt.postings.filter(p=>p.state==='uncertain').length,1);assert.equal(edge.records.size,1)
+  await h.replaceBindings({QBO_CLIENT_ID:'synthetic-coffer-1707'})
+  const exchangesBefore=edge.exchanges
+  assert.equal((await connectQuickbooks(h,edge)).response.status,409,'An unresolved financial claim stays with the original application')
+  await h.api(payoutPath+'/post',{confirm:'yes'},{status:409});assert.equal(edge.exchanges,exchangesBefore)
+  await h.replaceBindings({QBO_CLIENT_ID:'synthetic-coffer-1701'})
   const uncertainId=attempt.postings.find(p=>p.state==='uncertain').request_id
   const posted=await h.api(payoutPath+'/post',{confirm:'yes'})
   assert.deepEqual(posted.postings.map(p=>p.state),['posted','posted','posted']);assert.equal(edge.records.size,3)

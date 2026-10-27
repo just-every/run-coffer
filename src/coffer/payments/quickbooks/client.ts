@@ -1,7 +1,7 @@
 import { fail, type Row } from '../../db'
 import type { PaymentsEnv } from '../pantry'
 
-export type QboConnection = { realm: string; sandbox: boolean; token: string }
+export type QboConnection = { realm: string; sandbox: boolean; clientId: string; token: string }
 export class QboFailure extends Error {
  constructor(public definitive: boolean, message: string) { super(message) }
 }

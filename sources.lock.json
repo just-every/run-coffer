@@ -719,7 +719,7 @@
       "executable": false
     },
     "docs/PAYMENTS.md": {
-      "sha256": "9f111ced17655563ceab025e3e5156cd250d8b2546302ecf006652c26cc73d2a",
+      "sha256": "7aefbf0008e942b5a863b52a79c2f6573bed4463b2c4637089ad64f77dd3cd0f",
       "executable": false
     },
     "docs/people.md": {
@@ -1427,7 +1427,7 @@
       "executable": false
     },
     "migrations/core/0163_coffer_quickbooks.sql": {
-      "sha256": "85a03721100d3409cfa5632065ab0aa35c1ac15d4c8faa19cdb3ed289a4aeed4",
+      "sha256": "436d3ade55bc9fbc82a6cbda0e32d854cb272577d53ac7dd7063d66f6c5ba85d",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3355,11 +3355,11 @@
       "executable": false
     },
     "src/coffer/payments/quickbooks/client.ts": {
-      "sha256": "6eba1b021173b1dc280f4d9d411baaa1ddffaf8e040790899b80ed40dcb439c3",
+      "sha256": "3cc632e6d359d39226d972c73df4277aa94a78e937c89a285445bd5399d242d0",
       "executable": false
     },
     "src/coffer/payments/quickbooks/connection.ts": {
-      "sha256": "13ece4a519e320f9d45fe3f3d5d4de63dcc2818bd8acd1fb9f84ed75bd64c170",
+      "sha256": "ab1826c202b9ce6ce903ee959c29a021df8fe6114eb24c86ee5d1246a7587c84",
       "executable": false
     },
     "src/coffer/payments/quickbooks/deposits.ts": {
@@ -3371,7 +3371,7 @@
       "executable": false
     },
     "src/coffer/payments/quickbooks/postings.ts": {
-      "sha256": "63a3491792f29e28f9ab9b89a5aa44a55545fe7b9a6c99db47124154890abc54",
+      "sha256": "e5a32b1b9f6d24eb9ad067576bdc0bdebca1a873900832253f5257e6d49cd6b0",
       "executable": false
     },
     "src/coffer/payments/quickbooks/ui.ts": {
@@ -3395,7 +3395,7 @@
       "executable": false
     },
     "src/coffer/payments/ui.ts": {
-      "sha256": "3fb4af8ee9d5fa0f01f520995387f0543157a0250e4e05ce6ad4a960485f08a0",
+      "sha256": "f62e5a5069b647383464739517964aa1b0c54aaa00a2e02546222a0e22384e85",
       "executable": false
     },
     "src/coffer/payments/write.ts": {
@@ -6651,7 +6651,7 @@
       "executable": false
     },
     "tests/quickbooks/browser.mjs": {
-      "sha256": "53d5c52d2b6af37f977ebc9057af193d1183691cc790707132329f4077de60f1",
+      "sha256": "fcd0ad4ea0a2986c913d9c715fdacd9b826eb8b7c18fcef197344288d29801b1",
       "executable": false
     },
     "tests/quickbooks/edge.mjs": {
@@ -6659,7 +6659,7 @@
       "executable": false
     },
     "tests/quickbooks/journey.mjs": {
-      "sha256": "3d5c7e2e8493db96a7fb561236c3b77720e67dfbb1351a17a4c82f5b1b4c664f",
+      "sha256": "fa0a99059549ce297bc8edac1b0bcdcecc82301c95791af538a80f279bc8c288",
       "executable": false
     },
     "tests/receipt-autonomy-journey.mjs": {

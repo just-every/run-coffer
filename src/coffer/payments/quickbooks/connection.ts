@@ -29,23 +29,24 @@ export async function finishConnection(c: Context, env: PaymentsEnv, params: URL
  if (!/^\d+$/.test(realm)) fail('QBO_REALM', 'QuickBooks returned an invalid company ID.', 400)
  // A restored financial claim cannot silently be redirected to another company.
  const sandbox = env.QBO_SANDBOX === 'true' ? 1 : 0
- if (await one(c, 'SELECT 1 FROM cf_qbo_postings WHERE realm_id<>? OR sandbox<>? LIMIT 1', realm, sandbox)) fail('QBO_COMPANY', 'Reconnect the QuickBooks company that owns the saved accounting entries.', 409)
+ if (await one(c, 'SELECT 1 FROM cf_qbo_postings WHERE realm_id<>? OR sandbox<>? OR client_id<>? LIMIT 1', realm, sandbox, env.QBO_CLIENT_ID)) fail('QBO_COMPANY', 'Reconnect the original QuickBooks company and application that own the saved accounting entries.', 409)
  await commit(c, [guard('EXISTS(SELECT 1 FROM cf_qbo_oauth WHERE state_hash=? AND actor_id=? AND expires_at>?)', 'QBO_STATE', 'This authorization has already been used.', hash, c.actor.id, c.now), sql('DELETE FROM cf_qbo_oauth WHERE state_hash=?', hash)])
  const tokens = await tokenRequest(env, new URLSearchParams({ grant_type: 'authorization_code', code: text(params.get('code'), 'Authorization code', 4000), redirect_uri: callbackUrl(env) }))
  const sealed = await sealGiving(env, { access: tokens.access_token, refresh: tokens.refresh_token })
- await commit(c, [sql(`INSERT INTO cf_qbo_connection VALUES(1,?,?,?,?,1,?) ON CONFLICT(id) DO UPDATE SET realm_id=excluded.realm_id,sandbox=excluded.sandbox,sealed=excluded.sealed,expires_at=excluded.expires_at,version=version+1,connected_at=excluded.connected_at`, realm, sandbox, sealed, new Date(Date.parse(c.now) + tokens.expires_in * 1000).toISOString(), c.now), event(c, 'quickbooks.connected', 'settings', 'quickbooks', null, { realm, sandbox: Boolean(sandbox) })])
+ await commit(c, [sql(`INSERT INTO cf_qbo_connection(id,realm_id,sandbox,client_id,sealed,expires_at,version,connected_at) VALUES(1,?,?,?,?,?,1,?) ON CONFLICT(id) DO UPDATE SET realm_id=excluded.realm_id,sandbox=excluded.sandbox,client_id=excluded.client_id,sealed=excluded.sealed,expires_at=excluded.expires_at,version=version+1,connected_at=excluded.connected_at`, realm, sandbox, env.QBO_CLIENT_ID, sealed, new Date(Date.parse(c.now) + tokens.expires_in * 1000).toISOString(), c.now), event(c, 'quickbooks.connected', 'settings', 'quickbooks', null, { realm, sandbox: Boolean(sandbox) })])
  return { connected: true, realm, sandbox: Boolean(sandbox) }
 }
 export async function qboConnection(c: Context, env: PaymentsEnv): Promise<QboConnection> {
  const row = await one(c, 'SELECT * FROM cf_qbo_connection WHERE id=1')
  if (!row) fail('QBO_CONNECTION', 'Connect QuickBooks in Settings first.', 409)
+ if (row.client_id !== env.QBO_CLIENT_ID) fail('QBO_APPLICATION', 'Reconnect using the original QuickBooks application before recovering its accounting entries.', 409)
  let tokens = await openGiving(env, row.sealed)
  if (Date.parse(row.expires_at) <= Date.parse(c.now) + 60_000) {
   const fresh = await tokenRequest(env, new URLSearchParams({ grant_type: 'refresh_token', refresh_token: tokens.refresh }))
   tokens = { access: fresh.access_token, refresh: fresh.refresh_token }
   await commit(c, [guard('EXISTS(SELECT 1 FROM cf_qbo_connection WHERE id=1 AND version=?)', 'QBO_CONNECTION_CHANGED', 'The QuickBooks connection changed. Retry with the current connection.', row.version), sql('UPDATE cf_qbo_connection SET sealed=?,expires_at=?,version=version+1 WHERE id=1', await sealGiving(env, tokens), new Date(Date.parse(c.now) + fresh.expires_in * 1000).toISOString())])
  }
- return { realm: row.realm_id, sandbox: Boolean(row.sandbox), token: tokens.access }
+ return { realm: row.realm_id, sandbox: Boolean(row.sandbox), clientId: row.client_id, token: tokens.access }
 }
 export async function qboSettings(c: Context) {
  return { connection: await one(c, 'SELECT realm_id,sandbox,connected_at FROM cf_qbo_connection WHERE id=1'), mapping: await one(c, 'SELECT * FROM cf_qbo_mapping WHERE id=1'), funds: await all(c, `SELECT name FROM cf_funds UNION SELECT fund AS name FROM cf_fund_ledger ORDER BY name`) }
