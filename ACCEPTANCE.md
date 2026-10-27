@@ -13,7 +13,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 ## Status totals
 
-Historical code baseline: commit `c1b5a475fa02910af7b010780808f8ab266d45a8` (27 October 2026), with Verify 40444086747 and Run site 40444086676 successful. Those runs do not prove the subsequent GIVE-010 runtime and journey changes in this candidate. GIVE-010 cites its current recovery-sequence assertions below; fresh exact-candidate verification, native screens and a complete publication scan govern its landing. The exact SHA and matching workflow IDs belong in the fresh ct request after landing. RCPT-012 remains partial until its own fresh judgment; no earlier judgment is represented as execution of this candidate.
+Judged from the code and tests at commit `c1b5a475fa02910af7b010780808f8ab266d45a8` (27 October 2026). This identifies the historical landed baseline, with Verify 40444086747 and Run site 40444086676 successful. Those runs do not prove the subsequent GIVE-010 runtime and journey changes in this candidate. GIVE-010 cites its current recovery-sequence assertions below; fresh exact-candidate verification, native screens and a complete publication scan govern its landing. The exact SHA and matching workflow IDs belong in the fresh ct request after landing. RCPT-012 remains partial until its own fresh judgment; no earlier judgment is represented as execution of this candidate.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |

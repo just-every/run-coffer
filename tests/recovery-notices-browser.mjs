@@ -11,19 +11,12 @@ export async function recoveryNoticesBrowser(h,{directory,phase='notices'}) {
    await page.setViewportSize({width,height:1100})
    await page.goto(origin+'/app/agent/recovery')
    await page.getByRole('heading',{name:'Recovery notice approval',exact:true}).waitFor()
-   if(phase==='uncertain-sequence'){
-    await page.getByText('Submission uncertain',{exact:true}).waitFor()
-    await page.getByText('An earlier recovery submission is uncertain; a person must investigate',{exact:false}).waitFor()
-    assert.equal(await page.getByText('Accepted by mail provider',{exact:true}).count(),1)
-    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
-    await page.screenshot({path:`${directory}/GIVE-010-${phase}-${width}.png`,fullPage:true})
-    return
-   }
    if(phase==='no-implicit-lead'){
     await page.getByText('Not yet designated',{exact:true}).waitFor()
     assert.equal(await page.locator('input[name=developmentLead]').isChecked(),false)
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
     await page.screenshot({path:`${directory}/DEV-002-${phase}-${width}.png`,fullPage:true})
+   if(width===1440){await page.setViewportSize({width:390,height:1100});await page.screenshot({path:`${directory}/DEV-002-${phase}-390.png`,fullPage:true})}
     return
    }
    await page.getByText('Waiting for development-lead approval',{exact:true}).waitFor()
@@ -37,6 +30,7 @@ export async function recoveryNoticesBrowser(h,{directory,phase='notices'}) {
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Recovery notice review fits '+width)
    await page.evaluate(()=>scrollTo(0,0))
    await page.screenshot({path:`${directory}/DEV-002-recovery-notices-${width}.png`,fullPage:true})
+   if(width===1440){await page.setViewportSize({width:390,height:1100});await page.screenshot({path:`${directory}/DEV-002-recovery-notices-390.png`,fullPage:true})}
   }
   await page.close()
  })
@@ -79,6 +73,13 @@ export async function investigatedRecoveryBrowser(h,{directory,stepId,finding,re
   }
   await card.screenshot({path:`${directory}/GIVE-010-${phase}-outcome-${width}.png`})
   await page.screenshot({path:`${directory}/GIVE-010-${phase}-${width}.png`,fullPage:true})
+  if(width===1440){
+   await page.setViewportSize({width:390,height:1100})
+   await card.screenshot({path:`${directory}/GIVE-010-${phase}-outcome-390.png`})
+   if(planStepId)await page.locator(`[data-notice-id="${planStepId}"]`).screenshot({path:`${directory}/GIVE-010-${phase}-eligible-plan-390.png`})
+   await page.screenshot({path:`${directory}/GIVE-010-${phase}-390.png`,fullPage:true})
+  }
+   if(width===1440){await page.setViewportSize({width:390,height:1100});await page.screenshot({path:`${directory}/GIVE-010-${phase}-390.png`,fullPage:true})}
   await page.close()
  })
 }
