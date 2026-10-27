@@ -58,6 +58,14 @@ export async function calendarsBrowser(h,{directory,donorId,configure,book,calen
    await page.getByText('Calendly meeting',{exact:true}).waitFor();await page.getByText('Google Calendar meeting',{exact:true}).first().waitFor();await fit()
    const activity=page.locator('#timeline');await activity.evaluate(el=>el.scrollIntoView({block:'center'}));await activity.screenshot({path:`${directory}/STEW-006-timeline-${width}.png`})
   }
+  await page.goto(origin+'/app/settings#calendar-settings')
+  await page.getByRole('button',{name:'Disconnect my calendar',exact:true}).click()
+  await page.getByRole('button',{name:'Connect Google Calendar',exact:true}).waitFor()
+  assert.equal((await h.get('/api/coffer/calendar')).connected,false,'Settings reflect an explicit calendar disconnect')
+  for(const width of [1440,390]) {
+   await page.setViewportSize({width,height:1000});await settings.scrollIntoViewIfNeeded();await fit();await iconControls()
+   await settings.screenshot({path:`${directory}/STEW-006-disconnected-${width}.png`})
+  }
   await page.close()
  })
 }

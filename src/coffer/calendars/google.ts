@@ -63,13 +63,15 @@ export async function calendarCallback(c:Context,url:URL) {
  const state=await sha256(text(url.searchParams.get('state'),'Calendar authorization state',300))
  if(!pending||pending.state_hash!==state)fail('CALENDAR_STATE','This calendar authorization does not belong to your session. Connect again.',409)
  const checks=[guard("EXISTS(SELECT 1 FROM cf_calendar_oauth s JOIN oa_operators o ON o.id=s.operator_id AND o.version=s.operator_version AND o.status='active' JOIN cf_giving_connections a ON a.name='calendar-google-app' AND a.sealed=s.app_sealed WHERE s.operator_id=? AND s.state_hash=? AND s.expires_at>?)",'CALENDAR_STATE','This calendar authorization expired or changed. Connect again.',c.actor.id,state,c.now)]
- // Consume the state before the network exchange; a callback is never replayable.
- await commit(c,[...checks,sql('DELETE FROM cf_calendar_oauth WHERE operator_id=?',c.actor.id)])
+ // Replace the public state with a private single-use claim before Google.
+ // Disconnect deletes this claim; a newer authorization replaces it.
+ const claim=await sha256(newId())
+ await commit(c,[...checks,sql('UPDATE cf_calendar_oauth SET state_hash=? WHERE operator_id=?',claim,c.actor.id)])
  if(url.searchParams.has('error'))fail('CALENDAR_DECLINED','Google Calendar access was not granted. You can connect again from Settings.',409)
  const app=await openGiving(env(c),pending.app_sealed),code=text(url.searchParams.get('code'),'Google authorization code',4000)
  const result=await token({grant_type:'authorization_code',code,client_id:app.clientId,client_secret:app.clientSecret,redirect_uri:callback(c)})
  if(typeof result.refresh_token!=='string'||!result.refresh_token)fail('CALENDAR_REFRESH','Google did not grant ongoing read access. Reconnect and approve the calendar permission.',409)
- await commit(c,[guard("EXISTS(SELECT 1 FROM cf_giving_connections WHERE name='calendar-google-app' AND sealed=?)",'CALENDAR_CHANGED','The calendar application changed. Connect again.',pending.app_sealed),await put(c,connectionName(c),{refreshToken:result.refresh_token,appSealed:pending.app_sealed,operatorVersion:pending.operator_version}),event(c,'calendar.connected','operator',c.actor.id,null,{provider:'google',readOnly:true})])
+ await commit(c,[guard("EXISTS(SELECT 1 FROM cf_calendar_oauth s JOIN oa_operators o ON o.id=s.operator_id AND o.version=s.operator_version AND o.status='active' JOIN cf_giving_connections a ON a.name='calendar-google-app' AND a.sealed=s.app_sealed WHERE s.operator_id=? AND s.state_hash=? AND s.expires_at>?)",'CALENDAR_CHANGED','Your calendar authorization changed. Connect again.',c.actor.id,claim,new Date().toISOString()),await put(c,connectionName(c),{refreshToken:result.refresh_token,appSealed:pending.app_sealed,operatorVersion:pending.operator_version}),sql('DELETE FROM cf_calendar_oauth WHERE operator_id=?',c.actor.id),event(c,'calendar.connected','operator',c.actor.id,null,{provider:'google',readOnly:true})])
  return {connected:true}
 }
 async function access(c:Context) {

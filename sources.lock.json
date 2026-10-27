@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8b33d1c6d528c60b4e13daa250635347a3871bd24d1bbb8005885ea76e05a732",
+      "sha256": "aef2d55a5dfc12b51631167a6dfc9bd1708f90867fb8a525587fda06b52c7611",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "69b3dd5e03d5354d057f25a973a5ddbea56728e42e0348621d9c90aff8c07344",
+      "sha256": "20c61c947cd7a0525c9ae07f3d0997b629c568638c285fd959571b87bcb1ac70",
       "executable": false
     },
     "deploy-demo.json": {
@@ -2531,7 +2531,7 @@
       "executable": false
     },
     "src/coffer/calendars/google.ts": {
-      "sha256": "4642f09f3f2da9026a244cdba27706cd19faccf941bf1fd6725272115d82b7f3",
+      "sha256": "16acb241c208931d2075095bf2533dbb358838f6706786ec81419e9c70480c3e",
       "executable": false
     },
     "src/coffer/call-outcomes.ts": {
@@ -6083,11 +6083,11 @@
       "executable": false
     },
     "tests/calendars-browser.mjs": {
-      "sha256": "12e6fa71ed1cb7681433a7594ab3c7c95a1431056f495b509da1471caf77c5eb",
+      "sha256": "0fdb1da52660617a7af7535aa5eca4971e0993bd603128ec5e65f57625047ca6",
       "executable": false
     },
     "tests/calendars-journey.mjs": {
-      "sha256": "45378f84651aef1732c89cb02822ae61dc2a02976d4cd7eb037e26791a497755",
+      "sha256": "519bab028157a4fbdb267cf9d027caeba9151cd1a20ff83ee3aa0e93b46f8b0b",
       "executable": false
     },
     "tests/call-priorities-browser.mjs": {
