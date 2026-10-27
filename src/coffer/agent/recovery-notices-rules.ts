@@ -1,7 +1,9 @@
 import { addDays, all, guard, one, today, type Context, type Row, type Stmt } from '../db'
 import { settings } from '../settings'
 
-export const policyConfigured = async(c:Pick<Context,'db'>)=>!!(await one(c,`SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NOT NULL UNION ALL SELECT 1 FROM cf_recovery_permissions UNION ALL SELECT 1 FROM cf_recovery_steps LIMIT 1`))
+// Portable history prevents a restored sequence from regaining legacy authority.
+export const legacyRecoveryPolicy = "EXISTS(SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_recovery_permissions) AND NOT EXISTS(SELECT 1 FROM cf_recovery_steps) AND NOT EXISTS(SELECT 1 FROM cf_events WHERE action='recovery.standingApproval')"
+export const policyConfigured = async(c:Pick<Context,'db'>)=>!(await one(c,`SELECT (${legacyRecoveryPolicy}) AS legacy`))?.legacy
 /** Newly offered cadences and staff mutations never inherit legacy notice consent. */
 export const recoveryPolicyRequired=async(c:Pick<Context,'db'>,subscriptionId:string)=>!!await one(c,`SELECT 1 FROM cf_subscriptions s WHERE s.id=? AND (EXISTS(SELECT 1 FROM cf_giving_intents i WHERE i.customer_id=s.customer_id AND i.billing_frequency IN ('quarterly','annually')) OR EXISTS(SELECT 1 FROM cf_portal_changes p WHERE p.subscription_id=s.id AND p.action LIKE 'staff.%'))`,subscriptionId)
 export const portalStopSql = `EXISTS(SELECT 1 FROM cf_events WHERE action='portal.paymentMethodUpdated' AND subject_kind='subscription' AND subject_id=? AND at>=?)`
