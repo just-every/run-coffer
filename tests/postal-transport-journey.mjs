@@ -14,9 +14,11 @@ export async function postalTransportJourney(){
  }}
  await run(async h=>{
   await reviewed(h)
-  const person=await donor(h,'Cameron Rivera',{email:'synthetic-coffer-860@example.test'})
-  const gift=await h.command('gift.record',{donorId:person.id,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'})
-  const batch=await h.command('ack.prepare',{giftIds:[gift.id],onePiecePer:'gift'})
+  const people=[]
+  for(const [name,email] of [['Cameron Rivera','synthetic-coffer-860@example.test'],['Alex Rivera','synthetic-coffer-864@example.test']])people.push(await donor(h,name,{email,household:'Rivera household'}))
+  const gifts=[]
+  for(const person of people)gifts.push(await h.command('gift.record',{donorId:person.id,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'}))
+  const batch=await h.command('ack.prepare',{giftIds:gifts.map(g=>g.id),onePiecePer:'household'})
   await h.command('ack.approve',{batchId:batch.id,version:1})
   const approved=await h.get(`/api/coffer/letters/${batch.id}`)
   const input={batchId:batch.id,version:approved.batch.version,contentHash:approved.batch.content_hash,approvePostage:true}
@@ -28,12 +30,13 @@ export async function postalTransportJourney(){
   assert.equal(attempt.id,requests[0].attempt)
   assert.equal(attempt.id,requests[0].body.metadata.coffer_attempt_id)
   assert.equal(attempt.piece_id,requests[0].body.metadata.coffer_piece_id)
-  assert.equal(attempt.documents,1);assert.equal(sent.remaining,0)
+  assert.equal(attempt.documents,2);assert.equal(sent.remaining,0)
   const held=await h.get(`/api/coffer/letters/${batch.id}`)
-  assert.equal(held.letters.length,1);assert.equal(held.letters[0].delivery_status,'uncertain')
-  assert.equal(held.letters[0].route,'postal');assert.ok(held.letters[0].attempt_id)
-  assert.equal(held.letters[0].message_id,null);assert.deepEqual(held.deliveryEvents,[])
-  assert.equal((await h.get(`/api/coffer/donors/${person.id}`)).gifts[0].acknowledgment.status,'not acknowledged')
+  assert.equal(held.letters.length,2);assert.deepEqual(held.letters.map(l=>l.gift_id).sort(),gifts.map(g=>g.id).sort())
+  assert.equal(new Set(held.letters.map(l=>l.attempt_id)).size,2)
+  for(const letter of held.letters){assert.equal(letter.delivery_status,'uncertain');assert.equal(letter.route,'postal');assert.ok(letter.attempt_id);assert.equal(letter.message_id,null)}
+  assert.deepEqual(held.deliveryEvents,[])
+  for(const person of people)assert.equal((await h.get(`/api/coffer/donors/${person.id}`)).gifts[0].acknowledgment.status,'not acknowledged')
   const repeated=await h.command('ack.sendPostal',{...input,version:sent.version})
   assert.deepEqual(repeated.postal,sent.postal)
   assert.equal(requests.length,1,'A second owner action must not retry a transport-uncertain piece')
@@ -41,8 +44,7 @@ export async function postalTransportJourney(){
   try{
    await restore(fresh,snapshot)
    const restored=await fresh.get(`/api/coffer/letters/${batch.id}`)
-   assert.equal(restored.letters[0].attempt_id,held.letters[0].attempt_id)
-   assert.equal(restored.letters[0].delivery_status,'uncertain')
+   assert.deepEqual(restored.letters.map(l=>[l.id,l.attempt_id,l.delivery_status]).sort(),held.letters.map(l=>[l.id,l.attempt_id,'uncertain']).sort())
    const afterRestart=await fresh.command('ack.sendPostal',{...input,version:restored.batch.version})
    assert.deepEqual(afterRestart.postal,sent.postal)
    assert.equal(requests.length,1,'A restored installation must preserve the permanent uncertain attempt')

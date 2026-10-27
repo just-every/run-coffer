@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "00a8a999ef9ae69f9507c0b46de536dadd51ad7b1ea64ee61c429dac9ec68818",
+      "sha256": "d7cc7146d62d095ddb263af67ce0208674dd7aab01c9dd45d3c0f0f2475c31f5",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "db7654ca463872867b7effd211b2eb06a60ff7f13362f07b0c2e68d31ead0b1a",
+      "sha256": "1402197b15e3c7c470acdde72a6d8d550ceddd1aa67ab8d1c16b432ae1a6810d",
       "executable": false
     },
     "deploy-demo.json": {
@@ -676,6 +676,10 @@
     },
     "docs/evidence/give010/mutations.json": {
       "sha256": "8897e0345e7abc33deefc77bbb0c4d9435240ae14f800656eca430eb0c512f36",
+      "executable": false
+    },
+    "docs/evidence/rcpt003/mutations.md": {
+      "sha256": "3035f3bec3e9819a2f0af267fc09b08078552c7b09e4b45be5d2529921195b2c",
       "executable": false
     },
     "docs/first-week.md": {
@@ -6611,7 +6615,7 @@
       "executable": false
     },
     "tests/postal-transport-journey.mjs": {
-      "sha256": "a9cbabe372d419ae8f89f79d01fb2942cff16343f516853e0dc44b191f64118c",
+      "sha256": "f611edda83bd3c306086e4b24e4a02ab029ab1d3c82e5a585c4236c8dd47b9a9",
       "executable": false
     },
     "tests/print-formats-journey.mjs": {
