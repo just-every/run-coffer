@@ -47,6 +47,18 @@ export async function uncertainRecoveryJourney(){
   await edge.fail(h,other,'synthetic-coffer-4309',later)
   assert.equal((await state()).steps.find(n=>n.invoice_id===other.invoice).state,'sent','An unrelated eligible donor proceeds')
   assert.equal(submissions.length,3)
+  ana.paid=true;ana.status='active';ana.attempt=2;ana.paidAt=Date.parse(later)
+  await runLater()
+  await edge.fail(h,ana,'synthetic-coffer-held-payment',later,'invoice.paid')
+  await runLater()
+  const reconciled=(await h.get('/api/coffer/agent')).recovery.rows.find(r=>r.invoice_id===ana.invoice)
+  assert.equal(reconciled.state,'recovered','A contact hold cannot pause provider-state reconciliation')
+  const paidGifts=(await h.get('/api/coffer/donors/'+mira.donor.id)).gifts
+  assert.equal(paidGifts.length,1,'Held contact still records the provider-paid invoice exactly once')
+  assert.equal(paidGifts[0].amount_cents,2500)
+  assert.equal((await state()).steps.find(n=>n.invoice_id===mira.invoice).state,'held')
+  assert.equal(submissions.length,3,'Payment reconciliation does not clear the independent uncertain contact hold')
+  ana.paid=false;ana.status='past_due'
   await permission(mira)
   await action({action:'policy',version:(await state()).policy.version,enabled:true,standingApproval:true,developmentLead:true,majorAmount:'1000'})
   await runLater()
@@ -68,7 +80,7 @@ export async function uncertainRecoveryJourney(){
   await action({...close,version:close.version+10},{status:409})
   if(process.env.COFFER_RECOVERY_NOTICES_BROWSER){
    const {investigatedRecoveryBrowser}=await import('./recovery-notices-browser.mjs')
-   await investigatedRecoveryBrowser(h,{directory:process.env.COFFER_RECOVERY_NOTICES_BROWSER,stepId:close.stepId,finding:close.finding,reason:close.reason})
+   await investigatedRecoveryBrowser(h,{directory:process.env.COFFER_RECOVERY_NOTICES_BROWSER,stepId:close.stepId,finding:close.finding,reason:close.reason,planStepId:held.id,expectedState:'held'})
   }else await action(close)
   await action(close,{status:409})
   await runLater()
@@ -145,12 +157,18 @@ export async function uncertainRecoveryJourney(){
   await action({action:'complete',stepId:mail.id,version:mail.version,evidence:'Posted the approved recovery letter.'},{headers:{'x-test-now':dispatchAt}})
   assert.equal((await state()).steps.find(n=>n.id===mail.id).state,'completed');assert.equal(submissions.length,4)
   const completeArchive=await archive(h)
+  const finalDonor=await donor(h,'Later merged recovery donor',{email:'later.merged.recovery@example.test'})
+  const compared=await h.get('/api/coffer/duplicates/compare?source='+mira.donor.id+'&target='+finalDonor.id)
+  await h.command('donor.merge',{sourceDonorId:mira.donor.id,donorId:finalDonor.id,sourceVersion:compared.source.version,version:compared.target.version,reason:'duplicate_record'})
+  mira.donor=finalDonor
+  await consent(mira,'granted')
   await permission(mira,true,1,1)
   dispatchAt='2026-11-02T12:00:00.000Z'
   ana.invoice='synthetic-coffer-4310';ben.invoice='synthetic-coffer-4311'
   await edge.fail(h,ana,'synthetic-coffer-4312',dispatchAt);await edge.fail(h,ben,'synthetic-coffer-4313',dispatchAt);await runLater()
   assert.equal(submissions.length,4,'Deliberately closed plans stay stopped after a new failure, policy or permission changes and the full elapsed interval')
   assert.ok(!(await state()).steps.some(n=>[ana.invoice,ben.invoice].includes(n.invoice_id)))
+  assert.deepEqual((await state()).closures.filter(n=>n.invoice_id.startsWith('plan:')).map(n=>n.invoice_id).sort(),['plan:sub_notice_ana','plan:sub_notice_ben'],'A later merge preserves both investigated plan closures')
   await archiveProof(partialArchive,[investigation],'held','unresolved')
   await archiveProof(completeArchive,[investigation,adminInvestigation],'sent','closed')
   assert.ok(!edge.calls.some(([method,path])=>method==='POST'&&/invoices.*pay|payment_intents|subscriptions/.test(path)),'No Coffer payment retry, plan mutation or catch-up charge')

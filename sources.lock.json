@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "785ecddbd6017b46fc9247220e13dbb2bb23d5da932d9aa19960c124de81ea23",
+      "sha256": "048ddd316e38fb09659b64db34426e18da4fad78b48d4bb4c128a9152414aae6",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b690cda46779d73c99bf75e88e303fe84fcf81b599a96e739a6200cba91b5ff8",
+      "sha256": "0e52d1e7b5e0094f6034b708832be4305dbc4b50bdecf201f5db1184cdf10c75",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5959,7 +5959,7 @@
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
-      "sha256": "128435c4bd03d9b1afe3ba06dd5c45283d9d8c03c2f2e5bdf5ac2d12d4b200ec",
+      "sha256": "8523fb171d209796104c15f12beab4d0923068d070d7d8c626161e566ec3ed87",
       "executable": false
     },
     "tests/annual-lapses-journey.mjs": {
@@ -6630,8 +6630,12 @@
       "sha256": "84f787ac9361296634a05bb0e7f9521f141fe924165dd981dbd25e4f30659060",
       "executable": false
     },
+    "tests/recovery-inflight-journey.mjs": {
+      "sha256": "575148f7da7a3ae44008f51fe83c97a27f041999874fbf86bf03e176a3b8f976",
+      "executable": false
+    },
     "tests/recovery-notices-browser.mjs": {
-      "sha256": "9148b94237e64d4c2d57f416187836bbe17e4d366d875114e63f1c7cc9768e6f",
+      "sha256": "a652de580607857d729dec7d1c6a7e8cf50a4837b9c72f58e1b4686f61394252",
       "executable": false
     },
     "tests/recovery-notices-edge.mjs": {
@@ -6639,11 +6643,11 @@
       "executable": false
     },
     "tests/recovery-notices-journey.mjs": {
-      "sha256": "1f6ab1b502960bc706246f28d6b007210e50706d20b8d08d72f4cf591f5775a8",
+      "sha256": "16ca881f38cdf347d4cbb892d04892d3b09b3001eade458422b40be43d6a3888",
       "executable": false
     },
     "tests/recovery-uncertainty-journey.mjs": {
-      "sha256": "c2d6334a46f47e74426ff0b721f2d7c8b13b0a6dfc7ee4df60615d72f7a61ed8",
+      "sha256": "9f1632104309bd075201d7fe662a102b09176dc765f0397f18430d7e5c60ade9",
       "executable": false
     },
     "tests/recurring-browser.mjs": {

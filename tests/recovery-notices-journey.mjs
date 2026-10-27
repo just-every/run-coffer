@@ -78,6 +78,10 @@ export async function recoveryNoticesJourney(frequency='monthly') {
   data=await state()
   const anaSteps=data.steps.filter(n=>n.donor_id===ana.donor.id).sort((a,b)=>a.ordinal-b.ordinal)
   assert.equal(anaSteps.length,2);assert.ok(anaSteps.every(n=>n.state==='sent'))
+  assert.deepEqual(JSON.parse(anaSteps[1].evidence).filter(s=>s.kind==='recovery-notice'),[{
+   kind:'recovery-notice',id:anaSteps[0].id,url:'/api/coffer/agent/recovery/notices',pointer:'/steps',
+   facts:{id:anaSteps[0].id,ordinal:1,kind:'failure',state:'sent',channel:'email',sent_at:at(0),amount_cents:2500},
+  }],'The subsequent notice records the preceding sent notice identity and exact contact facts')
   assert.equal(portalMessages().length,4,'Frequency elapsed only for an eligible standard donor')
   assert.equal(data.steps.find(n=>n.donor_id===ben.donor.id&&n.ordinal===2).state,'held')
   assert.equal(data.steps.find(n=>n.donor_id===mira.donor.id&&n.ordinal===2).state,'awaiting_approval','Each major-donor notice needs a fresh named-lead approval')

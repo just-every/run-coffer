@@ -44,15 +44,29 @@ export async function investigatedRecoveryBrowser(h,{directory,stepId,finding,re
   await page.setViewportSize({width,height:1100})
   await page.goto(origin+'/app/agent/recovery')
   const card=page.locator(`[data-notice-id="${stepId}"]`)
+  const visiblePlan=async(locator,id)=>{
+   const identity=locator.getByText(`Plan ${id} · Submission `,{exact:false})
+   assert.ok(await identity.isVisible(),'Affected plan identity is visible')
+  }
+  await visiblePlan(card,phase==='admin-investigation'?'sub_notice_ben':'sub_notice_ana')
   if(phase.endsWith('investigation')){
+   await visiblePlan(card,phase==='admin-investigation'?'sub_notice_ben':'sub_notice_ana')
+   assert.ok(await card.getByText('This closes contact for this plan only.',{exact:false}).isVisible(),'The investigation explains its plan-only scope')
    await card.getByLabel('Investigation finding (still unknown is valid)',{exact:true}).fill(finding)
    await card.getByLabel('Why stop further recovery contact for this plan?',{exact:true}).fill(reason)
    await card.screenshot({path:`${directory}/GIVE-010-${phase}-review-${width}.png`})
+   if(width===1440){
+    await page.setViewportSize({width:390,height:1100})
+    await card.screenshot({path:`${directory}/GIVE-010-${phase}-review-390.png`})
+    await page.screenshot({path:`${directory}/GIVE-010-${phase}-pre-closure-390.png`,fullPage:true})
+    await page.setViewportSize({width,height:1100})
+   }
    assert.equal(await card.getByRole('button',{name:'Close recovery contact',exact:true}).count(),1)
    await card.getByRole('button',{name:'Close recovery contact',exact:true}).click()
    await card.getByText('Investigated closure',{exact:false}).waitFor()
    assert.ok((await card.innerText()).includes(finding))
    assert.ok((await card.innerText()).includes(reason))
+   assert.ok(await card.getByText('This plan’s contact is permanently stopped.',{exact:false}).isVisible())
    assert.equal(await card.getByRole('button',{name:'Close recovery contact',exact:true}).count(),0)
    assert.ok(await page.getByText('An earlier recovery submission is uncertain; a person must investigate',{exact:false}).count()>0)
   }else if(phase==='resumed'){
@@ -68,6 +82,7 @@ export async function investigatedRecoveryBrowser(h,{directory,stepId,finding,re
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
   if(planStepId){
    const plan=page.locator(`[data-notice-id="${planStepId}"]`)
+   await visiblePlan(plan,'sub_notice_mira')
    assert.equal(await plan.getByText(expectedState==='held'?'Held':'Accepted by mail provider',{exact:true}).count(),1)
    await plan.screenshot({path:`${directory}/GIVE-010-${phase}-eligible-plan-${width}.png`})
   }
@@ -79,7 +94,6 @@ export async function investigatedRecoveryBrowser(h,{directory,stepId,finding,re
    if(planStepId)await page.locator(`[data-notice-id="${planStepId}"]`).screenshot({path:`${directory}/GIVE-010-${phase}-eligible-plan-390.png`})
    await page.screenshot({path:`${directory}/GIVE-010-${phase}-390.png`,fullPage:true})
   }
-   if(width===1440){await page.setViewportSize({width:390,height:1100});await page.screenshot({path:`${directory}/GIVE-010-${phase}-390.png`,fullPage:true})}
   await page.close()
  })
 }

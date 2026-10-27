@@ -18,8 +18,8 @@ Judged from the code and tests at commit `e1aa73aa9533f30f2c0ff85fce8d0afe876bbd
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 81 | 33 | 16 | 130 |
-| All | 90 | 33 | 16 | 139 |
+| Target and push further | 80 | 34 | 16 | 130 |
+| All | 89 | 34 | 16 | 139 |
 
 ## Target
 
