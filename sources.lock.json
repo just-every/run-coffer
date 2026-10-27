@@ -767,7 +767,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "904ef2d4d30abaafb0f56775e46b84d0f16af5117454eaed2d6919a50b7ce79f",
+      "sha256": "74b9c3c57e497255275f97521fb413cbf94ffbcda2b75a0d69acc0c036b2bc39",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1424,6 +1424,14 @@
     },
     "migrations/core/0162_coffer_journeys.sql": {
       "sha256": "978cf808962d4ec882165876e8bfb386e975f941a7ffa25408ebc814c78233d8",
+      "executable": false
+    },
+    "migrations/core/0163_coffer_sms_registration.sql": {
+      "sha256": "283cc81ac038f2be53f23297fda52a7b6b71266d735cddb70490d1450983dbd6",
+      "executable": false
+    },
+    "migrations/core/0164_coffer_sms_schedules.sql": {
+      "sha256": "1dbff81de2dd0bbae9b3c8d49faf25525d8d27d0e200bbe597f7649bd2ffff3e",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3586,8 +3594,20 @@
       "sha256": "ea2dacec62817d7464536e28156465f6c13518c81a0cfb6d017e5cbd24b5e734",
       "executable": false
     },
+    "src/coffer/sms-inbound.ts": {
+      "sha256": "8073e7b8a18ac3eb73f7ace22336812aa26869221729e92751abe8a63455dc8d",
+      "executable": false
+    },
     "src/coffer/sms-permission.ts": {
       "sha256": "f4f223eddcaed1c78ebcc4cd3cdde5fde7c4c8b93d9c4662592db00ca64229cc",
+      "executable": false
+    },
+    "src/coffer/sms-registration.ts": {
+      "sha256": "d693dde7761f427ae8dabd3b50bc2c2cf399bb750985edc76cb1aee900c33765",
+      "executable": false
+    },
+    "src/coffer/sms-scheduler.ts": {
+      "sha256": "d9d859a043289bdff3da379a363d328236e4b26e30b8b2dffbbd839ad66ea9c6",
       "executable": false
     },
     "src/coffer/sms.ts": {
@@ -3960,6 +3980,10 @@
     },
     "src/coffer/ui/single-letters.ts": {
       "sha256": "f2d90660cbfd7599c1b56bf5eb2297a29a66395f825ac619f5598670024b6ab7",
+      "executable": false
+    },
+    "src/coffer/ui/sms-registration.ts": {
+      "sha256": "d34d96eaaec5211e1a7ce4956a32dbf79e7afc0d1bbef73ab92ca99b67058172",
       "executable": false
     },
     "src/coffer/ui/sms.ts": {
@@ -6782,8 +6806,16 @@
       "sha256": "935ebc5278165714ea65a9adb59514e043ff765f89afce0f810a639922df5534",
       "executable": false
     },
+    "tests/sms-browser.mjs": {
+      "sha256": "39e51b1fc78b4e28cc8a92bdac95ee5be1ec5b604c57a7ec256d2a483dc60766",
+      "executable": false
+    },
     "tests/sms-journey.mjs": {
-      "sha256": "b9b73f31b78b6acc9a9d1ea292d9db4128e1a68312807d49f0afb33700032006",
+      "sha256": "63fddff84a45f367fae9f9b792a2b5bf6c034cceac8b976b1589fc11f3c792fd",
+      "executable": false
+    },
+    "tests/sms-registration-edge.mjs": {
+      "sha256": "1769c65bf5702e5cdc6272cd451123e73930e82f51cf17035e10d7d9592a2bea",
       "executable": false
     },
     "tests/soft-credit-journey.mjs": {
