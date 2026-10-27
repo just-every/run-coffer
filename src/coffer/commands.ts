@@ -38,6 +38,8 @@ import { meetingQuestionCommand } from './meeting-questions'
 import { householdCommand } from './households'
 import { statusCommand } from './status'
 import { meetingCommand } from './meeting-briefs'
+import { calendarCommand } from './calendars/google'
+import { bookingCommand } from './calendars/bookings'
 import { tributeNotificationCommand } from './tribute-notifications'
 import { receiptTaskCommand } from './receipt-tasks'
 import { dashboardCommand } from './dashboard'
@@ -103,6 +105,8 @@ export const ACCESS: Record<string, Role[]> = {
  'list.tasks': MANAGERS,'list.welcome': MANAGERS,'list.profile': MANAGERS,'list.profileUndo': MANAGERS, 'list.restorePending': MANAGERS,'list.bulk': MANAGERS, 'list.undo': MANAGERS,
  'list.solicitation': MANAGERS, 'list.save': MANAGERS, 'person.defaultsPreview': MANAGERS, 'person.defaults': MANAGERS, 'organization.contact': STAFF, 'household.update': STAFF, 'household.confirmNames': STAFF, 'statusNotice.acknowledge': STAFF, 'household.defaultsPreview': MANAGERS, 'household.defaults': MANAGERS, 'donor.profile': STAFF,
  'meeting.question.set': STAFF, 'meeting.schedule': STAFF, 'meeting.cancel': STAFF,
+ 'calendar.configure': MANAGERS, 'calendar.start': STAFF, 'calendar.disconnect': STAFF, 'calendar.log': STAFF,
+ 'booking.configure': MANAGERS, 'booking.disconnect': MANAGERS, 'booking.link': STAFF, 'booking.revoke': STAFF,
  'tributeNotification.prepare': STAFF, 'tributeNotification.approve': MANAGERS, 'receiptTask.complete': STAFF, 'recognition.donor': STAFF, 'recognition.gift': STAFF,
  'research.connect': MANAGERS, 'research.screen': MANAGERS, 'research.disconnect': MANAGERS,
  'volunteer.record': STAFF, 'volunteer.import': STAFF,
@@ -145,6 +149,8 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if(command==='calls.rank')return rankCalls(c,p)
  if(command==='calls.policy')return saveCallRankPolicy(c,p)
  if (command === 'settings.update') return settingsCommand(c, p)
+ if(command.startsWith('calendar.'))return (await calendarCommand(c,command,p))!
+ if(command.startsWith('booking.'))return (await bookingCommand(c,command,p))!
  if (command.startsWith('agentGrant.')) return (await agentGrantCommand(c,command,p))!
  if (command.startsWith('agent.')) return agentKey(c, command, p)
  for (const handler of [journeyCommand,preferenceCommand,postalCommand,singleLetterCommand,apiKeyCommand,auctionCommand,taskTeamCommand,webhookCommand,fundraisingEventCommand,reportScheduleCommand,protectionCommand,givingConnectionCommand,restorePendingCommand,profileFieldCommand,pledgeTemplateCommand,contactCommand,listTasksCommand,profileBulkCommand,bulkListCommand,customChoiceCommand,tagCommand,customFieldCommand,addressCommand, contributionTypeCommand, giftRulesCommand, solicitationCommand, smsCommand, giftBatchCommand, savedListCommand, personDefaultsCommand, organizationContactCommand, householdCommand, statusCommand, meetingQuestionCommand, meetingCommand, tributeNotificationCommand, receiptTaskCommand, letterTemplateCommand, dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {

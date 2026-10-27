@@ -60,6 +60,9 @@ import { pledgeInvoice } from './pledge-invoices'
 import { printPledgeInvoice } from './ui/pledge-invoice'
 import { householdState } from './households'
 import { meetings, meetingBrief } from './meeting-briefs'
+import { calendarCallback, calendarEvents, calendarState } from './calendars/google'
+import { bookingState, bookingWebhook } from './calendars/bookings'
+import { calendarPage, calendarSettingsPanel } from './ui/calendars'
 import { documentsResponse } from './documents-http'
 import { cleanDocumentUploads, purgeDocuments } from './documents'
 import { notificationDownload } from './tribute-notifications'
@@ -233,7 +236,7 @@ const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
  const response = await cofferHandler(request, original)
  const path = new URL(request.url).pathname
- const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook'
+ const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook' || path === '/api/coffer/calendar/bookings'
  if (response && response.status < 400 && !provider && !response.headers.get('location')?.startsWith('/signin') && ROUTES.test(path)) {
   const env = runtimeBindings(original), captured=responseAuthorities.get(request)
   const auth=captured?null:await identity(request,env)
@@ -244,6 +247,7 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
  return response
 }
 async function cofferHandler(request: Request, original: Bindings): Promise<Response | null> {
+ if(new URL(request.url).pathname==='/api/coffer/calendar/bookings')return bookingWebhook(request,runtimeBindings(original))
  const rest=await restApiResponse(request,original)
  if(rest){if(rest.context)responseAuthorities.set(request,rest.context);return rest.response}
  if (new URL(request.url).pathname === '/api/coffer/sms/webhook') return smsWebhook(request,runtimeBindings(original))
@@ -255,9 +259,16 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  const env = runtimeBindings(original), isApi = path.startsWith('/api/')
  let actor: Actor | undefined
  try {
-  const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer, request.method === 'GET' && path === '/app/settings/quickbooks/callback')
+  const auth = await identity(request, env); actor = auth.actor
+  if(path==='/app/calendar/google/callback'&&request.method==='GET') {
+   // Google returns by cross-site navigation. Keep the exact host check;
+   // calendarCallback checks the native user's single-use authorization state.
+   const callbackHeaders=new Headers(request.headers);callbackHeaders.delete('sec-fetch-site')
+   originGuard(new Request(request,{headers:callbackHeaders}),env,auth.bearer)
+  } else originGuard(request, env, auth.bearer, request.method === 'GET' && path === '/app/settings/quickbooks/callback')
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
   responseAuthorities.set(request,c)
+  if(path==='/app/calendar/google/callback'&&request.method==='GET'){await calendarCallback(c,url);return redirect('/app/settings#calendar-settings')}
   if(c.actor.preparationGrant&&(request.method==='GET'||path==='/api/coffer/mcp'))await reservePreparationGrant(c,'read')
   if (path === '/api/coffer/mcp') {
    if (!auth.bearer || actor.role !== 'agent') fail('agent_key_required', 'Use an existing Coffer agent key for MCP.', 403)
@@ -476,6 +487,9 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.fields','marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
+ if(command==='calendar.start')return page('Connect Google Calendar',`<p>Continue to Google to approve read-only access to your primary calendar.</p><p><a href="${esc(result.authorizeUrl)}" rel="noreferrer">Continue to Google</a></p><p><a href="/app/settings#calendar-settings">Back to Settings</a></p>`,actor,200,'/app/settings')
+ if(command==='calendar.configure'||command==='calendar.disconnect'||command==='booking.configure'||command==='booking.disconnect')return redirect('/app/settings#calendar-settings')
+ if(command==='calendar.log'||command==='booking.link'||command==='booking.revoke')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#meetings')
  if(command.startsWith('auction.'))return redirect('/app/events/'+encodeURIComponent(result.eventId)+'/auctions?jobId='+encodeURIComponent(result.jobId))
  if(command.startsWith('giving.'))return redirect('/app/giving/setup?saved=1')
  if(command==='communication.preferences')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#communication-preferences')
@@ -585,6 +599,8 @@ async function api(c: Context, url: URL): Promise<Response> {
  if(url.pathname==='/api/coffer/lists')return json({lists:await savedLists(c)})
  if(url.pathname==='/api/coffer/template-fields')return json(await publishedTemplateFields(c))
  if(url.pathname==='/api/coffer/meetings')return json(await meetings(c))
+ if(url.pathname==='/api/coffer/calendar')return json({...await calendarState(c),booking:await bookingState(c)})
+ if(url.pathname==='/api/coffer/calendar/events')return json(await calendarEvents(c,url.searchParams.get('pageToken')??undefined))
  const meeting=url.pathname.match(/^\/api\/coffer\/meetings\/([^/]+)\/brief$/)
  if(meeting)return json(await meetingBrief(c,decodeURIComponent(meeting[1])))
  if (url.pathname === '/api/coffer/recurring-tasks') return json(await recurringTasks(c,url.searchParams.get('owner')))
@@ -763,7 +779,8 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if ((m = path.match(/^\/app\/appeals\/([^/]+)$/))) return show('Appeal', await appealPage(c, m[1]))
  if ((m = path.match(/^\/app\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
  if (path === '/app/more') return show('More', morePage(actor))
- if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c))
+ if(path==='/app/calendar')return show('Your calendar',await calendarPage(c,url))
+ if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c)+await calendarSettingsPanel(c))
  if (path === '/app/data') {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
   return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited'), now: Date.parse(c.now), timeZone: (await settings(c)).timezone }) + await agentGrantsPanel(c))
