@@ -1,0 +1,467 @@
+[
+  {
+    "name": "standing-approval-required",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 5.12,
+    "assertion": "tests/harness.mjs:48:194",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "if(enabled&&p.standingApproval!==true&&p.standingApproval!=='yes')",
+      "new": "if(false&&enabled&&p.standingApproval!==true&&p.standingApproval!=='yes')"
+    }
+  },
+  {
+    "name": "explicit-lead-required",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 4.94,
+    "assertion": "tests/harness.mjs:48:194",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "if(enabled&&!designated)",
+      "new": "if(false&&enabled&&!designated)"
+    }
+  },
+  {
+    "name": "automatic-standard-notices",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 5.06,
+    "assertion": "tests/recovery-notices-journey.mjs:45:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices.ts",
+      "old": "if(step.state!=='prepared'||step.channel!=='email'||step.claim_id)return",
+      "new": "if(true||step.state!=='prepared'||step.channel!=='email'||step.claim_id)return"
+    }
+  },
+  {
+    "name": "separate-donor-permission",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 4.69,
+    "assertion": "tests/recovery-notices-journey.mjs:45:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "p.enabled==='yes'||p.enabled===true?1:0",
+      "new": "0"
+    }
+  },
+  {
+    "name": "major-prospect-changed-amount-review",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 4.97,
+    "assertion": "tests/recovery-notices-journey.mjs:51:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices.ts",
+      "old": "const majorReview=facts.major||facts.changed",
+      "new": "const majorReview=false"
+    }
+  },
+  {
+    "name": "actual-source-facts",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 5.14,
+    "assertion": "tests/recovery-notices-journey.mjs:57:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "facts:{lifetimeCents:total}",
+      "new": "facts:{lifetimeCents:0}"
+    }
+  },
+  {
+    "name": "prior-notice-context",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 5.18,
+    "assertion": "tests/recovery-notices-journey.mjs:81:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "...pastNotices.map(n=>",
+      "new": "...[].map(n=>"
+    }
+  },
+  {
+    "name": "elapsed-interval",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 6.58,
+    "assertion": "tests/recovery-notices-journey.mjs:52:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices.ts",
+      "old": "permission.interval_days*86400000",
+      "new": "0"
+    }
+  },
+  {
+    "name": "notice-limit",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 8.93,
+    "assertion": "tests/recovery-notices-journey.mjs:90:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices.ts",
+      "old": "if(permission&&ordinal>permission.max_notices)return",
+      "new": "if(false&&permission&&ordinal>permission.max_notices)return"
+    }
+  },
+  {
+    "name": "current-selected-channel",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 9.43,
+    "assertion": "tests/recovery-notices-journey.mjs:121:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices.ts",
+      "old": "channel=permission?.channel??'email'",
+      "new": "channel='email'"
+    }
+  },
+  {
+    "name": "latest-preceding-contact-attribution",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 9.97,
+    "assertion": "tests/recovery-notices-journey.mjs:95:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices.ts",
+      "old": "ORDER BY sent_at DESC,ordinal DESC,id DESC LIMIT 1",
+      "new": "ORDER BY sent_at ASC,ordinal ASC,id ASC LIMIT 1"
+    }
+  },
+  {
+    "name": "hosted-handoff-is-not-update",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 7.61,
+    "assertion": "tests/recovery-notices-journey.mjs:113:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "action='portal.paymentMethodUpdated'",
+      "new": "action='portal.cardUpdateStarted'"
+    }
+  },
+  {
+    "name": "source-permission-after-merge",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 7.95,
+    "assertion": "tests/recovery-notices-journey.mjs:143:10",
+    "mutation": {
+      "path": "src/coffer/donor-merge.ts",
+      "old": "UPDATE cf_recovery_permissions SET enabled=0,version=version+1",
+      "new": "UPDATE cf_recovery_permissions SET enabled=1,version=version+1"
+    }
+  },
+  {
+    "name": "no-silent-lead-transfer",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 6.25,
+    "assertion": "tests/recovery-notices-journey.mjs:32:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "designated?1:0,c.actor.id,designated?1:0,operator!.version",
+      "new": "1,c.actor.id,1,operator!.version"
+    }
+  },
+  {
+    "name": "sending-donor-hold",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 8.8,
+    "assertion": "tests/recovery-inflight-journey.mjs:43:12",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "n.state IN ('sending','uncertain')",
+      "new": "n.state IN ('uncertain')"
+    }
+  },
+  {
+    "name": "uncertain-new-invoice-hold",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 8.69,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:40:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "n.state IN ('sending','uncertain')",
+      "new": "n.state IN ('sending')"
+    }
+  },
+  {
+    "name": "unrelated-donor-eligibility",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 6.8,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:36:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "WHERE (n.donor_id=? OR s.donor_id=?) AND n.id<>?",
+      "new": "WHERE (? IS NOT NULL OR ? IS NOT NULL) AND n.id<>?"
+    }
+  },
+  {
+    "name": "moved-plan-uncertainty",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 7.49,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:45:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "WHERE (n.donor_id=? OR s.donor_id=?) AND n.id<>?",
+      "new": "WHERE (n.donor_id=? OR n.donor_id=?) AND n.id<>?"
+    }
+  },
+  {
+    "name": "payment-reconciliation-during-hold",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 7.15,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:55:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery.ts",
+      "old": "const previous = await one(c, 'SELECT * FROM cf_agent_recovery WHERE invoice_id=?', current.id)",
+      "new": "if(current.status==='paid')return\n const previous = await one(c, 'SELECT * FROM cf_agent_recovery WHERE invoice_id=?', current.id)"
+    }
+  },
+  {
+    "name": "member-closure-refused",
+    "result": "SURVIVED",
+    "exit": 0,
+    "seconds": 93.29,
+    "assertion": null,
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin approves recovery notices.',403)",
+      "new": "if(!manager(c.actor)&&p.action!=='close')fail('FORBIDDEN','Only an owner or admin approves recovery notices.',403)"
+    }
+  },
+  {
+    "name": "member-closure-through-both-guards",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 6.24,
+    "assertion": "tests/harness.mjs:48:194",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin approves recovery notices.',403)",
+      "new": "if(false&&!manager(c.actor))fail('FORBIDDEN','Only an owner or admin approves recovery notices.',403)",
+      "extra": [
+        "src/coffer/agent/http.ts",
+        "if (!manager(c.actor)) fail('FORBIDDEN','Only the owner or an admin can use the development agent.',403)",
+        "if (false&&!manager(c.actor)) fail('FORBIDDEN','Only the owner or an admin can use the development agent.',403)"
+      ]
+    }
+  },
+  {
+    "name": "required-investigation-finding",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 5.71,
+    "assertion": "tests/harness.mjs:48:194",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "text(p.finding,'Investigation finding (still unknown is valid)',1000)",
+      "new": "String(p.finding??'')",
+      "extra": null
+    }
+  },
+  {
+    "name": "investigation-plan-actor-time-facts",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 5.68,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:91:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "stepId,step.subscription_id,finding,reason,c.actor.id,c.now)",
+      "new": "stepId,step.subscription_id,'Lost investigation finding',reason,c.actor.id,c.now)",
+      "extra": null
+    }
+  },
+  {
+    "name": "audit-plan-scope",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 6.4,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:94:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "scope:'plan',finding,reason",
+      "new": "scope:'donor',finding,reason",
+      "extra": null
+    }
+  },
+  {
+    "name": "original-outcome-and-counts",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 6.81,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:96:148",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "subscription_id=? AND state IN ('prepared','held','awaiting_approval')",
+      "new": "subscription_id=? AND state IN ('prepared','held','awaiting_approval','uncertain')",
+      "extra": null
+    }
+  },
+  {
+    "name": "independent-second-hold",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 7.63,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:88:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "WHERE step_id=n.id",
+      "new": "WHERE step_id IS NOT NULL",
+      "extra": null
+    }
+  },
+  {
+    "name": "positive-resumption",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 26.12,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:126:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "AND NOT EXISTS(SELECT 1 FROM cf_recovery_investigations WHERE step_id=n.id)",
+      "new": "AND 1=1",
+      "extra": null
+    }
+  },
+  {
+    "name": "closed-plan-custody-after-later-merge",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 45.99,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:169:10",
+    "mutation": {
+      "path": "src/coffer/donor-merge.ts",
+      "old": "statements.push(sql('DELETE FROM cf_card_expiry_notices",
+      "new": "statements.push(sql('DELETE FROM cf_recovery_closures'))\n statements.push(sql('DELETE FROM cf_card_expiry_notices",
+      "extra": null
+    }
+  },
+  {
+    "name": "visible-plan-identity",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 6.69,
+    "assertion": "tests/recovery-notices-browser.mjs:49:11",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-ui.ts",
+      "old": "<p>Plan ${e(n.subscription_id)} \u00b7 Submission ${e(n.id)}</p>",
+      "new": "",
+      "extra": null
+    }
+  },
+  {
+    "name": "visible-plan-only-scope",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 8.03,
+    "assertion": "tests/recovery-notices-browser.mjs:54:11",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-ui.ts",
+      "old": "This closes contact for this plan only. Every other blocking submission needs its own investigation. Nothing is sent or charged.",
+      "new": "Investigation is required.",
+      "extra": null
+    }
+  },
+  {
+    "name": "resumed-donor-permission",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 25.33,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:130:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "p.enabled==='yes'||p.enabled===true?1:0",
+      "new": "1",
+      "extra": null
+    }
+  },
+  {
+    "name": "resumed-channel-consent",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 22.48,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:133:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "consent?.status!=='granted'?'Current permission for the selected channel is required'",
+      "new": "false?'Current permission for the selected channel is required'",
+      "extra": null
+    }
+  },
+  {
+    "name": "resumed-current-account-authority",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 21.06,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:141:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-notices-rules.ts",
+      "old": "id=? AND version=? AND status='active' AND role IN ('owner','admin')",
+      "new": "id=? AND ? IS NOT NULL AND status='active' AND role IN ('owner','admin')",
+      "extra": null
+    }
+  },
+  {
+    "name": "closure-stale-version",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 5.71,
+    "assertion": "tests/harness.mjs:48:194",
+    "mutation": {
+      "path": "src/coffer/agent/recovery-policy.ts",
+      "old": "WHERE id=? AND version=?) AND NOT EXISTS(SELECT 1 FROM cf_recovery_investigations",
+      "new": "WHERE id=? AND ? IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM cf_recovery_investigations",
+      "extra": null
+    }
+  },
+  {
+    "name": "archive-investigation-custody",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 62.7,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:96:255",
+    "mutation": {
+      "path": "src/coffer/archive-policy.mjs",
+      "old": "excludeTables:[",
+      "new": "excludeTables:['cf_recovery_investigations',",
+      "extra": null
+    }
+  },
+  {
+    "name": "no-financial-posts",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 91.91,
+    "assertion": "tests/recovery-uncertainty-journey.mjs:174:10",
+    "mutation": {
+      "path": "src/coffer/agent/recovery.ts",
+      "old": "for (const sub of subscriptions) {",
+      "new": "for (const sub of subscriptions) {\n  try { await stripe(env,'/payment_intents',{}) } catch {}",
+      "extra": null
+    }
+  },
+  {
+    "name": "undo-permission-reconfirmation",
+    "result": "KILLED",
+    "exit": 1,
+    "seconds": 6.4,
+    "assertion": "tests/recovery-notices-journey.mjs:147:10",
+    "mutation": {
+      "path": "src/coffer/merge-journal.ts",
+      "old": "owned('cf_recovery_permissions',undefined,['donor_id'],false)",
+      "new": "owned('cf_recovery_permissions',undefined,['donor_id'],true)",
+      "extra": null
+    }
+  }
+]

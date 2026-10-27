@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "048ddd316e38fb09659b64db34426e18da4fad78b48d4bb4c128a9152414aae6",
+      "sha256": "c4df1330d5c90dd40a0938678a1a2bd6275ceeb47aa8d5ad0b439e611daf896e",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0e52d1e7b5e0094f6034b708832be4305dbc4b50bdecf201f5db1184cdf10c75",
+      "sha256": "30b27e68fdb663483f944218ce642035abf92a80fc828641c70a67791674000d",
       "executable": false
     },
     "deploy-demo.json": {
@@ -652,6 +652,30 @@
     },
     "docs/donors.md": {
       "sha256": "5dd3209afa84164a2a8d73e1edc0bbe52a988481bf0f81f55a1f14374cef9d33",
+      "executable": false
+    },
+    "docs/evidence/give010/assertions.md": {
+      "sha256": "b491473bcf763b3a8a05e310c3f66a79c9c2f25ffd957e10d0091af8d31f76d8",
+      "executable": false
+    },
+    "docs/evidence/give010/ct-0150.md": {
+      "sha256": "747f1146bdda5e00583d369a4117c6e72c88a8f2398cbc0af082b1ed045fe2be",
+      "executable": false
+    },
+    "docs/evidence/give010/ct-0440.md": {
+      "sha256": "bc861b81b42eed1d724a5b3d33eb2d73b184911297b7ca4b678649341601d59b",
+      "executable": false
+    },
+    "docs/evidence/give010/ct-0522.md": {
+      "sha256": "27d055fa6257593a89832583333a280194118b962e8efe621f029048b4cee963",
+      "executable": false
+    },
+    "docs/evidence/give010/DONE-RIDERS.md": {
+      "sha256": "547dcaf36c37b017c1c7c644fdaae4b76dbdaca4a25a569d559caba74a4912d0",
+      "executable": false
+    },
+    "docs/evidence/give010/mutations.json": {
+      "sha256": "8897e0345e7abc33deefc77bbb0c4d9435240ae14f800656eca430eb0c512f36",
       "executable": false
     },
     "docs/first-week.md": {
@@ -6631,7 +6655,7 @@
       "executable": false
     },
     "tests/recovery-inflight-journey.mjs": {
-      "sha256": "575148f7da7a3ae44008f51fe83c97a27f041999874fbf86bf03e176a3b8f976",
+      "sha256": "a110b2e8025b9f57542f076198d5d3854da6181a650832e629f28ecc469ff5c1",
       "executable": false
     },
     "tests/recovery-notices-browser.mjs": {

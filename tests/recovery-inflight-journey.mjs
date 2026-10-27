@@ -32,7 +32,7 @@ export async function inflightRecoveryJourney(){
   }
   const pending=edge.fail(h,ana,'synthetic-coffer-4502',base)
   try{
-   await started
+   await Promise.race([started,pending.then(()=>{throw new Error('Expected a deferred provider submission')})])
    const original=(await state()).steps.find(n=>n.subscription_id==='sub_notice_ana')
    assert.equal(original.state,'sending');assert.ok(original.claim_id)
    ana.invoice='synthetic-coffer-4503'
