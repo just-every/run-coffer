@@ -13,7 +13,7 @@ A development lead at a US nonprofit replacing Bloomerang, Raiser's Edge NXT, Li
 
 ## Status totals
 
-Status provenance is the current committed tree (`HEAD`, resolved with `git rev-parse HEAD`); its exact SHA and matching Verify and Run site IDs belong in the fresh ct request after landing. This administrative refresh starts from landed main `c1b5a475fa02910af7b010780808f8ab266d45a8` (27 October 2026), with Verify 40444086747 and Run site 40444086676 successful. RCPT-012 remains partial under the exact ct Gap below until fresh judgment; no earlier judgment is represented as execution of this tree.
+Judged from the code and tests at commit `c1b5a475fa02910af7b010780808f8ab266d45a8` (27 October 2026). That is the current landed main code and test tree used for this administrative refresh, with Verify 40444086747 and Run site 40444086676 successful. This candidate changes only status metadata, provenance, documentation and the generated source lock; its code and tests are byte-identical to that landed tree. Its exact SHA and matching Verify and Run site IDs belong in the fresh ct request after landing. RCPT-012 remains partial until that fresh judgment; no earlier judgment is represented as execution of this candidate.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
