@@ -4,13 +4,16 @@ import {run,donor,reviewed} from './harness.mjs'
 import {journeyMailEdge} from './journey-mail-edge.mjs'
 import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import {organizationCalendarJourney} from './communication-frequency-journey.mjs'
+import {smsRegistrationEdge} from './sms-registration-edge.mjs'
 
 /** Approval freezes an audience; each actual claim must still honor today's answer. */
 export async function communicationClaimsJourney(){
  const at='2026-10-15T16:00:00Z',edge=journeyMailEdge(),texts=[],account='synthetic-coffer-9501',token='synthetic-coffer-9502'
+ const sender='+12025550101',registration=smsRegistrationEdge(account,sender,token)
  let duringLookup
  const outbound=async request=>{
   const u=new URL(request.url)
+  if(u.hostname==='messaging.twilio.com')return registration.outbound(request)
   if(u.hostname==='api.twilio.com'){texts.push(new URLSearchParams(await request.text()));return Response.json({sid:'synthetic-coffer-'+(9510+texts.length),status:'queued'},{status:201})}
   if(duringLookup&&request.method==='GET'&&u.pathname.endsWith('/contacts')){const change=duringLookup;duringLookup=null;await change()}
   return edge.outbound(request)
@@ -18,6 +21,9 @@ export async function communicationClaimsJourney(){
  await run(async h=>{
   await reviewed(h)
   const headers={'x-test-now':at},options={headers},command=(name,input,extra={})=>h.command(name,input,{...options,...extra})
+  assert.equal((await registration.refresh(h,options)).approved,0)
+  assert.equal((await registration.receipt(h,{when:at})).recorded,1)
+  assert.equal((await registration.refresh(h,options)).approved,1)
   const owner=(await h.get('/auth/session')).operator.id
   let fixture=9520
   const create=async(name,channels)=>{
@@ -74,7 +80,7 @@ export async function communicationClaimsJourney(){
   assert.equal(withdrawnCall.error,'PHONE_CONSENT');assert.equal((await h.get('/api/coffer/tasks')).tasks.find(t=>t.id===phoneCall.id).status,'open')
 
   // Signed STOP must fence the next appeal, even when another rule also holds it.
-  const stopFields=new URLSearchParams({AccountSid:account,MessageSid:'synthetic-coffer-9504',From:(await h.get('/api/coffer/donors/'+target.id)).donor.phone,To:'+12025550101',Body:'STOP'})
+  const stopFields=new URLSearchParams({AccountSid:account,MessageSid:'synthetic-coffer-9504',From:(await h.get('/api/coffer/donors/'+target.id)).donor.phone,To:sender,Body:'STOP'})
   const hook='/api/coffer/sms/webhook',signature=createHmac('sha1',token).update(h.origin+hook+[...stopFields.keys()].sort().map(k=>k+stopFields.get(k)).join('')).digest('base64')
   assert.equal((await h.request(hook,{method:'POST',as:'',raw:stopFields.toString(),headers:{...headers,'content-type':'application/x-www-form-urlencoded','x-twilio-signature':signature}})).status,200)
   const afterStop=await command('sms.prepare',{name:'Synthetic appeal following STOP',purpose:'appeal',donorIds:[target.id],body:'Please support another reader.'})
@@ -114,7 +120,7 @@ export async function communicationClaimsJourney(){
    }
   }
   await journeyTopicClaims(h,{create,prefs,command,headers,edge})
- },{entry:'tests/engagement-worker.ts',verifiedMail:true,bindings:{COFFER_TEST_NOW:at,TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:'+12025550101'},outbound})
+ },{entry:'tests/engagement-worker.ts',verifiedMail:true,bindings:{COFFER_TEST_NOW:at,TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound})
  await organizationCalendarJourney()
 }
 

@@ -7,11 +7,14 @@ import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
 import {signInPortal,portalForm} from './portal-journey.mjs'
 import {prepareVerifiedMail} from './verified-mail-edge.mjs'
+import {smsRegistrationEdge} from './sms-registration-edge.mjs'
 
 export async function communicationPreferencesJourney({browser=true}={}){
  const at='2026-10-15T16:00:00Z',requests=[],cc={permission:'explicit',memberships:['synthetic-coffer-9101']}
- const options={entry:'tests/engagement-worker.ts',verifiedMail:true,bindings:{COFFER_TEST_NOW:at,TWILIO_ACCOUNT_SID:'synthetic-coffer-9102',TWILIO_AUTH_TOKEN:'synthetic-coffer-9103',TWILIO_FROM:'+12025550101'},outbound:async request=>{
+ const account='synthetic-coffer-9102',token='synthetic-coffer-9103',sender='+12025550101',registration=smsRegistrationEdge(account,sender,token)
+ const options={entry:'tests/engagement-worker.ts',verifiedMail:true,bindings:{COFFER_TEST_NOW:at,TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound:async request=>{
   const u=new URL(request.url)
+  if(u.hostname==='messaging.twilio.com')return registration.outbound(request)
   if(u.hostname==='api.cc.email'){
    assert.equal(request.headers.get('authorization'),'Bearer synthetic-coffer-9104');assert.equal(u.pathname,'/v3/contacts')
    return Response.json({contacts:[{contact_id:'synthetic-coffer-9105',email_address:{address:u.searchParams.get('email'),permission_to_send:cc.permission},list_memberships:cc.memberships,custom_fields:[{custom_field_id:'synthetic-coffer-9113',value:'quarterly'}]}]})
@@ -104,7 +107,7 @@ export async function communicationPreferencesJourney({browser=true}={}){
   const receipt=await h.command('ack.prepare',{giftIds:[agedGifts[0].id],onePiecePer:'gift'})
   await h.command('ack.approve',{batchId:receipt.id,version:1})
   assert.equal((await h.command('ack.send',{batchId:receipt.id,version:2})).submitted,1,'Topic withdrawals never stop a transactional receipt')
-  const newsletterId=await channelFrequencyJourney(h,{donor:b,control:c,ranked,owner,at,prefs})
+  const newsletterId=await channelFrequencyJourney(h,{donor:b,control:c,ranked,owner,at,prefs,registration})
   const current=await file(a);assert.equal(current.current.email.status,'granted');assert.equal(current.current.mail.status,'granted');assert.equal(current.consents.find(row=>row.channel==='sms').status,'granted');assert.equal(current.consents.find(row=>row.channel==='phone').status,'granted');assert.deepEqual(current.solicitation,originalRestriction)
   const history=(await get(a)).history;assert.equal(history.filter(p=>p.source==='portal').length,4)
   const member=await h.person('synthetic-coffer-9109@example.test')

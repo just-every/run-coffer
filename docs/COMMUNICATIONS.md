@@ -129,7 +129,19 @@ Self-hosted sending requires the Twilio account SID, auth token and sender
 bindings named TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM. The operator
 connects an existing Twilio account. Under Settings, SMS sender registration
 checks the Messaging Service and existing A2P campaign against Twilio and shows
-its status and exact sender membership. Complete brand and campaign registration
+its status and exact sender membership. Campaign approval alone never approves a
+number. Configure Twilio Event Streams for all six number registration and
+deregistration events at the webhook shown in Settings. The owner or admin
+explicitly reviews the CM number-event campaign reference alongside the separate
+QE A2P reference; Coffer does not guess a mapping between these distinct IDs.
+Only a signed event bound to the exact configured account, service, phone number
+SID, current phone and reviewed event campaign confirms registration. Configure
+this binding before number registration so a new event follows its review.
+Pending, failed or deregistered number events block sending; older success or a
+same-time success cannot reverse them. Changed configuration clears confirmation.
+After a registered event, refresh registration explicitly before sending.
+The adopted cross-reference binding awaits ct approval with the other SMS defaults.
+Complete brand and campaign registration
 in Twilio Console; Coffer never self-certifies it. Every outreach send rechecks
 Twilio. Pending, mock, wrong-account, missing-sender or unavailable verification
 blocks submission. Connection-bound registration evidence stays out of archives

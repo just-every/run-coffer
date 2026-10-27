@@ -44,6 +44,7 @@ import { smsState, smsPreference, smsWebhook } from './sms'
 import { textsPage } from './ui/sms'
 import { smsRegistrationPanel } from './ui/sms-registration'
 import { smsRegistrationState } from './sms-registration'
+import { smsRegistrationEvents } from './sms-registration-events'
 import { giftBatch, giftBatches } from './gift-batches'
 import { giftBatchesPage } from './ui/gift-batches'
 import { exportsResponse } from './exports-http'
@@ -235,7 +236,7 @@ const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
  const response = await cofferHandler(request, original)
  const path = new URL(request.url).pathname
- const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook'
+ const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook' || path === '/api/coffer/sms/registration/events'
  if (response && response.status < 400 && !provider && !response.headers.get('location')?.startsWith('/signin') && ROUTES.test(path)) {
   const env = runtimeBindings(original), captured=responseAuthorities.get(request)
   const auth=captured?null:await identity(request,env)
@@ -248,6 +249,7 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
 async function cofferHandler(request: Request, original: Bindings): Promise<Response | null> {
  const rest=await restApiResponse(request,original)
  if(rest){if(rest.context)responseAuthorities.set(request,rest.context);return rest.response}
+ if(new URL(request.url).pathname==='/api/coffer/sms/registration/events')return smsRegistrationEvents(request,runtimeBindings(original))
  if (new URL(request.url).pathname === '/api/coffer/sms/webhook') return smsWebhook(request,runtimeBindings(original))
  if(new URL(request.url).pathname==='/api/coffer/postal/events')return postalEvents(request,original)
  if (new URL(request.url).pathname === '/api/coffer/mail/events') return receiptEvents(request, original)

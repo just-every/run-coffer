@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e955bbf4c2bb9f6c15d1268dfc141bcce111cbee3f3b7c4db820e811fbe73ef2",
+      "sha256": "9e6645da162faf2cadacec0db726a92f6c8743a45f5cdaa281de6c8f22ed6c55",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a00e95e6d67a0dc03f62a343aee3f58411d965071738c52413ce4ae6fa702a4e",
+      "sha256": "15dac3f1471251cefc8d0074a25da854acb11cc554ccd15cfc9351fcbf1e8b27",
       "executable": false
     },
     "deploy-demo.json": {
@@ -611,7 +611,7 @@
       "executable": false
     },
     "docs/COMMUNICATIONS.md": {
-      "sha256": "8abc13ff36cdd4352025a6949d135feebb50b0fc37c4e97072f36e48d4803663",
+      "sha256": "758971b5443ad9bae242c3f8308f4f4840abfdedd01fae426361ab8eaec2f87b",
       "executable": false
     },
     "docs/consent.md": {
@@ -1432,6 +1432,10 @@
     },
     "migrations/core/0164_coffer_sms_schedules.sql": {
       "sha256": "1dbff81de2dd0bbae9b3c8d49faf25525d8d27d0e200bbe597f7649bd2ffff3e",
+      "executable": false
+    },
+    "migrations/core/0165_coffer_sms_number_status.sql": {
+      "sha256": "b029a8cc122768004431d5f038858e3ba85f972bc38d8921febec8c17d9a83b3",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3039,7 +3043,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "b04856ea141f37709439ccd99eabf786f7e35024fd66401680d291560f930124",
+      "sha256": "4536442af932ae440f00167316c6c894321e2aad614ed01dd758e9916e785fc7",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3602,8 +3606,12 @@
       "sha256": "f4f223eddcaed1c78ebcc4cd3cdde5fde7c4c8b93d9c4662592db00ca64229cc",
       "executable": false
     },
+    "src/coffer/sms-registration-events.ts": {
+      "sha256": "a22fbf46d5bba69e163cf4fa872d8dbb5e5693054879d02b0080d06057b4e41d",
+      "executable": false
+    },
     "src/coffer/sms-registration.ts": {
-      "sha256": "d693dde7761f427ae8dabd3b50bc2c2cf399bb750985edc76cb1aee900c33765",
+      "sha256": "0c1fb96932550f3757a93f478a68e84b18e00a86f2d08c5bcdbb624681751342",
       "executable": false
     },
     "src/coffer/sms-scheduler.ts": {
@@ -3983,7 +3991,7 @@
       "executable": false
     },
     "src/coffer/ui/sms-registration.ts": {
-      "sha256": "d34d96eaaec5211e1a7ce4956a32dbf79e7afc0d1bbef73ab92ca99b67058172",
+      "sha256": "1c689fd9ae66cf22e42930757e41b1a9fce2e2e8d609e413bcd0d3b4d0597a11",
       "executable": false
     },
     "src/coffer/ui/sms.ts": {
@@ -6095,11 +6103,11 @@
       "executable": false
     },
     "tests/communication-claims-journey.mjs": {
-      "sha256": "c6254397498461624b5ec609eef6013279dd7097929b6c324c7945fedcba9d27",
+      "sha256": "47b7fa5142eb1d874535206e1b416e4a6aacc66d88bcfc087d7f2824da2001e4",
       "executable": false
     },
     "tests/communication-frequency-journey.mjs": {
-      "sha256": "955e028bf44a77fa7f48abc8d18e5e9e84bea78307686293dc44052233614aa5",
+      "sha256": "e593de92cc91083a7f80d14980f8e4243eb1d733b3f36873d416489a88b6d91a",
       "executable": false
     },
     "tests/communication-preferences-browser.mjs": {
@@ -6107,7 +6115,7 @@
       "executable": false
     },
     "tests/communication-preferences-journey.mjs": {
-      "sha256": "010a077ec8199f1e2c26f1ec823e5dcbd10a9ecbbc63ea6dbd17ac5e27f82611",
+      "sha256": "004f2be66e9cd410db00b5d844c4d5bb5add906390ba01badbdf4b9a6fa3596b",
       "executable": false
     },
     "tests/communication-provider-journey.mjs": {
@@ -6811,11 +6819,11 @@
       "executable": false
     },
     "tests/sms-journey.mjs": {
-      "sha256": "c96cdb2e71f414129c76e56573955a8d0f22deb7136aa95a16dea1cc9d7dfb13",
+      "sha256": "afc0a1f2c5be88eb074a732cccdd2cee68fc19dd020e6ec50740a0d0e31184fb",
       "executable": false
     },
     "tests/sms-registration-edge.mjs": {
-      "sha256": "1769c65bf5702e5cdc6272cd451123e73930e82f51cf17035e10d7d9592a2bea",
+      "sha256": "c82a2051be8c8e0aab3c59060c03180b02c611a951d121ce017a6551940ba510",
       "executable": false
     },
     "tests/soft-credit-journey.mjs": {

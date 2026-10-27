@@ -9,7 +9,7 @@ import {smsScreens} from './sms-browser.mjs'
 
 export async function smsJourney(){
  const account='synthetic-coffer-1',token='synthetic-coffer-2',sender='+12025550101',requests=[]
- const registration=smsRegistrationEdge(account,sender)
+ const registration=smsRegistrationEdge(account,sender,token)
  let unknown=false
  const outbound=async request=>{
   const url=new URL(request.url)
@@ -55,7 +55,31 @@ export async function smsJourney(){
   registration.state.mock=false;registration.state.account='synthetic-coffer-42'
   await registration.refresh(h,{headers:dayHeaders,status:503})
   registration.state.account=account
+  assert.equal((await refresh()).approved,0,'Campaign approval and pool membership alone never approve an individual number')
+  await registration.receipt(h,{signature:'invalid',requestStatus:401})
+  await registration.receipt(h,{raw:'[]',requestStatus:401})
+  assert.equal((await registration.receipt(h,{data:{phonenumbersid:'synthetic-coffer-52'}})).recorded,0)
+  assert.equal((await registration.receipt(h,{data:{campaignsid:'synthetic-coffer-53'}})).recorded,0)
+  assert.equal((await registration.receipt(h,{status:'pending_registration',id:'synthetic-coffer-81'})).recorded,1)
+  assert.equal((await refresh()).approved,0)
+  await command('sms.send',{runId:thanks.id,version:approved.version},{status:409})
+  assert.equal((await registration.receipt(h,{when:'2026-10-15T16:00:01Z'})).recorded,1)
+  assert.equal((await h.get('/api/coffer/sms/registration')).approved,0,'A receipt needs an explicit owner refresh before sending')
   assert.equal((await refresh()).approved,1)
+  assert.equal((await registration.receipt(h,{when:'2026-10-15T16:00:01Z'})).recorded,0,'A signed receipt replay cannot replace newer approval')
+  assert.equal((await registration.receipt(h,{status:'pending_deregistration',id:'synthetic-coffer-82',when:'2026-10-15T16:00:02Z'})).recorded,1)
+  assert.equal((await refresh()).approved,0)
+  assert.equal((await registration.receipt(h,{id:'synthetic-coffer-83',when:'2026-10-15T16:00:01Z'})).recorded,0,'Old success cannot override deregistration')
+  await command('sms.send',{runId:thanks.id,version:approved.version},{status:409})
+  assert.equal((await registration.receipt(h,{status:'unregistered',id:'synthetic-coffer-84',when:'2026-10-15T16:00:03Z',data:{campaignsid:undefined}})).recorded,1)
+  assert.equal((await refresh()).approved,0,'Deregistration without a campaign reference still blocks the exact number')
+  assert.equal((await registration.receipt(h,{id:'synthetic-coffer-85',when:'2026-10-15T16:00:04Z'})).recorded,1)
+  assert.equal((await refresh()).approved,1)
+  assert.equal((await registration.receipt(h,{status:'failure',id:'synthetic-coffer-86',when:'2026-10-15T16:00:04Z'})).recorded,1,'A negative result wins a timestamp tie')
+  assert.equal((await refresh()).approved,0)
+  assert.equal((await registration.receipt(h,{id:'synthetic-coffer-87',when:'2026-10-15T16:00:04Z'})).recorded,0,'Same-time success cannot revive a failed number')
+  await registration.receipt(h,{id:'synthetic-coffer-88',when:'2026-10-15T16:00:05Z'});assert.equal((await refresh()).approved,1)
+
   registration.state.unavailable=true
   await command('sms.send',{runId:thanks.id,version:approved.version},{status:503})
   assert.equal(requests.length,0,'An unavailable registration provider cannot use a saved approval')
@@ -116,8 +140,8 @@ export async function smsJourney(){
   const member=await h.person('synthetic.sms.member@example.test')
   await h.get('/api/coffer/sms/registration',{as:member.cookie,status:403})
   const reg=await h.get('/api/coffer/sms/registration')
-  for(const as of [member.cookie,''])await command('sms.registration.refresh',{messagingServiceSid:registration.service,campaignSid:registration.campaign,version:reg.version},{as,status:as?403:401})
-  await command('sms.registration.refresh',{messagingServiceSid:registration.service,campaignSid:registration.campaign,version:0},{status:409})
+  for(const as of [member.cookie,''])await command('sms.registration.refresh',{messagingServiceSid:registration.service,campaignSid:registration.campaign,numberCampaignSid:registration.numberCampaign,version:reg.version},{as,status:as?403:401})
+  await command('sms.registration.refresh',{messagingServiceSid:registration.service,campaignSid:registration.campaign,numberCampaignSid:registration.numberCampaign,version:0},{status:409})
   for(const as of [member.cookie,''])await command('sms.schedule',{runId:thanks.id,version:2,scheduledAt:'2026-10-15T20:00:00Z'},{as,status:as?403:401})
   const webhook=async(body,messageId,from='+12025550111',extra={})=>{
    const path='/api/coffer/sms/webhook',fields=new URLSearchParams({AccountSid:account,MessageSid:messageId,From:from,To:sender,Body:body,...extra})
