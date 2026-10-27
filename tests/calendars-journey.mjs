@@ -66,6 +66,8 @@ export async function calendarsJourney() {
   await h.command('booking.configure',{...book,confirm:''},{status:400});await h.command('booking.configure',book)
   const createLink=()=>h.command('booking.link',{donorId:d.id,confirm:'yes'},{as:member.cookie})
   const link=await createLink(),tracking=new URL(link.url).searchParams.get('utm_content')
+  await h.command('booking.revoke',{donorId:d.id,id:link.id},{status:409})
+  await h.command('booking.link',{donorId:d.id,confirm:'yes'},asAgent)
   assert.equal(new URL(link.url).origin,'https://calendly.com');assert.equal(new URL(link.url).pathname,'/riverbend/donor-visit');assert.ok(tracking.length>60);assert.ok(!link.url.includes(d.id)&&!link.url.includes(d.email))
   const message={event:'invitee.created',payload:{uri:'https://api.calendly.com/scheduled_events/synthetic-coffer-10/invitees/synthetic-coffer-11',event:'https://api.calendly.com/scheduled_events/synthetic-coffer-10',status:'active',email:d.email,tracking:{utm_content:tracking},scheduled_event:{uri:'https://api.calendly.com/scheduled_events/synthetic-coffer-10',event_type:eventType,status:'active',start_time:'2026-10-22T02:00:00Z',end_time:'2026-10-22T02:30:00Z'}}}
   const post=async(value=message,{status=200,signatureKey=key,stamp=Math.floor(Date.parse(fixedNow)/1000),raw=JSON.stringify(value),headers={}}={})=>h.api('/api/coffer/calendar/bookings',undefined,{as:'',method:'POST',raw,headers:{'Calendly-Webhook-Signature':`t=${stamp},v1=${createHmac('sha256',signatureKey).update(stamp+'.'+raw).digest('hex')}`,...headers},status})
@@ -74,6 +76,7 @@ export async function calendarsJourney() {
   await post({...message,payload:{...message.payload,scheduled_event:{...message.payload.scheduled_event,event_type:'https://api.calendly.com/event_types/synthetic-coffer-13'}}},{status:409})
   await post({...message,payload:{...message.payload,tracking:{utm_content:'synthetic-coffer-14'}}},{status:409})
   await post({...message,payload:{...message.payload,status:'canceled'}},{status:409})
+  await post(null,{status:400})
   await post({...message,event:'invitee.canceled'})
   assert.equal((await h.get('/api/coffer/meetings')).length,1,'Unsafe and non-created events add no meeting')
   const received=await post()

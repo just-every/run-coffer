@@ -28,6 +28,12 @@ export async function timelineSources(c:Context,donorId:string){
  ]
  const rows=await c.db.batch<Row>(queries.map(query=>c.db.prepare(query).bind(donorId)))
  const zone=(await settings(c)).timezone
- const sources=rows.flatMap(row=>row.results??[]).map(row=>row.kind==='event'||row.kind==='meeting'?{...row,day:today(zone,new Date(String(row.at)))}:row)
+ const sources=rows.flatMap(row=>row.results??[]).map(row=>{
+  if(row.kind==='meeting') {
+   const at=new Date(String(row.at))
+   return {...row,day:today(zone,at),body:new Intl.DateTimeFormat('en-US',{timeZone:zone,dateStyle:'medium',timeStyle:'short'}).format(at)+' · '+zone+(row.body.endsWith('cancelled')?' · Cancelled':'')}
+  }
+  return row.kind==='event'?{...row,day:today(zone,new Date(String(row.at)))}:row
+ })
  return [...sources,...await portalTimeline(c,donorId)]
 }

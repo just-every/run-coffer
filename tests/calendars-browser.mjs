@@ -52,11 +52,11 @@ export async function calendarsBrowser(h,{directory,donorId,configure,book,calen
    await meetings.getByText('Calendar and scheduling links',{exact:true}).click()
    const share=meetings.getByRole('link',{name:'Open donor booking link'}).first(),href=await share.getAttribute('href')
    assert.equal(new URL(href).origin,'https://calendly.com');assert.ok(new URL(href).searchParams.get('utm_content'))
-   await meetings.scrollIntoViewIfNeeded();await fit();await iconControls()
+   await meetings.evaluate(el=>el.scrollIntoView({block:'center'}));await fit();await iconControls()
    await meetings.screenshot({path:`${directory}/STEW-006-meetings-${width}.png`})
    await page.goto(origin+'/app/donors/'+donorId+'?timelineKind=meeting#timeline')
    await page.getByText('Calendly meeting',{exact:true}).waitFor();await page.getByText('Google Calendar meeting',{exact:true}).first().waitFor();await fit()
-   const activity=page.locator('#timeline');await activity.screenshot({path:`${directory}/STEW-006-timeline-${width}.png`})
+   const activity=page.locator('#timeline');await activity.evaluate(el=>el.scrollIntoView({block:'center'}));await activity.screenshot({path:`${directory}/STEW-006-timeline-${width}.png`})
   }
   await page.close()
  })
