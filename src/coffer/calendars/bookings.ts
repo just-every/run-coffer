@@ -87,6 +87,7 @@ export async function bookingWebhook(request:Request,env:Bindings) {
   const raw=new TextDecoder().decode(bytes)
   if(!await signature(raw,request.headers.get('Calendly-Webhook-Signature'),config.secret,now))fail('BOOKING_SIGNATURE','The Calendly signature is missing, expired or invalid.',400)
   let message:Row;try{message=JSON.parse(raw)}catch{return fail('BOOKING_BODY','The signed booking event is not JSON.',400)}
+  if(!message||typeof message!=='object'||Array.isArray(message))fail('BOOKING_BODY','The signed booking event must be an object.',400)
   if(message.event!=='invitee.created')return new Response(JSON.stringify({ignored:true}),{headers})
   const p=message.payload,scheduled=p?.scheduled_event
   if(!p||!scheduled||p.status!=='active'||scheduled.status!=='active'||scheduled.event_type!==config.eventType)fail('BOOKING_EVENT','This event is not an active booking of the approved event type.',409)

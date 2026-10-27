@@ -259,7 +259,13 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  const env = runtimeBindings(original), isApi = path.startsWith('/api/')
  let actor: Actor | undefined
  try {
-  const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
+  const auth = await identity(request, env); actor = auth.actor
+  if(path==='/app/calendar/google/callback'&&request.method==='GET') {
+   // Google returns by cross-site navigation. Keep the exact host check;
+   // calendarCallback checks the native user's single-use authorization state.
+   const callbackHeaders=new Headers(request.headers);callbackHeaders.delete('sec-fetch-site')
+   originGuard(new Request(request,{headers:callbackHeaders}),env,auth.bearer)
+  } else originGuard(request, env, auth.bearer)
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
   responseAuthorities.set(request,c)
   if(path==='/app/calendar/google/callback'&&request.method==='GET'){await calendarCallback(c,url);return redirect('/app/settings#calendar-settings')}

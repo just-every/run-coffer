@@ -45,7 +45,7 @@ export async function calendarsJourney() {
   }
   const callback=await authorize(member.cookie)
   assert.equal((await h.request(callback)).status,409,'Another staff member cannot consume the OAuth state')
-  assert.equal((await h.request(callback,{as:member.cookie})).status,303)
+  assert.equal((await h.request(callback,{as:member.cookie,headers:{'sec-fetch-site':'cross-site'}})).status,303)
   assert.equal((await h.request(callback,{as:member.cookie})).status,409,'OAuth state is single use')
   assert.equal((await h.get('/api/coffer/calendar',{as:member.cookie})).connected,true)
   assert.equal((await h.get('/api/coffer/calendar')).connected,false,'Calendar credentials are personal')
