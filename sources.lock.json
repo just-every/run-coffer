@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "7fa445835c7eb624eba6b7bae3193b51a58f7ccf477d98cfd4c1d195ac50dab6",
+      "sha256": "97ac2399b8382b4e368a93fbd355cec01b7f934fbc99f6e7472fab5ea975d94b",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "04d40354d4c424e8a2ac44938c69176e5e2ae4c75d8e00a097cd63ce4eac8329",
+      "sha256": "06ba157ed9f344cfcf79bf102099c9407339e93e328d2e81cde623979792377b",
       "executable": false
     },
     "deploy-demo.json": {
@@ -6411,7 +6411,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "3d2dc36892ce5b8acd0147b5796eef7e3a1201d67f074cada2ec8aeda2dd6ebc",
+      "sha256": "50f0c4c37e874f346b42e43760f0bce14f425b46c4c91591fdb65c3267782622",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -6603,7 +6603,7 @@
       "executable": false
     },
     "tests/postal-delivery-journey.mjs": {
-      "sha256": "b86995eac123a0acc1debba6bef6196a0d4f38e48bed25a0437544b0a09c5084",
+      "sha256": "3ba6b623fdbb2b7b5fd07844a41a506ea07c6b11abed5b5a105713377c3df56e",
       "executable": false
     },
     "tests/postal-recovery-journey.mjs": {

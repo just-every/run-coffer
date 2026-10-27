@@ -1,3 +1,4 @@
+import {postalTransportJourney} from './postal-transport-journey.mjs'
 import {postalRecovery} from './postal-recovery-journey.mjs'
 import {postalBrowser} from './postal-delivery-browser.mjs'
 import assert from 'node:assert/strict'
@@ -16,6 +17,7 @@ async function providerEvent(h,piece,type,eventId,extra={}){
 const give=(h,donorId)=>h.command('gift.record',{donorId,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'})
 
 export async function postalDeliveryJourney(){
+ await postalTransportJourney()
  const pieces=[],messages=[]
  await run(async h=>{
   await reviewed(h)
@@ -144,7 +146,7 @@ export async function postalDeliveryJourney(){
   const body=await request.json(),id='synthetic-coffer-'+(830+pieces.length),piece={id,request:body}
   assert.equal(request.headers.get('idempotency-key'),body.metadata.coffer_attempt_id);assert.equal(request.headers.get('authorization'),'Basic '+Buffer.from(apiCredential+':').toString('base64'))
   pieces.push(piece)
-  if(body.to.name.includes(names[3]))throw new Error('synthetic-coffer-823')
+  if(body.to.name.includes(names[3]))return Response.json({error:{message:'synthetic-coffer-823'}},{status:500})
   if(body.to.name.includes(names[4]))return Response.json({error:{message:'synthetic-coffer-824'}},{status:422})
   return Response.json({id,object:'letter'})
  }})
