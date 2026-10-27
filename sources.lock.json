@@ -6771,7 +6771,7 @@
       "executable": false
     },
     "tests/stewardship-journeys.mjs": {
-      "sha256": "c1b51337eb275cff377173bd1ccd10063ea555d996ebc0a8ca161c71e9403274",
+      "sha256": "cc9af435e258d1125a5eccf98c128a5a027154b344026979f163291fa0f97c30",
       "executable": false
     },
     "tests/stewardship.test.mjs": {
