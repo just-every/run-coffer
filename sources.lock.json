@@ -6651,7 +6651,7 @@
       "executable": false
     },
     "tests/quickbooks/browser.mjs": {
-      "sha256": "fcd0ad4ea0a2986c913d9c715fdacd9b826eb8b7c18fcef197344288d29801b1",
+      "sha256": "cdf311cdeb82ca99d82aebe994ff7aae07358689bf8fe5137ad6dc2810a6d57c",
       "executable": false
     },
     "tests/quickbooks/edge.mjs": {

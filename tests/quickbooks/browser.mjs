@@ -19,7 +19,7 @@ export async function quickbooksBrowser(h,{payoutId,batchId,phase='posted'}){
    }
    if(phase==='posted'){
     await page.goto(origin+'/app/payouts')
-    assert.equal(await page.getByLabel('Imported payout totals').locator('dd').last().innerText(),'1')
+    assert.equal((await page.getByLabel('Imported payout totals').locator('dd').last().innerText()).split('\n')[0],'1')
     assert.match(await page.getByRole('row').filter({hasText:payoutId}).innerText(),/QuickBooks.*Posted/s)
    }
    if(phase==='review'){
