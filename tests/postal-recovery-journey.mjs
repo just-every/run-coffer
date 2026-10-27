@@ -21,6 +21,12 @@ export async function postalRecovery(h,{pieces,messages,providerEvent}){
  const previous=pieces.length
  await h.command('ack.sendPostal',{batchId:prepared.id,version:sent.version,contentHash:detail.batch.content_hash,approvePostage:true})
  assert.equal(pieces.length,previous+1)
+ const postalDetail=await h.get('/api/coffer/letters/'+prepared.id),postalLetter=postalDetail.letters.find(l=>l.id===letter.id)
+ assert.ok(postalLetter);assert.ok(postalLetter.attempt_id);assert.notEqual(postalLetter.attempt_id,letter.attempt_id)
+ const owner=(await h.get('/auth/session')).operator,authorization=(await h.get('/api/coffer/audit?action=ack.sendPostal&record='+prepared.id)).rows
+ assert.equal(authorization.length,1);assert.equal(authorization[0].actor_id,owner.id);assert.equal(authorization[0].actor_role,'owner')
+ const authorizationDetail=JSON.parse(authorization[0].detail)
+ assert.equal(authorizationDetail.contentHash,detail.batch.content_hash);assert.equal(authorizationDetail.extraAddressSheet,true)
  const piece=pieces.at(-1)
  assert.equal((await providerEvent(h,piece,'letter.delivered','synthetic-coffer-852')).status,200)
  const recovered=await h.get('/api/coffer/donors/'+d.id)
@@ -31,5 +37,15 @@ export async function postalRecovery(h,{pieces,messages,providerEvent}){
  const history=await h.get('/api/coffer/letters/'+prepared.id)
  assert.deepEqual(history.deliveryEvents.map(e=>e.provider).sort(),['Lob','SendGrid'])
  assert.notEqual(history.deliveryEvents[0].provider_attempt_id,history.deliveryEvents[1].provider_attempt_id)
+ const expectedAttempts=new Map([['SendGrid',letter.attempt_id],['Lob',postalLetter.attempt_id]])
+ for(const event of history.deliveryEvents){
+  assert.equal(event.letter_id,letter.id);assert.ok(expectedAttempts.has(event.provider))
+  assert.equal(event.provider_attempt_id,expectedAttempts.get(event.provider),'Provider history retains the exact email or postal document attempt')
+ }
+ const receiptPage=await(await h.request('/app/donors/'+d.id+'?timelineKind=receipt')).text(),receiptTimeline=receiptPage.match(/<section[^>]*id="timeline"[^>]*>(.*?)<\/section>/s)
+ assert.ok(receiptTimeline)
+ const providerRows=[...receiptTimeline[1].matchAll(/<li\b[^>]*>.*?<\/li>/gs)].map(match=>match[0])
+ assert.equal(providerRows.filter(row=>row.includes('SendGrid receipt provider event')&&row.includes('bounced')).length,1)
+ assert.equal(providerRows.filter(row=>row.includes('Lob receipt provider event')&&row.includes('letter.delivered')).length,1)
  assert.equal(recovered.gifts.find(g=>g.id===gift.id).acknowledgment.method,'letter')
 }

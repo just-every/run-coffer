@@ -5,8 +5,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs",
-        "COFFER_PRINT_BROWSER=.cache/print-letters node --test --test-name-pattern='^RCPT-003:' tests/receipts.test.mjs"
+        "COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs"
       ]
     },
     {
@@ -223,7 +222,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-name-pattern='^MOBILE-001:' tests/coffer.test.mjs"
+        "node --test --test-name-pattern='^MOBILE-001:' tests/coffer.test.mjs",
+        "COFFER_PRINT_BROWSER=.cache/print-letters node --test --test-name-pattern='^RCPT-003:' tests/receipts.test.mjs"
       ]
     }
   ],

@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "94176dca4525c29e398e769b2e54399e1eb3d9462731c0c5cd2ccf48a3c3085c",
+      "sha256": "9c0a6da6d55672bdf3a31ac56fc2a3dd661b8730dc391325ee0eddca02b60991",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a158ee84ecf409dd9b3b2f486189bd56d5fc7532d8fad6972cbf2e4afc36447a",
+      "sha256": "ae75499c89c95fef874b137e5b9b53276b93a0880b1a777e18438efb60377e9b",
       "executable": false
     },
     "deploy-demo.json": {
@@ -6571,11 +6571,11 @@
       "executable": false
     },
     "tests/postal-delivery-journey.mjs": {
-      "sha256": "a5f753fb7c782a4f10402474275e6ba7361c3cd20877639afa959def6b227e25",
+      "sha256": "b86995eac123a0acc1debba6bef6196a0d4f38e48bed25a0437544b0a09c5084",
       "executable": false
     },
     "tests/postal-recovery-journey.mjs": {
-      "sha256": "a9f255ebc5f30e0ba5550a4c2d207f93e242cc6f1c7808ca5cff11f714415ce6",
+      "sha256": "b3122ba36d64f253f84e9c4eabd6d07349d6c3c45e6f991eaec7803c9a285982",
       "executable": false
     },
     "tests/print-formats-journey.mjs": {
@@ -6730,8 +6730,12 @@
       "sha256": "efe8020b9cb68f5fecb330658d32c4f96170cc854c415a0f2997ad5b2f48a87c",
       "executable": false
     },
+    "tests/single-letter-snapshots.mjs": {
+      "sha256": "8ee3020e0d1c3fe42b4c144d196d069b304ce580030a9705a1d61e616632989e",
+      "executable": false
+    },
     "tests/single-letters-journey.mjs": {
-      "sha256": "881d6aae613e18800111465a74884adc7695b6a7b06b6b54bb017ca6d6f9067e",
+      "sha256": "935ebc5278165714ea65a9adb59514e043ff765f89afce0f810a639922df5534",
       "executable": false
     },
     "tests/sms-journey.mjs": {
@@ -6887,7 +6891,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "28264ceb1d7ffa1fe0a916472891fc72e391117b26d183d3cc8263648d41250d",
+      "sha256": "dd9379f2a056c92f2369d82c75ed1ea2c4e8f005e7b6f3745bcd04ea002f62a9",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
