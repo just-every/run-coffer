@@ -1395,7 +1395,7 @@
       "executable": false
     },
     "migrations/core/0162_coffer_journeys.sql": {
-      "sha256": "bf07cea8885da66f86a29021c878b20ddabef2686e7fea871575f6672fd12cab",
+      "sha256": "978cf808962d4ec882165876e8bfb386e975f941a7ffa25408ebc814c78233d8",
       "executable": false
     },
     "ONBOARDING.md": {

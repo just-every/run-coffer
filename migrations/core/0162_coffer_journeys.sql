@@ -42,3 +42,8 @@ WHEN NEW.constituent_status<>'active' BEGIN
  UPDATE cf_journey_enrollments SET status=NEW.constituent_status,stopped_at=NEW.status_changed_at WHERE donor_id=NEW.id AND status='active';
  UPDATE cf_journey_steps SET status='cancelled',note='Constituent status changed before submission.' WHERE donor_id=NEW.id AND status='pending';
 END;
+
+-- Preserve earlier bulk-change snapshots.
+UPDATE cf_list_bulk_rows SET
+ before_state=json_insert(before_state,'$.journeyEnrollments',json('[]'),'$.journeySteps',json('[]')),
+ after_state=json_insert(after_state,'$.journeyEnrollments',json('[]'),'$.journeySteps',json('[]'));
