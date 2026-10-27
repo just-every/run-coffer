@@ -7,7 +7,7 @@ export async function calendarsJourney() {
  const googleCalls=[],key='synthetic-coffer-1001',clientId='synthetic-coffer-2',clientSecret='synthetic-coffer-1003'
  const eventType='https://api.calendly.com/event_types/synthetic-coffer-4',bookingUrl='https://calendly.com/riverbend/donor-visit'
  const calendarEvent={id:'synthetic-coffer-5',summary:'Library proposal conversation',status:'confirmed',start:{dateTime:'2026-10-20T16:00:00Z'},end:{dateTime:'2026-10-20T16:30:00Z'}}
- let rejected=false,allDay=false
+ let rejected=false,allDay=false,exchangePause
  const outbound=async request=>{
   const url=new URL(request.url)
   googleCalls.push({method:request.method,url:url.href})
@@ -17,6 +17,7 @@ export async function calendarsJourney() {
    if(rejected)return Response.json({error:'invalid_grant'},{status:400})
    if(p.get('grant_type')==='authorization_code'){
     assert.equal(p.get('code'),'synthetic-coffer-6');assert.ok(p.get('redirect_uri').endsWith('/app/calendar/google/callback'))
+    if(exchangePause)await exchangePause()
     return Response.json({access_token:'synthetic-coffer-7',refresh_token:'synthetic-coffer-8',token_type:'Bearer',scope:'https://www.googleapis.com/auth/calendar.events.readonly'})
    }
    assert.equal(p.get('grant_type'),'refresh_token');assert.equal(p.get('refresh_token'),'synthetic-coffer-8')
@@ -49,6 +50,27 @@ export async function calendarsJourney() {
   assert.equal((await h.request(callback,{as:member.cookie})).status,409,'OAuth state is single use')
   assert.equal((await h.get('/api/coffer/calendar',{as:member.cookie})).connected,true)
   assert.equal((await h.get('/api/coffer/calendar')).connected,false,'Calendar credentials are personal')
+  // Pause only Google's token response, after Coffer claims the callback.
+  // Disconnect must win both for an existing connection and a first connection.
+  for(const reconnect of [false,true]) {
+   const inFlight=await authorize(member.cookie)
+   let entered,release
+   const reached=new Promise(resolve=>{entered=resolve}),resume=new Promise(resolve=>{release=resolve})
+   exchangePause=async()=>{entered();await resume}
+   const response=h.request(inFlight,{as:member.cookie})
+   let next
+   try {
+    await reached
+    await h.command('calendar.disconnect',{}, {as:member.cookie})
+    assert.equal((await h.get('/api/coffer/calendar',{as:member.cookie})).connected,false)
+    if(reconnect)next=await authorize(member.cookie)
+   } finally {exchangePause=undefined;release()}
+   assert.equal((await response).status,409,'A callback finishing after disconnect must be discarded')
+   assert.equal((await h.request(inFlight,{as:member.cookie})).status,409,'Discarded authorization remains single use')
+   assert.equal((await h.get('/api/coffer/calendar',{as:member.cookie})).connected,false,'A late callback cannot restore calendar access')
+   await h.get('/api/coffer/calendar/events',{as:member.cookie,status:409})
+   if(next)assert.equal((await h.request(next,{as:member.cookie})).status,303,'A newly authorized connection survives rejection of the old callback')
+  }
   const listing=await h.get('/api/coffer/calendar/events',{as:member.cookie})
   assert.deepEqual(listing.events,[{id:calendarEvent.id,summary:'Library proposal conversation',startsAt:'2026-10-20T16:00:00.000Z',endsAt:'2026-10-20T16:30:00.000Z'}]);assert.equal(listing.nextPageToken,'synthetic-coffer-9')
   const log={donorId:d.id,eventId:calendarEvent.id,confirm:'yes'}
