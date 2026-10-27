@@ -78,6 +78,7 @@ const descriptions = [
  owned('cf_cultivation_tasks',`n.prospect_id IN (SELECT id FROM cf_prospects WHERE donor_id IN ${pair})`),
  owned('cf_proposals',`n.prospect_id IN (SELECT id FROM cf_prospects WHERE donor_id IN ${pair})`),
  owned('cf_appeal_recipients',undefined,['appeal_id','donor_id']), owned('cf_stewardship_drafts'),
+ owned('cf_journey_steps',undefined,['id'],false), owned('cf_journey_enrollments',undefined,['id'],false), owned('cf_journey_slots',undefined,['step_id'],false),
  owned('cf_welcome_steps',undefined,['id'],false), owned('cf_welcome_enrollments',undefined,['donor_id'],false),
  owned('cf_preference_sync',undefined,['donor_id'],false),
  // Later uses of the moved records also fence undo, even without donor versions.

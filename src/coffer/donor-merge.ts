@@ -120,6 +120,8 @@ export async function mergeDonor(c: Context, p: Row, tail: Stmt[] = []): Promise
   sql('DELETE FROM cf_appeal_recipients WHERE donor_id=? AND appeal_id IN (SELECT appeal_id FROM cf_appeal_recipients WHERE donor_id=?)',source,target),
   sql('UPDATE cf_appeal_recipients SET donor_id=? WHERE donor_id=?',target,source),
   sql('UPDATE cf_stewardship_drafts SET donor_id=?,version=version+1,reviewed_version=NULL WHERE donor_id=?',target,source),
+  sql("UPDATE cf_journey_steps SET status='cancelled',note='Donor was merged; no further journey messages.' WHERE donor_id IN (?,?) AND status='pending'",source,target),
+  sql("UPDATE cf_journey_enrollments SET status='merged',stopped_at=? WHERE donor_id IN (?,?) AND status='active'",c.now,source,target),
   sql("UPDATE cf_welcome_steps SET status='cancelled',note='Donor was merged; no further welcome emails.' WHERE donor_id IN (?,?) AND status='pending'",source,target),
   sql("UPDATE cf_welcome_enrollments SET status='completed',stopped_at=? WHERE donor_id IN (?,?) AND status='active'",c.now,source,target),
   sql('DELETE FROM cf_preference_sync WHERE donor_id IN (?,?)',source,target),

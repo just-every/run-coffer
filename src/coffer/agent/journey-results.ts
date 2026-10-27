@@ -22,7 +22,7 @@ export async function journeyResults(c: { db: D1Database }, code: string | null 
  const [entries, recipients] = await Promise.all([
   all(c, `SELECT l.gift_id,l.donor_id,l.amount_cents FROM cf_fund_ledger l
    JOIN cf_gift_appeals a ON a.gift_id=l.gift_id WHERE a.appeal=? COLLATE NOCASE`, code),
-  all(c, 'SELECT DISTINCT donor_id FROM cf_welcome_steps WHERE response_code=?', code),
+  all(c, 'SELECT donor_id FROM cf_welcome_steps WHERE response_code=? UNION SELECT donor_id FROM cf_journey_steps WHERE response_code=?', code, code),
  ])
  const gifts = new Map<string, { donor: string; cents: number }>()
  for (const entry of entries) {

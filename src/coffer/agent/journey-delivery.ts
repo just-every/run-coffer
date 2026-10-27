@@ -5,7 +5,7 @@ import { AGENT, action } from './activity'
 import { outcome } from './appeals'
 import { journeyResults } from './journey-results'
 
-const source = `FROM cf_welcome_steps s JOIN cf_donors d ON d.id=s.donor_id
+const source = `FROM (SELECT id,step,response_code,donor_id,status,message_key,due_at FROM cf_welcome_steps UNION ALL SELECT id,step,response_code,donor_id,status,message_key,due_at FROM cf_journey_steps) s JOIN cf_donors d ON d.id=s.donor_id
  LEFT JOIN cf_communications m ON m.message_key=s.message_key
  WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges x WHERE x.donor_id=d.id)
  AND s.status IN ('submitted','uncertain')`
