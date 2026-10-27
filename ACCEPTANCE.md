@@ -24,8 +24,8 @@ COMM-006 current-tree proof: the SMS journey and native schedule and registratio
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 82 | 33 | 15 | 130 |
-| All | 91 | 33 | 15 | 139 |
+| Target and push further | 83 | 32 | 15 | 130 |
+| All | 92 | 32 | 15 | 139 |
 
 ## Target
 
