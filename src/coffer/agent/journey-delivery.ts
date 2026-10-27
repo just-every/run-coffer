@@ -1,3 +1,4 @@
+import { manager } from '../auth'
 import { all, commit, event, fail, id, one, type Context, type Row } from '../db'
 import { appealCommand } from '../appeals'
 import { refreshMessages } from '../communications/outbound'
@@ -5,7 +6,7 @@ import { AGENT, action } from './activity'
 import { outcome } from './appeals'
 import { journeyResults } from './journey-results'
 
-const source = `FROM cf_welcome_steps s JOIN cf_donors d ON d.id=s.donor_id
+const source = (c:Context) => `FROM (SELECT id,step,response_code,donor_id,status,message_key,due_at FROM cf_welcome_steps UNION ALL SELECT id,step,response_code,donor_id,status,message_key,due_at FROM cf_journey_steps WHERE ${manager(c.actor)?1:0}=1) s JOIN cf_donors d ON d.id=s.donor_id
  LEFT JOIN cf_communications m ON m.message_key=s.message_key
  WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges x WHERE x.donor_id=d.id)
  AND s.status IN ('submitted','uncertain')`
@@ -17,7 +18,7 @@ async function proposal(c:Context,stepId:string) {
 
 export async function journeyDelivery(c:Context) {
  const steps=await all(c,`SELECT s.id,s.step,s.response_code,s.donor_id,d.name,s.status,m.id AS communication_id,m.provider,
- m.status AS message_status,m.remote_status,m.checked_at ${source} ORDER BY s.due_at DESC,s.id LIMIT 100`)
+ m.status AS message_status,m.remote_status,m.checked_at ${source(c)} ORDER BY s.due_at DESC,s.id LIMIT 100`)
  const totals = new Map<string, ReturnType<typeof journeyResults>>()
  return Promise.all(steps.map(s=>{
   const key=s.response_code??''
@@ -36,7 +37,7 @@ async function result(c:Context,s:Row,totals=journeyResults(c,s.response_code)) 
 async function submittedStep(c:Context,p:Row) {
  const stepId=id(p.stepId,'Journey step')
  const step=await one(c,`SELECT s.*,d.name,m.id AS communication_id,m.status AS message_status,m.provider,
- m.remote_status,m.checked_at,m.subject,m.body ${source} AND s.id=?`,stepId)
+ m.remote_status,m.checked_at,m.subject,m.body ${source(c)} AND s.id=?`,stepId)
  if(!step?.communication_id)fail('NOT_SUBMITTED','Choose a submitted journey message.',409)
  return step
 }

@@ -161,13 +161,43 @@ thank-you/impact steps. Publication is refused while a journey is active so its 
 change underneath it. Submission claims and unique message keys prevent repeats;
 uncertain submissions require human investigation.
 
-This implements the first-gift series with current constituent-status and
-solicitation gates. Other journey triggers, branching, topic preferences and
-cross-journey frequency caps remain outside this implementation. Reviewed
-gift-triggered rules separately create ordinary thank-you calls and first-gift
-tags or submit minimal private fund notices through Slack; they do not provide
-those additional journey triggers. Mango also enforces its own sender and frequency
-rules at approval and handoff.
+## Other stewardship journeys
+
+In Appeals, open **Build a three-stage journey**. Choose a strict gift threshold,
+a twelve-calendar-month lapse, the live LYBUNT or SYBUNT list, a saved list,
+new recurring giving, a giving anniversary or a recorded event check-in.
+Registration alone is not attendance. A gift amount must exceed the threshold;
+a gift equal to it does not enroll. First gifts keep their existing welcome editor.
+
+Each stage can send marketing email through the connected Mango or Mailchimp,
+create an ordinary owned call task, or wait. Mark each stage as an ask or not,
+and choose whether a recorded human reply is required. A new gift ends an
+active series instead of sending more stages. Each stage gets a permanent
+response code; gifts without that code are never inferred to be responses.
+Messages and stage settings stay fixed after publication. Review all three
+stages and explicitly publish them. Each donor joins a published series once.
+Another anniversary series requires another publication.
+
+The minute scheduler and **Run due journeys** share durable claims. Before a
+submission they check active status, current email consent, new gifts, current
+list membership, topic preferences and solicitation restrictions. Missing merge
+fields hold the stage, with every held recipient listed for correction.
+An ask skip records its reason and allows later stages that are not asks.
+Uncertain submissions are visible and never automatically retried; **Stop journey**
+cancels remaining pending stages without resubmitting any message.
+
+Settings contains **Journey email frequency**. The conservative adopted default
+is one reserved email per donor per organization calendar day across the
+welcome series and all other journeys. A confirmed setting can lengthen that
+window. Held stages remain pending; handoffs and uncertain outcomes keep their
+reservation. Tasks, waits and transactional notices are separate. Merge preserves
+the cap across the original identities. This cap and recorded-reply branch
+semantic await ct approval, so STEW-003 remains partial. No personal-style mail
+stage or real provider-delivery proof is claimed.
+
+Published journeys, enrollments, steps, response codes and cap reservations are
+portable. Erasure removes constituent-linked work. A status undo restores the
+record; resuming earlier pending work needs a separate audited confirmation.
 
 ## Replies
 

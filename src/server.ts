@@ -1,3 +1,4 @@
+import { runScheduledJourneys } from './coffer/communications/journey-runner'
 import { advanceDevelopmentReports } from './coffer/agent/development-report-scheduler'
 import { runTaskReminders } from './coffer/call-tasks'
 import { runWebhooks } from './coffer/webhooks/delivery'
@@ -42,6 +43,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
   async email(message,env) { await receiveReply(message,runtimeBindings(env)) },
   async scheduled(controller, env, execution) {
     execution.waitUntil(runMarketingSync(runtimeBindings(env),new Date(controller.scheduledTime)))
+    execution.waitUntil(runScheduledJourneys(runtimeBindings(env),new Date(controller.scheduledTime)))
     execution.waitUntil(runWelcome(runtimeBindings(env),new Date(controller.scheduledTime)))
     const tick=new Date(controller.scheduledTime)
     execution.waitUntil(advanceDevelopmentReports(runtimeBindings(env),tick))

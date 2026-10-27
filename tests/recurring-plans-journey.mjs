@@ -18,6 +18,9 @@ export async function recurringPlansJourney(){
   }
   await reviewed(h)
   const campaign=await api('/api/coffer/giving/campaigns',{name:'Year-round reading',slug:'recurring-reading',description:'Books and tutoring throughout the year.',fund:'Reading',goal:'10000'})
+  const recurringJourney=await h.command('journey.publish',{name:'New recurring supporter',trigger:'recurring',confirm:'yes',thankSubject:'Welcome to recurring giving',thankBody:'Thank you for your recurring support.',impactSubject:'Reading update',impactBody:'Your support provides books.',askSubject:'Stay connected',askBody:'We will share the next reading update.',impactDays:1,askDays:2,thankKind:'wait',impactKind:'wait',askKind:'wait',thankIsAsk:'no',impactIsAsk:'no',askIsAsk:'no'},{headers:{'x-test-now':new Date(Date.parse(edge.state.now)-1000).toISOString()}})
+  await h.command('journey.run',{}, {headers:headers()})
+  assert.deepEqual((await get('/api/coffer/journeys')).enrollments.filter(e=>e.journey_id===recurringJourney.id),[],'A recurring journey has no donors before a plan starts')
   const start=async(frequency,amount='25')=>{
    const requestId=randomUUID(),data={requestId,name:'Recurring Donor '+frequency,email:frequency+'@example.test',amount,frequency,'cf-turnstile-response':'synthetic-coffer-security-token'}
    const response=await h.request('/give/recurring-reading/checkout',form(data));assert.equal(response.status,303,await response.text())
@@ -27,6 +30,16 @@ export async function recurringPlansJourney(){
    return sub
   }
   const monthly=await start('monthly')
+  const monthlyJourneyPerson=(await get('/api/coffer/donors')).donors.find(d=>d.email==='monthly@example.test')
+  assert.ok(monthlyJourneyPerson,'The completed subscription creates its donor')
+  await h.command('consent.record',{donorId:monthlyJourneyPerson.id,channel:'email',status:'granted',method:'paper form',evidence:'Synthetic recurring stewardship permission.',capturedOn:edge.state.now.slice(0,10)},{headers:headers()})
+  await h.command('journey.run',{}, {headers:headers()})
+  const recurringEnrollments=(await get('/api/coffer/journeys')).enrollments.filter(e=>e.journey_id===recurringJourney.id)
+  assert.deepEqual(recurringEnrollments.map(e=>e.donor_id),[monthlyJourneyPerson.id],'A newly started active plan enrolls its exact consenting donor')
+  assert.equal(recurringEnrollments[0].status,'active')
+  assert.deepEqual(recurringEnrollments[0].steps.map(s=>[s.step,s.status]).sort(),[['ask','pending'],['impact','pending'],['thank','completed']])
+  await h.command('journey.run',{}, {headers:headers()})
+  assert.deepEqual((await get('/api/coffer/journeys')).enrollments.filter(e=>e.journey_id===recurringJourney.id),recurringEnrollments,'Replaying the recurring trigger preserves the same enrollment and steps')
   for(const month of ['02','03','04']) {
    const tick=await edge.advance(`2026-${month}-10T12:00:00.000Z`)
    for(const id of tick.bills){await deliver('invoice.paid',id);await deliver('invoice.payment_succeeded',id)}
@@ -52,6 +65,11 @@ export async function recurringPlansJourney(){
   await deliver('invoice.payment_failed',waitingInvoice.id)
   assert.equal(h.messages.length,messages,'New cadences never inherit legacy automatic notice permission')
   assert.equal((await get('/api/coffer/agent')).recovery.rows.find(r=>r.subscription_id===quarterly.id).state,'waiting')
+  const cadenceDonors=(await get('/api/coffer/donors')).donors,quarterlyJourneyPerson=cadenceDonors.find(d=>d.email==='quarterly@example.test'),annualJourneyPerson=cadenceDonors.find(d=>d.email==='annually@example.test')
+  assert.ok(quarterlyJourneyPerson&&annualJourneyPerson)
+  await h.command('consent.record',{donorIds:[quarterlyJourneyPerson.id,annualJourneyPerson.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic recurring stewardship permission.',capturedOn:edge.state.now.slice(0,10)},{headers:headers()})
+  await h.command('journey.run',{}, {headers:headers()})
+  assert.deepEqual((await get('/api/coffer/journeys')).enrollments.filter(e=>e.journey_id===recurringJourney.id).map(e=>e.donor_id).sort(),[monthlyJourneyPerson.id,annualJourneyPerson.id].sort(),'A later active annual plan enrolls while the past-due quarterly plan stays excluded')
   const health=(await get('/api/coffer/reports/recurring?from=2026-04&through=2026-04')).rows[0]
   assert.equal(health.mrrCents,7500,'Quarterly and annual commitments normalize to monthly revenue')
   const call=await h.command('interaction.record',{donorId:person.id,kind:'call',occurredOn:'2026-04-10',notes:'Donor authorized the future amount, deferred date and collection changes during this call.'},{headers:headers()})
