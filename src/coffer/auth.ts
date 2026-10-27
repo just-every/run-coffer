@@ -36,8 +36,8 @@ export async function identity(request: Request, original: Bindings): Promise<{ 
  }
 }
 
-export function originGuard(request: Request, env: Bindings, bearer = false) {
+export function originGuard(request: Request, env: Bindings, bearer = false, oauthNavigation = false) {
  const url = new URL(request.url), origin = runtimeBindings(env).AUTH_ORIGIN
  if (url.origin !== origin || (request.headers.has('host') && request.headers.get('host')?.toLowerCase() !== url.host.toLowerCase())) throw new CofferError('invalid_host', 'This request was sent to the wrong address.', 403)
- if (request.headers.get('sec-fetch-site') === 'cross-site' || (!['GET', 'HEAD'].includes(request.method) && !bearer && request.headers.get('origin') !== origin)) throw new CofferError('invalid_origin', 'This request did not come from Coffer.', 403)
+ if ((request.headers.get('sec-fetch-site') === 'cross-site' && !(oauthNavigation && request.method === 'GET')) || (!['GET', 'HEAD'].includes(request.method) && !bearer && request.headers.get('origin') !== origin)) throw new CofferError('invalid_origin', 'This request did not come from Coffer.', 403)
 }

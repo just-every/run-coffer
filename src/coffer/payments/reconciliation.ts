@@ -7,12 +7,12 @@ export async function reconciliation(c: Context, url: URL) {
  if(from>to)fail('INPUT','From must be on or before To.',400)
  const inside=(day:string)=>day>=from&&day<=to
  const ledger=await all(c,'SELECT * FROM cf_fund_ledger WHERE received_on>=? AND received_on<=?',from,to)
- const lines=await paymentFundLines(c,await all(c,`SELECT e.*,x.payout_id,p.arrival_on,p.status AS payout_status,o.state AS posting_state
+ const lines=await paymentFundLines(c,await all(c,`SELECT e.*,x.payout_id,p.arrival_on,p.status AS payout_status,CASE WHEN EXISTS(SELECT 1 FROM cf_qbo_postings q WHERE q.kind='payout' AND q.source_id=p.id AND q.state='posted') THEN 'posted' ELSE o.state END AS posting_state
   FROM cf_payment_entries e LEFT JOIN cf_payout_entries x ON x.entry_id=e.id LEFT JOIN cf_payouts p ON p.id=x.payout_id LEFT JOIN cf_payout_postings o ON o.payout_id=p.id
   WHERE (e.received_on>=? AND e.received_on<=?) OR (p.arrival_on>=? AND p.arrival_on<=?)`,from,to,from,to))
- const deposits=await all(c,`SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents,o.state AS posting_state
+ const deposits=await all(c,`SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents,CASE WHEN EXISTS(SELECT 1 FROM cf_qbo_postings q WHERE q.kind='payout' AND q.source_id=p.id AND q.state='posted') THEN 'posted' ELSE o.state END AS posting_state
   FROM cf_payouts p LEFT JOIN cf_payout_postings o ON o.payout_id=p.id WHERE p.arrival_on>=? AND p.arrival_on<=? AND p.status='paid'`,from,to)
- const batches=await all(c,"SELECT b.*,o.state AS posting_state FROM cf_gift_batches b LEFT JOIN cf_batch_postings o ON o.batch_id=b.id WHERE b.received_on>=? AND b.received_on<=? AND b.status='closed'",from,to)
+ const batches=await all(c,"SELECT b.*,CASE WHEN EXISTS(SELECT 1 FROM cf_qbo_postings q WHERE q.kind='batch' AND q.source_id=b.id AND q.state='posted') THEN 'posted' ELSE o.state END AS posting_state FROM cf_gift_batches b LEFT JOIN cf_batch_postings o ON o.batch_id=b.id WHERE b.received_on>=? AND b.received_on<=? AND b.status='closed'",from,to)
  const pending=await all(c,"SELECT * FROM cf_pending_bank_payments WHERE received_on>=? AND received_on<=? AND status='processing' ORDER BY received_on,id",from,to)
  const funds=new Map<string,Row>(),differences:Row[]=[],pairs=new Map<string,Row>()
  const fund=(name:string)=>{let f=funds.get(name);if(!f){f={fund:name,ledger_cents:0n,processor_cents:0n,deposited_cents:0n,accounting_cents:0n,pending_ach_cents:0n};funds.set(name,f)}return f}

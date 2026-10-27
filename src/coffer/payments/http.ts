@@ -1,3 +1,4 @@
+import { quickbooksResponse } from './quickbooks/http'
 import { batchDeposit, batchEvidence, postBatchToPantry } from './batch-deposits'
 import { batchDepositPage } from './batch-ui'
 import { reconciliation } from './reconciliation'
@@ -19,6 +20,8 @@ import { payoutDetailPage, payoutListPage, payoutStyles } from './ui'
 
 const json = (value: unknown) => Response.json(value, { headers: { 'cache-control': 'no-store' } })
 export async function paymentsResponse(request: Request, c: Context, env: PaymentsEnv, input: () => Promise<any>): Promise<Response | null> {
+ const quickbooks = await quickbooksResponse(request, c, env, input)
+ if (quickbooks) return quickbooks
  const path = new URL(request.url).pathname, api = path.startsWith('/api/'), root = api ? '/api/coffer/payments' : '/app/payouts'
  if (!path.startsWith(root)) return null
  if (!manager(c.actor)) fail('manager_required', 'Only the owner or an admin manages payouts.', 403)

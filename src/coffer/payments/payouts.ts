@@ -14,12 +14,12 @@ export async function payoutDetail(c: { db: D1Database }, id: string) {
  const accountingLines=(await paymentFundLines(c,lines)).map(withRestriction), funds=new Map<string,{fund:string;gross_cents:number;fee_cents:number;net_cents:number}>()
  for(const line of accountingLines){const total=funds.get(line.fund)??{fund:line.fund,gross_cents:0,fee_cents:0,net_cents:0};total.gross_cents+=line.amount_cents;total.fee_cents+=line.fee_cents;total.net_cents+=line.net_cents;funds.set(line.fund,total)}
  const splits=[...funds.values()].sort((a,b)=>a.fund.localeCompare(b.fund)).map(withRestriction)
- return { payout, lines, accountingLines, splits, posting: await one(c, 'SELECT * FROM cf_payout_postings WHERE payout_id=?', id) }
+ return { payout, lines, accountingLines, splits, posting: await one(c, 'SELECT * FROM cf_payout_postings WHERE payout_id=?', id), qboPosting: await one(c, "SELECT * FROM cf_qbo_postings WHERE kind='payout' AND source_id=?", id) }
 }
 export async function payoutList(c: { db: D1Database }) {
- const postings = await all(c, 'SELECT * FROM cf_payout_postings')
+ const postings = await all(c, 'SELECT * FROM cf_payout_postings'), qboPostings = await all(c, "SELECT * FROM cf_qbo_postings WHERE kind='payout'")
  return {
-  payouts: (await all(c, 'SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p ORDER BY arrival_on DESC,id DESC LIMIT 100')).map(p => ({ ...p, posting: postings.find(x => x.payout_id === p.id) ?? null })),
+  payouts: (await all(c, 'SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p ORDER BY arrival_on DESC,id DESC LIMIT 100')).map(p => ({ ...p, posting: postings.find(x => x.payout_id === p.id) ?? null, qboPosting: qboPostings.find(x => x.source_id === p.id) ?? null })),
   failures: await all(c, 'SELECT * FROM cf_payment_failures ORDER BY created_at DESC LIMIT 30'),
  }
 }

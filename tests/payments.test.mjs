@@ -5,7 +5,7 @@ import {run} from './harness.mjs'
 import {fixedNow} from './fixed-clock.mjs'
 import {paymentAdjustmentsJourney} from './payment-adjustments-journey.mjs'
 
-const secret='synthetic_whsec_payments_network_edge',at=Date.parse(fixedNow)/1000
+const secret='synthetic-coffer-1700',at=Date.parse(fixedNow)/1000
 const charge=(id,amount,fund,email,fee)=>({id,object:'charge',paid:true,status:'succeeded',amount,currency:'usd',created:at,metadata:{fund},billing_details:{name:email.split('@')[0],email},balance_transaction:'txn_'+id,amount_refunded:0,fee})
 const a=charge('ch_reading',10000,'Reading','maria@example.test',320),b=charge('ch_meals',5000,'Meals','jonah@example.test',175)
 const refund={id:'re_reading',object:'refund',status:'succeeded',charge:a.id,balance_transaction:'txn_refund'}
@@ -254,4 +254,8 @@ test('FIN-005: a month of pending ACH, late refunds, offline batches and posted 
 
 test('FIN-002: closed check deposits retain evidence, approval and uncertain-submission custody',async()=>{
  const {batchDepositsJourney}=await import('./batch-deposits-journey.mjs');await batchDepositsJourney()
+})
+
+test('FIN-001: QuickBooks owner connects, maps three funds and posts exact deposits and separate adjustments once across failure and restore',async()=>{
+ const {quickbooksJourney}=await import('./quickbooks/journey.mjs');await quickbooksJourney()
 })

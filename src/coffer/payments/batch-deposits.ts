@@ -16,7 +16,7 @@ export async function batchDeposit(c: Context, batchId: string) {
   WHERE e.batch_id=? ORDER BY g.id,a.position`,batchId)
  const byFund=new Map<string,any>()
  for(const line of lines){const split=byFund.get(line.fund)??{fund:line.fund,gross_cents:0,fee_cents:0,net_cents:0,restriction:line.restriction,detail:line.detail,release_on:line.release_on};split.gross_cents+=line.amount_cents;split.net_cents+=line.amount_cents;byFund.set(line.fund,split)}
- return {batch,lines,splits:[...byFund.values()].sort((a,b)=>a.fund.localeCompare(b.fund)),posting:await one(c,'SELECT * FROM cf_batch_postings WHERE batch_id=?',batchId)}
+ return {batch,lines,splits:[...byFund.values()].sort((a,b)=>a.fund.localeCompare(b.fund)),posting:await one(c,'SELECT * FROM cf_batch_postings WHERE batch_id=?',batchId),qboPosting:await one(c,"SELECT * FROM cf_qbo_postings WHERE kind='batch' AND source_id=?",batchId)}
 }
 export function batchEvidence(view: Awaited<ReturnType<typeof batchDeposit>>) {
  return csv([['Batch ID','Deposit date','Payment method','Gift ID','Check reference','Fund','Amount','Restriction'],

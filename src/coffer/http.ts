@@ -255,7 +255,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  const env = runtimeBindings(original), isApi = path.startsWith('/api/')
  let actor: Actor | undefined
  try {
-  const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer)
+  const auth = await identity(request, env); actor = auth.actor; originGuard(request, env, auth.bearer, request.method === 'GET' && path === '/app/settings/quickbooks/callback')
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
   responseAuthorities.set(request,c)
   if(c.actor.preparationGrant&&(request.method==='GET'||path==='/api/coffer/mcp'))await reservePreparationGrant(c,'read')

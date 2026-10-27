@@ -12,6 +12,9 @@ export interface PaymentsEnv extends GivingEnv {
  PANTRY_FUND_CLASSES?: string
  PANTRY_FUND_LOCATIONS?: string
  QBO_ACCOUNT_NAMES?: string
+ QBO_CLIENT_ID?: string
+ QBO_CLIENT_SECRET?: string
+ QBO_SANDBOX?: string
 }
 type Posting = {
  source_id: string; state: string; external_id: string | null; destination: string; posted_at: string | null

@@ -36,6 +36,20 @@ In **Gifts → Batches**, enter each check with its fund; the batch fund supplie
 
 Approve and post in Pantry, then choose **Refresh Pantry posting** in Coffer. Proposed or uncertain submissions do not count as posted accounting. The reconciliation report includes the batch by its received date and each gift’s fund, and removes its unposted difference only after the journal ID is confirmed. A saved submission survives export and restore and is refreshed without another proposal.
 
+## Connect QuickBooks Online
+
+The owner opens **Settings → QuickBooks accounting settings**. Configure `QBO_CLIENT_ID` and `QBO_CLIENT_SECRET` in the installation's private environment. Register the exact callback shown by the installation origin followed by `/app/settings/quickbooks/callback` in the Intuit application. Set `QBO_SANDBOX=true` for an Intuit sandbox; production is the default. Choose **Connect QuickBooks**, authorize the company at Intuit, then return to Coffer. The authorization state is short lived, single use and bound to the owner. Access and rotating refresh tokens are encrypted with this installation's secret and excluded from portable archives.
+
+Choose separate checking and Stripe clearing bank accounts, a processing fee expense account, and an income account with a class or location for every fund. Accounts must be active and use USD; the company's home currency must also be USD. QuickBooks allows one transaction location per deposit, while classes can differ by line. Use line classes and one shared location when several funds share a deposit.
+
+Open a payout or closed check batch and choose **Review QuickBooks deposit**. Review each fund, fee and separate adjustment, confirm the exact deposit, then choose **Post to QuickBooks**. The owner alone authorizes these accounting writes. A payout requires complete, balanced processor membership; an offline batch must be closed and balanced. The returned QuickBooks dates, account lines, dimensions and bank total must match the frozen request before Coffer calls it posted.
+
+Refunds and disputes retain the contribution treatment already present in Coffer's ledger. Each processor balance transaction has its own balanced journal against Stripe clearing, including any dispute fee. The bank deposit includes its clearing movement, so the refund or dispute reduces fund income exactly once and checking receives the net payout. Check batches have no processor fee.
+
+A refused post remains visible with the provider error code. Resolve the account, authorization or closed-period issue in QuickBooks and choose **Retry saved QuickBooks post**. Interrupted requests also retain their exact payload and permanent Intuit request ID; retry recovers that result instead of creating a new entry. Mappings changed later never rewrite an authorized request. Confirmed entries are not sent again. Archives preserve financial claims and mappings; reconnect the same company after restore before recovering any unfinished request. Disconnect removes Coffer's local credentials; revoke the application in Intuit too if its provider authorization should end.
+
+The FIN-001 journey fakes the Intuit network boundary. It proves OAuth, refresh, three-fund deposits, closed check batches, separate refunds and disputes, exact returned amounts, refusal and recovery, and duplicate safety after restore. It makes no live QuickBooks settlement claim. QuickBooks provider calls remain unavailable on RER Managed.
+
 ## QuickBooks exports
 
 Set `QBO_ACCOUNT_NAMES` to JSON mapping the same mapped account IDs to exact QuickBooks account names (including parent names for subaccounts). Download the payout's journal CSV, then use QuickBooks Online **Settings → Import data → Journal entries** and map its debit, credit, account and class columns. Fund names become classes; configure class tracking in QuickBooks if used. Keep its duplicate journal-number warning enabled and reconcile the deterministic compact `CF-…` journal reference (the full payout ID stays in each line description). A file download does not establish that QuickBooks imported it. The separate IIF file targets QuickBooks Desktop, which accepts IIF; it is not a QBO API connection.
@@ -48,7 +62,7 @@ On RER Managed, provider calls show one plain line: **Stripe and Pantry are not 
 
 In **Payouts → Journal for a period**, choose inclusive From and To arrival dates and CSV or QuickBooks Desktop IIF. The file includes every recorded payout in that period, independently of the latest 100 shown in the list. Each payout keeps its own balanced journal and deterministic reference, with the same account and fund-class mapping as its individual export. A payout that is not paid, fully matched or correctly mapped refuses the download; resolve it before closing the period. An empty period downloads headers only.
 
-The authenticated HTTP door is `/api/coffer/payments/journal?from=2026-10-01&to=2026-10-31&format=csv` (or `format=iif`). These journal files can be mapped into other ledgers such as Xero, Aplos and Sage Intacct; confirm that ledger’s import-column mapping before importing. Check batches are not implemented yet (GIFT-002/FIN-001).
+The authenticated HTTP door is `/api/coffer/payments/journal?from=2026-10-01&to=2026-10-31&format=csv` (or `format=iif`). These journal files can be mapped into other ledgers such as Xero, Aplos and Sage Intacct; confirm that ledger’s import-column mapping before importing. Check batches are posted from their own closed-batch deposit pages.
 
 ## Refunds and disputes (PAY-003)
 
