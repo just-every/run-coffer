@@ -19,7 +19,8 @@ export async function recordSmsReply(c:Context,fields:URLSearchParams):Promise<v
  const donors=await all(c,`SELECT d.id,p.id AS preference_id FROM cf_donors d JOIN cf_sms_preferences p ON p.donor_id=d.id
   WHERE d.phone=? AND p.phone=d.phone AND p.id=(SELECT MAX(id) FROM cf_sms_preferences WHERE donor_id=d.id)
   AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)`,from)
- if(donors.length!==1)return
+ if(donors.length!==1||Number((await one(c,`SELECT COUNT(*) AS total FROM cf_donors d WHERE d.phone=? AND d.erased_at IS NULL
+  AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)`,from))?.total)!==1)return
  const donor=donors[0],owner=await routingOwner(c.db,donor.id)
  if(!owner)return
  const taskId='sms-'+await sha256(messageId),day=today((await settings(c)).timezone,new Date(c.now)),note='SMS reply: '+body
@@ -27,7 +28,7 @@ export async function recordSmsReply(c:Context,fields:URLSearchParams):Promise<v
   guard(`EXISTS(SELECT 1 FROM cf_donors d JOIN cf_sms_preferences p ON p.donor_id=d.id WHERE d.id=? AND d.phone=? AND p.phone=d.phone
    AND p.id=? AND p.id=(SELECT MAX(id) FROM cf_sms_preferences WHERE donor_id=d.id) AND d.erased_at IS NULL
    AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))`,'SMS_REPLY_CHANGED','The reply identity changed.',donor.id,from,donor.preference_id),
-  guard(`(SELECT COUNT(*) FROM cf_donors d JOIN cf_sms_preferences p ON p.donor_id=d.id WHERE d.phone=? AND p.phone=d.phone AND p.id=(SELECT MAX(id) FROM cf_sms_preferences WHERE donor_id=d.id) AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))=1`,'SMS_REPLY_CHANGED','The reply phone is shared or changed.',from),
+  guard(`(SELECT COUNT(*) FROM cf_donors d WHERE d.phone=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))=1`,'SMS_REPLY_CHANGED','The reply phone is shared or changed.',from),
   guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))",'OWNER_CHANGED','The reply owner changed.',owner.id),
   sql(`INSERT OR IGNORE INTO cf_donor_notes(id,donor_id,occurred_on,body,source,recorded_at,recorded_by,kind,who,next_step,recorded_by_id)
    SELECT ?,?,?,?,'Twilio SMS',?,'Twilio SMS','note','Donor','Follow up on the assigned SMS reply task.','twilio-reply'

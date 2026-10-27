@@ -169,6 +169,8 @@ export async function smsJourney(){
   assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_kind==='sms-reply').length,2,'Unknown phones cannot be assigned to a guessed donor')
 
   const shared=await donor(h,'Synthetic shared SMS phone',{phone:'+12025550112'})
+  await webhook('Shared phone without recorded permission','synthetic-coffer-89','+12025550112')
+  assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_kind==='sms-reply').length,2,'A second current phone owner prevents identity guessing even without recorded SMS permission')
   await command('sms.preference',{donorId:shared.id,phone:'+12025550112',timezone:'America/New_York',status:'granted',version:0,evidence:'Synthetic shared phone permission',capturedOn:'2026-10-15'})
   await webhook('Shared phone must not guess','synthetic-coffer-47','+12025550112')
   assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_kind==='sms-reply').length,2,'A shared phone never guesses which donor replied')
