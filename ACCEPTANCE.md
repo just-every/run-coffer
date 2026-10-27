@@ -19,11 +19,13 @@ Current GIVE-010 proof provenance, 27 October 2026: the status entries describe 
 
 COMM-001 current-tree provenance: the named preference, provider-answer and outbound-claim journeys below include this fix round. The local communications file passed all 12 registrations, including the native screens at 1440 and 390; the COMM-001 source and test bytes are unchanged by subsequent documentation updates and integration of concurrent receipt proofs. Its exact candidate SHA and matching push Verify are supplied in the fresh ct request after landing. The merged judgment baseline above does not substitute for this COMM-001 candidate’s exact-SHA execution. COMM-001 remains partial because actual provider-envelope one-click unsubscribe behavior is unproved.
 
+COMM-006 current-tree proof: the SMS journey and native schedule and registration forms named in its row prove the four completed points. Exact candidate SHA, matching push Verify, complete publication scan and main landing are supplied in the fresh ct request; historical evidence does not substitute for this run.
+
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 81 | 33 | 16 | 130 |
-| All | 90 | 33 | 16 | 139 |
+| Target and push further | 82 | 32 | 16 | 130 |
+| All | 91 | 32 | 16 | 139 |
 
 ## Target
 
