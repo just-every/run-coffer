@@ -67,7 +67,7 @@ Hosted deployment provisions the declared FILES R2 bucket through Base. The Clou
 
 ## Monthly gifts
 
-Monthly plans run as Stripe subscriptions. Set your account's retry schedule in Stripe (Billing revenue recovery). Coffer follows that schedule and records failures, the next attempt and a successful recovery. After a failed attempt it emails the donor a private card-update link; if that email cannot be sent, Coffer leaves the webhook unacknowledged so Stripe delivers it again. Expiry warnings and staff escalation after retries run out are not implemented.
+Monthly plans run as Stripe subscriptions. Set your account's retry schedule in Stripe (Billing revenue recovery). Coffer follows that schedule and records failures, the next attempt and a successful recovery. Failed-invoice notices use durable claims: failed or uncertain provider submission is recorded and acknowledged to Stripe without automatically resending the message. Recovery notice approval governs configured sequences and donor permission. The current default card receives one warning in the calendar month before expiry, under the applicable notice policy. Exhausted retries create one ordinary call task per invoice for the relationship manager, or the installation owner when none is assigned. Provider acceptance is not proof of delivery.
 
 Donors open **Manage my monthly gift**, request an emailed link and confirm it to see only their own plans. Links expire after 30 minutes and work once; sessions last one hour. Card updates happen in Stripe's billing portal. Cancelling stops future gifts at the end of the current billing period; gifts already received stay in the ledger. Coffer on your computer sends no email, so the portal link only works on a hosted Coffer.
 

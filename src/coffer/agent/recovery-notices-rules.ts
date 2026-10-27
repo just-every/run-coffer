@@ -1,7 +1,7 @@
 import { addDays, all, guard, one, today, type Context, type Row, type Stmt } from '../db'
 import { settings } from '../settings'
 
-export const policyConfigured = async(c:Pick<Context,'db'>)=>!!(await one(c,'SELECT approved_at FROM cf_recovery_notice_policy WHERE id=1'))?.approved_at
+export const policyConfigured = async(c:Pick<Context,'db'>)=>!!(await one(c,`SELECT 1 FROM cf_recovery_notice_policy WHERE id=1 AND approved_at IS NOT NULL UNION ALL SELECT 1 FROM cf_recovery_permissions UNION ALL SELECT 1 FROM cf_recovery_steps LIMIT 1`))
 /** Newly offered cadences and staff mutations never inherit legacy notice consent. */
 export const recoveryPolicyRequired=async(c:Pick<Context,'db'>,subscriptionId:string)=>!!await one(c,`SELECT 1 FROM cf_subscriptions s WHERE s.id=? AND (EXISTS(SELECT 1 FROM cf_giving_intents i WHERE i.customer_id=s.customer_id AND i.billing_frequency IN ('quarterly','annually')) OR EXISTS(SELECT 1 FROM cf_portal_changes p WHERE p.subscription_id=s.id AND p.action LIKE 'staff.%'))`,subscriptionId)
 export const portalStopSql = `EXISTS(SELECT 1 FROM cf_events WHERE action='portal.paymentMethodUpdated' AND subject_kind='subscription' AND subject_id=? AND at>=?)`
@@ -29,7 +29,7 @@ export async function lastRecoveryContact(c:Context,donorId:string) {
  * a plan moved by merge. A person may close its plan after investigation. */
 export const uncertainRecoveryContact = `EXISTS(SELECT 1 FROM cf_recovery_steps n JOIN cf_subscriptions s ON s.id=n.subscription_id
  WHERE (n.donor_id=? OR s.donor_id=?) AND n.id<>? AND n.state IN ('sending','uncertain')
- AND NOT EXISTS(SELECT 1 FROM cf_recovery_closures WHERE invoice_id IN (n.invoice_id,'plan:'||n.subscription_id)))`
+ AND NOT EXISTS(SELECT 1 FROM cf_recovery_investigations WHERE step_id=n.id))`
 export async function noticeFacts(c:Context,subscriptionId:string,kind:'failure'|'expiry',caseKey:string,baseline:number,started:string) {
  const plan=await one(c,`SELECT s.*,d.name,d.email,d.version AS donor_version,d.constituent_status,d.erased_at FROM cf_subscriptions s JOIN cf_donors d ON d.id=s.donor_id WHERE s.id=?`,subscriptionId)
  if(!plan)return null

@@ -6,7 +6,7 @@ import { noticeChecks } from './recovery-notices-rules'
 
 export async function recoveryNoticeState(c:Context) {
  if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin reads recovery notice permissions.',403)
- return {policy:await one(c,'SELECT * FROM cf_recovery_notice_policy WHERE id=1'),permissions:await all(c,'SELECT p.*,d.name AS donor_name FROM cf_recovery_permissions p JOIN cf_donors d ON d.id=p.donor_id WHERE d.erased_at IS NULL ORDER BY d.name'),steps:await all(c,`SELECT n.*,d.name AS donor_name FROM cf_recovery_steps n JOIN cf_donors d ON d.id=n.donor_id WHERE d.erased_at IS NULL ORDER BY n.created_at DESC,n.ordinal DESC LIMIT 200`),donors:await all(c,'SELECT id,name FROM cf_donors WHERE erased_at IS NULL ORDER BY name')}
+ return {policy:await one(c,'SELECT * FROM cf_recovery_notice_policy WHERE id=1'),permissions:await all(c,'SELECT p.*,d.name AS donor_name FROM cf_recovery_permissions p JOIN cf_donors d ON d.id=p.donor_id WHERE d.erased_at IS NULL ORDER BY d.name'),investigations:await all(c,'SELECT * FROM cf_recovery_investigations ORDER BY closed_at,step_id'),closures:await all(c,'SELECT * FROM cf_recovery_closures ORDER BY closed_at,invoice_id'),steps:await all(c,`SELECT n.*,d.name AS donor_name FROM cf_recovery_steps n JOIN cf_donors d ON d.id=n.donor_id WHERE d.erased_at IS NULL AND (n.id IN (SELECT id FROM cf_recovery_steps ORDER BY created_at DESC,ordinal DESC LIMIT 200) OR n.state IN ('sending','uncertain')) ORDER BY n.created_at DESC,n.ordinal DESC`),donors:await all(c,'SELECT id,name FROM cf_donors WHERE erased_at IS NULL ORDER BY name')}
 }
 export async function recoveryNoticeAction(c:Context,p:Row) {
  if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin approves recovery notices.',403)
@@ -28,8 +28,9 @@ export async function recoveryNoticeAction(c:Context,p:Row) {
  const stepId=id(p.stepId,'Notice'),step=await one(c,'SELECT * FROM cf_recovery_steps WHERE id=?',stepId)
  if(!step)fail('NOT_FOUND','That notice does not exist.',404)
  if(action==='close') {
-  const reason=text(p.reason,'Reason for closing recovery contact',1000)
-  await commit(c,[sql('INSERT OR IGNORE INTO cf_recovery_closures VALUES(?,?,?,?)','plan:'+step.subscription_id,c.now,reason,c.actor.id),sql('INSERT OR IGNORE INTO cf_recovery_closures VALUES(?,?,?,?)',step.invoice_id,c.now,reason,c.actor.id),sql("UPDATE cf_recovery_steps SET state='closed',reason=?,version=version+1 WHERE subscription_id=? AND state IN ('prepared','held','awaiting_approval')",reason,step.subscription_id),event(c,'recovery.closed','recovery_step',stepId,step.donor_id,{reason})])
+  const reason=text(p.reason,'Reason for closing recovery contact',1000),uncertain=['sending','uncertain'].includes(step.state),finding=uncertain?text(p.finding,'Investigation finding (still unknown is valid)',1000):String(p.finding??'Contact stopped by request'),version=integer(Number(p.version??step.version),'Version',1)
+  const investigation={stepId,subscriptionId:step.subscription_id,scope:'plan',finding,reason,actorId:c.actor.id,at:c.now}
+  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_recovery_steps WHERE id=? AND version=?) AND NOT EXISTS(SELECT 1 FROM cf_recovery_investigations WHERE step_id=?)','VERSION','This notice or investigation changed. Refresh.',stepId,version,stepId),...(uncertain?[sql('INSERT INTO cf_recovery_investigations VALUES(?,?,?,?,?,?)',stepId,step.subscription_id,finding,reason,c.actor.id,c.now)]:[]),sql('INSERT OR IGNORE INTO cf_recovery_closures VALUES(?,?,?,?)','plan:'+step.subscription_id,c.now,reason,c.actor.id),sql('INSERT OR IGNORE INTO cf_recovery_closures VALUES(?,?,?,?)',step.invoice_id,c.now,reason,c.actor.id),sql("UPDATE cf_recovery_steps SET state='closed',reason=?,version=version+1 WHERE subscription_id=? AND state IN ('prepared','held','awaiting_approval')",reason,step.subscription_id),event(c,'recovery.closed','recovery_step',stepId,step.donor_id,investigation)])
   return {closed:step.invoice_id}
  }
  if(!['approve','complete'].includes(action))fail('INPUT','Choose a notice action.',400)

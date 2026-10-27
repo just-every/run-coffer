@@ -24,7 +24,7 @@ export async function withBrowserWorker(h,journey,{channel}={}) {
  })
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
  const origin=`http://127.0.0.1:${server.address().port}`
- const browser=await chromium.launch({headless:true,...(channel?{channel}:{}),args:['--use-mock-keychain','--password-store=basic']})
+ const browser=await chromium.launch({headless:true,...(process.env.COFFER_CHROMIUM_PATH?{executablePath:process.env.COFFER_CHROMIUM_PATH}:{}),...(channel?{channel}:{}),args:[...(process.env.COFFER_CHROMIUM_PATH?['--no-sandbox']:[]),'--use-mock-keychain','--password-store=basic']})
  try {
   const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true})
   // Fake only the challenge provider script; the Worker verifies the resulting
