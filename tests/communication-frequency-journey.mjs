@@ -3,7 +3,7 @@ import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import {run,donor,reviewed} from './harness.mjs'
 
 /** Exercise each channel's real durable claim, independently of email's slot. */
-export async function channelFrequencyJourney(h,{donor,control,ranked,owner,at,prefs}){
+export async function channelFrequencyJourney(h,{donor,control,ranked,owner,at,prefs,registration}){
  await prefs(donor,'phone',undefined,'monthly')
  const task=(await h.get('/api/coffer/tasks')).tasks.find(t=>t.id===ranked.entries[0].task_id)
  assert.ok(task);assert.equal(task.donor_id,donor.id);assert.equal(task.is_ask,1)
@@ -17,6 +17,10 @@ export async function channelFrequencyJourney(h,{donor,control,ranked,owner,at,p
  const first=await h.command('sms.prepare',{name:'First monthly text appeal',purpose:'appeal',donorIds:[donor.id],body:'Would you renew your reading-room support?'})
  assert.equal(first.recipients,1)
  const approved=await h.command('sms.approve',{runId:first.id,version:1})
+ const registrationOptions={headers:{'x-test-now':at}}
+ assert.equal((await registration.refresh(h,registrationOptions)).approved,0)
+ assert.equal((await registration.receipt(h,{when:at})).recorded,1)
+ assert.equal((await registration.refresh(h,registrationOptions)).approved,1)
  assert.equal((await h.command('sms.send',{runId:first.id,version:approved.version})).submitted,1)
  const second=await h.command('sms.prepare',{name:'Second monthly text appeal',purpose:'appeal',donorIds:[donor.id],body:'Another reading-room appeal.'})
  assert.equal(second.recipients,0);assert.deepEqual(second.excluded.map(row=>row.reason),['frequency'])

@@ -54,7 +54,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-015:' tests/coffer.test.mjs"
+        "COFFER_SMS_BROWSER=.cache/sms node --test --test-concurrency=1 --test-name-pattern='^DONOR-015:' tests/coffer.test.mjs"
       ]
     },
     {
@@ -97,8 +97,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-skip-pattern='^RCPT-003:' tests/receipts.test.mjs",
-        "node --test tests/hosted-mail.test.mjs"
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-skip-pattern='^(RCPT-003|RCPT-012):' tests/receipts.test.mjs"
       ]
     },
     {
@@ -106,7 +105,9 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments pnpm run test:payments"
+        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments pnpm run test:payments",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-name-pattern='^RCPT-012:' tests/receipts.test.mjs",
+        "node --test tests/hosted-mail.test.mjs"
       ]
     },
     {

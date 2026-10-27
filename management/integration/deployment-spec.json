@@ -1003,7 +1003,25 @@
     },
     {
       "binding": "DB",
-      "name": "core-0164_coffer_quickbooks.sql",
+      "name": "core-0164_coffer_sms_registration.sql",
+      "sha256": "283cc81ac038f2be53f23297fda52a7b6b71266d735cddb70490d1450983dbd6",
+      "sql": "-- Approval is evidence fetched from Twilio, never an operator assertion.\nCREATE TABLE cf_sms_registration (\n id INTEGER PRIMARY KEY CHECK(id=1),\n version INTEGER NOT NULL CHECK(version>=1),\n account_sid TEXT NOT NULL,\n messaging_service_sid TEXT NOT NULL,\n campaign_sid TEXT NOT NULL,\n sender TEXT NOT NULL,\n campaign_status TEXT NOT NULL,\n sender_registered INTEGER NOT NULL CHECK(sender_registered IN (0,1)),\n approved INTEGER NOT NULL CHECK(approved IN (0,1)),\n checked_at TEXT NOT NULL,\n provider_updated_at TEXT,\n connection_sealed TEXT,\n CHECK(approved=0 OR (campaign_status='VERIFIED' AND sender_registered=1))\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0165_coffer_sms_schedules.sql",
+      "sha256": "1dbff81de2dd0bbae9b3c8d49faf25525d8d27d0e200bbe597f7649bd2ffff3e",
+      "sql": "CREATE TABLE cf_sms_schedules (\n run_id TEXT PRIMARY KEY REFERENCES cf_sms_runs(id) ON DELETE CASCADE,\n scheduled_at TEXT NOT NULL,\n scheduled_by TEXT NOT NULL,\n state TEXT NOT NULL CHECK(state IN ('scheduled','paused','complete','cancelled')),\n note TEXT NOT NULL DEFAULT '',\n updated_at TEXT NOT NULL\n);\nCREATE TRIGGER cf_sms_schedule_stop AFTER UPDATE OF state ON cf_sms_runs\nWHEN NEW.state IN ('discarded','redacted') BEGIN\n UPDATE cf_sms_schedules SET state='cancelled',note='The text run was discarded or redacted.' WHERE run_id=NEW.id;\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0166_coffer_sms_number_status.sql",
+      "sha256": "b029a8cc122768004431d5f038858e3ba85f972bc38d8921febec8c17d9a83b3",
+      "sql": "-- Pool membership alone is not exact-number A2P registration evidence.\nALTER TABLE cf_sms_registration ADD COLUMN number_campaign_sid TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN phone_number_sid TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN number_configured_at TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN number_status TEXT NOT NULL DEFAULT 'unknown';\nALTER TABLE cf_sms_registration ADD COLUMN number_status_at TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN number_event_id TEXT;\nUPDATE cf_sms_registration SET approved=0,version=version+1;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0167_coffer_quickbooks.sql",
       "sha256": "436d3ade55bc9fbc82a6cbda0e32d854cb272577d53ac7dd7063d66f6c5ba85d",
       "sql": "-- Credentials and pending OAuth states are installation-local. Financial claims\n-- travel with archives so restoring a backup cannot send a deposit twice.\nCREATE TABLE cf_qbo_connection (\n id INTEGER PRIMARY KEY CHECK(id=1), realm_id TEXT NOT NULL, sandbox INTEGER NOT NULL,\n client_id TEXT NOT NULL, sealed TEXT NOT NULL, expires_at TEXT NOT NULL, version INTEGER NOT NULL,\n connected_at TEXT NOT NULL\n);\nCREATE TABLE cf_qbo_oauth (\n state_hash TEXT PRIMARY KEY, actor_id TEXT NOT NULL, expires_at TEXT NOT NULL\n);\nCREATE TABLE cf_qbo_mapping (\n id INTEGER PRIMARY KEY CHECK(id=1), realm_id TEXT NOT NULL, sandbox INTEGER NOT NULL,\n version INTEGER NOT NULL, mapping TEXT NOT NULL CHECK(json_valid(mapping)), updated_at TEXT NOT NULL\n);\nCREATE TABLE cf_qbo_postings (\n kind TEXT NOT NULL CHECK(kind IN ('payout','batch','adjustment')), source_id TEXT NOT NULL,\n realm_id TEXT NOT NULL, sandbox INTEGER NOT NULL, client_id TEXT NOT NULL, entity TEXT NOT NULL,\n request_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL CHECK(json_valid(payload)),\n state TEXT NOT NULL CHECK(state IN ('ready','sending','failed','uncertain','posted')),\n external_id TEXT, attempts INTEGER NOT NULL DEFAULT 0, error TEXT, created_at TEXT NOT NULL, posted_at TEXT,\n PRIMARY KEY(kind,source_id)\n);\nCREATE TRIGGER cf_qbo_posting_frozen BEFORE UPDATE ON cf_qbo_postings\nWHEN OLD.payload<>NEW.payload OR OLD.request_id<>NEW.request_id OR OLD.realm_id<>NEW.realm_id\n OR OLD.sandbox<>NEW.sandbox OR OLD.client_id<>NEW.client_id OR OLD.entity<>NEW.entity OR (OLD.state='posted' AND NEW.state<>'posted')\nBEGIN SELECT RAISE(ABORT,'COFFER_QBO_POSTING_FROZEN'); END;\nCREATE TRIGGER cf_qbo_payout_frozen BEFORE INSERT ON cf_payout_entries\nWHEN EXISTS(SELECT 1 FROM cf_qbo_postings WHERE kind='payout' AND source_id=NEW.payout_id)\nBEGIN SELECT RAISE(ABORT,'COFFER_POSTED_PAYOUT_FROZEN'); END;\n"
     }

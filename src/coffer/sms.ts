@@ -3,6 +3,8 @@ import { keywordReply } from './giving/text'
 import { sha256 } from './db'
 import { e } from './ui/common'
 import { smsConsentStatement } from './sms-permission'
+import { smsHelp, recordSmsReply } from './sms-inbound'
+import { requireSmsRegistration, registrationGuard } from './sms-registration'
 import { all, choice, commit, date, event, fail, guard, id, integer, newId, one, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { settings } from './settings'
 import { prepareSolicitationRun, solicitationAskStatements, solicitationRunGuards } from './solicitation'
@@ -26,7 +28,7 @@ export async function smsState(c:Context,runId?:string):Promise<Row>{
  if(!runId)return {runs:runs.map(r=>({...r,excluded:JSON.parse(r.excluded)})),donors:await all(c,"SELECT id,name,phone FROM cf_donors d WHERE erased_at IS NULL AND constituent_status='active' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY name")}
  const run=runs.find(r=>r.id===runId);if(!run)fail('NOT_FOUND','Text run not found.',404)
  const excluded=JSON.parse(run.excluded) as Row[],names=new Map((await all(c,'SELECT id,name FROM cf_donors WHERE id IN (SELECT value FROM json_each(?))',JSON.stringify(excluded.map(r=>r.donorId)))).map(d=>[d.id,d.name]))
- return {run:{...run,excluded:excluded.map(r=>({...r,name:names.get(r.donorId)??'Unavailable donor'}))},recipients:await all(c,'SELECT r.*,d.name FROM cf_sms_recipients r JOIN cf_donors d ON d.id=r.donor_id WHERE run_id=? ORDER BY d.name',runId)}
+ return {schedule:await one(c,'SELECT * FROM cf_sms_schedules WHERE run_id=?',runId),run:{...run,excluded:excluded.map(r=>({...r,name:names.get(r.donorId)??'Unavailable donor'}))},recipients:await all(c,'SELECT r.*,d.name FROM cf_sms_recipients r JOIN cf_donors d ON d.id=r.donor_id WHERE run_id=? ORDER BY d.name',runId)}
 }
 const eligibility=(r:Row):Stmt[]=>[live(r.donor_id),guard(`EXISTS(SELECT 1 FROM cf_sms_preferences WHERE id=? AND id=${latest} AND status='granted' AND phone=? AND timezone=? AND (SELECT status FROM cf_consents WHERE donor_id=cf_sms_preferences.donor_id AND channel='sms' ORDER BY id DESC LIMIT 1)='granted') AND EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND phone=?)`,'SMS_CONSENT_CHANGED','The frozen phone, consent or donor changed. Prepare a new text run.',r.preference_id,r.donor_id,r.phone,r.timezone,r.donor_id,r.donor_version,r.phone)]
 // Keep solicitation integration here: the host can replace these wrappers with
@@ -36,7 +38,7 @@ const restrictionGuards=(c:Context,runId:string,donorIds?:string[])=>solicitatio
 const askSubmission=(c:Context,runId:string,donorId:string)=>solicitationAskStatements(c,'sms',runId,[donorId])
 
 export async function smsCommand(c:Context,command:string,p:Row):Promise<Row|undefined>{
- if(!['sms.preference','sms.prepare','sms.approve','sms.send','sms.discard'].includes(command))return undefined
+ if(!['sms.preference','sms.prepare','sms.approve','sms.send','sms.schedule','sms.cancelSchedule','sms.discard'].includes(command))return undefined
  if(command==='sms.preference'){
   if(!['owner','admin','member'].includes(c.actor.role))fail('FORBIDDEN','A staff person must record SMS permission.',403)
   const donorId=id(p.donorId,'Donor'),status=choice(p.status,['granted','withdrawn'] as const,'SMS permission'),number=phone(p.phone),timezone=zone(p.timezone)
@@ -70,6 +72,14 @@ export async function smsCommand(c:Context,command:string,p:Row):Promise<Row|und
   ]);return {id:runId,version:1,recipients:recipients.length,excluded}
  }
  const runId=id(p.runId,'Text run'),version=integer(Number(p.version),'Text run version',1),state=await smsState(c,runId),run=state.run,recipients=state.recipients as Row[]
+ if(command==='sms.schedule'||command==='sms.cancelSchedule'){
+  const scheduledAt=command==='sms.schedule'?text(p.scheduledAt,'Scheduled time',30):c.now
+  if(command==='sms.schedule'&&(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{3})?)?Z$/.test(scheduledAt)||!Number.isFinite(Date.parse(scheduledAt))))fail('INPUT','Use a UTC time such as 2026-10-16T02:00:00Z.',400)
+  await commit(c,[guard("EXISTS(SELECT 1 FROM cf_sms_runs WHERE id=? AND version=? AND state='approved')",'VERSION','Approve the current text run before scheduling.',runId,version),
+   ...(command==='sms.schedule'?[...recipients.filter(r=>['pending','held'].includes(r.state)).flatMap(r=>[...eligibility(r),...pledgeEligibility(run.purpose,r.donor_id)]),...await restrictionGuards(c,runId)]:[]),
+   sql("INSERT INTO cf_sms_schedules VALUES(?,?,?,?,'',?) ON CONFLICT(run_id) DO UPDATE SET scheduled_at=excluded.scheduled_at,scheduled_by=excluded.scheduled_by,state=excluded.state,note='',updated_at=excluded.updated_at",runId,new Date(scheduledAt).toISOString(),c.actor.id,command==='sms.schedule'?'scheduled':'cancelled',c.now),event(c,command,'sms',runId,null,{scheduledAt})])
+  return {id:runId,scheduledAt,state:command==='sms.schedule'?'scheduled':'cancelled'}
+ }
  if(command==='sms.discard') {
   await commit(c,[guard("EXISTS(SELECT 1 FROM cf_sms_runs WHERE id=? AND version=? AND state IN ('prepared','approved')) AND NOT EXISTS(SELECT 1 FROM cf_sms_recipients WHERE run_id=? AND state IN ('submitting','submitted','uncertain'))",'SMS_ALREADY_SUBMITTED','Only a run with no submitted or uncertain texts may be discarded.',runId,version,runId),sql("UPDATE cf_sms_runs SET state='discarded',version=version+1 WHERE id=?",runId),event(c,command,'sms',runId,null,{})]);return {id:runId,version:version+1,state:'discarded'}
  }
@@ -81,16 +91,18 @@ export async function smsCommand(c:Context,command:string,p:Row):Promise<Row|und
  }
  const env=await textEnvironment(c.env as any)
  if(!env?.TWILIO_ACCOUNT_SID||!env.TWILIO_AUTH_TOKEN||!env.TWILIO_FROM)fail('SMS_UNAVAILABLE','Configure Twilio account, auth token and registered sender before sending texts.',409)
- const from=phone(env.TWILIO_FROM),result:Row={id:runId,submitted:0,held:0,uncertain:0,failed:0}
+ const from=phone(env.TWILIO_FROM)
+ const registration=recipients.some(r=>['pending','held'].includes(r.state))?await requireSmsRegistration(c,from):null
+ const result:Row={id:runId,submitted:0,held:0,uncertain:0,failed:0}
  for(const r of recipients){
   if(!['pending','held'].includes(r.state))continue
   if(quiet(r.timezone,c.now)){await commit(c,[runGuard,sql("UPDATE cf_sms_recipients SET state='held' WHERE run_id=? AND donor_id=? AND state IN ('pending','held')",runId,r.donor_id)]);result.held++;continue}
   // Claim once in the same transaction as permission/limit checks and the ask
   // ledger. A crash leaves 'submitting': uncertain, never automatically retried.
-  await commit(c,[runGuard,...eligibility(r),...pledgeEligibility(run.purpose,r.donor_id),...await askSubmission(c,runId,r.donor_id),guard("EXISTS(SELECT 1 FROM cf_sms_recipients WHERE run_id=? AND donor_id=? AND state IN ('pending','held'))",'SMS_CLAIMED','Another sender already claimed this text.',runId,r.donor_id),sql("UPDATE cf_sms_recipients SET state='submitting',claimed_at=? WHERE run_id=? AND donor_id=?",c.now,runId,r.donor_id),event(c,'sms.claim','sms',runId,r.donor_id,{purpose:run.purpose})])
+  await commit(c,[runGuard,registrationGuard(from,registration!.version),...eligibility(r),...pledgeEligibility(run.purpose,r.donor_id),...await askSubmission(c,runId,r.donor_id),guard("EXISTS(SELECT 1 FROM cf_sms_recipients WHERE run_id=? AND donor_id=? AND state IN ('pending','held'))",'SMS_CLAIMED','Another sender already claimed this text.',runId,r.donor_id),sql("UPDATE cf_sms_recipients SET state='submitting',claimed_at=? WHERE run_id=? AND donor_id=?",c.now,runId,r.donor_id),event(c,'sms.claim','sms',runId,r.donor_id,{purpose:run.purpose})])
   let outcome='uncertain',providerId:string|null=null,providerStatus:string|null=null
   try{
-   const response=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(env.TWILIO_ACCOUNT_SID)}/Messages.json`,{method:'POST',headers:{authorization:'Basic '+btoa(env.TWILIO_ACCOUNT_SID+':'+env.TWILIO_AUTH_TOKEN),'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({To:r.phone,From:from,Body:run.body})})
+   const response=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(env.TWILIO_ACCOUNT_SID)}/Messages.json`,{method:'POST',headers:{authorization:'Basic '+btoa(env.TWILIO_ACCOUNT_SID+':'+env.TWILIO_AUTH_TOKEN),'content-type':'application/x-www-form-urlencoded'},redirect:'manual',signal:AbortSignal.timeout(30_000),body:new URLSearchParams({To:r.phone,From:from,MessagingServiceSid:registration!.messaging_service_sid,Body:run.body})})
    const value=await response.json() as Row
    if(response.ok&&typeof value.sid==='string'&&['accepted','queued','sending','sent','delivered'].includes(value.status)){outcome='submitted';providerId=value.sid;providerStatus=value.status}
    else if(response.status>=400&&response.status<500){outcome='failed';providerStatus='rejected'}
@@ -117,7 +129,14 @@ export async function smsWebhook(request:Request,env:SmsEnv,at=new Date().toISOS
  if(difference||fields.get('AccountSid')!==env.TWILIO_ACCOUNT_SID||fields.get('To')!==env.TWILIO_FROM)return new Response('Invalid signature',{status:403})
  const messageId=fields.get('MessageSid'),from=fields.get('From'),isStop=/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/i.test((fields.get('Body')??'').trim())
  if(!messageId||!from)return new Response('Missing message identity',{status:400})
- if(!isStop){const link=await keywordReply(env as any,fields,at);return new Response(link?`<Response><Message>${e('Give securely: '+link+' Reply STOP to stop messages.')}</Message></Response>`:'<Response/>',{headers:{'content-type':'text/xml','cache-control':'no-store'}})}
+ if(!isStop){
+  const c:Context={db:env.DB,env:env as any,now:at,actor:{id:'twilio-reply',name:'Twilio SMS',role:'owner'},authority:{sql:'1',params:[]}}
+  const help=await smsHelp(c,fields)
+  const link=help===null?await keywordReply(env as any,fields,at):null
+  if(help===null&&!link)await recordSmsReply(c,fields)
+  const reply=help??(link?'Give securely: '+link+' Reply STOP to stop messages.':'')
+  return new Response(reply?`<Response><Message>${e(reply)}</Message></Response>`:'<Response/>',{headers:{'content-type':'text/xml','cache-control':'no-store'}})
+ }
  const c:Context={db:env.DB,env:env as any,now:at,actor:{id:'twilio-stop',name:'Twilio STOP',role:'owner'},authority:{sql:'1',params:[]}}
  const donors=await all(c,`SELECT p.* FROM cf_sms_preferences p JOIN cf_donors d ON d.id=p.donor_id WHERE p.phone=? AND p.id=(SELECT MAX(id) FROM cf_sms_preferences WHERE donor_id=p.donor_id) AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)`,from)
  // Replay-safe: each insert/event is conditioned on absence of the receipt;

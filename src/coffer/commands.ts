@@ -29,6 +29,7 @@ import { contributionTypeCommand } from './contribution-types'
 import { giftRulesCommand, runGiftRules } from './gift-rules'
 import { solicitationCommand } from './solicitation'
 import { smsCommand } from './sms'
+import { smsRegistrationCommand } from './sms-registration'
 import { giftBatchCommand } from './gift-batches'
 import { savedListCommand } from './saved-lists'
 import { giftAcknowledgmentWrite } from './gift-ack-write'
@@ -100,7 +101,7 @@ export const ACCESS: Record<string, Role[]> = {
  'address.processing': MANAGERS, 'address.verify': STAFF, 'address.queueNcoa': MANAGERS,
  'contribution.record': STAFF, 'contribution.stockSale': STAFF,
  'giftRule.save': MANAGERS, 'giftRule.publish': MANAGERS, 'giftRule.pause': MANAGERS,
- 'sms.discard': MANAGERS, 'solicitation.set': STAFF, 'sms.preference': STAFF, 'sms.prepare': MANAGERS, 'sms.approve': MANAGERS, 'sms.send': MANAGERS,
+ 'sms.registration.refresh': MANAGERS, 'sms.schedule': MANAGERS, 'sms.cancelSchedule': MANAGERS, 'sms.discard': MANAGERS, 'solicitation.set': STAFF, 'sms.preference': STAFF, 'sms.prepare': MANAGERS, 'sms.approve': MANAGERS, 'sms.send': MANAGERS,
  'giftBatch.create': STAFF, 'giftBatch.add': STAFF, 'giftBatch.edit': STAFF, 'giftBatch.close': STAFF,
  'list.tasks': MANAGERS,'list.welcome': MANAGERS,'list.profile': MANAGERS,'list.profileUndo': MANAGERS, 'list.restorePending': MANAGERS,'list.bulk': MANAGERS, 'list.undo': MANAGERS,
  'list.solicitation': MANAGERS, 'list.save': MANAGERS, 'person.defaultsPreview': MANAGERS, 'person.defaults': MANAGERS, 'organization.contact': STAFF, 'household.update': STAFF, 'household.confirmNames': STAFF, 'statusNotice.acknowledge': STAFF, 'household.defaultsPreview': MANAGERS, 'household.defaults': MANAGERS, 'donor.profile': STAFF,
@@ -153,7 +154,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if(command.startsWith('booking.'))return (await bookingCommand(c,command,p))!
  if (command.startsWith('agentGrant.')) return (await agentGrantCommand(c,command,p))!
  if (command.startsWith('agent.')) return agentKey(c, command, p)
- for (const handler of [journeyCommand,preferenceCommand,postalCommand,singleLetterCommand,apiKeyCommand,auctionCommand,taskTeamCommand,webhookCommand,fundraisingEventCommand,reportScheduleCommand,protectionCommand,givingConnectionCommand,restorePendingCommand,profileFieldCommand,pledgeTemplateCommand,contactCommand,listTasksCommand,profileBulkCommand,bulkListCommand,customChoiceCommand,tagCommand,customFieldCommand,addressCommand, contributionTypeCommand, giftRulesCommand, solicitationCommand, smsCommand, giftBatchCommand, savedListCommand, personDefaultsCommand, organizationContactCommand, householdCommand, statusCommand, meetingQuestionCommand, meetingCommand, tributeNotificationCommand, receiptTaskCommand, letterTemplateCommand, dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
+ for (const handler of [journeyCommand,preferenceCommand,postalCommand,singleLetterCommand,apiKeyCommand,auctionCommand,taskTeamCommand,webhookCommand,fundraisingEventCommand,reportScheduleCommand,protectionCommand,givingConnectionCommand,restorePendingCommand,profileFieldCommand,pledgeTemplateCommand,contactCommand,listTasksCommand,profileBulkCommand,bulkListCommand,customChoiceCommand,tagCommand,customFieldCommand,addressCommand, contributionTypeCommand, giftRulesCommand, solicitationCommand, smsRegistrationCommand, smsCommand, giftBatchCommand, savedListCommand, personDefaultsCommand, organizationContactCommand, householdCommand, statusCommand, meetingQuestionCommand, meetingCommand, tributeNotificationCommand, receiptTaskCommand, letterTemplateCommand, dashboardCommand, recognitionCommand, researchCommand, volunteerCommand, taxReportCommand, inKindCommand, grantCommand, engagementCommand, cultivationCommand, softCreditAckCommand, portfolioCommand, plannedGivingCommand, restrictedFundCommand, attributionCommand, recurringTaskCommand, marketingCommand, welcomeCommand, replyCommand, callTaskCommand, majorGiftCommand, donorCommand, donorDepthCommand, giftDepthCommand, pledgeCommand, giftCommand, deliveryCommand, ackCommand, appealCommand]) {
   const result = await handler(c, command, p)
   if (result !== undefined) {
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }
