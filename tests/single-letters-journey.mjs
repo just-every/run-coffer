@@ -24,7 +24,7 @@ export async function singleLettersJourney(){
   const issued=await h.command('ack.prepare',{giftIds:[gift.id]})
   await h.command('ack.approve',{batchId:issued.id,version:1})
   await h.command('ack.export',{batchId:issued.id,version:2})
-  await h.command('ack.markSent',{batchId:issued.id,version:3,sentOn:'2025-08-11',method:'mail'})
+  await h.command('ack.markSent',{batchId:issued.id,version:3,sentOn:'2026-10-17',method:'mail'})
   const issuedBefore=await h.get('/api/coffer/letters/'+issued.id),giftBefore=(await h.get('/api/coffer/donors/'+d.id)).gifts.find(g=>g.id===gift.id),messagesBefore=h.messages.length
   let letterId
   await withBrowserWorker(h,async(context,origin)=>{
@@ -109,5 +109,5 @@ export async function singleLettersJourney(){
   assert.equal((await h.request(`/app/single-letters/${letterId}/letters.pdf`)).status,409,'Changed money refuses an obsolete copy')
   const erased=await h.request('/app/actions',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({command:'donor.erase',donorId:d.id,confirm:'ERASE',reason:'donor_request'}).toString()});assert.equal(erased.status,303)
   assert.equal((await h.request('/app/single-letters/'+letterId)).status,404)
- })
+ },{entry:'tests/fixed-clock-worker.ts'})
 }

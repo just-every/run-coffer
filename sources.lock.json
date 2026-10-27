@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c97d39ba4636c6bdc27b9c4c7fcaf6643f8d21712f51605efd793d52b57c2b2f",
+      "sha256": "be479678221f41653ee62d0978701b0de4f4a86e279cbb711f34a92ade96dcc4",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "eaec3005b8dc9c1148fdead67f1df72444a43eb343bf960c71e2b975cae860fa",
+      "sha256": "77e7685b5f836bb3c37968e4d811c586ff44f562a79f30039cc62866dc29b475",
       "executable": false
     },
     "deploy-demo.json": {
@@ -6675,11 +6675,11 @@
       "executable": false
     },
     "tests/single-letter-snapshots.mjs": {
-      "sha256": "72699eb3842b32324bb7f00669e92f8911da1004985af63b93d95d4128f66958",
+      "sha256": "8ee3020e0d1c3fe42b4c144d196d069b304ce580030a9705a1d61e616632989e",
       "executable": false
     },
     "tests/single-letters-journey.mjs": {
-      "sha256": "d9f7483203b0f688fc928670f14315914535164bd48ab22b1f1102bfd4412088",
+      "sha256": "30e35a4aeac71954f88362edb20d7cea666c52921364a46c421c6c6740d2d94b",
       "executable": false
     },
     "tests/sms-journey.mjs": {
