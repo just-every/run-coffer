@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ee001be5f0f79e469329f90b09a0698137dbd14bab131e8871d9e977b8476b3b",
+      "sha256": "024bf52656869296b2b35edf17baae7e851e003cd60b9e6ddd222fe0f0867fd9",
       "executable": false
     },
     "deploy-demo.json": {
@@ -6831,7 +6831,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "28264ceb1d7ffa1fe0a916472891fc72e391117b26d183d3cc8263648d41250d",
+      "sha256": "dd9379f2a056c92f2369d82c75ed1ea2c4e8f005e7b6f3745bcd04ea002f62a9",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
