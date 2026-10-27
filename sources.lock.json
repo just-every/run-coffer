@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "2052987abfbe71d9e592c6d749a5215a994efa25574dfec67def442a0a10e82b",
+      "sha256": "7a773c85c86c568bd03ef39dd44c071d069d0afa878fb3d2866e87d52524c246",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "04910f1ecf1baa657636c753889f480dfdf5ac936bec02691eae3321f74be9bc",
+      "sha256": "3255394fafb862c740896f35aefc22b23db7d5a14498d31c4e8ddc2ed7fbed5e",
       "executable": false
     },
     "deploy-demo.json": {
@@ -2327,7 +2327,7 @@
       "executable": false
     },
     "src/coffer/agent/recovery-notices-rules.ts": {
-      "sha256": "79a7909f58a42ef37e6380e12d27f3543e37d7322ae37dc5aba1e94261d8b258",
+      "sha256": "1755b3896ef5b6ae8c039bac10877d7bb59edeb6214638d6e01818b5f3a03ad8",
       "executable": false
     },
     "src/coffer/agent/recovery-notices.ts": {
@@ -5839,7 +5839,7 @@
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
-      "sha256": "8ae7ab6d14921f07c2af441ba1a4dd0ecf129818f50fe83c5f922f72f059569b",
+      "sha256": "5b75330326a9a786b5d761651f316cb781306559de867fbadc6e0383f7e6f3f5",
       "executable": false
     },
     "tests/annual-lapses-journey.mjs": {
@@ -6271,7 +6271,7 @@
       "executable": false
     },
     "tests/import-ack-journey.mjs": {
-      "sha256": "b46e79ec7fbae866568dbd0276316d0746b2636e5acc80a1ead4c41c081e15d5",
+      "sha256": "e99151c0a3d15752d93567a9f89f430960c0a692228215ccf374b0d93a4e9e64",
       "executable": false
     },
     "tests/import-refunds-journey.mjs": {
@@ -6459,7 +6459,7 @@
       "executable": false
     },
     "tests/recovery-notices-browser.mjs": {
-      "sha256": "d51877366b3269b835d57d7f1617bd4cf8ba5de600fde578b98e2cbf9d6bbaa4",
+      "sha256": "36f4545c3edd5acc386c2d2faaef1fc4e0a96712560eb2e17793709b56548799",
       "executable": false
     },
     "tests/recovery-notices-edge.mjs": {
@@ -6467,7 +6467,7 @@
       "executable": false
     },
     "tests/recovery-notices-journey.mjs": {
-      "sha256": "6d51af7b11cd370cf5d6d3e2a57f731e281dcf8bf630279ab9cbb7fec97f000b",
+      "sha256": "d66a01fad75d6dc13c591f050b8445eae833cc6eace0e0575de40130f0da839a",
       "executable": false
     },
     "tests/recurring-browser.mjs": {
@@ -6523,7 +6523,7 @@
       "executable": false
     },
     "tests/rest-api-journey.mjs": {
-      "sha256": "26b805f01e9a1d534aa97eebab36e67808121cab808ab288f2fa90477e9fe6c0",
+      "sha256": "ab26988ebf2810e65e35a84a1d8afcef447294854851a90e692fac53cb308da7",
       "executable": false
     },
     "tests/rest-api-native.mjs": {
@@ -6699,7 +6699,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "3d1dc3587cbccb2eae38af6068db757667f9267e200a7b242ce6e3deca6c06bc",
+      "sha256": "619afd2295b6b6cdcad55123e4d157ba231d4be87bc86f0f56eb3ddf5bda1284",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

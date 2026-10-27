@@ -4,7 +4,7 @@ import {run,donor} from './harness.mjs'
 import {recoveryForm,recoveryNoticeEdge} from './recovery-notices-edge.mjs'
 
 export async function recoveryNoticesJourney(frequency='monthly') {
- const edge=recoveryNoticeEdge(frequency),base=Date.now(),at=days=>new Date(base+days*86400000).toISOString()
+ const edge=recoveryNoticeEdge(frequency),base=Date.parse('2026-10-27T12:00:00.000Z'),at=days=>new Date(base+days*86400000).toISOString()
  await run(async h=>{
   const timeZone=(await h.get('/api/coffer/settings')).timezone,localDay=instant=>new Intl.DateTimeFormat('en-CA',{timeZone}).format(new Date(instant)),day=localDay(base)
   const endpoint='/api/coffer/agent/recovery/notice-action',state=()=>h.get('/api/coffer/agent/recovery/notices'),action=(p,options={})=>h.api(endpoint,p,options),runAt=(days,options={})=>h.api('/api/coffer/agent/recovery/run',{}, {...options,headers:{...options.headers,'x-test-now':at(days)}})
@@ -32,7 +32,7 @@ export async function recoveryNoticesJourney(frequency='monthly') {
   assert.equal((await state()).policy.approved_by,null,'Turning notices off does not implicitly designate the person saving the policy')
   if(process.env.COFFER_RECOVERY_NOTICES_BROWSER){const {recoveryNoticesBrowser}=await import('./recovery-notices-browser.mjs');await recoveryNoticesBrowser(h,{directory:process.env.COFFER_RECOVERY_NOTICES_BROWSER,phase:'no-implicit-lead'})}
   await action({action:'policy',version:2,enabled:true,standingApproval:true,developmentLead:true,majorAmount:'1000'},{as:member.cookie,status:403})
-  for(const p of edge.plans)await edge.fail(h,p,'evt_notice_'+p.id)
+  for(const p of edge.plans)await edge.fail(h,p,'evt_notice_'+p.id,at(0))
   assert.equal(portalMessages().length,0,'Explicitly off does not fall back to existing automatic invitations')
   await action({action:'policy',version:2,enabled:true,standingApproval:true,majorAmount:'1000'},{status:400})
   await action({action:'policy',version:2,enabled:true,developmentLead:true,majorAmount:'1000'},{status:400})
@@ -188,5 +188,52 @@ export async function recoveryNoticesJourney(frequency='monthly') {
   assert.equal((await state()).policy.approved_by,otherAdmin.id,'A different person turning notices off cannot silently take the lead designation')
   assert.equal(JSON.parse((await h.get('/api/coffer/audit?action=recovery.standingApproval')).rows[0].detail).developmentLead,false)
   assert.ok(!edge.calls.some(([method,path])=>method==='POST'&&/invoices\/.*\/pay|payment_intents|\/subscriptions\//.test(path)),'Recovery never makes an extra charge or changes the plan')
- },edge.options)
+ },{...edge.options,bindings:{...edge.options.bindings,COFFER_TEST_NOW:at(0)}})
+}
+
+/** A new invoice is not permission to bypass an unresolved provider outcome. */
+export async function uncertainRecoveryJourney(){
+ const edge=recoveryNoticeEdge(),base='2026-10-27T12:00:00.000Z',later='2026-10-30T12:00:00.000Z',submissions=[]
+ await run(async h=>{
+  const action=p=>h.api('/api/coffer/agent/recovery/notice-action',p)
+  await h.api('/api/coffer/giving/campaigns',{name:'Synthetic recovery sequence',slug:'synthetic-recovery',description:'Recurring recovery',fund:'Reading',goal:'10000'})
+  await action({action:'policy',version:1,enabled:true,standingApproval:true,developmentLead:true,majorAmount:'1000'})
+  for(const p of edge.plans.slice(0,2)){
+   p.donor=await donor(h,p.name,{email:p.email})
+   await h.command('consent.record',{donorIds:[p.donor.id],channel:'email',status:'granted',method:'paper form',evidence:'synthetic-coffer-4301',capturedOn:'2026-10-27'})
+   await action({action:'permission',donorId:p.donor.id,version:0,enabled:true,channel:'email',intervalDays:1,maxNotices:3,sourceOn:'2026-10-27',evidence:'synthetic-coffer-4302'})
+   const checkout=await h.request('/give/synthetic-recovery/checkout',recoveryForm({name:p.name,email:p.email,amount:'25',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}))
+   assert.equal(checkout.status,303)
+  }
+  const [ana,ben]=edge.plans
+  await edge.fail(h,ana,'synthetic-coffer-4303',base)
+  let steps=(await h.get('/api/coffer/agent/recovery/notices')).steps
+  const uncertain=steps.find(n=>n.invoice_id===ana.invoice)
+  assert.equal(uncertain.state,'uncertain');assert.equal(submissions.length,1)
+  const firstInvoice=ana.invoice
+  ana.invoice='synthetic-coffer-4304'
+  await edge.fail(h,ana,'synthetic-coffer-4305',later)
+  await h.api('/api/coffer/agent/recovery/run',{}, {headers:{'x-test-now':later}})
+  steps=(await h.get('/api/coffer/agent/recovery/notices')).steps
+  const held=steps.find(n=>n.invoice_id===ana.invoice)
+  assert.equal(held.state,'held');assert.match(held.reason,/earlier recovery submission is uncertain/)
+  assert.equal(submissions.length,1,'Neither a new failure nor the elapsed interval retries uncertain donor contact')
+  await edge.fail(h,ben,'synthetic-coffer-4306',later)
+  steps=(await h.get('/api/coffer/agent/recovery/notices')).steps
+  assert.equal(steps.find(n=>n.invoice_id===ben.invoice).state,'sent','An unrelated consenting donor still receives their approved notice')
+  assert.equal(submissions.length,2)
+  if(process.env.COFFER_RECOVERY_NOTICES_BROWSER){const {recoveryNoticesBrowser}=await import('./recovery-notices-browser.mjs');await recoveryNoticesBrowser(h,{directory:process.env.COFFER_RECOVERY_NOTICES_BROWSER,phase:'uncertain-sequence'})}
+  await action({action:'close',stepId:uncertain.id,reason:'Investigated uncertain submission; stop this plan contact.'})
+  await h.api('/api/coffer/agent/recovery/run',{}, {headers:{'x-test-now':later}})
+  assert.equal(submissions.length,2,'Closing after investigation never resubmits the uncertain message')
+  assert.equal((await h.get('/api/coffer/agent/recovery/notices')).steps.find(n=>n.invoice_id===ana.invoice).state,'closed')
+  assert.equal((await h.get('/api/coffer/agent/recovery/notices')).steps.find(n=>n.invoice_id===firstInvoice).state,'uncertain','The original outcome remains honest')
+  assert.ok(!edge.calls.some(([method,path])=>method==='POST'&&/invoices.*pay|payment_intents|subscriptions/.test(path)),'No Coffer payment retry or charge')
+ },{...edge.options,bindings:{...edge.options.bindings,COFFER_TEST_NOW:base,MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-4307'},outbound:async request=>{
+  if(new URL(request.url).hostname==='api.sendgrid.com'){
+   submissions.push(await request.json())
+   return new Response(null,{status:submissions.length===1?503:202})
+  }
+  return edge.options.outbound(request)
+ }})
 }

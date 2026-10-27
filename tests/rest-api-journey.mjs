@@ -98,6 +98,7 @@ export async function restApiJourney(){
   const interaction=await write('/interactions',{donorId:d.id,kind:'call',occurredOn:day,notes:'synthetic-coffer-4015',who:'synthetic-coffer-4016'},{method:'POST'},'/interactions')
   const unrelated=await h.command('interaction.record',{donorId:other.id,kind:'call',occurredOn:day,notes:'synthetic-coffer-4017'})
   await write(giftAck,{status:'acknowledged',version:0,acknowledgedOn:day,method:'phone call',interactionId:unrelated.id},{status:409},'/gifts/{id}/acknowledgment')
+  await write(giftAck,{status:'acknowledged',version:0,acknowledgedOn:'2026-10-24',method:'handwritten note',notes:'synthetic-coffer-4120'},{as:member.cookie,status:400},'/gifts/{id}/acknowledgment')
   await write(giftAck,{status:'acknowledged',version:0,acknowledgedOn:day,method:'phone call',interactionId:interaction.value.id},{as:member.cookie},'/gifts/{id}/acknowledgment')
   let ack=await checked(giftAck,{key:readOnly},'/gifts/{id}/acknowledgment')
   assert.equal(ack.value.data.link.id,interaction.value.id);assert.equal(ack.value.data.method,'phone call');assert.equal(ack.value.data.acknowledged_on,day)
@@ -112,7 +113,9 @@ export async function restApiJourney(){
   for(const status of ['acknowledged','not acknowledged','do not acknowledge'])await call(giftAck,{...bearer(agent),method:'PUT',body:{status,version:3},headers:{authorization:'Bearer '+agent.token,'idempotency-key':'synthetic-coffer-'+status.replaceAll(' ','-')},status:403})
   const credit=await write('/soft-credits',{giftId:g.id,donorId:other.id,amountCents:50000},{method:'POST'},'/soft-credits')
   const creditAck='/soft-credits/'+credit.value.id+'/acknowledgment'
+  await write(creditAck,{status:'acknowledged',version:0,acknowledgedOn:'2026-10-24',method:'handwritten note',notes:'synthetic-coffer-4121'},{as:member.cookie,status:400},'/soft-credits/{id}/acknowledgment')
   await write(creditAck,{status:'acknowledged',version:0,acknowledgedOn:day,method:'handwritten note',notes:'synthetic-coffer-4020'},{as:member.cookie},'/soft-credits/{id}/acknowledgment')
+  const creditNote=(await checked(creditAck,{key:readOnly},'/soft-credits/{id}/acknowledgment')).value.data.link.id
   assert.equal((await checked(creditAck,{key:readOnly},'/soft-credits/{id}/acknowledgment')).value.data.status,'acknowledged')
   assert.equal((await checked(giftAck,{key:readOnly},'/gifts/{id}/acknowledgment')).value.data.status,'do not acknowledge')
   await write(creditAck,{status:'not acknowledged',version:0},{as:member.cookie,status:409},'/soft-credits/{id}/acknowledgment')
@@ -207,6 +210,24 @@ export async function restApiJourney(){
   const ackAudit=await h.get('/api/coffer/audit?action=gift.acknowledgment')
   assert.ok(ackAudit.rows.some(row=>row.subject_id===g.id&&row.actor_id===member.id&&JSON.parse(row.detail).oldStatus==='acknowledged'))
   assert.equal(JSON.stringify(ackAudit).includes('synthetic-coffer-4018'),false)
+  const safeAudit=(rows,{subject,actor,action,version,detail,keyLabel})=>{
+   const row=rows.find(row=>row.subject_id===subject&&JSON.parse(row.detail).version===version)
+   assert.ok(row,'The acknowledgment change has its own audit entry')
+   assert.equal(row.actor_id,actor.id);assert.equal(row.actor_role,actor===member?'member':'admin')
+   assert.equal(row.actor_name,(actor.session.operator.displayName??actor.session.operator.display_name)+(keyLabel?' (API: '+keyLabel+')':''))
+   assert.equal(row.action,action)
+   assert.deepEqual(JSON.parse(row.detail),detail,'Complete safe acknowledgment audit facts')
+  }
+  safeAudit(ackAudit.rows,{subject:g.id,actor:member,action:'gift.acknowledgment',version:1,detail:{oldStatus:'not acknowledged',status:'acknowledged',method:'phone call',acknowledgedOn:day,letterId:null,batchId:null,interactionId:interaction.value.id,noteId:null,communicationId:null,source:'manual',version:1}})
+  safeAudit(ackAudit.rows,{subject:g.id,actor:member,action:'gift.acknowledgment',version:2,detail:{oldStatus:'acknowledged',status:'not acknowledged',method:null,acknowledgedOn:null,letterId:null,batchId:null,interactionId:null,noteId:null,communicationId:null,source:'manual',version:2}})
+  safeAudit(ackAudit.rows,{subject:g.id,actor:admin,keyLabel:full.label,action:'gift.acknowledgment',version:3,detail:{oldStatus:'not acknowledged',status:'do not acknowledge',method:null,acknowledgedOn:null,letterId:null,batchId:null,interactionId:null,noteId:null,communicationId:null,source:'manual',version:3}})
+  const creditAudit=await h.get('/api/coffer/audit?record='+credit.value.id)
+  safeAudit(creditAudit.rows.filter(row=>row.action==='softCredit.acknowledge'),{subject:credit.value.id,actor:member,action:'softCredit.acknowledge',version:1,detail:{oldStatus:'not acknowledged',source:'manual',status:'acknowledged',acknowledgedOn:day,method:'handwritten note',interactionId:null,noteId:creditNote,version:1}})
+  safeAudit(creditAudit.rows.filter(row=>row.action==='softCredit.resetAcknowledgment'),{subject:credit.value.id,actor:member,action:'softCredit.resetAcknowledgment',version:2,detail:{oldStatus:'acknowledged',source:'manual',status:'not acknowledged',acknowledgedOn:null,method:null,interactionId:null,noteId:null,version:2}})
+  safeAudit(creditAudit.rows.filter(row=>row.action==='softCredit.doNotAcknowledge'),{subject:credit.value.id,actor:admin,keyLabel:full.label,action:'softCredit.doNotAcknowledge',version:3,detail:{oldStatus:'not acknowledged',source:'manual',status:'do not acknowledge',acknowledgedOn:null,method:null,interactionId:null,noteId:null,version:3,apiKeyId:full.id,apiKeyScope:'full'}})
+  assert.equal(JSON.stringify(creditAudit).includes('synthetic-coffer-4020'),false)
+  assert.equal(JSON.stringify(creditAudit).includes('synthetic-coffer-4021'),false)
+
   const keyState=(await call('/keys')).value;assert.equal(JSON.stringify(keyState).includes(readOnly.token),false);assert.equal(JSON.stringify(keyState).includes('token_hash'),false)
   const db=await h.mf.getD1Database('DB'),receipts=await db.prepare('SELECT * FROM cf_api_idempotency').all()
   assert.ok(receipts.results.length>0);assert.equal(JSON.stringify(receipts).includes(d.email??'@example.test'),false)

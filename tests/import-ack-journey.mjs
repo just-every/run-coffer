@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {run,reviewed,settings} from './harness.mjs'
+import {parseCsv} from './exports-journey.mjs'
 
 const endpoint='/api/coffer/move-in'
 const day='2026-10-02'
@@ -70,6 +71,8 @@ export async function importAcknowledgmentJourney() {
   const audit=await h.get('/api/coffer/audit?action=gift.acknowledgment')
   const entry=audit.rows.find(e=>e.subject_id===linked.id)
   assert.equal(entry.actor_name,'Morgan Lee');assert.equal(entry.actor_role,'owner');assert.equal(JSON.parse(entry.detail).interactionId,ack.link.id)
+  assert.equal(entry.actor_id,(await h.get('/auth/session')).operator.id)
+  assert.deepEqual(JSON.parse(entry.detail),{oldStatus:'not acknowledged',status:'acknowledged',method:'email',acknowledgedOn:day,letterId:null,batchId:null,interactionId:ack.link.id,noteId:null,communicationId:null,source:'automatic',version:1},'Complete safe imported gift audit facts')
   assert.ok(!JSON.stringify(audit).includes(noteRows[0][4]));assert.ok(!JSON.stringify(audit).includes('Source payroll exclusion'))
   assert.equal((await apply(h,await post(h,'preview',input()))).unchanged,true)
   const changed=await post(h,'preview',input({giftRows:rows.map((r,i)=>i?r:[...r.slice(0,9),'ACK_ALTERNATE',...r.slice(10)])}))
@@ -97,22 +100,40 @@ export async function importAcknowledgmentJourney() {
   assert.equal((await read(h,donor.id)).gifts.find(g=>g.reference===`${source}:ACK_LATER`).acknowledgment.link.content,'Earlier imported interaction.')
   await post(h,'undo',{id:earlier.id},{status:409})
   await post(h,'undo',{id:subsequent.id});await post(h,'undo',{id:earlier.id})
-  if(source==='lgl') {
+  {
    const historical=await post(h,'preview',{source,noGoodsOrServices:true,files:[
     csv('cutoff-constituents.csv',[[donorColumn,'Name'],['ACK_CUTOFF','Reviewed cutoff donor']]),
-    csv('cutoff-gifts.csv',[[giftColumn,donorColumn,'Gift Type','Gift Date','Amount','Payment Method'],['ACK_CUTOFF_GIFT','ACK_CUTOFF',giftType,'2026-10-01','500','Check']]),
+    csv('cutoff-gifts.csv',[[giftColumn,donorColumn,'Gift Type','Gift Date','Amount','Payment Method',statusColumn],['ACK_CUTOFF_GIFT','ACK_CUTOFF',giftType,'2026-10-01','500','Check',''],['ACK_CUTOFF_WAIT','ACK_CUTOFF',giftType,'2026-10-01','600','Check',no]]),
    ]})
    assert.equal(historical.canApply,true,JSON.stringify(historical.diagnostics))
    await apply(h,historical,{acknowledged:'yes',acknowledgedBefore:day})
    const historicalDonor=(await h.get('/api/coffer/donors')).donors.find(d=>d.name==='Reviewed cutoff donor')
-   const before=(await read(h,historicalDonor.id)).gifts[0].acknowledgment
+   const cutoffGifts=(await read(h,historicalDonor.id)).gifts
+   const projected=cutoffGifts.find(g=>g.reference===`${source}:ACK_CUTOFF_GIFT`),explicit=cutoffGifts.find(g=>g.reference===`${source}:ACK_CUTOFF_WAIT`)
+   const before=projected.acknowledgment
+   assert.equal(explicit.acknowledgment.status,'not acknowledged','Explicit source status wins over the reviewed cutoff')
    assert.equal(before.status,'acknowledged');assert.equal(before.acknowledged_on,null);assert.equal(before.method,null);assert.equal(before.link,null)
-   for(const [status,expected] of [['not acknowledged',[]],['acknowledged',[historicalDonor.id]]]) {
+   for(const [status,expected] of [['not acknowledged',[historicalDonor.id]],['acknowledged',[historicalDonor.id]]]) {
     const list=await h.command('list.save',{name:'Reviewed cutoff '+status,filters:{q:'Reviewed cutoff donor',ackStatus:status,giftOver:'250'}})
     assert.deepEqual((await h.get(`/api/coffer/lists/${list.id}/members`)).donorIds,expected)
    }
-   assert.deepEqual((await read(h,historicalDonor.id)).gifts[0].acknowledgment,before,'A saved status filter preserves the reviewed historical cutoff projection')
-   await post(h,'undo',{id:historical.id})
+   assert.deepEqual((await read(h,historicalDonor.id)).gifts.find(g=>g.id===projected.id).acknowledgment,before,'A saved status filter preserves the reviewed historical cutoff projection')
+   await h.command('gift.resetAcknowledgment',{giftId:projected.id,version:0})
+   const assertNative=async(status,version)=>{
+    const facts=(await read(h,historicalDonor.id)).gifts.find(g=>g.id===projected.id).acknowledgment
+    assert.equal(facts.status,status,'Native status wins over the reviewed cutoff');assert.equal(facts.version,version)
+    for(const [selection,expected] of [['not acknowledged',status==='not acknowledged'?[projected.id,explicit.id]:[explicit.id]],['acknowledged',status==='acknowledged'?[projected.id]:[]]]){
+     const response=await h.request('/api/coffer/exports/gifts.csv?'+new URLSearchParams({q:'Reviewed cutoff donor',ackStatus:selection}))
+     assert.equal(response.status,200)
+     assert.deepEqual(parseCsv(await response.text()).map(g=>g.id).sort(),expected.sort(),'Gift filters use explicit source and native precedence')
+    }
+   }
+   await assertNative('not acknowledged',1)
+   await h.command('gift.acknowledge',{giftId:projected.id,version:1,acknowledgedOn:day,method:'handwritten note',notes:'Reviewed native thank-you.'})
+   await assertNative('acknowledged',2)
+   await h.command('gift.resetAcknowledgment',{giftId:projected.id,version:2})
+   await assertNative('not acknowledged',3)
+   await post(h,'undo',{id:historical.id},{status:409})
   }
 
   await softCreditAcknowledgments(h,source)
@@ -165,6 +186,9 @@ async function softCreditAcknowledgments(h,source) {
  assert.ok(queue.some(s=>s.donor_id===person('WAIT').id));assert.ok(!queue.some(s=>['LINK','STOP','HISTORY','INLINE'].some(id=>s.donor_id===person(id).id)))
  const audit=await h.get('/api/coffer/audit?action=softCredit.acknowledgment.import')
  assert.ok(audit.rows.some(e=>e.subject_id===linked.id&&JSON.parse(e.detail).interactionId===a.link.id&&e.actor_role==='owner'))
+ const importedAudit=audit.rows.find(e=>e.subject_id===linked.id)
+ assert.equal(importedAudit.actor_id,(await h.get('/auth/session')).operator.id);assert.equal(importedAudit.actor_name,'Morgan Lee');assert.equal(importedAudit.actor_role,'owner')
+ assert.deepEqual(JSON.parse(importedAudit.detail),{jobId:p.id,source:'import',sourceCrm:source,oldStatus:'not acknowledged',status:'acknowledged',acknowledgedOn:day,method:'phone call',interactionId:a.link.id,noteId:null,version:1},'Complete safe imported independent credit audit facts')
  assert.ok(!JSON.stringify(audit).includes(notes[0][4]));assert.ok(!JSON.stringify(audit).includes('Source credit restriction'))
  const repeat=await post(h,'preview',input({reverse:true}));assert.equal(repeat.canApply,true,JSON.stringify(repeat.diagnostics));await apply(h,repeat)
  assert.deepEqual((await readCredit('LINK')).acknowledgment,a)

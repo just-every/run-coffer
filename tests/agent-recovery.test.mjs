@@ -202,6 +202,7 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
 })
 
 test('DEV-002: explicit standing approval and donor permissions govern scheduled notices, named-lead review, real portal stops and recovery attribution',async()=>{
- const {recoveryNoticesJourney}=await import('./recovery-notices-journey.mjs')
+ const {recoveryNoticesJourney,uncertainRecoveryJourney}=await import('./recovery-notices-journey.mjs')
  for(const frequency of ['monthly','quarterly','annually'])await recoveryNoticesJourney(frequency)
+ await uncertainRecoveryJourney()
 })
