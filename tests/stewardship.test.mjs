@@ -154,6 +154,11 @@ test('stewardship uses real cited records, protects the key, and only sends an e
 })
 
 // DEV-006 shares this existing test file to keep the seed's test-file budget.
+test('STEW-006: personal calendar connection, donor timeline and signed Calendly booking preparation with custody',async()=>{
+ const {calendarsJourney}=await import('./calendars-journey.mjs')
+ await calendarsJourney()
+})
+
 test('DEV-006: schedule, day-ahead source-linked brief, existing research boundaries and custody',async()=>{
  const {meetingBriefJourney}=await import('./meeting-briefs-journey.mjs')
  await meetingBriefJourney()
