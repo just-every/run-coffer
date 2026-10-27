@@ -63,6 +63,6 @@ reason. Agent credentials cannot use these writes. Gift and soft-credit statuses
 are independent, stale versions refuse, and reason or note text never enters
 the acknowledgment audit.
 
-Ct approved the scope and credential-custody defaults with riders on 26 October 2026 at pin 3bff3d085ae0e39f8a59b6c6c5593ec705b42b66. API-001 remains partial for its named API-origin provider-door gaps in CONTRACT.md. Idempotency receipts are scoped to the recorded principal and installation; replacement credentials or archive restoration do not carry an asserted replay-continuity guarantee.
+Ct approved the scope and credential-custody defaults with riders on 26 October 2026 at pin 3bff3d085ae0e39f8a59b6c6c5593ec705b42b66. At that dated ruling, API-001 was partial for the API-origin provider-door gaps then named in CONTRACT.md; the subsequent workflows below close those gaps. Idempotency receipts are scoped to the recorded principal and installation; replacement credentials or archive restoration do not carry an asserted replay-continuity guarantee.
 
 The subsequent native workflows close the API-origin Gaps from that dated ruling: approved address processing, synchronized email consent, once-only published gift rules, native pledge email review and release, native draft publication and approved native plan transitions. API-001 is now DONE for its retained target; provider edges in its HTTP acceptance remain faked.
