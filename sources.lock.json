@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "fe78d17762a7de8ddacbc8bad0be85869b301a59a11fe484def8dc8fc803dbde",
+      "sha256": "14af4804da338ba570d4da4423da2adb19989981003151d286d64b05258d90d2",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e6c798f01dd95a5837b4eeb549c5c8a4eeb4d0f26609f13ab8f010c567964d8c",
+      "sha256": "5e1416fbcec6edc4fa7af484e03aa425286d11d742c9e650b1ad5f55d58b302f",
       "executable": false
     },
     "deploy-demo.json": {
@@ -6707,7 +6707,7 @@
       "executable": false
     },
     "tests/quickbooks/browser.mjs": {
-      "sha256": "fd072840c4cf1384b7ea87836afdf0807e54a69989232742eb494252c0203fae",
+      "sha256": "7acf4cf6255f5fde8bd520b6c17ea799ec0a3969afaa7d4d158f2cb2f188750f",
       "executable": false
     },
     "tests/quickbooks/edge.mjs": {
