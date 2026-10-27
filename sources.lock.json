@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c26a0b6628310fead9188e4687be3f33e360cc92fde5c015ef06c94fd7a1d88b",
+      "sha256": "2052987abfbe71d9e592c6d749a5215a994efa25574dfec67def442a0a10e82b",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4fef8036e12aa98b0953ee6ff8b528f41e79abc59c72ffaa2a47c67309ad71e2",
+      "sha256": "04910f1ecf1baa657636c753889f480dfdf5ac936bec02691eae3321f74be9bc",
       "executable": false
     },
     "deploy-demo.json": {
