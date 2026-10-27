@@ -23,6 +23,8 @@ export async function singleLettersJourney(){
   await mkdir(directory,{recursive:true})
   const issued=await h.command('ack.prepare',{giftIds:[gift.id]})
   await h.command('ack.approve',{batchId:issued.id,version:1})
+  await h.command('ack.export',{batchId:issued.id,version:2})
+  await h.command('ack.markSent',{batchId:issued.id,version:3,sentOn:'2025-08-11',method:'mail'})
   const issuedBefore=await h.get('/api/coffer/letters/'+issued.id),giftBefore=(await h.get('/api/coffer/donors/'+d.id)).gifts.find(g=>g.id===gift.id),messagesBefore=h.messages.length
   let letterId
   await withBrowserWorker(h,async(context,origin)=>{
@@ -50,7 +52,7 @@ export async function singleLettersJourney(){
    }
    await page.goto(origin+'/app/donors/'+d.id+'?timelineKind=receipt')
    assert.match(await page.locator('#timeline').innerText(),/Single letter produced/)
-   await shot('timeline')
+   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.match(await page.locator('#timeline').innerText(),/Single letter produced/);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.locator('#timeline').screenshot({path:`${directory}/single-timeline-${width}.png`})}
   })
   const pdf=await h.request(`/app/single-letters/${letterId}/letters.pdf`);assert.equal(pdf.status,200);assert.match(pdf.headers.get('content-type'),/application\/pdf/)
   assert.equal((await PDFDocument.load(await pdf.arrayBuffer())).getPageCount(),1)
@@ -66,7 +68,7 @@ export async function singleLettersJourney(){
   assert.deepEqual((await h.get('/api/coffer/donors/'+d.id)).gifts.find(g=>g.id===gift.id),giftBefore,'A copy does not record sending or change gift acknowledgment')
   assert.equal(h.messages.length,messagesBefore,'Preparation, approval and local output hand no message to the provider')
   const localArchive=await archive(h),rows=localArchive.filter(p=>p.kind==='part').flatMap(p=>p.items).filter(i=>i.kind==='row')
-  assert.deepEqual(rows.filter(i=>['cf_postal_attempts','cf_delivery_events'].includes(i.table)),[],'Local production creates no durable sending attempt or provider delivery event')
+  assert.deepEqual(rows.filter(i=>['cf_postal_deliveries','cf_postal_documents','cf_letter_events'].includes(i.table)),[],'Local production creates no durable sending attempt or provider delivery event')
   const annual=await h.command('letterTemplate.save',{kind:'year_end',name:'Annual thanks',subject:'{{year}} statement',body:'Dear {{donor_name}}\n{{year}}\n{{gift_list}}\n{{total}} {{goods_total}} {{deductible_total}}\n{{goods_statement}}\n{{organization}} {{ein}}'})
   const a=await h.command('singleLetter.prepare',{donorId:d.id,templateId:annual.id,year:2025})
   assert.match(await (await h.request('/app/single-letters/'+a.id)).text(),/350\.00/)
