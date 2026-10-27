@@ -4,7 +4,7 @@ import {run,donor,reviewed,archive,restore} from './harness.mjs'
 import {fixedNow} from './fixed-clock.mjs'
 
 export async function calendarsJourney() {
- const googleCalls=[],key='synthetic-coffer-1',clientId='synthetic-coffer-2',clientSecret='synthetic-coffer-3'
+ const googleCalls=[],key='synthetic-coffer-1001',clientId='synthetic-coffer-2',clientSecret='synthetic-coffer-1003'
  const eventType='https://api.calendly.com/event_types/synthetic-coffer-4',bookingUrl='https://calendly.com/riverbend/donor-visit'
  const calendarEvent={id:'synthetic-coffer-5',summary:'Library proposal conversation',status:'confirmed',start:{dateTime:'2026-10-20T16:00:00Z'},end:{dateTime:'2026-10-20T16:30:00Z'}}
  let rejected=false,allDay=false
@@ -29,7 +29,7 @@ export async function calendarsJourney() {
  }
  await run(async h=>{
   await reviewed(h)
-  const d=await donor(h,'Ada Mercer'),other=await donor(h,'Rosa Chen'),member=await h.person('calendar-staff@example.test')
+  const d={...await donor(h,'Ada Mercer'),email:'ada.mercer@example.org'},other={...await donor(h,'Rosa Chen'),email:'rosa.chen@example.org'},member=await h.person('calendar-staff@example.test')
   const agent=await h.command('agent.create',{label:'Calendar refusal'}),asAgent={as:'',headers:{authorization:'Bearer '+agent.token},status:403}
   const configure={clientId,clientSecret,confirm:'yes'},book={bookingUrl,eventType,signingKey:key,confirm:'yes'}
   for(const [command,input] of [['calendar.configure',configure],['booking.configure',book],['calendar.start',{confirm:'yes'}],['booking.link',{donorId:d.id,confirm:'yes'}]])await h.command(command,input,{as:'',status:401})
