@@ -17,6 +17,7 @@ export async function stewardshipJourneys(){
   await command('journey.publish',input,{as:member.cookie,status:403})
   await command('journey.publish',{...input,confirm:'no'},{status:400})
   assert.equal((await get('/api/coffer/journeys')).journeys.length,0)
+  await h.get('/api/coffer/journeys',options({as:member.cookie,status:403}));await h.get('/api/coffer/journeys',options({as:'',status:401}))
   for(const name of ['journey.publish','journey.run','journey.stop','journey.cap']){await command(name,input,{as:'',status:401});await command(name,input,{as:member.cookie,status:403})}
   const create=async(n)=>{const d=await donor(h,n,{email:'synthetic-coffer-'+(++index)+'@example.test'},options());await command('consent.record',{donorId:d.id,channel:'email',status:'granted',method:'paper form',evidence:'Synthetic explicit permission',capturedOn:at.slice(0,10)});return d}
   let index=2310
@@ -34,6 +35,7 @@ export async function stewardshipJourneys(){
   const enrolled=id=>state.enrollments.filter(e=>e.journey_id===id).map(e=>e.donor_id).sort()
   assert.deepEqual(enrolled(high.id),[large.id,restricted.id].sort())
   assert.deepEqual(enrolled(second.id),[large.id,restricted.id].sort())
+  assert.deepEqual((await h.get('/api/coffer/donors/'+large.id,options({as:member.cookie}))).journeys,[])
   assert.equal(state.enrollments.filter(e=>e.steps.some(s=>s.status==='pending'&&s.note?.includes('frequency cap'))).length,2)
   assert.equal(handoffs.length,2)
   assert.equal((await command('journey.run')).submitted,0);assert.equal(handoffs.length,2)

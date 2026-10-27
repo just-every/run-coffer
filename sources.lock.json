@@ -2311,7 +2311,7 @@
       "executable": false
     },
     "src/coffer/agent/journey-delivery.ts": {
-      "sha256": "11c2a2f4a4b2e2b098da0235c6a83104a00a5d78741e5733a3417bda0c59c660",
+      "sha256": "8610fbcf2873bcbd4256efc98fb60cf09bcd2c28251f636cd51407535e7cc7ab",
       "executable": false
     },
     "src/coffer/agent/journey-results.ts": {
@@ -2543,11 +2543,11 @@
       "executable": false
     },
     "src/coffer/communications/journeys-ui.ts": {
-      "sha256": "2ce5a201221b4486a1c06099d35553e55548bd7d62f2491154766049b1fb96c3",
+      "sha256": "9fb652a7de6a2cb29773519876eca34fc35f80e1f7a6f00aa2d20effdad3e59c",
       "executable": false
     },
     "src/coffer/communications/journeys.ts": {
-      "sha256": "8ef3b7671b7afc181e90adf609d07d3723adc34c636145c3ec6e32603f85e564",
+      "sha256": "cfb1d844798069fe70273a4167705437cbed98056547a8c79d29daae1d450ef1",
       "executable": false
     },
     "src/coffer/communications/mailchimp.ts": {
@@ -2727,7 +2727,7 @@
       "executable": false
     },
     "src/coffer/donors.ts": {
-      "sha256": "c988f4999acfb9e5486d8bcbc6609ffe82de109cf229bd86ce3aca78cb97360c",
+      "sha256": "f31aa7392ad473a68b86eb0f02f744c3ac87e4f5ede7484163ee677b84bd7227",
       "executable": false
     },
     "src/coffer/duplicates.ts": {
@@ -3727,7 +3727,7 @@
       "executable": false
     },
     "src/coffer/ui/donors.ts": {
-      "sha256": "17837b5352efbd79b93f0796018db73f4098a66cc09b1034e39fb5d312f47d93",
+      "sha256": "e1387f4e26d2538d91cb64d01f881be42d57c1de359d6350b27af6c3b38adffc",
       "executable": false
     },
     "src/coffer/ui/duplicates.ts": {
@@ -6767,7 +6767,7 @@
       "executable": false
     },
     "tests/stewardship-journeys.mjs": {
-      "sha256": "9a205f01ed5bf9184c6fb55489221eb3a65a68519f17ba887e66e44a48be129b",
+      "sha256": "c1b51337eb275cff377173bd1ccd10063ea555d996ebc0a8ca161c71e9403274",
       "executable": false
     },
     "tests/stewardship.test.mjs": {

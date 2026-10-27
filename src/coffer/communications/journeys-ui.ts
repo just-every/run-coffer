@@ -59,6 +59,7 @@ function journeySummary(j: Row, lists: Row[], events: Row[]) {
 
 export async function journeysPanel(c: Context): Promise<string> {
  const canManage = manager(c.actor)
+ if(!canManage)return ''
  const [state, s, owners, lists, events] = await Promise.all([
   journeyState(c), settings(c), canManage ? taskOwners(c) : Promise.resolve([]),
   canManage ? all(c, 'SELECT id,name FROM cf_saved_lists ORDER BY lower(name),id') : Promise.resolve([]),

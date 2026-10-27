@@ -44,6 +44,7 @@ export async function journeyCommand(c:Context,command:string,p:Row):Promise<Row
  return {id:journeyId,published:true,steps}
 }
 export async function journeyState(c:Context):Promise<Row>{
+ requireRole(c.actor,['owner','admin'],'read journey membership and messages')
  const [journeys,templates,enrollments,steps,policy,mergeReview]=await Promise.all([
   all(c,'SELECT * FROM cf_journeys ORDER BY published_at DESC,id'),
   all(c,'SELECT t.*,v.subject,v.body FROM cf_journey_templates t JOIN cf_journey_step_publications v ON v.code=t.code ORDER BY t.delay_days'),
