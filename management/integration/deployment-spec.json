@@ -1006,6 +1006,12 @@
       "name": "core-0164_coffer_sms_schedules.sql",
       "sha256": "1dbff81de2dd0bbae9b3c8d49faf25525d8d27d0e200bbe597f7649bd2ffff3e",
       "sql": "CREATE TABLE cf_sms_schedules (\n run_id TEXT PRIMARY KEY REFERENCES cf_sms_runs(id) ON DELETE CASCADE,\n scheduled_at TEXT NOT NULL,\n scheduled_by TEXT NOT NULL,\n state TEXT NOT NULL CHECK(state IN ('scheduled','paused','complete','cancelled')),\n note TEXT NOT NULL DEFAULT '',\n updated_at TEXT NOT NULL\n);\nCREATE TRIGGER cf_sms_schedule_stop AFTER UPDATE OF state ON cf_sms_runs\nWHEN NEW.state IN ('discarded','redacted') BEGIN\n UPDATE cf_sms_schedules SET state='cancelled',note='The text run was discarded or redacted.' WHERE run_id=NEW.id;\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0165_coffer_sms_number_status.sql",
+      "sha256": "b029a8cc122768004431d5f038858e3ba85f972bc38d8921febec8c17d9a83b3",
+      "sql": "-- Pool membership alone is not exact-number A2P registration evidence.\nALTER TABLE cf_sms_registration ADD COLUMN number_campaign_sid TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN phone_number_sid TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN number_configured_at TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN number_status TEXT NOT NULL DEFAULT 'unknown';\nALTER TABLE cf_sms_registration ADD COLUMN number_status_at TEXT;\nALTER TABLE cf_sms_registration ADD COLUMN number_event_id TEXT;\nUPDATE cf_sms_registration SET approved=0,version=version+1;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
