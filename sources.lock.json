@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "97ac2399b8382b4e368a93fbd355cec01b7f934fbc99f6e7472fab5ea975d94b",
+      "sha256": "00a8a999ef9ae69f9507c0b46de536dadd51ad7b1ea64ee61c429dac9ec68818",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "06ba157ed9f344cfcf79bf102099c9407339e93e328d2e81cde623979792377b",
+      "sha256": "db7654ca463872867b7effd211b2eb06a60ff7f13362f07b0c2e68d31ead0b1a",
       "executable": false
     },
     "deploy-demo.json": {
@@ -6608,6 +6608,10 @@
     },
     "tests/postal-recovery-journey.mjs": {
       "sha256": "b3122ba36d64f253f84e9c4eabd6d07349d6c3c45e6f991eaec7803c9a285982",
+      "executable": false
+    },
+    "tests/postal-transport-journey.mjs": {
+      "sha256": "a9cbabe372d419ae8f89f79d01fb2942cff16343f516853e0dc44b191f64118c",
       "executable": false
     },
     "tests/print-formats-journey.mjs": {
