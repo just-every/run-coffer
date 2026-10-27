@@ -37,7 +37,11 @@ export async function journeyCapCustody(){
   const history=await get('/api/coffer/donors/'+unsure.id);assert.equal(history.gifts[0].acknowledgment.status,'not acknowledged');assert.equal(history.gifts[0].acknowledgment.outcome_unknown,1)
   const duplicate=await donor(h,'Terry Duplicate',{email:'synthetic-coffer-2503@example.test'},opts()),compare=await get('/api/coffer/duplicates/compare?source='+unsure.id+'&target='+duplicate.id)
   await command('donor.merge',{sourceDonorId:unsure.id,donorId:duplicate.id,sourceVersion:compare.source.version,version:compare.target.version,reason:'duplicate_record'})
-  state=await get('/api/coffer/journeys');assert.ok(!state.enrollments.some(e=>e.donor_id===unsure.id));assert.equal((await command('journey.run')).submitted,0)
+  state=await get('/api/coffer/journeys');assert.ok(!state.enrollments.some(e=>e.donor_id===unsure.id))
+  const mergedHandoffs=edge.handoffs.length;at='2026-06-04T14:00:00Z'
+  assert.equal((await command('journey.run')).submitted,0,'A later tick must not enroll the surviving identity in either previously joined journey')
+  assert.equal(edge.handoffs.length,mergedHandoffs)
+  state=await get('/api/coffer/journeys');assert.ok(!state.enrollments.some(e=>e.donor_id===duplicate.id))
  },{entry:'tests/journeys-worker.ts',outbound:edge.outbound})
 }
 export async function anniversaryJourney(){

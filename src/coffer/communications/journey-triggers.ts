@@ -22,7 +22,7 @@ export async function enrollJourneys(c:Context){
  for(const j of journeys){
   const ids=await triggerMembers(c,j)
   for(const donorId of ids){
-   if(await one(c,'SELECT id FROM cf_journey_enrollments WHERE journey_id=? AND donor_id=?',j.id,donorId))continue
+   if(await one(c,'SELECT e.id FROM cf_journey_enrollments e LEFT JOIN cf_donor_merges m ON m.donor_id=e.donor_id WHERE e.journey_id=? AND COALESCE(m.into_id,e.donor_id)=?',j.id,donorId))continue
    const donor=await one(c,`SELECT d.id,d.version FROM cf_donors d WHERE d.id=? AND ${journeyLive} AND ${journeyConsent}`,donorId)
    if(!donor)continue
    const gifts=await all(c,"SELECT id FROM cf_gifts WHERE donor_id=? AND kind='gift' ORDER BY id",donorId),giftIds=JSON.stringify(gifts.map(g=>g.id))
