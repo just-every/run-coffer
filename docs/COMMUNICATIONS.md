@@ -119,7 +119,7 @@ Future doors in COMM-003/004/007, STEW-001/003, DEV-005, DONOR-007, REPORT-004, 
 Staff record SMS permission with evidence, capture date, current phone and donor
 time zone. SMS and phone answers join the shared append-only channel history;
 SMS send eligibility also requires permission bound to that current phone.
-Owner/admin prepare an appeal, thank-you or own-pledge reminder text, review its
+The owner and admins prepare an appeal, thank-you or own-pledge reminder text, review its
 frozen recipients and message, explicitly approve, then send. Preparation sends
 nothing. A pledge reminder requires an unpaid installment. Appeals exclude
 restricted donors; thank-yous and own-pledge reminders still require current
@@ -127,11 +127,21 @@ SMS consent and active status.
 
 Self-hosted sending requires the Twilio account SID, auth token and sender
 bindings named TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM. The operator
-supplies an already registered sender. Coffer does not manage 10DLC registration.
-Texts are held outside 8 a.m. to 9 p.m. in each donor's recorded time zone. A
-later explicit send releases eligible held recipients; no automatic scheduling
-or morning resumption is implemented. Changed consent, phone, donor or
-restriction versions fence an already approved run.
+connects an existing Twilio account. Under Settings, SMS sender registration
+checks the Messaging Service and existing A2P campaign against Twilio and shows
+its status and exact sender membership. Complete brand and campaign registration
+in Twilio Console; Coffer never self-certifies it. Every outreach send rechecks
+Twilio. Pending, mock, wrong-account, missing-sender or unavailable verification
+blocks submission. Connection-bound registration evidence stays out of archives
+and must be verified on the restored installation.
+
+Texts are held outside 8 a.m. to 9 p.m. in each donor's recorded time zone. After
+approval, an owner or admin can explicitly schedule a UTC time. The scheduled
+job holds the 10 p.m. recipient until 8 a.m. and resumes without another human
+send. It rechecks the current scheduling authority and the frozen consent,
+phone, donor and restriction facts. Changes pause the schedule for review.
+Cancellation or discarding the run stops it. An unscheduled quiet-hour hold
+still waits for a person to send or schedule it.
 
 A durable recipient claim prevents duplicate submission. Twilio acceptance is
 labelled **submitted**, with its returned status separate; it does not prove
@@ -140,8 +150,13 @@ interrupted before its outcome was saved, and are never automatically retried.
 A definitive 4xx refusal reads failed. The signed Twilio form webhook verifies
 the exact request URL and parameters, account and destination. STOP and its
 supported equivalents append withdrawals to the SMS preference and shared
-consent histories once per message, preventing subsequent texts. HELP and
-ordinary reply logging/assignment are not implemented.
+consent histories once per message, preventing subsequent texts. Signed HELP
+gets one organization-labelled response inviting a support question and naming
+STOP. Ordinary replies from a uniquely identified current phone become a donor
+timeline note and an ordinary non-ask follow-up task. Existing relationship
+routing selects the active portfolio manager, then the active opportunity owner,
+then the installation owner. Replays do not duplicate records; unknown or shared
+phones never guess a donor. Neither HELP nor a reply grants SMS consent.
 
 Backups preserve SMS runs and histories while leaving credentials out. Pending
 or held runs must be discarded before merge; a submission in progress must be
@@ -149,7 +164,8 @@ reconciled. Merge never transfers SMS permission to the survivor: staff must
 explicitly reconfirm the current phone and donor time zone. Clean undo restores
 original history, while later staff decisions fence undo. Erasure removes
 private phone, identity and message data, including runs that only excluded the
-erased donor. These custody policies remain conservative defaults pending ct.
+erased donor. Replies use the existing note and task custody. Merged SMS
+permission is reconfirmed under the ct 22 October DONOR-015 ruling.
 
 ## Welcome journeys
 
@@ -271,8 +287,9 @@ native 1440/390 views. "DONOR-015: incumbent restrictions retain source meaning,
 runs solicitationImportJourney in `tests/solicitation-import-journey.mjs`.
 "DONOR-015: SMS asks honor restrictions while approved thank-yous and pledge reminders retain consent, quiet hours and STOP"
 runs smsJourney in `tests/sms-journey.mjs`: approved Twilio submission, night
-hold and explicit morning release, signed STOP/replay, stale/uncertain holds,
-merge union, permission reconfirmation, restore/undo/erasure and native text
+hold and automatic morning resumption, registered-sender checks, HELP, exact
+reply notes and assigned tasks, signed STOP and replay, stale and uncertain holds,
+merge union, permission reconfirmation, restore, undo, erasure and native text
 screens. "STEW-005: reviewed rules act once on live gifts and never on historical imports"
 runs giftRulesJourney in `tests/gift-rules-journey.mjs`, asserting reviewed
 publication, 48-hour non-ask tasks, first-gift tags, historical suppression,

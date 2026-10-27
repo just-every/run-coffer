@@ -159,6 +159,13 @@ export async function smsJourney(){
   assert.equal((await post(signature)).status,200)
   assert.equal((await h.get('/api/coffer/donors/'+a.id+'/sms',{headers:dayHeaders})).preference.id,stopped.preference.id,'Webhook replay does not add another consent row')
   const blocked=await prepare('thank-you');assert.equal(blocked.recipients,0);assert.equal(blocked.excluded[0].reason,'SMS consent withdrawn')
+  const scheduledAudit=await h.get('/api/coffer/audit?action=sms.schedule&record='+thanks.id)
+  assert.equal(scheduledAudit.rows[0].actor_id,(await h.get('/auth/session')).operator.id)
+  const registrationAudit=await h.get('/api/coffer/audit?action=sms.registration.refresh')
+  assert.ok(registrationAudit.total>0);assert.equal(registrationAudit.rows[0].subject_id,registration.campaign)
+  const replyAudit=await h.get('/api/coffer/audit?action=sms.reply&record='+a.id)
+  assert.equal(replyAudit.total,1);assert.equal(JSON.parse(replyAudit.rows[0].detail).ownerId,tasks.find(t=>t.donor_id===a.id).owner_id)
+
   await smsScreens(h,{runId:thanks.id,phase:'complete',at})
   // Custody uses separate original identities, real sends and consent history.
   // The source forbids mail while the target has a two-ask annual limit; their

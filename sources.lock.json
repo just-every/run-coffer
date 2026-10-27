@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d7cc7146d62d095ddb263af67ce0208674dd7aab01c9dd45d3c0f0f2475c31f5",
+      "sha256": "e148ac007647c68ba54dc67d38ca99936ff47ba378f36e8548284be8ae4f5617",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1402197b15e3c7c470acdde72a6d8d550ceddd1aa67ab8d1c16b432ae1a6810d",
+      "sha256": "b471f789cd76e2f70b65b19b9ef10b88d9c7ec1d9522f5c7cda9c6d1b2afc640",
       "executable": false
     },
     "deploy-demo.json": {
@@ -611,7 +611,7 @@
       "executable": false
     },
     "docs/COMMUNICATIONS.md": {
-      "sha256": "27cc4f86aa827ea38b814f583f188dfdd82d7d75316441a453650d756896b90e",
+      "sha256": "7bc090ad2afda931e3065c0a6f4e266696040e0545b4c666f8b31e1522c76bf6",
       "executable": false
     },
     "docs/consent.md": {
@@ -6811,7 +6811,7 @@
       "executable": false
     },
     "tests/sms-journey.mjs": {
-      "sha256": "63fddff84a45f367fae9f9b792a2b5bf6c034cceac8b976b1589fc11f3c792fd",
+      "sha256": "325632f6fc28d9f21fce9b4996a3a3ba92b9af19fd8cb126e7e18de64acf7668",
       "executable": false
     },
     "tests/sms-registration-edge.mjs": {
