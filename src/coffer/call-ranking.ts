@@ -1,3 +1,4 @@
+import { communicationReasons } from './communications/preference-rules'
 import { requireRole } from './auth'
 import { automated, automationRecords, claimAutomation } from './automation-grants'
 import { addDays, all, CofferError, commit, daysBetween, event, fail, guard, id, integer, newId, one, sql, today, type Context, type Row, type Stmt } from './db'
@@ -88,11 +89,11 @@ async function rankingState(c:Context,managerId:string,runId?:string) {
   FROM cf_call_rank_entries e JOIN cf_donors d ON d.id=e.donor_id AND d.erased_at IS NULL
   LEFT JOIN cf_call_tasks t ON t.id=e.task_id WHERE e.run_id=? AND ${scope.sql}
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY e.rank_num,e.id`,run.id,...scope.params)
- const [holds,restrictions]=await Promise.all([phoneHolds(c,rows.map(r=>r.donor_id),false),solicitationState(c,rows.map(r=>r.donor_id))])
+ const [holds,restrictions,preferences]=await Promise.all([phoneHolds(c,rows.map(r=>r.donor_id),false),solicitationState(c,rows.map(r=>r.donor_id)),communicationReasons(c,rows.map(r=>r.donor_id),'phone')])
  const restrictedIds=new Set(restrictions.filter(restricted).map(r=>r.donor_id)),excluded:Row=JSON.parse(run.excluded)
  const entries:Row[]=[],overflow:Row[]=[]
  for(const row of rows){
-  const why=holds.get(row.donor_id)??(row.is_ask&&restrictedIds.has(row.donor_id)?'solicitation restriction changed':null)
+  const why=holds.get(row.donor_id)??(row.is_ask&&restrictedIds.has(row.donor_id)?'solicitation restriction changed':row.is_ask&&row.task_status!=='done'?preferences.get(row.donor_id):null)
   if(why){countReason(excluded,why);continue}
   const entry={...row,facts:JSON.parse(row.facts),solicitation:restrictions.find(r=>r.donor_id===row.donor_id)}
   if(row.state==='held'){countReason(excluded,'held');continue}
@@ -114,8 +115,9 @@ async function rankManager(c:Context,managerId:string) {
  const saved=await one(c,'SELECT id FROM cf_call_rank_runs WHERE manager_id=? AND week_on=?',managerId,week)
  if(saved)return rankingState(c,managerId,saved.id)
  const source=sourceQuery(c,managerId,day),raw=await all(c,source.query,...source.params),excluded:Row={}
+ const preferences=await communicationReasons(c,raw.map(r=>JSON.parse(r.row).id),'phone')
  const candidates=raw.map(r=>scored(JSON.parse(r.row),day,week,s.fiscal_year_start)).filter(r=>r.score>0).filter(r=>{
-  const why=r.status!=='active'?r.status:r.permission==='withdrawn'?'phone consent withdrawn':null
+  const why=r.status!=='active'?r.status:r.permission==='withdrawn'?'phone consent withdrawn':r.isAsk?preferences.get(r.id):null
   if(why){countReason(excluded,why);return false}return true
  }).sort((a,b)=>b.score-a.score||b.amount-a.amount||(a.name.toLowerCase()<b.name.toLowerCase()?-1:a.name.toLowerCase()>b.name.toLowerCase()?1:0)||(a.id<b.id?-1:a.id>b.id?1:0))
  const runId=newId(),period=fiscalPeriod(day,s.fiscal_year_start),taskCount=Math.min(operator.capacity,candidates.length)

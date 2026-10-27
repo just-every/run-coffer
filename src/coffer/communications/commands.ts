@@ -1,3 +1,5 @@
+import { providerPreferenceCommand } from './provider-preferences'
+import { constantContactCommand } from './constant-contact'
 import { fail, id, integer, one, type Context, type Row } from '../db'
 import { appealDetail, hashOf } from '../appeals'
 import { submitMessage, refreshMessages } from './outbound'
@@ -10,6 +12,8 @@ export const sendBatch = (provider: string) => provider === 'mango' ? 40 : 8
 export const appealListName = (appeal: Row) => `Coffer appeal · ${appeal.name} · ${String(appeal.prepared_at).slice(0, 10)}`
 
 export async function marketingCommand(c:Context,command:string,p:Row):Promise<Row|undefined>{
+ const mapped=await providerPreferenceCommand(c,command,p);if(mapped)return mapped
+ const constantContact=await constantContactCommand(c,command,p);if(constantContact)return constantContact
  const connected=await connectCommand(c,command,p);if(connected)return connected
  if(command==='marketing.sync')return syncPreferences(c)
  if(command==='marketing.refresh')return refreshMessages(c)

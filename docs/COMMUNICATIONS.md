@@ -52,6 +52,34 @@ The Worker includes Cloudflare’s [`global_fetch_strictly_public` flag](https:/
 
 ## Preferences and receipts
 
+The donor record and authenticated donor portal offer newsletter, appeals and
+events topics separately for email, postal mail, SMS and phone. Appeal frequency
+can be unlimited, monthly or quarterly per channel. Limits use the organization's
+calendar month or quarter and count durable submissions, exports and completed
+ask calls, never preparation. Topics and frequency are checked again before the
+existing submission claim. A newsletter keeps its own topic and does not consume
+an appeal slot. Receipts, statements and existing pledge reminders remain
+transactional. Donation-request restrictions under DONOR-015 still apply
+independently to every ask.
+
+Each confirmed change appends a versioned preference and a consent-history row
+with its source, retaining the channel's current permission. Owner or admin
+staff may record the donor's choices; the portal may change only its authenticated
+donor. Neither door grants channel permission. Stale writes and foreign donor
+targets are refused. Original merged identities keep their separate history;
+their topics intersect and their strictest cap applies. Archives preserve the
+history and erasure removes it.
+
+Settings contains provider topic mappings. Mango segment IDs, Mailchimp interest
+IDs and optional frequency fields can import stricter choices. Constant Contact
+uses authenticated contact reads, including unsubscribed contacts, mapped lists
+and an optional frequency custom field. Connection credentials are encrypted
+and excluded from archives. Unavailable or malformed provider answers hold
+sending. External updates only remove topics or tighten caps; they never restore
+permission or weaken a recorded preference. These conservative import and merge
+semantics, and the calendar frequency windows, await ct approval under COMM-001.
+Future event invitation and additional provider doors inherit these checks.
+
 Before each marketing submission, Coffer checks both its latest email consent
 and the sender's current subscription. A provider unsubscribe or suppression
 adds a withdrawal to Coffer's append-only history. A Coffer email withdrawal is

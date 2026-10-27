@@ -1,3 +1,4 @@
+import { communicationReasons, communicationGuards } from './communications/preference-rules'
 import { all, choice, commit, date, event, fail, guard, id, integer, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { settings } from './settings'
 import { SOLICITATION_PERIODS, SOLICITATION_COUNT_COLUMNS, solicitationCounts, solicitationCountCase, solicitationPeriodWindows, type SolicitationPeriod } from './solicitation-periods'
@@ -137,10 +138,12 @@ export async function prepareSolicitationRun(c:Context,input:{kind:string;id:str
  id(kind,'Run kind');id(runId,'Run');choice(channel,SOLICITATION_CHANNELS,'ask channel')
  if(typeof isAsk!=='boolean')fail('INPUT','Mark the outbound run as an ask or not an ask.',400)
  const day=await calendarDay(c,c.now),ids=JSON.stringify([...new Set(donorIds)])
- const [states,savedExceptions,reasons]=await Promise.all([
+ const topic=isAsk?'appeals':kind==='appeal'?'newsletter':null
+ const [states,savedExceptions,reasons,preferences]=await Promise.all([
   solicitationState(c,donorIds,day),
   all(c,'SELECT * FROM cf_solicitation_inclusions WHERE kind=? AND run_id=? AND donor_id IN (SELECT value FROM json_each(?))',kind,runId,ids),
   isAsk?solicitationReasons(c,donorIds,channel,day):Promise.resolve(new Map<string,SolicitationReason|null>()),
+  topic?communicationReasons(c,donorIds,channel,topic,{kind,id:runId}):Promise.resolve(new Map<string,string|null>()),
  ])
  const savedByDonor=new Map(savedExceptions.map(r=>[r.donor_id,r])),recipients:Row[]=[],excluded:Row[]=[]
  for(const ownState of states) {
@@ -148,7 +151,8 @@ export async function prepareSolicitationRun(c:Context,input:{kind:string;id:str
   const saved=savedByDonor.get(state.donor_id),savedException=saved?.restriction_version===state.version?saved:null
   const exception=explicit.has(state.donor_id)?{donor_id:state.donor_id,restriction_version:state.version,reason:explicit.get(state.donor_id),actor_id:c.actor.id,actor_name:c.actor.name,recorded_at:c.now}:savedException
   const reason=reasons.get(state.donor_id)??null
-  if(reason&&!exception)excluded.push({donorId:state.donor_id,...reason})
+  if(preferences.get(state.donor_id))excluded.push({donorId:state.donor_id,reason:preferences.get(state.donor_id)})
+  else if(reason&&!exception)excluded.push({donorId:state.donor_id,...reason})
   else recipients.push({...state,inclusion:exception})
  }
  const vector=frozenVector(recipients),inclusions=JSON.stringify(recipients.filter(r=>explicit.has(r.donor_id)).map(r=>({donor_id:r.donor_id,version:r.version,reason:r.inclusion.reason})))
@@ -174,7 +178,7 @@ export async function solicitationRunGuards(c:Context,kind:string,runId:string,d
  const selected=donorIds?[...new Set(donorIds)].map(d=>byDonor.get(d)??fail('ASK_RECIPIENT','This donor is outside the frozen run.',409)):rows
  const day=await calendarDay(c,c.now),periods=solicitationPeriodWindows(day,(await settings(c)).fiscal_year_start),count=solicitationCounts(periods)
  const vector=frozenVector(selected)
- return [liveRecipients(vector),...(run.is_ask?[recipientVersions(vector)]:[]),
+ return [...await communicationGuards(c,selected.map(r=>r.donor_id),run.channel,run.is_ask?'appeals':kind==='appeal'?'newsletter':null,{kind,id:runId}),liveRecipients(vector),...(run.is_ask?[recipientVersions(vector)]:[]),
   guard(`(WITH ${expectedRecipients} SELECT NOT EXISTS(SELECT 1 FROM expected e WHERE NOT EXISTS(SELECT 1 FROM cf_solicitation_recipients r WHERE r.kind=? AND r.run_id=? AND r.donor_id=e.donor_id AND r.restriction_version=e.restriction_version)))`,'ASK_RUN_CHANGED','The frozen audience changed. Prepare again.',vector,kind,runId),
   ...(run.is_ask?[guard(`(WITH ${expectedRecipients},
    counts AS (SELECT ${canonical('a.donor_id')} AS donor_id,${count.sql}

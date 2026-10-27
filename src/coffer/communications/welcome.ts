@@ -1,3 +1,4 @@
+import { communicationReasons } from './preference-rules'
 import { customAllowed, customMerge } from '../custom-fields'
 import { LETTER, checkTemplate, longDate, goodsStatement } from '../settings'
 import { recipientMergeFields, renderTemplate } from '../template-fields'
@@ -141,7 +142,8 @@ async function run(c: Context,options:{emailType?:string}={}): Promise<Row> {
  for (const row of due) {
   const queued=await one(c,`SELECT s.*,e.first_gift_id,COALESCE(v.subject,CASE s.step WHEN 'thank' THEN w.thank_subject WHEN 'impact' THEN w.impact_subject ELSE w.ask_subject END) AS subject,COALESCE(v.body,CASE s.step WHEN 'thank' THEN w.thank_body WHEN 'impact' THEN w.impact_body ELSE w.ask_body END) AS body FROM cf_welcome_steps s JOIN cf_welcome_enrollments e ON e.donor_id=s.donor_id JOIN cf_welcome w ON w.id='welcome' LEFT JOIN cf_journey_step_publications v ON v.code=s.response_code WHERE s.id=?`,row.id)
   if(!queued)continue
-  const restricted=queued.step==='ask'?await solicitationReason(c,queued.donor_id,'email',c.now):null
+  const preference=queued.step==='ask'?(await communicationReasons(c,[queued.donor_id],'email')).get(queued.donor_id):null
+  const restricted=queued.step==='ask'?(await solicitationReason(c,queued.donor_id,'email',c.now)??(preference?{reason:preference,lastAskOn:null}:null)):null
   if(restricted){await commit(c,[sql("UPDATE cf_welcome_steps SET status='cancelled',note=? WHERE id=? AND status='pending'",restricted.reason+(restricted.reason==='solicitation limit'&&restricted.lastAskOn?' · Last ask '+restricted.lastAskOn:''),row.id),event(c,'welcome.askSkipped','welcome',row.id,queued.donor_id,restricted)]);cancelled++;continue}
   const rendered=await stepMessage(c,queued,options),blanks:string[]=JSON.parse(rendered.merge_blanks)
   if(!rendered.recipient.email&&!blanks.includes('email'))blanks.push('email')

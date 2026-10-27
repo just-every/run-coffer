@@ -27,7 +27,7 @@ export async function taskCandidates(c: Context, isAsk=true) {
  const holds=await phoneHolds(c,candidates.map(s=>s.donorId),isAsk)
  const excluded: Record<string, number> = {}, held = new Map<string, string>(), counted = new Set<string>()
  // Each constituent counts once under their status, however many lapses or pledges would have made a call.
- for (const s of candidates) { const hold=holds.get(s.donorId),why=s.kind==='pledge'&&(hold==='do not solicit'||hold==='solicitation limit')?null:hold; if (why) { held.set(s.key, why); if (!counted.has(s.donorId)) { counted.add(s.donorId); excluded[why] = (excluded[why] ?? 0) + 1 } } }
+ for (const s of candidates) { const hold=holds.get(s.donorId),why=s.kind==='pledge'&&(hold==='do not solicit'||hold==='solicitation limit'||hold==='topic'||hold==='frequency')?null:hold; if (why) { held.set(s.key, why); if (!counted.has(s.donorId)) { counted.add(s.donorId); excluded[why] = (excluded[why] ?? 0) + 1 } } }
  return { sources: candidates.filter(s => !held.has(s.key)), excluded, held }
 }
 export const taskSources = async (c: Context) => (await taskCandidates(c)).sources

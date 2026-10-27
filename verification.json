@@ -5,7 +5,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs"
+        "COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs",
+        "COFFER_PRINT_BROWSER=.cache/print-letters node --test --test-name-pattern='^RCPT-003:' tests/receipts.test.mjs"
       ]
     },
     {
@@ -97,7 +98,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters pnpm run test:receipts",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-skip-pattern='^RCPT-003:' tests/receipts.test.mjs",
         "node --test tests/hosted-mail.test.mjs"
       ]
     },
@@ -163,7 +164,7 @@
     },
     {
       "name": "communications",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
         "pnpm run test:communications"

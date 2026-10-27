@@ -36,6 +36,8 @@ const descriptions = [
  owned('cf_gifts'), owned('cf_consents'), owned('cf_pledges'), owned('cf_acks'),
  // Original identities retain these records. The same union scope before and
  // after flattening aliases also fences a later inherited restriction edit.
+ owned('cf_single_letters'),
+ owned('cf_communication_preferences',`n.donor_id IN ${custodyPair}`,['donor_id','channel','version'],false),
  owned('cf_solicitation',`n.donor_id IN ${custodyPair}`,['donor_id'],false),
  owned('cf_solicitation_history',`n.donor_id IN ${custodyPair}`,['donor_id','version'],false),
  owned('cf_solicitation_asks',`n.donor_id IN ${custodyPair}`,['kind','run_id','donor_id'],false),

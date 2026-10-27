@@ -115,12 +115,12 @@ async function recordDelivery(db: D1Database, letterId: string, attempt: string,
 
 // Bulk intake stays within the free Worker subrequest budget even for a large
 // provider event batch. The actual event rows, rather than arrival order, decide.
-async function recordDeliveryEvents(db: D1Database, incoming: Row[], signed=false) {
+export async function recordDeliveryEvents(db: D1Database, incoming: Row[], signed=false) {
  const payload = JSON.stringify(incoming)
  await db.batch([
-  db.prepare(`INSERT OR IGNORE INTO cf_letter_events(id,letter_id,event,occurred_at,recorded_at,signature_verified)
-   SELECT json_extract(j.value,'$.id'),a.id,json_extract(j.value,'$.state'),json_extract(j.value,'$.occurred'),?,?
-   FROM json_each(?) j JOIN cf_acks a ON a.id=json_extract(j.value,'$.letterId') AND a.attempt_id=json_extract(j.value,'$.attempt') AND a.route IN ('email','print')`).bind(new Date().toISOString(), signed?1:0, payload),
+  db.prepare(`INSERT OR IGNORE INTO cf_letter_events(id,letter_id,event,occurred_at,recorded_at,signature_verified,provider,provider_event,provider_message_id,provider_attempt_id,postal_piece_id)
+   SELECT json_extract(j.value,'$.id'),a.id,json_extract(j.value,'$.state'),json_extract(j.value,'$.occurred'),?,?,COALESCE(json_extract(j.value,'$.provider'),'SendGrid'),json_extract(j.value,'$.providerEvent'),json_extract(j.value,'$.providerMessageId'),COALESCE(json_extract(j.value,'$.providerAttemptId'),json_extract(j.value,'$.attempt')),json_extract(j.value,'$.postalPieceId')
+   FROM json_each(?) j JOIN cf_acks a ON a.id=json_extract(j.value,'$.letterId') AND a.attempt_id=json_extract(j.value,'$.attempt') AND a.route IN ('email','print','postal')`).bind(new Date().toISOString(), signed?1:0, payload),
   db.prepare(`UPDATE cf_letter_events SET signature_verified=1 WHERE ?=1 AND id IN (SELECT json_extract(value,'$.id') FROM json_each(?)) AND letter_id IN (SELECT a.id FROM cf_acks a JOIN json_each(?) j ON a.id=json_extract(j.value,'$.letterId') AND a.attempt_id=json_extract(j.value,'$.attempt'))`).bind(signed?1:0,payload,payload),
   db.prepare(`INSERT OR IGNORE INTO cf_receipt_address_tasks(id,letter_id,created_at)
    SELECT 'receipt-address:'||a.id,a.id,min(e.recorded_at) FROM cf_acks a
@@ -128,12 +128,12 @@ async function recordDeliveryEvents(db: D1Database, incoming: Row[], signed=fals
    JOIN cf_donors d ON d.id=a.donor_id AND d.erased_at IS NULL
    WHERE a.id IN (SELECT json_extract(value,'$.letterId') FROM json_each(?)) GROUP BY a.id`).bind(payload),
   db.prepare(`UPDATE cf_acks AS a SET
-   delivery_status=CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event='complained') THEN 'complained'
-    WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event='bounced') THEN 'bounced'
-    WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event='delivered') THEN 'delivered' ELSE delivery_status END,
-   route=CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event IN ('bounced','complained')) THEN 'print' ELSE route END,
-   delivered_at=COALESCE(delivered_at,(SELECT min(occurred_at) FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event='delivered')),
-   delivery_note=CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event IN ('bounced','complained')) THEN 'Email did not reach the donor. Correct the email address; this letter is in the print batch.' ELSE delivery_note END
+   delivery_status=CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND (e.provider_attempt_id=a.attempt_id OR (e.provider_attempt_id IS NULL AND NOT EXISTS(SELECT 1 FROM cf_postal_documents pd WHERE pd.letter_id=a.id))) AND e.event='complained') THEN 'complained'
+    WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND (e.provider_attempt_id=a.attempt_id OR (e.provider_attempt_id IS NULL AND NOT EXISTS(SELECT 1 FROM cf_postal_documents pd WHERE pd.letter_id=a.id))) AND e.event='bounced') THEN 'bounced'
+    WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND (e.provider_attempt_id=a.attempt_id OR (e.provider_attempt_id IS NULL AND NOT EXISTS(SELECT 1 FROM cf_postal_documents pd WHERE pd.letter_id=a.id))) AND e.event='delivered') THEN 'delivered' ELSE delivery_status END,
+   route=CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND (e.provider_attempt_id=a.attempt_id OR (e.provider_attempt_id IS NULL AND NOT EXISTS(SELECT 1 FROM cf_postal_documents pd WHERE pd.letter_id=a.id))) AND e.event IN ('bounced','complained')) THEN 'print' ELSE route END,
+   delivered_at=COALESCE(delivered_at,(SELECT min(occurred_at) FROM cf_letter_events e WHERE e.letter_id=a.id AND (e.provider_attempt_id=a.attempt_id OR (e.provider_attempt_id IS NULL AND NOT EXISTS(SELECT 1 FROM cf_postal_documents pd WHERE pd.letter_id=a.id))) AND e.event='delivered')),
+   delivery_note=CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND (e.provider_attempt_id=a.attempt_id OR (e.provider_attempt_id IS NULL AND NOT EXISTS(SELECT 1 FROM cf_postal_documents pd WHERE pd.letter_id=a.id))) AND e.event IN ('bounced','complained')) THEN CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND (e.provider_attempt_id=a.attempt_id OR (e.provider_attempt_id IS NULL AND NOT EXISTS(SELECT 1 FROM cf_postal_documents pd WHERE pd.letter_id=a.id))) AND e.provider='Lob') THEN 'Postal delivery failed. Correct the postal address; this letter is available to print.' ELSE 'Email did not reach the donor. Correct the email address; this letter is in the print batch.' END WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.provider_attempt_id=a.attempt_id AND e.provider='Lob' AND e.event='delivered') THEN 'USPS delivery reported by Lob.' ELSE delivery_note END
    WHERE id IN (SELECT json_extract(value,'$.letterId') FROM json_each(?))`).bind(payload),
  ])
  await portalCopyEvents(db,incoming,signed)

@@ -8,6 +8,11 @@ const recorded=JSON.parse(await readFile(new URL('./fixtures/mango/audience.json
 const chimp=JSON.parse(await readFile(new URL('./fixtures/mailchimp/responses.json',import.meta.url),'utf8'))
 const form=(h,fields)=>h.request('/app/actions',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(fields).toString()})
 
+test('COMM-001: portal topics and channel frequency fence current outreach and retain original preference custody',async()=>{
+ const {communicationPreferencesJourney}=await import('./communication-preferences-journey.mjs')
+ await communicationPreferencesJourney()
+})
+
 test('COMM-005: routed replies reach managers, withdraw explicit stops once and review ambiguous requests with custody',async()=>{
  const {replyStopJourney}=await import('./reply-stop-journey.mjs')
  await replyStopJourney()
@@ -64,9 +69,18 @@ test('DONOR-014: Mailchimp audience names follow parts and typed overrides for s
   await h.command('marketing.sync')
   assert.equal(members.get(hash(email)).status,'unsubscribed')
   assert.equal((await h.get('/api/coffer/donors/'+robert.id)).current.email.status,'withdrawn')
+  const excluded=await h.command('appeal.prepare',{name:'Synthetic provider unsubscribe appeal',channel:'email'},{status:409})
+  assert.equal(excluded.details['consent withdrawn'],1,'The next appeal excludes a Mailchimp unsubscribe with its current-consent reason')
   const count=writes.length
   await h.command('marketing.sync')
   assert.equal(writes.length,count,'An opted-out contact receives no further name writes')
+  members.get(hash(email)).interests={'synthetic-coffer-9201':true,'synthetic-coffer-9202':false};members.get(hash(email)).merge_fields.CF_FREQ='monthly'
+  await h.command('marketing.topicMapping',{provider:'mailchimp',newsletterId:'synthetic-coffer-9201',appealsId:'synthetic-coffer-9202',frequencyField:'CF_FREQ',confirm:'yes'})
+  await h.command('marketing.sync')
+  const importedPreference=(await h.get('/api/coffer/donors/'+robert.id+'/preferences')).channels.find(p=>p.channel==='email')
+  assert.ok(importedPreference.topics.includes('newsletter'));assert.ok(!importedPreference.topics.includes('appeals'));assert.equal(importedPreference.frequency,'monthly')
+  assert.equal((await h.get('/api/coffer/donors/'+robert.id+'/preferences')).history.at(-1).source,'mailchimp')
+  await h.command('marketing.topicMapping',{provider:'mailchimp',confirm:'yes'})
   const ana=await donor(h,'Ana Lee',{email:'ana.lee@example.test'})
   await profile(ana,{prefix:'Ms.',firstName:'Ana',lastName:'Lee',informalSalutation:'Annie',envelopeName:'The Lee Family'})
   await consent(ana,'granted')
@@ -258,6 +272,13 @@ test('DONOR-014: Connect Mango from the page, send an approved appeal to a Mango
   await h.command('consent.record',{donorIds:[jordan.id],channel:'email',status:'withdrawn',method:'email reply',evidence:'Synthetic donor asked to stop',capturedOn:'2025-03-04'})
   assert.deepEqual(suppressions.map(s=>s.email),[recorded.contacts[1].email])
   assert.equal((await h.get(`/api/coffer/donors/${jordan.id}`)).marketingPreference.state,'suppressed')
+  const providerAnswer=contacts.get(recorded.contacts[0].email);providerAnswer.segmentIds=['synthetic-coffer-9203'];providerAnswer.fields={...providerAnswer.fields,cofferFrequency:'quarterly'}
+  await h.command('marketing.topicMapping',{provider:'mango',newsletterId:'synthetic-coffer-9203',appealsId:'synthetic-coffer-9204',frequencyField:'cofferFrequency',confirm:'yes'})
+  await h.command('marketing.sync')
+  const importedPreference=(await h.get('/api/coffer/donors/'+avery.id+'/preferences')).channels.find(p=>p.channel==='email')
+  assert.ok(importedPreference.topics.includes('newsletter'));assert.ok(!importedPreference.topics.includes('appeals'));assert.equal(importedPreference.frequency,'quarterly')
+  assert.equal((await h.get('/api/coffer/donors/'+avery.id+'/preferences')).history.at(-1).source,'mango')
+  await h.command('marketing.topicMapping',{provider:'mango',confirm:'yes'})
  },{outbound:async request=>{
   const u=new URL(request.url)
   assert.equal(u.origin,'https://mango.example.test')

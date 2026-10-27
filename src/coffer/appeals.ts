@@ -1,3 +1,4 @@
+import { communicationReasons } from './communications/preference-rules'
 import { customAllowed } from './custom-fields'
 import { recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
 import { LETTER, checkTemplate, longDate } from './settings'
@@ -41,12 +42,14 @@ export async function audience(c: { db: D1Database; now?:string }, channel: 'ema
  const recipients: Row[] = [], lastAskDates:Record<string,number> = {}
  const addressHolds=channel==='mail'?await mailEligibility(c,rows):new Map()
  const donorIds=segment.donorIds?new Set(segment.donorIds):null,includeIds=new Set(segment.includeIds??[])
+ const preferences=await communicationReasons(c,rows.filter(d=>!donorIds||donorIds.has(d.id)).map(d=>d.id),channel,segment.isAsk===false?'newsletter':'appeals')
  const reasons=segment.isAsk===false?new Map():await solicitationReasons(c,rows.filter(d=>!donorIds||donorIds.has(d.id)).map(d=>d.id),channel,c.now)
  for (const d of rows) {
   if (donorIds && !donorIds.has(d.id)) continue
   const restricted=reasons.get(d.id)
   if (d.constituent_status !== 'active') countReason(excluded, d.constituent_status)
   else if (restricted&&!includeIds.has(d.id)) {countReason(excluded,restricted.reason);if(restricted.reason==='solicitation limit'&&restricted.lastAskOn)countReason(lastAskDates,restricted.lastAskOn)}
+  else if(preferences.get(d.id))countReason(excluded,preferences.get(d.id)!)
   else if (!d.consent) excluded['no consent recorded']++
   else if (d.consent !== 'granted') excluded['consent withdrawn']++
   else if (channel === 'email' && !d.email) excluded['no email address']++
@@ -66,7 +69,6 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   await deliberateInclusionGuards(c,includes.map(x=>x.donorId))
   const name = text(p.name, 'Appeal name', 200), channel = choice(p.channel, ['email', 'mail'] as const, 'channel')
   if(p.emailType)choice(p.emailType,['personal','work','other'],'email contact type')
-  if(purpose==='newsletter'&&channel!=='email')fail('INPUT','The newsletter topic uses email.',400)
   const givenSince = p.givenSince ? date(p.givenSince, 'Gave since') : null
   const minTotalCents = givenSince && (p.minTotal || p.minTotalCents) ? amount(p, 'minTotal', 'Minimum given') : 0
   if (givenSince && givenSince > today((await settings(c)).timezone)) fail('INPUT', 'Gave since cannot be in the future.', 400)
@@ -86,7 +88,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)
   if (recipients.length > MAX_RECIPIENTS) fail('TOO_MANY', `An appeal holds at most ${MAX_RECIPIENTS} recipients. Narrow the segment.`, 400)
   if(message){const s=await settings(c),used=[...new Set(templateTokens(message.subject+'\n'+message.body).map(t=>t.field))];for(const r of recipients){const d=await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',r.donor_id);if(!d)fail('DONOR_CHANGED','A recipient changed. Prepare again.',409);const recipient=await letterRecipient(c,d,{emailType:p.emailType||undefined}),fields:Record<string,string>={...recipientMergeFields(recipient),date:longDate(today(s.timezone,new Date(c.now))),donor_name:recipient.letter_salutation??d.name,organization:s.organisation,ein:s.ein,last_gift:r.last_gift||'No gift recorded'},selected=Object.fromEntries(used.map(key=>[key,fields[key]??''])),rendered=renderTemplate(message,selected);Object.assign(r,{merge_fields:JSON.stringify(selected),merge_blanks:rendered.merge_blanks,rendered_subject:rendered.subject,rendered_body:rendered.body})}}
-  const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, grouping=channel==='mail'?await prepareAppealPieces(c,appealId,recipients,p.onePiecePer,{addressType:p.addressType||''}):null, hash = await hashOf(name, channel, recipients,message,grouping?.pieces), list = JSON.stringify(recipients)
+  const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, grouping=channel==='mail'?await prepareAppealPieces(c,appealId,recipients,p.onePiecePer,{addressType:p.addressType||'',isAsk}):null, hash = await hashOf(name, channel, recipients,message,grouping?.pieces), list = JSON.stringify(recipients)
   if(grouping&&!grouping.pieces.length)fail('NO_GIFTS','No positive-balance gifts were found for gift-based mail pieces. Choose constituent or household pieces.',409)
   const addressSnapshot=await mailSnapshot(c,appealId,addressPass,recipients)
   const restriction=await prepareSolicitationRun(c,{kind:'appeal',id:appealId,channel,isAsk,donorIds:recipients.map(r=>r.donor_id),includes})

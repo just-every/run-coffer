@@ -12,6 +12,10 @@ import { event } from './coffer/db'
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
 
 export interface Bindings {
+ LOB_ENABLED?: string
+ LOB_API_KEY?: string
+ LOB_WEBHOOK_SECRET?: string
+ LOB_FROM_ADDRESS_ID?: string
  SMARTY_AUTH_ID?: string
  SMARTY_AUTH_TOKEN?: string
  MELISSA_SMARTMOVER_KEY?: string

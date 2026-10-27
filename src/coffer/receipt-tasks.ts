@@ -2,7 +2,7 @@ import { all, commit, event, guard, id, integer, sql, text, type Context, type R
 
 /** Tasks follow the frozen letter's current donor through merge and erasure. */
 export async function receiptTasks(c: Pick<Context,'db'>, donorId?: string) {
- return all(c, `SELECT t.*,a.donor_id,a.batch_id,a.delivery_status,d.name AS donor_name
+ return all(c, `SELECT t.*,a.donor_id,a.batch_id,a.delivery_status,EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.provider='Lob' AND e.event='bounced') AS postal,d.name AS donor_name
   FROM cf_receipt_address_tasks t JOIN cf_acks a ON a.id=t.letter_id JOIN cf_donors d ON d.id=a.donor_id
   WHERE d.erased_at IS NULL AND (? IS NULL OR d.id=?) ORDER BY t.completed_at IS NOT NULL,t.created_at,t.id`, donorId??null,donorId??null)
 }

@@ -3,6 +3,7 @@
 // through here; the API and the audit CSV keep the codes.
 
 const ACTIONS: Record<string, string> = {
+ 'singleLetter.prepare':'Single letter produced', 'singleLetter.approve':'Single letter approved', 'ack.sendPostal':'Postal spending authorized', 'communication.preferences':'Communication choices recorded',
  'pledgeTemplate.save':'Pledge reminder wording reviewed',
  'contact.save':'Contact point saved', 'custom.define':'Custom field defined', 'custom.set':'Custom value saved', 'custom.clear':'Custom value cleared',
  'list.save':'Live list saved', 'list.bulk':'List tags and manager changed', 'list.undo':'List changes undone', 'list.profile':'List profiles changed', 'list.profileUndo':'List profile changes undone', 'list.tasks':'List call tasks created', 'list.welcome':'List welcome enrollment reviewed', 'list.solicitation':'List solicitation restrictions changed',

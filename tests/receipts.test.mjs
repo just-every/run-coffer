@@ -62,3 +62,10 @@ test('RCPT-012: saved waiting gifts, read-only report filters and reviewed sourc
  const {importAcknowledgmentJourney}=await import('./import-ack-journey.mjs')
  await importAcknowledgmentJourney()
 })
+
+
+test('RCPT-003: PDF letters, Avery labels, envelopes, Word merge, reviewed donor copies and tracked postal delivery',async()=>{
+ const {printFormatsJourney}=await import('./print-formats-journey.mjs');await printFormatsJourney()
+ const {singleLettersJourney}=await import('./single-letters-journey.mjs');await singleLettersJourney()
+ const {postalDeliveryJourney}=await import('./postal-delivery-journey.mjs');await postalDeliveryJourney()
+})

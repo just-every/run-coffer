@@ -54,7 +54,7 @@ async function request(conn: Connection, path: string, method = 'GET', body?: un
 const listPath = (conn: Connection) => `/lists/${part(connection(conn).list)}`
 function contact(data: Row, expected: string): Row {
  if (typeof data.id !== 'string' || !data.id || typeof data.email_address !== 'string' || data.email_address.toLowerCase() !== address(expected) || !['subscribed','unsubscribed','cleaned','pending','transactional','archived'].includes(data.status)) fail('MAILCHIMP_RESPONSE', 'Mailchimp did not confirm the contact’s subscription state.', 502)
- return {id:data.id,email:data.email_address.toLowerCase(),emailStatus:data.status}
+ return {id:data.id,email:data.email_address.toLowerCase(),emailStatus:data.status,interests:data.interests,fields:data.merge_fields}
 }
 export async function mailchimpContact(conn: Connection, email: string): Promise<Row | null> {
  const data = await request(conn, `${listPath(conn)}/members/${hash(email)}`, 'GET', undefined, true)

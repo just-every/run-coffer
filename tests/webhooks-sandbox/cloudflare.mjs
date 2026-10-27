@@ -34,7 +34,7 @@ export async function sandboxResources(token) {
   assert.equal(await api('/workers/scripts/'+name+'/settings',{missing:true}),null,'Disposable Worker must not already exist')
   const config=JSON.parse(await readFile('wrangler.jsonc','utf8'))
   assert.ok(config.compatibility_flags.includes('global_fetch_strictly_public'),'Use the production public fetch boundary')
-  const bundle=await build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*'],logLevel:'silent'})
+  const bundle=await build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['module','main'],target:'es2022',external:['node:*','cloudflare:*'],logLevel:'silent'})
   const form=new FormData()
   form.set('metadata',JSON.stringify({main_module:'sandbox.mjs',compatibility_date:config.compatibility_date,compatibility_flags:config.compatibility_flags,bindings:[{type:'d1',name:'DB',id:db},...Object.entries(vars).map(([name,text])=>({type:['SANDBOX_SECRET','SESSION_SECRET','SETUP_TOKEN','STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET'].includes(name)?'secret_text':'plain_text',name,text}))]}))
   form.set('sandbox.mjs',new Blob([bundle.outputFiles[0].text],{type:'application/javascript+module'}),'sandbox.mjs')

@@ -1,3 +1,5 @@
+import { importProviderPreferences } from './provider-preferences'
+import { syncConstantContactDonor } from './constant-contact'
 import { all, commit, event, fail, one, sql, type Context, type Row } from '../db'
 import { profileRecipient } from './profile-fields'
 import { settings } from '../settings'
@@ -12,6 +14,9 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  if (!donor) return { state:'no-address', allowed:false }
  Object.assign(donor,await profileRecipient(c,donor,options))
  if(!donor.email)return {state:'no-address',allowed:false,note:'The chosen email contact is missing.'}
+ await syncConstantContactDonor(c,donorId,donor.email)
+ const latest=await one(c,"SELECT id AS consent_id,status AS consent,evidence,captured_on FROM cf_consents WHERE donor_id=? AND channel='email' ORDER BY id DESC LIMIT 1",donorId)
+ if(latest)Object.assign(donor,latest)
  const conn = await requireConnection(c), label = providerTitle(conn.provider)
  let contact = await providerContact(conn, donor.email)
  if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) contact = await syncMailchimpNames(conn, donor)
@@ -35,6 +40,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
   contact = await captureProviderConsent(conn,donor,s.organisation)
   note = `${label} requires the donor’s confirmation. No appeal was sent.`
  }
+ await importProviderPreferences(c,donorId,conn.provider,contact)
  await commit(c, [sql(`INSERT INTO cf_preference_sync(donor_id,email,consent_id,remote_status,state,checked_at,note) VALUES(?,?,?,?,?,?,?)
  ON CONFLICT(donor_id) DO UPDATE SET email=excluded.email,consent_id=excluded.consent_id,remote_status=excluded.remote_status,state=excluded.state,checked_at=excluded.checked_at,note=excluded.note`,
  donor.id,donor.email,donor.consent_id,contact?.emailStatus ?? contact?.email_status ?? null,state,c.now,note)])

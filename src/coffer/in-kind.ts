@@ -45,7 +45,7 @@ export function inKindReminders(g: Row) {
  return { form8283, form8282, disposalWindowEndsOn: threeYearsAfter(g.original_received_on) }
 }
 
-function renderAcknowledgment(s: Settings, g: Row, recipient: Row, on: string, template: Row | null) {
+export function renderAcknowledgment(s: Settings, g: Row, recipient: Row, on: string, template: Row | null) {
  if (contributionReceiptKind(g) === 'stock') return renderContributionReceipt(s, g, recipient, on, template)
  // Deliberately independent of monetary letter templates and stated value.
  const goods = g.goods === 'provided'

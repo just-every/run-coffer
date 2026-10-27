@@ -1,3 +1,4 @@
+import { savePortalCommunicationPreferences } from './portal-communication-preferences'
 import { savedCardConsentPage, saveSavedCardConsent } from './portal-saved-card-consent'
 import { downloadProperty } from './portal-property'
 import { portalContext, uniquePortalEmail } from './portal-identity'
@@ -196,6 +197,7 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
  if(path==='/giving/portal/communications'){
   if(read)return communicationPage(env,donor,url.searchParams.get('saved')==='1')
   const data=await form(request)
+  if(data.get('action')==='preferences'){await savePortalCommunicationPreferences(env,donor,data);return redirect('/giving/portal/communications?saved=1')}
   if(data.get('status')==='regrant-request'){await requestEmailRegrant(env,donor,data);return redirect('/giving/portal/communications?requested=1')}
   await withdrawEmail(env,donor,data);return redirect('/giving/portal/communications?saved=1')
  }

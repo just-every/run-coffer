@@ -1,3 +1,9 @@
+import { postalEvents } from './postal-delivery'
+import { communicationPreferences } from './communications/preference-store'
+import { constantContactPreferencesPanel } from './communications/preferences-ui'
+import { singleLetter } from './single-letters'
+import { singleLetterPage } from './ui/single-letters'
+import { lettersPdfResponse, mergeDocxResponse, mergePackageResponse } from './print-exports'
 import { apiErasureStatements } from './api/custody'
 import { restApiResponse } from './api/http'
 import { apiKeysPage, apiKeySecretPage } from './ui/api-keys'
@@ -24,7 +30,7 @@ import { profileFieldsPanel } from './communications/profile-fields'
 import { pledgeTemplatePanel } from './ui/pledge-template'
 import { pledgeTemplateFields, pledgeTemplate, pledgeMergeReview } from './pledge-templates'
 import { welcomePanel } from './communications/welcome-ui'
-import { ackMailPieces,printableAckPieces } from './ack-mail-pieces'
+import { ackMailPieceGuard, ackMailPieces,printableAckPieces } from './ack-mail-pieces'
 import { contributionTypeState } from './contribution-types'
 import { addressState } from './addresses/state'
 import { addressesPage } from './ui/addresses'
@@ -117,7 +123,7 @@ import { createPortability } from '@runeditrun/rer/modules/portability'
 import { createPortabilityHandler } from './portability/http.mjs'
 import policy from './archive-policy.mjs'
 import { identity, manager, originGuard, person, requireRole, type Actor, type Authority } from './auth'
-import { all, CofferError, fail, today, type Context } from './db'
+import { all, commit, CofferError, fail, today, type Context, type Row } from './db'
 import { canonicalDonor } from './donor-merge'
 import { execute } from './commands'
 import { listDonors, donorHistory } from './donors'
@@ -192,6 +198,8 @@ async function formInput(data: FormData) {
  if(input.command==='custom.set'&&data.has('customMany'))input.value=data.getAll('customValues')
  if(input.command==='webhook.subscribe')input.events=data.getAll('events')
  if(input.command==='agentGrant.save')input.permissions=data.getAll('permissions')
+ if(input.command==='communication.preferences')input.topics=data.getAll('topics')
+ if(input.command==='ack.sendPostal')input.approvePostage=data.get('approvePostage')==='true'
  if (input.command === 'sms.prepare') input.donorIds=data.getAll('donorIds')
  if (input.command === 'research.screen') input.donorIds=data.getAll('donorIds')
  if (input.command === 'consent.record') input.donorIds = data.getAll('donorIds')
@@ -223,7 +231,7 @@ const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
  const response = await cofferHandler(request, original)
  const path = new URL(request.url).pathname
- const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/sms/webhook'
+ const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook'
  if (response && response.status < 400 && !provider && !response.headers.get('location')?.startsWith('/signin') && ROUTES.test(path)) {
   const env = runtimeBindings(original), captured=responseAuthorities.get(request)
   const auth=captured?null:await identity(request,env)
@@ -237,6 +245,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  const rest=await restApiResponse(request,original)
  if(rest){if(rest.context)responseAuthorities.set(request,rest.context);return rest.response}
  if (new URL(request.url).pathname === '/api/coffer/sms/webhook') return smsWebhook(request,runtimeBindings(original))
+ if(new URL(request.url).pathname==='/api/coffer/postal/events')return postalEvents(request,original)
  if (new URL(request.url).pathname === '/api/coffer/mail/events') return receiptEvents(request, original)
  const publicGiving = await givingResponse(request, original); if (publicGiving) return publicGiving
  const url = new URL(request.url), path = url.pathname
@@ -434,6 +443,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const auctionErasure=await auctionErasureStatements(c,donorId,placeholder)
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)
  const givingErasure = [
+  {sql:'UPDATE cf_single_letters SET donor_id=? WHERE donor_id=?',params:[placeholder,donorId]},
   ...eventRegistrationErasureStatements(donorId,placeholder,[donor.email,...aliases.results.map(a=>a.email)].filter((value):value is string=>Boolean(value))),
   {sql:'DELETE FROM cf_saved_card_consents WHERE donor_id=?',params:[donorId]},
   { sql: "UPDATE cf_in_kind_acknowledgments SET subject='[erased]',body='[erased]' WHERE in_kind_id IN (SELECT id FROM cf_in_kind_gifts WHERE donor_id=?)", params: [donorId] },
@@ -466,6 +476,8 @@ const CONNECT = new Set(['marketing.fields','marketing.connectMango', 'marketing
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
  if(command.startsWith('auction.'))return redirect('/app/events/'+encodeURIComponent(result.eventId)+'/auctions?jobId='+encodeURIComponent(result.jobId))
  if(command.startsWith('giving.'))return redirect('/app/giving/setup?saved=1')
+ if(command==='communication.preferences')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#communication-preferences')
+ if(command.startsWith('marketing.constantContact')||command==='marketing.topicMapping')return redirect('/app/settings#constant-contact-preferences')
  if(command==='pledgeTemplate.save')return redirect('/app/settings?saved=1#pledge-template')
  if(command==='custom.define'||command==='custom.renameChoice'||command==='tag.define'||command==='tag.category')return redirect('/app/settings?saved=1#custom-field-definitions')
  if(command==='custom.set'||command==='custom.clear')return redirect('/app/donors/'+encodeURIComponent(result.donorId)+'?customRecord='+encodeURIComponent(input.recordId)+'#custom-fields')
@@ -518,6 +530,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if (input.returnDonorId) return redirect(`/app/donors/${encodeURIComponent(input.returnDonorId)}`)
  if (command === 'donor.erase') return redirect(`/app/donors/${result.donorId}`)
  if (command === 'consent.record') return redirect(input.returnTo === 'donor' && input.donorIds?.length === 1 ? `/app/donors/${input.donorIds[0]}#consent` : '/app/donors?consent=' + result.recorded)
+ if (command.startsWith('singleLetter.')) return redirect('/app/single-letters/'+result.id)
  if (command.startsWith('ack.')) return redirect(`/app/letters/${result.id ?? input.batchId}`)
  if (command.startsWith('appeal.')) return redirect(`/app/appeals/${result.id ?? input.appealId}`)
  return redirect(input.donorId ? `/app/donors/${input.donorId}` : '/app/donors')
@@ -601,6 +614,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  }
  let m = match(/^\/api\/coffer\/donors\/([^/]+)$/)
  if (m) return json(await donorHistory(c, m[1]))
+ if((m=match(/^\/api\/coffer\/donors\/([^/]+)\/preferences$/)))return json(await communicationPreferences(c,m[1]))
  if (path === '/api/coffer/letters') { const due = await dueGifts(c); return json({ today: due.today, held: due.held, thresholdCents: due.settings.threshold_cents, targetDays: due.settings.target_days, due: due.gifts, softCredits:due.softCredits, batches: await batches(c) }) }
  if ((m = match(/^\/api\/coffer\/letters\/([^/]+)$/))) return json(await batchDetail(c, m[1]))
  if ((m = match(/^\/api\/coffer\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
@@ -723,14 +737,21 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (m) { const view = await donorPage(c, m[1], url); return show(view.title, view.body) }
  if (path === '/app/letters') return show('Acknowledgement letters', await lettersPage(c))
  if ((m = path.match(/^\/app\/letters\/([^/]+)$/))) return show('Letter batch', await batchPage(c, m[1]))
- if ((m = path.match(/^\/app\/letters\/([^/]+)\/print$/))) {
+ if ((m=path.match(/^\/app\/single-letters\/([^/]+)(?:\/(print|letters\.pdf|merge\.zip|merge\.docx))?$/))) {
+  if(!manager(actor))fail('FORBIDDEN','Only the owner or an admin produces letters.',403)
+  const letter=await singleLetter(c,m[1],Boolean(m[2])),organisation=(await settings(c)).organisation
+  if(!m[2])return show('Single letter',singleLetterPage(letter,organisation))
+  return letterOutput([letter],organisation,m[2],url)
+ }
+ if ((m = path.match(/^\/app\/letters\/([^/]+)\/(print|letters\.pdf|merge\.zip|merge\.docx)$/))) {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin prints letters.', 403)
   const { batch, letters } = await batchDetail(c, m[1])
   if (!['approved','exported','sent'].includes(batch.status)) fail('NOT_APPROVED', 'Approve these letters before printing.')
+  if(batch.status==='approved')await commit(c,[ackMailPieceGuard(batch.id)])
   if (!(await c.db.prepare(`SELECT CASE WHEN (${currentLetterGiftsCondition}) THEN 1 ELSE 0 END AS ok`).bind(m[1]).first<{ok:number}>())?.ok) fail('GIFT_CHANGED', 'A statement gift changed. Prepare an updated statement before printing.')
   const selected = letters.filter(l => (!url.searchParams.has('letter') || l.id === url.searchParams.get('letter')) && (!url.searchParams.has('pending') || (l.route === 'print' && !l.printed_at)))
   const pieces=!url.searchParams.has('letter')?await ackMailPieces(c,m[1]):[]
-  return printLetters(pieces.length?printableAckPieces(pieces,selected):selected, (await settings(c)).organisation, url.searchParams.get('labels')==='1')
+  return letterOutput(pieces.length?printableAckPieces(pieces,selected):selected,(await settings(c)).organisation,m[2],url)
  }
  if ((m = path.match(/^\/app\/letters\/([^/]+)\/letters\.csv$/))) return lettersFile(c, m[1])
  if (path === '/app/appeals') return show('Appeals', await appealsPage(c, null, url))
@@ -738,7 +759,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if ((m = path.match(/^\/app\/appeals\/([^/]+)$/))) return show('Appeal', await appealPage(c, m[1]))
  if ((m = path.match(/^\/app\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
  if (path === '/app/more') return show('More', morePage(actor))
- if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved')))
+ if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c))
  if (path === '/app/data') {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
   return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited'), now: Date.parse(c.now), timeZone: (await settings(c)).timezone }) + await agentGrantsPanel(c))
@@ -746,4 +767,11 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if (path === '/app/move-in') { if (!manager(actor)) fail('manager_required', 'Only the owner or an admin moves records in.', 403); return show('Move in from Stripe', moveInPage(await imports.jobs(c.db as any), today((await settings(c)).timezone, new Date(c.now)), stripeAvailable(c.env!))) }
  if (path === '/app/backup') fail('post_required', 'Use the backup button.', 405)
  return page('Page not found', '<p>There is nothing at this address.</p><p><a href="/app">Back to today</a></p>', actor, 404, path)
+}
+
+function letterOutput(letters:Row[],organisation:string,format:string,url:URL):Response|Promise<Response>{
+ if(format==='letters.pdf')return lettersPdfResponse(letters,organisation,'coffer-letters.pdf',url.searchParams.has('labels')?'labels':url.searchParams.has('envelopes')?'envelopes':'letters')
+ if(format==='merge.zip')return mergePackageResponse(letters,organisation)
+ if(format==='merge.docx')return mergeDocxResponse(letters,organisation)
+ return printLetters(letters,organisation,url.searchParams.get('labels')==='1',url.searchParams.get('envelopes')==='1')
 }

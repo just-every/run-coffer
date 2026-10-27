@@ -25,7 +25,7 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
   }
  }
  if(verifiedMail){bindings={...verifiedMailBindings,...bindings};outbound=verifiedMailOutbound(outbound);triggerHandlers=true}
- if(!bundles.has(entry))bundles.set(entry,build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']}))
+ if(!bundles.has(entry))bundles.set(entry,build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['module','main'],target:'es2022',external:['node:*','cloudflare:*']}))
  const bundle=await bundles.get(entry)
  const directory=await mkdtemp(join(tmpdir(),'coffer-api-')),setup=randomBytes(32).toString('hex'),messages=[]
  const secret=randomBytes(32).toString('hex')

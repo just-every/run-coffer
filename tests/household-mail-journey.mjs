@@ -1,3 +1,4 @@
+import {groupedPrintExports} from './grouped-print-exports.mjs'
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore,settings} from './harness.mjs'
 import {prepareVerifiedMail} from './verified-mail-edge.mjs'
@@ -81,7 +82,9 @@ export async function householdMailJourney(){await run(async h=>{
  const receiptGiftIds=[joint.id,extraA.id,extraB.id]
  for(const [mode,count] of [['gift',3],['constituent',2]]){
   const run=await h.command('ack.prepare',{giftIds:receiptGiftIds,onePiecePer:mode})
-  assert.deepEqual([run.letters,run.pieceCount],[3,count]);await h.command('ack.discard',{batchId:run.id,version:1})
+  assert.deepEqual([run.letters,run.pieceCount],[3,count]);await h.command('ack.approve',{batchId:run.id,version:1})
+  await groupedPrintExports(h,run.id,mode==='gift'?['Alex Household','Alex Household','Blake Household']:['Alex Household','Blake Household'])
+  await h.command('ack.discard',{batchId:run.id,version:2})
  }
  const acknowledgments=await h.command('ack.prepare',{giftIds:receiptGiftIds,onePiecePer:'household',postagePerPiece:'0.73'})
  assert.deepEqual([acknowledgments.letters,acknowledgments.pieceCount,acknowledgments.estimatedPostageCents],[3,1,73])
@@ -90,6 +93,7 @@ export async function householdMailJourney(){await run(async h=>{
  assert.match(ackDetail.mailPieces[0].content,/Household: The Household Family/)
  assert.match(ackDetail.mailPieces[0].content,/Synthetic Reader/,'The new postal door retains tribute facts')
  await h.command('ack.approve',{batchId:acknowledgments.id,version:1},{as:member.cookie,status:403});await h.command('ack.approve',{batchId:acknowledgments.id,version:1},{...asAgent,status:403});await h.command('ack.approve',{batchId:acknowledgments.id,version:1});await h.command('ack.export',{batchId:acknowledgments.id,version:2})
+ await groupedPrintExports(h,acknowledgments.id,['The Household Family'])
  const paper=await h.request('/app/letters/'+acknowledgments.id+'/print'),paperText=await paper.text()
  assert.equal(paper.status,200);assert.equal((paperText.match(/<article class="letter"/g)||[]).length,1)
  for(const l of ackDetail.letters)assert.match(paperText,new RegExp('Receipt '+l.receipt_year+'-'+l.receipt_sequence))
@@ -98,9 +102,12 @@ export async function householdMailJourney(){await run(async h=>{
  const ackCsv=await (await h.request('/api/coffer/letters/'+acknowledgments.id+'/letters.csv')).text();assert.match(ackCsv,/addressee/);assert.equal((ackCsv.match(/The Household Family/g)||[]).length>=1,true)
  const singleCopy=await (await h.request('/app/letters/'+acknowledgments.id+'/print?letter='+ackDetail.letters[0].id)).text();assert.equal((singleCopy.match(/<article class="letter"/g)||[]).length,1)
  const staleGift=await give(a,'250'),staleAck=await h.command('ack.prepare',{giftIds:[staleGift.id],onePiecePer:'household'})
+ const approvedGift=await give(a,'250'),approvedAck=await h.command('ack.prepare',{giftIds:[approvedGift.id],onePiecePer:'household'})
+ await h.command('ack.approve',{batchId:approvedAck.id,version:1})
  const changedHousehold=await h.get('/api/coffer/households/'+hid)
  await h.command('household.update',{householdId:hid,version:changedHousehold.household.version,informal_override:'Another greeting'})
  await h.command('ack.approve',{batchId:staleAck.id,version:1},{status:409})
+ for(const output of ['print','letters.pdf','letters.pdf?labels=1','letters.pdf?envelopes=1','merge.zip'])assert.equal((await h.request('/app/letters/'+approvedAck.id+'/'+output)).status,409,'Every first postal export fences the approved household version')
  assert.equal(await (await h.request('/app/letters/'+acknowledgments.id+'/print')).text(),paperText,'An exported grouped postal copy retains its exact names, numbers and gift facts after a household edit')
  // The mailing preview retains an explicitly selected deceased head and flags
  // overrides for review; it never chooses a replacement or rewrites old mail.
