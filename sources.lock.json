@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "5ea34ddca121cbbb67b75289fe14af9a46644d1a001b2ce48d1bee788f7d45db",
+      "sha256": "dd9f5e06ceae2fa6b5a00c33c0b8f46c6754847d0d23648100f1110fb1d440a5",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "bd828a532c7b3d5fabcca0c6a7bb5e1441b15902bca93fc4dd1ceb8ae9436b5a",
+      "sha256": "3a610ad759a36c45c38343b0fc7acf0cd8c631eef73dc31f43f65eaf6f393bf8",
       "executable": false
     },
     "deploy-demo.json": {
@@ -611,7 +611,7 @@
       "executable": false
     },
     "docs/COMMUNICATIONS.md": {
-      "sha256": "593e3a4d3b753da96fd021de57efde3b3d2baaa72e52b7fa562212f5e587a928",
+      "sha256": "27cc4f86aa827ea38b814f583f188dfdd82d7d75316441a453650d756896b90e",
       "executable": false
     },
     "docs/consent.md": {
@@ -2523,7 +2523,7 @@
       "executable": false
     },
     "src/coffer/communications/constant-contact.ts": {
-      "sha256": "86324b521effc0bd542976a05cd39dccb6b42b0225b3948d27fe115092bffcc8",
+      "sha256": "2a53fb94fd139a67343d223126a4998ec64c9dde086633a274cab193ccd47339",
       "executable": false
     },
     "src/coffer/communications/journey-cap.ts": {
@@ -2551,7 +2551,7 @@
       "executable": false
     },
     "src/coffer/communications/mailchimp.ts": {
-      "sha256": "9a6b781068f82442c7a81d85b3cd3230d26a913ec9332dd4c584c23e1640e4a9",
+      "sha256": "23088b7264d62a3fe345988e591bad75f7db1f107c75b73dd211be4a5923c305",
       "executable": false
     },
     "src/coffer/communications/mango-message.ts": {
@@ -2559,11 +2559,11 @@
       "executable": false
     },
     "src/coffer/communications/mango.ts": {
-      "sha256": "f746a3b7cea3078329c9d244d765736e0ca534186a558cb20be3143aae72bcdc",
+      "sha256": "7dc25649199ace78eebde093f4071421b148105a931ef56c142ff9aca6ee53c4",
       "executable": false
     },
     "src/coffer/communications/outbound.ts": {
-      "sha256": "f06ddbf2e5b9430f84d18ffd0ccd8c19f19612b08203b75730675ef0c93819be",
+      "sha256": "8f04473cb9af68ddbee33400a4724846c5c68c51207bdbdf18d4991669465347",
       "executable": false
     },
     "src/coffer/communications/preference-rules.ts": {
@@ -2579,7 +2579,7 @@
       "executable": false
     },
     "src/coffer/communications/preferences.ts": {
-      "sha256": "a424bacfc7828d668dc08e62f36308530a8a3f233e466a4b65b313a23f81494b",
+      "sha256": "8d3ed38f556ad01662fe571d98624225a4c6ce1f5774e56240120f2af8ada3be",
       "executable": false
     },
     "src/coffer/communications/profile-fields.ts": {
@@ -2587,7 +2587,7 @@
       "executable": false
     },
     "src/coffer/communications/provider-preferences.ts": {
-      "sha256": "a3c04968121b105ffca6e88ccb60fb1f44e0220618489f7a5f5f9910754b1c95",
+      "sha256": "d8b71c4fbeab2aa4be61e3bc1025e830c864e069e6ce2e9329870de4e3bb2cc7",
       "executable": false
     },
     "src/coffer/communications/provider.ts": {
@@ -3583,7 +3583,7 @@
       "executable": false
     },
     "src/coffer/solicitation-tasks.ts": {
-      "sha256": "2090330c5d6a86a119483d8caeee961eff0e7025fa11d42ece90c06f1c325a38",
+      "sha256": "829677a838d1decd708ebc56cb8aafc039d6f64e8ade94e0f5153f1916858946",
       "executable": false
     },
     "src/coffer/solicitation.ts": {
@@ -6039,15 +6039,15 @@
       "executable": false
     },
     "tests/communication-frequency-journey.mjs": {
-      "sha256": "bf0bfdcb78fe4c4b7363a5c384d36ae59b56e71ca78cbc150e9adf98955daacf",
+      "sha256": "955e028bf44a77fa7f48abc8d18e5e9e84bea78307686293dc44052233614aa5",
       "executable": false
     },
     "tests/communication-preferences-browser.mjs": {
-      "sha256": "a182a2271272202c2f8e12ba68e7948f3ed3bdc39d293387e01335a5451c94b6",
+      "sha256": "677721a3dfcd4d2fe3a1b7cde977a7481a419282d3232a22c8d12923229d4ed3",
       "executable": false
     },
     "tests/communication-preferences-journey.mjs": {
-      "sha256": "cee47eaec0a7ea640eaac5dc2981f5eb21af66ecc556f028aa653867b90b6529",
+      "sha256": "010a077ec8199f1e2c26f1ec823e5dcbd10a9ecbbc63ea6dbd17ac5e27f82611",
       "executable": false
     },
     "tests/communications.test.mjs": {

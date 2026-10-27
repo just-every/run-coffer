@@ -20,13 +20,18 @@ export async function providerPreferenceCommand(c:Context,command:string,p:Row):
 
 /** Import only stricter current answers. A provider list or field never grants
  * channel consent, re-enables a removed topic or loosens an appeal cap. */
-export async function importProviderPreferences(c:Context,donorId:string,provider:'mango'|'mailchimp',contact:Row|null){
- if(!c.env||!contact)return
+export async function importProviderPreferences(c:Context,donorId:string,provider:'mango'|'mailchimp',contact:Row|null,validateOnly=false){
+ if(!c.env)return
  const mapping=await givingConnection(c.env as GivingEnv,provider+'-preferences')
  if(!mapping)return
- const current=(await communicationPreferences(c,donorId)).channels.find(p=>p.channel==='email')!
  const mapped=COMMUNICATION_TOPICS.filter(topic=>mapping.topics?.[topic])
- if(mapped.length&&(provider==='mango'?!Array.isArray(contact.segmentIds):!contact.interests||typeof contact.interests!=='object'))fail('PROVIDER_PREFERENCE_RESPONSE','The provider did not return the configured topic choices. Sending stays held.',502)
+ if(!mapped.length&&!mapping.frequencyField)return
+ if(!contact)fail('PROVIDER_PREFERENCE_RESPONSE','The provider did not return the configured preference answers. Sending stays held.',502)
+ const current=(await communicationPreferences(c,donorId)).channels.find(p=>p.channel==='email')!
+ if(mapped.length&&(provider==='mango'
+  ?!Array.isArray(contact.segmentIds)||contact.segmentIds.some((value:unknown)=>typeof value!=='string'||!value)
+  :!contact.interests||typeof contact.interests!=='object'||Array.isArray(contact.interests)||mapped.some(topic=>typeof contact.interests[mapping.topics[topic]]!=='boolean')))
+  fail('PROVIDER_PREFERENCE_RESPONSE','The provider did not return the configured topic choices. Sending stays held.',502)
  const topics=current.ownTopics.filter((topic:string)=>!mapped.includes(topic as typeof mapped[number])||(provider==='mango'?contact.segmentIds.includes(mapping.topics[topic]):contact.interests[mapping.topics[topic]]===true))
  let frequency=current.ownFrequency
  if(mapping.frequencyField){
@@ -34,5 +39,5 @@ export async function importProviderPreferences(c:Context,donorId:string,provide
   if(!['unlimited','monthly','quarterly'].includes(value))fail('PROVIDER_PREFERENCE_RESPONSE','The configured appeal frequency must be unlimited, monthly or quarterly. Sending stays held.',502)
   const limits=['unlimited','monthly','quarterly'];if(limits.indexOf(value)>limits.indexOf(frequency))frequency=value
  }
- if(JSON.stringify([...topics].sort())!==JSON.stringify([...current.ownTopics].sort())||frequency!==current.ownFrequency)await saveCommunicationPreferences(c,{donorId,channel:'email',version:current.version,topics,frequency,confirm:'yes'},undefined,provider)
+ if(!validateOnly&&(JSON.stringify([...topics].sort())!==JSON.stringify([...current.ownTopics].sort())||frequency!==current.ownFrequency))await saveCommunicationPreferences(c,{donorId,channel:'email',version:current.version,topics,frequency,confirm:'yes'},undefined,provider)
 }

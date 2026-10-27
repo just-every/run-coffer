@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {prepareVerifiedMail} from './verified-mail-edge.mjs'
+import {run,donor,reviewed} from './harness.mjs'
 
 /** Exercise each channel's real durable claim, independently of email's slot. */
 export async function channelFrequencyJourney(h,{donor,control,ranked,owner,at,prefs}){
@@ -37,4 +38,38 @@ export async function channelFrequencyJourney(h,{donor,control,ranked,owner,at,p
  const document=await h.get('/api/coffer/appeals/'+newsletter.id);assert.equal(document.mailPieces.length,3);assert.deepEqual(document.mailPieces.map(piece=>piece.name).sort(),['Amelia Torres','Jordan Lee','Nora Clarke']);assert.ok(document.mailPieces.every(piece=>piece.ask_cents===null),'A non-ask newsletter never exports a suggested ask')
  await h.command('appeal.approve',{appealId:newsletter.id,version:1});await h.command('appeal.export',{appealId:newsletter.id,version:2})
  return newsletter.id
+}
+
+/** UTC has changed dates while the organization's calendar is still yesterday. */
+export async function organizationCalendarJourney(){
+ const at='2026-10-31T16:00:00Z'
+ await run(async h=>{
+  await reviewed(h)
+  const monthly=await donor(h,'Synthetic Calendar Monthly',{email:'synthetic-coffer-9601@example.test'}),quarterly=await donor(h,'Synthetic Calendar Quarterly',{email:'synthetic-coffer-9602@example.test'}),control=await donor(h,'Synthetic Calendar Control',{email:'synthetic-coffer-9603@example.test'})
+  for(const d of [monthly,quarterly,control])await h.command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic calendar permission',capturedOn:'2026-10-01'})
+  for(const [d,frequency] of [[monthly,'monthly'],[quarterly,'quarterly']]){
+   const current=(await h.get('/api/coffer/donors/'+d.id+'/preferences')).channels.find(p=>p.channel==='email')
+   await h.command('communication.preferences',{donorId:d.id,channel:'email',version:current.version,topics:['newsletter','appeals','events'],frequency,confirm:'yes'})
+  }
+  const first=await h.command('appeal.prepare',{name:'Synthetic October calendar ask',channel:'email'})
+  await h.command('appeal.approve',{appealId:first.id,version:1});await h.command('appeal.export',{appealId:first.id,version:2})
+  const check=async(instant,expected,frequency)=>{
+   const headers={'x-test-now':instant}
+   // Authenticate at the pinned instant so later calendar cases do not depend
+   // on an old session's expiry, and never change the application clock itself.
+   const sent=await h.request('/auth/magic-link',{method:'POST',as:'',body:{email:'owner@example.test'},headers});assert.equal(sent.status,202)
+   const message=h.messages.findLast(m=>JSON.stringify(m.to).includes('owner@example.test'))
+   const link=message.text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]
+   const confirmed=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:new URL(link).searchParams.get('token')},headers});assert.equal(confirmed.status,303)
+   const as=confirmed.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ')
+   const r=await h.command('appeal.prepare',{name:'Synthetic calendar '+instant,channel:'email'},{headers,as})
+   assert.equal(r.excluded.frequency??0,frequency)
+   const detail=await h.get('/api/coffer/appeals/'+r.id,{headers,as})
+   assert.deepEqual(detail.recipients.map(d=>d.donor_id).sort(),expected.map(d=>d.id).sort(),instant)
+  }
+  await check('2026-11-01T00:01:00Z',[control],2)
+  await check('2026-11-01T04:01:00Z',[monthly,control],1)
+  await check('2027-01-01T00:01:00Z',[monthly,control],1)
+  await check('2027-01-01T05:01:00Z',[monthly,quarterly,control],0)
+ },{entry:'tests/engagement-worker.ts',bindings:{COFFER_TEST_NOW:at}})
 }

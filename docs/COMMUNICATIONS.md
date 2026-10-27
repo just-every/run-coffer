@@ -76,8 +76,11 @@ uses authenticated contact reads, including unsubscribed contacts, mapped lists
 and an optional frequency custom field. Connection credentials are encrypted
 and excluded from archives. Unavailable or malformed provider answers hold
 sending. External updates only remove topics or tighten caps; they never restore
-permission or weaken a recorded preference. These conservative import and merge
-semantics, and the calendar frequency windows, await ct approval under COMM-001.
+permission or weaken a recorded preference. The 27 October 2026 CT ruling approves these tightening-only imports, merged
+originals and organization-local calendar windows. An explicit version-checked
+native confirmation records a genuinely weaker donor choice; a provider opt-out
+still holds that provider’s send. COMM-001 remains partial while its named
+provider-envelope proof is outstanding.
 Future event invitation and additional provider doors inherit these checks.
 
 Before each marketing submission, Coffer checks both its latest email consent
@@ -156,7 +159,9 @@ restart the series. The thank-you is due immediately; impact and ask are due at
 the saved day offsets. The actual Worker minute scheduler runs due steps, and
 **Run due welcome steps** uses the same path. A second gift stops the remaining
 series even if later reversed. Missing consent, erasure and merge cancel pending
-steps. A solicitation restriction skips the ask step while preserving eligible
+steps. Current topics and per-channel appeal caps are checked at the outbound
+claim; a newsletter or transactional notice never consumes an appeal slot.
+A solicitation restriction skips the ask step while preserving eligible
 thank-you/impact steps. Publication is refused while a journey is active so its messages cannot
 change underneath it. Submission claims and unique message keys prevent repeats;
 uncertain submissions require human investigation.

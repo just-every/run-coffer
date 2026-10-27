@@ -130,7 +130,7 @@ export async function createMailchimpCampaign(conn: Connection, row: Row): Promi
  return {campaignId:campaign!.id,revisionId}
 }
 const escape = (value: string) => value.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
-export async function composeMailchimpCampaign(conn: Connection, row: Row, draft: Row): Promise<void> {
+export async function composeMailchimpCampaign(conn: Connection, row: Row, draft: Row, beforeSend?:()=>Promise<void>): Promise<void> {
  const settings = sender(conn), path = `/campaigns/${part(draft.campaignId)}`
  const saved = await request(conn, path)
  const recipients = saved?.recipients, segment = recipients?.segment_opts
@@ -141,6 +141,7 @@ export async function composeMailchimpCampaign(conn: Connection, row: Row, draft
  await request(conn, path, 'PATCH', {settings:{...settings,subject_line:row.subject}})
  await request(conn, `${path}/content`, 'PUT', {html:html+footer,plain_text:`${row.body}\n\n*|LIST:DESCRIPTION|*\n*|LIST:ADDRESS|*\nUnsubscribe: *|UNSUB|*\nUpdate your preferences: *|UPDATE_PROFILE|*\n*|IF:REWARDS|* *|REWARDS|* *|END:IF|*`})
  await verifyRecipient(conn, draft.revisionId, row.email)
+ await beforeSend?.()
  // A single send action. The caller persists the draft and owns the send claim;
  // timeout/refusal is uncertain and must never trigger an automatic resend.
  await request(conn, `${path}/actions/send`, 'POST')

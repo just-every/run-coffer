@@ -38,7 +38,12 @@ export async function communicationPreferencesBrowser(h,cookie,donorId,owner,new
    await page.screenshot({path:`${directory}/COMM-001-portal-${width}.png`,fullPage:true})
    await email.getByRole('button',{name:'Save email preferences',exact:true}).click();await page.waitForURL('**/giving/portal/communications?saved=1')
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Portal has no horizontal overflow')
-   await page.getByRole('status').waitFor();await page.screenshot({path:`${directory}/COMM-001-saved-${width}.png`,fullPage:true})
+   await page.getByRole('status').waitFor()
+   const saved=page.locator('details').filter({has:page.locator('input[name=channel][value=email]')});await saved.locator('summary').click()
+   assert.equal(await saved.locator('select[name=frequency]').inputValue(),'quarterly','Saved preference is read from persisted state')
+   assert.deepEqual(await saved.locator('input[name=topics]:checked').evaluateAll(inputs=>inputs.map(input=>input.value).sort()),['events','newsletter'])
+   await page.reload();await saved.locator('summary').click();assert.equal(await saved.locator('select[name=frequency]').inputValue(),'quarterly')
+   await page.screenshot({path:`${directory}/COMM-001-saved-${width}.png`,fullPage:true})
   }
   await page.close()
  })

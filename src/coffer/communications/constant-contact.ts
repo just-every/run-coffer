@@ -16,9 +16,11 @@ export async function syncConstantContactDonor(c:Context,donorId:string,selected
  const url=new URL('https://api.cc.email/v3/contacts');url.searchParams.set('email',email);url.searchParams.set('include','list_memberships,custom_fields');url.searchParams.set('status','all')
  const response=await fetch(url,{headers:{authorization:'Bearer '+connection.token,accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(15000)})
  if(!response.ok)fail('CONSTANT_CONTACT_UNAVAILABLE','Constant Contact could not confirm current preferences. Sending remains held.',502)
- const data=await response.json() as Row
- if(!Array.isArray(data.contacts)||data.contacts.length>1)fail('CONSTANT_CONTACT_RESPONSE','Constant Contact returned an ambiguous contact answer.',502)
+ const data=await response.json().catch(()=>null) as Row|null
+ if(!data||!Array.isArray(data.contacts)||data.contacts.length>1)fail('CONSTANT_CONTACT_RESPONSE','Constant Contact returned an ambiguous contact answer.',502)
  const contact=data.contacts[0]
+ const mapped=COMMUNICATION_TOPICS.filter(topic=>connection.lists?.[topic])
+ if(!contact&&(mapped.length||connection.frequencyField))fail('CONSTANT_CONTACT_RESPONSE','Constant Contact did not return the configured preference answers. Sending stays held.',502)
  if(!contact)return {configured:true,matched:false}
  if(contact.email_address?.address?.toLowerCase()!==email.toLowerCase()||!['explicit','implicit','unsubscribed','pending_confirmation','temp_hold','not_set'].includes(contact.email_address.permission_to_send))fail('CONSTANT_CONTACT_RESPONSE','Constant Contact did not confirm this email and its permission.',502)
  const permission=contact.email_address.permission_to_send
@@ -26,14 +28,14 @@ export async function syncConstantContactDonor(c:Context,donorId:string,selected
   const day=today((await settings(c)).timezone,new Date(c.now))
   await commit(c,[sql(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by) SELECT ?,'email','withdrawn','constant-contact','Constant Contact current contact permission',?,?,? WHERE COALESCE((SELECT MAX(id) FROM cf_consents WHERE donor_id=? AND channel='email'),0)=? AND (SELECT status FROM cf_consents WHERE donor_id=? AND channel='email' ORDER BY id DESC LIMIT 1) IS NOT 'withdrawn'`,donorId,day,c.now,'Constant Contact preference sync',donorId,donor?.consent_id??0,donorId),event(c,'marketing.preferenceChecked','donor',donorId,donorId,{provider:'constant-contact',permission})])
  }
- const mapped=COMMUNICATION_TOPICS.filter(topic=>connection.lists?.[topic])
  if(mapped.length||connection.frequencyField){
-  if(mapped.length&&!Array.isArray(contact.list_memberships))fail('CONSTANT_CONTACT_RESPONSE','Constant Contact did not return the configured topic memberships.',502)
+  if(mapped.length&&(!Array.isArray(contact.list_memberships)||contact.list_memberships.some((value:unknown)=>typeof value!=='string'||!value)))fail('CONSTANT_CONTACT_RESPONSE','Constant Contact did not return the configured topic memberships.',502)
   const preferences=await communicationPreferences(c,donorId),current=preferences.channels.find(p=>p.channel==='email')!
   const topics=current.ownTopics.filter((topic:string)=>!mapped.includes(topic as typeof mapped[number])||contact.list_memberships.includes(connection.lists[topic]))
   let frequency=current.ownFrequency
   if(connection.frequencyField){
-   const value=Array.isArray(contact.custom_fields)?contact.custom_fields.find((field:Row)=>field.custom_field_id===connection.frequencyField)?.value:undefined
+   const answers=Array.isArray(contact.custom_fields)?contact.custom_fields.filter((field:unknown)=>field&&typeof field==='object'&&(field as Row).custom_field_id===connection.frequencyField):[]
+   const value=answers.length===1?answers[0].value:undefined
    if(!['unlimited','monthly','quarterly'].includes(value))fail('CONSTANT_CONTACT_RESPONSE','The mapped appeal frequency must be unlimited, monthly or quarterly. Sending stays held.',502)
    const limits=['unlimited','monthly','quarterly'];if(limits.indexOf(value)>limits.indexOf(frequency))frequency=value
   }
