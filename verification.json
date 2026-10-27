@@ -54,7 +54,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-015:' tests/coffer.test.mjs"
+        "COFFER_SMS_BROWSER=.cache/sms node --test --test-concurrency=1 --test-name-pattern='^DONOR-015:' tests/coffer.test.mjs"
       ]
     },
     {

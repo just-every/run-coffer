@@ -4,12 +4,16 @@ import {mkdir} from 'node:fs/promises'
 import {run,donor,archive,restore} from './harness.mjs'
 import {prepareVerifiedMail} from './verified-mail-edge.mjs'
 import {withBrowserWorker} from './browser-worker.mjs'
+import {smsRegistrationEdge} from './sms-registration-edge.mjs'
+import {smsScreens} from './sms-browser.mjs'
 
 export async function smsJourney(){
  const account='synthetic-coffer-1',token='synthetic-coffer-2',sender='+12025550101',requests=[]
+ const registration=smsRegistrationEdge(account,sender)
  let unknown=false
  const outbound=async request=>{
   const url=new URL(request.url)
+  if(url.hostname==='messaging.twilio.com')return registration.outbound(request)
   assert.equal(url.origin,'https://api.twilio.com')
   assert.equal(url.pathname,`/2010-04-01/Accounts/${account}/Messages.json`)
   assert.equal(request.method,'POST')
@@ -21,6 +25,7 @@ export async function smsJourney(){
  await run(async h=>{
   const at='2026-10-15T16:00:00Z',dayHeaders={'x-test-now':at},nightHeaders={'x-test-now':'2026-10-15T02:00:00Z'}
   const command=(name,input,options={})=>h.command(name,input,{headers:dayHeaders,...options})
+  const tick=async at=>{const response=await h.request('/cdn-cgi/local/scheduled?time='+Date.parse(at)+'&format=json',{headers:{'x-test-now':at}});assert.equal(response.status,200,await response.text())}
   const get=(id)=>h.get('/api/coffer/texts?runId='+id,{headers:dayHeaders})
   const a=await donor(h,'Synthetic SMS One',{phone:'+12025550111'}),b=await donor(h,'Synthetic SMS Two',{phone:'+12025550112'}),missing=await donor(h,'Synthetic SMS No Phone'),unconsented=await donor(h,'Synthetic SMS No Permission',{phone:'+12025550113'})
   const preference=async(d,status='granted',version=0)=>command('sms.preference',{donorId:d.id,phone:d.id===a.id?'+12025550111':'+12025550112',timezone:'America/New_York',status,version,evidence:'Synthetic donor request recorded by staff',capturedOn:'2026-10-15'})
@@ -36,11 +41,37 @@ export async function smsJourney(){
   await command('sms.send',{runId:thanks.id,version:1},{status:409})
   assert.equal(requests.length,0,'Preparation never sends')
   const approved=await command('sms.approve',{runId:thanks.id,version:1})
-  const held=await command('sms.send',{runId:thanks.id,version:approved.version},{headers:nightHeaders})
-  assert.equal(held.held,1);assert.equal(requests.length,0)
+  await command('sms.send',{runId:thanks.id,version:approved.version},{status:409})
+  assert.equal(requests.length,0,'An unregistered sender never submits')
+  const refresh=()=>registration.refresh(h,{headers:dayHeaders})
+  registration.state.status='IN_PROGRESS';assert.equal((await refresh()).approved,0)
+  await command('sms.send',{runId:thanks.id,version:approved.version},{status:409})
+  registration.state.status='VERIFIED';registration.state.registered=false
+  assert.equal((await refresh()).sender_registered,0)
+  await command('sms.send',{runId:thanks.id,version:approved.version},{status:409})
+  registration.state.registered=true;registration.state.mock=true
+  assert.equal((await refresh()).approved,0)
+  await command('sms.send',{runId:thanks.id,version:approved.version},{status:409})
+  registration.state.mock=false;registration.state.account='synthetic-coffer-42'
+  await registration.refresh(h,{headers:dayHeaders,status:503})
+  registration.state.account=account
+  assert.equal((await refresh()).approved,1)
+  registration.state.unavailable=true
+  await command('sms.send',{runId:thanks.id,version:approved.version},{status:503})
+  assert.equal(requests.length,0,'An unavailable registration provider cannot use a saved approval')
+  registration.state.unavailable=false
+  await command('sms.schedule',{runId:thanks.id,version:approved.version,scheduledAt:'2026-10-15T02:00:00Z'},{headers:nightHeaders})
+  await tick('2026-10-15T01:59:00Z');assert.equal(requests.length,0,'A future schedule never sends early')
+  await tick('2026-10-15T02:00:00Z')
+  assert.equal(requests.length,0)
   assert.equal((await get(thanks.id)).recipients[0].state,'held')
-  const sent=await command('sms.send',{runId:thanks.id,version:approved.version})
-  assert.equal(sent.submitted,1);assert.equal(requests.length,1)
+  assert.equal((await get(thanks.id)).schedule.state,'scheduled')
+  await smsScreens(h,{runId:thanks.id,phase:'held',at:'2026-10-15T02:00:00Z'})
+  await tick('2026-10-15T11:59:00Z');assert.equal(requests.length,0,'Donor-local 07:59 remains held')
+  await tick('2026-10-15T12:00:00Z')
+  assert.equal(requests.length,1,'The scheduled job resumes the 10 p.m. text at donor-local 08:00 without a human send')
+  assert.equal((await get(thanks.id)).schedule.state,'complete')
+  await tick('2026-10-15T12:01:00Z');assert.equal(requests.length,1,'Repeated schedule ticks never duplicate a submission')
   assert.equal(requests[0].Body,'Thank you for supporting the reading room.')
   assert.equal((await get(thanks.id)).recipients[0].provider_status,'queued')
   const phonePoint=(await h.get('/api/coffer/donors/'+a.id)).contactPoints.find(p=>p.kind==='phone'&&p.is_primary)
@@ -48,26 +79,73 @@ export async function smsJourney(){
   assert.equal((await command('sms.send',{runId:thanks.id,version:approved.version})).submitted,0)
   assert.equal(requests.length,1,'Repeated human send cannot submit the same text twice')
   const stale=await prepare('thank-you',[b.id]);await command('sms.approve',{runId:stale.id,version:1})
+  await command('sms.schedule',{runId:stale.id,version:2,scheduledAt:at})
   const withdrawn=await preference(b,'withdrawn',pb.preference.id)
+  await tick(at);assert.equal((await get(stale.id)).schedule.state,'paused')
+  assert.equal(requests.length,1,'A scheduled send cannot bypass a later withdrawal')
   await command('sms.send',{runId:stale.id,version:2},{status:409})
   assert.equal(requests.length,1,'Withdrawal fences an already approved message')
   await preference(b,'granted',withdrawn.preference.id)
   const changed=await prepare('appeal',[b.id]);await command('sms.approve',{runId:changed.id,version:1})
+  await command('sms.schedule',{runId:changed.id,version:2,scheduledAt:at})
   await command('solicitation.set',{donorId:b.id,version:0,type:'stop',startsOn:'2026-10-15',source:'person'})
   await command('sms.send',{runId:changed.id,version:2},{status:409})
   assert.equal(requests.length,1,'A new restriction fences an approved ask')
+  await tick(at);assert.equal((await get(changed.id)).schedule.state,'paused')
+  assert.equal(requests.length,1,'Scheduled sends retain the same solicitation fence')
   const uncertain=await prepare('thank-you',[b.id]);await command('sms.approve',{runId:uncertain.id,version:1})
   unknown=true
   assert.equal((await command('sms.send',{runId:uncertain.id,version:2})).uncertain,1)
   await command('sms.send',{runId:uncertain.id,version:2});assert.equal(requests.length,2)
   assert.equal((await get(uncertain.id)).recipients[0].state,'uncertain')
   unknown=false
+  await command('sms.schedule',{runId:uncertain.id,version:2,scheduledAt:at})
+  await tick(at);assert.equal(requests.length,2,'The scheduler never retries an uncertain submission')
+  const cancelled=await prepare('thank-you',[b.id]);await command('sms.approve',{runId:cancelled.id,version:1})
+  await command('sms.schedule',{runId:cancelled.id,version:2,scheduledAt:at})
+  await command('sms.cancelSchedule',{runId:cancelled.id,version:2})
+  await tick(at);assert.equal(requests.length,2,'Cancellation prevents automatic submission')
+  await command('sms.discard',{runId:cancelled.id,version:2})
   await command('pledge.create',{donorId:a.id,amount:'100',pledgedOn:'2026-10-15',installments:[{dueOn:'2026-11-01',amount:'100'}]})
   const reminder=await prepare('pledge-reminder',[a.id],'Your promised reading room installment is due November 1.')
   assert.equal(reminder.recipients,1)
   await command('sms.approve',{runId:reminder.id,version:1})
   assert.equal((await command('sms.send',{runId:reminder.id,version:2})).submitted,1,'Restricted donors still receive their own pledge reminders')
   const member=await h.person('synthetic.sms.member@example.test')
+  await h.get('/api/coffer/sms/registration',{as:member.cookie,status:403})
+  const reg=await h.get('/api/coffer/sms/registration')
+  for(const as of [member.cookie,''])await command('sms.registration.refresh',{messagingServiceSid:registration.service,campaignSid:registration.campaign,version:reg.version},{as,status:as?403:401})
+  await command('sms.registration.refresh',{messagingServiceSid:registration.service,campaignSid:registration.campaign,version:0},{status:409})
+  for(const as of [member.cookie,''])await command('sms.schedule',{runId:thanks.id,version:2,scheduledAt:'2026-10-15T20:00:00Z'},{as,status:as?403:401})
+  const webhook=async(body,messageId,from='+12025550111',extra={})=>{
+   const path='/api/coffer/sms/webhook',fields=new URLSearchParams({AccountSid:account,MessageSid:messageId,From:from,To:sender,Body:body,...extra})
+   const payload=h.origin+path+[...fields.keys()].sort().map(k=>k+fields.get(k)).join(''),signature=createHmac('sha1',token).update(payload).digest('base64')
+   return h.request(path,{method:'POST',as:'',raw:fields.toString(),headers:{...dayHeaders,'content-type':'application/x-www-form-urlencoded','x-twilio-signature':signature}})
+  }
+  const help=await webhook('HELP','synthetic-coffer-43');assert.equal(help.status,200)
+  const helpBody=await help.text();assert.match(helpBody,/<Message>.*For help, reply with your question/);assert.match(helpBody,/Reply STOP/)
+  assert.equal(await (await webhook('HELP','synthetic-coffer-43')).text(),'<Response/>','Replayed HELP does not send again')
+  assert.equal((await webhook('Can we meet next week?','synthetic-coffer-44')).status,200)
+  const replyDonor=await h.get('/api/coffer/donors/'+a.id),replyNotes=replyDonor.notes.filter(n=>n.source==='Twilio SMS')
+  assert.deepEqual(replyNotes.map(n=>n.body),['SMS reply: Can we meet next week?'])
+  let tasks=(await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_kind==='sms-reply')
+  assert.equal(tasks.length,1);assert.equal(tasks[0].donor_id,a.id);assert.equal(tasks[0].reason,'SMS reply: Can we meet next week?')
+  assert.equal(tasks[0].owner_id,(await h.get('/auth/session')).operator.id);assert.equal(tasks[0].task_kind,'follow_up');assert.equal(tasks[0].is_ask,0)
+  await webhook('Can we meet next week?','synthetic-coffer-44')
+  assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_kind==='sms-reply').length,1,'Reply replay does not duplicate tasks')
+  const portfolio=await command('portfolio.save',{name:'Synthetic SMS portfolio',managerId:member.id,untouchedDays:90})
+  await command('portfolio.assign',{portfolioId:portfolio.id,donorId:b.id})
+  await webhook('Please call tomorrow','synthetic-coffer-45','+12025550112')
+  tasks=(await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_kind==='sms-reply')
+  assert.equal(tasks.find(t=>t.donor_id===b.id).owner_id,member.id,'The relationship manager owns ordinary reply follow-up')
+  assert.equal((await h.get('/api/coffer/donors/'+a.id+'/sms')).preference.status,'granted','HELP and ordinary replies never grant or withdraw consent')
+  await webhook('Unrecognized phone','synthetic-coffer-46','+12025550999')
+  assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_kind==='sms-reply').length,2,'Unknown phones cannot be assigned to a guessed donor')
+
+  const shared=await donor(h,'Synthetic shared SMS phone',{phone:'+12025550112'})
+  await command('sms.preference',{donorId:shared.id,phone:'+12025550112',timezone:'America/New_York',status:'granted',version:0,evidence:'Synthetic shared phone permission',capturedOn:'2026-10-15'})
+  await webhook('Shared phone must not guess','synthetic-coffer-47','+12025550112')
+  assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_kind==='sms-reply').length,2,'A shared phone never guesses which donor replied')
   await command('sms.prepare',{name:'Refused',purpose:'thank-you',donorIds:[a.id],body:'Thanks'},{as:member.cookie,status:403})
   const hook='/api/coffer/sms/webhook',fields=new URLSearchParams({AccountSid:account,MessageSid:'synthetic-coffer-30',From:'+12025550111',To:sender,Body:'STOP',ExtraFutureField:'retained in signature'})
   const payload=h.origin+hook+[...fields.keys()].sort().map(k=>k+fields.get(k)).join(''),signature=createHmac('sha1',token).update(payload).digest('base64')
@@ -79,6 +157,7 @@ export async function smsJourney(){
   assert.equal((await post(signature)).status,200)
   assert.equal((await h.get('/api/coffer/donors/'+a.id+'/sms',{headers:dayHeaders})).preference.id,stopped.preference.id,'Webhook replay does not add another consent row')
   const blocked=await prepare('thank-you');assert.equal(blocked.recipients,0);assert.equal(blocked.excluded[0].reason,'SMS consent withdrawn')
+  await smsScreens(h,{runId:thanks.id,phase:'complete',at})
   // Custody uses separate original identities, real sends and consent history.
   // The source forbids mail while the target has a two-ask annual limit; their
   // one submitted SMS ask each must remain two asks after the identities merge.
@@ -119,8 +198,12 @@ export async function smsJourney(){
   const combinedLimit=await command('appeal.prepare',{name:'Synthetic merged annual limit',channel:'email'},{status:409})
   assert.equal(combinedLimit.details['solicitation limit'],1,'The two original ask submissions exhaust the merged annual limit')
   const snapshot=await archive(h)
+  assert.equal(snapshot.filter(r=>r.kind==='part').flatMap(r=>r.items).filter(r=>r.kind==='row'&&r.table==='cf_sms_registration').length,0,'Archives withhold registration connection material')
   await run(async copied=>{
    await restore(copied,snapshot)
+   assert.equal((await copied.get('/api/coffer/donors/'+a.id)).notes.filter(n=>n.source==='Twilio SMS').length,1)
+   assert.equal((await copied.get('/api/coffer/tasks')).tasks.filter(t=>t.source_kind==='sms-reply').length,2)
+   assert.equal((await copied.get('/api/coffer/sms/registration')).approved,0,'Registration must be verified on the restored installation')
    assert.deepEqual(await smsPermission(copied,target),await smsPermission(h,target))
    assert.deepEqual((await donorFile(copied,target)).solicitation,mergedRestriction)
    const copyLimit=await copied.command('appeal.prepare',{name:'Synthetic restored annual limit',channel:'email'},{headers:dayHeaders,status:409})
@@ -130,7 +213,7 @@ export async function smsJourney(){
    assert.deepEqual(await smsPermission(copied,target),originalTargetPermission)
    assert.deepEqual((await donorFile(copied,source)).solicitation,originalSourceRestriction)
    assert.deepEqual((await donorFile(copied,target)).solicitation,originalTargetRestriction)
-  },{verifiedMail:true,entry:'tests/advancing-clock-worker.ts',bindings:{TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound})
+  },{verifiedMail:true,entry:'tests/advancing-clock-worker.ts',bindings:{TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound,triggerHandlers:true})
   // The restored copy proves clean undo. The live copy proves that a later
   // deliberate staff decision cannot be overwritten by the same undo.
   const noAutomaticGrant=await prepare('thank-you',[target.id])
@@ -168,5 +251,5 @@ export async function smsJourney(){
     await page.close()
    })
   }
- },{verifiedMail:true,entry:'tests/advancing-clock-worker.ts',bindings:{TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound})
+ },{verifiedMail:true,entry:'tests/advancing-clock-worker.ts',bindings:{TWILIO_ACCOUNT_SID:account,TWILIO_AUTH_TOKEN:token,TWILIO_FROM:sender},outbound,triggerHandlers:true})
 }

@@ -42,6 +42,8 @@ import { solicitationState } from './solicitation'
 import { protectionState } from './giving/protection'
 import { smsState, smsPreference, smsWebhook } from './sms'
 import { textsPage } from './ui/sms'
+import { smsRegistrationPanel } from './ui/sms-registration'
+import { smsRegistrationState } from './sms-registration'
 import { giftBatch, giftBatches } from './gift-batches'
 import { giftBatchesPage } from './ui/gift-batches'
 import { exportsResponse } from './exports-http'
@@ -489,6 +491,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if(command==='list.welcome')return redirect('/app/appeals')
  if(command==='contact.save')return redirect('/app/donors/'+encodeURIComponent(result.donorId)+'#contact-points')
  if(command==='list.bulk'||command==='list.profile'||command==='list.solicitation')return page('Bulk list change',`<p>${esc(result.changed)} constituents changed.</p><p><a href="/app/exports?list=saved:${esc(result.listId)}">Return to live list</a></p><form method="post" action="/app/actions"><input type="hidden" name="command" value="${command==='list.bulk'?'list.undo':'list.profileUndo'}"><input type="hidden" name="jobId" value="${esc(result.jobId??result.id)}"><input type="hidden" name="version" value="1"><p>Undo restores records only. Pending tasks and journey work require a separate confirmation afterward.</p><button>Undo this bulk change</button></form>`,actor,200,'/app/exports')
+ if(command==='sms.registration.refresh')return redirect('/app/settings#sms-registration')
  if(command.startsWith('sms.'))return redirect(command==='sms.preference'?'/app/donors/'+encodeURIComponent(input.donorId)+'#sms-permission':'/app/texts?runId='+encodeURIComponent(result.id??input.runId))
  if(command.startsWith('address.'))return redirect(input.returnDonorId?'/app/donors/'+encodeURIComponent(input.returnDonorId)+'#address-verification':'/app/addresses')
  if(command==='solicitation.set')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#solicitation')
@@ -602,6 +605,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  }
  if(path==='/api/coffer/addresses'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages address processing.',403);return json(await addressState(c))}
  const addressDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)\/addresses$/);if(addressDonor)return json(await addressState(c,addressDonor[1]))
+ if(path==='/api/coffer/sms/registration'){if(!['owner','admin'].includes(c.actor.role))fail('FORBIDDEN','Only an owner or admin reads SMS registration.',403);return json(await smsRegistrationState(c))}
  if(path==='/api/coffer/texts')return json(await smsState(c,url.searchParams.get('runId')??undefined))
  const typedDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)\/contribution-types$/);if(typedDonor)return json(await contributionTypeState(c,typedDonor[1]))
  const smsDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)\/sms$/);if(smsDonor)return json({preference:await smsPreference(c,smsDonor[1])})
@@ -763,7 +767,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if ((m = path.match(/^\/app\/appeals\/([^/]+)$/))) return show('Appeal', await appealPage(c, m[1]))
  if ((m = path.match(/^\/app\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
  if (path === '/app/more') return show('More', morePage(actor))
- if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c))
+ if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c)+await smsRegistrationPanel(c))
  if (path === '/app/data') {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
   return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited'), now: Date.parse(c.now), timeZone: (await settings(c)).timezone }) + await agentGrantsPanel(c))

@@ -2459,7 +2459,7 @@
       "executable": false
     },
     "src/coffer/archive-policy.mjs": {
-      "sha256": "d5379895a17815104e9e1c6b8150daeae698f668b8e11173167216811f7e1ac6",
+      "sha256": "0434ea95787becc7db39287c001b921c2ac8a94478052db5288b9bd10ad40fc0",
       "executable": false
     },
     "src/coffer/attribution.ts": {
@@ -2531,7 +2531,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "24fd0b6fc625b40a38d1b8c247d0e1224bed2d0c37fde15e07d0f281727e1d81",
+      "sha256": "719d37af49e7cee25769b4e0abfe688bf17cb2c78647c9ab702c4eb90b8bd300",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -3031,7 +3031,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "86726e67aac86bcce352d39bbe6de8057e59c08156e7701de385cd55da7e2567",
+      "sha256": "b04856ea141f37709439ccd99eabf786f7e35024fd66401680d291560f930124",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3591,7 +3591,7 @@
       "executable": false
     },
     "src/coffer/sms.ts": {
-      "sha256": "e2c2d31fcd1a460d95ba38aaeb61f50219a89709038f4edd82a5de2ce79512d3",
+      "sha256": "96bac44f2b5f0c73e8204a9b42c1b2588633007f580628d16330dfbb214df092",
       "executable": false
     },
     "src/coffer/soft-credit-ack.ts": {
@@ -3963,7 +3963,7 @@
       "executable": false
     },
     "src/coffer/ui/sms.ts": {
-      "sha256": "6ecad6dd82f109002056a35abed6a3e6c247d26cf121fac61a163812ec8ae5d6",
+      "sha256": "3928fa036a8780640ff24b875a303138c1437d81ea77ffae403c5dd3dc5833cd",
       "executable": false
     },
     "src/coffer/ui/solicitation.ts": {
@@ -5759,7 +5759,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "9b34727c60edb207b86ea0f444e3d6615d8b6aa9022afd808c6f6e4298f240ac",
+      "sha256": "fbb74342c3afad173a138a56b872246acf6a273b25718e74207da9bb800ad483",
       "executable": false
     },
     "src/site/docs/build/manifest.ts": {
@@ -6783,7 +6783,7 @@
       "executable": false
     },
     "tests/sms-journey.mjs": {
-      "sha256": "04c3208e6404a5b38545017374ff1338a4390574cb6bf47d1640be6bbf38a98c",
+      "sha256": "b9b73f31b78b6acc9a9d1ea292d9db4128e1a68312807d49f0afb33700032006",
       "executable": false
     },
     "tests/soft-credit-journey.mjs": {
@@ -6927,7 +6927,7 @@
       "executable": false
     },
     "tests/worker.ts": {
-      "sha256": "6a88b0021f21807eb8f6e52a727883add1ca31bc8a52577425a88c9774a213a1",
+      "sha256": "c113bbe5cc89de183ab76d033599e7edacd24c3ea6db773d13f07a88eb6a4c51",
       "executable": false
     },
     "tsconfig.json": {
@@ -6935,7 +6935,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "dd9379f2a056c92f2369d82c75ed1ea2c4e8f005e7b6f3745bcd04ea002f62a9",
+      "sha256": "0d5c8406940b45a759c1ed38767536745a8935718ac619030c777181647c5dc0",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
