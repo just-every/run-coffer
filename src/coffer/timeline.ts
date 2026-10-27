@@ -13,6 +13,7 @@ export function timelineFilter(url?:URL){
 /** Current task and delivery sources augment the donor's existing history. */
 export async function timelineSources(c:Context,donorId:string){
  const queries=[
+  "SELECT 'meeting' AS kind,id,substr(starts_at,1,10) AS day,starts_at AS at,CASE WHEN source='calendly' THEN 'Calendly meeting' WHEN source='google' THEN 'Google Calendar meeting' ELSE 'Scheduled meeting' END AS title,starts_at||CASE WHEN cancelled_at IS NULL THEN '' ELSE ' · cancelled' END AS body FROM cf_donor_meetings WHERE donor_id=?",
   "SELECT 'receipt' AS kind,id,substr(prepared_at,1,10) AS day,prepared_at AS at,'Single letter produced' AS title,subject||' · '||status AS body FROM cf_single_letters WHERE donor_id=?",
   "SELECT 'event' AS kind,r.id,substr(r.checked_in_at,1,10) AS day,r.checked_in_at AS at,e.name AS title,'Checked in to event' AS body FROM cf_event_registrations r JOIN cf_fundraising_events e ON e.id=r.event_id WHERE r.donor_id=? AND r.checked_in_at IS NOT NULL",
   "SELECT 'appeal' AS kind,run_id AS id,substr(recorded_at,1,10) AS day,recorded_at AS at,'Deliberate solicitation inclusion' AS title,reason||' · chosen by '||actor_name AS body FROM cf_solicitation_inclusions WHERE donor_id=?",
@@ -27,6 +28,6 @@ export async function timelineSources(c:Context,donorId:string){
  ]
  const rows=await c.db.batch<Row>(queries.map(query=>c.db.prepare(query).bind(donorId)))
  const zone=(await settings(c)).timezone
- const sources=rows.flatMap(row=>row.results??[]).map(row=>row.kind==='event'?{...row,day:today(zone,new Date(String(row.at)))}:row)
+ const sources=rows.flatMap(row=>row.results??[]).map(row=>row.kind==='event'||row.kind==='meeting'?{...row,day:today(zone,new Date(String(row.at)))}:row)
  return [...sources,...await portalTimeline(c,donorId)]
 }

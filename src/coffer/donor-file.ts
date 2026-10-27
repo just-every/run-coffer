@@ -26,6 +26,7 @@ const PARENTS: Record<string, string> = {
 }
 // Rows that reach a donor but are not records about them.
 export const NOT_IN_FILE: Record<string, string> = {
+ cf_meeting_links: 'Private scheduling capabilities and staff authorization stay in this installation.',
  cf_auction_jobs: 'Complete source files contain other bidders and stay private.',
  cf_auction_donors: 'Internal undo snapshots contain complete imported contact records.',
  cf_development_report_donors: 'Internal board reports combine several constituents and their source facts remain available in their own records.',

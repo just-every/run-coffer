@@ -1426,6 +1426,10 @@
       "sha256": "978cf808962d4ec882165876e8bfb386e975f941a7ffa25408ebc814c78233d8",
       "executable": false
     },
+    "migrations/core/0163_coffer_calendars.sql": {
+      "sha256": "f5d584f22ed06551381c8bd0ac278dcc057e3314cc712bd5c779a255919788c4",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -2459,7 +2463,7 @@
       "executable": false
     },
     "src/coffer/archive-policy.mjs": {
-      "sha256": "d5379895a17815104e9e1c6b8150daeae698f668b8e11173167216811f7e1ac6",
+      "sha256": "5e11acb386c98f812e35f9707954c714681aa8586f2c0803996fe5702322b0c4",
       "executable": false
     },
     "src/coffer/attribution.ts": {
@@ -2510,6 +2514,14 @@
       "sha256": "df01f1a799edc3ac92adef221449d777ae50ccc4b3cf675cb50a35f3d8d6145a",
       "executable": false
     },
+    "src/coffer/calendars/bookings.ts": {
+      "sha256": "6e7a764a28fd6486a801a6458209d341684eb990142e71358440dc88c7081870",
+      "executable": false
+    },
+    "src/coffer/calendars/google.ts": {
+      "sha256": "a5de8a3f2a33bca204629c01b4c5ab716a00c2c77a1371dcb83f5414583d1562",
+      "executable": false
+    },
     "src/coffer/call-outcomes.ts": {
       "sha256": "58b948530aa08f07bfed7a2bc58e514edd25bdf4c3ee69bc9933072981c4338b",
       "executable": false
@@ -2531,7 +2543,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "24fd0b6fc625b40a38d1b8c247d0e1224bed2d0c37fde15e07d0f281727e1d81",
+      "sha256": "51f9f80166f41c50d7b3c8b9f7536c561bec6488b45e78dddc4f040cc4512e4c",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2743,7 +2755,7 @@
       "executable": false
     },
     "src/coffer/donor-file.ts": {
-      "sha256": "828a620c7f623cec6eb954be3af902f703eaee425e91056f195977077d5c8462",
+      "sha256": "24c6e32c8c4f3281c1877e3e5da56fc36979eff001348af1788908481ac89472",
       "executable": false
     },
     "src/coffer/donor-households.ts": {
@@ -2751,7 +2763,7 @@
       "executable": false
     },
     "src/coffer/donor-merge.ts": {
-      "sha256": "5fb4ef0c783f53d8d0650381bf2a04dffdb0577bcd67f56ad0c497d484bbd901",
+      "sha256": "a7f877f8984bbca7b02773d9424ce05c559d3a35096ed3eec3997f66d163b1b1",
       "executable": false
     },
     "src/coffer/donors.ts": {
@@ -3031,7 +3043,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "86726e67aac86bcce352d39bbe6de8057e59c08156e7701de385cd55da7e2567",
+      "sha256": "189b18d8dcb197d5c5db40a5c6933e181514747d12a8a52e48ff1bf7a225a34d",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3643,7 +3655,7 @@
       "executable": false
     },
     "src/coffer/timeline.ts": {
-      "sha256": "bd0069fdad4c63edaabebc0ec7ce04e59108a3a4e20c4551cc6c3abc3981ae3d",
+      "sha256": "5c9c508248968a35e794e8cf81a5d89d0b4591c67eeb870c98e0cef1f272a015",
       "executable": false
     },
     "src/coffer/tribute-groups.ts": {
@@ -3684,6 +3696,10 @@
     },
     "src/coffer/ui/audit.ts": {
       "sha256": "a9dc67cc758cc6cea22db4cd239a97f0476b0659451b8eb4064126a979551804",
+      "executable": false
+    },
+    "src/coffer/ui/calendars.ts": {
+      "sha256": "c944458c3834d5840a3ab4542480788c0d21b1e24ffc074e5d5ae95c4285281d",
       "executable": false
     },
     "src/coffer/ui/call-ranking.ts": {
@@ -3867,7 +3883,7 @@
       "executable": false
     },
     "src/coffer/ui/meetings.ts": {
-      "sha256": "6af726f06a4000a61345e22b7d9de8385e218795bc60a0a36d1111ca86772910",
+      "sha256": "d025587265e0a6f513d11dadfa6f6b8b1c95d9119d5d2073313dc151280c819a",
       "executable": false
     },
     "src/coffer/ui/more.ts": {
@@ -6034,6 +6050,10 @@
       "sha256": "89e3f68d3ce510b4d244e3ae2b726ec92e1e3a38f17b9de96d4545fcb12e8208",
       "executable": false
     },
+    "tests/calendars-journey.mjs": {
+      "sha256": "76b011fdddb005219d3c59a147822874a2f0fff91a3f81a8acd035e2e2e0c1da",
+      "executable": false
+    },
     "tests/call-priorities-browser.mjs": {
       "sha256": "19db70f627961f215b3058eb20e397ed266e01859ebffbbf5a66184111cfb480",
       "executable": false
@@ -6827,7 +6847,7 @@
       "executable": false
     },
     "tests/stewardship.test.mjs": {
-      "sha256": "ff7e15748f9e02ff8593b5ee1910bab7ae6042606b579f59b28da8070f1a5a61",
+      "sha256": "18ff195d4459a7160b30f7e666d56950008cbabeda90451b4ece35fcca3ca05b",
       "executable": false
     },
     "tests/task-reminders-browser.mjs": {
@@ -6935,7 +6955,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "dd9379f2a056c92f2369d82c75ed1ea2c4e8f005e7b6f3745bcd04ea002f62a9",
+      "sha256": "24c475b4f8f19d2f5136cc7980479b4b7b01e420b9c46b9603201bd1979fb45c",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
