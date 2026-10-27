@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3feb3c0a83d7527401dae65da0faa7aaa18e5a3aca17edadcaeb62149f01ebf2",
+      "sha256": "e955bbf4c2bb9f6c15d1268dfc141bcce111cbee3f3b7c4db820e811fbe73ef2",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b471f789cd76e2f70b65b19b9ef10b88d9c7ec1d9522f5c7cda9c6d1b2afc640",
+      "sha256": "a00e95e6d67a0dc03f62a343aee3f58411d965071738c52413ce4ae6fa702a4e",
       "executable": false
     },
     "deploy-demo.json": {
@@ -611,7 +611,7 @@
       "executable": false
     },
     "docs/COMMUNICATIONS.md": {
-      "sha256": "7bc090ad2afda931e3065c0a6f4e266696040e0545b4c666f8b31e1522c76bf6",
+      "sha256": "8abc13ff36cdd4352025a6949d135feebb50b0fc37c4e97072f36e48d4803663",
       "executable": false
     },
     "docs/consent.md": {
@@ -3607,7 +3607,7 @@
       "executable": false
     },
     "src/coffer/sms-scheduler.ts": {
-      "sha256": "d9d859a043289bdff3da379a363d328236e4b26e30b8b2dffbbd839ad66ea9c6",
+      "sha256": "5dc8838c04f42746bfad8de4f8630306088fae1b491639aa4db8af4c84797245",
       "executable": false
     },
     "src/coffer/sms.ts": {
@@ -6811,7 +6811,7 @@
       "executable": false
     },
     "tests/sms-journey.mjs": {
-      "sha256": "325632f6fc28d9f21fce9b4996a3a3ba92b9af19fd8cb126e7e18de64acf7668",
+      "sha256": "c96cdb2e71f414129c76e56573955a8d0f22deb7136aa95a16dea1cc9d7dfb13",
       "executable": false
     },
     "tests/sms-registration-edge.mjs": {

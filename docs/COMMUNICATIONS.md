@@ -156,7 +156,9 @@ STOP. Ordinary replies from a uniquely identified current phone become a donor
 timeline note and an ordinary non-ask follow-up task. Existing relationship
 routing selects the active portfolio manager, then the active opportunity owner,
 then the installation owner. Replays do not duplicate records; unknown or shared
-phones never guess a donor. Neither HELP nor a reply grants SMS consent.
+phones never guess a donor. Neither HELP nor a reply grants SMS consent. These SMS reply identity, routing,
+HELP and explicit scheduling defaults are adopted pending ct approval;
+COMM-006 remains partial until that ruling.
 
 Backups preserve SMS runs and histories while leaving credentials out. Pending
 or held runs must be discarded before merge; a submission in progress must be

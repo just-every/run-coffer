@@ -9,7 +9,7 @@ export async function runScheduledTexts(env:Bindings,at:Date){
   FROM cf_sms_schedules s JOIN cf_sms_runs r ON r.id=s.run_id LEFT JOIN oa_operators o ON o.id=s.scheduled_by
   WHERE s.state='scheduled' AND s.scheduled_at<=? AND r.state='approved' ORDER BY s.scheduled_at,s.run_id LIMIT 50`,now)
  for(const row of rows){
-  const c:Context={db:env.DB,env,now,actor:{id:row.scheduled_by,name:row.display_name??'Former text scheduler',role:'owner'},authority:{sql:'1',params:[]}}
+  const c:Context={db:env.DB,env,now,actor:{id:row.scheduled_by,name:row.display_name??'Former text scheduler',role:row.role??'owner'},authority:{sql:'1',params:[]}}
   try{
    if(row.operator_status!=='active'||!['owner','admin'].includes(row.role))throw Error('The scheduling owner or admin is no longer active.')
    c.authority={sql:"EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin')) AND EXISTS(SELECT 1 FROM cf_sms_schedules WHERE run_id=? AND state='scheduled')",params:[row.scheduled_by,row.run_id]}
