@@ -39,7 +39,10 @@ export async function advanceRecoveryNotices(c:Context,env:GivingEnv,subscriptio
  if(legacyCount&&['sending','failed'].includes(legacy!.state))return // Never resend an uncertain legacy invitation.
  const ordinal=latest&&!latest.claim_id?latest.ordinal:(latest?.ordinal??legacyCount)+1
  if(permission&&ordinal>permission.max_notices)return
- if(lastContact&&permission&&Date.parse(c.now)<Date.parse(lastContact)+permission.interval_days*86400000)return
+ if(lastContact&&permission&&Date.parse(c.now)<Date.parse(lastContact)+permission.interval_days*86400000) {
+  if(latest&&!latest.claim_id)await commit(c,[sql("UPDATE cf_recovery_steps SET state='held',reason=?,due_on=? WHERE id=? AND claim_id IS NULL",facts.reason??'The donor’s minimum notice interval has not elapsed',facts.due,latest.id)])
+  return
+ }
  const majorReview=facts.major||facts.changed,channel=permission?.channel??'email'
  const subject=kind==='expiry'?'Your monthly gift card expires next month':ordinal===1?'Update your payment method for your monthly gift':'Follow-up: update payment for your monthly gift'
  const manualBody=`${plan.name}, your monthly gift of $${(plan.amount_cents/100).toFixed(2)} ${kind==='expiry'?'uses a card expiring next month':'needs a payment-method check'}. Open ${env.AUTH_ORIGIN}/giving/portal to request your private giving link. Stripe controls payment retries. No new charge or revised gift amount is requested.`
