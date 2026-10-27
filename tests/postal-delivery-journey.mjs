@@ -43,6 +43,14 @@ export async function postalDeliveryJourney(){
   const sent=await h.command('ack.sendPostal',{...input,version:(await h.get(`/api/coffer/letters/${batch.id}`)).batch.version})
   assert.equal(pieces.length,4);assert.equal(sent.postal.length,4);assert.equal(sent.remaining,0)
   assert.deepEqual(sent.postal.map(p=>p.state).sort(),['rejected','submitted','submitted','uncertain'])
+  const authorization=(await h.get(`/api/coffer/audit?action=ack.sendPostal&record=${batch.id}`)).rows
+  assert.equal(authorization.length,1,'Only the admin action that claims postal pieces authorizes spending')
+  assert.equal(authorization[0].actor_id,admin.id);assert.equal(authorization[0].actor_role,'admin')
+  assert.equal(authorization[0].subject_kind,'acknowledgements');assert.equal(authorization[0].subject_id,batch.id)
+  const authorizationDetail=JSON.parse(authorization[0].detail)
+  assert.equal(authorizationDetail.contentHash,detail.batch.content_hash);assert.equal(authorizationDetail.extraAddressSheet,true)
+  assert.equal(authorizationDetail.pieces,sent.postal.length)
+  for(const attempt of sent.postal){assert.equal(attempt.authorized_by,admin.id);assert.equal(attempt.approved_hash,authorizationDetail.contentHash)}
   const deliveredPiece=pieces.find(p=>p.request.to.name.includes(names[2]))
   assert.ok(deliveredPiece);assert.equal(deliveredPiece.request.to.address_line1,'1 Main Street','Postal sending uses the frozen approved address')
   for(const piece of pieces){assert.equal(piece.request.use_type,'operational');assert.equal(piece.request.address_placement,'insert_blank_page');assert.equal(piece.request.double_sided,false);assert.equal(piece.request.color,false);assert.ok(piece.request.file.includes('No goods or services'))}
@@ -76,6 +84,11 @@ export async function postalDeliveryJourney(){
   assert.equal((await providerEvent(h,groupedPiece,'letter.delivered','synthetic-coffer-817')).status,200)
   tracked=await h.get(`/api/coffer/letters/${batch.id}`)
   assert.equal(tracked.deliveryEvents.length,7)
+  for(const event of tracked.deliveryEvents){
+   const document=beforeEvents.letters.find(l=>l.id===event.letter_id)
+   assert.ok(document);assert.ok(document.attempt_id)
+   assert.equal(event.provider_attempt_id,document.attempt_id,'Each Lob event retains the exact document attempt claimed before tracking')
+  }
   const failureEvents=tracked.deliveryEvents.filter(e=>e.provider_event==='letter.returned_to_sender')
   assert.equal(failureEvents.length,2)
   for(const event of failureEvents){assert.equal(event.provider,'Lob');assert.equal(event.signature_verified,1);assert.equal(event.provider_message_id,groupedPiece.id);assert.equal(event.postal_piece_id,grouped.id);assert.equal(event.occurred_at,'2025-08-20T14:30:00.000Z');assert.ok(event.provider_attempt_id)}
@@ -84,6 +97,15 @@ export async function postalDeliveryJourney(){
   assert.equal(deliveredDonor.letters.find(l=>l.batch_id===batch.id).delivery_status,'delivered')
   const page=await (await h.request(`/app/donors/${people[0].id}?timelineKind=receipt&timelineFrom=2025-08-20&timelineTo=2025-08-20`)).text()
   assert.ok(page.includes('letter.returned_to_sender'));assert.ok(page.includes('Lob'))
+  const householdEvents=['letter.in_transit','letter.returned_to_sender','letter.delivered']
+  for(const [person,expected] of [[people[0],householdEvents],[people[1],householdEvents],[people[2],['letter.delivered']]]){
+   const donorPage=person.id===people[0].id?page:await(await h.request(`/app/donors/${person.id}?timelineKind=receipt&timelineFrom=2025-08-20&timelineTo=2025-08-20`)).text()
+   const timeline=donorPage.match(/<section[^>]*id="timeline"[^>]*>(.*?)<\/section>/s)
+   assert.ok(timeline,'The donor record exposes its timeline')
+   const providerRows=[...timeline[1].matchAll(/<li\b[^>]*>.*?<\/li>/gs)].map(match=>match[0]).filter(row=>row.includes('Lob receipt provider event'))
+   assert.equal(providerRows.length,expected.length,`Every postal event appears once on donor ${person.id}'s timeline`)
+   for(const event of expected)assert.equal(providerRows.filter(row=>row.includes(event)).length,1,`${event} reaches donor ${person.id}'s timeline`)
+  }
   const filtered=await (await h.request(`/app/donors/${people[0].id}?timelineKind=call&timelineFrom=2025-08-20&timelineTo=2025-08-20`)).text()
   assert.ok(!filtered.includes('letter.returned_to_sender'))
   const task=(await h.get(`/api/coffer/donors/${people[0].id}`)).receiptTasks

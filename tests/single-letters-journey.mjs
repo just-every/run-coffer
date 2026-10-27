@@ -3,9 +3,11 @@ import {mkdir} from 'node:fs/promises'
 import {PDFDocument} from 'pdf-lib'
 import {unzipSync} from 'fflate'
 import {run,donor,reviewed,settings,archive,restore} from './harness.mjs'
+import {singleLetterSnapshots} from './single-letter-snapshots.mjs'
 import {withBrowserWorker} from './browser-worker.mjs'
 
 export async function singleLettersJourney(){
+ await singleLetterSnapshots()
  await run(async h=>{
   await reviewed(h)
   const d=await donor(h,'Robert Smith'),other=await donor(h,'Ana Diaz')
@@ -13,11 +15,17 @@ export async function singleLettersJourney(){
   const gift=await h.command('gift.record',{donorId:d.id,amount:'350',receivedOn:'2025-08-10',method:'check',goods:'none'})
   const foreign=await h.command('gift.record',{donorId:other.id,amount:'400',receivedOn:'2025-08-10',method:'check',goods:'none'})
   const template=await h.command('letterTemplate.save',{kind:'first_gift',name:'Personal thanks',subject:'Thanks, {{informal_salutation}}',body:settings.letterTemplate+'\nEnvelope {{envelope_name}}. Warm regards'})
-  const agent=await h.command('agent.create',{label:'Letter reader'})
+  const member=await h.person('synthetic-coffer-930@example.test'),admin=await h.person('synthetic-coffer-931@example.test','admin')
+  const agent=await h.command('agent.create',{label:'Letter reader'}),agentAccess={as:'',headers:{authorization:'Bearer '+agent.token}}
   await h.command('singleLetter.prepare',{donorId:d.id,contextId:gift.id},{as:'',headers:{authorization:'Bearer '+agent.token},status:403})
   await h.command('singleLetter.prepare',{donorId:d.id,contextId:foreign.id},{status:400})
   const directory=process.env.COFFER_PRINT_BROWSER??'.cache/print-letters'
   await mkdir(directory,{recursive:true})
+  const issued=await h.command('ack.prepare',{giftIds:[gift.id]})
+  await h.command('ack.approve',{batchId:issued.id,version:1})
+  await h.command('ack.export',{batchId:issued.id,version:2})
+  await h.command('ack.markSent',{batchId:issued.id,version:3,sentOn:'2026-10-17',method:'mail'})
+  const issuedBefore=await h.get('/api/coffer/letters/'+issued.id),giftBefore=(await h.get('/api/coffer/donors/'+d.id)).gifts.find(g=>g.id===gift.id),messagesBefore=h.messages.length
   let letterId
   await withBrowserWorker(h,async(context,origin)=>{
    const page=await context.newPage();page.setDefaultTimeout(15000)
@@ -33,7 +41,11 @@ export async function singleLettersJourney(){
    letterId=new URL(page.url()).pathname.split('/').at(-1)
    const body=await page.locator('.body').innerText();assert.match(body,/Dear Bob,/);assert.match(body,/\$350\.00/);assert.match(body,/Envelope The Smith Family/)
    await shot('prepared')
-   assert.equal((await h.request(`/app/single-letters/${letterId}/letters.pdf`)).status,409)
+   for(const suffix of ['/letters.pdf','/letters.pdf?labels=1','/letters.pdf?envelopes=1','/print','/print?labels=1','/print?envelopes=1','/merge.zip','/merge.docx'])assert.equal((await h.request('/app/single-letters/'+letterId+suffix)).status,409,'Every local output requires approval of the prepared copy')
+   const approval={letterId,version:1,contentHash:await page.locator('input[name=contentHash]').inputValue()}
+   await h.command('singleLetter.approve',{...approval,contentHash:'synthetic-coffer-932'},{status:409})
+   await h.command('singleLetter.approve',{...approval,version:2},{status:409})
+   for(const access of [{as:member.cookie},agentAccess])await h.command('singleLetter.approve',approval,{...access,status:403})
    await page.getByRole('button',{name:'Approve this letter',exact:true}).click()
    await page.getByRole('link',{name:'Download letter PDF',exact:true}).waitFor();await shot('approved')
    for(const [suffix,name] of [['/print','letter'],['/print?labels=1','label'],['/print?envelopes=1','envelope']]){
@@ -41,14 +53,23 @@ export async function singleLettersJourney(){
    }
    await page.goto(origin+'/app/donors/'+d.id+'?timelineKind=receipt')
    assert.match(await page.locator('#timeline').innerText(),/Single letter produced/)
-   await page.locator('#timeline').screenshot({path:`${directory}/single-timeline-390.png`})
+   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.match(await page.locator('#timeline').innerText(),/Single letter produced/);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.locator('#timeline').screenshot({path:`${directory}/single-timeline-${width}.png`})}
   })
   const pdf=await h.request(`/app/single-letters/${letterId}/letters.pdf`);assert.equal(pdf.status,200);assert.match(pdf.headers.get('content-type'),/application\/pdf/)
   assert.equal((await PDFDocument.load(await pdf.arrayBuffer())).getPageCount(),1)
   for(const query of ['labels','envelopes']){const r=await h.request(`/app/single-letters/${letterId}/letters.pdf?${query}=1`);assert.equal(r.status,200);assert.equal((await PDFDocument.load(await r.arrayBuffer())).getPageCount(),1)}
   const word=await h.request(`/app/single-letters/${letterId}/merge.zip`);assert.equal(word.status,200)
   const zip=unzipSync(new Uint8Array(await word.arrayBuffer()));assert.ok(Object.keys(zip).some(name=>name.endsWith('.docx')))
-  await h.command('singleLetter.approve',{letterId,version:1,contentHash:'wrong'},{status:409})
+  for(const suffix of ['','/letters.pdf','/letters.pdf?labels=1','/letters.pdf?envelopes=1','/print','/print?labels=1','/print?envelopes=1','/merge.zip','/merge.docx']){
+   assert.equal((await h.request('/app/single-letters/'+letterId+suffix,{as:member.cookie})).status,403)
+   const denied=await h.request('/app/single-letters/'+letterId+suffix,agentAccess);assert.ok([401,403].includes(denied.status),'An agent cannot open or output a reviewed copy')
+   assert.equal((await h.request('/app/single-letters/'+letterId+suffix,{as:admin.cookie})).status,200,'An admin may use every approved output')
+  }
+  assert.deepEqual(await h.get('/api/coffer/letters/'+issued.id),issuedBefore,'Producing and outputting a copy never changes the issued receipt, its identity or delivery facts')
+  assert.deepEqual((await h.get('/api/coffer/donors/'+d.id)).gifts.find(g=>g.id===gift.id),giftBefore,'A copy does not record sending or change gift acknowledgment')
+  assert.equal(h.messages.length,messagesBefore,'Preparation, approval and local output hand no message to the provider')
+  const localArchive=await archive(h),rows=localArchive.filter(p=>p.kind==='part').flatMap(p=>p.items).filter(i=>i.kind==='row')
+  assert.deepEqual(rows.filter(i=>['cf_postal_deliveries','cf_postal_documents','cf_letter_events'].includes(i.table)),[],'Local production creates no durable sending attempt or provider delivery event')
   const annual=await h.command('letterTemplate.save',{kind:'year_end',name:'Annual thanks',subject:'{{year}} statement',body:'Dear {{donor_name}}\n{{year}}\n{{gift_list}}\n{{total}} {{goods_total}} {{deductible_total}}\n{{goods_statement}}\n{{organization}} {{ein}}'})
   const a=await h.command('singleLetter.prepare',{donorId:d.id,templateId:annual.id,year:2025})
   assert.match(await (await h.request('/app/single-letters/'+a.id)).text(),/350\.00/)
@@ -89,5 +110,5 @@ export async function singleLettersJourney(){
   assert.equal((await h.request(`/app/single-letters/${letterId}/letters.pdf`)).status,409,'Changed money refuses an obsolete copy')
   const erased=await h.request('/app/actions',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({command:'donor.erase',donorId:d.id,confirm:'ERASE',reason:'donor_request'}).toString()});assert.equal(erased.status,303)
   assert.equal((await h.request('/app/single-letters/'+letterId)).status,404)
- })
+ },{entry:'tests/fixed-clock-worker.ts'})
 }
