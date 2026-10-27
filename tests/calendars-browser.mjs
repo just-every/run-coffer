@@ -26,11 +26,16 @@ export async function calendarsBrowser(h,{directory,donorId,configure,book,calen
    await route.fulfill({status:303,headers:{location:origin+'/app/calendar/google/callback?'+query}})
   })
   const connect=formFor('calendar.start');await connect.locator('[name=confirm]').check();await connect.getByRole('button').click()
+  const proceed=page.getByRole('link',{name:'Continue to Google',exact:true});await proceed.waitFor()
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await fit();await page.locator('main').screenshot({path:`${directory}/STEW-006-google-consent-${width}.png`})}
+  await proceed.click()
   await page.getByRole('button',{name:'Disconnect my calendar',exact:true}).waitFor()
   assert.equal((await h.get('/api/coffer/calendar')).connected,true,'Settings connect the current staff calendar through OAuth')
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/app/settings#calendar-settings')
+   await settings.getByText('Google application',{exact:true}).click()
+   await settings.getByText('Calendly booking intake',{exact:true}).click()
    await settings.scrollIntoViewIfNeeded();await fit();await iconControls()
    await settings.screenshot({path:`${directory}/STEW-006-settings-${width}.png`})
    await page.goto(origin+'/app/donors/'+donorId+'#meetings')

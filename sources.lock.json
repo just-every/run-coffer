@@ -3043,7 +3043,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "267ab620fbed9023ebde96578c214c8417528a06706a559c09446b4dba53105e",
+      "sha256": "f4e5932d06179b4f2639e92d24b62429452f0ff80f02f795b856210560595509",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -6051,7 +6051,7 @@
       "executable": false
     },
     "tests/calendars-browser.mjs": {
-      "sha256": "c0366aedbef6fdef378f0554626369ffb73afe1dc324b9207f5d57ab4efd7e8b",
+      "sha256": "dcac3f433f87a2e95b855f3c9c8c471bcb41087a8fe9d93238cd90ebd95b786d",
       "executable": false
     },
     "tests/calendars-journey.mjs": {

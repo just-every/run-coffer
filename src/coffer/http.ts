@@ -487,7 +487,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.fields','marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
- if(command==='calendar.start')return redirect(result.authorizeUrl)
+ if(command==='calendar.start')return page('Connect Google Calendar',`<p>Continue to Google to approve read-only access to your primary calendar.</p><p><a href="${esc(result.authorizeUrl)}" rel="noreferrer">Continue to Google</a></p><p><a href="/app/settings#calendar-settings">Back to Settings</a></p>`,actor,200,'/app/settings')
  if(command==='calendar.configure'||command==='calendar.disconnect'||command==='booking.configure'||command==='booking.disconnect')return redirect('/app/settings#calendar-settings')
  if(command==='calendar.log'||command==='booking.link'||command==='booking.revoke')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#meetings')
  if(command.startsWith('auction.'))return redirect('/app/events/'+encodeURIComponent(result.eventId)+'/auctions?jobId='+encodeURIComponent(result.jobId))
