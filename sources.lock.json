@@ -583,7 +583,7 @@
       "executable": false
     },
     "deploy.json": {
-      "sha256": "e4a40095ace4a0dca9781f6b802eb12c8474fe9cbcf4c3c031178fc6dcbdd193",
+      "sha256": "ea0a74c917bd613033be21ceaf53ab36f5a41496417089263269a7e609ef758c",
       "executable": false
     },
     "docs/AGENT-COMMANDS.md": {
@@ -1447,7 +1447,7 @@
       "executable": false
     },
     "packaging.json": {
-      "sha256": "9aae295d22abe84d47d05ea7df38f42959bb31c0211cd79f98ca3ade05fb2f5f",
+      "sha256": "6edf8f74f86b1d0f771868ede4e11f48018bae6b7a85aeebd4e8f5a8774e33a2",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -1907,7 +1907,7 @@
       "executable": false
     },
     "scripts/delivery/base/packaging.json": {
-      "sha256": "9aae295d22abe84d47d05ea7df38f42959bb31c0211cd79f98ca3ade05fb2f5f",
+      "sha256": "6edf8f74f86b1d0f771868ede4e11f48018bae6b7a85aeebd4e8f5a8774e33a2",
       "executable": false
     },
     "scripts/delivery/base/paths.mjs": {

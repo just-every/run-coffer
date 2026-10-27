@@ -52,6 +52,9 @@
         "PANTRY_FEE_ACCOUNT",
         "PANTRY_FUND_ACCOUNTS",
         "QBO_ACCOUNT_NAMES",
+        "QBO_CLIENT_ID",
+        "QBO_CLIENT_SECRET",
+        "QBO_SANDBOX",
         "COFFER_REPLY_ADDRESS"
       ],
       "migrationPrefix": "core-",

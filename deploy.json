@@ -99,6 +99,21 @@
       "optional": true
     },
     {
+      "binding": "QBO_CLIENT_ID",
+      "environment": "QBO_CLIENT_ID",
+      "optional": true
+    },
+    {
+      "binding": "QBO_CLIENT_SECRET",
+      "environment": "QBO_CLIENT_SECRET",
+      "optional": true
+    },
+    {
+      "binding": "QBO_SANDBOX",
+      "environment": "QBO_SANDBOX",
+      "optional": true
+    },
+    {
       "binding": "COFFER_REPLY_ADDRESS",
       "environment": "COFFER_REPLY_ADDRESS",
       "optional": true
