@@ -6683,11 +6683,11 @@
       "executable": false
     },
     "tests/mailboxes-browser.mjs": {
-      "sha256": "b9bdbeb3d482eb00c1b46afdc6a18a1d01de85ba26066c8c4cb6797c77db6f00",
+      "sha256": "eca882cd2f195f421a01e86e4eb6168c54cf1fd6d15a5afdcacba238b2e967f5",
       "executable": false
     },
     "tests/mailboxes-journey.mjs": {
-      "sha256": "9c3d69306e231d3afd19ab62c12aa716e38b73ddb263aac2b06d7c1df665415e",
+      "sha256": "d26898b2fcd59589ce696cb22ff63874636b2adc10d4869c07c3abe21d5c4416",
       "executable": false
     },
     "tests/mcp-browser.mjs": {

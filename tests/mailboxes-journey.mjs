@@ -143,9 +143,9 @@ export async function mailboxesJourney(){
   try{await restore(restored,portable);assert.equal((await restored.get('/api/coffer/mailboxes')).some(r=>r.connected),false);assert.ok((await restored.get('/api/coffer/donors/'+ada.id)).mailboxMessages.length>0,'Private logged history is portable without reconnecting a provider')}finally{await restored.close()}
   // An original capture follows the merge and undo without retargeting replay.
   const other=await donor(h,'Ada Duplicate',{email:address(4013)})
-  const merge=await h.command('donor.merge',{sourceId:ada.id,donorId:other.id,sourceVersion:(await h.get('/api/coffer/donors/'+ada.id)).donor.version,version:other.version,fields:{email:ada.id}})
+  const merge=await h.command('donor.merge',{sourceDonorId:ada.id,donorId:other.id,sourceVersion:(await h.get('/api/coffer/donors/'+ada.id)).donor.version,version:other.version,fields:{email:'source'},reason:'duplicate_record'})
   assert.ok((await h.get('/api/coffer/donors/'+other.id)).mailboxMessages.length>0)
-  await h.command('donor.unmerge',{mergeId:merge.id,reason:'Synthetic mailbox custody undo'})
+  await h.command('donor.unmerge',{mergeId:merge.mergeId,reason:'incorrect_match'})
   assert.ok((await h.get('/api/coffer/donors/'+ada.id)).mailboxMessages.length>0)
   await h.command('donor.erase',{donorId:ada.id,confirm:'ERASE'})
   await donor(h,'New Ada',{email:address(4010)})

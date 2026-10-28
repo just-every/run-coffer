@@ -13,29 +13,39 @@ export async function mailboxesBrowser(h,{directory,donorId,keys}) {
    assert.deepEqual(small,[],'Mailbox screen text is at least 13 pixels')
    await page.locator(selector).screenshot({path:`${directory}/COMM-004-${name}-${width}.png`})
   }
-  await context.route('https://accounts.google.com/o/oauth2/v2/auth**',async route=>{
-   const url=new URL(route.request().url())
-   await route.fulfill({status:303,headers:{location:origin+'/app/settings/mailboxes/gmail/callback?'+new URLSearchParams({state:url.searchParams.get('state'),code:'synthetic-coffer-4003'})}})
-  })
+  for(const provider of ['gmail','microsoft']){
+   const pattern=provider==='gmail'?'https://accounts.google.com/o/oauth2/v2/auth**':'https://login.microsoftonline.com/common/oauth2/v2.0/authorize**'
+   await context.route(pattern,async route=>{
+    const url=new URL(route.request().url())
+    await route.fulfill({status:303,headers:{location:origin+'/app/settings/mailboxes/'+provider+'/callback?'+new URLSearchParams({state:url.searchParams.get('state'),code:'synthetic-coffer-4003'})}})
+   })
+   await page.goto(origin+'/app/settings/mailboxes')
+   const panel=page.getByRole('heading',{name:provider==='gmail'?'Gmail':'Microsoft 365',exact:true}).locator('..')
+   await panel.locator('summary').filter({hasText:'application'}).click()
+   const configure=formFor('mailbox.configure').filter({has:page.locator('[name=provider][value='+provider+']')})
+   await configure.locator('[name=clientId]').fill(keys.clientId);await configure.locator('[name=clientSecret]').fill(keys.clientSecret)
+   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await proof(provider+'-application',width)}
+   await configure.locator('[name=confirm]').check();await configure.getByRole('button').click()
+   const connect=formFor('mailbox.start').filter({has:page.locator('[name=provider][value='+provider+']')})
+   await connect.locator('[name=confirm]').check();await connect.getByRole('button').click()
+   const proceed=page.getByRole('link',{name:provider==='gmail'?'Continue to Google':'Continue to Microsoft',exact:true})
+   await proceed.waitFor()
+   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await proof(provider+'-authorize',width)}
+   await proceed.click();await page.getByRole('button',{name:'Disconnect my '+(provider==='gmail'?'Gmail':'Microsoft 365'),exact:true}).waitFor()
+  }
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/app/settings')
    await page.getByRole('link',{name:'Connect and manage my mailboxes',exact:true}).click()
    await page.getByRole('heading',{name:'My personal mailboxes',exact:true}).waitFor()
    await proof('settings',width)
-   if(width===1440){
-    await page.getByRole('button',{name:'Disconnect my Gmail',exact:true}).click()
-    const connect=formFor('mailbox.start').filter({has:page.locator('[name=provider][value=gmail]')})
-    await connect.locator('[name=confirm]').check();await connect.getByRole('button').click()
-    await page.getByRole('link',{name:'Continue to Google',exact:true}).waitFor();await proof('authorize',width)
-    await page.getByRole('link',{name:'Continue to Google',exact:true}).click();await page.getByRole('button',{name:'Disconnect my Gmail',exact:true}).waitFor()
-   }
    await formFor('mailbox.sync').filter({has:page.locator('[name=provider][value=gmail]')}).getByRole('button').click()
    await page.getByRole('heading',{name:'Mailbox logging',exact:true}).first().waitFor();await proof('logging',width)
    await page.goto(origin+'/app/donors/'+donorId+'#personal-email')
    const panel=page.locator('#personal-email')
    await panel.getByText('Write a personal email',{exact:true}).click()
    const compose=formFor('mailbox.prepare')
+   await compose.locator('[name=provider]').selectOption(width===1440?'gmail':'microsoft')
    await compose.locator('[name=purpose]').selectOption('newsletter')
    await compose.locator('[name=subject]').fill('Reading room visit '+width)
    await compose.locator('[name=body]').fill('Thank you for visiting the reading room. Here are the opening hours.')
