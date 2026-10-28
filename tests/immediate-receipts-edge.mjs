@@ -32,13 +32,13 @@ export function immediateReceiptsEdge() {
   const p=new URLSearchParams(await request.text())
   if(u.pathname==='/v1/customers'&&request.method==='POST')return Response.json({id:'cus_synthetic_'+(++state.customers)})
   if(u.pathname==='/v1/checkout/sessions'&&request.method==='POST') {
-   const index=state.sessions.length+1,id='cs_synthetic_'+index
-   const session={id,url:'https://checkout.stripe.com/c/pay/'+id,status:'complete',payment_status:'paid',currency:'usd',amount_total:Number(p.get('line_items[0][price_data][unit_amount]')),customer:p.get('customer'),metadata:{coffer_intent:p.get('metadata[coffer_intent]')},payment_intent:'pi_synthetic_'+index}
+   const index=state.sessions.length+1,id='cs_synthetic_'+index,pledge=p.get('metadata[coffer_pledge_checkout]')
+   const session={id,url:'https://checkout.stripe.com/c/pay/'+id,status:pledge?'open':'complete',payment_status:pledge?'unpaid':'paid',currency:'usd',amount_total:Number(p.get('line_items[0][price_data][unit_amount]')),customer:p.get('customer'),metadata:{coffer_intent:p.get('metadata[coffer_intent]'),...(pledge?{coffer_pledge_checkout:pledge}:{})},payment_intent:'pi_synthetic_'+index}
    state.sessions.push(session);return Response.json(session)
   }
   const session=state.sessions.find(s=>u.pathname==='/v1/checkout/sessions/'+s.id||u.pathname==='/v1/payment_intents/'+s.payment_intent)
   assert.ok(session,'Only a checkout created by this installation is read')
-  if(u.pathname.includes('/payment_intents/'))return Response.json({id:session.payment_intent,status:'succeeded',currency:'usd',amount_received:session.amount_total,created:Math.floor(Date.now()/1000)})
+  if(u.pathname.includes('/payment_intents/'))return Response.json({id:session.payment_intent,status:'succeeded',currency:'usd',amount_received:session.amount_total,created:Math.floor(Date.now()/1000),metadata:session.metadata})
   return Response.json(session)
  }
  return {state,outbound,bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1201',STRIPE_WEBHOOK_SECRET:'synthetic-coffer-1202',MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1203',MAIL_FROM:receiptFrom}}

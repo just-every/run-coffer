@@ -1,3 +1,4 @@
+import { enqueueAutomaticReceipt } from './automatic-receipt-queue'
 import { sendOnlineReceipt } from './giving/online-receipt'
 import { fail, newId, one, today } from './db'
 import { stripe, available, type GivingEnv } from './giving/stripe'
@@ -78,6 +79,7 @@ export async function completePledgeCheckout(env: GivingEnv,sessionId:string) {
    SELECT ?,i.id,?,MIN(?,i.amount_cents-i.paid_cents),?,'Stripe' FROM cf_pledge_balances i WHERE i.id=? AND i.amount_cents>i.paid_cents
    AND NOT EXISTS(SELECT 1 FROM cf_pledge_allocations WHERE gift_id=?)`).bind(newId(),giftId,saved.amount_cents,now,i.id,giftId),
   env.DB.prepare("UPDATE cf_pledge_checkouts SET gift_id=?,payment_id=?,status='paid' WHERE id=?").bind(giftId,pi.id,saved.id),
+  ...[enqueueAutomaticReceipt(giftId,'online',now)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'stripe','Stripe','agent','pledge.paid','pledge',?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_events WHERE action='pledge.paid' AND json_extract(detail,'$.paymentId')=?)`).bind(now,i.pledge_id,i.donor_id,JSON.stringify({paymentId:pi.id,installmentId:i.id,amountCents:saved.amount_cents}),pi.id),
  ])

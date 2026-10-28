@@ -3499,7 +3499,7 @@
       "executable": false
     },
     "src/coffer/pledge-checkout.ts": {
-      "sha256": "b144a309f3f87553693af264fe18400a4700a16f48cc1266615b845e9428f478",
+      "sha256": "cbd228b42f2722b16cf91b1b1fc7c5471891fa51d05e7b9ad842a9e2d88c108b",
       "executable": false
     },
     "src/coffer/pledge-followups.ts": {
@@ -6635,11 +6635,11 @@
       "executable": false
     },
     "tests/immediate-receipts-edge.mjs": {
-      "sha256": "6f2cc77e23da725580666989110cdf059ba4b4c2900f291837135b99c3ca99be",
+      "sha256": "bbb00801b2f4d9a076db9bb3b9a7cba13ce309980a3e5c878556b6a975f8d48e",
       "executable": false
     },
     "tests/immediate-receipts-journey.mjs": {
-      "sha256": "84406595959a27c630d01f4dee50e9712a51b3d2c8cce201220569b08a1b2a3f",
+      "sha256": "6672730816534b1b9b113f0fc42b89091a147041e5ae359e715dccaa263bd5c9",
       "executable": false
     },
     "tests/import-ack-journey.mjs": {

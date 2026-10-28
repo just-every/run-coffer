@@ -16,12 +16,12 @@ async function give(h,state,name,amount='50') {
  assert.equal(paid.status,200,await paid.text())
  return {session,giftId:'giving-'+session.payment_intent,started}
 }
-async function replay(h,session,status=200) {
+async function replay(h,session,status=200,thanks='/giving/thanks') {
  const at=Math.floor(Date.now()/1000),raw=JSON.stringify({id:'evt_synthetic_'+session.id,type:'checkout.session.completed',data:{object:{id:session.id}}})
  const signature=createHmac('sha256','synthetic-coffer-1202').update(at+'.'+raw).digest('hex')
  const event=await h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'content-type':'application/json','stripe-signature':`t=${at},v1=${signature}`},body:raw})
  assert.equal(event.status,status,await event.text())
- assert.equal((await h.request('/giving/thanks?session_id='+session.id,{as:''})).status,status)
+ assert.equal((await h.request(thanks+'?session_id='+session.id,{as:''})).status,status)
 }
 async function batch(h,people,name) {
  let b=await h.command('giftBatch.create',{name,receivedOn:'2025-08-10',method:'check',fund:'Literacy',expected:String(people.length*50)})
@@ -150,5 +150,35 @@ export async function immediateReceiptsJourney() {
   const snapshot=await archive(h)
   const restored=await installation({...edge,triggerHandlers:true,givingProtection:false})
   try {await restore(restored,snapshot);await configure(restored,edge.state);await tick(restored);assert.equal(receipts(edge.state).length,count+1,'Restore retains attempts and requires fresh standing receipt authority')}finally{await restored.close()}
+  // Pledge installments use their own paid-gift transaction and callback.
+  await save(h)
+  const payer=await donor(h,'Pledge Reader',{email:mailbox('pledge.reader')})
+  const pledge=await h.command('pledge.create',{donorId:payer.id,amount:'50',pledgedOn:'2025-01-01',fund:'Literacy',campaignId:campaign.id,installments:[{dueOn:'2030-03-09',amount:'50'}]})
+  const invoice=await h.request('/app/pledges/'+pledge.id+'/invoice')
+  assert.equal(invoice.status,200)
+  const link=(await invoice.text()).match(/href="([^"]*\/giving\/pledge\/[^" ]+)"/)
+  assert.ok(link,'The pledge invoice offers a signed payment link')
+  const url=new URL(link[1].replaceAll('&amp;','&'),h.origin)
+  const checkout=await h.request(url.pathname+url.search,{method:'POST',as:''})
+  assert.equal(checkout.status,303,await checkout.text())
+  const session=edge.state.sessions.at(-1),before=receipts(edge.state).length,started=Date.now()
+  assert.equal(session.amount_total,5000)
+  session.status='complete';session.payment_status='paid'
+  const paid=await h.request('/giving/pledge/thanks?session_id='+session.id,{as:''})
+  assert.equal(paid.status,200,await paid.text())
+  await tick(h)
+  const history=await h.get('/api/coffer/donors/'+payer.id)
+  assert.equal(history.gifts.length,1);assert.equal(history.pledges[0].installments[0].remaining_cents,0)
+  assert.equal(receipts(edge.state).length,before+1,'A paid $50 pledge installment submits one receipt')
+  const receipt=receipts(edge.state).at(-1)
+  assert.equal(receipt.message.from.email,receiptFrom)
+  assert.equal(receipt.message.personalizations[0].to[0].email,mailbox('pledge.reader'))
+  assert.ok(receipt.at-started<60000,'The pledge receipt submits within one minute')
+  const pledgePdf=await readPrintPdf(Buffer.from(receipt.message.attachments[0].content,'base64'))
+  const pledgeText=pledgePdf.pages.flatMap(p=>p.text.map(t=>t.text)).join('\n')
+  assert.match(pledgeText,/\$50\.00/);assert.match(pledgeText,/No goods or services/);assert.match(pledgeText,/reading room/)
+  await replay(h,session,200,'/giving/pledge/thanks');await tick(h)
+  assert.equal(receipts(edge.state).length,before+1,'Replayed pledge payment and schedule cannot duplicate the receipt')
+  await immediateReceiptsBrowser(h,{state:edge.state,phase:'off',batchId:'receipt-giving-'+session.payment_intent})
  } finally {await h.close()}
 }
