@@ -1,5 +1,5 @@
 import type { Bindings } from '../../auth.server'
-import { all, one, type Context } from '../db'
+import { one, type Context } from '../db'
 import { authenticatedFrom, plainExcerpt, readRaw } from '../communications/replies'
 import { connectionGuards } from './connection'
 import { addresses } from './provider'
@@ -13,7 +13,7 @@ export async function receiveMailboxBcc(message:ForwardableEmailMessage,env:Bind
  const row=await one({db:env.DB},`SELECT m.*,o.display_name FROM cf_mailbox_connections m JOIN oa_operators o ON o.id=m.operator_id AND o.version=m.operator_version AND o.status='active' AND o.role IN('owner','admin') JOIN cf_giving_connections a ON a.name=('mailbox-app:'||m.provider) AND a.sealed=m.app_sealed WHERE m.bcc_token=?`,match[1])
  if(!row){message.setReject('Mailbox logging authority was revoked.');return true}
  const raw=await readRaw(message)
- if(!raw||authenticatedFrom(raw)!==row.account){message.setReject('Mailbox logging needs an authenticated connected sender.');return true}
+ if(!raw||message.from.trim().toLowerCase()!==row.account||authenticatedFrom(raw)!==row.account){message.setReject('Mailbox logging needs an authenticated connected sender.');return true}
  const headers=new Headers()
  const head=new TextDecoder().decode(raw).split(/\r?\n\r?\n/)[0].replace(/\r?\n[ \t]+/g,' ')
  for(const line of head.split(/\r?\n/)){const at=line.indexOf(':');if(at>0)headers.append(line.slice(0,at),line.slice(at+1).trim())}

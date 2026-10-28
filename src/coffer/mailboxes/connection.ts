@@ -1,5 +1,5 @@
 import { requireRole } from '../auth'
-import { all, choice, commit, event, fail, guard, newId, one, sha256, sql, text, type Context, type Row } from '../db'
+import { choice, commit, event, fail, guard, newId, one, sha256, sql, text, type Context, type Row } from '../db'
 import { openGiving, sealGiving } from '../giving/connections'
 import type { GivingEnv } from '../giving/stripe'
 import { authorizeUrl, base64url, profile, providers, scopes, token, type Provider } from './provider'

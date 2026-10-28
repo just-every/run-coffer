@@ -1,4 +1,4 @@
-import { commit, event, fail, guard, id, longText, newId, one, sha256, sql, text, type Context, type Row } from '../db'
+import { commit, event, fail, guard, id, longText, one, sha256, sql, text, type Context, type Row } from '../db'
 import { communicationGuards, communicationReasons } from '../communications/preference-rules'
 import { prepareSolicitationRun, solicitationAskStatements, solicitationRunGuards } from '../solicitation'
 import { mailboxAccess, mailboxRole, providerChoice } from './connection'

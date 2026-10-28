@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a379c67b47762f448002ee22872780c8ec2cb8d8121436729229ea1de18eb7d1",
+      "sha256": "cb70d245895da17f7498228ba392c2da9c145c52b1ee8f0d2f57420a09497254",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f7ab0694a14f0a804bbc8e8f55d9f04758640b00163dcd20f33efb7d2ba60641",
+      "sha256": "6aa2c8a491c9d54bb740d9f893cc186a04d750baad75f34f8a12ce66d5b71c39",
       "executable": false
     },
     "deploy-demo.json": {
@@ -611,7 +611,7 @@
       "executable": false
     },
     "docs/COMMUNICATIONS.md": {
-      "sha256": "758971b5443ad9bae242c3f8308f4f4840abfdedd01fae426361ab8eaec2f87b",
+      "sha256": "cd835935f113aa84aa7f50e4c821a8010467af85cc2aa0d234a3934f6068b935",
       "executable": false
     },
     "docs/consent.md": {
@@ -3199,7 +3199,7 @@
       "executable": false
     },
     "src/coffer/mailboxes/bcc.ts": {
-      "sha256": "f247bdd9e6c24f6425a85be6b38bb0196af29926b2295862db26f8d3b7a38400",
+      "sha256": "1cda8710e310b260dc6bcbab2fc090b189962c27849a71a395ada970201ee9a1",
       "executable": false
     },
     "src/coffer/mailboxes/commands.ts": {
@@ -3207,7 +3207,7 @@
       "executable": false
     },
     "src/coffer/mailboxes/connection.ts": {
-      "sha256": "f7d43b87e2badd6ed710bb388f2eff5c39203a474fe67a8fe63b39227cf0b5c2",
+      "sha256": "2972aad7a0a45079c4c3ad3e34319e04879cbde49a0760e7e90df558c8e4261c",
       "executable": false
     },
     "src/coffer/mailboxes/provider.ts": {
@@ -3215,7 +3215,7 @@
       "executable": false
     },
     "src/coffer/mailboxes/sending.ts": {
-      "sha256": "04f5477c4b071377b5894bc330000706c391f8692fa28e45918a4210d7b1a5b0",
+      "sha256": "35087beb68c6bcef728c670152990fa517e4147ce8bbf3f4ca92972332107ee6",
       "executable": false
     },
     "src/coffer/mailboxes/store.ts": {
@@ -3223,7 +3223,7 @@
       "executable": false
     },
     "src/coffer/mailboxes/ui.ts": {
-      "sha256": "13790eb1739f6b2603c2c4429dae019aa036904c3cfd98f5b24745277823bef8",
+      "sha256": "bb2a47e58a877b18260e0eadf0b8bcb58036bf706c1d0c28ef997a5cb63bed66",
       "executable": false
     },
     "src/coffer/major-gifts.ts": {
@@ -6687,7 +6687,7 @@
       "executable": false
     },
     "tests/mailboxes-journey.mjs": {
-      "sha256": "ddd7d168024529be9a5bc790d5df8e2eec4495565a4e0d2d10945114ae2a5ce9",
+      "sha256": "8bb1702c7adbbe1c4ea01b4fd91f54fc93986edc662110e53cd45d3636033b43",
       "executable": false
     },
     "tests/mcp-browser.mjs": {
