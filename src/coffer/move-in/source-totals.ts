@@ -47,7 +47,7 @@ export function validateImport(out: ParsedImport) {
  }
  const donors = new Set(out.donors.map(d => d.externalId)), gifts = new Map(out.gifts.map(g => [g.externalId, g])), pledges = new Map(out.pledges.map(p => [p.externalId, p]))
  const missing = (row: { location: object }, kind: string, id: string) => out.diagnostics.push({ ...row.location, severity: 'error', code: 'MISSING_REFERENCE', column: `${kind} ID`, message: `${kind} ${id || '(empty)'} is missing from the supplied exports. Include the ${kind.toLowerCase()} row with this ID in its export, or correct this row's linked ID.${out.source === 'lgl' && /constituent/i.test(kind) ? ' The constituents report must include its name; names in other reports are only labels.' : ''}` })
- for (const collection of [out.gifts, out.relationships, out.softCredits, out.pledges, out.installments, out.notes, out.solicitations??[], out.channelWithdrawals??[]]) {
+ for (const collection of [out.gifts, out.relationships, out.softCredits, out.pledges, out.installments, out.notes, out.solicitations??[], out.channelWithdrawals??[], out.consents??[], out.codeTags??[]]) {
   const ids = new Set<string>()
   for (const row of collection) {
    if (ids.has(row.externalId)) out.diagnostics.push({ ...row.location, severity: 'error', code: 'DUPLICATE_ID', column: 'Record ID', message: `Duplicate source record ID ${row.externalId}. Delete the repeated row if it is the same record. For separate joined or split records, export a distinct source record ID for each.` })

@@ -21,7 +21,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   for (const n of notes) ids.add(n.donorExternalId)
   const ds = [...ids].map(id => donors.get(id)).filter(d => d !== undefined)
   parts.push({ source: parsed.source, donors: ds, households: [...new Set(ds.map(d => d.householdKey).filter(Boolean))].map(k => households.get(k)!).filter(Boolean),
-   gifts: [], relationships: [], softCredits: [], pledges: [], installments: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [], solicitCodes: parsed.solicitCodes, solicitations:(parsed.solicitations??[]).filter(r=>ids.has(r.donorExternalId)), channelWithdrawals:(parsed.channelWithdrawals??[]).filter(r=>ids.has(r.donorExternalId)), ...fill, notes })
+   gifts: [], relationships: [], softCredits: [], pledges: [], installments: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [], solicitCodes: parsed.solicitCodes, consents:(parsed.consents??[]).filter(r=>ids.has(r.donorExternalId)), codeTags:(parsed.codeTags??[]).filter(r=>ids.has(r.donorExternalId)), solicitations:(parsed.solicitations??[]).filter(r=>ids.has(r.donorExternalId)), channelWithdrawals:(parsed.channelWithdrawals??[]).filter(r=>ids.has(r.donorExternalId)), ...fill, notes })
  }
  // A part also stays under PART_BYTES of its own records, so long notes never push one past D1's 2 MB value limit.
  const chunks = <T>(rows: T[], size = PART_RECORDS) => {
@@ -34,7 +34,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   if (chunk.length) out.push(chunk)
   return out
  }
- for (const chunk of chunks(parsed.donors)) part({}, chunk.map(d => d.externalId))
+ for (const chunk of chunks(parsed.donors, Math.floor(PART_RECORDS / 5))) part({}, chunk.map(d => d.externalId))
  for (const chunk of chunks(parsed.relationships)) part({ relationships: chunk }, chunk.flatMap(r => [r.donorExternalId, r.relatedDonorExternalId]))
  const installmentsOf = (ids: Set<string>) => parsed.installments.filter(i => ids.has(i.pledgeExternalId))
  for (const chunk of chunks(parsed.pledges, PART_RECORDS / 2)) part({ pledges: chunk, installments: installmentsOf(new Set(chunk.map(p => p.externalId))) }, chunk.map(p => p.donorExternalId))

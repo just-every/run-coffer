@@ -50,7 +50,7 @@ export async function audience(c: { db: D1Database; now?:string }, channel: 'ema
   if (d.constituent_status !== 'active') countReason(excluded, d.constituent_status)
   else if (restricted&&!includeIds.has(d.id)) {countReason(excluded,restricted.reason);if(restricted.reason==='solicitation limit'&&restricted.lastAskOn)countReason(lastAskDates,restricted.lastAskOn)}
   else if(preferences.get(d.id))countReason(excluded,preferences.get(d.id)!)
-  else if (!d.consent) excluded['no consent recorded']++
+  else if (!d.consent || d.consent==='unknown') excluded['no consent recorded']++
   else if (d.consent !== 'granted') excluded['consent withdrawn']++
   else if (channel === 'email' && !d.email) excluded['no email address']++
   else if (channel === 'mail' && !postal(d)) excluded['no postal address']++

@@ -7,14 +7,10 @@ import type { Located, ParsedImport } from './types'
 type Add=(kind:Kind,entity:Located&{externalId:string},row:Row,match?:string,donorId?:string|null,relatedId?:string|null)=>Promise<string>
 type Read=(c:Context,plan:Plan,query:string,params?:unknown[])=>Promise<Row[]>
 export async function planSolicitationImports(c:Context,parsed:ParsedImport,plan:Plan,existing:Map<string,Row>,add:Add,read:Read) {
- const restrictions=parsed.solicitations??[], withdrawals=parsed.channelWithdrawals??[]
- if(!restrictions.length&&!withdrawals.length)return
- const ids=[...new Set([...restrictions,...withdrawals].map(r=>plan.donorIds.get(r.donorExternalId)).filter(Boolean))]
- const [current,consents,sequence]=await Promise.all([
-  read(c,plan,`SELECT ${snapshot('solicitation')} AS snapshot FROM cf_solicitation n WHERE donor_id IN (SELECT value FROM json_each(?)) ORDER BY donor_id`,[JSON.stringify(ids)]),
-  read(c,plan,`SELECT ${snapshot('consent')} AS snapshot FROM cf_consents n WHERE donor_id IN (SELECT value FROM json_each(?)) ORDER BY id`,[JSON.stringify(ids)]),
-  read(c,plan,"SELECT json_object('id',COALESCE(MAX(id),0)) AS snapshot FROM cf_consents"),
- ])
+ const restrictions=parsed.solicitations??[]
+ if(!restrictions.length)return
+ const ids=[...new Set(restrictions.map(r=>plan.donorIds.get(r.donorExternalId)).filter(Boolean))]
+ const current=await read(c,plan,`SELECT ${snapshot('solicitation')} AS snapshot FROM cf_solicitation n WHERE donor_id IN (SELECT value FROM json_each(?)) ORDER BY donor_id`,[JSON.stringify(ids)])
  const day=today((await settings(c)).timezone,new Date(c.now))
  const previous=(kind:string,nativeId:string|number)=>[...existing.values()].find(r=>r.kind===kind&&String(r.native_id)===String(nativeId))
  const conflict=(row:Located,message:string)=>plan.diagnostics.push({...row.location,severity:'error',code:'SOLICITATION_CHANGED',column:'Communication Restrictions / Solicit Codes',message})
@@ -23,14 +19,7 @@ export async function planSolicitationImports(c:Context,parsed:ParsedImport,plan
   if(held&&(!prior||JSON.stringify(held)!==prior.snapshot))conflict(r,`Constituent ${r.donorExternalId} has a staff-edited or separately recorded restriction. The import cannot replace it; resolve the source and current restriction explicitly.`)
   await add('solicitation',r,{donor_id:donorId,version:1,type:r.type,period:'rolling-12-months',starts_on:r.sourceOn||day,ends_on:null,channels:JSON.stringify(r.channels),max_asks:r.maxAsks,source:'import',source_ref:`${parsed.source}:${r.donorExternalId}`,source_on:r.sourceOn||day,recorded_at:c.now,recorded_by_id:c.actor.id,recorded_by_name:c.actor.name},undefined,donorId)
  }
- let next=Number(sequence[0].id)
- for(const r of withdrawals) {
-  const donorId=plan.donorIds.get(r.donorExternalId)??''
-  const prior=[...existing.values()].find(m=>m.kind==='consent'&&m.snapshot&&JSON.parse(m.snapshot).donor_id===donorId&&JSON.parse(m.snapshot).channel===r.channel)
-  const held=consents.filter(s=>s.donor_id===donorId&&s.channel===r.channel).at(-1)
-  if(held&&(!prior||JSON.stringify(held)!==prior.snapshot))conflict(r,`Constituent ${r.donorExternalId} has a newer or separately recorded ${r.channel} preference. The import cannot overwrite it.`)
-  await add('consent',r,{id:++next,donor_id:donorId,channel:r.channel,status:'withdrawn',method:`${parsed.source} export`,evidence:`Imported communication restriction: ${r.codes.join('; ')}`,captured_on:r.sourceOn||day,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
- }
+
 }
 
 export function solicitationImportHistory(c:Context,effects:Effect[],source:string,jobId:string):Stmt[] {

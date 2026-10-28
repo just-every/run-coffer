@@ -2479,7 +2479,7 @@
       "executable": false
     },
     "src/coffer/appeals.ts": {
-      "sha256": "e156ffecbfbcc9085a046b1767f3df163d3ae375c7178fcc5992edc28e9c4339",
+      "sha256": "ebc2bbc2ab703c01a79bba5ae2530286a3c2ffdedbebc3d7ac14646b27811f9e",
       "executable": false
     },
     "src/coffer/archive-policy.d.mts": {
@@ -3255,7 +3255,7 @@
       "executable": false
     },
     "src/coffer/move-in/http.ts": {
-      "sha256": "9da314727d5bf2113d3bd1fd4bb67544ac9493b9c227a8a1548e9cb796a47b72",
+      "sha256": "61a56b8af315fc397cc44ba7dcacd0d81b777d4eac0cbc37755d0c5f2a459e4c",
       "executable": false
     },
     "src/coffer/move-in/parse-input.ts": {
@@ -3263,11 +3263,11 @@
       "executable": false
     },
     "src/coffer/move-in/parse.ts": {
-      "sha256": "ef940b8d1228f11a2ddac33caaefd5142479c71a84671254e46e34475d3763da",
+      "sha256": "8c1523483ffe35a48cf1e6a5e3c37582884ffe2c2acbe547ac7af4d222d27ee5",
       "executable": false
     },
     "src/coffer/move-in/plan.ts": {
-      "sha256": "88605cd80a1f1b61d35d3a64a4db75e393ae225254072833a17d75cbe0a6ebee",
+      "sha256": "b5f01c7524621ac828826559f162e16a3458362b144e508935e585c0d8bd12db",
       "executable": false
     },
     "src/coffer/move-in/pledge-checks.ts": {
@@ -3279,27 +3279,27 @@
       "executable": false
     },
     "src/coffer/move-in/review.ts": {
-      "sha256": "a654b25df8cc43762e5e28273d3c25dea28027d325ee2bd859d7e11d5432c20c",
+      "sha256": "815edb333ba9cc4bcd6575580780a974df29a5925948d2d3f9c0b122ec825100",
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "ddba07981688c71ba180bff1700c36736d209e046bc405667bd4fde168be1a4d",
+      "sha256": "9256e59ecdebea7bdb22cf51c1bca5602cb7aa90b8d58f13123740a9c926c51e",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
-      "sha256": "e4aa893a0ddd6cac3181381dbfdef796bbc07012a698c41913d4215481f6abab",
+      "sha256": "242d16c13819f6ecbf50944efd3fc72459626c57343be34e5ccba8dc8d41ff87",
       "executable": false
     },
     "src/coffer/move-in/solicitation-mapping.ts": {
-      "sha256": "6a02034e536aa0d18a9953a0992ebd1fd35f378de734d8353c3f7442b3ad596a",
+      "sha256": "7f3e2e6a5e7bf056fe273223e707ad085718e9f4440d8468e3c3e16c802ea728",
       "executable": false
     },
     "src/coffer/move-in/source-columns.ts": {
-      "sha256": "53b5b5d8626e43a4a9a642d83bea2e7da855d17df404515155bcddae38479198",
+      "sha256": "679b2a113e1562a2ebcaf1cdf7e4511ee4442a1483ce2b5f3734b0c893819849",
       "executable": false
     },
     "src/coffer/move-in/source-mapping.ts": {
-      "sha256": "a1fc13b1b9d34d9cda1904e1dc7385996ff1b87fbd0f126f3c8d5162ab49e3e3",
+      "sha256": "4eaf1a040eaa32613a693579ab293e46e5af3a74436679e3e323a2a59fe9985e",
       "executable": false
     },
     "src/coffer/move-in/source-rows.ts": {
@@ -3307,11 +3307,11 @@
       "executable": false
     },
     "src/coffer/move-in/source-totals.ts": {
-      "sha256": "48365cc53f3dcdff4c623b3391d9705a513a3390da8825577eaff0f77db9bf79",
+      "sha256": "38f84dc53932464c661f2caacb32899b3393086bb3c2e4e8e9cd4b4e27013f28",
       "executable": false
     },
     "src/coffer/move-in/stage.ts": {
-      "sha256": "3ca4bdfed1b006def4b22e3d3c9899d7c2f8cc2a99fad2928b805ea8bcb98ded",
+      "sha256": "d31e7f40cd10c2648806b66ef89106c71c33d6ee9679feafd5e8d6f80eed6cf9",
       "executable": false
     },
     "src/coffer/move-in/tables.ts": {
@@ -3323,7 +3323,7 @@
       "executable": false
     },
     "src/coffer/move-in/types.ts": {
-      "sha256": "174a95da343832c7b7340271002a2c97118bc42087845988bd638df5c04cdc45",
+      "sha256": "4cbe7ae946bea927b9b6c7ac02512fba3703945db14df27c17227b5c046b501e",
       "executable": false
     },
     "src/coffer/opportunity-close.ts": {
@@ -3743,7 +3743,7 @@
       "executable": false
     },
     "src/coffer/solicitation-tasks.ts": {
-      "sha256": "829677a838d1decd708ebc56cb8aafc039d6f64e8ade94e0f5153f1916858946",
+      "sha256": "035fa30a105a5e8b8bcae7755c931517dd812a21c11e841e83b42747a244e34a",
       "executable": false
     },
     "src/coffer/solicitation.ts": {
@@ -3851,7 +3851,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "e90060f524f766ce822a3b142ad733c76b2c9aeb5298f0cc727710844d75c6d8",
+      "sha256": "5c03a9c7544769a6e99d89e9749555c514f38b39479be97f9eaf119792f414e3",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -3891,7 +3891,7 @@
       "executable": false
     },
     "src/coffer/ui/donors.ts": {
-      "sha256": "e1387f4e26d2538d91cb64d01f881be42d57c1de359d6350b27af6c3b38adffc",
+      "sha256": "dfda17e0ccff946319c5566bb29ae7a283468b0c6193450394dcf4ae57b68378",
       "executable": false
     },
     "src/coffer/ui/duplicates.ts": {

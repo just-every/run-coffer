@@ -71,15 +71,16 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
 
 function solicitCodeLines(value:string):ParseInput['solicitCodes'] {
  if(!value.trim())return undefined
- const rules:NonNullable<ParseInput['solicitCodes']>={}
+ const rules:NonNullable<ParseInput['solicitCodes']>=Object.create(null)
  for(const line of value.split(/\r?\n/).filter(s=>s.trim())) {
-  const split=line.indexOf('=');if(split<1)fail('SOLICITATION_MAPPING','Write each code as code = stop, ignore, no email/mail/phone/sms, or limit 1.',400)
-  const code=line.slice(0,split).trim(),answer=line.slice(split+1).trim().toLowerCase()
+  const split=line.indexOf('=');if(split<1)fail('SOLICITATION_MAPPING','Write each code as code = stop, skip, withdraw email, no mail, tag Board, or limit 1.',400)
+  const code=line.slice(0,split).trim(),raw=line.slice(split+1).trim(),answer=raw.toLowerCase()
   if(Object.hasOwn(rules,code))fail('SOLICITATION_MAPPING','Each code must appear once.',400)
-  if(answer==='stop'||answer==='ignore')rules[code]={type:answer}
+  if(answer==='stop'||answer==='ignore'||answer==='skip')rules[code]={type:answer==='stop'?'stop':'ignore'}
   else if(/^limit [1-9]\d*$/.test(answer))rules[code]={type:'limit',maxAsks:Number(answer.slice(6))}
-  else if(/^no (email|mail|phone|sms)$/.test(answer))rules[code]={type:'channels',channels:[answer.slice(3) as 'email'|'mail'|'phone'|'sms']}
-  else fail('SOLICITATION_MAPPING','Use stop, ignore, no email/mail/phone/sms, or limit followed by the annual number.',400)
+  else if(answer.startsWith('tag ')&&raw.slice(4).trim())rules[code]={type:'tag',tag:raw.slice(4).trim()}
+  else if(/^(no|withdraw) (email|mail|phone|sms)(, *(email|mail|phone|sms))*$/.test(answer))rules[code]={type:answer.startsWith('withdraw ')?'withdraw':'channels',channels:answer.slice(answer.indexOf(' ')+1).split(/, */) as ('email'|'mail'|'phone'|'sms')[]}
+  else fail('SOLICITATION_MAPPING','Use stop, skip, withdraw then channels, no then channels, tag then a name, or limit then the annual number.',400)
  }
  return rules
 }

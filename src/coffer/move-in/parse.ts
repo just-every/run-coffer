@@ -12,7 +12,7 @@ export type { ParsedImport, ParseInput } from './types'
 
 /** A bounded, pure preview: malformed rows remain visible as structured diagnostics. */
 export async function parseExports(input: ParseInput): Promise<ParsedImport> {
- const out: ParsedImport = { source: input.source, solicitations: [], channelWithdrawals: [], solicitCodes: input.solicitCodes, donors: [], gifts: [], households: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [] }
+ const out: ParsedImport = { source: input.source, solicitations: [], channelWithdrawals: [], solicitCodes: Object.assign(Object.create(null),input.solicitCodes), consents: [], codeTags: [], donors: [], gifts: [], households: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [] }
  if (!['lgl', 'bloomerang', 're-nxt'].includes(input.source)) {
   out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose Little Green Light, Bloomerang, or Raiser’s Edge NXT.' }); return out
  }

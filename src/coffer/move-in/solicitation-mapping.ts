@@ -3,10 +3,10 @@ import type { SourceRow } from './source-rows'
 import type { ParsedImport, ParseInput, ParsedSolicitation, ParsedWithdrawal, SolicitCodeRule } from './types'
 
 const channels = ['email','mail','phone','sms']
-const known:Record<string,SolicitCodeRule|{withdraw:'email'|'mail'|'phone'|'sms'}> = {
+const known:Record<string,SolicitCodeRule> = {
  donotsolicit:{type:'stop'}, nosolicitation:{type:'stop'}, nosolicitations:{type:'stop'}, nosolicit:{type:'stop'},
- donotmail:{withdraw:'mail'}, nomail:{withdraw:'mail'}, donotcall:{withdraw:'phone'}, nocalls:{withdraw:'phone'},
- donotemail:{withdraw:'email'}, noemail:{withdraw:'email'}, donottext:{withdraw:'sms'}, nosms:{withdraw:'sms'},
+ donotmail:{type:'withdraw',channels:['mail']}, nomail:{type:'withdraw',channels:['mail']}, donotcall:{type:'withdraw',channels:['phone']}, nocalls:{type:'withdraw',channels:['phone']},
+ donotemail:{type:'withdraw',channels:['email']}, noemail:{type:'withdraw',channels:['email']}, donottext:{type:'withdraw',channels:['sms']}, nosms:{type:'withdraw',channels:['sms']},
 }
 const same = (a:unknown,b:unknown) => JSON.stringify(a)===JSON.stringify(b)
 
@@ -30,7 +30,21 @@ export function sourceRestrictions(r:SourceRow,out:ParsedImport,input:ParseInput
    r.error('SOLICITATION_CODE',`Map communication code “${code}” explicitly before importing; its restriction cannot be guessed.`,'communicationRestrictions');continue
   }
   if(typeof mapping!=='object'||mapping===null){r.error('SOLICITATION_MAPPING',`Invalid mapping for “${code}”.`);continue}
-  if('withdraw' in mapping){withdrawals.add(mapping.withdraw);continue}
+  out.solicitCodes??={};out.solicitCodes[code]=mapping
+  if(mapping.type==='withdraw') {
+   if(!Array.isArray(mapping.channels)||!mapping.channels.length||mapping.channels.some(c=>!channels.includes(c)))r.error('SOLICITATION_MAPPING',`Choose valid withdrawal channels for “${code}”.`)
+   else mapping.channels.forEach(c=>withdrawals.add(c))
+   continue
+  }
+  if(mapping.type==='tag') {
+   if(typeof mapping.tag!=='string'||!mapping.tag.trim()||mapping.tag.length>100)r.error('SOLICITATION_MAPPING',`Choose a tag of at most 100 characters for “${code}”.`)
+   else {
+    out.codeTags??=[]
+    const tag=mapping.tag.trim(),externalId=JSON.stringify(['tag',donorExternalId,tag])
+    if(!out.codeTags.some(t=>t.externalId===externalId))out.codeTags.push({location:r.location,externalId,donorExternalId,tag,codes:[code]})
+   }
+   continue
+  }
   if(!['stop','channels','limit','ignore'].includes(mapping.type)){r.error('SOLICITATION_MAPPING',`Invalid mapping for “${code}”.`);continue}
   if(mapping.type==='stop')stop=true
   if(mapping.type==='channels') {
