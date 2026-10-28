@@ -1,151 +1,11 @@
 {
   "push": [
     {
-      "name": "record-documents",
+      "name": "records",
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs"
-      ]
-    },
-    {
-      "name": "source",
-      "browser": false,
-      "hosted": false,
-      "commands": [
-        "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-004 DATA-004"
-      ]
-    },
-    {
-      "name": "typecheck",
-      "browser": false,
-      "hosted": false,
-      "commands": [
-        "pnpm run typecheck"
-      ]
-    },
-    {
-      "name": "runtime",
-      "browser": true,
-      "hosted": true,
-      "commands": [
-        "pnpm run build",
-        "pnpm run test:runtime"
-      ]
-    },
-    {
-      "name": "donors",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DONOR-004|DONOR-005|DONOR-007|DONOR-013|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001|API-002):|^(backup restores donors|erasing a donor)' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-records",
-      "browser": false,
-      "hosted": false,
-      "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-007|DONOR-013):' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-solicitation",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_SMS_BROWSER=.cache/sms node --test --test-concurrency=1 --test-name-pattern='^DONOR-015:' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-addresses",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-009:' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-operations",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_EXPORTS_BROWSER=.cache/report-exports node --test --test-concurrency=1 --test-name-pattern='^(DATA-002|GIFT-002|GIFT-010|STEW-005):' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-custody",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test --test-concurrency=1 tests/demo.test.mjs",
-        "node --test tests/audit.test.mjs",
-        "node --test tests/hosted-restore.test.mjs",
-        "node --test tests/portability-http.test.mjs",
-        "node --test --test-concurrency=1 --test-name-pattern='^(backup restores donors|erasing a donor)' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "giving",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test --test-skip-pattern='^(CAMP-001|GIFT-011|GIVE-003|GIVE-001|CAMP-005)' tests/giving.test.mjs"
-      ]
-    },
-    {
-      "name": "receipts",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-skip-pattern='^(RCPT-003|RCPT-012):' tests/receipts.test.mjs"
-      ]
-    },
-    {
-      "name": "payments",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments pnpm run test:payments",
-        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-name-pattern='^RCPT-012:' tests/receipts.test.mjs",
-        "node --test tests/hosted-mail.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-depth",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 --test-skip-pattern='^GIFT-005' tests/soft-credits.test.mjs tests/pledges.test.mjs",
-        "node --test tests/giving-summary.test.mjs",
-        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test tests/duplicates.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-identity",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test tests/status.test.mjs",
-        "COFFER_NAMES_BROWSER=.cache/names node --test tests/names.test.mjs",
-        "node --test tests/split-gifts.test.mjs"
-      ]
-    },
-    {
-      "name": "pipeline",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test --test-skip-pattern='^MAJOR-' tests/pipeline.test.mjs"
-      ]
-    },
-    {
-      "name": "pipeline-prospects",
-      "browser": false,
-      "hosted": false,
-      "commands": [
-        "node --test --test-name-pattern='^MAJOR-' tests/pipeline.test.mjs"
+        "pids=()\nbash -euo pipefail -c 'COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'node --test --test-concurrency=1 --test-name-pattern='\"'\"'^(DONOR-005|DONOR-007|DONOR-013):'\"'\"' tests/coffer.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'node --test --test-concurrency=1 tests/demo.test.mjs && node --test tests/audit.test.mjs && node --test tests/hosted-restore.test.mjs && node --test tests/portability-http.test.mjs && node --test --test-concurrency=1 --test-name-pattern='\"'\"'^(backup restores donors|erasing a donor)'\"'\"' tests/coffer.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-name-pattern='\"'\"'^(RCPT-002|a calendar-year|RCPT-005|RCPT-008)'\"'\"' tests/receipts.test.mjs' & pids+=(\"$!\")\nresult=0\nfor pid in \"${pids[@]}\"; do wait \"$pid\" || result=1; done\nexit \"$result\""
       ]
     },
     {
@@ -153,15 +13,31 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013):' tests/move-in.test.mjs"
+        "pids=()\nbash -euo pipefail -c 'node --test --test-concurrency=1 --test-name-pattern='\"'\"'^(DONOR-005|DONOR-013|MOVE-005):'\"'\"' tests/move-in.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'node --test --test-skip-pattern='\"'\"'^STEW-003:'\"'\"' tests/communications.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-name-pattern='\"'\"'^(RCPT-009|COMM-007)'\"'\"' tests/receipts.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_RECOVERY_BROWSER=.cache/monthly-recovery node --test --test-name-pattern=GIVE-006 tests/agent-recovery.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'node --test --test-concurrency=1 --test-name-pattern='\"'\"'^DONOR-009:'\"'\"' tests/coffer.test.mjs' & pids+=(\"$!\")\nresult=0\nfor pid in \"${pids[@]}\"; do wait \"$pid\" || result=1; done\nexit \"$result\""
       ]
     },
     {
-      "name": "move-in-fields",
-      "browser": false,
+      "name": "giving",
+      "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-013):' tests/move-in.test.mjs"
+        "pids=()\nbash -euo pipefail -c 'node --test --test-name-pattern='\"'\"'^MOBILE-001:'\"'\"' tests/coffer.test.mjs && COFFER_PRINT_BROWSER=.cache/print-letters node --test --test-name-pattern='\"'\"'^RCPT-003:'\"'\"' tests/receipts.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 --test-skip-pattern='\"'\"'(?:^(DONOR-015|DONOR-009|DONOR-004|DONOR-005|DONOR-007|DONOR-013|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001|API-002):|^(backup restores donors|erasing a donor))|(?:^(DONOR-014|API-004|DATA-003|REPORT-008|GIFT-003|DEV-012|API-001))'\"'\"' tests/coffer.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='\"'\"'CAMP-001|GIVE-003|GIVE-001'\"'\"' tests/giving.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test tests/duplicates.test.mjs' & pids+=(\"$!\")\nresult=0\nfor pid in \"${pids[@]}\"; do wait \"$pid\" || result=1; done\nexit \"$result\""
+      ]
+    },
+    {
+      "name": "pipeline",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pids=()\nbash -euo pipefail -c 'COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test --test-skip-pattern='\"'\"'(?:^(CAMP-001|GIFT-011|GIVE-003|GIVE-001|CAMP-005))|(?:^GIVE-001:)'\"'\"' tests/giving.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test --test-name-pattern='\"'\"'^GIVE-001:'\"'\"' --test-skip-pattern='\"'\"'^(CAMP-001|GIFT-011|GIVE-003|GIVE-001|CAMP-005)'\"'\"' tests/giving.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 --test-skip-pattern='\"'\"'^(GIVE-006|DEV-006|STEW-006):'\"'\"' tests/agent-appeals.test.mjs tests/agent-receipts.test.mjs tests/agent-reconciliation.test.mjs tests/stewardship.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_SMS_BROWSER=.cache/sms node --test --test-concurrency=1 --test-name-pattern='\"'\"'^DONOR-015:'\"'\"' tests/coffer.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'pnpm run check --profile first-party && node scripts/contract-docs.mjs check REPORT-004 DATA-004' & pids+=(\"$!\")\nresult=0\nfor pid in \"${pids[@]}\"; do wait \"$pid\" || result=1; done\nexit \"$result\""
+      ]
+    },
+    {
+      "name": "receipts",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pids=()\nbash -euo pipefail -c 'node --test --test-concurrency=1 --test-skip-pattern='\"'\"'^(DONOR-005|DONOR-013|MOVE-005):'\"'\"' tests/move-in.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'node --test --test-name-pattern='\"'\"'^STEW-003:'\"'\"' tests/communications.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments pnpm run test:payments && COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-name-pattern='\"'\"'^RCPT-012:'\"'\"' tests/receipts.test.mjs && node --test tests/hosted-mail.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-name-pattern='\"'\"'^(RCPT-007|RCPT-011|RCPT-004)'\"'\"' tests/receipts.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'pnpm run typecheck' & pids+=(\"$!\")\nresult=0\nfor pid in \"${pids[@]}\"; do wait \"$pid\" || result=1; done\nexit \"$result\""
       ]
     },
     {
@@ -169,65 +45,23 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:communications"
+        "pids=()\nbash -euo pipefail -c 'COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test --test-skip-pattern='\"'\"'(?:^MAJOR-)|(?:^(GIFT-001|DEV-010|DEV-005))'\"'\"' tests/pipeline.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 --test-skip-pattern='\"'\"'^GIFT-005'\"'\"' tests/soft-credits.test.mjs tests/pledges.test.mjs && node --test tests/giving-summary.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'node --test tests/status.test.mjs && COFFER_NAMES_BROWSER=.cache/names node --test tests/names.test.mjs && node --test tests/split-gifts.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_TIMELINE_BROWSER=.cache/timeline COFFER_WEBHOOK_BROWSER=.cache/webhooks node --test --test-name-pattern='\"'\"'DONOR-004|API-002'\"'\"' tests/coffer.test.mjs' & pids+=(\"$!\")\nresult=0\nfor pid in \"${pids[@]}\"; do wait \"$pid\" || result=1; done\nexit \"$result\""
       ]
     },
     {
-      "name": "agent",
+      "name": "donors",
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/agent-*.test.mjs tests/stewardship.test.mjs"
+        "pids=()\nbash -euo pipefail -c 'COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test --test-name-pattern='\"'\"'^(GIFT-001|DEV-010|DEV-005)'\"'\"' --test-skip-pattern='\"'\"'^MAJOR-'\"'\"' tests/pipeline.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_EXPORTS_BROWSER=.cache/report-exports node --test --test-concurrency=1 --test-name-pattern='\"'\"'^(DATA-002|GIFT-002|GIFT-010|STEW-005):'\"'\"' tests/coffer.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'node --test --test-name-pattern='\"'\"'^MAJOR-00[1-4]:'\"'\"' tests/pipeline.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'node --test --test-name-pattern='\"'\"'^MAJOR-00[5-7]:'\"'\"' tests/pipeline.test.mjs' & pids+=(\"$!\")\nresult=0\nfor pid in \"${pids[@]}\"; do wait \"$pid\" || result=1; done\nexit \"$result\""
       ]
     },
     {
-      "name": "timeline",
+      "name": "runtime",
       "browser": true,
-      "hosted": false,
+      "hosted": true,
       "commands": [
-        "COFFER_TIMELINE_BROWSER=.cache/timeline COFFER_WEBHOOK_BROWSER=.cache/webhooks node --test --test-name-pattern='DONOR-004|API-002' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "recognition",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_RECOGNITION_BROWSER=.cache/recognition node --test --test-name-pattern='GIFT-011|CAMP-005' tests/giving.test.mjs",
-        "COFFER_MEETING_BROWSER=.cache/meeting-briefs COFFER_CALENDARS_BROWSER=.cache/calendars node --test --test-name-pattern='^(DEV-006|STEW-006):' tests/stewardship.test.mjs"
-      ]
-    },
-    {
-      "name": "campaign-progress",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='CAMP-001|GIVE-003|GIVE-001' tests/giving.test.mjs"
-      ]
-    },
-    {
-      "name": "pledge-balances",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_PLEDGE_BROWSER=.cache/pledge-balances node --test --test-name-pattern='GIFT-005' tests/pledges.test.mjs"
-      ]
-    },
-    {
-      "name": "monthly-recovery",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_RECOVERY_BROWSER=.cache/monthly-recovery node --test --test-name-pattern=GIVE-006 tests/agent-recovery.test.mjs"
-      ]
-    },
-    {
-      "name": "phone-staff",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test --test-name-pattern='^MOBILE-001:' tests/coffer.test.mjs",
-        "COFFER_PRINT_BROWSER=.cache/print-letters node --test --test-name-pattern='^RCPT-003:' tests/receipts.test.mjs"
+        "pids=()\nbash -euo pipefail -c 'COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-name-pattern='\"'\"'^(DONOR-014|API-004|DATA-003|REPORT-008|GIFT-003|DEV-012|API-001)'\"'\"' --test-concurrency=1 --test-skip-pattern='\"'\"'^(DONOR-015|DONOR-009|DONOR-004|DONOR-005|DONOR-007|DONOR-013|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001|API-002):|^(backup restores donors|erasing a donor)'\"'\"' tests/coffer.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 --test-skip-pattern='\"'\"'^(GIVE-006|DEV-006|STEW-006):'\"'\"' tests/agent-recovery.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_RECOGNITION_BROWSER=.cache/recognition node --test --test-name-pattern='\"'\"'GIFT-011|CAMP-005'\"'\"' tests/giving.test.mjs && COFFER_MEETING_BROWSER=.cache/meeting-briefs COFFER_CALENDARS_BROWSER=.cache/calendars node --test --test-name-pattern='\"'\"'^(DEV-006|STEW-006):'\"'\"' tests/stewardship.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'COFFER_PLEDGE_BROWSER=.cache/pledge-balances node --test --test-name-pattern='\"'\"'GIFT-005'\"'\"' tests/pledges.test.mjs' & pids+=(\"$!\")\nbash -euo pipefail -c 'pnpm run build && pnpm run test:runtime' & pids+=(\"$!\")\nresult=0\nfor pid in \"${pids[@]}\"; do wait \"$pid\" || result=1; done\nexit \"$result\""
       ]
     }
   ],

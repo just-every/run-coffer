@@ -21,7 +21,7 @@ import type { Diagnostic, ParseInput, ParsedImport } from './types'
 const APPLY_BUDGET_MS = 20_000
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
-const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,(p as any)[k].length])),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...(p.source==='spreadsheet'?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
+const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...(['givebutter','zeffy'].includes(p.source)?{recurringReferences:(p.recurringReferences??[]).length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...(['spreadsheet','givebutter','zeffy'].includes(p.source)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
 
 export async function spreadsheetMappings(c:Context) {
  authorize(c)
@@ -52,7 +52,7 @@ export async function preview(c: Context,input: ParseInput) {
   const seen=new Set(parsed.diagnostics.map(d=>`${d.code}|${d.file}|${d.sheet}|${d.row}|${d.column}|${d.message}`))
   for(const part of parts) {
    const plan=await planImport(c,part,{preview:true})
-   if(input.source==='spreadsheet')for(const [externalId,id] of plan.donorIds){nativeDonors.add(id);const donor=part.donors.find(d=>d.externalId===externalId);if(donor)donor.expectedNativeId=id}
+   for(const [externalId,id] of plan.donorIds){nativeDonors.add(id);const donor=part.donors.find(d=>d.externalId===externalId);if(donor)donor.expectedNativeId=id}
    for(const d of plan.diagnostics) {
     const key=`${d.code}|${d.file}|${d.sheet}|${d.row}|${d.column}|${d.message}`
     if(!seen.has(key)){seen.add(key);parsed.diagnostics.push(d as Diagnostic)}
@@ -66,7 +66,7 @@ export async function preview(c: Context,input: ParseInput) {
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),previewNativeDonors:[...nativeDonors],spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
  return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }
@@ -195,11 +195,12 @@ export async function undo(c: Context,id:string) {
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>${custodySnapshot(kind)}))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
  writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id))
- if(result.job.source==='spreadsheet')writes.push(...spreadsheetDefinitionUndoGuards(id))
+ if(['spreadsheet','givebutter','zeffy'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
  if(result.job.source==='spreadsheet')writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_address_checks a ON a.donor_id=r.native_id WHERE r.job_id=? AND r.kind='donor' AND r.owned=1 AND (a.version<>1 OR a.source<>'smarty' OR a.checked_at<>json_extract(r.snapshot,'$.created_at')))`,'MOVE_IN_USED','An imported address was checked again. Nothing was undone.',id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1) AND p.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='contact' AND owned=1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id,id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
+  ['cf_recurring_source_references','donor_id','donor','recurringReference','id'],['cf_platform_gifts','gift_id','gift','platformGift','gift_id'],
   ['cf_auction_rows','donor_id','donor',null,'id'],['cf_auction_rows','gift_id','gift',null,'id'],
   ['cf_development_report_donors','donor_id','donor',null,'report_id'],
   ['cf_hygiene_evidence','donor_id','donor',null,'id'],['cf_hygiene_proposals','donor_id','donor',null,'id'],['cf_hygiene_proposals','related_donor_id','donor',null,'id'],
@@ -232,7 +233,7 @@ export async function undo(c: Context,id:string) {
  writes.push(sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.solicitationUndoInProgress',json('true')) WHERE id=?",id))
  writes.push(sql(`DELETE FROM cf_solicitation_history WHERE donor_id IN (${owned('solicitation')})`,id))
  writes.push(...customImportUndoWrites(id))
- if(result.job.source==='spreadsheet')writes.push(...spreadsheetDefinitionUndoWrites(id))
+ if(['spreadsheet','givebutter','zeffy'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))
@@ -253,7 +254,7 @@ function contents(part: ParsedImport) {
  const rows=part[main].map(x=>x.location), files=[...new Set(rows.map(l=>l.file))]
  return `${part[main].length} ${kindName[main]} from ${files.map(f=>{const r=rows.filter(l=>l.file===f).map(l=>l.row);return `${f} rows ${Math.min(...r)}–${Math.max(...r)}`}).join(', ')}`
 }
-const label=(kind: Kind)=>({contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',softCreditAcknowledgment:'soft-credit acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
+const label=(kind: Kind)=>({contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',softCreditAcknowledgment:'soft-credit acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation',platformGift:'source transaction',recurringReference:'recurring source reference'} as Record<Kind,string>)[kind]
 /** Unique indexes that commit() reports by name. */
 const UNIQUE_CODES: Record<string,[string,string[]]> = {DUPLICATE_EMAIL:['cf_donors',['email']],DUPLICATE_REFERENCE:['cf_gifts',['source','reference']],DUPLICATE_HOUSEHOLD:['cf_households',['name']]}
 /** A database refusal names its part, the rows behind it and the reason, never only "the operation failed". */

@@ -387,3 +387,8 @@ test('MOVE-006: mapped spreadsheets reconcile gift history, native matches, sour
  await spreadsheetRecordsJourney(customReportFiles)
  await spreadsheetAddressJourney(customReportFiles)
 })
+
+test('MOVE-005: Givebutter and Zeffy history reconciles reviewed cash, source acknowledgments, households and recurring custody',async()=>{
+ const {platformHistoryJourney}=await import('./platform-history-journey.mjs')
+ await platformHistoryJourney()
+})

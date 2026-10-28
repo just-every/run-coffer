@@ -35,6 +35,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   return out
  }
  for (const chunk of chunks(parsed.donors)) part({}, chunk.map(d => d.externalId))
+ for (const chunk of chunks(parsed.recurringReferences??[])) part({recurringReferences:chunk},chunk.map(r=>r.donorExternalId))
  for (const chunk of chunks(parsed.relationships)) part({ relationships: chunk }, chunk.flatMap(r => [r.donorExternalId, r.relatedDonorExternalId]))
  const installmentsOf = (ids: Set<string>) => parsed.installments.filter(i => ids.has(i.pledgeExternalId))
  for (const chunk of chunks(parsed.pledges, PART_RECORDS / 2)) part({ pledges: chunk, installments: installmentsOf(new Set(chunk.map(p => p.externalId))) }, chunk.map(p => p.donorExternalId))
