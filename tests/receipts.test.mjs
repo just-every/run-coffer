@@ -69,3 +69,6 @@ test('RCPT-003: PDF letters, Avery labels, envelopes, Word merge, reviewed donor
  const {singleLettersJourney}=await import('./single-letters-journey.mjs');await singleLettersJourney()
  const {postalDeliveryJourney}=await import('./postal-delivery-journey.mjs');await postalDeliveryJourney()
 })
+
+
+test('RCPT-001: verified transactional PDF receipts submit once within a minute and closed batches honor their setting',async()=>{const {immediateReceiptsJourney}=await import('./immediate-receipts-journey.mjs');await immediateReceiptsJourney()})
