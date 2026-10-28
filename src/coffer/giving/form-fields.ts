@@ -65,7 +65,7 @@ export async function prepareGivingForm(db: D1Database, campaign: Row, p: Row, p
 export function givingFormErasureStatements(donorId: string, emails: string[]): Stmt[] {
  return [
   sql(`INSERT OR IGNORE INTO cf_giving_form_redactions SELECT id FROM cf_giving_intents
-   WHERE donor_id=? OR lower(email) IN (SELECT lower(value) FROM json_each(?))`,donorId,JSON.stringify(emails)),
+   WHERE donor_id=? OR (donor_id IS NULL AND lower(email) IN (SELECT lower(value) FROM json_each(?)))`,donorId,JSON.stringify(emails)),
   sql('INSERT OR IGNORE INTO cf_giving_form_redactions SELECT intent_id FROM cf_giving_form_gifts WHERE gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=?)',donorId),
   sql('DELETE FROM cf_giving_form_gifts WHERE intent_id IN (SELECT intent_id FROM cf_giving_form_redactions)'),
   sql('DELETE FROM cf_giving_form_intents WHERE intent_id IN (SELECT intent_id FROM cf_giving_form_redactions)'),

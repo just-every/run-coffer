@@ -500,7 +500,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   {sql:'DELETE FROM cf_custom_value_history WHERE donor_id=?',params:[donorId]},
   {sql:'DELETE FROM cf_custom_values WHERE donor_id=?',params:[donorId]},
   { sql: 'DELETE FROM cf_giving_customers WHERE donor_id=?', params: [donorId] },
-  { sql: "UPDATE cf_giving_intents SET donor_id=?,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR lower(email) IN (SELECT lower(value) FROM json_each(?))", params: [placeholder, donorId, JSON.stringify(emails)] },
+  { sql: "UPDATE cf_giving_intents SET donor_id=?,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR (donor_id IS NULL AND lower(email) IN (SELECT lower(value) FROM json_each(?)))", params: [placeholder, donorId, JSON.stringify(emails)] },
   { sql: "UPDATE cf_subscriptions SET donor_id=?,customer_id='' WHERE donor_id=?", params: [placeholder, donorId] },
  ]
  // The placeholder must exist before its references move; delete the old donor last.
