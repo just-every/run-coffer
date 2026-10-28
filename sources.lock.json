@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "4e6154e8f84fd1817082795419ebfe610cf0ace090927028f2279a34ab472af9",
+      "sha256": "c7df6468d4a957fc78ffee5b53f3314e63c1bb1ddda99f46389c772d70d038d5",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "75aa5c0f0985664cbdb5dd71ecff9417602af0edfadf6518e432814dea90c0de",
+      "sha256": "3006e107a31b26b3ed6fc66d2e9ef4a6799cf69c98f1190d02944305c20d72ec",
       "executable": false
     },
     "deploy-demo.json": {
@@ -715,7 +715,7 @@
       "executable": false
     },
     "docs/neon-move-in.md": {
-      "sha256": "1f529cddd82a7d85ed974765ab068c769b298120fcbea11538aafa7bd50cda56",
+      "sha256": "f1ba1a831dba673c165a3ab19dafdff6c478b4fa6ec174982215f91bc69ec3ef",
       "executable": false
     },
     "docs/ONLINE-GIVING.md": {
@@ -747,7 +747,7 @@
       "executable": false
     },
     "docs/site.json": {
-      "sha256": "6a199553c5fe353d13236fe34540fb63408e1f5ac1d8dc4e6ec416edbb177a08",
+      "sha256": "9e15330a311856454886c7bb4acbea57f10827676c2e7bbd4528cefc58e7901f",
       "executable": false
     },
     "docs/SOURCES.md": {
@@ -3163,7 +3163,7 @@
       "executable": false
     },
     "src/coffer/imports/erasure.ts": {
-      "sha256": "95c9c8d639691757b1ccb80bf10617e4a07eaaef09e6737b0ac807118eb63a0e",
+      "sha256": "7705c897bb171f5cfbef58260083499cc34e6a33318d36d5ce26054e1c757fb7",
       "executable": false
     },
     "src/coffer/imports/index.ts": {
@@ -3319,11 +3319,11 @@
       "executable": false
     },
     "src/coffer/move-in/neon-edge.ts": {
-      "sha256": "22391ab952261d0fa2b6b38a41ed7d44fdd6b6bb8cf06d5d8d9a3dd926221c6d",
+      "sha256": "9d7d68668739409d4e832bbd0708aef8dad03376e62254b12669c1d59b38b4c0",
       "executable": false
     },
     "src/coffer/move-in/neon.ts": {
-      "sha256": "0dd65c7095733fa54ca08cc56ec27e0ac3225331b88c9683767e9bf71951a758",
+      "sha256": "a3563b0b39e30a9d0e13a2dde6060489d8eb09ca6ebfb4fde27ae6eed7bfe04e",
       "executable": false
     },
     "src/coffer/move-in/parse-input.ts": {
@@ -3347,11 +3347,11 @@
       "executable": false
     },
     "src/coffer/move-in/review.ts": {
-      "sha256": "b4f5441e261fb07d6aa250db069d1b25a6b89b8da7d4eda4b92e0e30d9d10eb8",
+      "sha256": "a940b0bdf20d5c4fa66feb54f2cf8b4843b8e6206eda8bfb595207360ecdb39c",
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "4df43c7cb4a3dca8709c1b2b85941cdfa80f2edec63f0883964bbc403f1c123d",
+      "sha256": "2f3de7f21560fa14568d5d44652bfa6f68d580d9a40815a54c50f30aa49411fd",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -3367,7 +3367,7 @@
       "executable": false
     },
     "src/coffer/move-in/source-mapping.ts": {
-      "sha256": "bdd0ef3f8af175b3b0f4687ea552b151267c323f35b33521a85a9aada5050e73",
+      "sha256": "0924306074a92f8a094857adfb3cad22eb26af64ada8ff6bb56b4ced3989b06d",
       "executable": false
     },
     "src/coffer/move-in/source-rows.ts": {
@@ -3407,7 +3407,7 @@
       "executable": false
     },
     "src/coffer/move-in/types.ts": {
-      "sha256": "e15c7f22cca282abf5cf52c26494f51406005e7e3b3737ceb01d58c6d2268673",
+      "sha256": "9408291af6f8675694bc1b9c3d6d9f3ee50667c51395dfad8c3aa2899a0a1a71",
       "executable": false
     },
     "src/coffer/opportunity-close.ts": {
@@ -3935,7 +3935,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "9d06f349b9ebc191c94680527be8168e7d2e7860934600fa2b807524bb095a65",
+      "sha256": "30fbc3db21d59bb54e9d98eda6322231878a5c7c511e1d4313698748da768220",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6791,7 +6791,7 @@
       "executable": false
     },
     "tests/neon-journey.mjs": {
-      "sha256": "93b57e95a27887f549f4c784a6bab91ee88fec86bc4fd27fe2f701eb37abb606",
+      "sha256": "ffafd5a10677af80bcfa624b5691d0bcf3a899c57b00b061bb88063a7f464b76",
       "executable": false
     },
     "tests/opportunity-journey.mjs": {

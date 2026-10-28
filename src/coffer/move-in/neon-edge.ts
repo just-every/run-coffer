@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 import { fail } from '../db'
 
 type RecordValue = Record<string,any>
-export type NeonSnapshot = { accounts:RecordValue[]; definitions:RecordValue[]; donations:RecordValue[]; activities:RecordValue[]; registrations:RecordValue[]; households:RecordValue[] }
+export type NeonSnapshot = { accounts:RecordValue[]; tenders:RecordValue[]; definitions:RecordValue[]; donations:RecordValue[]; activities:RecordValue[]; registrations:RecordValue[]; households:RecordValue[] }
 /** Neon v2.12 public schema: https://developer.neoncrm.com/api-v2/
  * Read-only endpoints, fixed provider origin, no stored connection or raw payment data. */
 export async function readNeon(connection:{organizationId:string;apiKey:string}):Promise<NeonSnapshot> {
@@ -37,8 +37,8 @@ export async function readNeon(connection:{organizationId:string;apiKey:string})
   return result
  }
  const accountIds=ids(await paged('/accounts/search','searchResults','Account ID'),'Account ID')
- const snapshot:NeonSnapshot={accounts:[],definitions:await read('/customFields?category=Account'),donations:[],activities:[],registrations:[],households:await read('/households/listHouseholds')}
- if(!Array.isArray(snapshot.definitions)||!Array.isArray(snapshot.households))fail('NEON_SCHEMA','Neon definitions or households were incomplete.',502)
+ const snapshot:NeonSnapshot={accounts:[],tenders:await read('/payments/tenders'),definitions:await read('/customFields?category=Account'),donations:[],activities:[],registrations:[],households:await read('/households/listHouseholds')}
+ if(!Array.isArray(snapshot.tenders)||!Array.isArray(snapshot.definitions)||!Array.isArray(snapshot.households))fail('NEON_SCHEMA','Neon definitions or households were incomplete.',502)
  const donationIds=new Set<string>(),registrationIds=new Set<string>()
  for(const id of accountIds){
   const wrapper=await read('/accounts/'+encodeURIComponent(id)),account=wrapper.individualAccount??wrapper.companyAccount

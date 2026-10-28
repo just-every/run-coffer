@@ -39,7 +39,8 @@ export type ControlTotal = Located & {
 export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; channels?: ('email'|'mail'|'phone'|'sms')[]; maxAsks?: number }
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }
 export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:string; channel:'email'|'mail'|'phone'|'sms'; sourceOn:string; codes:string[]; status?:'granted'|'withdrawn'|'unknown' }
-export type ParsedImport = {
+export type SourceCoverage = { counts:Record<string,number>; unsupported:string[] }
+export type ParsedImport = { sourceCoverage?:SourceCoverage;
  spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
  relationships: ParsedRelationship[]; softCredits: ParsedSoftCredit[]; pledges: ParsedPledge[]
  installments: ParsedInstallment[]; notes: ParsedNote[]; unmapped: UnmappedValue[]; diagnostics: Diagnostic[]

@@ -17,7 +17,7 @@ import { stageParts } from './stage'
 import { accumulate, emptyTotals } from './source-totals'
 import { custodySnapshot, kinds, snapshot, tables, type Kind } from './tables'
 import { compact, ordered, reportOf, store } from './review'
-import type { Diagnostic, ParseInput, ParsedImport } from './types'
+import type { Diagnostic, ParseInput, ParsedImport, SourceCoverage } from './types'
 
 const APPLY_BUDGET_MS = 20_000
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
@@ -42,8 +42,10 @@ export async function preview(c: Context,input: ParseInput) {
   if(saved?.mapping)input={...input,solicitCodes:JSON.parse(saved.mapping)}
  }
  if(input.source==='spreadsheet')input=await resolveSpreadsheetMatches(c,input)
- if(input.source==='neon'&&input.neon)input=await neonInput(input)
+ let sourceCoverage:SourceCoverage|undefined
+ if(input.source==='neon'){const result=await neonInput(input);input=result.input;sourceCoverage=result.coverage}
  const parsed=await parseExports(input)
+ if(sourceCoverage)parsed.sourceCoverage=sourceCoverage
  const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
@@ -54,7 +56,7 @@ export async function preview(c: Context,input: ParseInput) {
   const seen=new Set(parsed.diagnostics.map(d=>`${d.code}|${d.file}|${d.sheet}|${d.row}|${d.column}|${d.message}`))
   for(const part of parts) {
    const plan=await planImport(c,part,{preview:true})
-   if(input.source==='spreadsheet')for(const [externalId,id] of plan.donorIds){nativeDonors.add(id);const donor=part.donors.find(d=>d.externalId===externalId);if(donor)donor.expectedNativeId=id}
+   if(input.source==='spreadsheet'||input.source==='neon')for(const [externalId,id] of plan.donorIds){nativeDonors.add(id);const donor=part.donors.find(d=>d.externalId===externalId);if(donor)donor.expectedNativeId=id}
    for(const d of plan.diagnostics) {
     const key=`${d.code}|${d.file}|${d.sheet}|${d.row}|${d.column}|${d.message}`
     if(!seen.has(key)){seen.add(key);parsed.diagnostics.push(d as Diagnostic)}
@@ -68,7 +70,7 @@ export async function preview(c: Context,input: ParseInput) {
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:input.source==='neon'?{neonNativeDonors:[...nativeDonors]}:{}),spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
  return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }

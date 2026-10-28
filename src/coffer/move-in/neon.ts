@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { fail } from '../db'
 import { readNeon, type NeonSnapshot } from './neon-edge'
-import type { CustomImportMapping, ExportFile, ParseInput } from './types'
+import type { CustomImportMapping, ExportFile, ParseInput, SourceCoverage } from './types'
 
 type Facts=Record<string,Record<string,any>>
 type History={ accounts?:Facts; donations?:Facts; registrations?:Facts; households?:Facts; softCredits?:Record<string,any>[] }
@@ -13,7 +13,7 @@ const acknowledgment=(facts:Record<string,any>={})=>Object.fromEntries(['Acknowl
 /** The optional history file is an explicit source report, not an API response.
  * It fills facts the Neon API does not attest: actual acknowledgment, source dates,
  * account status, contact restrictions and independent soft-credit recognition. */
-export async function neonInput(input:ParseInput):Promise<ParseInput> {
+export async function neonInput(input:ParseInput):Promise<{input:ParseInput;coverage:SourceCoverage}> {
  let history:History={}
  if(input.files.length>1||input.files.some(f=>f.name!=='neon-history.json'))fail('NEON_HISTORY','Use one optional neon-history.json source-history file.',400)
  if(input.files[0]){
@@ -24,7 +24,7 @@ export async function neonInput(input:ParseInput):Promise<ParseInput> {
   if(!facts||typeof facts!=='object'||Array.isArray(facts)||Object.keys(facts).some(k=>!allowed.includes(k)))fail('NEON_HISTORY','A source-history field has no supported mapping. Review it before importing.',400)
  }
  const snapshot=await readNeon(input.neon!)
- return normalizeNeon(snapshot,history,input)
+ return {input:normalizeNeon(snapshot,history,input),coverage:{counts:{accounts:snapshot.accounts.length,donations:snapshot.donations.length,activities:snapshot.activities.length,eventRegistrations:snapshot.registrations.length,households:snapshot.households.length},unsupported:['Memberships','Pledges','Recurring-donation migration and processor references','Other source objects','Donation and activity custom fields','Split, pending, refunded, disputed and noncash payments','Native event guest-list seats']}}
 }
 function normalizeNeon(s:NeonSnapshot,h:History,input:ParseInput):ParseInput {
  const definitions:CustomImportMapping[]=[],donors:Record<string,any>[]=[],gifts:Record<string,any>[]=[],notes:Record<string,any>[]=[],credits:Record<string,any>[]=[]
@@ -73,19 +73,24 @@ function normalizeNeon(s:NeonSnapshot,h:History,input:ParseInput):ParseInput {
   const kind=String(activity.activityType?.name??'').toLowerCase(),type=({email:'email',call:'call','phone call':'call',meeting:'meeting'} as Record<string,string>)[kind]??'note'
   notes.push({'Interaction ID':activity.id,'Constituent ID':activity.clientAccount[0].accountId,'Interaction Date':date(activity.activityDates?.startDate),'Interaction Type':type,'Note':[activity.subject,activity.note].filter(Boolean).join('\n')})
  }
+ const paymentIds=new Set<string>()
  const cash=(record:any,externalId:string,accountId:string,on:string,facts:Record<string,any>,event=false)=>{
   const payments=record.payments
   if(record.payLater||!Array.isArray(payments)||payments.length!==1||payments[0].paymentStatus!=='Succeeded'||payments[0].inKind||record.status&&record.status!=='Succeeded'||record.donationCustomFields?.length||record.registrantCustomFields?.length)fail('NEON_UNSUPPORTED','Only fully paid single-payment donations and registrations are supported. Pending, refunded, split, custom-field and noncash records need separate review; none were counted as cash.',400)
+  if(!payments[0].id||paymentIds.has(String(payments[0].id)))fail('NEON_AMOUNT','A source payment is missing its ID or is repeated across transactions. Nothing was counted twice.',400)
+  paymentIds.add(String(payments[0].id))
+  const tender=s.tenders.find(t=>String(t.id)===String(payments[0].tenderType))
+  if(payments[0].tenderType!==undefined&&!tender?.name)fail('NEON_SCHEMA','A payment tender has no matching Neon definition. Review the source before importing.',502)
   const value=event?record.totalCharge??record.registrationAmount:record.amount
   if(amount(payments[0].amount)!==amount(value))fail('NEON_AMOUNT','Neon payment and transaction amounts do not match.',400)
   const goods=record.taxDeductibleInfo?.nonDeductibleAmount
-  const row:Record<string,any>={'Gift ID':externalId,'Constituent ID':accountId,'Gift Type':'Gift','Gift Date':date(payments[0].receivedDate)||date(on),'Amount':amount(value),'Fund':event?'Neon event '+record.eventId:record.fund?.name,'Campaign':record.campaign?.name,'Channel':event?'Event':'','Payment Method':payments[0].check?'Check':payments[0].tenderType===1?'Cash':'imported','Non-Deductible Amount':goods===undefined?'':amount(goods),'Goods Description':record.taxDeductibleInfo?.nonDeductibleDescription,...acknowledgment(facts)}
+  const row:Record<string,any>={'Gift ID':externalId,'Constituent ID':accountId,'Gift Type':'Gift','Gift Date':date(payments[0].receivedDate)||date(on),'Amount':amount(value),'Fund':event?'Neon event '+record.eventId:record.fund?.name,'Campaign':record.campaign?.name,'Channel':event?'Event':'','Payment Method':tender?.name??(payments[0].check?'Check':'imported'),'Non-Deductible Amount':goods===undefined?'':amount(goods),'Goods Description':record.taxDeductibleInfo?.nonDeductibleDescription,...acknowledgment(facts)}
   if(record.tribute){if(!['Honor','Memory'].includes(record.tribute.type))fail('NEON_SCHEMA','Review the Neon tribute kind.',502);Object.assign(row,{'Tribute Honoree':record.tribute.name,'Tribute Type':record.tribute.type,'Tribute Group':facts.tributeGroup,'Tribute Recipient Name':record.acknowledgee?.name,'Tribute Recipient Address':record.acknowledgee?.address?[record.acknowledgee.address.addressLine1,record.acknowledgee.address.city,record.acknowledgee.address.zipCode].filter(Boolean).join(', '):'','Tribute Recipient Email':record.acknowledgee?.email})}
   gifts.push(row)
  }
  for(const donation of s.donations)cash(donation,donation.id,donation.accountId,donation.date,h.donations?.[donation.id]??{})
  for(const registration of s.registrations)cash(registration,'event:'+registration.id,registration.registrantAccountId,registration.registrationDateTime,h.registrations?.[registration.id]??{},true)
  if(h.softCredits!==undefined&&!Array.isArray(h.softCredits))fail('NEON_HISTORY','Source soft credits must be a list.',400)
- for(const credit of h.softCredits??[]){if(!credit.id||!accountIds.has(credit.accountId)||!donationIds.has(credit.donationId))fail('NEON_HISTORY','A soft credit needs its own source ID, imported account and donation.',400);credits.push({'Soft Credit ID':credit.id,'Constituent ID':credit.accountId,'Related Gift ID':credit.donationId,'Amount':amount(credit.amount),...acknowledgment(credit)})}
- return {source:'neon',files:[file('constituents.csv',donors),file('gifts.csv',gifts),...(notes.length?[file('interactions.csv',notes)]:[]),...(credits.length?[file('soft-credits.csv',credits)]:[])],customFields:definitions,solicitCodes:input.solicitCodes,noGoodsOrServices:input.noGoodsOrServices}
+ for(const credit of h.softCredits??[]){if(!credit||typeof credit!=='object'||Array.isArray(credit)||Object.keys(credit).some(k=>!['id','accountId','donationId','amount','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID'].includes(k)))fail('NEON_HISTORY','Review the supported soft-credit source-history fields.',400);if(!credit.id||!accountIds.has(credit.accountId)||!donationIds.has(credit.donationId))fail('NEON_HISTORY','A soft credit needs its own source ID, imported account and donation.',400);credits.push({'Soft Credit ID':credit.id,'Constituent ID':credit.accountId,'Related Gift ID':credit.donationId,'Amount':amount(credit.amount),...acknowledgment(credit)})}
+ return {source:'neon',files:[...(donors.length?[file('constituents.csv',donors)]:[]),...(gifts.length?[file('gifts.csv',gifts)]:[]),...(notes.length?[file('interactions.csv',notes)]:[]),...(credits.length?[file('soft-credits.csv',credits)]:[])],customFields:definitions,solicitCodes:input.solicitCodes,noGoodsOrServices:input.noGoodsOrServices}
 }
