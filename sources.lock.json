@@ -1559,7 +1559,7 @@
       "executable": false
     },
     "public/giving/campaign.css": {
-      "sha256": "bd2c0329e8301ec65751535df5f57c03368cdf8c2acd87cd01c20f0751660530",
+      "sha256": "6551cd7fb640df711f39f10d9ed492f3046a97b2f926446b878091a3de95ac4c",
       "executable": false
     },
     "public/giving/coffer-mark.png": {
@@ -6595,7 +6595,7 @@
       "executable": false
     },
     "tests/giving-form-browser.mjs": {
-      "sha256": "d0c74beecbe4d0631da88db3c7842a8d74ccd4f166c5571e82435b469962357e",
+      "sha256": "1d1d6b62386df949dda7266fc6cd5e6918509c89699a7dbbc248b1040d32b4f4",
       "executable": false
     },
     "tests/giving-form-edge.mjs": {
