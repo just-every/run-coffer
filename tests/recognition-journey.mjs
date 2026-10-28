@@ -2,11 +2,14 @@ import {readFile,readdir} from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import {run,donor,reviewed,archive,restore,imported} from './harness.mjs'
 import {recognitionEdges,giveRecognition,recognitionMember,form} from './recognition-edge.mjs'
+import {receiptFrom} from './immediate-receipts-edge.mjs'
 
 export async function recognitionJourney(){
  const edge=recognitionEdges()
  await run(async h=>{
   await reviewed(h)
+  const sendingDomain=await h.command('sendingDomain.save',{version:(await h.get('/api/coffer/sending-domain')).version,authenticationId:123})
+  assert.equal((await h.command('sendingDomain.verify',{version:sendingDomain.version})).status,'verified')
   const staff=await recognitionMember(h,edge)
   const ada=await donor(h,'Ada Rivera'),ben=await donor(h,'Ben Wells'),cora=await donor(h,'Cora Chen'),privateDonor=await donor(h,'Dina Private')
   const campaign=await h.api('/api/coffer/giving/campaigns',{name:'Autumn reading',slug:'autumn-reading',description:'Keep the community reading room open through autumn.',fund:'Reading',goal:'60000'})
@@ -89,5 +92,5 @@ export async function recognitionJourney(){
   assert.ok(!JSON.stringify(await archive(h)).includes('The Rivera Family'))
   assert.ok(!(await (await h.request('/give/autumn-reading',{as:''})).text()).includes('<strong>The Rivera Family</strong>'))
   assert.equal((await h.get('/api/coffer/giving/campaigns')).campaigns.find(c=>c.id===campaign.id).raised_cents,50500+(edge.sessions.size-4)*2000)
- },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6001',MAIL_PROVIDER:'sendgrid'},outbound:edge.outbound})
+ },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6001',MAIL_PROVIDER:'sendgrid',MAIL_FROM:receiptFrom},outbound:edge.outbound})
 }

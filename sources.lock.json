@@ -6567,7 +6567,7 @@
       "executable": false
     },
     "tests/fundraising-events-journey.mjs": {
-      "sha256": "c9f3dfac46459b2f0672d549b2d9b65a0e8e7d4fdc118d61872befe27b636702",
+      "sha256": "6a86effe760266ec1f3d06a79705f3b5ef496898a8c5bf817f4591c113d1f38d",
       "executable": false
     },
     "tests/gift-batches-journey.mjs": {
@@ -6871,11 +6871,11 @@
       "executable": false
     },
     "tests/recognition-edge.mjs": {
-      "sha256": "cd35aedf92b3e4d54eca015e887b7dfe329fffa00a5d90dd6bfdc19b0d113085",
+      "sha256": "de140fdeeba852dbfeea0db5e5ca34c9486acaf3372ee45f525e3c57b720663e",
       "executable": false
     },
     "tests/recognition-journey.mjs": {
-      "sha256": "4f473621790585db1c577aadead1098482be38f333cf3007cef58a96d4c48b53",
+      "sha256": "94cccd9f1a181fe52431f2466321ddcf6db48f322b12232bf070cfebee22022c",
       "executable": false
     },
     "tests/recovery-browser.mjs": {
@@ -7075,7 +7075,7 @@
       "executable": false
     },
     "tests/transactional-replies-journey.mjs": {
-      "sha256": "2d7528694d1b5e50c2d3cd4f5fe07e6cf4839c7a71fe2eb4e2089d6f7a74ae0f",
+      "sha256": "3e0aeb03a5efdfc140f3a2c761daf04cb210ff6653bfe5bb8779267047461949",
       "executable": false
     },
     "tests/tribute-gifts-browser.mjs": {
