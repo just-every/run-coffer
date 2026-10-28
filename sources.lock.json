@@ -767,7 +767,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "b406641897465f1c0089e2335c725b0e9c28043ac5b808e5e3b197defa54ef54",
+      "sha256": "7615deeff80d231442dd5cb3955d20ce1a68c0f12077dd350670eab7fe4f1017",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1559,7 +1559,7 @@
       "executable": false
     },
     "public/giving/campaign.css": {
-      "sha256": "63213d1dc5f8d5effb93809ccf6ccaff0ad0976949aae2d30b6a1e448dc7d448",
+      "sha256": "28c35052ce11e2d8f14a6f2692fdab9a588487ce647f6d0e5e4ea4518bd5be0d",
       "executable": false
     },
     "public/giving/coffer-mark.png": {
