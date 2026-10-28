@@ -22,7 +22,7 @@ export const API_WRITE_ROUTES:Record<string,string>={
 }
 export type WriteOperation={command:string;input:Row}
 export function writeOperation(method:string,path:string,input:Row):WriteOperation|null{
- const direct=API_WRITE_ROUTES[method+' '+path]
+ const route=method+' '+path,direct=Object.hasOwn(API_WRITE_ROUTES,route)?API_WRITE_ROUTES[route]:undefined
  if(direct)return {command:direct,input}
  const donorPath=path.match(/^\/donors\/([^/]+)$/)
  if(donorPath&&method==='PUT')return {command:'donor.update',input:{...input,donorId:decodeURIComponent(donorPath[1])}}
@@ -54,7 +54,7 @@ export function writeScope(scope:ApiScope,operation:WriteOperation){
 export async function prepareWrite(c:Context,operation:WriteOperation):Promise<string>{
  if(!c.transactionPlan)fail('ATOMIC_WRITE_REQUIRED','Public API preparation requires an atomic transaction plan.',409)
  const {command,input}=operation,p=object(input)
- const allowed=command==='campaign.create'?['owner','admin'] as const:ACCESS[command]
+ const allowed=command==='campaign.create'?['owner','admin'] as const:Object.hasOwn(ACCESS,command)?ACCESS[command]:undefined
  if(!allowed)fail('FORBIDDEN','This operation is unavailable.',403)
  requireRole(c.actor,[...allowed],'run '+command)
  for(const field of ['donorId','relatedDonorId','employerDonorId'])if(typeof p[field]==='string'&&p[field])c.transactionPlan.statements.push(guard('EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))','DONOR_CHANGED','Choose a current donor who has not been merged or erased.',p[field]))
