@@ -1,9 +1,15 @@
-import { all, guard, sha256, sql, type Context, type Row, type Stmt } from '../db'
+import { all, fail, guard, sha256, sql, type Context, type Row, type Stmt } from '../db'
 import type { SourceDefinition } from './source-definitions'
 import type { ReviewValue } from './custom-review-types'
 
 export async function customTagWrites(c:Context,source:string,jobId:string,definition:SourceDefinition,value:ReviewValue,native:Row,staged:Set<string>):Promise<{writes:Stmt[];added:number}> {
  const decoded=JSON.parse(value.value!),tags:string[]=Array.isArray(decoded)?decoded:[decoded],writes:Stmt[]=[]
+ if(definition.kind==='note'){
+  const condition='EXISTS(SELECT 1 FROM cf_donor_notes WHERE id=? AND donor_id=? AND confidential=0)'
+  const params=[native.native_id,native.donor_id]
+  if(!(await all(c,'SELECT 1 WHERE '+condition,...params)).length)fail('CUSTOM_NOTE_PRIVATE','A confidential or changed note cannot supply constituent tags.',409)
+  writes.push(guard(condition,'CUSTOM_NOTE_PRIVATE','A confidential or changed note cannot supply constituent tags.',...params))
+ }
  let added=0
  for(const tag of tags){
   const sourceKey=await sha256(JSON.stringify([native.donor_id,tag]))

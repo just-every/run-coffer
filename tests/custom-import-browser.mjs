@@ -35,7 +35,7 @@ async function fits(page,width){
  assert.deepEqual(await page.locator('button,a,[role=button]').evaluateAll(nodes=>nodes.filter(n=>n.checkVisibility()&&!(n.innerText||'').trim()).map(n=>n.outerHTML.slice(0,200))),[],'Authored controls have visible text')
 }
 
-export async function sourceCustomBrowser(h,id,directory,{applied=false,topic=true}={}){
+export async function sourceCustomBrowser(h,id,directory,{applied=false,topic=true,noteTags=false}={}){
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
@@ -46,6 +46,7 @@ export async function sourceCustomBrowser(h,id,directory,{applied=false,topic=tr
    await page.getByRole('heading',{name:'Source custom field review',exact:true}).waitFor()
    const membership=page.locator('fieldset').filter({has:page.locator('legend',{hasText:'Membership · constituent'})})
    assert.equal(await membership.locator('[name=targetKey]').inputValue(),'existing_membership')
+   if(!applied&&noteTags&&width===1440){const note=page.locator('fieldset').filter({has:page.locator('legend',{hasText:'Note circle · note'})});await note.locator('[name=mappingAction]').selectOption('tags')}
    await fits(page,width)
    assert.deepEqual(await page.locator('main :is(p,label,legend,button,select,input)').evaluateAll(nodes=>nodes.filter(n=>n.checkVisibility()&&parseFloat(getComputedStyle(n).fontSize)<13).map(n=>n.tagName)),[],'Review text is at least 13px')
    await page.screenshot({path:directory+'/MOVE-010-'+(applied?'carried':'review')+'-'+width+'.png',fullPage:true})

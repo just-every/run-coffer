@@ -1,3 +1,4 @@
+import { customReviewWrites, storedCustomReview } from './custom-review-storage'
 import { canonicalDonor } from '../donor-merge'
 import { readSourceIndex } from './source-index'
 import { customCustodyWrites } from './custom-custody'
@@ -14,7 +15,9 @@ import { customTagWrites } from './custom-review-tags'
 export async function customReview(c:Context,id:string) {
  const job=await one(c,"SELECT * FROM cf_move_in_jobs WHERE id=? AND state='completed' AND redacted=0",id)
  if(!job)fail('MOVE_IN_CHANGED','Choose a finished, unerased CRM import.',409)
- return {...job,rawReport:job.report,report:JSON.parse(job.report)} as Row
+ const report=JSON.parse(job.report)
+ report.customReview=await storedCustomReview(c,job.id,report.customReview)
+ return {...job,rawReport:job.report,report} as Row
 }
 const fence=(id:string,report:string)=>guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='completed' AND redacted=0 AND report=?)",'MOVE_IN_CHANGED','This custom review changed. Refresh it before continuing.',id,report)
 export async function captureCustom(c:Context,input:SourceCredentials&{id:string}) {
@@ -25,9 +28,10 @@ export async function captureCustom(c:Context,input:SourceCredentials&{id:string
 
  await commit(c,await customCustodyWrites(c,job.id,job.source))
  const definitions=await readSourceCustom(job.source,input,records)
- const previous=await one(c,"SELECT json_extract(report,'$.customReview.mappings') AS mappings FROM cf_move_in_jobs WHERE source=? AND id<>? AND state='completed' AND redacted=0 AND json_type(report,'$.customReview.mappings')='array' ORDER BY created_at DESC LIMIT 1",job.source,job.id)
- const review=await buildCustomReview(definitions,defaultMappings(job.source,definitions,previous?.mappings?JSON.parse(previous.mappings):[],await customFields(c)),[],1)
- await commit(c,[fence(job.id,job.rawReport),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview',json(?)) WHERE id=?",JSON.stringify(review),job.id),event(c,'move-in.custom.capture','move-in',job.id,null,{definitions:definitions.length})])
+ const previous=await one(c,"SELECT id,report FROM cf_move_in_jobs WHERE source=? AND id<>? AND state='completed' AND redacted=0 AND json_type(report,'$.customReview')='object' ORDER BY created_at DESC LIMIT 1",job.source,job.id)
+ const saved=previous?await storedCustomReview(c,previous.id,JSON.parse(previous.report).customReview):undefined
+ const review=await buildCustomReview(definitions,defaultMappings(job.source,definitions,saved?.mappings??[],await customFields(c)),[],1)
+ await commit(c,[fence(job.id,job.rawReport),...await customReviewWrites(job.id,review),event(c,'move-in.custom.capture','move-in',job.id,null,{definitions:definitions.length})])
  return {id:job.id,review,unchanged:false}
 }
 export async function reviseCustom(c:Context,input:{id:string;version:number;mappings:FieldMapping[];resolutions:ValueResolution[]}) {
@@ -37,7 +41,7 @@ export async function reviseCustom(c:Context,input:{id:string;version:number;map
  const review=await buildCustomReview(previous.definitions,input.mappings,input.resolutions,previous.version+1)
  if(previous.applied&&previous.values.some(v=>(previous.appliedValues??[]).includes(v.id)&&!review.values.some(next=>next.id===v.id&&next.state==='ready'&&next.value===v.value)))fail('MOVE_IN_USED','A carried value cannot be replaced or skipped. Undo before changing it.',409)
  if(previous.applied){review.applied=1;review.appliedValues=previous.appliedValues??[]}
- await commit(c,[fence(job.id,job.rawReport),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview',json(?)) WHERE id=?",JSON.stringify(review),job.id),event(c,'move-in.custom.review','move-in',job.id,null,{version:review.version,waiting:review.values.filter(v=>v.state==='waiting').length})])
+ await commit(c,[fence(job.id,job.rawReport),...await customReviewWrites(job.id,review),event(c,'move-in.custom.review','move-in',job.id,null,{version:review.version,waiting:review.values.filter(v=>v.state==='waiting').length})])
  return {id:job.id,review}
 }
 
@@ -72,7 +76,8 @@ export async function applyCustom(c:Context,input:{id:string;version:number}) {
  // Definitions with all values waiting still appear, while their values remain in review.
  const emptyFields=review.mappings.filter(m=>m.action==='field'&&!staged.has(m.field!.key)&&!fields.some(f=>f.key===m.field!.key)).map(m=>({...m.field,choices:JSON.stringify(m.field!.choices),version:1,created_at:c.now}))
  writes.push(...await createImportDefinitionWrites(c,emptyFields,job.source,job.id),...await importedCustomWrites(c,{customWrites} as Plan,job.source,job.id))
- writes.push(sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview.applied',1,'$.customReview.appliedValues',json(?)) WHERE id=?",JSON.stringify([...new Set([...(review.appliedValues??[]),...review.values.filter(v=>v.state==='ready').map(v=>v.id)])]),job.id),event(c,'move-in.custom.apply','move-in',job.id,null,{carried:customWrites.length,waiting:review.values.filter(v=>v.state==='waiting').length}))
+ const appliedReview={...review,applied:1,appliedValues:[...new Set([...(review.appliedValues??[]),...review.values.filter(v=>v.state==='ready').map(v=>v.id)])]}
+ writes.push(...await customReviewWrites(job.id,appliedReview),event(c,'move-in.custom.apply','move-in',job.id,null,{carried:customWrites.length,waiting:review.values.filter(v=>v.state==='waiting').length}))
  await commit(c,writes)
  return {id:job.id,review,carried:customWrites.length,tagAssignments,waiting:review.values.filter(v=>v.state==='waiting').length,unchanged:customWrites.length===0&&tagAssignments===0&&emptyFields.length===0}
 }

@@ -87,6 +87,7 @@ earlier move-in first.
 
 Undo removes the imported values and their history atomically with the other
 imported records. Later custom edits or newly attached custom values refuse
-undo. Field definitions remain available after undo, including later label
-edits, so shared definitions are never discarded. Only an owner or admin can
+undo. Untouched definitions created by the import are removed only while no
+other record, saved list, report, form or saved wording uses them. Pre-existing
+field definitions remain; a later definition edit refuses undo. Only an owner or admin can
 preview, apply or undo this mapping.

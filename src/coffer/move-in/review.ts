@@ -1,3 +1,4 @@
+import { customReviewWrites } from './custom-review-storage'
 import { all, commit, fail, guard, one, sql, type Context, type Row, type Stmt } from '../db'
 import type { Difference } from './reconcile'
 import type { Diagnostic, ParsedImport } from './types'
@@ -37,10 +38,13 @@ export function ordered(diagnostics: Diagnostic[]) {
  * part count and fingerprint that make it usable. A review interrupted part-way can never be applied. */
 export async function store(c: Context, review: { id: string; fileFingerprint: string; fingerprint: string; source: string; prior: Row | null; report: Row; parts: ParsedImport[]; issues: Diagnostic[] }) {
  const { id, prior } = review
+ const custom=review.report.customReview
+ const report={...review.report,...(custom?{customReview:{pending:true}}:{})}
  await commit(c, prior ? [guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state IN ('reviewed','undone'))", 'MOVE_IN_CHANGED', 'This move-in started in another window. Open its journal.', id),
   sql('DELETE FROM cf_move_in_parts WHERE job_id=?', id), sql('DELETE FROM cf_move_in_issues WHERE job_id=?', id),
-  sql("UPDATE cf_move_in_jobs SET fingerprint='',state='reviewed',report=?,accepted_reason=NULL,created_at=?,created_by=?,undone_at=NULL,redacted=0,parts=0,applied_parts=0,acknowledged_before=NULL,checked_at=NULL,check_report=NULL WHERE id=?", JSON.stringify(review.report), c.now, c.actor.name, id)]
-  : [sql("INSERT INTO cf_move_in_jobs(id,file_fingerprint,fingerprint,source,state,report,created_at,created_by,parts,applied_parts) VALUES(?,?,'',?,'reviewed',?,?,?,0,0)", id, review.fileFingerprint, review.source, JSON.stringify(review.report), c.now, c.actor.name)])
+  sql("UPDATE cf_move_in_jobs SET fingerprint='',state='reviewed',report=?,accepted_reason=NULL,created_at=?,created_by=?,undone_at=NULL,redacted=0,parts=0,applied_parts=0,acknowledged_before=NULL,checked_at=NULL,check_report=NULL WHERE id=?", JSON.stringify(report), c.now, c.actor.name, id)]
+  : [sql("INSERT INTO cf_move_in_jobs(id,file_fingerprint,fingerprint,source,state,report,created_at,created_by,parts,applied_parts) VALUES(?,?,'',?,'reviewed',?,?,?,0,0)", id, review.fileFingerprint, review.source, JSON.stringify(report), c.now, c.actor.name)])
+ await commit(c,[sql('DELETE FROM cf_move_in_custom_reviews WHERE job_id=?',id),...(custom?await customReviewWrites(id,custom):[])])
  const statements: [Stmt, number][] = review.parts.map((part, position) => { const payload = JSON.stringify(part); return [sql('INSERT INTO cf_move_in_parts(job_id,position,payload) VALUES(?,?,?)', id, position, payload), payload.length] })
  for (let i = 0; i < review.issues.length; i += ISSUES_PER_STATEMENT) {
   const rows = JSON.stringify(review.issues.slice(i, i + ISSUES_PER_STATEMENT).map((d, n) => [i + n, d.severity, d.code, d.file ?? null, d.sheet ?? null, d.row ?? null, d.column ?? null, d.message]))

@@ -14,7 +14,8 @@ export function customImportReviewPage(job:Row,fields:Row[]){
  const frozen=Boolean(r.applied),forms=r.definitions.map(d=>{
   const m=r.mappings.find(m=>m.id===d.id)!,f=m.field,eligible=fields.filter(f=>f.kind===d.kind&&f.type===d.type&&f.entry===d.entry),count=r.counts.find(c=>c.id===d.id)!
   return `<fieldset>${hidden('fieldId',d.id)}<legend>${e(d.name)} · ${e(d.kind)}</legend><p>${e(d.type)} · ${e(d.entry)}${d.choices.length?' · '+e(d.choices.join(', ')):''}</p><p>${count.source} source values · ${count.carried} carried or ready · ${count.waiting} waiting · ${count.skipped} explicitly skipped</p>
-  ${select('Destination','mappingAction',[['field','Custom field'],...(d.kind!=='note'&&d.type==='text'&&d.entry!=='free-form'?[['tags','Tags on this record’s constituent'] as [string,string]]:[]),['skip','Skip this source field']],m.action,frozen?'disabled':'')}
+  ${select('Destination','mappingAction',[['field','Custom field'],...(d.type==='text'&&d.entry!=='free-form'?[['tags','Tags on this record’s constituent'] as [string,string]]:[]),['skip','Skip this source field']],m.action,frozen?'disabled':'')}
+  ${d.kind==='note'?'<p>Only ordinary, non-confidential notes can supply constituent tags.</p>':''}
   ${f?.choices?.length?`<p>Target choices: ${e(f.choices.join(', '))}</p>`:''}
   ${select('Existing target field','existingField',[['','Create a field'],...eligible.map(f=>[f.key,f.label] as [string,string])],f?.version?f.key:'',frozen?'disabled':'')}
   ${field('Target field key','targetKey','text',f?.key??'',frozen?'readonly':'pattern="[a-z][a-z0-9_]*" maxlength="80"')}${field('Target field name','targetLabel','text',f?.label??d.name,frozen?'readonly':'maxlength="100"')}

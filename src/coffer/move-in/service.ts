@@ -1,3 +1,4 @@
+import { storedCustomReview } from './custom-review-storage'
 import { stageSourceIndex } from './source-index'
 import { customCustodyWrites } from './custom-custody'
 import { buildCustomReview } from './custom-review-plan'
@@ -191,7 +192,9 @@ export async function journal(c: Context,id:string):Promise<{job:Row;records:Row
  const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',id)
  if(!job)fail('NOT_FOUND','That import does not exist.',404)
  const records=await all(c,'SELECT kind,count(*) AS n,sum(owned) AS added FROM cf_move_in_records WHERE job_id=? GROUP BY kind ORDER BY kind',id)
- return {job:{...job,report:JSON.parse(job.report),check_report:job.check_report?JSON.parse(job.check_report):null},records}
+ const report=JSON.parse(job.report)
+ report.customReview=await storedCustomReview(c,job.id,report.customReview)
+ return {job:{...job,report,check_report:job.check_report?JSON.parse(job.check_report):null},records}
 }
 
 /** Every guard and every deletion share one transaction. Any new use blocks it. */

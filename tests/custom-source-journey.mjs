@@ -10,10 +10,12 @@ export const sourceFiles=(offset=0)=>({source:'bloomerang',files:[
  file('conversations.csv',[['Note ID','Account Number','Note','Note Date','Note Type'],[301+offset,101+offset,'Source meeting','2026-10-01','meeting']]),
  file('notes.csv',[['Note ID','Account Number','Note','Note Date','Note Type'],[401+offset,101+offset,'Source note','2026-10-01','general']]),
 ]})
-function bloomerangEdge(){
+function bloomerangEdge({large=false}={}){
  let offset=0,revoked=false
- const definitions={Constituent:[{Id:1,Name:'Membership',DataType:'Text',PickType:'PickOne'},{Id:2,Name:'Interests',DataType:'Text',PickType:'PickMultiple'},{Id:6,Name:'Source groups',DataType:'Text',PickType:'PickMultiple'},{Id:7,Name:'Private source field',DataType:'Text',PickType:'Freeform'}],Transaction:[{Id:3,Name:'Budget',DataType:'Currency',PickType:'Freeform'}],Interaction:[{Id:4,Name:'Topic',DataType:'Text',PickType:'Freeform'}],Note:[{Id:5,Name:'Note detail',DataType:'Text',PickType:'Freeform'}]}
- const choices={1:['Board','Volunteer'],2:['Books','Music'],6:['Alumni','Legacy']},choice=(id,value)=>({Id:id*10+(choices[id]?.indexOf(value)??0)+1,FieldId:id,Value:value})
+ const definitions={Constituent:[{Id:1,Name:'Membership',DataType:'Text',PickType:'PickOne'},{Id:2,Name:'Interests',DataType:'Text',PickType:'PickMultiple'},{Id:6,Name:'Source groups',DataType:'Text',PickType:'PickMultiple'},{Id:7,Name:'Private source field',DataType:'Text',PickType:'Freeform'}],Transaction:[{Id:3,Name:'Budget',DataType:'Currency',PickType:'Freeform'}],Interaction:[{Id:4,Name:'Topic',DataType:'Text',PickType:'Freeform'}],Note:[{Id:5,Name:'Note detail',DataType:'Text',PickType:'Freeform'},{Id:8,Name:'Note circle',DataType:'Text',PickType:'PickOne'}]}
+ const choices={1:['Board','Volunteer'],2:['Books','Music'],6:['Alumni','Legacy'],8:['Source note circle']},choice=(id,value)=>({Id:id*10+(choices[id]?.indexOf(value)??0)+1,FieldId:id,Value:value})
+ if(large)definitions.Constituent.push(...Array.from({length:90},(_,i)=>({Id:100+i,Name:'Retained source detail '+i,DataType:'Text',PickType:'Freeform'})))
+ const longValue=i=>'synthetic-coffer-'+i+' '+('retained source content '.repeat(85)).slice(0,1950)
  const scalar=(FieldId,Value)=>({FieldId,Value:{Value}}),pick=(FieldId,Value)=>({FieldId,Value:choice(FieldId,Value)}),many=(FieldId,values)=>({FieldId,Values:values.map(v=>choice(FieldId,v))})
  const page=rows=>({Start:0,ResultCount:rows.length,TotalFiltered:rows.length,Results:rows})
  return {setOffset(n){offset=n},revoke(){revoked=true},async outbound(request){
@@ -24,10 +26,10 @@ function bloomerangEdge(){
   if(m)return Response.json(u.searchParams.get('isActive')==='false'?[]:definitions[m[1]])
   m=/^\/customValues\/\w+\/(\d+)$/.exec(path)
   if(m)return Response.json(u.searchParams.get('isActive')==='false'?[]:choices[m[1]].map(v=>choice(Number(m[1]),v)))
-  if(path==='/constituents')return Response.json(page([{Id:1001+offset,AccountNumber:101+offset,CustomValues:[pick(1,'Board'),many(2,['Books','Music']),many(6,['Alumni','Legacy']),scalar(7,'Private retained source')]},{Id:1002+offset,AccountNumber:102+offset,CustomValues:[pick(1,'Unlisted')]}]))
+  if(path==='/constituents')return Response.json(page([{Id:1001+offset,AccountNumber:101+offset,CustomValues:[pick(1,'Board'),many(2,['Books','Music']),many(6,['Alumni','Legacy']),scalar(7,'Private retained source'),...(large?Array.from({length:90},(_,i)=>scalar(100+i,longValue(i))):[])]},{Id:1002+offset,AccountNumber:102+offset,CustomValues:[pick(1,'Unlisted'),...(large?Array.from({length:90},(_,i)=>scalar(100+i,longValue(i))):[])]}]))
   if(path==='/transactions/designations')return Response.json(page([{Id:2001+offset,DesignationNumber:201+offset,Type:'Donation',CustomValues:[scalar(3,'123.45')]},{Id:2002+offset,DesignationNumber:202+offset,Type:'Donation',CustomValues:[scalar(3,'not a number')]}]))
   if(path==='/interactions')return Response.json(page([{Id:301+offset,CustomValues:[scalar(4,'Library visit')]}]))
-  if(path==='/notes')return Response.json(page([{Id:401+offset,CustomValues:[scalar(5,offset?'Other source note '+offset:'Preserve original note')]}]))
+  if(path==='/notes')return Response.json(page([{Id:401+offset,CustomValues:[scalar(5,offset?'Other source note '+offset:'Preserve original note'),pick(8,'Source note circle')]}]))
   assert.fail('Unexpected Bloomerang request '+u.pathname)
  }}
 }
@@ -45,20 +47,20 @@ export async function sourceCustomJourney(){
   await post(h,'custom-capture',capture,{as:member.cookie,status:403})
   await sourceCaptureBrowser(h,id,'.cache/custom-source')
   const result=await post(h,'custom-capture',capture),review=result.review
-  assert.equal(review.definitions.length,7);assert.deepEqual(review.counts.find(c=>c.id==='gift:3'),{id:'gift:3',name:'Budget',defined:1,source:2,carried:1,waiting:1,skipped:0})
+  assert.equal(review.definitions.length,8);assert.deepEqual(review.counts.find(c=>c.id==='gift:3'),{id:'gift:3',name:'Budget',defined:1,source:2,carried:1,waiting:1,skipped:0})
   assert.match(review.values.find(v=>v.state==='waiting'&&v.fieldId==='gift:3').reason,/number/)
   const mappings=review.mappings.map(m=>m.id==='constituent:1'?{...m,field:{...m.field,key:'existing_membership',version:1,choices:['Board','Volunteer','Advisor']}}:m.id==='interaction:4'?{...m,field:{...m.field,label:'Imported visit topic'}}:m.id==='constituent:6'?{...m,action:'tags'}:m.id==='constituent:7'?{...m,action:'skip'}:m)
   const invalidChoice=review.values.find(v=>v.fieldId==='constituent:1'&&v.state==='waiting');assert.equal(invalidChoice.original,'Unlisted');assert.match(invalidChoice.reason,/source choice/);const mappedChoice={id:invalidChoice.id,action:'map',value:'Volunteer'}
   let updated=await post(h,'custom-review',{id,version:review.version,mappings,resolutions:[mappedChoice]})
   await post(h,'custom-review',{id,version:review.version,mappings,resolutions:[]},{status:409})
   await post(h,'custom-apply',{id,version:review.version},{status:409})
-  await sourceCustomBrowser(h,id,'.cache/custom-source')
+  await sourceCustomBrowser(h,id,'.cache/custom-source',{noteTags:true})
   updated.review=await readReview(h,id)
   const applied=await post(h,'custom-apply',{id,version:updated.review.version});assert.equal(applied.carried,6);assert.equal(applied.waiting,1);await sourceCustomBrowser(h,id,'.cache/custom-source',{applied:true})
   const people=(await h.get('/api/coffer/donors')).donors,person=people.find(p=>p.name==='Synthetic Source Fields'),waitingPerson=people.find(p=>p.name==='Synthetic Waiting Values'),details=await h.get('/api/coffer/donors/'+person.id)
   const values=Object.fromEntries(details.customValues.map(v=>[v.field_key,JSON.parse(v.value)]))
   assert.deepEqual(values,{existing_membership:'Board',import_bloomerang_constituent_2:['Books','Music'],import_bloomerang_gift_3:'12345',import_bloomerang_interaction_4:'Library visit',import_bloomerang_note_5:'Preserve original note'})
-  assert.deepEqual(details.ruleTags.map(t=>t.tag).sort(),['Alumni','Legacy'])
+  assert.deepEqual(details.ruleTags.map(t=>t.tag).sort(),['Alumni','Legacy','Source note circle'])
   const fields=(await h.get('/api/coffer/custom-fields')).fields
   assert.deepEqual(fields.filter(f=>f.key.startsWith('import_bloomerang_')).map(f=>[f.key,f.type,f.entry,JSON.parse(f.choices)]),[['import_bloomerang_constituent_2','text','pick-many',['Books','Music']],['import_bloomerang_gift_3','currency','free-form',[]],['import_bloomerang_interaction_4','text','free-form',[]],['import_bloomerang_note_5','text','free-form',[]]])
   assert.equal(fields.find(f=>f.key==='import_bloomerang_interaction_4').label,'Imported visit topic')
@@ -70,7 +72,7 @@ export async function sourceCustomJourney(){
   const builtReport=await h.get('/api/coffer/reports/builder?id='+built.id);assert.equal(builtReport.totals.amount_cents,7500);assert.ok(builtReport.groups.some(g=>g['custom.import_bloomerang_gift_3']==='12345'))
   const grouped=await h.get('/api/coffer/reports/custom-fields?field=import_bloomerang_gift_3')
   assert.deepEqual(grouped.groups.map(g=>[g.value,g.amountCents,g.giftCount]),[['12345',5000,1],[null,2500,1]])
-  assert.equal((await post(h,'custom-apply',{id,version:updated.review.version})).carried,0)
+  const replay=await post(h,'custom-apply',{id,version:updated.review.version});assert.equal(replay.carried,0);assert.equal(replay.tagAssignments,0,'Replaying a reviewed note tag creates no duplicate')
   let current=await readReview(h,id),waiting=current.values.find(v=>v.state==='waiting')
   await post(h,'custom-review',{id,version:current.version,mappings:current.mappings,resolutions:[{...mappedChoice,value:'Board'}]},{status:409})
   let fixed=await post(h,'custom-review',{id,version:current.version,mappings:current.mappings,resolutions:[...current.resolutions,{id:waiting.id,action:'fix',value:'75.25'}]})
@@ -113,5 +115,42 @@ export async function sourceCustomJourney(){
   await post(h,'custom-capture',{id:refused,apiKey:capture.apiKey},{status:502})
   assert.equal((await h.get(endpoint+'journal?id='+refused)).job.report.customReview,undefined,'Revoked source authority writes no custom capture')
   await post(h,'custom-capture',{id:next,apiKey:capture.apiKey}) // Existing capture is a native retained review, with no provider submission.
+ },{outbound:edge.outbound})
+ await largeCustomReviewJourney()
+}
+
+/** A normal complete source account whose retained originals exceed one database value. */
+async function largeCustomReviewJourney(){
+ const edge=bloomerangEdge({large:true})
+ await run(async h=>{
+  const id=await imported(h,sourceFiles()),capture={id,apiKey:'synthetic-coffer-1600'}
+  const {review}=await post(h,'custom-capture',capture)
+  assert.ok(Buffer.byteLength(JSON.stringify(review))>1000000,'The public source read retains a review larger than a single database value')
+  const original=review.definitions.find(d=>d.id==='constituent:189').values[1].value
+  assert.equal((await readReview(h,id)).definitions.find(d=>d.id==='constituent:189').values[1].value,original)
+  const mappings=review.mappings.map(m=>m.id==='note:8'?{...m,action:'tags'}:m)
+  const updated=await post(h,'custom-review',{id,version:review.version,mappings,resolutions:[]})
+  await post(h,'custom-apply',{id,version:updated.review.version})
+  const people=(await h.get('/api/coffer/donors')).donors
+  for(const person of people){
+   const detail=await h.get('/api/coffer/donors/'+person.id)
+   assert.equal(detail.customValues.filter(v=>/^import_bloomerang_constituent_1[0-9][0-9]$/.test(v.field_key)).length,90)
+   assert.equal(JSON.parse(detail.customValues.find(v=>v.field_key==='import_bloomerang_constituent_189').value),original)
+  }
+  const applied=(await readReview(h,id)),saved=await archive(h,{maxParts:100})
+  const savedReviewRows=saved.flatMap(part=>part.items??[]).filter(item=>item.table==='cf_move_in_custom_reviews')
+  assert.ok(savedReviewRows.length>1,'The archive carries all bounded custom review rows')
+  await run(async fresh=>{
+   await restore(fresh,saved)
+   assert.deepEqual(await readReview(fresh,id),applied,'Restore retains every review original, resolution and applied value')
+   assert.equal((await post(fresh,'custom-apply',{id,version:applied.version})).unchanged,true)
+   await post(fresh,'undo',{id})
+   assert.deepEqual((await fresh.get('/api/coffer/custom-fields')).fields,[],'Undo removes all untouched definitions from a large custom review')
+   assert.equal((await fresh.get('/api/coffer/donors')).total,0)
+  })
+  await h.command('donor.erase',{donorId:people[0].id,confirm:'ERASE'})
+  await post(h,'custom-apply',{id,version:applied.version},{status:409})
+  const erased=await archive(h,{maxParts:100})
+  assert.deepEqual(erased.flatMap(part=>part.items??[]).filter(item=>item.table==='cf_move_in_custom_reviews'),[],'Erasure deletes every durable review original, including a shared capture')
  },{outbound:edge.outbound})
 }

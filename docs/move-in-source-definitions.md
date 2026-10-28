@@ -87,3 +87,21 @@ above, paging parameters and `PagedList` response metadata, `CustomField`,
 `CustomFieldDataType`, and `CustomFieldPickType`. Its `ConstituentBase` and
 `Designation` descriptions explicitly distinguish source report numbers from
 API IDs. The deprecated v1 endpoints are not used.
+
+## Durable review and note choices
+
+After the ordinary record import, **Review source custom fields** keeps the
+captured definitions, original values and explicit corrections together. Reviews
+up to 8 MB are stored in bounded rows rather than one database value. Reopening,
+reusing a mapping and restoring an archive retain the exact capture; an incomplete
+or changed capture cannot be applied. Erasing any constituent involved in that
+capture removes all its durable review rows. Existing inline reviews remain
+readable.
+
+A text pick list on an ordinary note can explicitly map to tags on its
+constituent, just like a constituent, gift or interaction pick list. The source
+note must still belong to that constituent and be non-confidential when applied.
+A confidential or changed note is refused before any tag is written. Mapping
+alone writes no tags; carrying the reviewed values does. Repeating apply creates
+no duplicate tag. Undo removes only untouched import-created tags and definitions
+and keeps pre-existing definitions.
