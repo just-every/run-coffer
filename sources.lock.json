@@ -2319,7 +2319,7 @@
       "executable": false
     },
     "src/coffer/agent/development-report-http.ts": {
-      "sha256": "8d8b96871dd6ac2de732ce7e96d969b820f880f020f8f5f8e7051af9ae3ac2e5",
+      "sha256": "33254f1e32747a5bb3ac3e4f88590a69aa5f795b180d91d264c8366889b8dc17",
       "executable": false
     },
     "src/coffer/agent/development-report-scheduler.ts": {
@@ -2463,7 +2463,7 @@
       "executable": false
     },
     "src/coffer/api/writes.ts": {
-      "sha256": "180b8e30204ddbd4ec2baf15f93219332acac1205c85c80aa778c10200e78a96",
+      "sha256": "a5786dccf5a64844b2535aa37822b3e7a4c873e74a005af786fe41c522b595df",
       "executable": false
     },
     "src/coffer/appeal-results.ts": {
@@ -2559,7 +2559,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "9b916f861e88fd5e999a44bc9d84cf03dc8e7067abad8ba77c2f87ee3a3facb1",
+      "sha256": "7630ef2e3aa620ec8381ce5317cc09e7dec6be25bb97c3549b6d8ede750fdf46",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -3267,7 +3267,7 @@
       "executable": false
     },
     "src/coffer/move-in/source-mapping.ts": {
-      "sha256": "70fc07669ee30438c3cc5129817d8b346d9ac4e15a14c8105b0044c166d8fd19",
+      "sha256": "a1fc13b1b9d34d9cda1904e1dc7385996ff1b87fbd0f126f3c8d5162ab49e3e3",
       "executable": false
     },
     "src/coffer/move-in/source-rows.ts": {
@@ -3287,7 +3287,7 @@
       "executable": false
     },
     "src/coffer/move-in/tributes.ts": {
-      "sha256": "d321f4e90c6e878b8a6dd48140ca32069925451b2f8f07f6c58cbff0518c5d75",
+      "sha256": "40795b7053bf659c046c5e5a4852ca082893e43d34b7d8acece2ed5d2e5526d3",
       "executable": false
     },
     "src/coffer/move-in/types.ts": {
@@ -3499,7 +3499,7 @@
       "executable": false
     },
     "src/coffer/postal-events.ts": {
-      "sha256": "efa14c784336e3f254c7c231f5cf0768c6e77ca1f0f048494beb82ac06ac4bc0",
+      "sha256": "7c8937292bef77472fd1ca4f6c2ffca21403cd6e3cce4cb68ce73ffe7657bb8c",
       "executable": false
     },
     "src/coffer/postal-provider.ts": {
@@ -6147,7 +6147,7 @@
       "executable": false
     },
     "tests/coffer.test.mjs": {
-      "sha256": "d60b370b733242a8842e27de15850bd10bb6852caad18fe40e08e558f8cbb264",
+      "sha256": "8ab0f74f5e903b7b907526366bc039006bc1141696fa7e09fe62be49bd73d1cb",
       "executable": false
     },
     "tests/communication-authority-journey.mjs": {
