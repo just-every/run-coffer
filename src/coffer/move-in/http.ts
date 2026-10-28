@@ -1,3 +1,5 @@
+import { canonicalDonor } from '../donor-merge'
+import { audience } from '../appeals'
 import { givebutterInput } from './givebutter'
 import { Buffer } from 'node:buffer'
 import { customFields } from '../custom-fields'
@@ -27,8 +29,9 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(request.method==='GET') {
   if(action==='spreadsheet'&&!api)return page('Spreadsheet move-in',spreadsheetStart(await service.spreadsheetMappings(c)),c.actor,200,'/app/more')
   if(action==='source-history'&&api) {
-   const donorId=url.searchParams.get('donorId')||''
-   return json({plans:await all(c,"SELECT * FROM cf_recurring_source_references WHERE donor_id=?",donorId),gifts:await all(c,"SELECT p.*,g.amount_cents,g.received_on FROM cf_platform_gifts p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?",donorId)})
+   const donorId=await canonicalDonor(c,url.searchParams.get('donorId')||'')
+   const channels=await Promise.all(['email','mail'].map(channel=>audience(c,channel as 'email'|'mail',{givenSince:null,minTotalCents:0,donorIds:[donorId]})))
+   return json({outreach:{email:channels[0],mail:channels[1]},plans:await all(c,"SELECT * FROM cf_recurring_source_references WHERE donor_id=?",donorId),gifts:await all(c,"SELECT p.*,g.amount_cents,g.received_on FROM cf_platform_gifts p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?",donorId)})
   }
   if(action==='spreadsheet-mappings'&&api)return json(await service.spreadsheetMappings(c))
   if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c)),c.actor,200,'/app/more')

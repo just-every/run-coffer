@@ -1,6 +1,5 @@
 import { Buffer } from 'node:buffer'
 import { fail } from '../db'
-import { csv } from '../csv'
 import { parseCsv } from './parse-input'
 import type { ParseInput } from './types'
 
@@ -18,19 +17,45 @@ async function get(path:string,key:string):Promise<any> {
 }
 async function list(resource:string,key:string) {
  const rows:RecordRow[]=[]
+ let lastPage:number|undefined,total:number|undefined
  for(let page=1;page<=100;page++){
   const result=await get(resource+'?page='+page,key)
-  if(!Array.isArray(result.data)||!result.meta||!Number.isInteger(result.meta.last_page))fail('GIVEBUTTER_SCHEMA','Givebutter pagination is incomplete; no partial history was imported.',502)
+  if(!Array.isArray(result.data)||!result.meta||!Number.isInteger(result.meta.last_page)||result.meta.last_page<1||result.meta.current_page!==page||lastPage!==undefined&&result.meta.last_page!==lastPage)fail('GIVEBUTTER_SCHEMA','Givebutter pagination is incomplete; no partial history was imported.',502)
+  lastPage=result.meta.last_page
+  if(result.meta.total!==undefined){if(!Number.isSafeInteger(result.meta.total)||result.meta.total<0||total!==undefined&&total!==result.meta.total)fail('GIVEBUTTER_SCHEMA','Givebutter source counts changed during the read. Review again.',502);total=result.meta.total}
   rows.push(...result.data)
   if(rows.length>10000)fail('GIVEBUTTER_LIMIT','Use bounded source exports for more than 10,000 records.',400)
-  if(page>=result.meta.last_page)return rows
+  if(page>=result.meta.last_page){if(total!==undefined&&total!==rows.length)fail('GIVEBUTTER_SCHEMA','Givebutter source counts do not match the returned records.',502);return rows}
  }
  fail('GIVEBUTTER_LIMIT','Givebutter history exceeded 100 pages. Nothing was imported.',400)
 }
 const file=(name:string,rows:RecordRow[])=>{
- const keys=[...new Set(rows.flatMap(r=>Object.keys(r)))];return {name,base64:Buffer.from(csv(keys,rows.map(r=>keys.map(k=>r[k]??'')))).toString('base64')}
+ const keys=[...new Set(rows.flatMap(r=>Object.keys(r)))],cell=(value:unknown)=>'\"'+String(value??'').replaceAll('\"','\"\"')+'\"'
+ return {name,base64:Buffer.from([keys,...rows.map(r=>keys.map(k=>r[k]??''))].map(r=>r.map(cell).join(',')).join('\r\n')).toString('base64')}
 }
 const date=(value:unknown)=>typeof value==='string'?value.slice(0,10):''
+function contactColumns(c:RecordRow):RecordRow {
+ const result:RecordRow={}
+ for(const [kind,plural,max] of [['Email','emails',3],['Phone','phones',3]] as const){
+  const values=[...(c[plural]??[])]
+  const primary=c['primary_'+kind.toLowerCase()]
+  if(primary&&!values.some(v=>v.value===primary))values.unshift({value:primary,type:kind==='Email'?'personal':'mobile'})
+  if(values.length>max)fail('GIVEBUTTER_CONTACT','This contact exceeds the supported contact columns. Export and map all values before importing.',400)
+  values.sort((a,b)=>Number(b.value===primary)-Number(a.value===primary))
+  values.forEach((point,i)=>{result[kind+(i?' '+(i+1):'')]=point.value;result[kind+' '+(i+1)+' Type']=point.type||'other';result[kind+' '+(i+1)+' Primary']=i===0?'yes':'no'})
+ }
+ const addresses=[...(c.addresses??[])]
+ if(c.primary_address&&!addresses.some(a=>a.address_1===c.primary_address.address_1&&a.zipcode===c.primary_address.zipcode))addresses.unshift(c.primary_address)
+ if(addresses.length>2)fail('GIVEBUTTER_CONTACT','This contact has more than two source addresses. Export and map all addresses before importing.',400)
+ addresses.sort((a,b)=>Number(Boolean(b.is_primary))-Number(Boolean(a.is_primary)))
+ addresses.forEach((a,i)=>{
+  const prefix=i?'Address 2 ':''
+  for(const [column,value] of Object.entries(i?{'Street':a.address_1,'Street 2':a.address_2,'City':a.city,'State':a.state,'Postal Code':a.zipcode,'Country':a.country}:{'Address':a.address_1,'Address Line 2':a.address_2,'City':a.city,'State':a.state,'Postal Code':a.zipcode,'Country':a.country}))result[prefix+column]=value
+  result['Address '+(i+1)+' Type']=a.type||'home';result['Address '+(i+1)+' Primary']=i===0?'yes':'no'
+ })
+ return result
+}
+
 /** Public API fields plus operator-supplied source evidence, matched only by source ID.
  * Evidence fills fields the API may omit; it cannot overwrite API money or identity. */
 export async function givebutterInput(input:ParseInput):Promise<ParseInput> {
@@ -65,14 +90,14 @@ export async function givebutterInput(input:ParseInput):Promise<ParseInput> {
  const preference=(value:unknown)=>value===null||value===undefined||value===''?'unknown':String(value).toLowerCase()==='1'?'yes':String(value).toLowerCase()==='0'?'no':String(value)
  const donors=contacts.map(c=>{
   const a=c.primary_address??{},extra=contactEvidence.get(String(c.id))??{}
-  return {...extra,'Constituent ID':c.id,'First Name':c.first_name,'Middle Name':c.middle_name,'Last Name':c.last_name,'Prefix':c.prefix,'Suffix':c.suffix,'Nickname':c.preferred_name,'Email':c.primary_email,'Phone':c.primary_phone,'Address':a.address_1,'Address Line 2':a.address_2,'City':a.city,'State':a.state,'Postal Code':a.zipcode,'Country':a.country,'Email Preference':extra['Email Preference']??preference(c.email_opt_in??c.is_email_subscribed),'Mail Preference':extra['Mail Preference']??preference(c.is_address_subscribed),'SMS Preference':extra['SMS Preference']??preference(c.sms_opt_in),'Phone Preference':extra['Phone Preference']??preference(c.is_phone_subscribed)}
+  return {...extra,'Constituent ID':c.id,'First Name':c.first_name,'Middle Name':c.middle_name,'Last Name':c.last_name,'Prefix':c.prefix,'Suffix':c.suffix,'Nickname':c.preferred_name,'Email':c.primary_email,'Phone':c.primary_phone,'Address':a.address_1,'Address Line 2':a.address_2,'City':a.city,'State':a.state,'Postal Code':a.zipcode,'Country':a.country,...contactColumns(c),'Email Preference':extra['Email Preference']??preference(c.email_opt_in??c.is_email_subscribed),'Mail Preference':extra['Mail Preference']??preference(c.is_address_subscribed),'SMS Preference':extra['SMS Preference']??preference(c.sms_opt_in),'Phone Preference':extra['Phone Preference']??preference(c.is_phone_subscribed)}
  })
  const gifts=details.map(t=>{
   const extra=giftEvidence.get(String(t.id))??{},campaign=campaigns.find(c=>String(c.id)===String(t.campaign_id)),dedication=t.dedication
   const contact=donors.find(c=>String(c['Constituent ID'])===String(t.contact_id))
   if(!contact)fail('GIVEBUTTER_SCHEMA','A transaction contact is missing from the source contact list.',400)
   for(const answer of t.custom_fields??[])if(answer.title&&answer.value!==undefined){const column='Question: '+answer.title;if(Object.hasOwn(contact,column)&&(contact as RecordRow)[column]!==answer.value)fail('GIVEBUTTER_QUESTION','A donor has conflicting answers to one question. Map the history explicitly before import.',400);(contact as RecordRow)[column]=answer.value}
-  return {...extra,'Gift ID':t.id,'Constituent ID':t.contact_id,'Gift Type':'Gift','Gift Date':date(t.transacted_at),'Amount':dollars(t.amount),'Fees':dollars(t.fee),'Campaign ID':t.campaign_id,'Campaign':campaign?.title??t.campaign_title??'','Fund':t.fund_code??'','Payment Method':t.method??t.payment_method,'Payment Status':t.status,'Currency':t.currency,'Refunded Amount':t.refunded??'0','Non-Deductible Amount':dollars(t.fair_market_value_amount),'Tribute Honoree':dedication?.name??extra['Tribute Honoree']??'','Tribute Type':dedication?.type??extra['Tribute Type']??'','Tribute Recipient Name':dedication?.recipient?.name??extra['Tribute Recipient Name']??'','Tribute Recipient Email':dedication?.recipient?.email??extra['Tribute Recipient Email']??'','Tribute Group':extra['Tribute Group']??(dedication?String(t.campaign_id):'')}
+  return {...extra,'Gift ID':t.id,'Constituent ID':t.contact_id,'Gift Type':'Gift','Gift Date':date(t.transacted_at),'Amount':dollars(t.amount),'Fees':dollars(t.fee),'Campaign ID':t.campaign_id,'Campaign':campaign?.title??t.campaign_title??'','Fund':t.fund_code??'','Payment Method':t.method??t.payment_method,'Payment Status':t.status,'Currency':t.currency,'Refunded Amount':t.refunded??'0','Non-Deductible Amount':dollars(t.fair_market_value_amount),'Goods Description':(t.line_items??[]).map((item:RecordRow)=>item.description).filter(Boolean).join('; ')||extra['Goods Description']||'','Tribute Honoree':dedication?.name??extra['Tribute Honoree']??'','Tribute Type':dedication?.type??extra['Tribute Type']??'','Tribute Recipient Name':dedication?.recipient?.name??extra['Tribute Recipient Name']??'','Tribute Recipient Email':dedication?.recipient?.email??extra['Tribute Recipient Email']??'','Tribute Group':extra['Tribute Group']??(dedication?String(t.campaign_id):'')}
  })
  const recurring=plans.map(p=>({...planEvidence.get(String(p.id)),'Plan ID':p.id,'Constituent ID':p.contact_id,'Amount':dollars(p.amount),'Frequency':p.frequency,'Plan Status':p.status,'Payment Method':p.method,'Next Charge Date':date(p.next_bill_date)}))
  for(const [evidence,rows,column] of [[contactEvidence,donors,'Constituent ID'],[giftEvidence,gifts,'Gift ID'],[planEvidence,recurring,'Plan ID']] as const)for(const id of evidence.keys())if(!rows.some(r=>String((r as RecordRow)[column])===id))fail('GIVEBUTTER_EVIDENCE','An evidence ID was not returned by Givebutter. Nothing was imported.',400)

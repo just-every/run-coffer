@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "30dce92eccf5bcd6df2d8d97182234dfb5f2fe2e366f2536056d0176ea8a731e",
+      "sha256": "b9acc386d425f739f867f1bd9ce8d97810a99bf0abc4c514e0d2af75dcdcf2f5",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "eb92c403df037af1fad8489f76139886403ae7b9310e91656cc5cecf6c0e3e7c",
+      "sha256": "d513938d6d427ad5485215c05357fa5c77ceb9024051f2229f821bd5f4646e18",
       "executable": false
     },
     "deploy-demo.json": {
@@ -731,7 +731,7 @@
       "executable": false
     },
     "docs/platform-history.md": {
-      "sha256": "e8ce3931cc95716069814f953de6a7483a1489ffdd3c6da3f24e088a7f2b1473",
+      "sha256": "83ecdd7115cf7b44402e99a84879b665f504ce07be0a0bd56771c00d83270ef1",
       "executable": false
     },
     "docs/PRINTING.md": {
@@ -3259,11 +3259,11 @@
       "executable": false
     },
     "src/coffer/move-in/custom-fields.ts": {
-      "sha256": "eee7695a71aa8e8eb359f7b9626f41403d613e02a0c6df07ea37baf1b120a1a6",
+      "sha256": "2bcd31c00dd7243fff231910509d933fa0cfac9106d36ecb1da0a2943cb26cb3",
       "executable": false
     },
     "src/coffer/move-in/givebutter.ts": {
-      "sha256": "93be5028c54e5905f36430f8fcd29c4278862485462d5cd7ea48f73779941722",
+      "sha256": "1e5f72997b974cddaea7d371f80d5af8ba65d888ce161fe9f5b937a67024261b",
       "executable": false
     },
     "src/coffer/move-in/household-writes.ts": {
@@ -3275,7 +3275,7 @@
       "executable": false
     },
     "src/coffer/move-in/http.ts": {
-      "sha256": "d4f2c00666a419cf601a8cf7c3874b4975a208304ae57b6881a1dea7a005c899",
+      "sha256": "7ccb1de34ee9ee7437a70ecf07e0f3fbd249e01538fad9a9a884bfb381d46262",
       "executable": false
     },
     "src/coffer/move-in/parse-input.ts": {
@@ -3291,7 +3291,7 @@
       "executable": false
     },
     "src/coffer/move-in/platform-export.ts": {
-      "sha256": "0367bcd5fcb7134a77ea6d2aa9f18a1e6349dc1911c2bb7fa7e7b5a8e134e824",
+      "sha256": "3c2f8e5c998f888bccf8ac3800380f179f5c1dc11bfa8c0730af1f9b58c06be1",
       "executable": false
     },
     "src/coffer/move-in/pledge-checks.ts": {
@@ -3307,7 +3307,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "a30f9ae1fdc326f36e40cbdae467b636eba17724c7e20b6148eff32769956cb3",
+      "sha256": "1fba13e1f364ab1a9e4d3450eac7a3e9ed4d9845911424160bb87bd26bbe2478",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -3327,11 +3327,11 @@
       "executable": false
     },
     "src/coffer/move-in/source-rows.ts": {
-      "sha256": "5b991e2766daf05782296ae299f9dcc6a15e3e538db003300f6c003aa0ea93b2",
+      "sha256": "1eb1e6cb9388278f7ec2eab6660a69cb513ec5141543374ae37422d04d79e08f",
       "executable": false
     },
     "src/coffer/move-in/source-totals.ts": {
-      "sha256": "f5ded2d66bf36d0a4a1988febdcac51483aa59faed22b516c16de8e551be2486",
+      "sha256": "d7d9dae03fcfb578d1f4a52a650bbe08ded95f1c7da7da55caa2f5816fdea47e",
       "executable": false
     },
     "src/coffer/move-in/spreadsheet-addresses.ts": {
@@ -3891,7 +3891,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "262ff8ae3dc8db2322194503d6c27aaf485dd512a7c6b5df238a872fb1baede5",
+      "sha256": "613a84bc6da41424c1db7f1e9d37fc73ca2071caf52534fbb156509f32d8b509",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6771,7 +6771,7 @@
       "executable": false
     },
     "tests/platform-history-journey.mjs": {
-      "sha256": "afaecd8cbc0a0dcc7830960d890450240951b074e352fefa48c70aa9848a8309",
+      "sha256": "6c82cd418838226ccab0f5b590e2bf30b126d7ddaaefef260c07828f9e97348d",
       "executable": false
     },
     "tests/pledge-api-release-journey.mjs": {
@@ -7179,7 +7179,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "df75fc1f83d97c1236aad0960096116ce12a7c6a98a9e52ce5f6ecbf379e6ba2",
+      "sha256": "70f1eba3b46b0fc7c8ab6897b97fcc995ebdeebb499cddb602dc1659fe5e2ac9",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

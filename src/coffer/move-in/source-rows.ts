@@ -52,7 +52,7 @@ export class SourceRow {
  }
  kindLabel() { return ({ donor: 'constituent', gift: 'gift', pledge: 'pledge', softCredit: 'soft credit', installment: 'pledge installment', relationship: 'relationship', note: 'note', control: 'totals', unsupported: 'unrecognized' } as Record<RowKind, string>)[this.kind()] }
  kind(): RowKind {
-  if (this.peek('planId')) return 'unsupported'
+  if (['givebutter','zeffy'].includes(this.result.source)&&this.peek('planId')) return 'unsupported'
   if (this.peek('controlCount') || this.peek('controlAmount')) return 'control'
   if (this.peek('relationshipType') && this.peek('relatedDonor') && !this.peek('giftId')) return 'relationship'
   if ((this.peek('installmentId') || this.peek('dueOn')) && !this.peek('giftId')) return 'installment'

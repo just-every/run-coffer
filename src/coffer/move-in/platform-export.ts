@@ -33,6 +33,7 @@ export function platformRow(r:SourceRow,out:ParsedImport):boolean {
  const next=r.get('nextOn'),nextOn=next?day(next):null
  if(next&&!nextOn)r.error('DATE','Source next charge must be a real date.','nextOn')
  const customerReference=r.get('customerReference')||null,paymentMethodReference=r.get('paymentMethodReference')||null
+ for(const reference of [customerReference,paymentMethodReference])if(reference&&!/^[a-z][a-z0-9_:-]{0,199}$/i.test(reference))r.error('PLAN_REFERENCE','Retain opaque source references only, never payment account details.','customerReference')
  if(!customerReference||!paymentMethodReference)out.diagnostics.push({...r.location,severity:'warning',code:'PLAN_REFERENCE_MISSING',message:'Source processor references are incomplete. Retain the plan as evidence only; obtain source mapping before MOVE-009.'})
  if((out.recurringReferences??=[]).some(p=>p.externalId===externalId))r.error('DUPLICATE_ID','Source plan ID is repeated.','planId')
  if(amountCents!==null)out.recurringReferences.push({externalId,donorExternalId,amountCents,frequency,status,method,campaign,nextOn,customerReference,paymentMethodReference,location:r.location})
@@ -45,7 +46,7 @@ export function platformGift(r:SourceRow,out:ParsedImport) {
  if(feeCents===null)r.error('PLATFORM_FEE','Supply the source fee as a non-negative USD amount.','fee')
  const status=r.get('paymentStatus').toLowerCase(),refunded=r.get('refunded'),currency=r.get('currency')
  if(status&&!['paid','succeeded','successful','completed'].includes(status))r.error('PLATFORM_STATUS','Only completed historical payments can be imported. Resolve pending or failed source rows first.','paymentStatus')
- if(refunded&&money(refunded)!==0)r.error('PLATFORM_REFUND','A refunded source transaction requires separate reviewed reversal history; do not import its gross amount as cash.','refunded')
+ if(refunded&&!['false','no'].includes(refunded.toLowerCase())&&money(refunded)!==0)r.error('PLATFORM_REFUND','A refunded source transaction requires separate reviewed reversal history; do not import its gross amount as cash.','refunded')
  if(currency&&currency.toUpperCase()!=='USD')r.error('PLATFORM_CURRENCY','This door currently accepts USD history only.','currency')
  return {campaignId,campaignName,feeCents:feeCents??0}
 }

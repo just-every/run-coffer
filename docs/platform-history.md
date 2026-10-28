@@ -66,7 +66,9 @@ qualification are unclaimed.
 ## Custody and recurring evidence
 
 Recurring source evidence can be read by the current owner or admin at
-`/api/coffer/move-in/source-history?donorId=<native-id>`. It follows reviewed donor
+`/api/coffer/move-in/source-history?donorId=<native-id>`. The same read shows current
+email and postal audience eligibility with exclusion reasons, without preparing
+or submitting a mailing. It follows reviewed donor
 merges, is portable in an archive, and is erased with its person. A revoked admin
 cannot read or apply. Replay cannot duplicate cash, acknowledgments or plans, and
 erased source IDs cannot be restored through an old import.

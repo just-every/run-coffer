@@ -152,7 +152,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
       ]
     },
     {
@@ -160,7 +160,7 @@
       "browser": false,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-013):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
       ]
     },
     {
