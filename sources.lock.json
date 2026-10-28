@@ -1463,7 +1463,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "26d84a86418a64038c5548558c661341ebc63d15c2a9fb0478693258f0678ae6",
+      "sha256": "9c0c7c243b95fcd9b8b9def1f5b21b3c5064c3023694d7974747bd97b3907dd1",
       "executable": false
     },
     "packaging.json": {
@@ -1471,7 +1471,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "9acf664748a3cb8aa0f503f090f7cfe12dbf4df21e1e9a31c1f40f78bc6d9ca3",
+      "sha256": "bb1c160fd6bbc183a34e2abcca8dc91f000fac9453e14b96c243ace2b55d26c2",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -1555,7 +1555,7 @@
       "executable": false
     },
     "public/giving/campaign.css": {
-      "sha256": "63213d1dc5f8d5effb93809ccf6ccaff0ad0976949aae2d30b6a1e448dc7d448",
+      "sha256": "dc64602f0577a1d13872bbb5bfbddf824fa4ceb594f340902b7cafc338490b9c",
       "executable": false
     },
     "public/giving/coffer-mark.png": {
@@ -2919,7 +2919,7 @@
       "executable": false
     },
     "src/coffer/giving/checkout.ts": {
-      "sha256": "d466d200b96d17b8369073a5c96130bd5419a66080d84e29843dcabfd5413fe2",
+      "sha256": "161b6fcd46ff0fb0e0fc274eafaa89f78175bd0aef76cafa4a602fdc7d40698a",
       "executable": false
     },
     "src/coffer/giving/connections-ui.ts": {
@@ -2935,7 +2935,7 @@
       "executable": false
     },
     "src/coffer/giving/http.ts": {
-      "sha256": "437a2d494b68aece2077b066f0994f58bf724474175308f018c3c7d2e299f5cb",
+      "sha256": "a23c83fa344d0c3d6815e9163d72b5c63b9d31d257683ebaf3c9b098fe206985",
       "executable": false
     },
     "src/coffer/giving/image-metadata.ts": {
@@ -2947,7 +2947,7 @@
       "executable": false
     },
     "src/coffer/giving/manage-ui.ts": {
-      "sha256": "76449c0be931a00b9e21272c29ac434f45ee2452d7807aa8651e6a5787b15888",
+      "sha256": "130ebfce3fa1dafefbe45a193cdf9a8f9a80e04493336be308a509dfe0d90e1d",
       "executable": false
     },
     "src/coffer/giving/media.ts": {
@@ -3019,7 +3019,7 @@
       "executable": false
     },
     "src/coffer/giving/recording.ts": {
-      "sha256": "fbb142d89d9e041aa32deba27d0efb088056ce2bba6fd1ea12923d3332d4095a",
+      "sha256": "c230063e7ce477f1be4993988d938b2e7352586feb3c55fcb32c37db1a78d89e",
       "executable": false
     },
     "src/coffer/giving/saved-card-consent.ts": {
@@ -3059,7 +3059,7 @@
       "executable": false
     },
     "src/coffer/giving/ui.ts": {
-      "sha256": "71c3aa7777cccbb5fb9cb3eda28dda9c2ee65c60831edcdad1c82668dbeed940",
+      "sha256": "ff7e50a1840c4a32a88ca000d54e1238b33f09fd10b5ee20550a83c0526eb69e",
       "executable": false
     },
     "src/coffer/giving/video.ts": {
@@ -3091,7 +3091,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "78e8cedde9175412155283c13ca038777799ccae4c4be649242c05001b0846f4",
+      "sha256": "b25154ce6b325a61413dac4b8e0a48fa81f13d815f0a1bdcb2153d7a345aafa9",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -4007,7 +4007,7 @@
       "executable": false
     },
     "src/coffer/ui/more.ts": {
-      "sha256": "cd2213ab6ee2d14431615297c4a24bdfbc8469ed10f14a1ed1639a451875c0e6",
+      "sha256": "b00731d2a30bf2a3b3c340509d0668541499532fe097e6c5de144384110acd7a",
       "executable": false
     },
     "src/coffer/ui/move-in.ts": {
@@ -6559,7 +6559,7 @@
       "executable": false
     },
     "tests/giving.test.mjs": {
-      "sha256": "b772d41ca2598d0c30d332a87a4b9824290f4b463fc567e2c0f3bc90dcde4619",
+      "sha256": "cf573fc82b12f6f911af9dd11ad2f052c47f2480fd41ef811c2e14808d662adf",
       "executable": false
     },
     "tests/grants-journey.mjs": {
