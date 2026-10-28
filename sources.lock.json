@@ -1459,7 +1459,7 @@
       "executable": false
     },
     "migrations/core/0171_coffer_giving_forms.sql": {
-      "sha256": "0e5ba85773efc872905fa52fd501142a37f59057d065c1c8f4a55b665aa93d70",
+      "sha256": "32a3372a56f6e2bd9328c604c3755b490a12ed0f956a685097ed9c03638401c4",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1579,7 +1579,7 @@
       "executable": false
     },
     "public/giving/form-settings.js": {
-      "sha256": "890fded38e7658f2adae8db171e3f68ef6312e0c88d1af5ac98eb868279e02b2",
+      "sha256": "97465651fad072e23201a12a6086e1560354c8352372171dae88853f8d69e8b9",
       "executable": false
     },
     "public/giving/form.js": {
@@ -2963,7 +2963,7 @@
       "executable": false
     },
     "src/coffer/giving/form-fields.ts": {
-      "sha256": "60151bd16232347606fbef1b9005e80bdac2db395ac14e817aba92b3dd65419b",
+      "sha256": "e7c5569982a2c9104d84eb5e1d07b320ec209c004c12ea2042eeb2cd63fc958e",
       "executable": false
     },
     "src/coffer/giving/form-manage-ui.ts": {
@@ -3071,7 +3071,7 @@
       "executable": false
     },
     "src/coffer/giving/recording.ts": {
-      "sha256": "c230063e7ce477f1be4993988d938b2e7352586feb3c55fcb32c37db1a78d89e",
+      "sha256": "2acf1dcc5a6a7303a2eb96038e99f2414f670c6e2afb127ddccc367e734f1956",
       "executable": false
     },
     "src/coffer/giving/saved-card-consent.ts": {
@@ -6623,7 +6623,7 @@
       "executable": false
     },
     "tests/giving-form-browser.mjs": {
-      "sha256": "04056265f5296891824caabb774a4310c89b7ba7210dc6831528946d18cdaf4e",
+      "sha256": "3821d63a1c6818f0e856020cdfcaf7944fd0d4ab9031cc2356bc59de006bac55",
       "executable": false
     },
     "tests/giving-form-edge.mjs": {

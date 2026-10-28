@@ -23,6 +23,8 @@ if (form) {
   }
   saving = false
  }
- form.addEventListener('change', save)
+ let timer
+ form.addEventListener('input', () => {clearTimeout(timer); timer = setTimeout(save, 350)})
+ form.addEventListener('change', () => {clearTimeout(timer); save()})
  form.addEventListener('submit', event => {event.preventDefault(); save()})
 }

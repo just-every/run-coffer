@@ -66,7 +66,7 @@ export async function syncSubscription(env: GivingEnv, subscriptionId: string, c
 
 const consentEvidence = (intent: Row) => `Ticked “Email me news and appeals” on the giving page at checkout ${intent.id}.`
 
-/** The reference and deterministic ID make return-page/webhook races harmless. */
+/** The reference and deterministic ID make return page and webhook races harmless. */
 export async function recordGift(env: GivingEnv, intent: Row, reference: string, cents: number, paidAt: number, subscriptionId?: string) {
  if (!Number.isSafeInteger(cents) || cents <= 0 || !reference || !Number.isSafeInteger(paidAt)) fail('invalid_payment', 'Stripe returned an invalid gift.', 409)
  const ticket=await one({db:env.DB},'SELECT * FROM cf_event_orders WHERE intent_id=?',intent.id)

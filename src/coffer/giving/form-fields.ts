@@ -23,9 +23,9 @@ function capture(form: GivingForm, p: Row): GivingFormSnapshot {
   const v = Object.hasOwn(input,q.key) ? input[q.key] : undefined, empty = v === undefined || v === null || v === '' || Array.isArray(v) && !v.length
   if (empty) { if (q.required) fail('INPUT','Answer '+q.label+'.',400); continue }
   let value = v
-  // Native checkbox/select controls submit scalar strings. Multi-select answers
+  // Native checkbox and select controls submit scalar strings. Multi-select answers
   // use repeated answer.<key> names, collected as arrays by the public route.
-  if (q.entry === 'pick-many' && p.answers === undefined && typeof value === 'string') value = [value]
+  if (q.entry === 'pick-many' && typeof value === 'string') value = [value]
   answers.push({key:q.key,value:customValue({...q,choices:JSON.stringify(q.choices)},value)})
  }
  return {form,fund,employer,comment,answers}
@@ -33,7 +33,7 @@ function capture(form: GivingForm, p: Row): GivingFormSnapshot {
 
 /** Append these statements after the parent intent insert, in the same batch.
  * Saved captures are the only source for paid answers; caller copies are never
- * trusted on replay. A field/config edit during checkout aborts the batch. */
+ * trusted on replay. A field or configuration edit during checkout aborts the batch. */
 export async function prepareGivingForm(db: D1Database, campaign: Row, p: Row, prior?: Row | null): Promise<{ fund: string; snapshot: GivingFormSnapshot; statements: Stmt[] }> {
  const id = p.requestId
  const saved = await one({db},'SELECT * FROM cf_giving_form_intents WHERE intent_id=?',id)
