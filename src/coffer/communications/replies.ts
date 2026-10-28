@@ -11,7 +11,7 @@ const MAX_RAW = 1024 * 1024
 const clean = (value: string, limit: number) => value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, limit)
 const address = (value: string) => value.trim().toLowerCase()
 
-async function readRaw(message: ForwardableEmailMessage): Promise<Uint8Array<ArrayBuffer> | null> {
+export async function readRaw(message: ForwardableEmailMessage): Promise<Uint8Array<ArrayBuffer> | null> {
  if (message.rawSize > MAX_RAW) return null
  const reader = message.raw.getReader(), chunks: Uint8Array[] = []
  let size = 0
@@ -49,7 +49,7 @@ function subject(value: string): string {
 }
 
 /** Extract a bounded text/plain excerpt only. Attachments and HTML are not stored. */
-function plainExcerpt(raw: Uint8Array): string {
+export function plainExcerpt(raw: Uint8Array): string {
  // Preserve bytes so transfer encodings and declared charsets can be decoded per part.
  let binary = ''
  for (let offset = 0; offset < raw.length; offset += 8192) binary += String.fromCharCode(...raw.subarray(offset, offset + 8192))
@@ -92,7 +92,7 @@ function plainExcerpt(raw: Uint8Array): string {
 /** The From address, only when Cloudflare's own receiver header (always the topmost
  * Authentication-Results) says it passed DMARC. Mail services send with their own
  * envelope sender, so a donor replying through one is recognized by this instead. */
-function authenticatedFrom(raw: Uint8Array): string | null {
+export function authenticatedFrom(raw: Uint8Array): string | null {
  let head = ''
  for (let i = 0; i < Math.min(raw.length, 65536); i++) head += String.fromCharCode(raw[i])
  const lines = head.split(/\r?\n\r?\n/)[0].replace(/\r?\n[ \t]+/g, ' ').split(/\r?\n/)
@@ -150,33 +150,37 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
  if (!communication) {
   message.setReject('Unknown reply sender or address.'); return
  }
- const now = new Date().toISOString(), title = subject(message.headers.get('subject') ?? '')
- const body = plainExcerpt(raw), headerId = message.headers.get('message-id')?.trim()
- const contentHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', raw)), x => x.toString(16).padStart(2, '0')).join('')
- // Donor-scoped identity stays stable when a newer same-subject appeal is sent before redelivery.
- const messageId = await sha256(`${communication.donor_id}\0${headerId && headerId.length <= 998 ? headerId : contentHash}`), taskId = `reply:${messageId}`
+ const title = subject(message.headers.get('subject') ?? ''), body = plainExcerpt(raw)
+ const headerId = message.headers.get('message-id')?.trim(), contentHash = await sha256(new TextDecoder().decode(raw))
+ const key = await sha256(`${communication.donor_id}\0${headerId && headerId.length <= 998 ? headerId : contentHash}`)
  const automatic = /^(?!no(?:\s*;|\s*$))\S/i.test(message.headers.get('auto-submitted')?.trim() ?? '') ||
   (message.headers.has('x-autoreply') && !/^\s*no\s*$/i.test(message.headers.get('x-autoreply') ?? '')) ||
   message.headers.has('x-autorespond') || /^\s*(?:automatic reply|out of (?:the )?office|auto(?:matic)?[- ]response)\b/i.test(title)
+ await recordIncomingReply(env,communication,{title,body,key,automatic,forward:async to=>{await message.forward(to)}})
+}
+
+/** All email ingresses share routing, stop interpretation and saved reply custody. */
+export async function recordIncomingReply(env:Bindings,communication:Row,input:{title:string;body:string;key:string;automatic:boolean;forward:(to:string)=>Promise<void>}) {
+ const now = new Date().toISOString(), {title,body,automatic}=input, messageId=input.key, taskId=`reply:${messageId}`
  const owner = await routingOwner(env.DB, communication.donor_id)
  const evidence = automatic ? null : stopEvidence(body)
  const note = automatic ? 'Automatic reply filed; no forwarding or follow-up required.' : owner ? 'Waiting to forward to the assigned relationship manager.' : 'Forwarding failed: no active relationship manager or owner account is available.'
  const state = automatic ? 'filed' : owner ? 'pending' : 'failed'
  const received = await env.DB.batch([
   env.DB.prepare(`INSERT OR IGNORE INTO cf_reply_tasks(id,communication_id,letter_id,donor_id,owner_id,subject,body,received_at,message_id,status,note,automatic,
-   stop_status,stop_version,stop_evidence,stop_consent_id,stop_email,stop_donor_id,stop_proposed_at,stop_proposed_by)
-   SELECT ?,?,?,d.id,?,?,?,?,?,?,?,?,?, ?,?,${currentConsent},d.email,d.id,?,? FROM cf_donors d
+   stop_status,stop_version,stop_evidence,stop_consent_id,stop_email,stop_donor_id,stop_proposed_at,stop_proposed_by,mailbox_id)
+   SELECT ?,?,?,d.id,?,?,?,?,?,?,?,?,?, ?,?,${currentConsent},d.email,d.id,?,?,? FROM cf_donors d
    WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`)
    .bind(taskId, communication.source_type === 'communication' ? communication.id : null, communication.source_type === 'letter' ? communication.id : null,
     owner?.id ?? null, title, body, now, messageId, state, note, automatic ? 1 : 0,
-    evidence ? 'automatic' : null, evidence ? 1 : 0, evidence, evidence ? now : null, evidence ? 'Email routing' : null, communication.donor_id),
+    evidence ? 'automatic' : null, evidence ? 1 : 0, evidence, evidence ? now : null, evidence ? 'Email routing' : null, communication.mailbox_id??null, communication.donor_id),
   ...await automaticStopStatements(env.DB, taskId, now),
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'email-routing','Email routing','system','reply.received','reply',id,donor_id,? FROM cf_reply_tasks WHERE id=? AND NOT EXISTS(SELECT 1 FROM cf_interactions WHERE id=?)`)
    .bind(now, JSON.stringify({ communicationId: communication.id, sourceKind: communication.source_kind, sourceId: communication.source_id, automatic }), taskId, taskId),
   env.DB.prepare(`INSERT OR IGNORE INTO cf_interactions(id,donor_id,kind,occurred_on,who,notes,next_step,recorded_at,recorded_by)
    SELECT id,donor_id,'email',?,'Donor',?,?,?,'Email routing' FROM cf_reply_tasks WHERE id=?`)
-   .bind(now.slice(0, 10), `${replySource(communication.source_kind)} reply · ${title}\n${body || 'No plain-text excerpt is available.'}${evidence ? '\nEmail consent withdrawn automatically from this explicit request.' : ''}`, note, now, taskId),
+   .bind(now.slice(0, 10), communication.mailbox_id?'Private mailbox reply saved.':`${replySource(communication.source_kind)} reply · ${title}\n${body || 'No plain-text excerpt is available.'}${evidence ? '\nEmail consent withdrawn automatically from this explicit request.' : ''}`, note, now, taskId),
  ])
  if (received[1].meta.changes) await syncAutomaticStop(env, taskId, now)
  const task = await one({ db: env.DB }, 'SELECT * FROM cf_reply_tasks WHERE id=?', taskId)
@@ -195,7 +199,7 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
   AND EXISTS(SELECT 1 FROM cf_donors WHERE id=cf_reply_tasks.donor_id AND erased_at IS NULL)`)
   .bind(owner.id, owner.email, attempt, now, taskId, owner.id, owner.email).run()
  if (!claim.meta.changes) return
- try { await message.forward(owner.email) } catch {
+ try { await input.forward(owner.email) } catch {
   await recordState(env.DB, taskId, attempt, 'uncertain', 'Forwarding did not confirm success. Check the assigned person’s inbox; the saved reply needs attention.', new Date().toISOString())
   // A provider exception may happen after acceptance. Never automatically send twice.
   throw new Error('Reply forwarding did not confirm success; review the reply task.')
@@ -211,10 +215,10 @@ export function replyTasks(c: Context) {
   CASE WHEN r.status='pending' AND r.attempt_key IS NOT NULL AND r.forwarding_at<? THEN 1 ELSE 0 END AS stale_forward,
   CASE WHEN r.stop_status='proposed' AND NOT (${stopIsCurrent}) THEN 1 ELSE 0 END AS stale_stop,
   CASE WHEN r.stop_status='automatic' AND (${automaticStopIsCurrent}) THEN 1 ELSE 0 END AS can_reverse_stop
-  FROM cf_reply_tasks r JOIN cf_donors d ON d.id=r.donor_id AND d.erased_at IS NULL
+  FROM cf_reply_tasks r JOIN cf_donors d ON d.id=r.donor_id AND d.erased_at IS NULL AND (r.mailbox_id IS NULL OR ?=1)
   LEFT JOIN cf_communications c ON c.id=r.communication_id LEFT JOIN cf_acks a ON a.id=r.letter_id
   LEFT JOIN cf_ack_batches b ON b.id=a.batch_id LEFT JOIN oa_operators o ON o.id=r.owner_id
-  ORDER BY CASE WHEN r.status IN ('filed','done') THEN 1 ELSE 0 END,r.received_at DESC,r.id DESC`, new Date(Date.parse(c.now) - 300000).toISOString())
+  ORDER BY CASE WHEN r.status IN ('filed','done') THEN 1 ELSE 0 END,r.received_at DESC,r.id DESC`, new Date(Date.parse(c.now) - 300000).toISOString(),manager(c.actor)?1:0)
 }
 
 export async function replyCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
@@ -225,6 +229,7 @@ export async function replyCommand(c: Context, command: string, p: Row): Promise
  const taskId = id(p.taskId, 'Reply task'), notes = longText(p.notes, 'Follow-up outcome', 2000)
  const task = await one(c, 'SELECT * FROM cf_reply_tasks WHERE id=?', taskId)
  if (!task) fail('NOT_FOUND', 'That reply task no longer exists.', 404)
+ if(task.mailbox_id&&!manager(c.actor))fail('FORBIDDEN','Only owners and admins review private mailbox replies.',403)
  if (!manager(c.actor) && task.owner_id !== c.actor.id) fail('FORBIDDEN', 'Only the assigned person or an administrator can finish this reply.', 403)
  await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_reply_tasks r JOIN cf_donors d ON d.id=r.donor_id WHERE r.id=? AND r.status NOT IN ('done','filed') AND d.erased_at IS NULL AND (?=1 OR r.owner_id=?))`, 'REPLY_CHANGED', 'This reply changed or is already closed. Refresh before saving.', taskId, manager(c.actor) ? 1 : 0, c.actor.id),
   sql("UPDATE cf_reply_tasks SET status='done',note=? WHERE id=?", notes, taskId),

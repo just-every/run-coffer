@@ -1,3 +1,4 @@
+import { mailboxHistory } from './mailboxes/store'
 import { auctionDonorRows } from './auction'
 import { solicitationFilter, solicitationFilterSql } from './solicitation-filter'
 import { enteredAddress } from './addresses/entry'
@@ -153,6 +154,7 @@ export async function donorHistory(c: Context, donorId: string) {
  for(const gift of gifts)gift.recognition=recognitionByGift.get(gift.id)??{anonymous:0,wall_opt_in:0,recognition_name:null}
  const consent = (channel: string) => consents.find(x => x.channel === channel) ?? null
  return {
+  mailboxMessages:await mailboxHistory(c,donorId),
   auctions:manager(c.actor)?await auctionDonorRows(c,donorId):[],
   customValues:['owner','admin'].includes(c.actor.role)?await all(c,'SELECT * FROM cf_custom_values WHERE donor_id=? ORDER BY field_key,record_id',donorId):[],
   contactPoints:await contactPoints(c,donorId),contactHistory:await all(c,'SELECT * FROM cf_contact_history WHERE donor_id=? ORDER BY recorded_at,point_id,version',donorId),

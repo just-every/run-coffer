@@ -26,6 +26,7 @@ const PARENTS: Record<string, string> = {
 }
 // Rows that reach a donor but are not records about them.
 export const NOT_IN_FILE: Record<string, string> = {
+ cf_mailbox_messages: 'Private personal mailbox excerpts are withheld from donor files.',
  cf_meeting_links: 'Private scheduling capabilities and staff authorization stay in this installation.',
  cf_auction_jobs: 'Complete source files contain other bidders and stay private.',
  cf_auction_donors: 'Internal undo snapshots contain complete imported contact records.',
@@ -130,6 +131,7 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
  for(const table of ['cf_custom_values','cf_custom_value_history'])rows.set(table,(rows.get(table)??[]).filter(value=>!privateNotes.has(value.record_id)))
  rows.set('cf_events',(rows.get('cf_events')??[]).filter(row=>row.subject_kind!=='custom_value'||!privateNotes.has(row.subject_id)))
  rows.set('cf_move_in_records',(rows.get('cf_move_in_records')??[]).filter(row=>row.kind!=='customValue'||!privateNotes.has(row.native_id)))
+ rows.set('cf_reply_tasks',(rows.get('cf_reply_tasks')??[]).filter(row=>!row.mailbox_id))
  const records: Record<string, Row[]> = {}
  for (const t of tables) {
   const found = rows.get(t.name); if (!found?.length) continue

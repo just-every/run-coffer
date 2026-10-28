@@ -62,6 +62,7 @@ export async function replyStopCommand(c: Context, command: string, p: Row): Pro
  const task = await one(c, `SELECT r.*,d.email,${currentConsent} AS current_consent_id FROM cf_reply_tasks r
   JOIN cf_donors d ON d.id=r.donor_id WHERE r.id=? AND ${live}`, taskId)
  if (!task) fail('NOT_FOUND', 'That reply no longer belongs to a current donor.', 404)
+ if(task.mailbox_id&&!['owner','admin'].includes(c.actor.role))fail('FORBIDDEN','Only owners and admins review private mailbox replies.',403)
  if (task.automatic) fail('AUTOMATIC_REPLY', 'An automatic reply cannot propose a consent withdrawal.')
  if (command === 'reply.reverseStop') {
   const reason = text(p.reason, 'Why the explicit request was misread', 1000)

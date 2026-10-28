@@ -2491,7 +2491,7 @@
       "executable": false
     },
     "src/coffer/archive-policy.mjs": {
-      "sha256": "9c55087e0fed890a4ede000046516a19b52032657e5394ecc074e90eada6fb0c",
+      "sha256": "e661c88e5264139334009f51ca55d2a6ea8ed735111cf86980e944d9d5fdfbce",
       "executable": false
     },
     "src/coffer/attribution.ts": {
@@ -2571,7 +2571,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "150728eee983b445dc3b2b613a2342bedc31bb108a401fdc5e18b788cb831d17",
+      "sha256": "104cc17dbb527711a86ca1162237004bb2053465bef8eefb9f25d62e112353e9",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2667,11 +2667,11 @@
       "executable": false
     },
     "src/coffer/communications/replies.ts": {
-      "sha256": "59b816b99c259c417681030bce07aa25ea498eb30b7ac38ddd2713f0e42dbb53",
+      "sha256": "7658ef6450dd67ed69b788138c938539d038728539c41f79f3cae9db683dc26b",
       "executable": false
     },
     "src/coffer/communications/reply-stop.ts": {
-      "sha256": "650affe586f386473387d22a3b5e4145b8ee5cc8532668bada5261d29d50abc8",
+      "sha256": "e1a13049b8c89eca789c5355dfb3b2a0b61256a46527d7244451bd1765e405ca",
       "executable": false
     },
     "src/coffer/communications/scheduler.ts": {
@@ -2783,7 +2783,7 @@
       "executable": false
     },
     "src/coffer/donor-file.ts": {
-      "sha256": "24c6e32c8c4f3281c1877e3e5da56fc36979eff001348af1788908481ac89472",
+      "sha256": "abbbaf596be9b436acecf7e327743fcf2fc27f69126e5247d1b1bdb2df65d007",
       "executable": false
     },
     "src/coffer/donor-households.ts": {
@@ -2791,11 +2791,11 @@
       "executable": false
     },
     "src/coffer/donor-merge.ts": {
-      "sha256": "a7f877f8984bbca7b02773d9424ce05c559d3a35096ed3eec3997f66d163b1b1",
+      "sha256": "10ab69d01992b396e0266480ea9fa311f338870739e3509ad19a9806ddeae462",
       "executable": false
     },
     "src/coffer/donors.ts": {
-      "sha256": "f31aa7392ad473a68b86eb0f02f744c3ac87e4f5ede7484163ee677b84bd7227",
+      "sha256": "76574e3980f4145fc2e52e6829eea6d3dad3831ddd76e116f3184a33d0a19346",
       "executable": false
     },
     "src/coffer/duplicates.ts": {
@@ -3095,7 +3095,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "78e8cedde9175412155283c13ca038777799ccae4c4be649242c05001b0846f4",
+      "sha256": "7fcb50a1126d4f983d6f660a0c60614baeec00fcfd355ca710b1a71e21ac0f47",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3198,12 +3198,32 @@
       "sha256": "c783e57bbc8e52b20eca04373c0f3b76b5872f384bd0c02a3e9e08726ce61363",
       "executable": false
     },
+    "src/coffer/mailboxes/bcc.ts": {
+      "sha256": "f247bdd9e6c24f6425a85be6b38bb0196af29926b2295862db26f8d3b7a38400",
+      "executable": false
+    },
+    "src/coffer/mailboxes/commands.ts": {
+      "sha256": "4bf406261cfffb6ae98785734391c4f398b0d9829ec5064729f17304de7ca0d2",
+      "executable": false
+    },
     "src/coffer/mailboxes/connection.ts": {
       "sha256": "f7d43b87e2badd6ed710bb388f2eff5c39203a474fe67a8fe63b39227cf0b5c2",
       "executable": false
     },
     "src/coffer/mailboxes/provider.ts": {
-      "sha256": "ea04239e1a9d08919366565c976ebec7e39ef7303f830245214257f3db41c1fe",
+      "sha256": "7b4f29ee6fa907043aadd42a097820e5d9e43f1412eef8b2ede88171d8d01a3b",
+      "executable": false
+    },
+    "src/coffer/mailboxes/sending.ts": {
+      "sha256": "04f5477c4b071377b5894bc330000706c391f8692fa28e45918a4210d7b1a5b0",
+      "executable": false
+    },
+    "src/coffer/mailboxes/store.ts": {
+      "sha256": "30959a06e20beec9b8ef4ebc28c5d8a6c2cce8f7c48bf8e442aff08d05570c55",
+      "executable": false
+    },
+    "src/coffer/mailboxes/ui.ts": {
+      "sha256": "20605b90868021c71f866e0d0e7aee43a3e86604418e19816df9f289dc0e5837",
       "executable": false
     },
     "src/coffer/major-gifts.ts": {
@@ -3231,7 +3251,7 @@
       "executable": false
     },
     "src/coffer/merge-journal.ts": {
-      "sha256": "3bcc434594768919dcffed5f4f8315a52a85e4eb7598c3d7807647c3cd47f91b",
+      "sha256": "7956c373529be04b05ec7ad911b94186a24006fb61b1440648023fd14840f9f9",
       "executable": false
     },
     "src/coffer/money.ts": {
@@ -3899,11 +3919,11 @@
       "executable": false
     },
     "src/coffer/ui/donor-timeline.ts": {
-      "sha256": "22e52ac45461502d6d0d6d016b714011fb27ed679cece89202a3ee62f033bb21",
+      "sha256": "37dc1db925c9af39fac2e1cf77d125f508ce71e914280edb4db261ace4bc1387",
       "executable": false
     },
     "src/coffer/ui/donors.ts": {
-      "sha256": "e1387f4e26d2538d91cb64d01f881be42d57c1de359d6350b27af6c3b38adffc",
+      "sha256": "efa638e78ad9b7f8827984655fc715e9b65c79ae9eb031132c8bb0655c2c4ff6",
       "executable": false
     },
     "src/coffer/ui/duplicates.ts": {
@@ -5919,7 +5939,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "fbb74342c3afad173a138a56b872246acf6a273b25718e74207da9bb800ad483",
+      "sha256": "348f7bd5be4d5778701166ad48c66ecc1762a1410b9e7ace5d15d53e2136fb0a",
       "executable": false
     },
     "src/site/docs/build/manifest.ts": {
@@ -6259,7 +6279,7 @@
       "executable": false
     },
     "tests/communications.test.mjs": {
-      "sha256": "6ae50f6f6539cbcfad9a2257b40e42664cbaaf85d16ea9fbb2ecc4faaf0fbcf9",
+      "sha256": "e78d8061844fceb9fddf398cfa4c38eeb64e7f3f916c3ee7ab6da215e67a5252",
       "executable": false
     },
     "tests/contact-points-journey.mjs": {
@@ -6351,7 +6371,7 @@
       "executable": false
     },
     "tests/engagement-worker.ts": {
-      "sha256": "5aa94c7a923ae24b029773a11f28bf3e875023d6800172fcc8faa7b7488896b3",
+      "sha256": "67c60ff10683231cf9be4404d5ed4bde19b996e60efe3e6490ea6ca6eda0164a",
       "executable": false
     },
     "tests/event-packages-browser.mjs": {
@@ -6660,6 +6680,14 @@
     },
     "tests/mail-appeals-journey.mjs": {
       "sha256": "3158e3a45fa98d55375886b22ce3409658035d5b8c3db9117f1f8c729dfa3dfb",
+      "executable": false
+    },
+    "tests/mailboxes-browser.mjs": {
+      "sha256": "b9bdbeb3d482eb00c1b46afdc6a18a1d01de85ba26066c8c4cb6797c77db6f00",
+      "executable": false
+    },
+    "tests/mailboxes-journey.mjs": {
+      "sha256": "75f821b066f55a236d18ff93d303afcdbd441a52cf15eb37899a4c8cb6e2d99f",
       "executable": false
     },
     "tests/mcp-browser.mjs": {
@@ -7131,7 +7159,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "abccdde935069a270d364fe191f7e00ef36fa271e92236e762218db42815115d",
+      "sha256": "ac642c36685223604fcb59360ee80c188c1ed09bf92bafdf53508ab5f99d9926",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
