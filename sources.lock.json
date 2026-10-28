@@ -2939,7 +2939,7 @@
       "executable": false
     },
     "src/coffer/giving/checkout.ts": {
-      "sha256": "161b6fcd46ff0fb0e0fc274eafaa89f78175bd0aef76cafa4a602fdc7d40698a",
+      "sha256": "40bf6cd20c962598753ac564c11db66695d36a1d27835460714238382db15b41",
       "executable": false
     },
     "src/coffer/giving/connections-ui.ts": {
@@ -6627,7 +6627,7 @@
       "executable": false
     },
     "tests/giving-form-edge.mjs": {
-      "sha256": "80cc627ed47bf0075a3d8c2fd1de85538f87af619b76a2a5d19b95293f66ed40",
+      "sha256": "e20d207b901830c4016f11cd16256a71b73a8d933c8a1b1c3891cd6e33c34b50",
       "executable": false
     },
     "tests/giving-form-journey.mjs": {
@@ -6635,7 +6635,7 @@
       "executable": false
     },
     "tests/giving-form-live-browser.mjs": {
-      "sha256": "e67073fac907c6221af4f42983e767cdef5fb9770df41a01c07f2c1af6a4c247",
+      "sha256": "ac2d9b94f9dd772c8b41ff78d269136aa2402db1c15e0a9e8777f38f3d239a83",
       "executable": false
     },
     "tests/giving-form-live.mjs": {

@@ -85,7 +85,10 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   params['line_items[0][price_data][recurring][interval]'] = frequency === 'annually' ? 'year' : 'month'
   params['line_items[0][price_data][recurring][interval_count]'] = frequency === 'quarterly' ? '3' : '1'
   params['subscription_data[metadata][coffer_intent]'] = id
- } else params['payment_intent_data[metadata][coffer_intent]'] = id
+ } else {
+  params['payment_intent_data[metadata][coffer_intent]'] = id
+  params['adaptive_pricing[enabled]'] = 'false'
+ }
  const session = await provider(env, '/checkout/sessions', params, 'checkout-' + id)
  await env.DB.prepare('UPDATE cf_giving_intents SET session_id=? WHERE id=?').bind(session.id, id).run()
  return session
