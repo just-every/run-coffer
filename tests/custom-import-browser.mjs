@@ -71,7 +71,7 @@ export async function sourceCaptureBrowser(h,id,directory,apiKey='synthetic-coff
    await page.getByLabel(tokenLabel,{exact:true}).fill(apiKey)
    if(organizationId)await page.getByLabel('Neon organization ID',{exact:true}).fill(organizationId)
    if(subscriptionKey)await page.getByLabel('Blackbaud subscription key',{exact:true}).fill(subscriptionKey)
-   if(idType)await page.getByLabel('Identifiers in these exports',{exact:true}).selectOption(idType)
+   if(idType)await page.locator('select[name=idType]').selectOption(idType)
    await fits(page,width)
    await page.screenshot({path:directory+'/MOVE-010-source-read-'+width+'.png',fullPage:true})
   }

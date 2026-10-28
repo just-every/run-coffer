@@ -1,3 +1,5 @@
+import { stageSourceIndex } from './source-index'
+import { customCustodyWrites } from './custom-custody'
 import { buildCustomReview } from './custom-review-plan'
 import { sourceRecords } from './custom-source-records'
 import { customTagUndoGuards, customTagUndoWrites } from './custom-review-tags'
@@ -38,14 +40,9 @@ export async function preview(c: Context,input: ParseInput) {
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
  if(prior?.redacted)parsed.diagnostics.push({severity:'error',code:'MOVE_IN_ERASED',message:'An imported constituent was erased. This move-in cannot restore their contact or history.'})
- // A re-upload can add the source index to an older completed import, without
- // changing native records or reviving redacted custody.
  if(prior?.state==='completed'&&!prior.redacted){
-  const held=await one(c,'SELECT report FROM cf_move_in_jobs WHERE id=?',prior.id),report=JSON.parse(held!.report)
-  if(!report.sourceRecords){
-   const records=sourceRecords(parsed)
-   await commit(c,[guard('EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND report=? AND redacted=0)','MOVE_IN_CHANGED','This import changed. Review again.',prior.id,held!.report),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.sourceRecords',json(?)) WHERE id=?",JSON.stringify(records),prior.id)])
-  }
+  const held=await one(c,'SELECT report FROM cf_move_in_jobs WHERE id=?',prior.id)
+  if(JSON.parse(held!.report).sourceIndexComplete!==true)await stageSourceIndex(c,prior.id,input.source,sourceRecords(parsed))
  }
  const parts=stageParts(parsed)
  // A bad source row must not hide independent conflicts elsewhere in the files.
@@ -62,8 +59,10 @@ export async function preview(c: Context,input: ParseInput) {
  const diagnostics=ordered(parsed.diagnostics)
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
- if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c),sourceRecords:sourceRecords(parsed),...(parsed.columnDefinitions?.length?{customReview:await buildCustomReview(parsed.columnDefinitions,parsed.columnMappings??[],[],1)}:{})},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+ if(!prior || ['reviewed','undone'].includes(prior.state)){
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c),...(parsed.columnDefinitions?.length?{customReview:await buildCustomReview(parsed.columnDefinitions,parsed.columnMappings??[],[],1)}:{})},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+  await stageSourceIndex(c,id,input.source,sourceRecords(parsed))
+ }
  return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }
@@ -77,6 +76,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  if(job.state==='applying')return continueApply(c,job.id)
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
  const report=JSON.parse(job.report)
+ if(report.sourceIndexComplete===false)fail('MOVE_IN_CHANGED','The source index is incomplete. Preview the exports again.',409)
  if(report.canApply===false || !job.parts)fail('MOVE_IN_ERRORS','This review has rows that must be fixed first. Fix them in your files and upload them again.',409)
  const acceptedReason=optional(input.acceptedReason,'Reason for accepting differences',2000)
  if(report.needsAcceptance && !acceptedReason)fail('MOVE_IN_TOTALS','Say why the differences or unused columns are acceptable before moving in, or fix the files and upload again.')
@@ -124,7 +124,7 @@ export async function continueApply(c: Context,id:string) {
 
 async function finish(c: Context,job: Row) {
  const check=await totalsCheck(c,job)
- await commit(c,[sql("UPDATE cf_move_in_jobs SET state='completed',checked_at=?,check_report=? WHERE id=? AND state='applying'",c.now,JSON.stringify(check),job.id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',job.id),
+ await commit(c,[...await customCustodyWrites(c,job.id,job.source),sql("UPDATE cf_move_in_jobs SET state='completed',checked_at=?,check_report=? WHERE id=? AND state='applying'",c.now,JSON.stringify(check),job.id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',job.id),
   event(c,'move-in.complete','move-in',job.id,null,{parts:job.parts,totalsMatch:check.matches})])
 }
 /** Source totals from the files against the gifts now in Coffer for this move-in. */
@@ -191,6 +191,7 @@ export async function undo(c: Context,id:string) {
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1) AND p.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='contact' AND owned=1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id,id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_donor_tags t WHERE t.donor_id IN (${owned('donor')}) AND NOT EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.job_id=? AND r.kind='customTag' AND r.donor_id=t.donor_id AND json_extract(r.snapshot,'$.tag')=t.tag))`,'MOVE_IN_USED','Someone added a tag after import. Nothing was undone.',id,id))
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.job_id<>? AND r.kind='customCapture' AND r.donor_id IN (${owned('donor')}))`,'MOVE_IN_USED','A later source review uses these donors. Undo that review first.',id,id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
   ['cf_auction_rows','donor_id','donor',null,'id'],['cf_auction_rows','gift_id','gift',null,'id'],
   ['cf_development_report_donors','donor_id','donor',null,'report_id'],
@@ -228,7 +229,7 @@ export async function undo(c: Context,id:string) {
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}
- writes.push(sql('DELETE FROM cf_move_in_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',id),sql("UPDATE cf_move_in_jobs SET state='undone',undone_at=?,applied_parts=0,report=json_remove(report,'$.solicitationUndoInProgress') WHERE id=?",c.now,id),event(c,'move-in.undo','move-in',id,null))
+ writes.push(sql('DELETE FROM cf_move_in_source_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',id),sql("UPDATE cf_move_in_jobs SET state='undone',undone_at=?,applied_parts=0,report=json_remove(report,'$.solicitationUndoInProgress') WHERE id=?",c.now,id),event(c,'move-in.undo','move-in',id,null))
  try {await commit(c,writes)} catch(error) {
   if(/FOREIGN KEY constraint failed/i.test(String(error)))fail('MOVE_IN_USED','Other records now use this import. Nothing was undone.')
   throw error

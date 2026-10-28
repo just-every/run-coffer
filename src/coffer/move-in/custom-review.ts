@@ -1,10 +1,12 @@
+import { readSourceIndex } from './source-index'
+import { customCustodyWrites } from './custom-custody'
 import { readSourceCustom, type SourceCredentials } from './source-custom-reader'
 import { customFields } from '../custom-fields'
 import { all, commit, event, fail, guard, one, sha256, sql, type Context, type Row, type Stmt } from '../db'
 import { importedCustomWrites, type CustomImportWrite } from './custom-fields'
 import { createImportDefinitionWrites } from './custom-definition-undo'
 import { buildCustomReview, defaultMappings } from './custom-review-plan'
-import type { CustomReview, FieldMapping, SourceRecord, ValueResolution } from './custom-review-types'
+import type { CustomReview, FieldMapping, ValueResolution } from './custom-review-types'
 import type { Plan } from './plan'
 import { customTagWrites } from './custom-review-tags'
 
@@ -18,8 +20,9 @@ export async function captureCustom(c:Context,input:SourceCredentials&{id:string
  const job=await customReview(c,input.id)
  if(!['bloomerang','lgl','re-nxt','neon'].includes(job.source))fail('CUSTOM_SOURCE','Choose one of the current CRM sources for custom enrichment.',400)
  if(job.report.customReview)return {id:job.id,review:job.report.customReview,unchanged:true}
- const records=job.report.sourceRecords as SourceRecord[]|undefined
- if(!records?.length)fail('CUSTOM_SOURCE','This older import has no complete source record index. Preview and apply the original exports again before enrichment.',409)
+ const records=await readSourceIndex(c,job.id)
+
+ await commit(c,await customCustodyWrites(c,job.id,job.source))
  const definitions=await readSourceCustom(job.source,input,records)
  const previous=await one(c,"SELECT json_extract(report,'$.customReview.mappings') AS mappings FROM cf_move_in_jobs WHERE source=? AND id<>? AND state='completed' AND redacted=0 AND json_type(report,'$.customReview.mappings')='array' ORDER BY created_at DESC LIMIT 1",job.source,job.id)
  const review=await buildCustomReview(definitions,defaultMappings(job.source,definitions,previous?.mappings?JSON.parse(previous.mappings):[],await customFields(c)),[],1)
@@ -42,7 +45,7 @@ export async function reviseCustom(c:Context,input:{id:string;version:number;map
 export async function applyCustom(c:Context,input:{id:string;version:number}) {
  const job=await customReview(c,input.id),review=job.report.customReview as CustomReview|undefined
  if(!review||input.version!==review.version)fail('MOVE_IN_CHANGED','This custom review changed. Refresh it.',409)
- const fields=await customFields(c),customWrites:CustomImportWrite[]=[],writes:Stmt[]=[fence(job.id,JSON.stringify(job.report))],records=job.report.sourceRecords as SourceRecord[]
+ const fields=await customFields(c),customWrites:CustomImportWrite[]=[],writes:Stmt[]=[fence(job.id,JSON.stringify(job.report))],records=await readSourceIndex(c,job.id)
  const staged=new Set<string>(),custody=await all(c,'SELECT * FROM cf_move_in_records WHERE source=?',job.source)
  for(const value of review.values.filter(v=>v.state==='ready')){
   const definition=review.definitions.find(d=>d.id===value.fieldId)!,mapping=review.mappings.find(m=>m.id===value.fieldId)!,record=records.find(r=>r.kind===definition.kind&&r.externalId===value.recordId)

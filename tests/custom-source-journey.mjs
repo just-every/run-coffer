@@ -36,7 +36,7 @@ async function readReview(h,id){return (await h.get(endpoint+'custom-review?id='
 export async function sourceCustomJourney(){
  const edge=bloomerangEdge()
  await run(async h=>{
-  await h.command('custom.define',{key:'existing_membership',label:'Membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer']})
+  await h.command('custom.define',{key:'existing_membership',label:'Membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer','Advisor']})
   const id=await imported(h,sourceFiles()),capture={id,apiKey:'synthetic-coffer-1600'}
   await post(h,'custom-capture',capture,{as:'',status:401})
   const member=await h.person('synthetic-coffer-1601'+String.fromCharCode(64)+'example.test')
@@ -45,7 +45,7 @@ export async function sourceCustomJourney(){
   const result=await post(h,'custom-capture',capture),review=result.review
   assert.equal(review.definitions.length,7);assert.deepEqual(review.counts.find(c=>c.id==='gift:3'),{id:'gift:3',name:'Budget',defined:1,source:2,carried:1,waiting:1,skipped:0})
   assert.match(review.values.find(v=>v.state==='waiting'&&v.fieldId==='gift:3').reason,/number/)
-  const mappings=review.mappings.map(m=>m.id==='constituent:1'?{...m,field:{...m.field,key:'existing_membership',version:1}}:m.id==='interaction:4'?{...m,field:{...m.field,label:'Imported visit topic'}}:m.id==='constituent:6'?{...m,action:'tags'}:m.id==='constituent:7'?{...m,action:'skip'}:m)
+  const mappings=review.mappings.map(m=>m.id==='constituent:1'?{...m,field:{...m.field,key:'existing_membership',version:1,choices:['Board','Volunteer','Advisor']}}:m.id==='interaction:4'?{...m,field:{...m.field,label:'Imported visit topic'}}:m.id==='constituent:6'?{...m,action:'tags'}:m.id==='constituent:7'?{...m,action:'skip'}:m)
   const invalidChoice=review.values.find(v=>v.fieldId==='constituent:1'&&v.state==='waiting');assert.equal(invalidChoice.original,'Unlisted');assert.match(invalidChoice.reason,/source choice/);const mappedChoice={id:invalidChoice.id,action:'map',value:'Volunteer'}
   let updated=await post(h,'custom-review',{id,version:review.version,mappings,resolutions:[mappedChoice]})
   await post(h,'custom-review',{id,version:review.version,mappings,resolutions:[]},{status:409})
@@ -81,9 +81,12 @@ export async function sourceCustomJourney(){
   const changed=await h.command('custom.define',{...fields.find(f=>f.key==='import_bloomerang_interaction_4'),label:'Changed after source review',choices:[]})
   assert.ok(changed.version>1)
   await post(h,'custom-apply',{id:next,version:reuse.review.version},{status:409})
+  edge.setOffset(0)
+  const shared=await imported(h,{...sourceFiles(),noGoodsOrServices:true});await post(h,'custom-capture',{id:shared,apiKey:capture.apiKey})
   await h.command('donor.erase',{donorId:person.id,confirm:'ERASE'})
   assert.equal((await h.get(endpoint+'journal?id='+id)).job.redacted,1)
   await post(h,'custom-capture',capture,{status:409});await post(h,'custom-apply',{id,version:fixed.review.version},{status:409})
+  const sharedJournal=(await h.get(endpoint+'journal?id='+shared)).job;assert.equal(sharedJournal.redacted,1);assert.deepEqual(sharedJournal.report,{},'Erasure redacts a capture of previously imported records before any custom apply')
   const after=await archive(h,{maxParts:100});assert.ok(!JSON.stringify(after).includes('Preserve original note'),'Erasure removes source review values and provenance')
   const admin=await h.person('synthetic-coffer-1602'+String.fromCharCode(64)+'example.test','admin')
   await h.get(endpoint+'custom-review?id='+next,{as:admin.cookie})

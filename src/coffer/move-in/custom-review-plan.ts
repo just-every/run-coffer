@@ -24,7 +24,7 @@ export async function buildCustomReview(definitions:SourceDefinition[],mappings:
   if(!m||!['field','tags','skip'].includes(m.action))fail('CUSTOM_MAPPING','Choose a field, tags or skip for every definition.',400)
   if(m.action==='field'){
    const f=m.field
-   if(!f||!/^[a-z][a-z0-9_]{0,79}$/.test(f.key)||!f.label?.trim()||f.label.length>100||f.kind!==d.kind||f.type!==d.type||f.entry!==d.entry||JSON.stringify(f.choices)!==JSON.stringify(targetChoices(d))||keys.has(f.key))fail('CUSTOM_MAPPING','Keep the source kind, type, entry method and choices; use a distinct target field.',400)
+   if(!f||!/^[a-z][a-z0-9_]{0,79}$/.test(f.key)||!f.label?.trim()||f.label.length>100||f.kind!==d.kind||f.type!==d.type||f.entry!==d.entry||!Array.isArray(f.choices)||f.choices.length>100||!f.version&&JSON.stringify(f.choices)!==JSON.stringify(targetChoices(d))||keys.has(f.key))fail('CUSTOM_MAPPING','Keep the source kind, type and entry method. New fields keep the source choices; existing fields use their reviewed choices.',400)
    keys.add(f.key)
   }
   if(m.action==='tags'&&(d.kind!=='constituent'||d.type!=='text'||d.entry==='free-form'))fail('CUSTOM_MAPPING','Only constituent text pick lists map to constituent tags.',400)
@@ -45,5 +45,7 @@ export async function buildCustomReview(definitions:SourceDefinition[],mappings:
   counts.push(count)
  }
  if(resolutions.some(r=>!values.some(v=>v.id===r.id)))fail('CUSTOM_MAPPING','A resolution no longer matches this source capture.',409)
- return {version,definitions,mappings,resolutions,values,counts}
+ const review={version,definitions,mappings,resolutions,values,counts}
+ if(new TextEncoder().encode(JSON.stringify(review)).byteLength>1000000)fail('CUSTOM_SOURCE_LIMIT','This custom review is too large for one durable review. Split the source import before carrying custom data.',413)
+ return review
 }

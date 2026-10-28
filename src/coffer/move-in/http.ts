@@ -26,7 +26,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
   if(action==='custom-review'){const job=await customReview(c,url.searchParams.get('id')||'');return api?json({id:job.id,review:job.report.customReview}):page('Review source custom fields',customImportReviewPage(job,await customFields(c)),c.actor,200,'/app/settings')}
   if(action==='review' && !api) {
-   const job=await reviewed(c,url.searchParams.get('id')||''), list=await issues(c,job.id,{...q,severity:q.severity??(job.report.canApply?undefined:'error')})
+   const job=await reviewed(c,url.searchParams.get('id')||'');if(job.redacted)return page('CRM review erased','<p>A source donor was erased. This review and its original values were removed. Remove erased records from the exports before reviewing again.</p>',c.actor,409,'/app/settings');const list=await issues(c,job.id,{...q,severity:q.severity??(job.report.canApply?undefined:'error')})
    return page('Review CRM move-in',crmReviewPage(job,{...list,query:{...list.query,show:q.severity??(job.report.canApply?'all':'error')}},today((await settings(c)).timezone,new Date(c.now))),c.actor,200,'/app/more')
   }
   if(action==='issues')return json(await issues(c,(await reviewed(c,url.searchParams.get('id')||'')).id,q))
