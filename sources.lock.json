@@ -1519,7 +1519,7 @@
       "executable": false
     },
     "public/coffer.css": {
-      "sha256": "82168bbef7282560f32d367671ea2e91087ecfb4e07a3b245655989a9697be40",
+      "sha256": "b6d88654316b44ca265567823ae838f325c2783e6434d36c6437a1882ecc6edc",
       "executable": false
     },
     "public/favicon.ico": {
@@ -3223,7 +3223,7 @@
       "executable": false
     },
     "src/coffer/mailboxes/ui.ts": {
-      "sha256": "20605b90868021c71f866e0d0e7aee43a3e86604418e19816df9f289dc0e5837",
+      "sha256": "98e4a0e8a565292daa266f324a4326370e7beddf9da3f324e08c661ea9a9fa93",
       "executable": false
     },
     "src/coffer/major-gifts.ts": {
@@ -6683,7 +6683,7 @@
       "executable": false
     },
     "tests/mailboxes-browser.mjs": {
-      "sha256": "eca882cd2f195f421a01e86e4eb6168c54cf1fd6d15a5afdcacba238b2e967f5",
+      "sha256": "09fb6a6e7bfd918f490b90b567f8517289cb11bf4e55d373c7350c57e296dd7f",
       "executable": false
     },
     "tests/mailboxes-journey.mjs": {

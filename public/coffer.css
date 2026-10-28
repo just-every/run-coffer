@@ -462,3 +462,6 @@
 .coffer .report-document dl { display: block; margin: 0; }
 .coffer .report-document dd { margin: 0 0 12px; }
 .coffer .report-document ol { padding-left: 20px; }
+
+/* Mailbox states retain the shared chip look at readable body size. */
+.coffer .cf-mailbox .chip, .coffer #donor-replies .chip { font-size: 13px; }
