@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {randomUUID} from 'node:crypto'
-import {run, reviewed, archive, restore, donor} from './harness.mjs'
+import {run, reviewed, archive, restore} from './harness.mjs'
 import {givingFormEdge} from './giving-form-edge.mjs'
 import {givingFormBrowser} from './giving-form-browser.mjs'
 
@@ -101,7 +101,7 @@ export async function givingFormJourney() {
    const restoredResponses = await restored.get('/api/coffer/giving/campaigns/' + campaign.id + '/responses')
    assert.deepEqual(restoredResponses.responses, (await responses()).responses)
   })
-  const first = browserResults[0], original = await h.get('/api/coffer/donors/' + first.donorId)
+  const first = browserResults[0]
   await h.command('custom.set', {key: 'reading_interests', recordId: first.donorId, version: 1, value: ['Books'], source: 'Reviewed staff choice'})
   await h.request('/giving/thanks?session_id=' + first.session.id, {as: ''})
   assert.equal((await h.get('/api/coffer/donors/' + first.donorId)).customValues.find(v => v.field_key === 'reading_interests').value, '["Books"]')
