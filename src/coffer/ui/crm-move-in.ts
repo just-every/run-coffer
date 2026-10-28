@@ -3,7 +3,7 @@ import type { Row } from '../db'
 import { area, box, chip, e, empty, field, guide, hidden, longDay, money, select, when } from './common'
 import { exportSteps } from './crm-export-steps'
 
-export const sources: [string,string][]=[['lgl','Little Green Light'],['bloomerang','Bloomerang'],['re-nxt',"Raiser's Edge NXT"]]
+export const sources: [string,string][]=[['lgl','Little Green Light'],['bloomerang','Bloomerang'],['re-nxt',"Raiser's Edge NXT"],['neon','Neon CRM']]
 const name=(source:string)=>sources.find(([key])=>key===source)?.[1]||source
 const sourceGuide=guide('move-in-crm')
 const codeMeaning=(rule:any)=>rule.type==='stop'?'Do not solicit':rule.type==='ignore'?'Ordinary tag, ignored':rule.type==='channels'?'No '+rule.channels.join(', ')+' appeals':`At most ${rule.maxAsks} asks per rolling 12 months`
@@ -35,7 +35,8 @@ const reviewedCustom=(report:Row)=>report.customFields?.length?box('Reviewed cus
 
 export function crmMoveInPage(jobs:Row[],tz:string,definitions:Row[]=[]) {
  return `<p>Bring your donor records and gift history into Coffer. Preview every file and compare totals before you switch.</p><p><a href="/app/move-in/crm/spreadsheet">Map any spreadsheet</a></p><div class="grid"><div>
- ${box('1. Choose your exports',`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${select('Moving from','source',sources)}
+ ${box('Read Neon history',`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${hidden('source','neon')}${field('Neon organization ID','organizationId','text','','required autocomplete="off"')}${field('Neon API key','apiKey','password','','required autocomplete="off"')}<label>Source history (optional neon-history.json)<input type="file" name="exports" accept=".json"></label>${restrictionMapping()}<p>Reads accounts, pick-one account fields, paid donations, single-account activities and paid event registrations. Review every total before applying. The key is used for this read only. <a href="https://run-coffer.com/docs/neon-move-in">Neon source-history guide</a>. Memberships, recurring migration and other source objects are unsupported. Send-acknowledgment options are not proof of a send; missing historical facts stay unknown.</p><button>Preview Neon history</button></form>`)}
+ ${box('1. Choose your exports',`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${select('Moving from','source',sources.filter(([key])=>key!=='neon'))}
  <label>Export files (CSV or XLSX)<input type="file" name="exports" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required></label>
  <p class="muted">Include the constituent and gift exports, plus relationships, pledges, soft credits and notes if you have them. Workbooks can contain several sheets. One move-in takes up to 16 MB of files and 100,000 rows, about 10,000 donors with 80,000 gifts. Larger? Split the gift export by year and move the years in oldest first, uploading constituents.csv again with each year’s file; donors and pledges already moved in are matched by their CRM ID, not copied.</p>
  ${restrictionMapping()}${customMapping('',{customDefinitions:definitions})}<label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
@@ -86,7 +87,7 @@ function leftOutColumns(columns:Row[]) {
  return `<p>These columns have no place in Coffer. Their values stay in your files and are not moved in.</p><div class="scroll"><table class="stack"><thead><tr><th>Column</th><th>File</th><th>Values left out</th><th>For example</th></tr></thead><tbody>${columns.map(c=>`<tr><td class="lead">${e(c.column)}</td><td data-label="File">${e(c.file)}</td><td data-label="Values left out">${c.values}</td><td data-label="For example">“${e(String(c.example).slice(0,60))}” · row ${c.rows.join(', ')}</td></tr>`).join('')}</tbody></table></div>`
 }
 
-const upload=(source:string,title:string,report:Row)=>source==='spreadsheet'?box(title,'<p><a href="/app/move-in/crm/spreadsheet">Choose a spreadsheet and its saved mapping</a></p>'):box(title,`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${hidden('source',source)}
+const upload=(source:string,title:string,report:Row)=>source==='neon'?box(title,'<p><a href="/app/move-in/crm">Read Neon again with its current key and source-history file</a></p>'):source==='spreadsheet'?box(title,'<p><a href="/app/move-in/crm/spreadsheet">Choose a spreadsheet and its saved mapping</a></p>'):box(title,`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${hidden('source',source)}
  <label>Export files (CSV or XLSX)<input type="file" name="exports" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required></label>
  ${restrictionMapping()}${customMapping(source,report)}<label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
  <p class="muted">Upload all the files again, not only the one you changed. Reading and checking 100,000 rows takes up to a minute.</p><button>Check the files again</button></form>`,'again')
@@ -102,7 +103,7 @@ export function crmReviewPage(job:Row,list:Row,today:string) {
  ${box('Columns left out',leftOutColumns(r.leftOut),'left-out')}
  ${reviewedCustom(r)}
  ${r.solicitCodes?box('Reviewed communication codes',`<ul>${Object.entries(r.solicitCodes).map(([code,rule])=>`<li>${e(code)}: ${e(codeMeaning(rule))}</li>`).join('')}</ul>`):''}
- ${job.source==='spreadsheet'?records('Channel preferences',r.counts.channelPreferences,s.channelWithdrawals,p=>`Donor ${e(p.donorExternalId)} · ${e(p.channel)}: ${e(p.status??'withdrawn')} · source date ${e(p.sourceOn||'unknown')}`):''}
+ ${['spreadsheet','neon'].includes(job.source)?records('Channel preferences',r.counts.channelPreferences,s.channelWithdrawals,p=>`Donor ${e(p.donorExternalId)} · ${e(p.channel)}: ${e(p.status??'withdrawn')} · source date ${e(p.sourceOn||'unknown')}`):''}
  ${records('Donors',r.counts.donors,s.donors,d=>`<strong>${e(d.name)}</strong> · ${e(d.externalId)}${d.householdName?` · ${e(d.householdName)}`:''}${d.contacts?.length?`<ul>${d.contacts.map((p:ParsedContact)=>`<li>${e(p.kind)} · ${e(p.type)}${p.primary?' · primary':''}: ${e(p.kind==='address'?Object.values(JSON.parse(p.value)).filter(Boolean).join(', '):p.value)}${p.startsOn?` · ${e(p.startsOn)} through ${e(p.endsOn)}`:''}</li>`).join('')}</ul>`:''}`)}
  ${records('Households',r.counts.households,s.households,h=>`${e(h.name)} · ${e(h.externalId.startsWith('members:')?`linked as spouses or at one address`:h.externalId)}`)}
  ${records('Gifts',r.counts.gifts,s.gifts,g=>`${e(g.externalId)} · donor ${e(g.donorExternalId)} · ${longDay(g.receivedOn)} · ${money(g.amountCents)} · ${e(g.fund)}${g.campaign?` · ${e(g.campaign)}`:''}`)}

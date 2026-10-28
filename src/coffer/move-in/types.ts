@@ -1,5 +1,5 @@
 /** Normalized, source-referenced preview. No database writes or invented CRM IDs. */
-export type ImportSource = 'lgl' | 'bloomerang' | 're-nxt' | 'spreadsheet'
+export type ImportSource = 'lgl' | 'bloomerang' | 're-nxt' | 'spreadsheet' | 'neon'
 export type SpreadsheetMapping = { name: string; recordType: 'gift'|'donor'|'note'; columns: {column:string;field:string;sheet?:string}[]; translations?: {fund?:Record<string,string>;method?:Record<string,string>}; donorMatches?: Record<string,{id:string;version:number}> }
 export type ExportFile = { name: string; base64: string }
 export type SourceLocation = { file: string; sheet: string; row: number }
@@ -46,6 +46,6 @@ export type ParsedImport = {
  sourceTotals: ImportTotals; mappedTotals: ImportTotals; controlTotals: ControlTotal[]
  files: { name: string; bytes: number; sheets: string[]; rows: number }[]
 }
-export type ParseInput = { matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
+export type ParseInput = { neon?:{organizationId:string;apiKey:string}; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
 export type Cell = string | number | boolean | Date | null
 export type Table = { file: string; sheet: string; rows: Cell[][] }

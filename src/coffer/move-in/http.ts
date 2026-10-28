@@ -86,7 +86,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
     spreadsheet={name:String(get('mappingName')||''),recordType:get('recordType'),columns:parts('mapColumn').flatMap((column,i)=>targets[i]?[{column,field:targets[i],sheet:sheets[i]||undefined}]:[]),translations:{fund:translationLines(String(get('fundTranslations')||'')),method:translationLines(String(get('methodTranslations')||''))},donorMatches}
    }catch(error){fail('SPREADSHEET_MAPPING',error instanceof Error?error.message:'Review the spreadsheet mapping.',400)}
   }
-  input={source:get('source'),files,spreadsheet,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
+  input={source:get('source'),...(get('source')==='neon'?{neon:{organizationId:String(get('organizationId')||''),apiKey:String(get('apiKey')||'')}}:{}),files,spreadsheet,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
  }
  if(action==='preview') {const result=await service.preview(c,input);return api?json(result):new Response(null,{status:303,headers:{...headers,location:`/app/move-in/crm/review?id=${encodeURIComponent(result.id)}`}})}
  return fail('not_found','That move-in action does not exist.',404)

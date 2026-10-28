@@ -137,7 +137,7 @@ function installment(r: SourceRow, out: ParsedImport) {
 export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {
  const kind = r.kind(); r.get('type')
  if(r.peek('communicationRestrictions'))sourceRestrictions(r,out,input)
- if(out.source==='spreadsheet')spreadsheetPreferences(r,out)
+ if(out.source==='spreadsheet'||out.source==='neon')spreadsheetPreferences(r,out)
  // LGL repeats display names in gift and relationship reports. Only constituent
  // records define donors: labels on referenced records cannot create or rename one.
  if (out.source === 'lgl') {
