@@ -128,6 +128,11 @@ export async function peerBrowser(h,edge,{campaign,first,second,firstCookie,seco
    await page.getByRole('heading',{name:'Teams',exact:true}).waitFor()
    await page.getByRole('heading',{name:'Fundraisers',exact:true}).waitFor()
    await capture(page,directory,'leaderboard',width)
+   await page.getByRole('link',{name:teamTitle,exact:true}).first().click()
+   await page.getByRole('heading',{name:'Team fundraisers',exact:true}).waitFor()
+   await page.getByRole('link',{name:pageTitles[0],exact:true}).waitFor()
+   await page.getByRole('link',{name:pageTitles[1],exact:true}).waitFor()
+   await capture(page,directory,'team-page',width)
   }
   await page.close()
  })
