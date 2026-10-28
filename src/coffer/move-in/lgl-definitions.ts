@@ -112,13 +112,14 @@ function assignments(recordId: string, rows: unknown[], fields: Map<string, Cate
   seen.add(id)
   const { field, choices, facet } = category
   if (row.item_type !== kinds[kind] || row.name !== field.name || row.facet_type !== facet) invalid('a selected category differs from its definition.')
+  let reason:string|undefined
   const values = list(kind === 'constituent' ? row.keywords : row.values, MAX_CHOICES).map(rawChoice => {
    const choice = object(rawChoice), choiceId = sourceId(choice.id), name = label(choice.name)
-   if (sourceId(choice.category_id) !== id || choices.get(choiceId) !== name) invalid('a selected category value differs from its documented choice.')
+   if (sourceId(choice.category_id) !== id || choices.get(choiceId) !== name) reason='The source category selection differs from its documented choice. Review the original value.'
    return name
   })
-  if (new Set(values).size !== values.length || facet === 'single' && values.length > 1) invalid('a category selection repeats values or exceeds its cardinality.')
-  if (values.length) field.values.push({ recordId, value: facet === 'single' ? values[0] : values })
+  if (new Set(values).size !== values.length || facet === 'single' && values.length > 1) reason='The source category repeats selections or exceeds its cardinality. Review every original value.'
+  if (values.length) field.values.push({ recordId, value: facet === 'single'&&values.length===1 ? values[0] : values,...(reason?{reason}:{}) })
  }
 }
 

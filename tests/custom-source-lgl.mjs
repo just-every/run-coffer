@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {sourceCaptureBrowser,sourceCustomBrowser} from './custom-import-browser.mjs'
 import {run,archive,restore} from './harness.mjs'
 const endpoint='/api/coffer/move-in/'
 const post=(h,action,input,options)=>h.api(endpoint+action,input,options)
@@ -26,11 +27,15 @@ export async function lglCustomJourney(){await run(async h=>{
  await h.command('custom.define',{key:'existing_membership',label:'Membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer']})
  const input={source:'lgl',files:[file('constituents.csv',[['LGL Constituent ID','Name'],[71,'Synthetic LGL Custom']]),file('gifts.csv',[['LGL Gift ID','LGL Constituent ID','Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount'],[81,71,'Gift','2026-10-01','67.89','Check',0]])]}
  const preview=await post(h,'preview',input);assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint})
+ await sourceCaptureBrowser(h,preview.id,'.cache/custom-source-lgl','synthetic-coffer-1650')
  const captured=await post(h,'custom-capture',{id:preview.id,apiKey:'synthetic-coffer-1650'}),r=captured.review
  assert.equal(r.definitions.length,5);assert.equal(r.values.filter(v=>v.state==='waiting').length,1)
  const mappings=r.mappings.map(m=>m.id==='category:constituent:31'?{...m,field:{...m.field,key:'existing_membership',version:1}}:m.id==='attribute:constituent:51'?{...m,field:{...m.field,label:'Imported source detail'}}:m)
  const revised=await post(h,'custom-review',{id:preview.id,version:r.version,mappings,resolutions:[]})
- await post(h,'custom-apply',{id:preview.id,version:revised.review.version})
+ await sourceCustomBrowser(h,preview.id,'.cache/custom-source-lgl',{topic:false})
+ const native=(await h.get(endpoint+'custom-review?id='+preview.id)).review
+ await post(h,'custom-apply',{id:preview.id,version:native.version})
+ await sourceCustomBrowser(h,preview.id,'.cache/custom-source-lgl',{applied:true,topic:false})
  const person=(await h.get('/api/coffer/donors')).donors[0],details=await h.get('/api/coffer/donors/'+person.id),values=Object.fromEntries(details.customValues.map(v=>[v.field_key,JSON.parse(v.value)]))
  assert.deepEqual(values,{existing_membership:'Board',import_lgl_category_constituent_32:['Books','Music'],import_lgl_category_gift_33:'Reading',import_lgl_attribute_constituent_51:'Keep source detail'})
  const definitions=(await h.get('/api/coffer/custom-fields')).fields

@@ -10,7 +10,7 @@ export function defaultMappings(source:string,definitions:SourceDefinition[],sav
  return definitions.map(d=>{
   const previous=saved.find(m=>m.id===d.id),held=previous?.field&&fields.find(f=>f.key===previous.field!.key)
   if(previous)return {...previous,...(held?{field:{...previous.field!,label:held.label,version:held.version}}:{})}
-  return {id:d.id,action:'field',field:{source,column:d.name,key:'import_'+source+'_'+d.id.replace(/[^a-z0-9_]/gi,'_').toLowerCase(),label:d.name,kind:d.kind,type:d.type,entry:d.entry,choices:targetChoices(d),version:0} as CustomImportMapping}
+  return {id:d.id,action:'field',field:{source,column:d.name,key:'import_'+source.replace(/[^a-z0-9_]/g,'_')+'_'+d.id.replace(/[^a-z0-9_]/gi,'_').toLowerCase(),label:d.name,kind:d.kind,type:d.type,entry:d.entry,choices:targetChoices(d),version:0} as CustomImportMapping}
  })
 }
 

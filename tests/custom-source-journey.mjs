@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {run,archive,restore} from './harness.mjs'
-import {sourceCustomBrowser} from './custom-import-browser.mjs'
+import {sourceCaptureBrowser,sourceCustomBrowser} from './custom-import-browser.mjs'
 const endpoint='/api/coffer/move-in/'
 const post=(h,action,input,options)=>h.api(endpoint+action,input,options)
 const file=(name,rows)=>({name,base64:Buffer.from(rows.map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\r\n')).toString('base64')})
@@ -17,7 +17,7 @@ function bloomerangEdge(){
  const scalar=(FieldId,Value)=>({FieldId,Value:{Value}}),pick=(FieldId,Value)=>({FieldId,Value:choice(FieldId,Value)}),many=(FieldId,values)=>({FieldId,Values:values.map(v=>choice(FieldId,v))})
  const page=rows=>({Start:0,ResultCount:rows.length,TotalFiltered:rows.length,Results:rows})
  return {setOffset(n){offset=n},revoke(){revoked=true},async outbound(request){
-  const u=new URL(request.url);console.log('Synthetic source edge',u.pathname);assert.equal(u.origin,'https://api.bloomerang.co');assert.equal(request.method,'GET');assert.equal(request.headers.get('X-API-KEY'),'synthetic-coffer-1600')
+  const u=new URL(request.url);assert.equal(u.origin,'https://api.bloomerang.co');assert.equal(request.method,'GET');assert.equal(request.headers.get('X-API-KEY'),'synthetic-coffer-1600')
   if(revoked)return Response.json({error:'revoked'},{status:401})
   const path=u.pathname.slice(3)
   let m=/^\/customFields\/(\w+)\/$/.exec(path)
@@ -41,9 +41,10 @@ export async function sourceCustomJourney(){
   await post(h,'custom-capture',capture,{as:'',status:401})
   const member=await h.person('synthetic-coffer-1601'+String.fromCharCode(64)+'example.test')
   await post(h,'custom-capture',capture,{as:member.cookie,status:403})
+  await sourceCaptureBrowser(h,id,'.cache/custom-source')
   const result=await post(h,'custom-capture',capture),review=result.review
   assert.equal(review.definitions.length,7);assert.deepEqual(review.counts.find(c=>c.id==='gift:3'),{id:'gift:3',name:'Budget',defined:1,source:2,carried:1,waiting:1,skipped:0})
-  assert.match(review.values.find(v=>v.state==='waiting').reason,/number/)
+  assert.match(review.values.find(v=>v.state==='waiting'&&v.fieldId==='gift:3').reason,/number/)
   const mappings=review.mappings.map(m=>m.id==='constituent:1'?{...m,field:{...m.field,key:'existing_membership',version:1}}:m.id==='interaction:4'?{...m,field:{...m.field,label:'Imported visit topic'}}:m.id==='constituent:6'?{...m,action:'tags'}:m.id==='constituent:7'?{...m,action:'skip'}:m)
   const invalidChoice=review.values.find(v=>v.fieldId==='constituent:1'&&v.state==='waiting');assert.equal(invalidChoice.original,'Unlisted');assert.match(invalidChoice.reason,/source choice/);const mappedChoice={id:invalidChoice.id,action:'map',value:'Volunteer'}
   let updated=await post(h,'custom-review',{id,version:review.version,mappings,resolutions:[mappedChoice]})
