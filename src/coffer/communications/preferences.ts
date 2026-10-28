@@ -24,7 +24,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  // when its mapped metadata is malformed. The final import still holds sending.
  if(!contact||!restricted(contact))await importProviderPreferences(c,donorId,conn.provider,contact,true)
  if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) contact = await syncMailchimpNames(conn, donor)
- if (conn.provider === 'constant-contact' && donor.consent === 'granted' && subscribed(contact)) contact = await syncConstantContactProfile(conn, donor)
+ if (conn.provider === 'constant-contact' && donor.consent === 'granted' && subscribed(contact)) contact = await syncConstantContactProfile(conn, donor, contact)
  let state = 'pending', note = 'Confirm the donor’s subscription with the email provider before sending.'
  if (contact && restricted(contact) && donor.consent === 'granted') {
   // Never turn a provider opt-out into a grant, or overwrite a newer answer.
@@ -52,12 +52,13 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  donor.id,donor.email,donor.consent_id,contact?.emailStatus ?? contact?.email_status ?? null,state,c.now,note)])
  return { state, allowed:state==='subscribed', note,contact }
 }
-export async function syncPreferences(c: Context, donorIds?: string[]): Promise<Row> {
- const { unavailable } = await emailConnection(c)
+export async function syncPreferences(c: Context, donorIds?: string[], background=false): Promise<Row> {
+ const { connection, unavailable } = await emailConnection(c)
  if (unavailable) return { unavailable, synced:0 }
  const donors = await all(c, `SELECT d.id FROM cf_donors d LEFT JOIN cf_preference_sync p ON p.donor_id=d.id
  WHERE d.erased_at IS NULL AND d.email IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
- AND (? IS NULL OR d.id IN (SELECT value FROM json_each(?))) ORDER BY COALESCE(p.checked_at,''),d.id LIMIT 8`,donorIds?JSON.stringify(donorIds):null,donorIds?JSON.stringify(donorIds):null)
+ AND (? IS NULL OR d.id IN (SELECT value FROM json_each(?)))
+ AND (? IS NULL OR p.checked_at IS NULL OR p.checked_at<=? OR p.email<>d.email OR p.consent_id IS NOT (SELECT MAX(id) FROM cf_consents WHERE donor_id=d.id AND channel='email')) ORDER BY COALESCE(p.checked_at,''),d.id LIMIT 8`,donorIds?JSON.stringify(donorIds):null,donorIds?JSON.stringify(donorIds):null,background&&connection?.provider==='constant-contact'?c.now:null,new Date(Date.parse(c.now)-60*60*1000).toISOString())
  let synced=0,pending=0
  for (const donor of donors) {
   try { await reconcileDonor(c,donor.id); synced++ } catch {

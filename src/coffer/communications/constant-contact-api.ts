@@ -5,11 +5,12 @@ export function ccPart(value:unknown):string {
  if(typeof value!=='string'||!value||value==='.'||value==='..')fail('CONSTANT_CONTACT_RESPONSE','Constant Contact returned an invalid identifier.',502)
  return encodeURIComponent(value)
 }
-export async function ccRequest(conn:Connection,path:string,method='GET',body?:unknown):Promise<any>{
+export async function ccRequest(conn:Connection,path:string,method='GET',body?:unknown,missing=false):Promise<any>{
  let response:Response
  try{
   response=await fetch('https://api.cc.email/v3'+path,{method,redirect:'manual',signal:AbortSignal.timeout(20000),headers:{authorization:'Bearer '+conn.credential,accept:'application/json',...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})})
  }catch{return fail('CONSTANT_CONTACT_UNREACHABLE','Constant Contact did not confirm this request. Review the saved campaign before submitting again.',502)}
+ if(missing&&response.status===404)return null
  if(!response.ok)fail('CONSTANT_CONTACT_REFUSED',`Constant Contact refused this request (HTTP ${response.status}). Review the connection and saved campaign.`,502,{providerStatus:response.status})
  if(response.status===204)return {}
  const data=await response.json().catch(()=>null)

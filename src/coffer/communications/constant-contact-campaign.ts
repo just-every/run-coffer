@@ -8,11 +8,12 @@ async function verifyAudience(conn:Connection,listId:string,email:string){
  const data=await ccRequest(conn,'/contacts?'+new URLSearchParams({lists:listId,status:'all',limit:'2'}))
  if(!Array.isArray(data.contacts)||data._links?.next||data.contacts.length!==1||ccContact(data.contacts[0],email).emailStatus!=='subscribed')fail('CONSTANT_CONTACT_RECIPIENT','Constant Contact did not confirm exactly the frozen recipient. Sending remains held.',409)
 }
-export async function createConstantContactCampaign(conn:Connection,row:Row):Promise<Row>{
+export async function createConstantContactCampaign(conn:Connection,row:Row,saveList?:(listId:string)=>Promise<void>):Promise<Row>{
  const contact=await constantContactContact(conn,row.email)
  if(contact?.emailStatus!=='subscribed')fail('CONSTANT_CONTACT_PREFERENCE','Constant Contact requires current email permission before sending.',409)
  const list=await ccRequest(conn,'/contact_lists','POST',{name:'Coffer '+row.id,favorite:false})
  ccPart(list.list_id)
+ await saveList?.(list.list_id)
  const membership:Row={update_source:'Account',list_memberships:[...new Set([...(contact.list_memberships??[]),list.list_id])]}
  for(const key of ['first_name','last_name','job_title','company_name','birthday_month','birthday_day','anniversary'])if(contact[key]!==undefined)membership[key]=contact[key]
  const updated=await ccRequest(conn,'/contacts/'+ccPart(contact.contact_id),'PUT',membership)

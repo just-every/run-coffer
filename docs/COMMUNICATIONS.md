@@ -403,6 +403,14 @@ provider unsubscribe; it never uses the signup-form resubscription endpoint.
 Existing Constant Contact topic-list and frequency mappings continue to import
 only stricter choices. A newsletter remains separate from an ask.
 
+Recipient lists are temporary. Coffer removes only its own list after the provider
+confirms the campaign is complete, and reclaims completed lists before another
+submission and during background checks. Pending campaigns retain their audience.
+Background work runs every fifteen minutes in batches of eight. Successful
+preference checks are due hourly; completed results are due every six hours.
+Unchanged profiles are read without writing them again. Manual checks, native
+withdrawals and fresh pre-send permission checks bypass these background intervals.
+
 The send action creates and reads back a v3 campaign activity, verifies its one
 recipient and exact content, then submits it once. A lost answer remains uncertain
 and has no automatic retry. Refresh email results reads recipient send, bounce and
@@ -417,7 +425,10 @@ replay protection, archive, merge, undo and erasure handling.
 
 `tests/communications.test.mjs` — "COMM-003: Constant Contact serves the frozen
 audience, returns results and routes replies with current permission and custody"
-invokes `constantContactJourney` in `tests/constant-contact-journey.mjs`. It uses the
+invokes `constantContactJourney` in `tests/constant-contact-journey.mjs`, including
+`constantContactQuotaJourney` in `tests/constant-contact-quota.mjs` for repeated
+appeals, pending audience retention and a day of minute scheduling within the
+standard provider request allowance. It uses the
 real application HTTP and browser doors with only the Constant Contact and inbound
 mail network edges faked. Its native settings, connection, appeal results and reply
 screens run at 1440 and 390 on every push Verify. This is no live-account,

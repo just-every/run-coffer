@@ -6,8 +6,8 @@ import { ccContact, ccPart, ccRequest, constantContactContact } from './constant
 
 /** Only profile subresources are written. Email permission is never included in
  * an update, so a provider unsubscribe survives a profile synchronization. */
-export async function syncConstantContactProfile(conn:Connection,donor:Row):Promise<Row>{
- const existing=await constantContactContact(conn,donor.email)
+export async function syncConstantContactProfile(conn:Connection,donor:Row,known?:Row|null):Promise<Row>{
+ const existing=known===undefined?await constantContactContact(conn,donor.email):known
  if(existing&&existing.emailStatus!=='subscribed')return existing
  const fields={...nameMergeFields(donor),...selectedProfileFields(conn,donor)}
  if(Object.keys(fields).length>25)fail('CONSTANT_CONTACT_FIELDS','Constant Contact allows at most 25 custom fields per contact. Choose fewer shared fields.',409)
@@ -27,6 +27,7 @@ export async function syncConstantContactProfile(conn:Connection,donor:Row):Prom
   values.push({custom_field_id:definition.custom_field_id,value:rendered})
  }
  await conn.checkFields?.()
+ if(existing&&existing.first_name===fields.first_name&&existing.last_name===fields.last_name&&values.every(value=>(existing.custom_fields??[]).some((field:Row)=>field.custom_field_id===value.custom_field_id&&field.value===value.value)))return existing
  if(!existing){
   const created=await ccRequest(conn,'/contacts','POST',{email_address:{address:donor.email,permission_to_send:'implicit'},create_source:'Account',first_name:fields.first_name,last_name:fields.last_name,custom_fields:values})
   return ccContact(created,donor.email)

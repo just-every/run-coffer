@@ -16,7 +16,7 @@ export async function captureProviderConsent(conn: Connection, donor: Row, organ
  return conn.provider === 'mailchimp' ? captureMailchimpConsent(conn, donor, organisation) : conn.provider==='constant-contact'?syncConstantContactProfile(conn,donor):listInMango(conn, donor, organisation, 'Coffer donors')
 }
 export { listInMango, createMailchimpCampaign, composeMailchimpCampaign }
-export const createProviderCampaign=(conn:Connection,row:Row)=>conn.provider==='constant-contact'?createConstantContactCampaign(conn,row):createMailchimpCampaign(conn,row)
+export const createProviderCampaign=(conn:Connection,row:Row,saveList?:(listId:string)=>Promise<void>)=>conn.provider==='constant-contact'?createConstantContactCampaign(conn,row,saveList):createMailchimpCampaign(conn,row)
 export const composeProviderCampaign=(conn:Connection,row:Row,draft:Row,beforeSend?:()=>Promise<void>)=>conn.provider==='constant-contact'?composeConstantContactCampaign(conn,row,draft,beforeSend):composeMailchimpCampaign(conn,row,draft,beforeSend)
 export async function providerResults(conn: Connection, row: Row) {
  if (row.provider !== conn.provider) fail('PROVIDER_CHANGED', 'Reconnect the provider that received this campaign to refresh its results.', 409)

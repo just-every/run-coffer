@@ -11,6 +11,7 @@ import { requireConnection, savedConnection } from './connection'
 import { settings } from '../settings'
 import { reconcileDonor } from './preferences'
 import { communicationAcknowledgment } from '../gift-acknowledgments'
+import { releaseConstantContactList, releaseCompletedConstantContactLists } from './constant-contact-lists'
 import { recordConstantContactOptout } from './constant-contact-campaign'
 
 async function savedResult(c: Context, messageId: string, disposition: string) {
@@ -63,7 +64,8 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  try {
   // Persist the returned draft before composition/approval. A lost create answer
   // stays uncertain and is never submitted again automatically.
-  const draft=await createProviderCampaign(conn,row)
+  if(conn.provider==='constant-contact')await releaseCompletedConstantContactLists(c,conn)
+  const draft=await createProviderCampaign(conn,row,async listId=>{await c.db.prepare('UPDATE cf_communications SET provider_list_id=? WHERE id=?').bind(listId,row.id).run()})
   await c.db.prepare('UPDATE cf_communications SET campaign_id=?,revision_id=? WHERE id=?').bind(draft.campaignId,draft.revisionId,row.id).run()
   const checked=await profileRecipient(c,d,{emailType:input.emailType});if(checked.email!==row.email||checked.selected_email_contact_id!==currentNames.selected_email_contact_id||checked.selected_email_contact_version!==currentNames.selected_email_contact_version)fail('CONTACT_CHANGED','The email contact changed before sending.',409)
   const current=await reconcileDonor(c,d.id,false,{emailType:input.emailType})
@@ -109,22 +111,25 @@ async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConne
   throw error
  }
 }
-export async function refreshMessages(c:Context,source?:{kind:string;id:string}) {
+export async function refreshMessages(c:Context,source?:{kind:string;id:string}, background=false) {
  const conn=await savedConnection(c)
  if(!conn||!['mailchimp','constant-contact'].includes(conn.provider))return {checked:0,...(conn?.provider==='mango'?{unavailable:'Mango has no send or delivery result for these saved messages. Check the campaign in Mango.'}:{})}
- const rows=await all(c,`SELECT * FROM cf_communications WHERE provider=? AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') AND (? IS NULL OR (source_kind=? AND source_id=?)) ORDER BY COALESCE(checked_at,''),created_at,id LIMIT 8`,conn.provider,source?.kind??null,source?.kind??null,source?.id??null)
+ const rows=await all(c,`SELECT * FROM cf_communications WHERE provider=? AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') AND (? IS NULL OR (source_kind=? AND source_id=?))
+ AND (? IS NULL OR checked_at IS NULL OR checked_at<=CASE WHEN remote_status IN ('sent','bounced','unsubscribed','not_sent') THEN ? ELSE ? END) ORDER BY COALESCE(checked_at,''),created_at,id LIMIT 8`,conn.provider,source?.kind??null,source?.kind??null,source?.id??null,background&&conn.provider==='constant-contact'?c.now:null,new Date(Date.parse(c.now)-6*60*60*1000).toISOString(),new Date(Date.parse(c.now)-15*60*1000).toISOString())
  for(const row of rows){
   const report=await providerResults(conn,row)
   if(!Array.isArray(report.rows))fail('MAILCHIMP_RESPONSE','Mailchimp did not return send results.',502)
   const frozen=row.recipient_email ?? (row.source_kind==='appeal' ? (await one(c,'SELECT email FROM cf_appeal_recipients WHERE appeal_id=? AND donor_id=?',row.source_id,row.donor_id))?.email : null)
   const facts=report.rows.filter((r:Row)=>r.destination?.toLowerCase()===frozen?.toLowerCase())
-  if(conn.provider==='constant-contact'&&row.remote_status!=='unsubscribed'&&facts.some((fact:Row)=>fact.disposition==='unsubscribed'))await recordConstantContactOptout(c,row,frozen)
+  const withdrawal=conn.provider==='constant-contact'&&row.remote_status!=='unsubscribed'&&facts.some((fact:Row)=>fact.disposition==='unsubscribed')
+  if(withdrawal)await recordConstantContactOptout(c,row,frozen)
   const disposition=facts[0]?.disposition??(report.state==='sent'&&report.rows.length===0?'not_sent':report.state==='sent'?'unknown':report.state??'unknown')
   const note=disposition==='sent'?'The provider reports sending this message to the frozen recipient. Delivery is not confirmed.':['accepted','handed-off'].includes(disposition)?'The provider accepted the request. Sending and delivery are unconfirmed.':disposition==='delivered'?'The provider reports acceptance by the recipient’s mail server; this is not proof of reading.':`Provider result: ${disposition}. Check the provider for delivery details.`
   await commit(c,[sql('UPDATE cf_communications SET remote_status=?,checked_at=?,note=? WHERE id=?',disposition,c.now,note,row.id),
    ...(disposition!==row.remote_status?[event(c,'marketing.result',row.source_kind,row.source_id,row.donor_id,{communicationId:row.id,disposition})]:[])])
   await savedResult(c,row.id,disposition)
-  await reconcileDonor(c,row.donor_id)
+  if(conn.provider!=='constant-contact'||withdrawal)await reconcileDonor(c,row.donor_id)
+  if(conn.provider==='constant-contact')await releaseConstantContactList(c,conn,row)
  }
  return {checked:rows.length}
 }

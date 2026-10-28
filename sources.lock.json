@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "2391f62a9893f104a273b57055c7bfa7557a66cb038004f2c0e9b3ed63862f8f",
+      "sha256": "61933e55570dc4be078f2db3eae6c80c81912299440eed69e975a6be97e76ed7",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "106ea337e886024f18e01dd53e54fe0a9529905837c22bccc3ba58e88b30ebb9",
+      "sha256": "a04a9b831a806ec3cb08e1474dc2389f5c241656babdc199b3db4a6cfa651771",
       "executable": false
     },
     "deploy-demo.json": {
@@ -611,7 +611,7 @@
       "executable": false
     },
     "docs/COMMUNICATIONS.md": {
-      "sha256": "c985d46d1a1bfa533434d92956b00ed1a8a71b04997b655f66e28773417598ed",
+      "sha256": "b7911d9af40d0a9de11c020e65ab9827fdf139d34c8a2c887048fe796b3d9e7c",
       "executable": false
     },
     "docs/consent.md": {
@@ -1452,6 +1452,10 @@
     },
     "migrations/core/0168_coffer_report_builder.sql": {
       "sha256": "a6fd47033becb5b3c5a823648f1312e87b700b73ce1ef04a5a74645175ba61fd",
+      "executable": false
+    },
+    "migrations/core/0169_coffer_constant_contact_lists.sql": {
+      "sha256": "cec19f541ba827b1deb3f4fc02b7f111e452ce7a266d051fc7972efeb5ef14cc",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2591,15 +2595,19 @@
       "executable": false
     },
     "src/coffer/communications/constant-contact-api.ts": {
-      "sha256": "f99f8b9fb44015badf38e47dc8e995738078d1f1bfae8922e89b354ceac99758",
+      "sha256": "260da391cf91f67def5922da779dc6a21bc11b3fdba48640360ce5d31421ce22",
       "executable": false
     },
     "src/coffer/communications/constant-contact-campaign.ts": {
-      "sha256": "f34c15110b00c98c5303ef66e1cfaab605ed0d660c5a7ce0f954927be1bb3dd1",
+      "sha256": "f6bf45e2412f732076ff97716ad4b04f5b938165a794744135a5a28bdb547f8b",
+      "executable": false
+    },
+    "src/coffer/communications/constant-contact-lists.ts": {
+      "sha256": "19adc95821cdb7553e05d8a6f0f216af362758e07bc3ef8b587479d770b4dc8a",
       "executable": false
     },
     "src/coffer/communications/constant-contact-profile.ts": {
-      "sha256": "604626eee6a379f4a9be3213cf2a9410b9dfa9afffd054a49aafe4d54f8544d9",
+      "sha256": "312757562b529d8b848e4bf6e52c206f73153bc7ea7bd18d32561eede6eb8f17",
       "executable": false
     },
     "src/coffer/communications/constant-contact.ts": {
@@ -2643,7 +2651,7 @@
       "executable": false
     },
     "src/coffer/communications/outbound.ts": {
-      "sha256": "bed5bc60c089d2d338bc51cf10c0d21e84bfc4da772617e897f7d09ee3ed66f1",
+      "sha256": "2ece4f8f609cce0c1e48490ad84af71534bc707bd67b7ed1569618ee1479de88",
       "executable": false
     },
     "src/coffer/communications/preference-rules.ts": {
@@ -2659,7 +2667,7 @@
       "executable": false
     },
     "src/coffer/communications/preferences.ts": {
-      "sha256": "5dfc8c85063ba6c7a9697877af421825609143151b2c5210e22b925f8a296ae1",
+      "sha256": "ab199f0fcdbc4171dbbeadd72ca16bad554dfc7711afa8611df052969c355c6f",
       "executable": false
     },
     "src/coffer/communications/profile-fields.ts": {
@@ -2671,7 +2679,7 @@
       "executable": false
     },
     "src/coffer/communications/provider.ts": {
-      "sha256": "6a1f47b695c345c14a5cfd43f5a7ef07fd42ba77b06ea16bfd92d33cc975ef58",
+      "sha256": "8bdc891609e0e3d669ff5906c88f52b2aab5973d8b533f89679d47748ee605e7",
       "executable": false
     },
     "src/coffer/communications/replies-ui.ts": {
@@ -2687,7 +2695,7 @@
       "executable": false
     },
     "src/coffer/communications/scheduler.ts": {
-      "sha256": "5622fbde9ac1a466cbfffeed0f1de45a3774d81de02f61b122ead624197ab2b3",
+      "sha256": "4382d268983d9248597082177ad999cb98fddd3efdcc4af766cc1b837dfb66ad",
       "executable": false
     },
     "src/coffer/communications/welcome-ui.ts": {
@@ -6267,11 +6275,19 @@
       "executable": false
     },
     "tests/constant-contact-edge.mjs": {
-      "sha256": "04754c60a12b5d6e4a80a33c6c5a8f1d91bd5389d3f2693369b7b0bea09cad19",
+      "sha256": "46d8fd4ba4db80d98d1bcab458e812b5ff3b84e51476c4e415d19cb400fcc4b7",
       "executable": false
     },
     "tests/constant-contact-journey.mjs": {
-      "sha256": "b17d2a2e45dc1e0cdc8ec09096d041ce275eafc2740fbeb97e2fc437e9e89e66",
+      "sha256": "cef31aba7cd8c1ad609670942a629990ab982aeb135452fbf27e277b91027086",
+      "executable": false
+    },
+    "tests/constant-contact-quota.mjs": {
+      "sha256": "8d691f7d4ce234479a746fad685d42bf9f436d3b13b5509f2ddea4c947acaeec",
+      "executable": false
+    },
+    "tests/constant-contact-worker.ts": {
+      "sha256": "914494b3e5d41187770b895627b9018bb9b980f45863600c309f51d031eb7291",
       "executable": false
     },
     "tests/contact-points-journey.mjs": {

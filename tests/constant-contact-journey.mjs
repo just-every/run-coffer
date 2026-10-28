@@ -5,6 +5,8 @@ import {withBrowserWorker} from './browser-worker.mjs'
 import {constantContactEdge,ccAddress} from './constant-contact-edge.mjs'
 
 export async function constantContactJourney(){
+ const {constantContactQuotaJourney}=await import('./constant-contact-quota.mjs')
+ await constantContactQuotaJourney()
  const edge=constantContactEdge(),headers={'x-test-now':'2026-10-15T16:00:00Z'},directory=process.env.COFFER_CC_BROWSER??'.cache/constant-contact'
  await run(async h=>{
   const cmd=(name,p={},options={})=>h.command(name,p,{headers,...options}),get=path=>h.get(path,{headers})
@@ -61,6 +63,9 @@ export async function constantContactJourney(){
   await cmd('appeal.export',{appealId:appeal.id,version:2})
   edge.sends.find(s=>s.email===jo.email).result='bounced'
   assert.equal((await cmd('marketing.refresh')).checked,2)
+  assert.equal(edge.lists.size,0,'Completed campaigns release their temporary recipient lists')
+  await cmd('custom.set',{key:'reading_interest',recordId:amina.id,value:'Reading circles',version:1,source:'Donor form'})
+  await cmd('marketing.sync');assert.equal(value(amina,'custom.reading_interest'),'Reading circles','Changed selected profile values still synchronize')
   assert.equal((await get('/api/coffer/donors/'+jo.id)).communications[0].remote_status,'bounced')
   const next=await cmd('appeal.prepare',{name:'Second October appeal',channel:'email',subject:'Next chapter',body:'Please support the next chapter.'})
   assert.equal(next.excluded.frequency,1)
