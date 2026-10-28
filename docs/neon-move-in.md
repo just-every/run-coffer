@@ -59,7 +59,7 @@ Optionally upload one `neon-history.json` file prepared from reviewed source rep
 }
 ```
 
-Account history can also carry `status` (active, inactive or deceased), `statusReason` and `deceasedOn`. The normal status validator applies. Unknown source dates stay explicitly unknown in preference evidence; import time is retained separately. Household history can supply addressee and informal overrides; the API's household salutation supplies the formal override.
+Account history can also carry `status` (active, inactive or deceased), `statusReason` and `deceasedOn`. The normal status validator applies. Source history cannot clear a current Neon deceased flag, and a supplied death date must be real and no later than today in the organization time zone. Unknown source dates stay explicitly unknown in preference evidence; import time is retained separately. Household history can supply addressee and informal overrides; the API's household salutation supplies the formal override.
 
 Donation and registration histories accept the six acknowledgment columns shown in the preview: status, date, method, reason, reference and interaction ID, with the exact `Acknowledgment ` prefix used above. Donation history can additionally supply `tributeGroup`. Status is acknowledged, not acknowledged or do not acknowledge. An interaction link must belong to the same donor, or to the independently credited donor, and match each supplied date and method. It never claims a Coffer send.
 

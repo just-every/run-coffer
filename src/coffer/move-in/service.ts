@@ -46,7 +46,7 @@ export async function preview(c: Context,input: ParseInput) {
  }
  if(input.source==='spreadsheet')input=await resolveSpreadsheetMatches(c,input)
  let sourceCoverage:SourceCoverage|undefined
- if(input.source==='neon'){const result=await neonInput(input);input=result.input;sourceCoverage=result.coverage}
+ if(input.source==='neon'){const result=await neonInput(input,today((await settings(c)).timezone,new Date(c.now)));input=result.input;sourceCoverage=result.coverage}
  const parsed=await parseExports(input)
  if(sourceCoverage)parsed.sourceCoverage=sourceCoverage
  const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})

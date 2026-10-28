@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { fail } from '../db'
+import { day as sourceDay } from './source-rows'
 import { readNeon, type NeonSnapshot } from './neon-edge'
 import type { CustomImportMapping, ExportFile, ParseInput, SourceCoverage } from './types'
 
@@ -14,7 +15,7 @@ const acknowledgment=(facts:Record<string,any>={})=>Object.fromEntries(['Acknowl
 /** The optional history file is an explicit source report, not an API response.
  * It fills facts the Neon API does not attest: actual acknowledgment, source dates,
  * account status, contact restrictions and independent soft-credit recognition. */
-export async function neonInput(input:ParseInput):Promise<{input:ParseInput;coverage:SourceCoverage}> {
+export async function neonInput(input:ParseInput,importDay:string):Promise<{input:ParseInput;coverage:SourceCoverage}> {
  if(input.neon?.currency!=='USD')fail('NEON_CURRENCY','Confirm that your Neon organization records USD amounts before reviewing money. The API does not identify currency and no conversion is performed.',400)
  let history:History={}
  if(input.files.length>1||input.files.some(f=>f.name!=='neon-history.json'))fail('NEON_HISTORY','Use one optional neon-history.json source-history file.',400)
@@ -25,6 +26,7 @@ export async function neonInput(input:ParseInput):Promise<{input:ParseInput;cove
  for(const [section,allowed] of Object.entries({accounts:['status','deceasedOn','statusReason','codes','restrictionOn','preferenceOn'],households:['addressee','informal'],donations:['Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID','tributeGroup'],registrations:['Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID']}))for(const facts of Object.values((history as Record<string,any>)[section]??{})){
   if(!facts||typeof facts!=='object'||Array.isArray(facts)||Object.keys(facts).some(k=>!allowed.includes(k)))fail('NEON_HISTORY','A source-history field has no supported mapping. Review it before importing.',400)
  }
+ for(const facts of Object.values(history.accounts??{}))if(facts.deceasedOn){const day=sourceDay(facts.deceasedOn);if(!day||day>importDay)fail('NEON_HISTORY','A supplied date of death must be a real date on or before today in the organization time zone.',400)}
  const snapshot=await readNeon(input.neon!)
  return {input:normalizeNeon(snapshot,history,input),coverage:{currency:'USD',counts:{accounts:snapshot.accounts.length,donations:snapshot.donations.length,activities:snapshot.activities.length,eventRegistrations:snapshot.registrations.length,households:snapshot.households.length},unsupported:['Memberships','Pledges','Recurring-donation migration and processor references','Other source objects','Donation and activity custom fields','Split, pending, refunded, disputed and noncash payments','Native event guest-list seats']}}
 }
@@ -48,6 +50,7 @@ function normalizeNeon(s:NeonSnapshot,h:History,input:ParseInput):ParseInput {
  }
  for(const a of s.accounts){
   const p=a.primaryContact??{},facts=h.accounts?.[a.accountId]??{},household=householdByAccount.get(a.accountId),householdFacts=h.households?.[household?.id]??{}
+  if(p.deceased===true&&facts.status&&String(facts.status).trim().toLowerCase()!=='deceased')fail('NEON_HISTORY','Source history contradicts the current Neon deceased flag. Correct the source history or Neon record and review again.',400)
   const row:Record<string,any>={'Constituent ID':a.accountId,'Name':a._company?a.name:[p.prefix,p.firstName,p.middleName,p.lastName,p.suffix].filter(Boolean).join(' '),'Is Organization':a._company?'yes':'no','Prefix':p.prefix,'First Name':p.firstName,'Middle Name':p.middleName,'Last Name':p.lastName,'Suffix':p.suffix,'Nickname':p.preferredName,'Salutation':p.salutation,'Constituent Status':facts.status??(p.deceased?'deceased':'active'),'Date of Death':facts.deceasedOn,'Status Reason':facts.statusReason,'Household ID':household?.id,'Household Name':household?.name,'Head of Household ID':household?.head,'Household Addressee':householdFacts.addressee,'Household Formal Salutation':household?.salutation,'Household Informal Salutation':householdFacts.informal,'Communication Restrictions':[a.noSolicitation?'Do not solicit':'',...(facts.codes??[])].filter(Boolean).join('; '),'Restriction Date':facts.restrictionOn,'Preference Date':facts.preferenceOn}
   for(const [i,key] of ['email1','email2','email3'].entries()){row[i?'Email '+(i+1):'Email']=p[key];if(p[key]){row['Email '+(i+1)+' Type']=i?'other':'personal';row['Email '+(i+1)+' Primary']=i?'no':'yes'}}
   const addresses=p.addresses??[]

@@ -16,6 +16,7 @@ function fixture(){
  accounts[5].primaryContact.addresses[0].addressLine1=accounts[4].primaryContact.addresses[0].addressLine1
  accounts[0].primaryContact.salutation='  Dearest Ava  '
  accounts[0].primaryContact.addresses[0].zipCodeSuffix='4567'
+ accounts[5].primaryContact.deceased=true
  const payment=(amount,id)=>({id:key(id),amount,paymentStatus:'Succeeded',receivedDate:'2026-09-03T12:00:00Z',tenderType:1})
  const donation=(n,person,extra={})=>({id:key(n),accountId:key(person),date:'2026-09-03T12:00:00Z',amount:500,status:'Succeeded',sendAcknowledgeEmail:true,payments:[payment(500,n+1000)],fund:{id:'1',name:'Reading'},taxDeductibleInfo:{nonDeductibleAmount:0},...extra})
  const donations=[donation(7011,7001,{tribute:{type:'Memory',name:'Jordan Reed'},acknowledgee:{name:'River Reed',address:{addressLine1:'12 River Road',addressLine2:'Unit 4',city:'Madison',stateProvince:{code:'WI'},zipCode:'53703',zipCodeSuffix:'1234',country:{name:'United States'}}}}),donation(7012,7002,{tribute:{type:'Memory',name:'Jordan Reed'}}),donation(7013,7003)]
@@ -60,6 +61,8 @@ export async function neonJourney(){
   const heldDonations=f.donations.splice(0)
   const accountsOnly=await post(h,'preview',{...f.input,files:[historyFile({accounts:f.history.accounts,households:f.history.households})]});assert.equal(accountsOnly.canApply,true,JSON.stringify(accountsOnly.diagnostics));assert.equal(accountsOnly.sourceTotals.giftCount,1,'The paid event is still the only monetary record');assert.equal(accountsOnly.sourceTotals.amountCents,15000)
   f.donations.push(...heldDonations)
+  const contradictory=structuredClone(f.history);contradictory.accounts[key(7006)].status='active';await post(h,'preview',{...f.input,files:[historyFile(contradictory)]},{status:400})
+  const futureDeath=structuredClone(f.history);futureDeath.accounts[key(7006)].deceasedOn='2999-01-01';await post(h,'preview',{...f.input,files:[historyFile(futureDeath)]},{status:400})
   const bad=structuredClone(f.history);bad.softCredits[0]['Acknowledgment Interaction ID']=key(7031)
   const refused=await post(h,'preview',{...f.input,files:[historyFile(bad)]});assert.equal(refused.canApply,false);assert.ok(refused.diagnostics.some(d=>d.code==='ACKNOWLEDGMENT_LINK'))
   await post(h,'apply',{id:refused.id,fingerprint:refused.fingerprint},{status:409})

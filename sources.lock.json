@@ -715,7 +715,7 @@
       "executable": false
     },
     "docs/neon-move-in.md": {
-      "sha256": "b77c377beaef05dfb3b89752724cb012773089c70f09626f324bcb73a26d5eb5",
+      "sha256": "18f055cc10a838761e3d0b8067cc705a0266a944b3e673267b47c493952706e0",
       "executable": false
     },
     "docs/ONLINE-GIVING.md": {
@@ -3335,7 +3335,7 @@
       "executable": false
     },
     "src/coffer/move-in/neon.ts": {
-      "sha256": "12dca574707ac18fa5f8465eeb580b145f9960bc9bc3898a4f082d281d5e68da",
+      "sha256": "08ea07d6c220d7d67b76148503c7b6c2fd8e977e8857fbdbb8f3fe5b2b74fec4",
       "executable": false
     },
     "src/coffer/move-in/parse-input.ts": {
@@ -3367,7 +3367,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "190f86c5987cfb0a27bc4149dec9cfa6a541873808ff3d0a01fabc6a5baf4db5",
+      "sha256": "6c88f0df10758b995fa9dbcab5ec04a82c9ad7a52e30ec69625c22b2920f8bb7",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -6807,7 +6807,7 @@
       "executable": false
     },
     "tests/neon-journey.mjs": {
-      "sha256": "9208245c68ee584860fa1c182100686d68b164a73b2a021ba74b695644c1d489",
+      "sha256": "a607204443ea04ba9054277949e38d9a571db763341f03ca2d1f38de0dc3eb38",
       "executable": false
     },
     "tests/opportunity-journey.mjs": {
