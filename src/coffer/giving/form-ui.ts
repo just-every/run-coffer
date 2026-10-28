@@ -23,5 +23,5 @@ export function suggestedAmounts(config: Row) {
 
 export function givingBrandStyle(config: Row) {
  // Every interpolated value is a validated six-digit hexadecimal color.
- return `.configured-form{--form-primary:${config.primaryColor};background:${config.backgroundColor};color:${config.textColor}}.configured-form header,.configured-form h1,.configured-form .description,.configured-form .eyebrow{color:${config.textColor}}.configured-form .scene{display:none}.configured-form .checkout{background:${config.primaryColor}}.configured-form .intro{align-self:start}.configured-form header img{object-fit:contain;width:72px;height:56px}.configured-form .checkout:focus-visible{outline-color:${config.textColor}}`
+ return `.configured-form{--form-primary:${config.primaryColor};background:${config.backgroundColor};color:${config.textColor}}.configured-form header,.configured-form h1,.configured-form .description,.configured-form .eyebrow,.configured-form .campaign-media{color:${config.textColor}}.configured-form .scene{display:none}.configured-form .checkout{background:${config.primaryColor}}.configured-form .intro{align-self:start}.configured-form header img{object-fit:contain;width:72px;height:56px}.configured-form .checkout:focus-visible{outline-color:${config.textColor}}`
 }
