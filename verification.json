@@ -168,7 +168,15 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:communications"
+        "node --test --test-concurrency=1 --test-skip-pattern='^COMM-003:' tests/communications.test.mjs"
+      ]
+    },
+    {
+      "name": "constant-contact",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node --test --test-concurrency=1 --test-name-pattern='^COMM-003:' tests/communications.test.mjs"
       ]
     },
     {
