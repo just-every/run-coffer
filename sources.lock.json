@@ -4003,7 +4003,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "889fdfaa00aab89aaef66a2e7c5c7ac539d0028bbeef0c9275a1badfb1420912",
+      "sha256": "da5e6af84add6a2f7274ad9f3c9d080f00d3e659e66f378cc90f6ec653e137c2",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6431,7 +6431,7 @@
       "executable": false
     },
     "tests/custom-import-browser.mjs": {
-      "sha256": "83a230d7b16e90649a0bfc2bc815b2fb62db8ec5c1a26ace712a3d74958e0cab",
+      "sha256": "b8455a45825ecb763686a8b6b2fcb80be239cdcabe504b51c88630d990192255",
       "executable": false
     },
     "tests/custom-source-journey.mjs": {

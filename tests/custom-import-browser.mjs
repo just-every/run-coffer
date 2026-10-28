@@ -88,7 +88,8 @@ export async function spreadsheetImportBrowser(h,input,directory){
  await mkdir(directory,{recursive:true})
  return withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage(),files=input.files.map(f=>({name:f.name,mimeType:'text/csv',buffer:Buffer.from(f.base64,'base64')}))
-  await page.goto(origin+'/app/move-in/crm/spreadsheet')
+  await page.goto(origin+'/app/move-in/crm')
+  await page.getByRole('link',{name:'Map any spreadsheet',exact:true}).click()
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    await page.locator('input[name=exports]').setInputFiles(files)

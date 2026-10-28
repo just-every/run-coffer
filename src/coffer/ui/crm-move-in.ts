@@ -37,7 +37,7 @@ const reviewedCustom=(report:Row)=>report.customFields?.length?box('Reviewed cus
 
 export function crmMoveInPage(jobs:Row[],tz:string,definitions:Row[]=[]) {
  return `<p>Bring your donor records and gift history into Coffer. Preview every file and compare totals before you switch.</p><p><a href="/app/move-in/crm/spreadsheet">Map any spreadsheet</a></p><div class="grid"><div>
- ${box('1. Choose your exports',`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${select('Moving from','source',sources)}
+ ${box('1. Choose your exports',`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${select('Moving from','source',sources.filter(([key])=>key!=='spreadsheet'))}
  <label>Export files (CSV or XLSX)<input type="file" name="exports" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required></label>
  <p class="muted">Include the constituent and gift exports, plus relationships, pledges, soft credits and notes if you have them. Workbooks can contain several sheets. One move-in takes up to 16 MB of files and 100,000 rows, about 10,000 donors with 80,000 gifts. Larger? Split the gift export by year and move the years in oldest first, uploading constituents.csv again with each year’s file; donors and pledges already moved in are matched by their CRM ID, not copied.</p>
  ${restrictionMapping()}${customMapping('',{customDefinitions:definitions})}<label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
