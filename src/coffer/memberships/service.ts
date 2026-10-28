@@ -64,6 +64,7 @@ export async function membershipState(c:Context){
  const levels=await all(c,'SELECT l.*,c.name AS campaign_name FROM cf_membership_levels l JOIN cf_campaigns c ON c.id=l.campaign_id ORDER BY lower(l.name),l.id')
  const rows=await all(c,`SELECT m.*,q.level_id,q.price_cents,q.term_months,q.benefit_cents,q.benefit_description,q.grace_days,l.name AS level_name,d.name AS donor_name,
  s.status AS subscription_status,s.cancel_at_period_end,COALESCE(p.collection_paused,0) AS collection_paused,
+ (s.amount_cents<>q.price_cents OR (p.interval IS NOT NULL AND CASE p.interval WHEN 'year' THEN p.interval_count*12 WHEN 'month' THEN p.interval_count ELSE 0 END<>q.term_months)) AS terms_changed,
  EXISTS(SELECT 1 FROM cf_portal_changes ch WHERE ch.subscription_id=m.subscription_id AND ch.state IN ('pending','uncertain')) AS uncertain,
  (SELECT MAX(mp.expires_on) FROM cf_membership_payments mp JOIN cf_gift_balances b ON b.id=mp.gift_id WHERE mp.membership_id=m.id AND b.net_cents>=q.price_cents AND mp.starts_on<=?) AS expires_on
  FROM cf_memberships m JOIN cf_membership_intents q ON q.intent_id=m.intent_id JOIN cf_membership_levels l ON l.id=q.level_id
@@ -71,8 +72,8 @@ export async function membershipState(c:Context){
  WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY lower(d.name),m.id`,day)
  for(const row of rows){
   row.grace_ends_on=row.expires_on?addDays(row.expires_on,row.grace_days):null
-  row.state=row.uncertain?'review':!row.expires_on?'lapsed':day<row.expires_on?'active':day<row.grace_ends_on?'grace':'lapsed'
-  row.auto_renew=Boolean(!row.cancel_at_period_end&&!row.collection_paused&&['active','trialing','past_due'].includes(row.subscription_status)&&!row.uncertain)
+  row.state=row.uncertain||row.terms_changed?'review':!row.expires_on?'lapsed':day<row.expires_on?'active':day<row.grace_ends_on?'grace':'lapsed'
+  row.auto_renew=Boolean(!row.cancel_at_period_end&&!row.collection_paused&&['active','trialing','past_due'].includes(row.subscription_status)&&!row.uncertain&&!row.terms_changed)
  }
  const counts=levels.map(l=>{
   const people=new Map<string,Row>()
