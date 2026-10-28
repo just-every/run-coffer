@@ -108,7 +108,12 @@ export async function constantContactJourney(){
   const snapshot=await archive(h);assert.ok(!JSON.stringify(snapshot).includes(connection.accessToken),'Archives exclude the sender credential')
   await run(async target=>{await restore(target,snapshot);const restored=await target.get('/api/coffer/donors/'+amina.id);assert.equal(restored.current.email.status,'withdrawn');assert.ok(restored.communications.some(m=>m.id===message.id));assert.ok((await target.get('/api/coffer/replies')).some(r=>r.communication_id===message.id));await target.command('marketing.refresh');assert.equal((await target.get('/api/coffer/provider-fields')).provider,null)})
   edge.contacts.get(amina.email).email_address.permission_to_send='explicit';await consent(amina);await receive(clear,'synthetic-coffer-stop');assert.equal((await get('/api/coffer/donors/'+amina.id)).current.email.status,'granted','Replay cannot replace a newer donor answer')
-  const remote=edge.contacts.get(newsletter.email);remote.email_address.permission_to_send='unsubscribed';await cmd('marketing.sync');assert.equal((await get('/api/coffer/donors/'+newsletter.id)).current.email.status,'withdrawn')
+  const remote=edge.contacts.get(newsletter.email);edge.sends.find(s=>s.email===newsletter.email).result='unsubscribed'
+  await cmd('marketing.refresh');assert.equal((await get('/api/coffer/donors/'+newsletter.id)).current.email.status,'withdrawn','The opt-out report withdraws immediately even while the contact answer still lags')
+  assert.equal(remote.email_address.permission_to_send,'unsubscribed')
+  remote.email_address.permission_to_send='explicit';await consent(newsletter)
+  const renewed=(await get('/api/coffer/donors/'+newsletter.id)).current.email.id
+  await cmd('marketing.refresh');assert.equal((await get('/api/coffer/donors/'+newsletter.id)).current.email.id,renewed,'Replaying an old opt-out report preserves the newer confirmed donor choice')
   edge.state.revoked=true;const count=edge.sends.length;assert.ok((await cmd('marketing.sync')).pending>0);assert.equal(edge.sends.length,count);edge.state.revoked=false
   const target=await donor(h,'Amina Duplicate',{email:ccAddress(3620)},{headers}),comparison=await get('/api/coffer/duplicates/compare?source='+amina.id+'&target='+target.id)
   const merged=await cmd('donor.merge',{sourceDonorId:amina.id,donorId:target.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
