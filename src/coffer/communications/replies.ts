@@ -233,7 +233,7 @@ export async function replyCommand(c: Context, command: string, p: Row): Promise
  if (!manager(c.actor) && task.owner_id !== c.actor.id) fail('FORBIDDEN', 'Only the assigned person or an administrator can finish this reply.', 403)
  await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_reply_tasks r JOIN cf_donors d ON d.id=r.donor_id WHERE r.id=? AND r.status NOT IN ('done','filed') AND d.erased_at IS NULL AND (?=1 OR r.owner_id=?))`, 'REPLY_CHANGED', 'This reply changed or is already closed. Refresh before saving.', taskId, manager(c.actor) ? 1 : 0, c.actor.id),
   sql("UPDATE cf_reply_tasks SET status='done',note=? WHERE id=?", notes, taskId),
-  sql('UPDATE cf_interactions SET next_step=? WHERE id=?', `Follow-up completed by ${c.actor.name}: ${notes}`, taskId),
+  sql('UPDATE cf_interactions SET next_step=? WHERE id=?', task.mailbox_id?'Private mailbox follow-up completed.':`Follow-up completed by ${c.actor.name}: ${notes}`, taskId),
   event(c, command, 'reply', taskId, task.donor_id, { communicationId: task.communication_id })])
  return (await one(c, 'SELECT * FROM cf_reply_tasks WHERE id=?', taskId))!
 }

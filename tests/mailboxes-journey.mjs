@@ -33,8 +33,9 @@ export async function mailboxesJourney(){
    if(u.pathname.endsWith('/messages'))return Response.json({messages:inbox.gmail.map(m=>({id:m.id})),resultSizeEstimate:inbox.gmail.length})
    const mail=inbox.gmail.find(m=>u.pathname.endsWith('/'+m.id));assert.ok(mail,'Requested message exists on the Gmail edge');return Response.json(mail)
   }
-  assert.equal(u.pathname,'/v1.0/me/messages');assert.equal(request.headers.get('prefer'),'outlook.body-content-type="text"')
-  return Response.json({value:inbox.microsoft})
+  assert.equal(request.headers.get('prefer'),'outlook.body-content-type="text"')
+  if(u.pathname==='/v1.0/me/messages')return Response.json({value:inbox.microsoft.map(m=>({id:m.id,isDraft:false}))})
+  const message=inbox.microsoft.find(m=>u.pathname.endsWith('/'+m.id));assert.ok(message,'Requested message exists on the Graph edge');return Response.json(message)
  }
  await run(async h=>{
   harness=h;await reviewed(h);account=(await h.get('/auth/session')).operator.email
@@ -135,7 +136,7 @@ export async function mailboxesJourney(){
   await h.command('mailbox.sync',{provider:'gmail'},{status:409})
   assert.ok(!(await h.get('/api/coffer/donors/'+ada.id)).mailboxMessages.some(r=>r.excerpt.includes('after disconnect')))
   await connect('gmail');await h.command('mailbox.submit',{messageId:revokedDraft.id,confirm:'yes'},{status:409})
-  const file=await h.api('/api/coffer/donors/'+ada.id+'/data-request',{requestedOn:'2026-10-18',method:'email'})
+  const file=await h.api('/api/coffer/donors/'+ada.id+'/data-request',{requestedOn:'2026-10-17',method:'email'})
   assert.ok(!JSON.stringify(file).includes('would love a reading room visit'),'Private mailbox excerpts remain withheld from donor files')
   if(process.env.COFFER_MAILBOX_BROWSER){const {mailboxesBrowser}=await import('./mailboxes-browser.mjs');await mailboxesBrowser(h,{directory:process.env.COFFER_MAILBOX_BROWSER,donorId:ada.id,keys})}
   const portable=await archive(h),restored=await installation({entry:'tests/engagement-worker.ts',bindings:{COFFER_TEST_NOW:fixedNow,COFFER_REPLY_DOMAIN:'replies.example.test'},outbound:edge})
