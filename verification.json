@@ -39,7 +39,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DONOR-004|DONOR-005|DONOR-007|DONOR-013|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001|API-002):' tests/coffer.test.mjs"
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DONOR-004|DONOR-005|DONOR-007|DONOR-013|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001|API-002):|^(backup restores donors|erasing a donor)' tests/coffer.test.mjs"
       ]
     },
     {
@@ -82,7 +82,8 @@
         "node --test --test-concurrency=1 tests/demo.test.mjs",
         "node --test tests/audit.test.mjs",
         "node --test tests/hosted-restore.test.mjs",
-        "node --test tests/portability-http.test.mjs"
+        "node --test tests/portability-http.test.mjs",
+        "node --test --test-concurrency=1 --test-name-pattern='^(backup restores donors|erasing a donor)' tests/coffer.test.mjs"
       ]
     },
     {
@@ -90,7 +91,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test --test-skip-pattern='^(CAMP-001|GIFT-011|GIVE-003)' tests/giving.test.mjs"
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test --test-skip-pattern='^(CAMP-001|GIFT-011|GIVE-003|GIVE-001|CAMP-005)' tests/giving.test.mjs"
       ]
     },
     {
@@ -192,7 +193,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_RECOGNITION_BROWSER=.cache/recognition node --test --test-name-pattern='GIFT-011' tests/giving.test.mjs",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_RECOGNITION_BROWSER=.cache/recognition node --test --test-name-pattern='GIFT-011|CAMP-005' tests/giving.test.mjs",
         "COFFER_MEETING_BROWSER=.cache/meeting-briefs COFFER_CALENDARS_BROWSER=.cache/calendars node --test --test-name-pattern='^(DEV-006|STEW-006):' tests/stewardship.test.mjs"
       ]
     },
@@ -201,7 +202,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='CAMP-001|GIVE-003' tests/giving.test.mjs"
+        "COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='CAMP-001|GIVE-003|GIVE-001' tests/giving.test.mjs"
       ]
     },
     {

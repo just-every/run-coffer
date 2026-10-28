@@ -543,7 +543,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "c846d57fd9fb6031d0bed5ae76e32a71e20309a5b3034aa1843cc958f282c95d",
+      "sha256": "436ffddc395aa5ad50bf9e28f23dfce978c6c80d4b3ee754728279018921707b",
       "executable": false
     },
     ".gitignore": {
@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "43fba31effdd254b468c471208d484218819865b50c586070791e27cac767932",
+      "sha256": "e90df41ba5f7faad3e6b60d0c5703976c7430c437eb3565107cef175ff82834c",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "9f013cb93581d15f2ca02df74927b379fb69b8974ee431c78d12aeeebfbbb115",
+      "sha256": "b0b1253066cc440d286fff818fe2eec7c496a077bb67dab8c53b64a626c71769",
       "executable": false
     },
     "deploy-demo.json": {
@@ -767,7 +767,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "b406641897465f1c0089e2335c725b0e9c28043ac5b808e5e3b197defa54ef54",
+      "sha256": "e98f6ec7b0dcb0aa020619d3d7e9da8c1f698b7963003604c884703d1f979cc4",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1450,10 +1450,6 @@
       "sha256": "a6fd47033becb5b3c5a823648f1312e87b700b73ce1ef04a5a74645175ba61fd",
       "executable": false
     },
-    "migrations/core/0169_coffer_giving_forms.sql": {
-      "sha256": "32a3372a56f6e2bd9328c604c3755b490a12ed0f956a685097ed9c03638401c4",
-      "executable": false
-    },
     "migrations/core/0169_coffer_source_unknown_preferences.sql": {
       "sha256": "88ac3d65a8035a97cff0a7af205ad0042b4b0978d2973610ac9c33bf3916c0da",
       "executable": false
@@ -1462,8 +1458,12 @@
       "sha256": "e600d4fcd520bd19b17ab86be7c130c6a91e1a6fda58d1ea36c13e9212b6b43c",
       "executable": false
     },
-    "migrations/core/0171_coffer_form_contact_erasure.sql": {
-      "sha256": "a7a682d234cc0e98e2d3862d473754433d24744ef97a22234a0e4a4574c7f3b0",
+    "migrations/core/0171_coffer_giving_forms.sql": {
+      "sha256": "32a3372a56f6e2bd9328c604c3755b490a12ed0f956a685097ed9c03638401c4",
+      "executable": false
+    },
+    "migrations/core/0172_coffer_form_contact_erasure.sql": {
+      "sha256": "44e5e21d80f057989c4379735c3e64d04e4293ce48a85081a2ed92ef1354758d",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1871,7 +1871,7 @@
       "executable": false
     },
     "RELEASE.json": {
-      "sha256": "1889f0e29212011cafd5f0e0da71a654f3fc64cccc4338ecd9ff41510884558d",
+      "sha256": "f60e44c940585b2375ee8374528fef603343188674c973b39d9c4a919244f983",
       "executable": false
     },
     "rer-project.json": {
@@ -6635,7 +6635,7 @@
       "executable": false
     },
     "tests/giving-form-journey.mjs": {
-      "sha256": "b2be494982903bb6dd44ad3e96bbf08ba504fc7367806e13a0028e003b09b899",
+      "sha256": "ea57e26a9e747b43a2eb52b99fdca22d1b4371aea5d63cadbe44011a8a9d134d",
       "executable": false
     },
     "tests/giving-form-live-browser.mjs": {
@@ -7227,7 +7227,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "df75fc1f83d97c1236aad0960096116ce12a7c6a98a9e52ce5f6ecbf379e6ba2",
+      "sha256": "39eca8ff13a1f5c867f89e4523e97dd9f2beefa70358fc316ec3b4c259d5a4cf",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

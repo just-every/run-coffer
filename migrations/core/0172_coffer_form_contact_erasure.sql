@@ -8,8 +8,8 @@ BEGIN
  WHERE donor_id=NEW.id OR (OLD.email IS NOT NULL AND lower(email)=lower(OLD.email))
  OR lower(email) IN (SELECT lower(email) FROM cf_donor_aliases WHERE donor_id=NEW.id)
  OR lower(email) IN (SELECT lower(value) FROM cf_contact_points WHERE donor_id=NEW.id AND kind='email')
- OR lower(email) IN (SELECT lower(json_extract(snapshot,'$.value')) FROM cf_contact_history
-                    WHERE donor_id=NEW.id AND json_extract(snapshot,'$.kind')='email');
+ OR (donor_id IS NULL AND lower(email) IN (SELECT lower(json_extract(snapshot,'$.value')) FROM cf_contact_history
+                    WHERE donor_id=NEW.id AND json_extract(snapshot,'$.kind')='email'));
  INSERT OR IGNORE INTO cf_giving_form_redactions SELECT intent_id FROM cf_giving_form_gifts
  WHERE gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=NEW.id);
  DELETE FROM cf_giving_form_gifts WHERE intent_id IN (SELECT intent_id FROM cf_giving_form_redactions)

@@ -94,7 +94,8 @@
     "migrations/core/0128_coffer_annual_grant.sql",
     "migrations/core/0129_operator_last_signin.sql",
     "migrations/core/0130_operator_scheduled_policy.sql",
-    "migrations/core/0131_dependency_keys_sealed.sql"
+    "migrations/core/0131_dependency_keys_sealed.sql",
+    "migrations/core/0171_coffer_giving_forms.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Back up through the existing local or hosted recovery workflow before adopting. This source prepares the next release; no release tag has been created.",
