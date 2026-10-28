@@ -168,7 +168,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:communications"
+        "COFFER_MAILBOX_BROWSER=.cache/mailboxes pnpm run test:communications"
       ]
     },
     {

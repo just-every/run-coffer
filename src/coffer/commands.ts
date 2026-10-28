@@ -1,3 +1,4 @@
+import { mailboxCommand } from './mailboxes/commands'
 import { builderCommand } from './report-builder/store'
 import { journeyCommand } from './communications/journeys'
 import { postalCommand } from './postal-delivery'
@@ -85,6 +86,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // Who may run each command. Agents prepare letters and appeal audiences; a
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
+ ...Object.fromEntries(['configure','start','disconnect','sync','prepare','submit'].map(verb=>['mailbox.'+verb,MANAGERS])),
  'report.save':MANAGERS,'report.import':MANAGERS,'report.share':MANAGERS,'report.revoke':MANAGERS,
  ...Object.fromEntries(AUCTION_COMMANDS.map(command=>[command,MANAGERS])),
  'marketing.topicMapping':MANAGERS, 'communication.preferences':MANAGERS, 'marketing.constantContactConnect':MANAGERS, 'marketing.constantContactSync':MANAGERS, 'marketing.constantContactDisconnect':MANAGERS, 'ack.sendPostal':MANAGERS,
@@ -152,6 +154,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if(command==='calls.rank')return rankCalls(c,p)
  if(command==='calls.policy')return saveCallRankPolicy(c,p)
  if (command === 'settings.update') return settingsCommand(c, p)
+ if(command.startsWith('mailbox.'))return (await mailboxCommand(c,command,p))!
  if(command.startsWith('calendar.'))return (await calendarCommand(c,command,p))!
  if(command.startsWith('booking.'))return (await bookingCommand(c,command,p))!
  if (command.startsWith('agentGrant.')) return (await agentGrantCommand(c,command,p))!

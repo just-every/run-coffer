@@ -1,3 +1,6 @@
+import { mailboxCallback, mailboxState, providerChoice } from './mailboxes/connection'
+import { mailboxSettingsLink, mailboxSettingsPage, mailboxSyncPage } from './mailboxes/ui'
+import { mailboxErasureStatements } from './mailboxes/store'
 import { reportExportsPage } from './ui/report-exports'
 import { builderDownload } from './report-builder/download'
 import { readBuilderReport } from './report-builder/read'
@@ -279,7 +282,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  let actor: Actor | undefined
  try {
   const auth = await identity(request, env); actor = auth.actor
-  if(path==='/app/calendar/google/callback'&&request.method==='GET') {
+  if((path==='/app/calendar/google/callback'||/^\/app\/settings\/mailboxes\/(gmail|microsoft)\/callback$/.test(path))&&request.method==='GET') {
    // Google returns by cross-site navigation. Keep the exact host check;
    // calendarCallback checks the native user's single-use authorization state.
    const callbackHeaders=new Headers(request.headers);callbackHeaders.delete('sec-fetch-site')
@@ -287,6 +290,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   } else originGuard(request, env, auth.bearer, request.method === 'GET' && path === '/app/settings/quickbooks/callback')
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
   responseAuthorities.set(request,c)
+  if(/^\/app\/settings\/mailboxes\/(gmail|microsoft)\/callback$/.test(path)&&request.method==='GET'){await mailboxCallback(c,url,providerChoice(path.split('/')[4]));return redirect('/app/settings/mailboxes')}
   if(path==='/app/calendar/google/callback'&&request.method==='GET'){await calendarCallback(c,url);return redirect('/app/settings#calendar-settings')}
   if(c.actor.preparationGrant&&(request.method==='GET'||path==='/api/coffer/mcp'))await reservePreparationGrant(c,'read')
   if (path === '/api/coffer/mcp') {
@@ -499,7 +503,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   { sql: "UPDATE cf_subscriptions SET donor_id=?,customer_id='' WHERE donor_id=?", params: [placeholder, donorId] },
  ]
  // The placeholder must exist before its references move; delete the old donor last.
- const nativeStatements = [...apiErasureStatements(donorId), ...webhookErasureStatements(donorId), ...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,?)", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder, JSON.stringify({reason})] }]
+ const nativeStatements = [...await mailboxErasureStatements(c,[donor.email,...aliases.results.map(a=>a.email)].filter((value):value is string=>Boolean(value))),...apiErasureStatements(donorId), ...webhookErasureStatements(donorId), ...nativeErasure.slice(0, -1), ...givingErasure, ...nativeErasure.slice(-1), { sql: "INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,'donor.erase','donor',?,?,?)", params: [c.now, c.actor.id, c.actor.name, c.actor.role, placeholder, placeholder, JSON.stringify({reason})] }]
  const result: any = await imports.erase(c.db, c.actor, donorId, authority, { nativeStatements, checkpoint })
  await purgeDocuments(c)
  return { erased: donorId, donorId: placeholder, receiptId: result.receiptId ?? result.id }
@@ -508,6 +512,10 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 const CONNECT = new Set(['marketing.fields','marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
  if(command.startsWith('report.'))return redirect('/app/reports/builder?id='+encodeURIComponent(result.id))
+ if(command==='mailbox.start')return page('Connect my mailbox',`<p><a href="${esc(result.authorizeUrl)}" rel="noreferrer">Continue to ${result.provider==='gmail'?'Google':'Microsoft'}</a></p><p><a href="/app/settings/mailboxes">Back to my mailboxes</a></p>`,actor,200,'/app/settings')
+ if(command==='mailbox.sync')return page('Mailbox logging',mailboxSyncPage(result,input),actor,200,'/app/settings')
+ if(command==='mailbox.prepare'||command==='mailbox.submit')return redirect('/app/donors/'+encodeURIComponent(result.donor_id??input.donorId)+'#personal-email')
+ if(command==='mailbox.configure'||command==='mailbox.disconnect')return redirect('/app/settings/mailboxes')
  if(command==='calendar.start')return page('Connect Google Calendar',`<p>Continue to Google to approve read-only access to your primary calendar.</p><p><a href="${esc(result.authorizeUrl)}" rel="noreferrer">Continue to Google</a></p><p><a href="/app/settings#calendar-settings">Back to Settings</a></p>`,actor,200,'/app/settings')
  if(command==='calendar.configure'||command==='calendar.disconnect'||command==='booking.configure'||command==='booking.disconnect')return redirect('/app/settings#calendar-settings')
  if(command==='calendar.log'||command==='booking.link'||command==='booking.revoke')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#meetings')
@@ -622,6 +630,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if(url.pathname==='/api/coffer/lists')return json({lists:await savedLists(c)})
  if(url.pathname==='/api/coffer/template-fields')return json(await publishedTemplateFields(c))
  if(url.pathname==='/api/coffer/meetings')return json(await meetings(c))
+ if(url.pathname==='/api/coffer/mailboxes')return json(await mailboxState(c))
  if(url.pathname==='/api/coffer/calendar')return json({...await calendarState(c),booking:await bookingState(c)})
  if(url.pathname==='/api/coffer/calendar/events')return json(await calendarEvents(c,url.searchParams.get('pageToken')??undefined))
  const meeting=url.pathname.match(/^\/api\/coffer\/meetings\/([^/]+)\/brief$/)
@@ -805,8 +814,9 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if ((m = path.match(/^\/app\/appeals\/([^/]+)$/))) return show('Appeal', await appealPage(c, m[1]))
  if ((m = path.match(/^\/app\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
  if (path === '/app/more') return show('More', morePage(actor))
+ if(path==='/app/settings/mailboxes')return show('My personal mailboxes',await mailboxSettingsPage(c))
  if(path==='/app/calendar')return show('Your calendar',await calendarPage(c,url))
- if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c)+await calendarSettingsPanel(c)+await smsRegistrationPanel(c))
+ if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+mailboxSettingsLink(c)+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c)+await calendarSettingsPanel(c)+await smsRegistrationPanel(c))
  if (path === '/app/data') {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
   return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited'), now: Date.parse(c.now), timeZone: (await settings(c)).timezone }) + await agentGrantsPanel(c))

@@ -13,6 +13,11 @@ test('COMM-001: portal topics and channel frequency fence current outreach and r
  await communicationPreferencesJourney()
 })
 
+test('COMM-004: personal mailboxes log known identities, send once and preserve reply and consent custody',async()=>{
+ const {mailboxesJourney}=await import('./mailboxes-journey.mjs')
+ await mailboxesJourney()
+})
+
 test('COMM-005: routed replies reach managers, withdraw explicit stops once and review ambiguous requests with custody',async()=>{
  const {replyStopJourney}=await import('./reply-stop-journey.mjs')
  await replyStopJourney()

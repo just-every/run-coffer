@@ -1,3 +1,4 @@
+import { receiveMailboxBcc } from '../src/coffer/mailboxes/bcc'
 // Test transport for the Email Routing network edge; the actual receiveReply
 // handler owns matching, deduplication, storage and forwarding decisions.
 import worker from './worker'
@@ -10,8 +11,9 @@ export default {scheduled:worker.scheduled,async fetch(request:Request,env:any) 
   if(new URL(request.url).pathname==='/test-email') {
    const input:any=await request.json(),bytes=new TextEncoder().encode(input.raw),forwarded:string[]=[]
    let rejected:string|null=null
-   await receiveReply({from:input.from,to:input.to,headers:new Headers(input.headers),raw:new Blob([bytes]).stream(),rawSize:bytes.length,
-    setReject(reason:string){rejected=reason},async forward(to:string){forwarded.push(to)}} as ForwardableEmailMessage,env)
+   const message={from:input.from,to:input.to,headers:new Headers(input.headers),raw:new Blob([bytes]).stream(),rawSize:bytes.length,
+    setReject(reason:string){rejected=reason},async forward(to:string){forwarded.push(to)}} as ForwardableEmailMessage
+   if(!await receiveMailboxBcc(message,env))await receiveReply(message,env)
    return Response.json({rejected,forwarded})
   }
   return await worker.fetch(request,env)

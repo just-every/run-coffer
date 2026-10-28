@@ -56,7 +56,7 @@ export function graphMail(value:Row,account:string):Mail {
  const at=new Date(sent?value.sentDateTime:value.receivedDateTime).toISOString()
  let link:string|null=null
  try{const url=new URL(value.webLink);if(url.protocol==='https:'&&['outlook.office.com','outlook.office365.com','outlook.live.com'].includes(url.hostname))link=url.href}catch{}
- return {providerId:text(value.id,'Provider message',1000),messageId:value.internetMessageId||'microsoft:'+value.id,from,to:[...new Set([...(value.toRecipients??[]),...(value.ccRecipients??[])].flatMap(v=>addresses(v.emailAddress?.address??'')))],subject:String(value.subject||'(No subject)').slice(0,400),body:value.body?.contentType?.toLowerCase()==='text'?String(value.body.content).slice(0,4000):'',at,link,automatic:isAutomatic(headers.get('auto-submitted'),value.subject),direction:sent?'sent':'received'}
+ return {providerId:text(value.id,'Provider message',1000),messageId:headers.get('x-coffer-request')||value.internetMessageId||'microsoft:'+value.id,from,to:[...new Set([...(value.toRecipients??[]),...(value.ccRecipients??[])].flatMap(v=>addresses(v.emailAddress?.address??'')))],subject:String(value.subject||'(No subject)').slice(0,400),body:value.body?.contentType?.toLowerCase()==='text'?String(value.body.content).slice(0,4000):'',at,link,automatic:isAutomatic(headers.get('auto-submitted'),value.subject),direction:sent?'sent':'received'}
 }
 export async function messages(p:Provider,accessToken:string,account:string,cursor?:string):Promise<{messages:Mail[];next:string|null}> {
  const headers={authorization:'Bearer '+accessToken,Prefer:'outlook.body-content-type="text"'}

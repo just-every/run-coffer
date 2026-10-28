@@ -20,6 +20,7 @@ export function donorTimeline(h: Row, timezone: string,url?:URL): string {
   const day = delivered ?? l.sent_on ?? l.printed_at
   items.push({ kind:'receipt',day: day.length === 10 ? day : today(timezone,new Date(day)), order: day, html: `<li><a href="/app/letters/${e(l.batch_id)}">${l.kind === 'statement' ? `${e(l.statement_year)} statement` : 'Gift receipt'}</a> · ${delivered ? 'Delivered' : l.printed_at ? 'Printed' : 'Sent'} · ${when(day, timezone)}</li>` })
  }
+ for(const m of h.mailboxMessages??[])items.push({kind:'email',day:today(timezone,new Date(m.occurred_at)),order:m.occurred_at,html:`<li><strong>Personal email ${e(m.direction)} · ${e(m.subject)}</strong> · ${e(m.state)}<p class="pre">${e(m.excerpt)}</p>${m.link?`<p><a href="${e(m.link)}" target="_blank" rel="noreferrer">Open in mailbox</a></p>`:''}</li>`})
  for(const m of h.communications??[])items.push({kind:'email',day:today(timezone,new Date(m.created_at)),order:m.created_at,html:`<li><strong>${m.source_kind==='welcome'?'Welcome email':'Appeal email'} · ${e(m.subject)}</strong> · ${e(m.remote_status??m.status)}<p>${e(m.note)}</p></li>`})
  for(const t of h.timelineSources??[]){const day=t.kind!=='appeal'&&t.at?.includes('T')?today(timezone,new Date(t.at)):t.day;items.push({kind:t.kind,day,order:t.at,html:`<li><strong>${e(t.title)}</strong> · ${longDay(day)}<p>${e(t.body)}</p></li>`})}
  const filter=timelineFilter(url),shown=items.filter(i=>(!filter.kind||i.kind===filter.kind)&&(!filter.from||i.day>=filter.from)&&(!filter.to||i.day<=filter.to))

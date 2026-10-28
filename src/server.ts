@@ -1,3 +1,4 @@
+import { receiveMailboxBcc } from './coffer/mailboxes/bcc'
 import { runScheduledTexts } from './coffer/sms-scheduler'
 import { runScheduledJourneys } from './coffer/communications/journey-runner'
 import { advanceDevelopmentReports } from './coffer/agent/development-report-scheduler'
@@ -41,7 +42,7 @@ function noTransform(response: Response): Response {
 }
 
 export default withDemo<Bindings, ExportedHandler<Bindings>>({
-  async email(message,env) { await receiveReply(message,runtimeBindings(env)) },
+  async email(message,env) { const bindings=runtimeBindings(env);if(!await receiveMailboxBcc(message,bindings))await receiveReply(message,bindings) },
   async scheduled(controller, env, execution) {
     execution.waitUntil(runMarketingSync(runtimeBindings(env),new Date(controller.scheduledTime)))
     execution.waitUntil(runScheduledJourneys(runtimeBindings(env),new Date(controller.scheduledTime)))
