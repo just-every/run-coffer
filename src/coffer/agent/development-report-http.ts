@@ -24,7 +24,7 @@ export async function developmentReportResponse(request:Request,c:Context,body:(
  if(request.method!=='POST'||source)fail('METHOD','Use the development report review actions.',405)
  const p=await body(),command=match![2]
  const handlers:Record<string,(c:Context,p:Row)=>Promise<Row>>={draft:draftDevelopmentReport,save:saveDevelopmentReport,approve:approveDevelopmentReport,send:sendDevelopmentReport,schedule:saveDevelopmentReportSchedule}
- if(!command||!handlers[command])fail('NOT_FOUND','That development report action does not exist.',404)
+ if(!command||!Object.hasOwn(handlers,command))fail('NOT_FOUND','That development report action does not exist.',404)
  const result=await handlers[command](c,p)
  if(api)return json(result)
  if(result.scheduled)return new Response(null,{status:303,headers:{location:'/app/settings/development-reports'+(p.month?'?month='+encodeURIComponent(p.month):''),'cache-control':'no-store'}})

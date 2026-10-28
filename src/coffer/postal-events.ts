@@ -53,7 +53,7 @@ async function signedEvent(request: Request, env: PostalBindings): Promise<Row> 
 function identifier(value: unknown): value is string { return typeof value === 'string' && !!value.trim() && value.length <= 200 }
 function occurrence(event: Row, type: string): string {
  let source = event.date_created
- if (trackingNames[type]) {
+ if (Object.hasOwn(trackingNames,type)) {
   if (!Array.isArray(event.body?.tracking_events)) fail('INVALID_EVENT', 'A postal tracking event needs its USPS occurrence time.', 400)
   const matching = event.body.tracking_events.filter((item: Row) => item && typeof item.name === 'string' && normalized(item.name) === normalized(trackingNames[type]) && typeof item.time === 'string' && Number.isFinite(Date.parse(item.time)))
   if (!matching.length) fail('INVALID_EVENT', 'A postal tracking event needs its USPS occurrence time.', 400)
@@ -68,7 +68,7 @@ export async function postalEvents(request: Request, bindings: Bindings): Promis
  try {
   const event = await signedEvent(request, bindings), type = event.event_type?.id
   if (!identifier(event.id) || !identifier(event.reference_id) || !event.body || event.body.id !== event.reference_id || typeof type !== 'string') fail('INVALID_EVENT', 'Postal event identifiers are malformed.', 400)
-  if (!trackingNames[type] && !lifecycle.has(type)) return Response.json({ ok: true, recorded: 0 }, { headers: { 'cache-control': 'no-store' } })
+  if (!Object.hasOwn(trackingNames,type) && !lifecycle.has(type)) return Response.json({ ok: true, recorded: 0 }, { headers: { 'cache-control': 'no-store' } })
   const occurred = occurrence(event, type), c = { db: bindings.DB }, metadata = event.body.metadata
   let delivery = await one(c, 'SELECT * FROM cf_postal_deliveries WHERE provider_message_id=?', event.reference_id)
   // A signed event can resolve a timed-out submission only with both exact

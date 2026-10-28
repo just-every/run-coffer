@@ -137,7 +137,7 @@ export const ACCESS: Record<string, Role[]> = {
 export async function execute(c: Context, command: string, input: unknown): Promise<Row> {
  if(c.actor.role==='agent' && c.actor.grant) return executeGranted(c,command,object(input))
  if(c.actor.preparationGrant&&['ack.prepare','appeal.prepare'].includes(command))await reservePreparationGrant(c,'prepare')
- const allowed = ACCESS[command]
+ const allowed = Object.hasOwn(ACCESS, command) ? ACCESS[command] : undefined
  if (!allowed) fail('COMMAND', 'Unknown Coffer command.', 400)
  requireRole(c.actor, allowed, `run ${command}`)
  const p = object(input)

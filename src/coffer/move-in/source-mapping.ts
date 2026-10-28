@@ -61,8 +61,9 @@ function note(r: SourceRow, out: ParsedImport, standalone = false) {
  const externalId = r.get('noteId') || provenanceId(r, 'note'), type = r.get('noteType').toLowerCase()
  if (donorExternalId) out.notes.push({ location: r.location, externalId, donorExternalId, text, date, type })
 }
+const RELATIONSHIP_TYPES: Record<string, string> = { spouse: 'spouse', employer: 'employer', boardmember: 'board_member', foundationofficer: 'foundation_officer', introducedby: 'introduced_by' }
 function relationship(r: SourceRow, out: ParsedImport) {
- const donorExternalId = r.required('donorId'), relatedDonorExternalId = r.required('relatedDonor'), rawType = r.required('relationshipType'), type = ({ spouse: 'spouse', employer: 'employer', boardmember: 'board_member', foundationofficer: 'foundation_officer', introducedby: 'introduced_by' } as Record<string, string>)[normalizeLabel(rawType)] || rawType.toLowerCase()
+ const donorExternalId = r.required('donorId'), relatedDonorExternalId = r.required('relatedDonor'), rawType = r.required('relationshipType'), key = normalizeLabel(rawType), type = (Object.hasOwn(RELATIONSHIP_TYPES,key) ? RELATIONSHIP_TYPES[key] : undefined) || rawType.toLowerCase()
  const externalId = r.get('relationshipId') || provenanceId(r, 'relationship')
  if (donorExternalId && relatedDonorExternalId && type) out.relationships.push({ location: r.location, externalId, donorExternalId, relatedDonorExternalId, type })
 }
@@ -83,15 +84,16 @@ function softCredit(r: SourceRow, out: ParsedImport, inline = false) {
 function method(r: SourceRow) {
  const raw = r.get('method'), key = normalizeLabel(raw)
  const methods: Record<string, string> = { check: 'check', cheque: 'check', creditcard: 'card', debitcard: 'card', card: 'card', online: 'online', paypal: 'online', cash: 'cash', banktransfer: 'bank transfer', directdebit: 'bank transfer', ach: 'bank transfer', eft: 'bank transfer', other: 'other' }
- if (!methods[key]) r.result.diagnostics.push({ ...r.location, severity: 'warning', code: 'PAYMENT_METHOD', message: raw ? `Source payment method preserved as ${raw}.` : 'No source payment method; marked imported.' })
- return methods[key] || raw || 'imported'
+ const mapped = Object.hasOwn(methods,key) ? methods[key] : undefined
+ if (!mapped) r.result.diagnostics.push({ ...r.location, severity: 'warning', code: 'PAYMENT_METHOD', message: raw ? `Source payment method preserved as ${raw}.` : 'No source payment method; marked imported.' })
+ return mapped || raw || 'imported'
 }
 // GIFT-003: a mapped channel column names one of Coffer's five channels; anything else stops the row.
 const CHANNEL_VALUES: Record<string, string> = { form: 'form', onlineform: 'form', givingform: 'form', donationform: 'form', website: 'form', event: 'event', mail: 'mail', directmail: 'mail', mailpiece: 'mail', letter: 'mail', email: 'email', text: 'text', sms: 'text', texttogive: 'text' }
 function channel(r: SourceRow) {
  const raw = r.has('channel') ? r.get('channel') : ''
  if (!raw) return undefined
- const value = CHANNEL_VALUES[normalizeLabel(raw)]
+ const key = normalizeLabel(raw), value = Object.hasOwn(CHANNEL_VALUES,key) ? CHANNEL_VALUES[key] : undefined
  if (!value) r.error('CHANNEL', `Channel ${raw} is not one of Form, Event, Mail, Email or Text; correct it in the export or leave it blank.`, 'channel')
  return value
 }
