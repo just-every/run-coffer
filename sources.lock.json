@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "322b8a2e11c694b515b2415fb10a014a693c8e24ef67d56da6a752fdef70a3d9",
+      "sha256": "98ca30ac54aa69dbaff6f017cfdd0bb6e6c4248ea2723a54ae941940cbd33d8c",
       "executable": false
     },
     "AGENTS.md": {
@@ -704,6 +704,10 @@
     },
     "docs/MCP.md": {
       "sha256": "8233c8beecf8ab2433664e3af5d4ef2de8e2829a01dd23347dd3140e0a1281bf",
+      "executable": false
+    },
+    "docs/move-in-source-definitions.md": {
+      "sha256": "8cc53b503bd6da2d8d53657b6060aecff16e3f4ee529f9e3b83d244f0a49492a",
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
@@ -3242,8 +3246,28 @@
       "sha256": "7a40cb1dfffcd857e3a179ce8d146731bd21047ce53db1b43ed34b3c4aff6f3c",
       "executable": false
     },
+    "src/coffer/move-in/custom-definition-undo.ts": {
+      "sha256": "7ce1408c36f3022f7f7feb717ff2405ccecc4cd2befb959259c7065721aac7da",
+      "executable": false
+    },
     "src/coffer/move-in/custom-fields.ts": {
       "sha256": "764de498abd6d984f4681e6999e626c9fda6c6bf1cb5e25517c8f48dd4abdc78",
+      "executable": false
+    },
+    "src/coffer/move-in/custom-review-plan.ts": {
+      "sha256": "dad9fda72fce08671f00dec8317ac0dc4bbc93c5fa295edb022235b9a40ca625",
+      "executable": false
+    },
+    "src/coffer/move-in/custom-review-tags.ts": {
+      "sha256": "1f0e773eee9a1d80cb9c0fa5f9d59cddba4ac9fe84db0dc1618fa77847f762fc",
+      "executable": false
+    },
+    "src/coffer/move-in/custom-review-types.ts": {
+      "sha256": "ae3006d382425c4872849ae2861cf11d61ffa42a370462c70d1c69dfbe2c3c39",
+      "executable": false
+    },
+    "src/coffer/move-in/custom-review.ts": {
+      "sha256": "b59b913602fd2d1dcfcd4b112d117abed31ff3e9d624cabf680f0780b7e6cc78",
       "executable": false
     },
     "src/coffer/move-in/household-writes.ts": {
@@ -3296,6 +3320,10 @@
     },
     "src/coffer/move-in/source-columns.ts": {
       "sha256": "53b5b5d8626e43a4a9a642d83bea2e7da855d17df404515155bcddae38479198",
+      "executable": false
+    },
+    "src/coffer/move-in/source-definitions.ts": {
+      "sha256": "0dda548e7a5d91439393041e53fc96a770bc3a8cb2154ae8371929d54600fcd2",
       "executable": false
     },
     "src/coffer/move-in/source-mapping.ts": {
@@ -3864,6 +3892,10 @@
     },
     "src/coffer/ui/custom-fields.ts": {
       "sha256": "31bc519c33ef11ad446d440c76d05e88127e10a70b31e268b214ab50364f564c",
+      "executable": false
+    },
+    "src/coffer/ui/custom-import-review.ts": {
+      "sha256": "9e2d856680e05a7d52bfed8278ff6d6ab390bb47d05491edc4c8c5d48e60d0fb",
       "executable": false
     },
     "src/coffer/ui/custom-report.ts": {
@@ -6272,6 +6304,10 @@
     },
     "tests/custom-import-browser.mjs": {
       "sha256": "9a3af5c22b1e68f74b9bc6c4ea2817b5563fc25b986c79d82aa504e87269b572",
+      "executable": false
+    },
+    "tests/custom-source-journey.mjs": {
+      "sha256": "b64d80ef2d0dd07c607015b5a03199f38842b8083bb340382736bc051e20df22",
       "executable": false
     },
     "tests/dashboard-browser.mjs": {

@@ -188,7 +188,7 @@ export async function readBloomerangCustom(apiKey: string, records: SourceRecord
   if (!selected.length) continue
   const [fields, resolved] = await Promise.all([definitions(read, kind), sourceRecords(read, kind, selected)])
   for (const [externalId, record] of resolved) assignments(externalId, record, fields)
-  result.push(...[...fields.values()].map(definition => definition.field))
+  result.push(...[...fields.values()].map(definition => ({...definition.field,id:kind+':'+definition.field.id})))
  }
  return result
 }
