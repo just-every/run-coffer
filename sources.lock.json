@@ -1450,6 +1450,10 @@
       "sha256": "a6fd47033becb5b3c5a823648f1312e87b700b73ce1ef04a5a74645175ba61fd",
       "executable": false
     },
+    "migrations/core/0169_coffer_peer_fundraising.sql": {
+      "sha256": "fd5869469101cd210c8bf1695ff22401969249e1e15cb8ae045619e280825b1a",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -3456,6 +3460,30 @@
     },
     "src/coffer/payments/write.ts": {
       "sha256": "2b8ff173c8fc609b292dbfcab2eb7e14ff72e377afa682759724821d0a8e1512",
+      "executable": false
+    },
+    "src/coffer/peer/accounting.ts": {
+      "sha256": "45d5c05ca14b1700844e221f7d919728a73d6fa683ce95b2375a474861453f01",
+      "executable": false
+    },
+    "src/coffer/peer/custody.ts": {
+      "sha256": "4455a5f28b7dd4f47f63651e19caf3fccd1eb2ff542a69097933c4510e3b7fad",
+      "executable": false
+    },
+    "src/coffer/peer/http.ts": {
+      "sha256": "6e3c7b01a948b26c225de7157f79935c76adcef84968d90895bd9703074f6e84",
+      "executable": false
+    },
+    "src/coffer/peer/recognition.ts": {
+      "sha256": "da7e4fc510d05d6b5ca161c6a19bdce777965726f025f125b8add49fa1437aca",
+      "executable": false
+    },
+    "src/coffer/peer/service.ts": {
+      "sha256": "0bb855b95a5d8b672fd244994edad032b45c3790fbbed27b43f0e644eba18048",
+      "executable": false
+    },
+    "src/coffer/peer/ui.ts": {
+      "sha256": "317e173a73512ac3273c90099aacb7f496db40376b9fef07054c36934d0adf6a",
       "executable": false
     },
     "src/coffer/people.ts": {
@@ -6716,6 +6744,14 @@
     },
     "tests/payments.test.mjs": {
       "sha256": "25ad4b3af20229dae8052b17e6fadde28adbf9e50f229b492513610c360892fb",
+      "executable": false
+    },
+    "tests/peer-browser.mjs": {
+      "sha256": "b978fdf9f29508d6b8eb1a904fa2c3126b0185288b830f4eb170effe0c2838bb",
+      "executable": false
+    },
+    "tests/peer-journey.mjs": {
+      "sha256": "346b0ea412eeb9023b4874f46533c2b64d00cdbcbbddd201650c5b8f10a6bc63",
       "executable": false
     },
     "tests/pipeline.test.mjs": {
