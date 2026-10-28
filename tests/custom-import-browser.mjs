@@ -83,3 +83,44 @@ export async function sourceCaptureBrowser(h,id,directory,apiKey='synthetic-coff
   await page.close()
  })
 }
+
+export async function spreadsheetImportBrowser(h,input,directory){
+ await mkdir(directory,{recursive:true})
+ return withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage(),files=input.files.map(f=>({name:f.name,mimeType:'text/csv',buffer:Buffer.from(f.base64,'base64')}))
+  await page.goto(origin+'/app/move-in/crm')
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.locator('select[name=source]').selectOption('spreadsheet')
+   await page.locator('input[name=exports]').setInputFiles(files)
+   await fits(page,width)
+   await page.screenshot({path:directory+'/MOVE-010-spreadsheet-start-'+width+'.png',fullPage:true})
+  }
+  await page.getByRole('button',{name:'Preview exports',exact:true}).click()
+  await page.waitForURL('**/app/move-in/crm/review?id=*')
+  await page.getByText('Map custom report columns',{exact:true}).click()
+  const form=page.locator('form[action="/app/move-in/crm/preview"]')
+  for(const f of input.customFields){
+   const fieldset=form.locator('fieldset').filter({has:page.locator('legend',{hasText:f.column+' · CSV'})})
+   if(f.version)await fieldset.locator('select[name=customExisting]').selectOption({label:f.label+' · '+f.key})
+   else{
+    await fieldset.locator('input[name=customKey]').fill(f.key)
+    await fieldset.locator('input[name=customLabel]').fill(f.label)
+    await fieldset.locator('select[name=customKind]').selectOption(f.kind)
+    await fieldset.locator('select[name=customType]').selectOption(f.type)
+    await fieldset.locator('select[name=customEntry]').selectOption(f.entry)
+    await fieldset.locator('textarea[name=customChoices]').fill(f.choices.join('\n'))
+   }
+  }
+  await form.locator('input[name=exports]').setInputFiles(files)
+  await form.getByRole('button',{name:'Check the files again',exact:true}).click()
+  await page.waitForURL('**/app/move-in/crm/review?id=*')
+  const id=new URL(page.url()).searchParams.get('id'),{job}=await h.get('/api/coffer/move-in/journal?id='+id)
+  assert.equal(job.report.canApply,true)
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});await fits(page,width)
+   await page.screenshot({path:directory+'/MOVE-010-spreadsheet-preview-'+width+'.png',fullPage:true})
+  }
+  await page.close();return {id,fingerprint:job.fingerprint}
+ })
+}

@@ -60,10 +60,11 @@ export async function applyCustom(c:Context,input:{id:string;version:number}) {
   if(prior){if(prior.content_hash!==hash||!prior.snapshot)fail('MOVE_IN_CHANGED','An already carried source value changed. Undo before replacing it.',409);continue}
   if(held&&(held.kind!==m.kind||held.type!==m.type||held.entry!==m.entry||held.choices!==JSON.stringify(m.choices)||held.label!==m.label||m.version&&held.version!==m.version))fail('MOVE_IN_CHANGED','A target field changed after review. Refresh its mapping.',409)
   if(!held&&m.version)fail('MOVE_IN_CHANGED','A selected existing field was removed.',409)
+  const recordId=kind==='donor'?native.donor_id:native.native_id
   const field=held??{...m,choices:JSON.stringify(m.choices),version:1,created_at:c.now}
   if(!staged.has(m.key))writes.push(held?guard('EXISTS(SELECT 1 FROM cf_custom_fields WHERE key=? AND version=?)','MOVE_IN_CHANGED','A target field changed.',m.key,held.version):guard('NOT EXISTS(SELECT 1 FROM cf_custom_fields WHERE key=?)','MOVE_IN_CHANGED','A target field was created after review.',m.key))
-  writes.push(guard('NOT EXISTS(SELECT 1 FROM cf_custom_values WHERE field_key=? AND record_id=?)','MOVE_IN_CHANGED','This record already has a target field value.',m.key,native.native_id))
-  customWrites.push({field,createField:!held&&!staged.has(m.key),recordId:native.native_id,donorId:native.donor_id,sourceKey,hash,externalId:record.externalId,donorExternalId:record.donorExternalId,imported:{mapping:m,value:value.value!,original:typeof value.original==='string'?value.original:JSON.stringify(value.original),location:{file:job.source+' API',sheet:definition.kind,row:1}}})
+  writes.push(guard('NOT EXISTS(SELECT 1 FROM cf_custom_values WHERE field_key=? AND record_id=?)','MOVE_IN_CHANGED','This record already has a target field value.',m.key,recordId))
+  customWrites.push({field,createField:!held&&!staged.has(m.key),recordId,donorId:native.donor_id,sourceKey,hash,externalId:record.externalId,donorExternalId:record.donorExternalId,imported:{mapping:m,value:value.value!,original:typeof value.original==='string'?value.original:JSON.stringify(value.original),location:{file:job.source+' API',sheet:definition.kind,row:1}}})
   staged.add(m.key)
  }
  // Definitions with all values waiting still appear, while their values remain in review.

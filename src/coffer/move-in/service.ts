@@ -72,6 +72,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  authorize(c)
  const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',String(input.id??''))
  if(!job)fail('MOVE_IN_CHANGED','Upload the exports and review them again.',409)
+ if(job.redacted)fail('MOVE_IN_ERASED','An imported donor was erased. This move-in cannot be replayed.',409)
  if(job.state==='completed')return {id:job.id,state:'completed',unchanged:true,parts:job.parts,appliedParts:job.applied_parts}
  if(job.state==='applying')return continueApply(c,job.id)
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
@@ -97,6 +98,7 @@ export async function continueApply(c: Context,id:string) {
  for(;;) {
   const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',id)
   if(!job)fail('NOT_FOUND','That move-in does not exist.',404)
+  if(job.redacted)fail('MOVE_IN_ERASED','An imported donor was erased. This move-in cannot continue.',409)
   if(job.state!=='applying')return {id,state:job.state,parts:job.parts,appliedParts:job.applied_parts,unchanged:true}
   const next=await one(c,'SELECT position,payload FROM cf_move_in_parts WHERE job_id=? AND applied_at IS NULL ORDER BY position LIMIT 1',id)
   if(!next){await finish(c,job);return {id,state:'completed',parts:job.parts,appliedParts:job.parts,unchanged:false}}

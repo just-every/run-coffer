@@ -11,6 +11,12 @@ CREATE TRIGGER cf_source_review_erasure AFTER UPDATE OF erased_at ON cf_donors
 WHEN OLD.erased_at IS NULL AND NEW.erased_at IS NOT NULL
 BEGIN
  UPDATE cf_move_in_jobs SET report='{}',accepted_reason=NULL,redacted=1,check_report=NULL
- WHERE id IN(SELECT job_id FROM cf_move_in_source_records WHERE donor_id=NEW.id);
+ WHERE id IN(SELECT job_id FROM cf_move_in_source_records WHERE donor_id=NEW.id
+  UNION SELECT job_id FROM cf_move_in_records WHERE donor_id=NEW.id OR related_id=NEW.id
+  UNION SELECT i.job_id FROM cf_move_in_source_records i JOIN cf_move_in_jobs j ON j.id=i.job_id
+   JOIN cf_move_in_records r ON r.source=j.source AND r.kind='donor' AND r.source_key=i.donor_key
+   WHERE r.donor_id=NEW.id OR r.native_id=NEW.id);
+ DELETE FROM cf_move_in_parts WHERE job_id IN(SELECT id FROM cf_move_in_jobs WHERE redacted=1);
+ DELETE FROM cf_move_in_issues WHERE job_id IN(SELECT id FROM cf_move_in_jobs WHERE redacted=1);
  DELETE FROM cf_move_in_source_records WHERE job_id IN(SELECT id FROM cf_move_in_jobs WHERE redacted=1);
 END;
