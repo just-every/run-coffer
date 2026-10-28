@@ -6219,7 +6219,7 @@
       "executable": false
     },
     "tests/coffer.test.mjs": {
-      "sha256": "8ab0f74f5e903b7b907526366bc039006bc1141696fa7e09fe62be49bd73d1cb",
+      "sha256": "822630612fbde1f71a8c98a34cd26d95d88a626c5290c57aa971af918ca25203",
       "executable": false
     },
     "tests/communication-authority-journey.mjs": {

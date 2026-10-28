@@ -60,7 +60,7 @@ test('inherited dispatch names stay unknown without exposing Worker bindings',()
   assert.equal(command.status,400,'Inherited and unknown Coffer commands return 400')
   assert.equal((await command.json()).error==='COMMAND',true,'The command door returns its unknown-command error')
  }
-},{bindings:{SESSION_SECRET:'synthetic-dispatch-session'.padEnd(32,'-'),MAIL_API_KEY:'synthetic-dispatch-mail'}}))
+},{bindings:{SESSION_SECRET:`synthetic-dispatch-session-${crypto.randomUUID()}`,MAIL_API_KEY:`synthetic-dispatch-mail-${crypto.randomUUID()}`}}))
 
 test('GIFT-001: gifts are exact integer-cent ledger lines; corrections are reversals',()=>run(async h=>{
  const ana=await donor(h,'Ana Diaz')
@@ -242,13 +242,13 @@ test('IMPORT-001: undo stops at an imported donor a person has since built on',(
 }))
 
 test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans, checks actual totals and undoes without writing Stripe', async()=>{
- const created=Date.UTC(2026,0,2)/1000, calls=[]
+ const created=Date.UTC(2026,0,2)/1000, calls=[],stripeCredential=`synthetic-coffer-stripe-${crypto.randomUUID()}`,clientCredential=`synthetic-coffer-client-${crypto.randomUUID()}`
  const customer={id:'cus_direct',name:'Ada Rivera',email:'ada@example.org',created}
  const charges=Array.from({length:101},(_,i)=>({id:`ch_direct${i}`,customer:customer.id,status:'succeeded',paid:true,currency:'usd',amount:2500,created,amount_refunded:i===0?500:0}))
  const sub={id:'sub_direct',customer:customer.id,created,status:'active',currency:'usd',cancel_at_period_end:false,items:{data:[{quantity:1,price:{type:'recurring',currency:'usd',unit_amount:2500,billing_scheme:'per_unit',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}}}]}}
- const h=await installation({bindings:{STRIPE_SECRET_KEY:'sk_test_network_edge'},outbound:async request=>{
+ const h=await installation({bindings:{STRIPE_SECRET_KEY:stripeCredential},outbound:async request=>{
   const u=new URL(request.url);assert.equal(u.hostname,'api.stripe.com');assert.equal(request.method,'GET');calls.push(u)
-  assert.equal(request.headers.get('authorization'),'Bearer sk_test_network_edge')
+  assert.equal(request.headers.get('authorization'),`Bearer ${stripeCredential}`)
   let data=[]
   if(u.pathname==='/v1/customers/cus_direct')return Response.json(customer)
   if(u.pathname==='/v1/charges'){
@@ -257,7 +257,7 @@ test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans
   }
   if(u.pathname==='/v1/invoice_payments')data=[]
   else if(u.pathname==='/v1/subscriptions')data=[sub]
-  else if(u.pathname==='/v1/payment_intents')data=[{id:'pi_direct',created,status:'succeeded',latest_charge:'ch_direct0',amount:2500,currency:'usd',customer:customer.id,client_secret:'must-not-reach-review'}]
+  else if(u.pathname==='/v1/payment_intents')data=[{id:'pi_direct',created,status:'succeeded',latest_charge:'ch_direct0',amount:2500,currency:'usd',customer:customer.id,client_secret:clientCredential}]
   else if(u.pathname==='/v1/invoices')data=[{id:'in_direct',created,status:'paid',amount_paid:2500,currency:'usd',customer:customer.id,parent:{subscription_details:{subscription:sub.id}}}]
   else assert.fail('Unexpected Stripe endpoint '+u.pathname)
   return Response.json({object:'list',data,has_more:false})
@@ -268,7 +268,7 @@ test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans
   assert.equal(review.donors.length,1);assert.equal(review.gifts.length,101);assert.equal(review.subscriptions.length,1)
   assert.equal(review.gifts.reduce((n,g)=>n+g.amountCents,0),252000)
   assert.ok(calls.some(u=>u.searchParams.has('starting_after')))
-  assert.ok(!JSON.stringify(review).includes('must-not-reach-review'))
+  assert.ok(!JSON.stringify(review).includes(clientCredential))
   assert.equal((await h.get('/api/coffer/donors')).total,0)
   let job=await h.api('/api/coffer/imports/apply',{...review.input,fingerprint:review.fingerprint})
   while(job.state!=='completed')job=await h.api('/api/coffer/imports/resume',{id:job.id})
