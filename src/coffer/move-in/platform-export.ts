@@ -47,6 +47,6 @@ export function platformGift(r:SourceRow,out:ParsedImport) {
  const status=r.get('paymentStatus').toLowerCase(),refunded=r.get('refunded'),currency=r.get('currency')
  if(status&&!['paid','succeeded','successful','completed'].includes(status))r.error('PLATFORM_STATUS','Only completed historical payments can be imported. Resolve pending or failed source rows first.','paymentStatus')
  if(refunded&&!['false','no'].includes(refunded.toLowerCase())&&money(refunded)!==0)r.error('PLATFORM_REFUND','A refunded source transaction requires separate reviewed reversal history; do not import its gross amount as cash.','refunded')
- if(currency&&currency.toUpperCase()!=='USD')r.error('PLATFORM_CURRENCY','This door currently accepts USD history only.','currency')
+ if(currency.toUpperCase()!=='USD')r.error('PLATFORM_CURRENCY','This door currently accepts USD history only.','currency')
  return {campaignId,campaignName,feeCents:feeCents??0}
 }

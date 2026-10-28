@@ -57,6 +57,7 @@ also work, including the explicit source-evidence columns above, tribute facts,
 independent soft credits and linked interactions. Map each custom question column
 explicitly. A zero fee is the Zeffy default; a supplied `Fees` value is retained.
 
+Include a `Currency` column containing `USD`; an absent currency requires review.
 This door accepts completed USD payments. It refuses unresolved refunds, failed
 or pending payments and other currencies. Unsupported filled columns remain in
 the review with their row locations and require explicit acceptance; they are

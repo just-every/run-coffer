@@ -731,7 +731,7 @@
       "executable": false
     },
     "docs/platform-history.md": {
-      "sha256": "83ecdd7115cf7b44402e99a84879b665f504ce07be0a0bd56771c00d83270ef1",
+      "sha256": "9a789ad537bab71417a2b4e2382692eaeb778708bc4b877ad0323846bf7fbd98",
       "executable": false
     },
     "docs/PRINTING.md": {
@@ -3335,7 +3335,7 @@
       "executable": false
     },
     "src/coffer/move-in/platform-export.ts": {
-      "sha256": "3c2f8e5c998f888bccf8ac3800380f179f5c1dc11bfa8c0730af1f9b58c06be1",
+      "sha256": "1ddc95f2bd2c69954b0e065800c51fcabb3ec0340d9643e934e40c51e834c21f",
       "executable": false
     },
     "src/coffer/move-in/pledge-checks.ts": {
@@ -6835,7 +6835,7 @@
       "executable": false
     },
     "tests/platform-history-journey.mjs": {
-      "sha256": "6c82cd418838226ccab0f5b590e2bf30b126d7ddaaefef260c07828f9e97348d",
+      "sha256": "2a017ea1240ad4d0420e699839eeebedd3630df4871c0c7a711fadd8ea4e9e94",
       "executable": false
     },
     "tests/pledge-api-release-journey.mjs": {
@@ -7243,7 +7243,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "70f1eba3b46b0fc7c8ab6897b97fcc995ebdeebb499cddb602dc1659fe5e2ac9",
+      "sha256": "80cc4f10dcda8483ef85cf471ccf744f5ba76245355906d639dd03327b48ae7a",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
