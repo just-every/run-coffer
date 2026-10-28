@@ -10,7 +10,7 @@ const editable = config => ({...config, questions: config.questions.map(({key, l
 const post = values => ({method: 'POST', as: '', headers: {'content-type': 'application/x-www-form-urlencoded'}, raw: new URLSearchParams(values).toString()})
 
 export async function givingFormJourney() {
- const edge = givingFormEdge()
+ const edge = givingFormEdge(), webhookSecret='synthetic-coffer-7002'
  await run(async h => {
   await reviewed(h)
   await h.command('fund.define', {name: 'Tutoring', restriction: 'purpose', detail: 'Neighborhood tutoring'})
@@ -34,7 +34,15 @@ export async function givingFormJourney() {
   await h.api(path, {...baseline, headline: 'Wrong origin'}, {headers: {origin: 'https://unrelated.example'}, status: 403})
   await h.api(path, {...baseline, primaryColor: '#ffffff'}, {status: 400})
   assert.deepEqual(await h.get(path), baseline)
-  const browserResults = await givingFormBrowser(h, campaign, edge)
+  const browserResults = await givingFormBrowser(h, campaign, edge, '.cache/giving-forms',async(session,width)=>{
+   if(width===1440)await edge.paidBeforeReturn(h,session,webhookSecret)
+   else await h.api('/api/coffer/payments/sync',{payoutId:'po_form'})
+   const captured=(await responses()).responses.find(r=>r.name==='Riverbend Reader '+width)
+   assert.ok(captured,'Both signed charge delivery and operator sync retain the form response before any browser return')
+   assert.equal(captured.fund,'Tutoring')
+   assert.equal(captured.employer,'Riverbend Library')
+   assert.equal(captured.answers.length,6)
+  })
   let saved = await h.get(path)
   assert.equal(saved.questions.length, 6)
   await h.api(path, {...editable(saved), version: saved.version - 1}, {status: 409})
@@ -118,6 +126,16 @@ export async function givingFormJourney() {
   })
   const first = browserResults[0]
   await h.command('custom.set', {key: 'reading_interests', recordId: first.donorId, version: 1, value: ['Books'], source: 'Reviewed staff choice'})
+  const anotherGift = new URLSearchParams(first.values)
+  anotherGift.set('requestId', randomUUID()); anotherGift.set('formVersion', saved.version)
+  anotherGift.set('answer.reading_interests', 'Tutoring'); anotherGift.set('comment', 'A second paid response')
+  const laterCheckout = await h.request('/give/reading-room/checkout', {...post(anotherGift), headers: {'content-type': 'application/x-www-form-urlencoded', 'cf-connecting-ip': '192.0.2.43'}})
+  assert.equal(laterCheckout.status, 303, await laterCheckout.text())
+  const laterSession = [...edge.sessions.values()].at(-1)
+  const laterThanks = await h.request('/giving/thanks?session_id=' + laterSession.id, {as: ''})
+  assert.equal(laterThanks.status, 200, await laterThanks.text())
+  assert.equal((await responses()).responses.length, 3)
+  assert.deepEqual((await responses()).responses.find(r => r.comment === 'A second paid response').answers.find(a => a.key === 'reading_interests').value, ['Tutoring'])
   await h.request('/giving/thanks?session_id=' + first.session.id, {as: ''})
   assert.equal((await h.get('/api/coffer/donors/' + first.donorId)).customValues.find(v => v.field_key === 'reading_interests').value, '["Books"]')
   await h.command('donor.erase', {donorId: first.donorId, confirm: 'ERASE'})
@@ -127,8 +145,8 @@ export async function givingFormJourney() {
   await h.request('/giving/thanks?session_id=' + first.session.id, {as: ''})
   const erasedArchive = JSON.stringify(await archive(h))
   assert.ok(!erasedArchive.includes('For the Saturday reading circle 1440'))
-  assert.equal((await h.get('/api/coffer/giving/campaigns/' + campaign.id)).raisedCents, 10181)
+  assert.equal((await h.get('/api/coffer/giving/campaigns/' + campaign.id)).raisedCents, 15181)
   assert.equal((await responses()).responses.length, 1)
-  assert.equal(edge.sessions.size, 2)
- }, {bindings: {STRIPE_SECRET_KEY: 'synthetic-coffer-7001'}, outbound: edge.outbound})
+  assert.equal(edge.sessions.size, 3)
+ }, {bindings: {STRIPE_SECRET_KEY: 'synthetic-coffer-7001',STRIPE_WEBHOOK_SECRET:webhookSecret}, outbound: edge.outbound})
 }

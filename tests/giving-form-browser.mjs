@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url)
 const axe = await readFile(require.resolve('axe-core/axe.min.js'), 'utf8')
 const mailbox = width => ['synthetic-coffer-' + width, 'example.test'].join('@')
 
-export async function givingFormBrowser(h, campaign, edge, directory = '.cache/giving-forms') {
+export async function givingFormBrowser(h, campaign, edge, directory = '.cache/giving-forms', beforeReturn = async () => {}) {
  await mkdir(directory, {recursive: true})
  const results = []
  await withBrowserWorker(h, async (context, origin) => {
@@ -24,7 +24,14 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
   try {
    for (const width of [1440, 390]) {
     await page.setViewportSize({width, height: 1000})
-    await page.goto(origin + '/app/settings/giving-forms/' + campaign.id)
+    await page.goto(origin + '/app/giving')
+    await page.screenshot({path: `${directory}/giving-${width}.png`, fullPage: true})
+    await page.goto(origin + '/app/settings')
+    await page.screenshot({path: `${directory}/settings-entry-${width}.png`})
+    await page.getByRole('link', {name: 'Donation forms', exact: true}).click()
+    await page.getByRole('heading', {name: 'Donation forms', exact: true}).waitFor()
+    await page.screenshot({path: `${directory}/form-list-${width}.png`, fullPage: true})
+    await page.getByRole('link', {name: 'Reading room appeal', exact: true}).click()
     const settings = page.locator('[data-giving-form-settings]')
     const change = async (name, value, type = 'fill') => {
      const control = settings.getByLabel(name, {exact: true})
@@ -114,6 +121,7 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
     await page.waitForURL('https://checkout.stripe.com/**')
     const session = [...edge.sessions.values()].at(-1)
     assert.equal(session.amount_total, width === 1440 ? 5000 : 5181)
+    await beforeReturn(session,width)
     await page.goto(origin + '/giving/thanks?session_id=' + session.id)
     await page.getByRole('heading', {name: 'Thank you for your gift', exact: true}).waitFor()
     await page.evaluate(() => scrollTo(0, 0))
