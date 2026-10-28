@@ -66,6 +66,8 @@ export async function consentImportJourney(h,source) {
   {phone:'granted',sms:'granted',mail:'granted',email:'granted'},
   {phone:'withdrawn',sms:'granted',mail:'withdrawn',email:'granted'},
  ])
+ assert.deepEqual([original[0].solicitation.type,original[0].solicitation.max_asks,original[0].solicitation.period],['limit',1,'rolling-12-months'])
+ assert.equal(original[1].solicitation.type,'channels');assert.deepEqual(original[1].solicitation.channels,['sms']);assert.equal(original[1].solicitation.source_on,'')
  assert.equal(original[3].solicitation.type,'stop');assert.equal(original[3].solicitation.source_ref,source+':'+ids[3]);assert.equal(original[3].solicitation.source_on,'2025-09-13');assert.ok(original[3].solicitation.recorded_at)
  assert.deepEqual(original[2].ruleTags.map(t=>t.tag),['Reading supporters'],'Mapped tags land as normal donor tags; skipped codes add nothing')
  console.log('Consent journey: '+source+' archive and replay')
