@@ -1,10 +1,11 @@
+import { importSourceNames } from '../move-in/sources'
 import { customCaptureForm } from './custom-import-review'
 import type { ParsedContact } from '../move-in/types'
 import type { Row } from '../db'
 import { area, box, chip, e, empty, field, guide, hidden, longDay, money, select, when } from './common'
 import { exportSteps } from './crm-export-steps'
 
-export const sources: [string,string][]=[['lgl','Little Green Light'],['bloomerang','Bloomerang'],['re-nxt',"Raiser's Edge NXT"]]
+export const sources:[string,string][]=Object.entries(importSourceNames)
 const name=(source:string)=>sources.find(([key])=>key===source)?.[1]||source
 const sourceGuide=guide('move-in-crm')
 const codeMeaning=(rule:any)=>rule.type==='stop'?'Do not solicit':rule.type==='ignore'?'Ordinary tag, ignored':rule.type==='channels'?'No '+rule.channels.join(', ')+' appeals':`At most ${rule.maxAsks} asks per rolling 12 months`
@@ -100,7 +101,7 @@ export function crmReviewPage(job:Row,list:Row,today:string) {
  <div class="grid wide"><div>${rowsToLook(job.id,list)}
  ${box('2. Check totals before switching',`<p>“Your files” counts every gift row exactly as exported. “Coffer” counts the gifts Coffer will hold after the move-in. Pledges and soft credits are promises and recognition, so they are not counted as money received. If you exported a totals report, its numbers are checked too.</p>${totals(r.reconciliation)}`)}
  ${box('Columns left out',leftOutColumns(r.leftOut),'left-out')}
- ${reviewedCustom(r)}
+ ${r.customReview?box('Spreadsheet custom values',`<p>Custom definitions and values are staged separately. After moving the records in, open the journal’s source custom-field review to carry valid values and resolve waiting values.</p>`):reviewedCustom(r)}
  ${r.solicitCodes?box('Reviewed communication codes',`<ul>${Object.entries(r.solicitCodes).map(([code,rule])=>`<li>${e(code)}: ${e(codeMeaning(rule))}</li>`).join('')}</ul>`):''}
  ${records('Donors',r.counts.donors,s.donors,d=>`<strong>${e(d.name)}</strong> · ${e(d.externalId)}${d.householdName?` · ${e(d.householdName)}`:''}${d.contacts?.length?`<ul>${d.contacts.map((p:ParsedContact)=>`<li>${e(p.kind)} · ${e(p.type)}${p.primary?' · primary':''}: ${e(p.kind==='address'?Object.values(JSON.parse(p.value)).filter(Boolean).join(', '):p.value)}${p.startsOn?` · ${e(p.startsOn)} through ${e(p.endsOn)}`:''}</li>`).join('')}</ul>`:''}`)}
  ${records('Households',r.counts.households,s.households,h=>`${e(h.name)} · ${e(h.externalId.startsWith('members:')?`linked as spouses or at one address`:h.externalId)}`)}

@@ -1,3 +1,4 @@
+import { importSourceNames } from './sources'
 import { reviewedCustomMappings, mapCustomColumns } from './custom-fields'
 import { creditChecks, sharedEmails } from './checks'
 import { inferHouseholds, validateHouseholdHeads } from './households'
@@ -13,8 +14,8 @@ export type { ParsedImport, ParseInput } from './types'
 /** A bounded, pure preview: malformed rows remain visible as structured diagnostics. */
 export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  const out: ParsedImport = { source: input.source, solicitations: [], channelWithdrawals: [], solicitCodes: input.solicitCodes, donors: [], gifts: [], households: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [] }
- if (!['lgl', 'bloomerang', 're-nxt'].includes(input.source)) {
-  out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose Little Green Light, Bloomerang, or Raiser’s Edge NXT.' }); return out
+ if (!Object.hasOwn(importSourceNames,input.source)) {
+  out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose a supported CRM or spreadsheet source.' }); return out
  }
  reviewedCustomMappings(input,out)
  const tables = await readExports(input.files, out), rows: SourceRow[] = []

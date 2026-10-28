@@ -39,6 +39,8 @@ const common: Record<string, string[]> = {
  controlYear: ['Year', 'Calendar Year'],
 }
 const vendor: Record<ImportSource, Record<string, string[]>> = {
+ neon:{donorId:['Account ID','Constituent ID'],giftId:['Donation ID','Gift ID'],noteId:['Activity ID','Note ID'],noteType:['Activity Type','Note Type'],noteDate:['Activity Date','Note Date'],communicationRestrictions:['Contact Restrictions']},
+ spreadsheet:{},
  lgl: {
   communicationRestrictions: ['Communication Tags', 'Communication Tag', 'Communication Preferences'],
   tributeHonoree: ['Tribute Hon./Mem. Name'], tributeGroup: ['Tribute Name'], tributeType: ['Tribute Dedication'],

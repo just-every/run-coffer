@@ -1,11 +1,9 @@
-import { readNxtCustom } from './nxt-definitions'
-import { readLglCustom } from './lgl-definitions'
+import { readSourceCustom, type SourceCredentials } from './source-custom-reader'
 import { customFields } from '../custom-fields'
 import { all, commit, event, fail, guard, one, sha256, sql, type Context, type Row, type Stmt } from '../db'
 import { importedCustomWrites, type CustomImportWrite } from './custom-fields'
 import { createImportDefinitionWrites } from './custom-definition-undo'
 import { buildCustomReview, defaultMappings } from './custom-review-plan'
-import { readBloomerangCustom } from './source-definitions'
 import type { CustomReview, FieldMapping, SourceRecord, ValueResolution } from './custom-review-types'
 import type { Plan } from './plan'
 import { customTagWrites } from './custom-review-tags'
@@ -16,15 +14,13 @@ export async function customReview(c:Context,id:string) {
  return {...job,report:JSON.parse(job.report)} as Row
 }
 const fence=(id:string,report:string)=>guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='completed' AND redacted=0 AND report=?)",'MOVE_IN_CHANGED','This custom review changed. Refresh it before continuing.',id,report)
-export async function captureCustom(c:Context,input:{id:string;apiKey:string;subscriptionKey?:string;idType?:'system'|'lookup'}) {
+export async function captureCustom(c:Context,input:SourceCredentials&{id:string}) {
  const job=await customReview(c,input.id)
- if(!['bloomerang','lgl','re-nxt'].includes(job.source))fail('CUSTOM_SOURCE','Choose one of the current CRM sources for custom enrichment.',400)
+ if(!['bloomerang','lgl','re-nxt','neon'].includes(job.source))fail('CUSTOM_SOURCE','Choose one of the current CRM sources for custom enrichment.',400)
  if(job.report.customReview)return {id:job.id,review:job.report.customReview,unchanged:true}
  const records=job.report.sourceRecords as SourceRecord[]|undefined
  if(!records?.length)fail('CUSTOM_SOURCE','This older import has no complete source record index. Preview and apply the original exports again before enrichment.',409)
- let definitions
- try{definitions=job.source==='bloomerang'?await readBloomerangCustom(input.apiKey,records):job.source==='lgl'?await readLglCustom(input.apiKey,records.filter(r=>r.kind==='constituent'||r.kind==='gift')):await readNxtCustom(input.apiKey,input.subscriptionKey??'',records.filter(r=>r.sourceObject!=='note').map(r=>({...r,idType:r.kind==='interaction'||r.sourceObject==='action'?'system':input.idType})))}
- catch(error){if(error instanceof Error&&/^(Bloomerang|Little Green Light|Raiser's Edge NXT): /.test(error.message))fail('CUSTOM_SOURCE_READ',error.message,502);throw error}
+ const definitions=await readSourceCustom(job.source,input,records)
  const previous=await one(c,"SELECT json_extract(report,'$.customReview.mappings') AS mappings FROM cf_move_in_jobs WHERE source=? AND id<>? AND state='completed' AND redacted=0 AND json_type(report,'$.customReview.mappings')='array' ORDER BY created_at DESC LIMIT 1",job.source,job.id)
  const review=await buildCustomReview(definitions,defaultMappings(job.source,definitions,previous?.mappings?JSON.parse(previous.mappings):[],await customFields(c)),[],1)
  await commit(c,[fence(job.id,JSON.stringify(job.report)),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview',json(?)) WHERE id=?",JSON.stringify(review),job.id),event(c,'move-in.custom.capture','move-in',job.id,null,{definitions:definitions.length})])

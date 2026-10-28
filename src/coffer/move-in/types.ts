@@ -1,5 +1,8 @@
+import type { SourceDefinition } from './source-definitions'
+import type { FieldMapping } from './custom-review-types'
 /** Normalized, source-referenced preview. No database writes or invented CRM IDs. */
-export type ImportSource = 'lgl' | 'bloomerang' | 're-nxt'
+import type { importSourceNames } from './sources'
+export type ImportSource = keyof typeof importSourceNames
 export type ExportFile = { name: string; base64: string }
 export type SourceLocation = { file: string; sheet: string; row: number }
 export type Diagnostic = Partial<SourceLocation> & { severity: 'error' | 'warning'; code: string; message: string; column?: string }
@@ -28,7 +31,7 @@ export type ParsedRelationship = Located & { externalId: string; donorExternalId
 export type ParsedSoftCredit = Located & { externalId: string; donorExternalId: string; giftExternalId: string; amountCents: number; pledgeExternalId: string; acknowledgment?: ParsedAcknowledgment }
 export type ParsedPledge = Located & { externalId: string; donorExternalId: string; pledgedOn: string; amountCents: number; fund: string; note: string }
 export type ParsedInstallment = Located & { externalId: string; pledgeExternalId: string; dueOn: string; amountCents: number }
-export type ParsedNote = Located & { sourceObject?:'action'|'note'; externalId: string; donorExternalId: string; text: string; date: string; type: string }
+export type ParsedNote = Located & { sourceObject?:'action'|'activity'|'note'; externalId: string; donorExternalId: string; text: string; date: string; type: string }
 export type Total = { giftCount: number; amountCents: number }
 export type ImportTotals = Total & { byYear: Record<string, Total>; byFund: Record<string, Total>; byDonor: Record<string, Total>; complete: boolean }
 export type ControlTotal = Located & {
@@ -39,6 +42,7 @@ export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; 
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }
 export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:string; channel:'email'|'mail'|'phone'|'sms'; sourceOn:string; codes:string[] }
 export type ParsedImport = {
+ columnDefinitions?:SourceDefinition[];columnMappings?:FieldMapping[];
  customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
  relationships: ParsedRelationship[]; softCredits: ParsedSoftCredit[]; pledges: ParsedPledge[]
  installments: ParsedInstallment[]; notes: ParsedNote[]; unmapped: UnmappedValue[]; diagnostics: Diagnostic[]

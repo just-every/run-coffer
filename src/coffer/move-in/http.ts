@@ -41,7 +41,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  const get=(key:string)=>api?data[key]:data.get(key), id=String(get('id')||'')
  if(action==='custom-capture'||action==='custom-review'||action==='custom-apply') {
   let result
-  if(action==='custom-capture')result=await captureCustom(c,{id,apiKey:String(get('apiKey')||''),subscriptionKey:String(get('subscriptionKey')||''),idType:get('idType')||undefined})
+  if(action==='custom-capture')result=await captureCustom(c,{id,apiKey:String(get('apiKey')||''),subscriptionKey:String(get('subscriptionKey')||''),organizationId:String(get('organizationId')||''),idType:get('idType')||undefined})
   else if(action==='custom-apply'){
    if(!api&&get('confirm')!=='yes')fail('confirmation_required','Confirm the reviewed custom values.',400)
    result=await applyCustom(c,{id,version:Number(get('version'))})

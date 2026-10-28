@@ -1,3 +1,4 @@
+import { buildCustomReview } from './custom-review-plan'
 import { sourceRecords } from './custom-source-records'
 import { customTagUndoGuards, customTagUndoWrites } from './custom-review-tags'
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
@@ -62,7 +63,7 @@ export async function preview(c: Context,input: ParseInput) {
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c),sourceRecords:sourceRecords(parsed)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c),sourceRecords:sourceRecords(parsed),...(parsed.columnDefinitions?.length?{customReview:await buildCustomReview(parsed.columnDefinitions,parsed.columnMappings??[],[],1)}:{})},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
  return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }

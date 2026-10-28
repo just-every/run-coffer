@@ -389,4 +389,8 @@ test('MOVE-010: source definitions enrich imported records with explicit waiting
  await lglCustomJourney()
  const {nxtCustomJourney}=await import('./custom-source-nxt.mjs')
  await nxtCustomJourney()
+ const {neonCustomJourney}=await import('./custom-source-neon.mjs')
+ await neonCustomJourney()
+ const {spreadsheetCustomJourney}=await import('./custom-source-spreadsheet.mjs')
+ await spreadsheetCustomJourney()
 })

@@ -1,3 +1,4 @@
+import { importSourceNames } from './sources'
 import { event, sha256, type Context, type Row } from '../db'
 import type { Plan } from './plan'
 import { normalizeLabel } from './source-columns'
@@ -7,7 +8,7 @@ import type { Located, ParsedImport } from './types'
 type Add = (kind: Kind, entity: Located & {externalId:string}, row: Row, match?: string, donorId?: string | null, relatedId?: string | null) => Promise<string>
 type Read = (c: Context, plan: Plan, query: string, params?: unknown[]) => Promise<Row[]>
 const interactionKinds: Record<string,string> = {email:'email',phonecall:'call',inperson:'meeting'}
-const sourceNames = {lgl:'Little Green Light',bloomerang:'Bloomerang','re-nxt':"Raiser's Edge NXT"}
+const sourceNames=importSourceNames
 
 /** Source IDs resolve only through importer custody. A soft credit's evidence
  * belongs to its credited constituent, independently of the hard-credit donor. */

@@ -60,7 +60,7 @@ export async function sourceCustomBrowser(h,id,directory,{applied=false,topic=tr
  })
 }
 
-export async function sourceCaptureBrowser(h,id,directory,apiKey='synthetic-coffer-1600',{subscriptionKey,idType,tokenLabel='Source API key'}={}){
+export async function sourceCaptureBrowser(h,id,directory,apiKey='synthetic-coffer-1600',{subscriptionKey,idType,organizationId,tokenLabel='Source API key'}={}){
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
@@ -69,6 +69,7 @@ export async function sourceCaptureBrowser(h,id,directory,apiKey='synthetic-coff
    await page.goto(origin+'/app/move-in/crm/journal?id='+id)
    await page.getByText('Read custom field definitions and values',{exact:true}).click()
    await page.getByLabel(tokenLabel,{exact:true}).fill(apiKey)
+   if(organizationId)await page.getByLabel('Neon organization ID',{exact:true}).fill(organizationId)
    if(subscriptionKey)await page.getByLabel('Blackbaud subscription key',{exact:true}).fill(subscriptionKey)
    if(idType)await page.getByLabel('Identifiers in these exports',{exact:true}).selectOption(idType)
    await fits(page,width)

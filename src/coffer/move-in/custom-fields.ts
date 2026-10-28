@@ -1,3 +1,4 @@
+import { columnDefinitions, stageColumnValue } from './column-definitions'
 import { customValue } from '../custom-fields'
 import { all, guard, sha256, sql, type Context, type Row, type Stmt } from '../db'
 import { valueText, type SourceRow } from './source-rows'
@@ -28,6 +29,7 @@ export function reviewedCustomMappings(input: ParseInput, out: ParsedImport) {
 }
 
 export function mapCustomColumns(rows: SourceRow[], out: ParsedImport) {
+ if(out.source==='spreadsheet'){const columns=columnDefinitions(out);out.columnDefinitions=columns.definitions;out.columnMappings=columns.mappings}
  const inventory = new Map<string,{column:string;sheet:string;kind:string}>(), used = new Set<CustomImportMapping>()
  for (const r of rows) {
   const sourceKind = r.kind(), kind = sourceKind === 'donor' ? 'constituent' : sourceKind === 'note' ? ['call','meeting','email'].includes(r.peek('noteType').toLowerCase()) ? 'interaction' : 'note' : sourceKind
@@ -44,6 +46,10 @@ export function mapCustomColumns(rows: SourceRow[], out: ParsedImport) {
    const collection = kind === 'constituent' ? out.donors : kind === 'gift' ? out.gifts : kind === 'pledge' ? out.pledges : out.notes
    const entity = collection.find(x => x.location.file === r.location.file && x.location.sheet === r.location.sheet && x.location.row === r.location.row) ?? (kind === 'constituent' ? out.donors.find(d => d.externalId === r.peek('donorId')) : undefined)
    if (!entity) { r.error('CUSTOM_MAPPING','This custom value has no successfully mapped source record.',mapping.column); continue }
+   if(out.source==='spreadsheet'&&stageColumnValue(out,mapping,entity.externalId,original)){
+    out.unmapped=out.unmapped.filter(u=>!(u.file===r.location.file&&u.sheet===r.location.sheet&&u.row===r.location.row&&u.column===mapping.column))
+    continue
+   }
    try {
     const value = customValue({...mapping,choices:JSON.stringify(mapping.choices)},mapping.entry === 'pick-many' ? JSON.parse(original) : original.trim())
     const prior = entity.customValues?.find(v => v.mapping.key === mapping.key)

@@ -3,9 +3,10 @@ import type { Row } from '../db'
 import type { CustomReview } from '../move-in/custom-review-types'
 
 export function customCaptureForm(job:Row){
- if(job.state!=='completed'||job.redacted||!['bloomerang','lgl','re-nxt'].includes(job.source))return ''
+ if(job.state!=='completed'||job.redacted||!['bloomerang','lgl','re-nxt','neon','spreadsheet'].includes(job.source))return ''
  if(job.report.customReview)return box('Source custom fields',`<p><a href="/app/move-in/crm/custom-review?id=${e(job.id)}">Review source custom fields</a></p>`)
- return box('Bring source custom fields',`<details><summary>Read custom field definitions and values</summary><form method="post" action="/app/move-in/crm/custom-capture">${hidden('id',job.id)}${field(job.source==='re-nxt'?'Source access token':'Source API key','apiKey','password','','required autocomplete="off"')}${job.source==='re-nxt'?field('Blackbaud subscription key','subscriptionKey','password','','required autocomplete="off"')+select('Identifiers in these exports','idType',[['','Choose the exported identifier type'],['system','Native system record IDs'],['lookup','Lookup IDs']],'','required'):''}<p>The key is used for this read only. Review target fields and waiting values before applying.</p><button>Read source custom fields</button></form></details>`)
+ if(job.source==='spreadsheet')return ''
+ return box('Bring source custom fields',`<details><summary>Read custom field definitions and values</summary><form method="post" action="/app/move-in/crm/custom-capture">${hidden('id',job.id)}${field(job.source==='re-nxt'?'Source access token':'Source API key','apiKey','password','','required autocomplete="off"')}${job.source==='neon'?field('Neon organization ID','organizationId','text','','required autocomplete="off"'):''}${job.source==='re-nxt'?field('Blackbaud subscription key','subscriptionKey','password','','required autocomplete="off"')+select('Identifiers in these exports','idType',[['','Choose the exported identifier type'],['system','Native system record IDs'],['lookup','Lookup IDs']],'','required'):''}<p>The key is used for this read only. Review target fields and waiting values before applying.</p><button>Read source custom fields</button></form></details>`)
 }
 export function customImportReviewPage(job:Row,fields:Row[]){
  const r=job.report.customReview as CustomReview|undefined
