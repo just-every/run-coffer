@@ -40,7 +40,7 @@ function fixture(){
   const activity=activities.find(a=>path==='/activities/'+a.id);if(activity)return Response.json(activity)
   assert.fail('Unexpected Neon request '+request.method+' '+path)
  }
- const input={source:'neon',neon:{organizationId:key(7000),apiKey:key(7099)},files:[historyFile(history)],solicitCodes:{'No fundraising':{type:'stop'}}}
+ const input={source:'neon',neon:{organizationId:key(7000),apiKey:key(7099),currency:'USD'},files:[historyFile(history)],solicitCodes:{'No fundraising':{type:'stop'}}}
  return {input,history,accounts,donations,calls,state,outbound}
 }
 
@@ -50,6 +50,7 @@ export async function neonJourney(){
  await run(async h=>{
   await reviewed(h)
   const before=(await h.get('/api/coffer/donors')).total
+  for(const currency of [undefined,'CAD'])await post(h,'preview',{...f.input,neon:{...f.input.neon,currency}},{status:400})
   f.state.reject=true;await post(h,'preview',f.input,{status:502});f.state.reject=false
   f.state.brokenPages=true;await post(h,'preview',f.input,{status:502});f.state.brokenPages=false
   assert.equal((await h.get('/api/coffer/donors')).total,before)
@@ -79,7 +80,7 @@ export async function neonJourney(){
   await withBrowserWorker(h,async(context,origin)=>{
    const page=await context.newPage();await page.goto(origin+'/app/move-in/crm')
    const form=page.locator('form').filter({has:page.getByRole('button',{name:'Preview Neon history',exact:true})})
-   await form.getByLabel('Neon organization ID',{exact:true}).fill(f.input.neon.organizationId);await form.getByLabel('Neon API key',{exact:true}).fill(f.input.neon.apiKey)
+   await form.getByLabel('Neon organization ID',{exact:true}).fill(f.input.neon.organizationId);await form.getByLabel('Neon API key',{exact:true}).fill(f.input.neon.apiKey);await form.locator('input[name=neonUsd]').check()
    await form.locator('input[type=file]').setInputFiles({name:'neon-history.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(f.history))})
    await form.locator('summary').click();await form.getByLabel('Code meanings').fill('No fundraising = stop')
    await form.getByRole('button',{name:'Preview Neon history',exact:true}).click();await page.waitForURL('**/app/move-in/crm/review?id=*')

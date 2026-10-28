@@ -1,3 +1,6 @@
+import { canonicalDonor } from '../donor-merge'
+import { audience } from '../appeals'
+import { givebutterInput } from './givebutter'
 import { Buffer } from 'node:buffer'
 import { customFields } from '../custom-fields'
 import { manager } from '../auth'
@@ -25,6 +28,11 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  const action=url.pathname.slice(base.length+1)
  if(request.method==='GET') {
   if(action==='spreadsheet'&&!api)return page('Spreadsheet move-in',spreadsheetStart(await service.spreadsheetMappings(c)),c.actor,200,'/app/more')
+  if(action==='source-history'&&api) {
+   const donorId=await canonicalDonor(c,url.searchParams.get('donorId')||'')
+   const channels=await Promise.all(['email','mail'].map(channel=>audience(c,channel as 'email'|'mail',{givenSince:null,minTotalCents:0,donorIds:[donorId]})))
+   return json({outreach:{email:channels[0],mail:channels[1]},plans:await all(c,"SELECT * FROM cf_recurring_source_references WHERE donor_id=?",donorId),gifts:await all(c,"SELECT p.*,g.amount_cents,g.received_on FROM cf_platform_gifts p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?",donorId)})
+  }
   if(action==='spreadsheet-mappings'&&api)return json(await service.spreadsheetMappings(c))
   if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c)),c.actor,200,'/app/more')
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
@@ -86,9 +94,9 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
     spreadsheet={name:String(get('mappingName')||''),recordType:get('recordType'),columns:parts('mapColumn').flatMap((column,i)=>targets[i]?[{column,field:targets[i],sheet:sheets[i]||undefined}]:[]),translations:{fund:translationLines(String(get('fundTranslations')||'')),method:translationLines(String(get('methodTranslations')||''))},donorMatches}
    }catch(error){fail('SPREADSHEET_MAPPING',error instanceof Error?error.message:'Review the spreadsheet mapping.',400)}
   }
-  input={source:get('source'),...(get('source')==='neon'?{neon:{organizationId:String(get('organizationId')||''),apiKey:String(get('apiKey')||'')}}:{}),files,spreadsheet,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
+  input={source:get('source'),...(get('source')==='neon'?{neon:{organizationId:String(get('organizationId')||''),apiKey:String(get('apiKey')||''),currency:get('neonUsd')==='USD'?'USD':undefined}}:{}),files,spreadsheet,givebutterKey:get('givebutterKey')||undefined,givebutterAmountUnit:get('givebutterAmountUnit')||undefined,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
  }
- if(action==='preview') {const result=await service.preview(c,input);return api?json(result):new Response(null,{status:303,headers:{...headers,location:`/app/move-in/crm/review?id=${encodeURIComponent(result.id)}`}})}
+ if(action==='preview') {const result=await service.preview(c,input.source==='givebutter'&&input.givebutterKey?await givebutterInput(input):input);return api?json(result):new Response(null,{status:303,headers:{...headers,location:`/app/move-in/crm/review?id=${encodeURIComponent(result.id)}`}})}
  return fail('not_found','That move-in action does not exist.',404)
 }
 

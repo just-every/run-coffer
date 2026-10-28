@@ -7,7 +7,7 @@ import type { Located, ParsedImport } from './types'
 type Add = (kind: Kind, entity: Located & {externalId:string}, row: Row, match?: string, donorId?: string | null, relatedId?: string | null) => Promise<string>
 type Read = (c: Context, plan: Plan, query: string, params?: unknown[]) => Promise<Row[]>
 const interactionKinds: Record<string,string> = {email:'email',phonecall:'call',inperson:'meeting'}
-const sourceNames = {lgl:'Little Green Light',bloomerang:'Bloomerang','re-nxt':"Raiser's Edge NXT",spreadsheet:'Spreadsheet',neon:'Neon CRM'}
+const sourceNames = {lgl:'Little Green Light',bloomerang:'Bloomerang','re-nxt':"Raiser's Edge NXT",spreadsheet:'Spreadsheet',givebutter:'Givebutter',zeffy:'Zeffy',neon:'Neon CRM'}
 
 /** Source IDs resolve only through importer custody. A soft credit's evidence
  * belongs to its credited constituent, independently of the hard-credit donor. */

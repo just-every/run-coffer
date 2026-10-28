@@ -12,7 +12,7 @@ CREATE TABLE cf_soft_credit_acknowledgments_neon (
  reason TEXT,
  updated_at TEXT NOT NULL,
  updated_by TEXT NOT NULL,
- source TEXT NOT NULL DEFAULT 'Coffer' CHECK(source IN ('Coffer','Little Green Light','Bloomerang','Raiser''s Edge NXT','Spreadsheet','Neon CRM')),
+ source TEXT NOT NULL DEFAULT 'Coffer' CHECK(source IN ('Coffer','Little Green Light','Bloomerang','Raiser''s Edge NXT','Spreadsheet','Givebutter','Zeffy','Neon CRM')),
  source_reference TEXT,
  -- Only reviewed incumbent history may lack its historical date or evidence.
  -- Native writes retain the complete original constraint and server validation.

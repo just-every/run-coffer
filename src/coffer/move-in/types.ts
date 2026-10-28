@@ -1,5 +1,5 @@
 /** Normalized, source-referenced preview. No database writes or invented CRM IDs. */
-export type ImportSource = 'lgl' | 'bloomerang' | 're-nxt' | 'spreadsheet' | 'neon'
+export type ImportSource = 'lgl' | 'bloomerang' | 're-nxt' | 'spreadsheet' | 'givebutter' | 'zeffy' | 'neon'
 export type SpreadsheetMapping = { name: string; recordType: 'gift'|'donor'|'note'; columns: {column:string;field:string;sheet?:string}[]; translations?: {fund?:Record<string,string>;method?:Record<string,string>}; donorMatches?: Record<string,{id:string;version:number}> }
 export type ExportFile = { name: string; base64: string }
 export type SourceLocation = { file: string; sheet: string; row: number }
@@ -16,7 +16,7 @@ export type ParsedDonor = Located & {
  firstName: string; lastName: string; prefix?: string; middleName?: string; suffix?: string; nickname?: string; constituentStatus?: string; deceasedOn?: string; statusReason?: string; informalName?: string; formalName?: string; envelopeName?: string; recognitionName?: string; organization: boolean
 }
 export type ParsedGift = Located & {
- externalId: string; donorExternalId: string; receivedOn: string; amountCents: number; fund: string
+ platform?: {feeCents:number;campaignId:string;campaignName:string}; externalId: string; donorExternalId: string; receivedOn: string; amountCents: number; fund: string
  campaign: string; appeal?: string; channel?: string; checkReference?: string; method: string; note: string; pledgeExternalId: string; noGoodsOrServices: boolean; goodsCents: number | null; goodsDescription: string; tribute?: ParsedTribute; acknowledgment?: ParsedAcknowledgment
 }
 export type ParsedTribute = { kind: 'honor' | 'memory'; honoree: string; notifiedName?: string; notifiedEmail?: string; notifiedAddress?: string; sourceGroup?: string }
@@ -39,14 +39,16 @@ export type ControlTotal = Located & {
 export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; channels?: ('email'|'mail'|'phone'|'sms')[]; maxAsks?: number }
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }
 export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:string; channel:'email'|'mail'|'phone'|'sms'; sourceOn:string; codes:string[]; status?:'granted'|'withdrawn'|'unknown' }
-export type SourceCoverage = { counts:Record<string,number>; unsupported:string[] }
+export type ParsedRecurringReference = Located & {externalId:string;donorExternalId:string;amountCents:number;frequency:string;status:string;method:string;campaign:string;nextOn:string|null;customerReference:string|null;paymentMethodReference:string|null}
+export type SourceCoverage = { currency?:string; counts:Record<string,number>; unsupported:string[] }
 export type ParsedImport = { sourceCoverage?:SourceCoverage;
+ recurringReferences?:ParsedRecurringReference[];
  spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
  relationships: ParsedRelationship[]; softCredits: ParsedSoftCredit[]; pledges: ParsedPledge[]
  installments: ParsedInstallment[]; notes: ParsedNote[]; unmapped: UnmappedValue[]; diagnostics: Diagnostic[]
  sourceTotals: ImportTotals; mappedTotals: ImportTotals; controlTotals: ControlTotal[]
  files: { name: string; bytes: number; sheets: string[]; rows: number }[]
 }
-export type ParseInput = { neon?:{organizationId:string;apiKey:string}; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
+export type ParseInput = { neon?:{organizationId:string;apiKey:string;currency?:string}; givebutterKey?:string; givebutterAmountUnit?:'cents'|'dollars'; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
 export type Cell = string | number | boolean | Date | null
 export type Table = { file: string; sheet: string; rows: Cell[][] }

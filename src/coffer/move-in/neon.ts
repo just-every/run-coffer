@@ -15,6 +15,7 @@ const acknowledgment=(facts:Record<string,any>={})=>Object.fromEntries(['Acknowl
  * It fills facts the Neon API does not attest: actual acknowledgment, source dates,
  * account status, contact restrictions and independent soft-credit recognition. */
 export async function neonInput(input:ParseInput):Promise<{input:ParseInput;coverage:SourceCoverage}> {
+ if(input.neon?.currency!=='USD')fail('NEON_CURRENCY','Confirm that your Neon organization records USD amounts before reviewing money. The API does not identify currency and no conversion is performed.',400)
  let history:History={}
  if(input.files.length>1||input.files.some(f=>f.name!=='neon-history.json'))fail('NEON_HISTORY','Use one optional neon-history.json source-history file.',400)
  if(input.files[0]){
@@ -25,7 +26,7 @@ export async function neonInput(input:ParseInput):Promise<{input:ParseInput;cove
   if(!facts||typeof facts!=='object'||Array.isArray(facts)||Object.keys(facts).some(k=>!allowed.includes(k)))fail('NEON_HISTORY','A source-history field has no supported mapping. Review it before importing.',400)
  }
  const snapshot=await readNeon(input.neon!)
- return {input:normalizeNeon(snapshot,history,input),coverage:{counts:{accounts:snapshot.accounts.length,donations:snapshot.donations.length,activities:snapshot.activities.length,eventRegistrations:snapshot.registrations.length,households:snapshot.households.length},unsupported:['Memberships','Pledges','Recurring-donation migration and processor references','Other source objects','Donation and activity custom fields','Split, pending, refunded, disputed and noncash payments','Native event guest-list seats']}}
+ return {input:normalizeNeon(snapshot,history,input),coverage:{currency:'USD',counts:{accounts:snapshot.accounts.length,donations:snapshot.donations.length,activities:snapshot.activities.length,eventRegistrations:snapshot.registrations.length,households:snapshot.households.length},unsupported:['Memberships','Pledges','Recurring-donation migration and processor references','Other source objects','Donation and activity custom fields','Split, pending, refunded, disputed and noncash payments','Native event guest-list seats']}}
 }
 function normalizeNeon(s:NeonSnapshot,h:History,input:ParseInput):ParseInput {
  const definitions:CustomImportMapping[]=[],donors:Record<string,any>[]=[],gifts:Record<string,any>[]=[],notes:Record<string,any>[]=[],credits:Record<string,any>[]=[]
