@@ -1519,7 +1519,7 @@
       "executable": false
     },
     "public/coffer.css": {
-      "sha256": "b6d88654316b44ca265567823ae838f325c2783e6434d36c6437a1882ecc6edc",
+      "sha256": "cb98b1d75b39004f4530478e9a5f816889b1d86d292c464b4c8732bc5bae7262",
       "executable": false
     },
     "public/favicon.ico": {
@@ -2667,7 +2667,7 @@
       "executable": false
     },
     "src/coffer/communications/replies.ts": {
-      "sha256": "a18e1f2919ab8bd50f6948986e81c15f59358c7fe811efd726b8056a20ff970a",
+      "sha256": "ac9bc369abe3de1370bf6c08ba846cd38a5c3c6181edba1056e79de207902751",
       "executable": false
     },
     "src/coffer/communications/reply-stop.ts": {
@@ -2779,7 +2779,7 @@
       "executable": false
     },
     "src/coffer/donor-depth.ts": {
-      "sha256": "4e52251e58a899fc77068b10dbd4004ea555719f1a98063ea1fc1f08636743bf",
+      "sha256": "7544cda2e48cdd6f45b8a876176741255d3982c295bd8365bd6da0f3164b805c",
       "executable": false
     },
     "src/coffer/donor-file.ts": {
@@ -3219,11 +3219,11 @@
       "executable": false
     },
     "src/coffer/mailboxes/store.ts": {
-      "sha256": "30959a06e20beec9b8ef4ebc28c5d8a6c2cce8f7c48bf8e442aff08d05570c55",
+      "sha256": "fae49bce2ee6c8f7911ab76dd3ab84e3236bf811e7c9c3b89b7facb061d58068",
       "executable": false
     },
     "src/coffer/mailboxes/ui.ts": {
-      "sha256": "98e4a0e8a565292daa266f324a4326370e7beddf9da3f324e08c661ea9a9fa93",
+      "sha256": "13790eb1739f6b2603c2c4429dae019aa036904c3cfd98f5b24745277823bef8",
       "executable": false
     },
     "src/coffer/major-gifts.ts": {
@@ -6683,11 +6683,11 @@
       "executable": false
     },
     "tests/mailboxes-browser.mjs": {
-      "sha256": "09fb6a6e7bfd918f490b90b567f8517289cb11bf4e55d373c7350c57e296dd7f",
+      "sha256": "f9eaac877704d418736db24ccbba4c5930c9df1cbe7a6eafc640d746553c6a0a",
       "executable": false
     },
     "tests/mailboxes-journey.mjs": {
-      "sha256": "d26898b2fcd59589ce696cb22ff63874636b2adc10d4869c07c3abe21d5c4416",
+      "sha256": "ddd7d168024529be9a5bc790d5df8e2eec4495565a4e0d2d10945114ae2a5ce9",
       "executable": false
     },
     "tests/mcp-browser.mjs": {

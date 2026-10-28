@@ -465,3 +465,4 @@
 
 /* Mailbox states retain the shared chip look at readable body size. */
 .coffer .cf-mailbox .chip, .coffer #donor-replies .chip { font-size: 13px; }
+ .coffer #personal-email, .coffer #timeline, .coffer #donor-replies { scroll-margin-top: 96px; }

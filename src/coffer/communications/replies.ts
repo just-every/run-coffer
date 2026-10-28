@@ -4,7 +4,7 @@ import { manager, requireRole } from '../auth'
 import { all, commit, event, fail, guard, id, longText, one, sha256, sql, type Context, type Row } from '../db'
 import { automaticStopIsCurrent, automaticStopStatements, currentConsent, replyStopCommand, stopEvidence, stopIsCurrent, syncAutomaticStop } from './reply-stop'
 
-const sourceNames: Record<string, string> = { welcome: 'Welcome', appeal: 'Appeal', receipt: 'Receipt', acknowledgment: 'Acknowledgment', acknowledgement: 'Acknowledgment', statement: 'Statement' }
+const sourceNames: Record<string, string> = { mailbox: 'Personal mailbox', welcome: 'Welcome', appeal: 'Appeal', receipt: 'Receipt', acknowledgment: 'Acknowledgment', acknowledgement: 'Acknowledgment', statement: 'Statement' }
 export const replySource = (kind: string) => sourceNames[kind] ?? 'Email'
 
 const MAX_RAW = 1024 * 1024
@@ -204,13 +204,13 @@ export async function recordIncomingReply(env:Bindings,communication:Row,input:{
   // A provider exception may happen after acceptance. Never automatically send twice.
   throw new Error('Reply forwarding did not confirm success; review the reply task.')
  }
- await recordState(env.DB, taskId, attempt, 'forwarded', 'Cloudflare confirmed forwarding to the assigned relationship manager. Follow-up is still open.', new Date().toISOString())
+ await recordState(env.DB, taskId, attempt, 'forwarded', communication.mailbox_id?'Mailbox provider accepted forwarding to the assigned relationship manager. Follow-up is still open.':'Cloudflare confirmed forwarding to the assigned relationship manager. Follow-up is still open.', new Date().toISOString())
 }
 
 export function replyTasks(c: Context) {
  requireRole(c.actor, ['owner', 'admin', 'member'], 'read donor replies')
  return all(c, `SELECT r.*,d.name AS donor_name,o.display_name AS owner_name,o.status AS owner_status,
-  COALESCE(c.source_kind,CASE WHEN b.kind='statement' THEN 'statement' WHEN a.id LIKE 'receipt-%' THEN 'receipt' ELSE 'acknowledgment' END) AS source_kind,
+  COALESCE(c.source_kind,CASE WHEN r.mailbox_id IS NOT NULL THEN 'mailbox' WHEN b.kind='statement' THEN 'statement' WHEN a.id LIKE 'receipt-%' THEN 'receipt' ELSE 'acknowledgment' END) AS source_kind,
   COALESCE(c.source_id,a.id) AS source_id,
   CASE WHEN r.status='pending' AND r.attempt_key IS NOT NULL AND r.forwarding_at<? THEN 1 ELSE 0 END AS stale_forward,
   CASE WHEN r.stop_status='proposed' AND NOT (${stopIsCurrent}) THEN 1 ELSE 0 END AS stale_stop,
