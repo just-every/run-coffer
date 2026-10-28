@@ -15,9 +15,10 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
   const page = await context.newPage()
   page.setDefaultTimeout(15000)
   await page.route('https://checkout.stripe.com/**', route => route.fulfill({contentType: 'text/plain', body: 'Payment network boundary'}))
+  let embedMarkup = ''
   const host = createServer((request, response) => {
    response.writeHead(200, {'content-type': 'text/html'})
-   response.end(`<!doctype html><html lang="en"><head><title>Riverbend community website</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0"><h1 style="font:24px Arial;padding:16px">Riverbend community appeal</h1><script src="${origin}/give/${campaign.slug}/embed.js" async></script></body></html>`)
+   response.end(`<!doctype html><html lang="en"><head><title>Riverbend community website</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0"><h1 style="font:24px Arial;padding:16px">Riverbend community appeal</h1>${embedMarkup}</body></html>`)
   })
   await new Promise(resolve => host.listen(0, '127.0.0.1', resolve))
   const hostOrigin = `http://127.0.0.1:${host.address().port}`
@@ -74,6 +75,7 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     await page.evaluate(() => scrollTo(0, 0))
     await page.screenshot({path: `${directory}/settings-${width}.png`, fullPage: true})
+    embedMarkup = (await page.getByLabel('Embed script', {exact:true}).inputValue()).replace(h.origin,origin)
     await page.goto(origin + '/give/' + campaign.slug)
     await page.getByRole('heading', {name: 'Give local readers a new chapter ' + width, exact: true}).waitFor()
     assert.equal(await page.locator('header img').getAttribute('src'), '/give/' + campaign.slug + '/media/image')
