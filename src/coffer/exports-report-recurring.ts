@@ -4,7 +4,7 @@ import { exportRecords } from './exports-records'
 import { selectedReport } from './exports-report-records'
 
 export async function recurringExportSelection(c:Context,url:URL,report='recurring') {
- const s=await recurringHealthSelection(c,url)
+ const s=await recurringHealthSelection(c,url,true)
  const month=url.searchParams.get('month')||s.report.through
  const metric=choice(url.searchParams.get('metric')||'all',['all','active','new','canceled','length','unknown-start','unknown-state','failed','recovered'] as const,'recurring metric')
  const selected=s.snapshots.find(r=>r.month===month)

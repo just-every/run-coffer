@@ -60,8 +60,9 @@ export async function taxRecordSelection(c: Context, url: URL) {
  const start = periods[0].start, through = periods[4].through
  // No fund/allocation or recognition joins: each signed monetary entry counts
  // once. Unknown/erased identities remain in the reconciliation, without PII.
- return {s,configuration,asOf,basis,monthDay,currentYear,year,periods,start,through,
-  monetary:{query:`SELECT l.*,COALESCE(p.gift_id,l.reverses,l.id) AS gift_id FROM cf_monetary_contributions l LEFT JOIN cf_payment_entries p ON p.id=l.id WHERE l.received_on>=? AND l.received_on<=?`,params:[start,through]},
+ const monetary={query:`SELECT l.*,COALESCE(p.gift_id,l.reverses,l.id) AS gift_id FROM cf_monetary_contributions l LEFT JOIN cf_payment_entries p ON p.id=l.id WHERE l.received_on>=? AND l.received_on<=?`,params:[start,through]}
+ return {s,configuration,asOf,basis,monthDay,currentYear,year,periods,start,through,monetary,
+  classification:{query:`SELECT l.*,t.kind AS contribution_type FROM (${monetary.query}) l JOIN cf_contribution_types t ON t.gift_id=COALESCE(l.reverses,l.id) WHERE l.received_on>=?`,params:[...monetary.params,periods[4].start]},
   property:{query:`SELECT g.*,g.id AS gift_id,0 AS amount_cents,NULL AS campaign_id FROM cf_in_kind_current g WHERE g.received_on>=? AND g.received_on<=?`,params:[start,through]}}
 }
 
@@ -77,7 +78,7 @@ export async function taxReport(c:Context,url:URL) {
    FROM (${source.property.query}) g LEFT JOIN cf_donors d ON d.id=g.donor_id ORDER BY g.received_on,g.id`,...source.property.params),
  ])
  await withContributionTypes(c,properties)
- const classifications=await all(c,`SELECT t.kind,COUNT(*) AS giftCount,COALESCE(SUM(l.amount_cents),0) AS monetaryCents FROM cf_monetary_contributions l JOIN cf_contribution_types t ON t.gift_id=COALESCE(l.reverses,l.id) WHERE l.received_on>=? AND l.received_on<=? GROUP BY t.kind`,periods[4].start,through)
+ const classifications=await all(c,`SELECT contribution_type AS kind,COUNT(*) AS giftCount,COALESCE(SUM(amount_cents),0) AS monetaryCents FROM (${source.classification.query}) GROUP BY contribution_type`,...source.classification.params)
  const annual = new Map<string, Annual>()
  const add = (r: Row, monetaryCents: number, noncashStatedCents: number) => {
   const donorId = r.name && !r.erased_at ? String(r.donor_id) : null

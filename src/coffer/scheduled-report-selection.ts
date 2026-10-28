@@ -33,6 +33,7 @@ export function reportSelection(path: string, origin: string) {
  const u=new URL(path,origin),definition=reports.find(r=>r.path===u.pathname)
  if(u.origin!==origin||u.hash||!definition||(u.pathname==='/app/lapses'&&!u.searchParams.has('annual')))fail('REPORT_SELECTION','Choose an existing report or dashboard link.',400)
  if(u.pathname==='/app/reports/builder'&&(!u.searchParams.get('id')||[...u.searchParams.keys()].some(k=>k!=='id')))fail('REPORT_SELECTION','Choose a saved report without download parameters.',400)
+ if(u.pathname==='/app/reports/builder')u.search=new URLSearchParams({id:u.searchParams.get('id')!}).toString()
  return {url:u,definition,path:u.pathname+u.search}
 }
 export async function readScheduledReport(c:Context,path:string) {

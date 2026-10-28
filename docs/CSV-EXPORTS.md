@@ -182,3 +182,30 @@ preview returns `reportTotals` with the selected count and exact prior and
 current monetary cents from the same cohort snapshot; every other type is
 labelled lifetime. Search text stays out of the audit. Separate recognition
 and excluded-identity reconciliation metrics remain in the DATA-004 gap.
+
+## Saved reports and report metrics
+
+Open **Export report records** from the ordinary record export page to choose a
+report, its period and metric, then review and download any of the eight record
+types. Retention includes recognition and ledger reconciliation. Dashboard
+selections include cohorts, recurring commitments and the current pipeline.
+Recurring exports show the historical plan state, billing cadence and known
+lifetime dates behind the chosen month, including distinct failed and recovered invoice counts. Tax selections are accountant working
+papers; property stated values remain separate from monetary cents. Restricted
+fund exports reconcile given amounts while the report metadata separately states
+spending, releases and held balances.
+
+The report builder saves columns, filters, grouping and numeric totals for
+constituents, gifts, pledges, opportunities and interactions. Defined custom
+fields are selectable for each record type. Gift periods select signed ledger movements;
+fund grouping uses the actual allocations. The record download includes each
+original gift once. CSV and Excel contain the same selected records; cents stay
+numeric and spreadsheet text cannot become a formula. JSON definitions contain
+field selectors rather than captured result rows and can be imported into another
+installation whose matching custom fields have already been defined.
+
+Owners and admins export, explicitly share with an active member, and approve
+scheduled disclosures. Shared members read the current report without export or
+editing rights. Definition edits clear member sharing and pause existing
+schedules, requiring fresh disclosure review. Revoking sharing or the approving
+account's authority stops later reads. Definitions retain no report snapshots.

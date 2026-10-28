@@ -9,7 +9,7 @@ const columns = (value: string) => value.split(' ')
 const constituentColumns = columns('id version name prefix first_name middle_name last_name suffix nickname constituent_kind organization_type website ein email phone address_line1 address_line2 city region postal_code country household_id informal_salutation formal_salutation envelope_name constituent_status status_reason deceased_on status_changed_at created_at')
 const giftColumns = columns('id donor_id kind received_on amount_cents gross_cents adjustment_cents refunded_cents stated_value_cents description quantity fund campaign_id allocations method pledge_id created_at custom_fields acknowledgment_status acknowledged_on acknowledgment_method acknowledgment_link')
 const pledgeColumns = columns('id donor_id version pledged_on due_by amount_cents reduced_cents paid_cents remaining_cents fund campaign_id created_at custom_fields')
-const planColumns = columns('id donor_id campaign_id amount_cents billing_interval interval_count collection_paused status cancel_at_period_end failed_attempts recovered updated_at')
+const planColumns = columns('id donor_id campaign_id amount_cents billing_interval interval_count collection_paused status cancel_at_period_end failed_attempts recovered started_at start_known ended_at failed_invoice_count recovered_invoice_count updated_at')
 const consentColumns = columns('id donor_id channel status method evidence captured_on recorded_at recorded_by')
 const interactionBase = columns('id donor_id kind occurred_on who notes next_step open_question question_resolved_at recorded_at recorded_by')
 const interactionColumns=[...interactionBase,'custom_fields']
@@ -44,7 +44,9 @@ export const exportRecords: Record<ExportType, RecordSpec> = {
  pledges: {columns:pledgeColumns,query:`SELECT p.id,p.donor_id,p.version,p.pledged_on,p.due_by,p.amount_cents,p.reduced_cents,
   ${pledgePaid} AS paid_cents,MAX(0,p.amount_cents-p.reduced_cents-(${pledgePaid})) AS remaining_cents,
   p.fund,p.campaign_id,p.created_at,${customValues('pledge','p.id')} AS custom_fields FROM cf_pledge_totals p JOIN members m ON m.id=p.donor_id`},
- plans: {columns:planColumns,query:`SELECT ${planColumns.map(k=>`s.${k}`).join(',')} FROM cf_subscriptions s JOIN members m ON m.id=s.donor_id`},
+ plans: {columns:planColumns,query:`SELECT ${planColumns.map(k=>k==='failed_invoice_count'?"(SELECT COUNT(*) FROM cf_recurring_payment_health p WHERE p.subscription_id=s.id) AS failed_invoice_count":k==='recovered_invoice_count'?"(SELECT COUNT(*) FROM cf_recurring_payment_health p WHERE p.subscription_id=s.id AND p.recovered_at IS NOT NULL) AS recovered_invoice_count":k==='started_at'||k==='start_known'?`l.${k}`:['billing_interval','interval_count','collection_paused'].includes(k)?`latest.${k}`:k==='ended_at'?"(SELECT MIN(observed_at) FROM cf_subscription_history h WHERE h.subscription_id=s.id AND h.status IN ('canceled','incomplete_expired')) AS ended_at":`s.${k}`).join(',')}
+  FROM cf_subscriptions s JOIN members m ON m.id=s.donor_id LEFT JOIN cf_subscription_lifetimes l ON l.subscription_id=s.id
+  LEFT JOIN cf_subscription_history latest ON latest.sequence=(SELECT sequence FROM cf_subscription_history h WHERE h.subscription_id=s.id ORDER BY observed_at DESC,sequence DESC LIMIT 1)`},
  consent: {columns:consentColumns,query:`SELECT ${consentColumns.map(k=>`k.${k}`).join(',')} FROM cf_consents k JOIN members m ON m.id=k.donor_id
   WHERE k.id=(SELECT MAX(latest.id) FROM cf_consents latest WHERE latest.donor_id=k.donor_id AND latest.channel=k.channel)`},
  interactions: {columns:interactionColumns,query:`SELECT ${interactionBase.map(k=>`i.${k}`).join(',')},${customValues('interaction','i.id')} AS custom_fields FROM cf_interactions i JOIN members m ON m.id=i.donor_id

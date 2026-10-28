@@ -1,3 +1,4 @@
+import { reportChoiceRenames } from './report-builder/choice-renames'
 import { requireRole } from './auth'
 import { customValue } from './custom-fields'
 import { centsDecimal } from './money'
@@ -27,6 +28,7 @@ export async function customChoiceCommand(c:Context,command:string,p:Row):Promis
  const oldFilter=filter(from),newFilter=filter(to)
  // Saved filters follow the choice so a rename cannot silently empty a live list.
  writes.push(sql("UPDATE cf_saved_lists SET filters=json_set(filters,'$.customValue',?),version=version+1,updated_at=?,updated_by=? WHERE json_extract(filters,'$.customKey')=? AND json_extract(filters,'$.customValue')=?",newFilter,c.now,c.actor.id,key,oldFilter))
+ writes.push(...await reportChoiceRenames(c,key,String(from),String(to)))
  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_custom_fields WHERE key=? AND version=?)','VERSION','The field changed. Review the rename again.',key,version),sql('UPDATE cf_custom_fields SET choices=?,version=version+1 WHERE key=?',JSON.stringify(choices.map(v=>v===from?to:v)),key),...writes,event(c,command,'custom_field',key,null,{from,to,changed,version:version+1})])
  return {key,version:version+1,changed}
 }

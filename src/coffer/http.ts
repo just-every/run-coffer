@@ -1,3 +1,4 @@
+import { reportExportsPage } from './ui/report-exports'
 import { builderDownload } from './report-builder/download'
 import { readBuilderReport } from './report-builder/read'
 import { savedReports } from './report-builder/store'
@@ -727,6 +728,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
  if(path==='/app/api-keys')return show('Public API keys',await apiKeysPage(c))
  if(path==='/app/webhooks')return show('Webhooks',await webhookPage(c,url.searchParams.get('before')))
+ if(path==='/app/report-exports')return show('Report record exports',await reportExportsPage(c,url))
  if(path==='/app/reports/builder')return show('Report builder',await builderPage(c,url))
  if(path==='/app/report-schedules')return show('Scheduled reports',await reportSchedulesPage(c,url))
  if(path==='/app/reports/custom-fields')return show('Gift custom fields',await customReportPage(c,url))

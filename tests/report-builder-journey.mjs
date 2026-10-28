@@ -18,7 +18,7 @@ async function seed(h){
  return {d,a}
 }
 export async function reportBuilderJourney(){
- let document,expected
+ let document,expected,portable
  await run(async h=>{
   const {d,a}=await seed(h),member=await h.person('synthetic-coffer-5101'+String.fromCharCode(64)+'example.test'),other=await h.person('synthetic-coffer-5102'+String.fromCharCode(64)+'example.test')
   const save={name:'Gifts by fund and month',definition}
@@ -41,10 +41,11 @@ export async function reportBuilderJourney(){
   const file=await h.request(path+'&download=csv',options);assert.equal(file.status,200);const csv=parseCsv(await file.text())
   assert.deepEqual(csv[0],definition.columns);assert.equal(csv.slice(1).reduce((n,row)=>n+Number(row[3]),0),32346)
   const xlsx=await h.request(path+'&download=xlsx',options);assert.equal(xlsx.status,200)
-  const sheet=await readXlsxFile(Buffer.from(await xlsx.arrayBuffer()));assert.deepEqual(sheet[0],csv[0]);assert.deepEqual(sheet.slice(1).map(r=>r.map(v=>String(v??''))),csv.slice(1))
+  const sheet=(await readXlsxFile(Buffer.from(await xlsx.arrayBuffer())))[0].data;assert.deepEqual(sheet[0],csv[0]);assert.deepEqual(sheet.slice(1).map(r=>r.map(v=>String(v??''))),csv.slice(1))
   const apiExport=await h.request('/api/coffer/exports/gifts.csv?report=builder&id='+saved.id,options);assert.equal(apiExport.status,200)
   const raw=parseCsv(await apiExport.text()),amount=raw[0].indexOf('amount_cents');assert.equal(raw.slice(1).reduce((n,r)=>n+Number(r[amount]),0),32346)
-  await h.command('reportSchedule.save',{name:'Monthly saved report',reportPath:'/app/reports/builder?id='+saved.id,recipients:'synthetic-coffer-5101'+String.fromCharCode(64)+'example.test',cadence:'weekly',startsAt:'2026-10-25T02:00',reviewed:'yes'},options)
+  await h.command('reportSchedule.save',{name:'Monthly saved report',reportPath:'/app/reports/builder?id='+saved.id+'&',recipients:'synthetic-coffer-5101'+String.fromCharCode(64)+'example.test',cadence:'weekly',startsAt:'2026-10-25T02:00',reviewed:'yes'},options)
+  assert.equal((await h.get('/api/coffer/report-schedules')).schedules[0].report_path,'/app/reports/builder?id='+saved.id)
   const tick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+Date.parse('2026-10-25T02:00:00Z'),{headers:{'x-test-now':'2026-10-25T02:00:00Z'}});assert.equal(tick.status,200)
   const sent=h.messages.find(m=>m.subject==='Monthly saved report');assert.ok(sent?.attachments)
   assert.equal(JSON.parse(Buffer.from(sent.attachments[0].content,'base64').toString()).report.totals.amount_cents,32346)
@@ -55,12 +56,21 @@ export async function reportBuilderJourney(){
   await h.command('report.share',{reportId:saved.id,version:2,operatorId:member.id,reviewed:'yes'},options)
   await h.command('report.revoke',{reportId:saved.id,version:2,operatorId:member.id},options)
   await h.get(path,{...options,as:member.cookie,status:404})
+  const approver=await h.person('synthetic-coffer-5104'+String.fromCharCode(64)+'example.test','admin')
+  await h.command('report.share',{reportId:saved.id,version:2,operatorId:member.id,reviewed:'yes'},{...options,as:approver.cookie})
+  assert.equal((await h.get(path,{...options,as:member.cookie})).count,4)
+  await h.api('/auth/operator/status',{operatorId:approver.id,status:'inactive'},options)
+  await h.get(path,{...options,as:member.cookie,status:404})
+  await h.get(path,{...options,as:approver.cookie,status:401})
   const json=await h.request(path+'&download=json',options);document=await json.json();expected=(await h.get(path,options)).totals
   assert.deepEqual(document.definition.columns,[...definition.columns,'method']);assert.ok(!JSON.stringify(document).includes(d.id),'Portable definitions contain fields, not source records')
   await h.command('custom.define',{key:'area',label:'Gift area',kind:'gift',type:'text',entry:'pick-one',choices:['Reading','Science']},options)
   await h.command('custom.set',{key:'area',recordId:a.id,version:0,value:'Reading'},options)
   const custom=await h.command('report.save',{name:'Reading gifts',definition:{...definition,columns:['id','custom.area','amount_cents'],groupBy:['custom.area'],filters:[{field:'custom.area',operator:'eq',value:'Reading'}]}},options)
   assert.equal((await h.get('/api/coffer/reports/builder?id='+custom.id,options)).totals.amount_cents,12345)
+  await h.command('custom.renameChoice',{key:'area',version:1,from:'Reading',to:'Literacy'},options)
+  const renamed=await h.get('/api/coffer/reports/builder?id='+custom.id,options)
+  assert.equal(renamed.totals.amount_cents,12345);assert.equal(renamed.definition.filters[0].value,'Literacy');assert.equal(renamed.groups[0]['custom.area'],'Literacy')
   const call=await h.command('interaction.record',{donorId:d.id,kind:'call',occurredOn:'2025-01-11',notes:'Thank you'},options)
   await h.command('gift.acknowledge',{giftId:a.id,version:0,acknowledgedOn:'2025-01-11',method:'phone call',interactionId:call.id},options)
   const ack=await h.command('report.save',{name:'Thanked reading gifts',definition:{...definition,acknowledgment:{ackStatus:'acknowledged',ackFrom:'2025-01-11',ackThrough:'2025-01-11',ackMethod:'phone call',ackLink:call.id}}},options)
@@ -78,12 +88,16 @@ export async function reportBuilderJourney(){
   }
   await builderBrowser(h,{id:saved.id,member,headers},process.env.COFFER_REPORT_BUILDER_BROWSER||'.cache/report-builder')
   const audit=await h.get('/api/coffer/audit?action=export.csv');assert.ok(audit.rows.some(r=>r.subject_id===saved.id&&JSON.parse(r.detail).rowCount===4))
-  const backup=await archive(h);assert.ok(backup.some(line=>JSON.stringify(line).includes(saved.id)))
+  const backup=await archive(h);portable=backup;assert.ok(backup.some(line=>JSON.stringify(line).includes(saved.id)))
   await h.command('donor.erase',{donorId:d.id,confirm:'ERASE'})
   assert.equal((await h.get(path,options)).count,0)
+  const replay=await h.command('report.import',{name:'Replayed definition after erasure',document},options)
+  assert.equal((await h.get('/api/coffer/reports/builder?id='+replay.id,options)).count,0)
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true})
  await run(async h=>{
-  await seed(h)
+  await restore(h,portable)
+  const restoredMember=await h.person('synthetic-coffer-5101'+String.fromCharCode(64)+'example.test')
+  assert.equal((await h.get('/api/coffer/reports/builder',{...options,as:restoredMember.cookie})).reports.length,0,'Restoring data cannot restore an old disclosure identity')
   const imported=await h.command('report.import',{name:'Imported fund report',document},options)
   const data=await h.get('/api/coffer/reports/builder?id='+imported.id,options)
   assert.deepEqual(data.totals,expected);assert.equal(data.count,4);assert.ok(data.definition.columns.includes('method'))

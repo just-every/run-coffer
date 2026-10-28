@@ -5,11 +5,12 @@ import {withBrowserWorker} from './browser-worker.mjs'
 export async function builderBrowser(h,{id,member,headers},directory){
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{
-  await context.setExtraHTTPHeaders({cookie:h.owner,...headers})
+  await context.setExtraHTTPHeaders(headers)
   const page=await context.newPage()
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/app/more')
+   await page.screenshot({path:`${directory}/builder-navigation-${width}.png`,fullPage:true})
    await page.getByRole('link',{name:'Report builder',exact:false}).click()
    await page.getByLabel('Report name',{exact:true}).fill('Library giving '+width)
    await page.getByLabel('From',{exact:true}).fill('2025-01-01')
@@ -21,6 +22,8 @@ export async function builderBrowser(h,{id,member,headers},directory){
    await page.getByRole('link',{name:'Download CSV',exact:true}).waitFor()
    let pending=page.waitForEvent('download');await page.getByRole('link',{name:'Download Excel',exact:true}).click()
    assert.equal(await(await pending).failure(),null)
+   await page.getByRole('checkbox',{name:'method',exact:true}).check()
+   await page.getByRole('button',{name:'Save definition',exact:true}).click()
    await page.getByRole('heading',{name:'Report settings',exact:true}).scrollIntoViewIfNeeded()
    await page.getByLabel('Member',{exact:true}).selectOption(member.id)
    await page.getByRole('checkbox',{name:'I approve disclosure',exact:false}).check()
@@ -34,12 +37,17 @@ export async function builderBrowser(h,{id,member,headers},directory){
    await page.getByRole('link',{name:'Schedule this report',exact:true}).click()
    assert.equal(await page.getByLabel('Report URL with filters',{exact:true}).inputValue(),sharedPath)
    await page.screenshot({path:`${directory}/builder-schedule-${width}.png`,fullPage:true})
-   await context.setExtraHTTPHeaders({cookie:member.cookie,...headers})
-   await page.goto(origin+sharedPath)
-   assert.equal(await page.getByRole('link',{name:'Download CSV',exact:true}).count(),0)
-   await page.getByRole('heading',{name:'Library giving '+width,exact:true}).waitFor()
-   await page.screenshot({path:`${directory}/builder-member-${width}.png`,fullPage:true})
-   await context.setExtraHTTPHeaders({cookie:h.owner,...headers})
+   const memberContext=await context.browser().newContext({viewport:{width,height:1000}})
+   try{
+    await memberContext.addCookies(member.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',httpOnly:true,secure:true,sameSite:'Lax'}}))
+    await memberContext.setExtraHTTPHeaders(headers)
+    const memberPage=await memberContext.newPage()
+    await memberPage.goto(origin+sharedPath)
+    await memberPage.getByRole('heading',{name:'Library giving '+width,exact:true}).waitFor()
+    assert.equal(await memberPage.getByRole('link',{name:'Download CSV',exact:true}).count(),0)
+    await memberPage.screenshot({path:`${directory}/builder-member-${width}.png`,fullPage:true})
+   }finally{await memberContext.close()}
+
   }
   await page.close()
  })

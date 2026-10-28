@@ -32,6 +32,8 @@ async function download(h,type,query,options={}){
 
 export async function exportsJourney(){
  let intent='';const sent=[],keys=generateKeyPairSync('ec',{namedCurve:'prime256v1'})
+ const plan={id:'synthetic-coffer-97',customer:'synthetic-coffer-95',created:Date.parse('2026-08-01T12:00:00Z')/1000,status:'active',cancel_at_period_end:false,items:{data:[{quantity:1,price:{unit_amount:2501}}]}}
+ const invoice={id:'synthetic-coffer-1101',customer:plan.customer,currency:'usd',parent:{subscription_details:{subscription:plan.id}},status:'open',amount_paid:0,attempt_count:1,next_payment_attempt:null,status_transitions:{paid_at:null}}
  const publicKey=keys.publicKey.export({type:'spki',format:'der'}).toString('base64')
  const outbound=async request=>{
   const url=new URL(request.url)
@@ -47,7 +49,8 @@ export async function exportsJourney(){
    const params=new URLSearchParams(await request.text());intent=params.get('subscription_data[metadata][coffer_intent]')
    return Response.json({id:'synthetic-coffer-96',url:'https://checkout.stripe.com/c/pay/synthetic-coffer-96'})
   }
-  if(url.pathname==='/v1/subscriptions/synthetic-coffer-97')return Response.json({id:'synthetic-coffer-97',customer:'synthetic-coffer-95',metadata:{coffer_intent:intent},status:'active',cancel_at_period_end:false,items:{data:[{quantity:1,price:{unit_amount:2501}}]}})
+  if(url.pathname==='/v1/subscriptions/synthetic-coffer-97')return Response.json({...plan,metadata:{coffer_intent:intent}})
+  if(url.pathname==='/v1/invoices/'+invoice.id)return Response.json(invoice)
   const charge=url.pathname.match(/^\/v1\/charges\/synthetic-coffer-(204|205)$/)
   if(charge)return Response.json({id:`synthetic-coffer-${charge[1]}`,paid:true,status:'succeeded',amount:100,currency:'usd',created:1735732800,
    billing_details:{name:`${charge[1]==='204'?'\t':'\r'}synthetic-coffer-${charge[1]}`,email:`synthetic-coffer-${charge[1]}@example.test`}})
@@ -65,10 +68,10 @@ export async function exportsJourney(){
    assert.equal(confirmed.status,303);const cookie=confirmed.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ')
    return {cookie,id:(await get('/auth/session',{as:cookie})).operator.id}
   }
-  const provider=async(id,type,objectId)=>{
-   const raw=JSON.stringify({id,type,data:{object:{id:objectId}}}),timestamp=Math.floor(Date.parse(headers['x-test-now'])/1000)
+  const provider=async(id,type,objectId,at=headers['x-test-now'])=>{
+   const raw=JSON.stringify({id,type,data:{object:{id:objectId}}}),timestamp=Math.floor(Date.parse(at)/1000)
    const signature=createHmac('sha256',secret).update(`${timestamp}.${raw}`).digest('hex')
-   const response=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw,headers:{...headers,'stripe-signature':`t=${timestamp},v1=${signature}`}})
+   const response=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw,headers:{...headers,'x-test-now':at,'stripe-signature':`t=${timestamp},v1=${signature}`}})
    assert.equal(response.status,200,await response.text())
   }
   const owner=(await get('/auth/session')).operator
@@ -103,9 +106,9 @@ export async function exportsJourney(){
   const template=await command('cultivation.template',{name:'synthetic-coffer-24',steps:[{offsetDays:1,title:'synthetic-coffer-25'}]})
   await command('cultivation.apply',{prospectId:opportunity.id,templateId:template.id,templateVersion:template.version,startOn:'2026-10-18',ownerId:owner.id})
   const campaign=await h.api('/api/coffer/giving/campaigns',{name:'synthetic-coffer-26',slug:'synthetic-coffer-26',description:'synthetic-coffer-26',fund:'Unrestricted',goal:'1000'})
-  const checkout=await h.request('/give/synthetic-coffer-26/checkout',{method:'POST',headers:{...headers,'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({name:'synthetic-coffer-1 target',email:'synthetic-coffer-1@example.test',amount:'25.01',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}).toString()})
+  const checkout=await h.request('/give/synthetic-coffer-26/checkout',{method:'POST',headers:{...headers,'x-test-now':'2026-08-01T12:00:00Z','content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({name:'synthetic-coffer-1 target',email:'synthetic-coffer-1'+String.fromCharCode(64)+'example.test',amount:'25.01',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token',requestId:randomUUID()}).toString()})
   assert.equal(checkout.status,303,await checkout.text());assert.ok(intent)
-  await provider('synthetic-coffer-27','customer.subscription.created','synthetic-coffer-97')
+  await provider('synthetic-coffer-27','customer.subscription.created','synthetic-coffer-97','2026-08-01T12:00:00Z')
   // Saved Stripe history uses the provider's required source-ID grammar.
   const input={customers:[{object:'list',data:[{id:'cus_syntheticcoffer101',name:'synthetic-coffer-101 target',email:'synthetic-coffer-101@example.test',created:1735732800}]}],charges:[{object:'list',data:[{id:'ch_syntheticcoffer101',customer:'cus_syntheticcoffer101',paid:true,status:'succeeded',amount:10003,amount_refunded:2345,currency:'usd',created:1735732800}]}],noGoodsOrServices:true}
   const preview=await h.api('/api/coffer/imports/preview',input,{headers})
@@ -176,7 +179,22 @@ export async function exportsJourney(){
   for(const kind of ['lybunt','sybunt']){const annual=await get('/api/coffer/reports/annual-lapses?year=2026'),file=await download(h,'constituents',`list=${kind}&year=2026`);assert.deepEqual(file.rows.map(r=>r.id).sort(),annual.groups.find(g=>g.kind===kind).rows.map(r=>r.donorId).sort())}
   await get('/api/coffer/exports/gifts.csv?list=saved:missing',{status:404});await get('/api/coffer/exports/unknown.csv',{status:400})
   await get('/api/coffer/exports/gifts.csv?list=unknown',{status:400})
-  await reportExports(h,{main,split,reversed,property,result,member,asAgent,headers})
+  const advancePlans=async()=>{
+   plan.latest_invoice=invoice.id;plan.status='past_due'
+   await provider('synthetic-coffer-1102','invoice.payment_failed',invoice.id,'2026-08-15T12:00:00Z')
+   invoice.attempt_count=2
+   await provider('synthetic-coffer-1103','invoice.payment_failed',invoice.id,'2026-08-16T12:00:00Z')
+   plan.status='active';plan.items.data[0].price.unit_amount=3501
+   invoice.status='paid';invoice.amount_paid=2501;invoice.status_transitions.paid_at=Date.parse('2026-09-15T12:00:00Z')/1000
+   await provider('synthetic-coffer-1104','invoice.paid',invoice.id,'2026-09-15T12:00:00Z')
+   invoice.id='synthetic-coffer-1106';invoice.status='open';invoice.amount_paid=0;invoice.attempt_count=1;invoice.status_transitions.paid_at=null;plan.latest_invoice=invoice.id;plan.status='past_due'
+   await provider('synthetic-coffer-1107','invoice.payment_failed',invoice.id,'2026-09-16T12:00:00Z')
+   invoice.status='paid';invoice.amount_paid=3501;invoice.status_transitions.paid_at=Date.parse('2026-09-17T12:00:00Z')/1000;plan.status='active'
+   await provider('synthetic-coffer-1108','invoice.paid',invoice.id,'2026-09-17T12:00:00Z')
+   plan.status='canceled'
+   await provider('synthetic-coffer-1105','customer.subscription.deleted',plan.id,'2026-10-01T12:00:00Z')
+  }
+  await reportExports(h,{main,split,reversed,property,result,member,admin,asAgent,headers,advancePlans,privateValues:[key,secret,researchKey,agent.token,agentHash,'token_hash','customer_id','payment_method','synthetic-coffer-private-research','synthetic-coffer-private-capacity','synthetic-coffer-19 confidential','synthetic-coffer-20 confidential',merged.id,erased.id]})
   const beforeBackup=await download(h,'gifts',query)
   const backup=await archive(h),fresh=await installation({entry:'tests/advancing-clock-worker.ts'})
   try{await restore(fresh,backup);assert.ok((await fresh.get('/api/coffer/lists')).lists.some(l=>l.id===list.id));const restored=await download(fresh,'gifts',query);assert.deepEqual(restored.rows,beforeBackup.rows)}finally{await fresh.close()}
@@ -190,7 +208,7 @@ export async function exportsJourney(){
 }
 
 // Exercise report selection through the same HTTP doors as private list exports.
-async function reportExports(h,{main,split,reversed,property,result,member,asAgent,headers}){
+async function reportExports(h,{main,split,reversed,property,result,member,admin,asAgent,headers,advancePlans,privateValues}){
  const get=(path,options={})=>h.get(path,{...options,headers:{...headers,...options.headers}})
  const query=new URLSearchParams({report:'funds',from:'2024-01-01',through:'2025-12-31',donorId:main.id})
  const report=await get('/api/coffer/reports/funds?'+query)
@@ -277,8 +295,8 @@ async function reportExports(h,{main,split,reversed,property,result,member,asAge
  assert.equal(Number(fundFile.rows[0].amount_cents),10001)
  await get('/api/coffer/exports/gifts.csv?report=dashboard-money&cohort=new',{status:400})
  const retained=await get('/api/coffer/retention?year=2025')
- for(const cohort of ['all','retained','new','lapsed','recaptured','adjustments']){
-  const group=cohort==='all'?retained.totals:cohort==='adjustments'?retained.adjustments:retained.groups[cohort]
+ for(const cohort of ['all','retained','new','lapsed','recaptured','adjustments','upgraded','downgraded','unchanged']){
+  const group=cohort==='all'?retained.totals:cohort==='adjustments'?retained.adjustments:retained.groups[cohort]??retained.movements[cohort]
   const ids=cohort==='all'?[...Object.values(retained.groups).flatMap(g=>g.rows),...retained.adjustments.rows].map(r=>r.donorId):group.rows.map(r=>r.donorId)
   for(const type of types){
    const query='report=retention&year=2025&cohort='+cohort,file=await download(h,type,query),meta=await get('/api/coffer/exports/preview?type='+type+'&'+query)
@@ -303,6 +321,97 @@ async function reportExports(h,{main,split,reversed,property,result,member,asAge
    }
   }
  }
+ const verify=async(query,{own,totals,cents,ids,check}={})=>{
+  const members=await download(h,'constituents',query),memberIds=members.rows.map(r=>r.id)
+  if(ids)assert.deepEqual(memberIds.sort(),[...new Set(ids)].sort())
+  for(const type of types){
+   const file=await download(h,type,query,{as:admin.cookie}),meta=await get('/api/coffer/exports/preview?type='+type+'&'+query)
+   assert.equal(meta.rowCount,file.rows.length);assert.equal(meta.memberCount,memberIds.length)
+   assert.equal(meta.selection.scope,type===own?'report-records':type==='constituents'?'report-constituents':'donor-lifetime')
+   assert.equal(file.response.headers.get('content-disposition').includes('lifetime'),type!==own&&type!=='constituents')
+   if(type!=='constituents')assert.ok(file.rows.every(r=>memberIds.includes(r.donor_id)))
+   for(const value of privateValues)assert.ok(!file.body.includes(value),'Report export withholds private material')
+   if(totals)for(const [key,value]of Object.entries(totals))assert.deepEqual(meta.reportTotals[key],value,`${query}: ${key}`)
+   if(cents!==undefined){assert.equal(meta.reportCents,cents);if(type==='gifts')assert.equal(file.rows.reduce((n,r)=>n+Number(r.amount_cents),0)+meta.reportExcludedCents,cents)}
+   if(check)await check(type,file,meta)
+   for(const options of [{as:member.cookie,status:403},{...asAgent,status:403},{as:'',status:401}])await get('/api/coffer/exports/'+type+'.csv?'+query,options)
+  }
+ }
+ for(const basis of ['calendar','fiscal']){
+  const report=await get('/api/coffer/retention?year=2025&basis='+basis)
+  await verify('report=retention&year=2025&basis='+basis+'&metric=recognition',{own:'constituents',ids:report.softCredits.rows.map(r=>r.donorId),totals:{count:report.softCredits.count,priorCents:report.softCredits.priorCents,currentCents:report.softCredits.currentCents,creditCount:report.softCredits.rows.reduce((n,r)=>n+r.creditCount,0)}})
+  for(const metric of ['excluded','ledger']){
+   const totals=metric==='excluded'?report.excluded:report.ledgerTotals
+   await verify('report=retention&year=2025&basis='+basis+'&metric='+metric,{own:'gifts',totals,cents:totals.priorCents+totals.currentCents})
+  }
+ }
+ for(const cohort of ['all','retained','new','lapsed','recaptured','adjustments','upgraded','downgraded','unchanged']){
+  const g=cohort==='all'?dashboard.cohorts.totals:cohort==='adjustments'?dashboard.cohorts.adjustments:dashboard.cohorts.groups[cohort]??dashboard.cohorts.movements[cohort]
+  await verify('report=dashboard&year=2025&metric=cohorts&cohort='+cohort,{own:'constituents',totals:{count:g.count,priorCents:g.priorCents,currentCents:g.currentCents}})
+ }
+ await verify('report=dashboard&year=2025&metric=new-donor-money',{own:'gifts',cents:dashboard.newDonorCents})
+ await verify('report=dashboard&year=2025&metric=pipeline',{own:'opportunities',totals:dashboard.pipeline.totals,ids:dashboard.pipeline.opportunities.map(r=>r.donor_id),check(type,file){if(type==='opportunities'){assert.deepEqual(file.rows.map(r=>r.id).sort(),dashboard.pipeline.opportunities.map(r=>r.id).sort());assert.equal(file.rows.filter(r=>!r.closed_on).reduce((n,r)=>n+Number(r.weighted_cents),0),dashboard.pipeline.totals.forecastCents)}}})
+ for(const [dimension,rows]of Object.entries(dashboard.dimensions))for(const row of rows.filter(r=>r.currentCents||r.priorCents))for(const period of ['current','prior']){
+  await verify('report=dashboard&year=2025&metric=money&dimension='+dimension+'&key='+encodeURIComponent(row.key)+'&period='+period,{own:'gifts',cents:row[period+'Cents']})
+ }
+ await h.command('gift.record',{donorId:main.id,amount:'5000.01',receivedOn:'2025-06-01',method:'check',goods:'none',fund:'synthetic-coffer-30'},{headers})
+ await h.command('fund.spend',{fund:'synthetic-coffer-30',amount:'100.01',spentOn:'2025-06-02',reference:'synthetic-coffer-1110',note:'synthetic-coffer-1111'},{headers})
+ await h.command('fund.define',{name:'synthetic-coffer-1112',restriction:'time',detail:'synthetic-coffer-1113',releaseOn:'2025-07-01'},{headers})
+ await h.command('gift.record',{donorId:main.id,amount:'5.01',receivedOn:'2025-06-01',method:'check',goods:'none',fund:'synthetic-coffer-1112'},{headers})
+ for(const through of ['2025-06-30','2025-07-01'])for(const fund of ['','synthetic-coffer-30','synthetic-coffer-1112']){
+  const filters='through='+through+'&fund='+fund,report=await get('/api/coffer/reports/restrictions?'+filters)
+  const sum=key=>report.funds.reduce((n,r)=>n+r[key],0)
+  await verify('report=restrictions&'+filters,{own:'gifts',cents:sum('given_cents'),totals:{givenCents:sum('given_cents'),spentCents:sum('spent_cents'),heldCents:sum('held_cents'),releasedCents:sum('released_cents')}})
+ }
+ const qcd=await h.command('contribution.record',{donorId:main.id,kind:'qcd',custodian:'synthetic-coffer-1120',amount:'11.11',receivedOn:'2025-06-03',method:'check',goods:'none'},{headers})
+ await h.command('gift.reverse',{giftId:qcd.id,reversedOn:'2025-06-04',reason:'synthetic-coffer-1121'},{headers})
+ const sponsor=await donor(h,'synthetic-coffer-1122',{email:'synthetic-coffer-1122'+String.fromCharCode(64)+'example.test',constituentKind:'organization',organizationType:'donor-advised fund sponsor'})
+ await h.command('contribution.record',{donorId:sponsor.id,kind:'daf',advisorDonorId:main.id,amount:'22.22',receivedOn:'2025-06-03',method:'check',goods:'none'},{headers})
+ for(const basis of ['calendar','fiscal'])for(const year of [2023,2025]){
+  const report=await get('/api/coffer/reports/tax?year='+year+'&basis='+basis)
+  for(const contributionType of ['all','daf','qcd']){
+   const rows=report.classifications.filter(r=>contributionType==='all'||r.kind===contributionType),monetaryCents=rows.reduce((n,r)=>n+r.monetaryCents,0)
+   await verify('report=tax&year='+year+'&basis='+basis+'&paper=classifications&contributionType='+contributionType,{own:'gifts',cents:monetaryCents,totals:{ledgerEntries:rows.reduce((n,r)=>n+r.giftCount,0)}})
+  }
+  for(const paper of ['schedule-a','schedule-b','schedule-m']){
+   const r=paper==='schedule-a'?report.scheduleA:paper==='schedule-b'?report.scheduleB:report.scheduleM
+   const monetaryCents=paper==='schedule-a'?r.monetaryCents:paper==='schedule-b'?r.rows.reduce((n,r)=>n+r.monetaryCents,0):0
+   const noncashStatedCents=paper==='schedule-m'?r.statedValueCents:paper==='schedule-b'?r.rows.reduce((n,r)=>n+r.noncashStatedCents,0):r.noncashStatedCents
+   await verify('report=tax&year='+year+'&basis='+basis+'&paper='+paper,{own:'gifts',cents:monetaryCents,totals:{monetaryCents,noncashStatedCents},check(type,file,meta){if(type==='gifts'){assert.equal(file.rows.reduce((n,r)=>n+Number(r.stated_value_cents),0)+meta.reportTotals.excludedNoncashStatedCents,noncashStatedCents);if(paper==='schedule-m')assert.ok(file.rows.every(r=>r.kind==='in_kind'));if(paper==='schedule-a'&&year===2025){assert.equal(file.rows.filter(r=>r.id===split.id).length,1);assert.equal(file.rows.find(r=>r.id===reversed.id).amount_cents,'0');assert.ok(file.rows.some(r=>r.refunded_cents==='2345'));assert.ok(file.rows.some(r=>r.id===property.id))}}}})
+  }
+  for(const cohort of ['all','below','unidentified']){
+   const r=report.scheduleB,monetaryCents=cohort==='all'?r.contributionTotalCents:cohort==='below'?r.belowThresholdMonetaryCents:r.unidentified?.monetaryCents??0
+   await verify('report=tax&year='+year+'&basis='+basis+'&paper=schedule-b&cohort='+cohort,{own:'gifts',cents:monetaryCents})
+  }
+  await verify('report=tax&year='+year+'&basis='+basis+'&paper=schedule-a',{own:'gifts',check(type,file,meta){if(type==='gifts')for(const period of report.scheduleA.totals){
+   const rows=file.rows.filter(r=>r.received_on>=period.start&&r.received_on<=period.through),totals=meta.reportTotals.periods.find(r=>r.year===period.year)
+   assert.equal(rows.reduce((n,r)=>n+Number(r.amount_cents),0)+totals.excludedMonetaryCents,period.monetaryCents)
+   assert.equal(rows.reduce((n,r)=>n+Number(r.stated_value_cents),0)+totals.excludedNoncashStatedCents,period.noncashStatedCents)
+  }}})
+ }
+ const before=(await get('/api/coffer/reports/recurring?from=2026-08&through=2026-08')).rows[0]
+ await advancePlans()
+ const health=await get('/api/coffer/reports/recurring?from=2026-08&through=2026-10')
+ assert.deepEqual(health.rows[0],{...before,failedPayments:1},'Later recovery and cancellation preserve earlier state and invoice deduplication')
+ assert.deepEqual(health.rows.map(r=>r.mrrCents),[2501,3501,0])
+ for(const row of health.rows)for(const metric of ['all','active','new','canceled','length','unknown-start','unknown-state','failed','recovered']){
+  await verify('report=recurring&from=2026-08&through=2026-10&month='+row.month+'&metric='+metric,{own:'plans',totals:row,check(type,file){if(type==='plans'){
+   if(metric==='active')assert.equal(file.rows.reduce((n,r)=>n+Math.round(Number(r.amount_cents)*(r.billing_interval==='week'?52/12:r.billing_interval==='day'?365/12:1)/(r.billing_interval==='year'?12*Number(r.interval_count):Number(r.interval_count))),0),row.mrrCents)
+   const count={new:'newPlans',canceled:'canceledPlans',length:'lengthPlans','unknown-start':'unknownStartPlans','unknown-state':'unknownStatePlans'}[metric]
+   if(count)assert.equal(file.rows.length,row[count])
+   if(metric==='failed')assert.equal(file.rows.reduce((n,r)=>n+Number(r.failed_invoice_count),0),row.failedPayments)
+   if(metric==='recovered')assert.equal(file.rows.reduce((n,r)=>n+Number(r.recovered_invoice_count),0),row.recoveredPayments)
+   if(file.rows.length&&row.month==='2026-08')assert.equal(file.rows[0].amount_cents,'2501')
+   if(metric==='length'){
+    const local=at=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:health.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(at)).map(p=>[p.type,p.value]));return `${p.year}-${p.month}-${p.day}`}
+    const days=file.rows.reduce((n,r)=>n+Math.max(0,(Date.parse(r.ended_at?local(r.ended_at):row.through)-Date.parse(local(r.started_at)))/86400000),0)
+    assert.equal(file.rows.length?Math.round(days/file.rows.length*100)/100:null,row.averagePlanDays)
+   }
+  }}})
+ }
+ const recurringDashboard=await get('/api/coffer/reports/dashboard?year=2026')
+ for(const month of ['2026-08','2026-09','2026-10'])await verify('report=dashboard&year=2026&metric=recurring&month='+month,{own:'plans',totals:recurringDashboard.recurring.rows.find(r=>r.month===month)})
+ for(const query of ['report=tax&paper=missing','report=tax&paper=schedule-b&cohort=missing','report=recurring&month=1900-01','report=recurring&metric=missing','report=dashboard&metric=missing','report=retention&metric=missing'])await get('/api/coffer/exports/gifts.csv?'+query,{status:400})
  await get('/api/coffer/exports/gifts.csv?report=unknown',{status:400})
  await get('/api/coffer/exports/gifts.csv?report=annual-lapses',{status:400})
  const missing=await download(h,'gifts','report=funds&fund=synthetic-coffer-no-such-fund')
@@ -315,7 +424,12 @@ async function reportExports(h,{main,split,reversed,property,result,member,asAge
  assert.equal(paged.entries.length,50);assert.equal(paged.more,true)
  assert.equal(paged.funds[0].amount_cents,55*101)
  assert.equal(unpaged.rows.reduce((n,r)=>n+Number(r.amount_cents),0),paged.funds[0].amount_cents)
- const audit=(await get('/api/coffer/audit?action=export.csv')).rows.find(r=>JSON.parse(r.detail).selection.parameters?.fund==='synthetic-coffer-1000')
+ let audit
+ for(let page=0;!audit;page++){
+  const events=await get('/api/coffer/audit?action=export.csv&page='+page)
+  audit=events.rows.find(r=>JSON.parse(r.detail).selection.parameters?.fund==='synthetic-coffer-1000')
+  if(!events.more)break
+ }
  assert.ok(audit);assert.equal(JSON.parse(audit.detail).rowCount,55);assert.equal(JSON.parse(audit.detail).reportCents,5555)
  if(process.env.COFFER_EXPORTS_BROWSER){
   const {reportExportsBrowser}=await import('./exports-browser.mjs')

@@ -13,7 +13,7 @@ const nextMonth = (value: string) => new Date(Date.UTC(Number(value.slice(0,4)),
 
 /** Month-end snapshots use the organization's calendar. A plan remains active
  * through scheduled cancellation; failed payments count invoices, not retries. */
-export async function recurringHealthSelection(c: Context, url: URL) {
+export async function recurringHealthSelection(c: Context, url: URL, includeRecords=false) {
  const timezone = (await settings(c)).timezone, now = today(timezone,new Date(c.now))
  const through = month(url.searchParams.get('through'),'Through',now.slice(0,7))
  const from = month(url.searchParams.get('from'),'From',through.slice(0,4)+'-01')
@@ -33,6 +33,13 @@ export async function recurringHealthSelection(c: Context, url: URL) {
  const day = (at: string) => today(timezone,new Date(at))
  const histories = new Map<string,Row[]>()
  for(const h of history){h.day=day(h.observed_at);const list=histories.get(h.subscription_id)??[];list.push(h);histories.set(h.subscription_id,list)}
+ const paymentMonths=new Map<string,{failed:number;recovered:number}>()
+ const paymentCount=(key:string)=>{let value=paymentMonths.get(key);if(!value){value={failed:0,recovered:0};paymentMonths.set(key,value)}return value}
+ for(const p of payments){
+  const failed=day(p.failed_at).slice(0,7)
+  paymentCount(p.subscription_id+':'+failed).failed++;paymentCount(failed).failed++
+  if(p.recovered_at){const recovered=day(p.recovered_at).slice(0,7);paymentCount(p.subscription_id+':'+recovered).recovered++;paymentCount(recovered).recovered++}
+ }
  const snapshots:Array<{month:string;records:Row[];totals:Row}>=[]
  const rows=months.map(m=>{
   const end = m===now.slice(0,7) ? now : new Date(Date.parse(nextMonth(m)+'-01T00:00:00Z')-86400000).toISOString().slice(0,10)
@@ -45,14 +52,14 @@ export async function recurringHealthSelection(c: Context, url: URL) {
    if(start>end)continue
    const active=Boolean(state&&ACTIVE.has(state.status)&&!state.collection_paused)
    const monthlyCents=active&&state?Math.round(state.amount_cents*(state.billing_interval==='week'?52/12:state.billing_interval==='day'?365/12:1)/(state.billing_interval==='year'?12*state.interval_count:state.interval_count)):0
-   records.push({id:plan.subscription_id,donor_id:plan.donor_id,campaign_id:plan.campaign_id,amount_cents:state?.amount_cents??null,
+   if(includeRecords&&m===(url.searchParams.get('month')||through))records.push({id:plan.subscription_id,donor_id:plan.donor_id,campaign_id:plan.campaign_id,amount_cents:state?.amount_cents??null,
     status:state?.status??'unknown',billing_interval:state?.billing_interval??null,interval_count:state?.interval_count??null,collection_paused:state?.collection_paused??null,
-    cancel_at_period_end:state?.cancel_at_period_end??null,updated_at:state?.observed_at??null,
-    failed_attempts:null,recovered:null,mrr_cents:monthlyCents,active,new_plan:Boolean(plan.start_known&&start.slice(0,7)===m),
+    cancel_at_period_end:state?.cancel_at_period_end??null,started_at:plan.started_at,start_known:plan.start_known,ended_at:ended?.observed_at??null,updated_at:state?.observed_at??null,
+    failed_attempts:null,recovered:null,failed_invoice_count:paymentMonths.get(plan.subscription_id+':'+m)?.failed??0,recovered_invoice_count:paymentMonths.get(plan.subscription_id+':'+m)?.recovered??0,mrr_cents:monthlyCents,active,new_plan:Boolean(plan.start_known&&start.slice(0,7)===m),
     canceled:endDay?.slice(0,7)===m,length_plan:Boolean(state&&plan.start_known&&(!endDay||endDay>=m+'-01')),
     unknown_start:Boolean(state&&!plan.start_known&&(!endDay||endDay>=m+'-01')),unknown_state:!state,
-    failed:payments.filter(p=>p.subscription_id===plan.subscription_id&&day(p.failed_at).slice(0,7)===m).length,
-    recovered_payments:payments.filter(p=>p.subscription_id===plan.subscription_id&&p.recovered_at&&day(p.recovered_at).slice(0,7)===m).length})
+    failed:paymentMonths.get(plan.subscription_id+':'+m)?.failed??0,
+    recovered_payments:paymentMonths.get(plan.subscription_id+':'+m)?.recovered??0})
    if(plan.start_known && start.slice(0,7)===m)newPlans++
    if(endDay?.slice(0,7)===m)canceledPlans++
    if(!state){unknownStatePlans++;continue}
@@ -63,8 +70,8 @@ export async function recurringHealthSelection(c: Context, url: URL) {
    }
   }
   const totals={month:m,through:end,activeDonors:donors.size,mrrCents,newPlans,canceledPlans,
-   failedPayments:payments.filter(p=>day(p.failed_at).slice(0,7)===m).length,
-   recoveredPayments:payments.filter(p=>p.recovered_at&&day(p.recovered_at).slice(0,7)===m).length,
+   failedPayments:paymentMonths.get(m)?.failed??0,
+   recoveredPayments:paymentMonths.get(m)?.recovered??0,
    averagePlanDays:lengthPlans ? Math.round(duration/lengthPlans*100)/100 : null,lengthPlans,unknownStartPlans,unknownStatePlans}
   snapshots.push({month:m,records,totals})
   return totals
