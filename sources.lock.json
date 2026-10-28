@@ -6895,7 +6895,7 @@
       "executable": false
     },
     "tests/report-builder-browser.mjs": {
-      "sha256": "740eb107b4a548f6ed849617b1ad6031460c4d9c7a817f818722e838eff4afd3",
+      "sha256": "46a743376d20d0d5f0e146c400a674389b86a4bd05c5878894846a13b7544803",
       "executable": false
     },
     "tests/report-builder-journey.mjs": {
