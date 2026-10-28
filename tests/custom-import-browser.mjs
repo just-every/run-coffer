@@ -75,7 +75,9 @@ export async function sourceCaptureBrowser(h,id,directory,apiKey='synthetic-coff
    await fits(page,width)
    await page.screenshot({path:directory+'/MOVE-010-source-read-'+width+'.png',fullPage:true})
   }
+  const responsePending=page.waitForResponse(r=>new URL(r.url()).pathname==='/app/move-in/crm/custom-capture'&&r.request().method()==='POST')
   await page.getByRole('button',{name:'Read source custom fields',exact:true}).click()
+  const response=await responsePending;assert.equal(response.status(),303,await response.text())
   await page.waitForURL('**/app/move-in/crm/custom-review?id=*')
   await page.getByRole('heading',{name:'Source custom field review',exact:true}).waitFor()
   await page.close()

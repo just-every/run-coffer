@@ -382,15 +382,18 @@ test('DONOR-001 / DONOR-006: asynchronous incumbent imports keep distinct shared
  })
 })
 
-test('MOVE-010: source definitions enrich imported records with explicit waiting review and guarded custody',async()=>{
- const {sourceCustomJourney}=await import('./custom-source-journey.mjs')
- await sourceCustomJourney()
- const {lglCustomJourney}=await import('./custom-source-lgl.mjs')
- await lglCustomJourney()
- const {nxtCustomJourney}=await import('./custom-source-nxt.mjs')
- await nxtCustomJourney()
- const {neonCustomJourney}=await import('./custom-source-neon.mjs')
- await neonCustomJourney()
- const {spreadsheetCustomJourney}=await import('./custom-source-spreadsheet.mjs')
- await spreadsheetCustomJourney()
+test('MOVE-010: Bloomerang source definitions, remediation and custody',async()=>{
+ const {sourceCustomJourney}=await import('./custom-source-journey.mjs');await sourceCustomJourney()
+})
+test('MOVE-010: Little Green Light categories and attributes',async()=>{
+ const {lglCustomJourney}=await import('./custom-source-lgl.mjs');await lglCustomJourney()
+})
+test('MOVE-010: NXT code tables and explicit action provenance',async()=>{
+ const {nxtCustomJourney}=await import('./custom-source-nxt.mjs');await nxtCustomJourney()
+})
+test('MOVE-010: Neon account, donation and activity definitions',async()=>{
+ const {neonCustomJourney}=await import('./custom-source-neon.mjs');await neonCustomJourney()
+})
+test('MOVE-010: Spreadsheet declarations retain typed values and waiting rows',async()=>{
+ const {spreadsheetCustomJourney}=await import('./custom-source-spreadsheet.mjs');await spreadsheetCustomJourney()
 })
