@@ -37,8 +37,15 @@ export function spreadsheetPreferences(r:SourceRow,out:ParsedImport) {
   if(!status){r.error('CHANNEL_PREFERENCE','Choose yes, no or unknown for the source channel preference.',field);continue}
   const sourceOn=r.peek('preferenceDate')?r.date('preferenceDate'):''
   const row:ParsedWithdrawal={location:r.location,externalId:`preference:${channel}:${donorExternalId}`,donorExternalId,channel,sourceOn,codes:[raw||'unknown'],status}
-  const prior=(out.channelWithdrawals??=[]).find(p=>p.externalId===row.externalId)
+  const prior=(out.channelWithdrawals??=[]).find(p=>p.donorExternalId===donorExternalId&&p.channel===channel)
+  if(prior&&prior.externalId!==row.externalId){if(status!=='withdrawn')r.error('CHANNEL_PREFERENCE','A source withdrawal conflicts with this channel preference.',field);continue}
   if(prior&&(prior.status!==status||prior.sourceOn!==sourceOn))r.error('CHANNEL_PREFERENCE','Source rows disagree on a constituent’s channel preference.',field)
   else if(!prior)out.channelWithdrawals.push(row)
  }
+}
+
+export function translationLines(value:string) {
+ const entries=value.split(/\r?\n/).filter(v=>v.trim()).map(line=>{const at=line.indexOf('=');if(at<1||!line.slice(at+1).trim())throw Error('Write each translation as source = target.');return [line.slice(0,at).trim(),line.slice(at+1).trim()]})
+ if(new Set(entries.map(e=>e[0])).size!==entries.length)throw Error('Translate each source value once.')
+ return Object.fromEntries(entries)
 }

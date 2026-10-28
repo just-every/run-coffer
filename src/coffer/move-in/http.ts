@@ -2,8 +2,9 @@ import { Buffer } from 'node:buffer'
 import { customFields } from '../custom-fields'
 import { manager } from '../auth'
 import { all, fail, today, type Context } from '../db'
-import { spreadsheetStart, spreadsheetColumns, translationLines } from '../ui/spreadsheet-move-in'
-import { parseExports } from './parse'
+import { spreadsheetStart, spreadsheetColumns } from '../ui/spreadsheet-move-in'
+import { translationLines } from './spreadsheet-mapping'
+import { emptyTotals } from './source-totals'
 import { readExports } from './parse-input'
 import { settings } from '../settings'
 import { page } from '../ui/common'
@@ -61,7 +62,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
   }
   if(get('spreadsheetFiles')){try{files=JSON.parse(String(get('spreadsheetFiles')))}catch{fail('SPREADSHEET_MAPPING','Choose your spreadsheet again.',400)}}
   if(action==='spreadsheet/columns') {
-   const parsed=await parseExports({source:'spreadsheet',files}),tables=await readExports(files,{...parsed,files:[],diagnostics:[]})
+   const parsed={files:[],diagnostics:[] as import('./types').Diagnostic[],sourceTotals:emptyTotals()},tables=await readExports(files,parsed)
    const fileError=parsed.diagnostics.find(d=>['FILE_READ','FILES'].includes(d.code))
    if(fileError)fail('SPREADSHEET_FILE',fileError.message,400)
    const saved=(await service.spreadsheetMappings(c)).find(m=>m.id===get('savedMapping'))

@@ -64,7 +64,7 @@ function checkWorkbookZip(bytes: Uint8Array) {
  if (cursor !== offset + size || !names.has('xl/workbook.xml')) throw new Error('File is not an XLSX workbook.')
 }
 
-export async function readExports(files: ExportFile[], result: ParsedImport): Promise<Table[]> {
+export async function readExports(files: ExportFile[], result: Pick<ParsedImport,'diagnostics'|'files'|'sourceTotals'>): Promise<Table[]> {
  const tables: Table[] = []; let bytesTotal = 0, rowTotal = 0
  if (!Array.isArray(files) || !files.length || files.length > 20) {
   result.diagnostics.push({ severity: 'error', code: 'FILES', message: 'Supply 1–20 CSV or XLSX exports.' }); return tables

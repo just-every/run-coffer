@@ -15,18 +15,19 @@ const customChoices=(m:Row)=> (m.choices??[]).map((v:string)=>{
  const n=BigInt(v),negative=n<0n,raw=String(negative?-n:n).padStart(3,'0')
  return (negative?'-':'')+raw.slice(0,-2)+'.'+raw.slice(-2)
 }).join('\n')
-export function customMapping(source:string,report:Row={}) {
+export function customMapping(source:string,report:Row={},compact=false) {
  const columns=report.sourceColumns??[{column:'',sheet:'',kind:'constituent'}], mappings=report.customFields??[], definitions=report.customDefinitions??[]
  return `<details><summary>Map custom report columns</summary><p>Choose the exact exported column and its record kind, then select an existing field or define a new one. Leave the field key empty to leave a column out. USD amounts need at most two decimal places; pick-many cells use a list such as ["Board", "Volunteer"]. Blank cells leave values unset. Preview again to review every mapping before moving in.</p>${columns.map((column:Row)=>{
   const m=mappings.find((v:Row)=>v.column===column.column&&(!v.sheet||v.sheet===column.sheet)&&v.kind===column.kind)??{}, existing=m.version?m.key:''
   const eligible=definitions.filter((f:Row)=>f.kind===column.kind)
-  return `<fieldset><legend>${e(column.column||'Source custom column')}${column.sheet?` · ${e(column.sheet)}`:''}</legend>${hidden('customSource',source)}${column.column?hidden('customColumn',column.column):field('Exported column','customColumn','text')}${hidden('customSheet',m.column?m.sheet??'':column.sheet)}
+  const form=`<fieldset><legend>${e(column.column||'Source custom column')}${column.sheet?` · ${e(column.sheet)}`:''}</legend>${hidden('customSource',source)}${column.column?hidden('customColumn',column.column):field('Exported column','customColumn','text')}${hidden('customSheet',m.column?m.sheet??'':column.sheet)}
   ${select('Existing field','customExisting',[['','Define a new field or leave out'],...eligible.map((f:Row)=>[JSON.stringify({...f,choices:JSON.parse(f.choices)}),f.label+' · '+f.key] as [string,string])],existing?JSON.stringify({...definitions.find((f:Row)=>f.key===existing),choices:m.choices}):'')}
   ${field('New field key','customKey','text',existing?'':m.key??'','pattern="[a-z][a-z0-9_]*" maxlength="80"')}${field('New field label','customLabel','text',existing?'':m.label??'','maxlength="100"')}
   ${select('Record kind','customKind',[['constituent','Constituent'],['gift','Gift'],['pledge','Pledge'],['interaction','Interaction'],['note','Note']],m.kind??column.kind)}
   ${select('Value type','customType',[['text','Text'],['number','Number'],['currency','USD currency'],['date','Date'],['year','Year'],['checkbox','Checkbox']],m.type??'text')}
   ${select('Entry method','customEntry',[['free-form','Free-form'],['pick-one','Pick one'],['pick-many','Pick many']],m.entry??'free-form')}
   ${area('New field choices (one per line)','customChoices',customChoices(m),'rows="3"')}</fieldset>`
+  return compact?`<details><summary>${e(column.column||'Source custom column')}${column.sheet?' · '+e(column.sheet):''}</summary>${form}</details>`:form
  }).join('')}</details>`
 }
 const reviewedCustom=(report:Row)=>report.customFields?.length?box('Reviewed custom fields',`<ul class="list">${report.customFields.map((m:Row)=>`<li><strong>${e(m.label)}</strong> · ${e(m.key)} · ${e(m.kind)} · ${e(m.type)} · ${e(m.entry)}<br>${e(m.source)} / ${e(m.sheet||'Every worksheet')} / ${e(m.column)}${m.choices.length?`<br>Choices: ${e(customChoices(m).replace(/\n/g,', '))}`:''}</li>`).join('')}</ul><p>Only these reviewed columns and definitions move in. The source values retain their original record IDs, donor IDs and column provenance. No provider receives these values.</p>`):''
@@ -52,7 +53,7 @@ function totals(report:Row) {
 function totals_(rows:Row[]) {
  return `<div class="scroll"><table class="stack crm-totals"><thead><tr><th>Group</th><th>Records in your files</th><th>Records in Coffer</th><th>Amount in your files</th><th>Amount in Coffer</th><th>Check</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="lead">${e(r.scope==='restriction'?'Communication preferences':r.scope)} · ${e(r.key||'All gifts')}</td><td data-label="Records in your files">${r.sourceCount??'Not supplied'}</td><td data-label="Records in Coffer">${r.cofferCount}</td><td data-label="Amount in your files">${r.scope==='restriction'?'Not applicable':r.sourceCents===null?'Not supplied':money(r.sourceCents)}</td><td data-label="Amount in Coffer">${r.scope==='restriction'?'Not applicable':money(r.cofferCents)}</td><td>${chip(r.matches?'Match':'Difference',r.matches?'ok':'warn')}</td></tr>`).join('')}</tbody></table></div>`
 }
-const counts=(values:Row)=>`<ul class="list">${Object.entries(values).map(([k,v])=>`<li><strong>${v}</strong> ${e(({softCredits:'soft credits',solicitations:'constituents with solicitation restrictions',channelWithdrawals:'channel permission withdrawals',householdsWithHead:'households with a source head',householdsWithoutHead:'households without a head'} as Record<string,string>)[k]||k)}</li>`).join('')}</ul>`
+const counts=(values:Row)=>`<ul class="list">${Object.entries(values).map(([k,v])=>`<li><strong>${v}</strong> ${e(({softCredits:'soft credits',solicitations:'constituents with solicitation restrictions',channelWithdrawals:'channel permission withdrawals',channelPreferences:'source channel preferences',householdsWithHead:'households with a source head',householdsWithoutHead:'households without a head'} as Record<string,string>)[k]||k)}</li>`).join('')}</ul>`
 const location=(v:Row)=>`${e(v.file||'')}${v.sheet&&v.sheet!=='CSV'?` / ${e(v.sheet)}`:''}${v.row?` · row ${v.row}`:''}${v.column?` · ${e(v.column)}`:''}`
 const records=(title:string,total:number,values:Row[],render:(v:Row)=>string)=>`<details class="card"><summary>${e(title)} · ${total}</summary>${values.length?`<ul class="list">${values.map(v=>`<li>${render(v)}<br><span class="muted">${location(v.location||v)}</span></li>`).join('')}</ul>${total>values.length?`<p class="muted">The first ${values.length} of ${total} are shown. The totals check covers all of them.</p>`:''}`:empty('None in these exports.')}</details>`
 const plural=(n:number,one:string,many=one+'s')=>`${n} ${n===1?one:many}`
@@ -101,6 +102,7 @@ export function crmReviewPage(job:Row,list:Row,today:string) {
  ${box('Columns left out',leftOutColumns(r.leftOut),'left-out')}
  ${reviewedCustom(r)}
  ${r.solicitCodes?box('Reviewed communication codes',`<ul>${Object.entries(r.solicitCodes).map(([code,rule])=>`<li>${e(code)}: ${e(codeMeaning(rule))}</li>`).join('')}</ul>`):''}
+ ${job.source==='spreadsheet'?records('Channel preferences',r.counts.channelPreferences,s.channelWithdrawals,p=>`Donor ${e(p.donorExternalId)} · ${e(p.channel)}: ${e(p.status??'withdrawn')} · source date ${e(p.sourceOn||'unknown')}`):''}
  ${records('Donors',r.counts.donors,s.donors,d=>`<strong>${e(d.name)}</strong> · ${e(d.externalId)}${d.householdName?` · ${e(d.householdName)}`:''}${d.contacts?.length?`<ul>${d.contacts.map((p:ParsedContact)=>`<li>${e(p.kind)} · ${e(p.type)}${p.primary?' · primary':''}: ${e(p.kind==='address'?Object.values(JSON.parse(p.value)).filter(Boolean).join(', '):p.value)}${p.startsOn?` · ${e(p.startsOn)} through ${e(p.endsOn)}`:''}</li>`).join('')}</ul>`:''}`)}
  ${records('Households',r.counts.households,s.households,h=>`${e(h.name)} · ${e(h.externalId.startsWith('members:')?`linked as spouses or at one address`:h.externalId)}`)}
  ${records('Gifts',r.counts.gifts,s.gifts,g=>`${e(g.externalId)} · donor ${e(g.donorExternalId)} · ${longDay(g.receivedOn)} · ${money(g.amountCents)} · ${e(g.fund)}${g.campaign?` · ${e(g.campaign)}`:''}`)}

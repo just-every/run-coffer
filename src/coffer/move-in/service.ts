@@ -1,4 +1,7 @@
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
+import { spreadsheetAddresses } from './spreadsheet-addresses'
+import { resolveSpreadsheetMatches } from './spreadsheet-matches'
+import { spreadsheetDefinitionUndoGuards, spreadsheetDefinitionUndoWrites } from './spreadsheet-definitions'
 import { customFields } from '../custom-fields'
 import { importedCustomWrites, customImportUndoGuards, customImportUndoWrites } from './custom-fields'
 import { solicitationImportHistory, restrictionReconciliation } from './solicitation-import'
@@ -18,11 +21,11 @@ import type { Diagnostic, ParseInput, ParsedImport } from './types'
 const APPLY_BUDGET_MS = 20_000
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
-const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,(p as any)[k].length])),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).length,householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
+const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,(p as any)[k].length])),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...(p.source==='spreadsheet'?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
 
 export async function spreadsheetMappings(c:Context) {
  authorize(c)
- const rows=await all(c,"SELECT id,report FROM cf_move_in_jobs WHERE source='spreadsheet' AND state='completed' AND redacted=0 ORDER BY created_at DESC,id DESC")
+ const rows=await all(c,"SELECT id,report FROM cf_move_in_jobs WHERE source='spreadsheet' AND state IN ('completed','undone') AND redacted=0 ORDER BY created_at DESC,id DESC")
  const names=new Set<string>()
  return rows.flatMap(row=>{const report=JSON.parse(row.report),mapping=report.spreadsheet;if(!mapping||names.has(mapping.name))return [];names.add(mapping.name);return [{id:row.id,mapping:{...mapping,donorMatches:undefined},customFields:report.customFields??[]}]})
 }
@@ -37,6 +40,7 @@ export async function preview(c: Context,input: ParseInput) {
   const saved=await one(c,"SELECT json_extract(report,'$.solicitCodes') AS mapping FROM cf_move_in_jobs WHERE source=? AND state='completed' AND json_type(report,'$.solicitCodes')='object' ORDER BY created_at DESC LIMIT 1",input.source)
   if(saved?.mapping)input={...input,solicitCodes:JSON.parse(saved.mapping)}
  }
+ if(input.source==='spreadsheet')input=await resolveSpreadsheetMatches(c,input)
  const parsed=await parseExports(input)
  const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})
  const id=fileFingerprint.slice(0,40)
@@ -98,9 +102,11 @@ export async function continueApply(c: Context,id:string) {
   if(Date.now()-started>APPLY_BUDGET_MS)return {id,state:'applying',parts:job.parts,appliedParts:job.applied_parts,unchanged:false}
   const part=JSON.parse(next.payload) as ParsedImport, plan=await planImport(c,part), errors=plan.diagnostics.filter(d=>d.severity==='error')
   if(errors.length)fail('MOVE_IN_ERRORS',`Part ${next.position+1} of ${job.parts} (${contents(part)}) could not be applied. ${errors.length} row${errors.length===1?'':'s'}: ${errors.slice(0,5).map(d=>`${d.file} row ${d.row}: ${d.message}`).join(' ')} Nothing from this part was saved; the ${job.applied_parts} part${job.applied_parts===1?'':'s'} before it stay in Coffer. Fix the record in Coffer and press Continue, or undo the whole move-in.`,409,errors.slice(0,50))
+  const addresses=part.source==='spreadsheet'?await spreadsheetAddresses(c,plan):[]
   const writes:Stmt[]=[...plan.checks,guard('EXISTS(SELECT 1 FROM cf_move_in_parts WHERE job_id=? AND position=? AND applied_at IS NULL)','MOVE_IN_CHANGED','This part was applied in another window. Refresh the journal.',id,next.position)]
   writes.push(sql('INSERT INTO cf_identity_ingest VALUES(1)'))
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
+  writes.push(...addresses)
   writes.push(...importedAcknowledgmentEvents(c,plan,job.source,id))
   writes.push(...importedCustomWrites(c,plan,job.source,id))
   writes.push(...solicitationImportHistory(c,plan.effects,job.source,id))
@@ -183,7 +189,9 @@ export async function undo(c: Context,id:string) {
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>${custodySnapshot(kind)}))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
  writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id))
+ if(result.job.source==='spreadsheet')writes.push(...spreadsheetDefinitionUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
+ if(result.job.source==='spreadsheet')writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_address_checks a ON a.donor_id=r.native_id WHERE r.job_id=? AND r.kind='donor' AND r.owned=1 AND (a.version<>1 OR a.source<>'smarty' OR a.checked_at<>json_extract(r.snapshot,'$.created_at')))`,'MOVE_IN_USED','An imported address was checked again. Nothing was undone.',id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1) AND p.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='contact' AND owned=1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id,id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
   ['cf_auction_rows','donor_id','donor',null,'id'],['cf_auction_rows','gift_id','gift',null,'id'],
@@ -218,9 +226,11 @@ export async function undo(c: Context,id:string) {
  writes.push(sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.solicitationUndoInProgress',json('true')) WHERE id=?",id))
  writes.push(sql(`DELETE FROM cf_solicitation_history WHERE donor_id IN (${owned('solicitation')})`,id))
  writes.push(...customImportUndoWrites(id))
+ if(result.job.source==='spreadsheet')writes.push(...spreadsheetDefinitionUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))
+ if(result.job.source==='spreadsheet')writes.push(sql(`DELETE FROM cf_address_checks WHERE donor_id IN (${owned('donor')})`,id))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}
  writes.push(sql('DELETE FROM cf_move_in_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',id),sql("UPDATE cf_move_in_jobs SET state='undone',undone_at=?,applied_parts=0,report=json_remove(report,'$.solicitationUndoInProgress') WHERE id=?",c.now,id),event(c,'move-in.undo','move-in',id,null))
  try {await commit(c,writes)} catch(error) {
