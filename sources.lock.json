@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a379c67b47762f448002ee22872780c8ec2cb8d8121436729229ea1de18eb7d1",
+      "sha256": "322b8a2e11c694b515b2415fb10a014a693c8e24ef67d56da6a752fdef70a3d9",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f7ab0694a14f0a804bbc8e8f55d9f04758640b00163dcd20f33efb7d2ba60641",
+      "sha256": "dbc4e02f4cb8d384cc7cba4556205817943bc6b4357d07087323aa38475555ed",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3623,7 +3623,7 @@
       "executable": false
     },
     "src/coffer/report-builder-selection.ts": {
-      "sha256": "b71aff1accf7443692d1fc792e65605c97207e6e380d1fb0d5d6c2e03b76d368",
+      "sha256": "c3966f614067c833a6f37da287dd681c359a5ee06835643cafe09d916db4aedf",
       "executable": false
     },
     "src/coffer/report-builder/choice-renames.ts": {
@@ -6895,11 +6895,11 @@
       "executable": false
     },
     "tests/report-builder-browser.mjs": {
-      "sha256": "108089ca0323337e7e5bb8958de1df30b8355cdbb8ef672755eb387061de2b29",
+      "sha256": "740eb107b4a548f6ed849617b1ad6031460c4d9c7a817f818722e838eff4afd3",
       "executable": false
     },
     "tests/report-builder-journey.mjs": {
-      "sha256": "3c0c11ec3cb44045adea5523c75bc30f3f86823599599f265f30e92bc641c37c",
+      "sha256": "888fe9a66c76701727efcf033b9b8c5f79da09a7ded7eef962876a5a80f66545",
       "executable": false
     },
     "tests/report-schedules-browser.mjs": {
