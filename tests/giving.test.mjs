@@ -277,3 +277,9 @@ test('CAMP-005: reviewed auction results retain gross payments, benefits, purcha
 test('CAMP-002: table and sponsorship packages keep reviewed guest answers private and account for benefits',{timeout:300000},async()=>{
  const {eventPackagesJourney}=await import('./event-packages-journey.mjs');await eventPackagesJourney()
 })
+
+test('CAMP-003: verified supporters fundraise as teams and personal pages with separate credits, ledger totals and private custody',async t=>{
+ t.mock.timers.enable({apis:['Date'],now:Date.parse(fixedNow)})
+ const {peerJourney}=await import('./peer-journey.mjs')
+ await peerJourney()
+})

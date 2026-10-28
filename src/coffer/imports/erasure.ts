@@ -1,3 +1,4 @@
+import { peerErasureStatements } from '../peer/custody'
 import { developmentReportErasureStatements } from '../agent/development-report-custody'
 import { retireD1ImportCustody, upgradeD1ImportErasureIndex, type D1Database, type D1Sql } from '../../modules/import-kit/src/d1/index.ts'
 import { guard } from '../../modules/import-kit/src/d1/database.ts'
@@ -22,6 +23,7 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     ...[donorId, donor.email,...(donor.emails??[])].filter(Boolean).map(value => sql('INSERT OR IGNORE INTO cf_erasures(hash,erased_at) VALUES(?,?)', erasureHash(value!), now)),
     sql('INSERT INTO cf_donors(id,version,name,source,source_ref,created_at,erased_at) SELECT ?,1,?,source,NULL,?,? FROM cf_donors WHERE id=?', placeholderId, ERASED, now, now, donorId),
     ...afterPlaceholder,
+    ...peerErasureStatements(donorId,placeholderId),
     sql('UPDATE cf_communications SET name_fields=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL WHERE donor_id=?',donorId),
     // A household snapshot can name a person whose donor ID is not the
     // statement's addressee. Erasure redacts that whole historical piece.

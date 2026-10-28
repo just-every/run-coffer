@@ -1,3 +1,4 @@
+import { preparePeerCheckout, verifyPeerCheckout } from '../peer/service'
 import { failedAttempt, protectCheckout } from './protection'
 import { textLink } from './text'
 import { givingTribute } from './tribute'
@@ -35,6 +36,10 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const storedFrequency = frequency === 'once' ? 'once' : 'monthly'
  const id = text(p.requestId, 'Checkout request', 100)
  if (!/^[0-9a-f-]{36}$/.test(id)) fail('INPUT', 'Reload the donation page and try again.', 400)
+ const peerPageId = p.peerPageId ? text(p.peerPageId, 'Fundraising page', 100) : null
+ if (ticket && peerPageId) fail('peer_event', 'Event tickets cannot use a personal fundraising page.', 409)
+ await verifyPeerCheckout({db:env.DB}, id, peerPageId)
+ const peerStatements = peerPageId ? await preparePeerCheckout({db:env.DB}, id, peerPageId, c.id) : []
  const prior = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
  const priorRegistration=await one({db:env.DB},'SELECT * FROM cf_event_orders WHERE intent_id=?',id)
  if(prior && (ticket?(!priorRegistration||priorRegistration.ticket_type_id!==ticket.id):Boolean(priorRegistration)))fail('checkout_changed','Reload before changing a checkout between a gift and an event ticket.',409)
@@ -53,8 +58,11 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const storedTribute=tribute??{kind:null,honoree:null,notified_name:null,notified_email:null,notified_address:null,amount_permission:0}
  await env.DB.batch([
   env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at,anonymous,wall_opt_in,recognition_name,appeal,requested_amount_cents,fee_cover_cents,fee_cover_rate_bps,fee_cover_fixed_cents,giving_channel,billing_frequency) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, storedFrequency, consent, new Date().toISOString(),recognition.anonymous,recognition.wallOptIn,recognition.recognitionName,appeal,base,cents-base,covers?rate:null,covers?fixed:null,linkedText?'text':'form',frequency),
+  ...peerStatements.map(s=>env.DB.prepare(s.sql).bind(...s.params)),
+  ...(!peerPageId ? [env.DB.prepare('INSERT INTO cf_assert(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM cf_peer_intents WHERE intent_id=?) THEN 1 ELSE 0 END').bind(id)] : []),
   ...(eventCheckout?eventCheckout.statements:[]),
   env.DB.prepare('INSERT OR IGNORE INTO cf_giving_tributes(intent_id,kind,honoree,notified_name,notified_email,notified_address,amount_permission) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM cf_giving_intents WHERE id=? AND name=? AND email=? AND amount_cents=? AND frequency=?)').bind(id,storedTribute.kind,storedTribute.honoree,storedTribute.notified_name,storedTribute.notified_email,storedTribute.notified_address,storedTribute.amount_permission,id,name,mail,cents,storedFrequency),
+  env.DB.prepare('DELETE FROM cf_assert'),
  ])
  const intent = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
  if (!intent || intent.campaign_id !== c.id || intent.name !== name || intent.email !== mail || intent.amount_cents !== cents || intent.billing_frequency !== frequency || intent.email_consent !== consent || intent.anonymous!==recognition.anonymous || intent.wall_opt_in!==recognition.wallOptIn || intent.recognition_name!==recognition.recognitionName || intent.appeal!==appeal || intent.requested_amount_cents!==base || intent.fee_cover_cents!==cents-base || intent.fee_cover_rate_bps!==(covers?rate:null) || intent.fee_cover_fixed_cents!==(covers?fixed:null)) fail('checkout_changed', 'Reload the donation page before changing this gift.', 409)
@@ -75,7 +83,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   'line_items[0][price_data][product_data][name]': c.name,
   'line_items[0][quantity]': '1', 'metadata[coffer_intent]': id,
   success_url: env.AUTH_ORIGIN + '/giving/thanks?session_id={CHECKOUT_SESSION_ID}',
-  cancel_url: env.AUTH_ORIGIN + '/give/' + slug + '?cancelled=1' + (appeal ? '&appeal=' + encodeURIComponent(appeal) : '') + (linkedText ? '&text=' + encodeURIComponent(p.textLink) : ''),
+  cancel_url: env.AUTH_ORIGIN + '/give/' + slug + '?cancelled=1' + (peerPageId ? '&peer=' + encodeURIComponent(peerPageId) : '') + (appeal ? '&appeal=' + encodeURIComponent(appeal) : '') + (linkedText ? '&text=' + encodeURIComponent(p.textLink) : ''),
  }
  if (frequency !== 'once') {
   params['line_items[0][price_data][recurring][interval]'] = frequency === 'annually' ? 'year' : 'month'

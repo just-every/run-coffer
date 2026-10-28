@@ -1,3 +1,4 @@
+import { peerCreditStatements } from '../peer/accounting'
 import { observePortalPlan } from './portal-plan-facts'
 import { runGiftRules } from '../gift-rules'
 import { tributeGiftStatement } from './tribute'
@@ -84,6 +85,7 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
   ...(subscriptionId ? [env.DB.prepare('INSERT OR IGNORE INTO cf_subscription_gifts(subscription_id,gift_id) VALUES(?,?)').bind(subscriptionId,id)] : []),
   ...[tributeGiftStatement(id,intent.id,now)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...[giftRecognitionStatement(id,intent)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
+  ...peerCreditStatements(id,intent.id,now).map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   // The donor ticked the separate appeal box at checkout; receipts never depend on it.
   ...(intent.email_consent ? [env.DB.prepare(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
    SELECT ?,'email','granted','web form',?,?,?,'Giving page' WHERE EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_consents WHERE donor_id=? AND evidence=?)`)
