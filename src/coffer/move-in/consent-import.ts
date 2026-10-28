@@ -1,5 +1,5 @@
 import { guard, type Context, type Row } from '../db'
-import type { Plan } from './plan'
+import { contentHash, sourceKey, type Plan } from './plan'
 import { snapshot, type Kind } from './tables'
 import type { Located, ParsedConsent, ParsedImport } from './types'
 
@@ -28,10 +28,18 @@ export async function planConsentImports(c:Context,parsed:ParsedImport,plan:Plan
  let next=Number(sequence[0].id)
  for(const r of rows) {
   const donorId=plan.donorIds.get(r.donorExternalId)??''
+  const entity=parsed.channelWithdrawals?.find(w=>w.externalId===r.externalId)??r
+  const previous=existing.get(`consent:${await sourceKey(entity.externalId)}`)
+  const {location:_,...payload}=entity
+  // An unchanged source answer is already history. Reusing it never writes a
+  // preference, including after a merge or a later native choice.
+  if(previous?.snapshot&&previous.content_hash===await contentHash(payload)) {
+   await add('consent',entity,{})
+   continue
+  }
   const latest=consents.filter(s=>s.donor_id===donorId&&s.channel===r.channel).at(-1)
   const prior=latest&&[...existing.values()].find(m=>m.kind==='consent'&&String(m.native_id)===String(latest.id))
   if(latest&&(!prior||JSON.stringify(latest)!==prior.snapshot))plan.diagnostics.push({...r.location,severity:'error',code:'CONSENT_CHANGED',column:r.channel+' consent',message:`Constituent ${r.donorExternalId} has a newer or separately recorded ${r.channel} preference. The import cannot overwrite it.`})
-  const entity=parsed.channelWithdrawals?.find(w=>w.externalId===r.externalId)??r
   await add('consent',entity,{id:++next,donor_id:donorId,channel:r.channel,status:r.status,method:`${sourceNames[parsed.source]} export`,evidence:`${r.evidence} · Source constituent: ${r.donorExternalId} · Source date: ${r.sourceOn||'unknown'} · Imported: ${c.now}`,captured_on:r.sourceOn,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
 }

@@ -3247,7 +3247,7 @@
       "executable": false
     },
     "src/coffer/move-in/consent-import.ts": {
-      "sha256": "96848c9948e1fced994571494ea1ebddd63fc0c68550494985749140eb97a1db",
+      "sha256": "a65d32d3d07ffd735730a9c5f33fd108589379edce207d7721955b01451aefc5",
       "executable": false
     },
     "src/coffer/move-in/consent-mapping.ts": {
@@ -6355,7 +6355,7 @@
       "executable": false
     },
     "tests/duplicates.test.mjs": {
-      "sha256": "1696f2319c5cd14ce143a0823dc58c5d19d593a177f60f5362f23f23bbebd520",
+      "sha256": "e0516c9055295452179861642c82304ced50a8c921bfb0c8c6b3b40b2151f09d",
       "executable": false
     },
     "tests/engagement-journey.mjs": {

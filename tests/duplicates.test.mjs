@@ -194,8 +194,10 @@ test('CRM notes and future gifts follow the surviving identity while source tota
  result=await merge(h,source,target,{email:'source'})
  const rechecked=await h.api('/api/coffer/move-in/check',{id:first.id})
  assert.equal(rechecked.matches,true)
+ const retainedPreferences=(await history(h,target.id)).consents
  await moveIn(h,crmInput('HG2','11.00'))
  const combined=await history(h,target.id)
+ assert.deepEqual(combined.consents,retainedPreferences,'A later gift import preserves the merged consent history and native merge withdrawal')
  assert.equal(combined.gifts.length,2)
  assert.equal(combined.totals.lifetimeCents,4300)
  await h.command('donor.unmerge',{mergeId:result.mergeId,reason:'incorrect_match'},{status:409})
