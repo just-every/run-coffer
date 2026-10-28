@@ -80,9 +80,13 @@ export async function reportBuilderJourney(){
   const pledge=await h.command('pledge.create',{donorId:d.id,amount:'100',pledgedOn:'2025-02-01',fund:'Library',installments:[{dueOn:'2026-12-01',amount:'100'}]},options)
   const owner=(await h.get('/auth/session')).operator
   const prospect=await h.command('prospect.save',{donorId:d.id,label:'Library expansion',ownerId:owner.id,stage:'cultivate',askAmount:'500',expectedAmount:'400',probability:50,expectedCloseOn:'2025-12-01',nextStep:'Discuss plans'},options)
-  for(const [type,columns,totals,id] of [['constituents',['id','name'],[],d.id],['pledges',['id','amount_cents'],['amount_cents'],pledge.id],['opportunities',['id','expected_amount_cents'],['expected_amount_cents'],prospect.id],['interactions',['id','notes'],[],call.id]]){
-   const r=await h.command('report.save',{name:type+' report',definition:{recordType:type,columns,groupBy:[],totals,filters:[{field:'id',operator:'eq',value:id}]}},options)
-   assert.equal((await h.get('/api/coffer/reports/builder?id='+r.id,options)).count,1)
+  await h.command('donor.profile',{donorId:d.id,version:(await h.get('/api/coffer/donors/'+d.id)).donor.version,name:'Marisol Alvarez',firstName:'Marisol',lastName:'Alvarez',nickname:'Mari'},options)
+  assert.equal((await h.get('/api/coffer/donors/'+d.id,options)).names.informal,'Mari')
+  for(const [type,columns,totals,id] of [['constituents',['id','computed_informal_salutation'],[],d.id],['pledges',['id','amount_cents'],['amount_cents'],pledge.id],['opportunities',['id','expected_amount_cents'],['expected_amount_cents'],prospect.id],['interactions',['id','notes'],[],call.id]]){
+   const r=await h.command('report.save',{name:type+' report',definition:{recordType:type,columns,groupBy:type==='constituents'?['computed_informal_salutation']:[],totals,filters:[{field:'id',operator:'eq',value:id},...(type==='constituents'?[{field:'computed_informal_salutation',operator:'eq',value:'Mari'}]:[])]}},options)
+   const selected=await h.get('/api/coffer/reports/builder?id='+r.id,options)
+   assert.equal(selected.count,1)
+   if(type==='constituents'){assert.equal(selected.rows[0].computed_informal_salutation,'Mari');assert.equal(selected.groups[0].computed_informal_salutation,'Mari')}
    const download=await h.request(`/api/coffer/exports/${type}.csv?report=builder&id=${r.id}`,options);assert.equal(download.status,200)
    assert.equal(parseCsv(await download.text()).length,2)
   }

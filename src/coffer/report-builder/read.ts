@@ -8,7 +8,7 @@ import { savedReport } from './store'
 
 export async function readBuilderReport(c:Context,url:URL) {
  const saved=await savedReport(c,url.searchParams.get('id')||''),d=saved.definition,s=await savedBuilderRecordSelection(c,url),spec=exportRecords[d.recordType]
- const raw=d.recordType==='gifts'?reportGiftRecords(spec.query):`SELECT * FROM (${spec.query}) WHERE id IN(SELECT id FROM report_entries)`
+ const raw=d.recordType==='gifts'?reportGiftRecords(spec.query):`SELECT ${spec.columns.map(key=>'r.'+key).join(',')} FROM builder_records r WHERE id IN(SELECT id FROM report_entries)`
  const base=`WITH ${s.ctes},records AS MATERIALIZED (SELECT base.*,substr(base.${dateField[d.recordType]},1,7) AS month FROM (${raw}) base)`
  const groupKeys=d.groupBy.map((key,i)=>`${d.recordType==='gifts'&&['fund','month','received_on'].includes(key)?'entry.'+key:fieldSql(key)} AS g${i}`)
  const perRecord=d.totals.map((key,i)=>`${d.recordType==='gifts'&&key==='amount_cents'?'SUM(entry.amount_cents)':`MAX(CAST(${fieldSql(key)} AS NUMERIC))`} AS v${i}`)
