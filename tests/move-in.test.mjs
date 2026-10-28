@@ -324,12 +324,15 @@ test('DONOR-005: reviewed incumbent custom columns retain typed source values, r
    const giftValue=details.customValues.find(v=>v.field_key==='import_gift_usd');assert.equal(giftValue.record_id,details.gifts[0].id)
    const provenance=JSON.parse(giftValue.source);assert.equal(provenance.original,'123.45');assert.equal(provenance.sourceRecordId,'synthetic-coffer-1402');assert.equal(provenance.sourceDonorId,'synthetic-coffer-1401');assert.equal(provenance.source,source)
    const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).customValues,details.customValues);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0)})
+   await run(async h=>{
+    await restore(h,saved)
    const definition=(await h.get('/api/coffer/custom-fields')).fields.find(f=>f.key==='import_note')
    await h.command('custom.define',{...definition,label:'Renamed source note',choices:[],version:definition.version})
    const repeat=await post(h,'preview',{...input,files:input.files.map(f=>({...f,name:'renamed-'+f.name}))});assert.equal(repeat.prior.state,'completed')
    assert.equal((await moveIn(h,repeat)).unchanged,true);assert.deepEqual((await h.get('/api/coffer/donors/'+person.id)).customValues,details.customValues)
+   await post(h,'undo',{id:preview.id},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,1,'A renamed import-created definition prevents undo')
+   })
    await post(h,'undo',{id:preview.id});assert.equal((await h.get('/api/coffer/donors')).total,0)
-   mappings.find(m=>m.key==='import_note').label='Renamed source note'
    if(format==='xlsx'){
     const again=await post(h,'preview',{...input,customFields:mappings});assert.equal(again.canApply,true,JSON.stringify(again.diagnostics));await moveIn(h,again)
     await h.command('custom.set',{key:'import_gift_usd',recordId:giftValue.record_id,version:1,value:'200',source:'synthetic-coffer-1406'})
@@ -377,4 +380,9 @@ test('DONOR-001 / DONOR-006: asynchronous incumbent imports keep distinct shared
   await post(h,'undo',{id:preview.id});assert.deepEqual((await h.get('/api/coffer/donors')).donors.map(d=>d.id),[staff.id])
   await donor(h,'Synthetic Staff Refusal After Import',{email:shared},{status:409})
  })
+})
+
+test('MOVE-010: source definitions enrich imported records with explicit waiting review and guarded custody',async()=>{
+ const {sourceCustomJourney}=await import('./custom-source-journey.mjs')
+ await sourceCustomJourney()
 })

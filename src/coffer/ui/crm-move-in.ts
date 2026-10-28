@@ -1,3 +1,4 @@
+import { customCaptureForm } from './custom-import-review'
 import type { ParsedContact } from '../move-in/types'
 import type { Row } from '../db'
 import { area, box, chip, e, empty, field, guide, hidden, longDay, money, select, when } from './common'
@@ -125,7 +126,7 @@ export function crmJournalPage(result:Row,tz:string) {
  const checked=check?box('Totals check',`<p>${check.matches?chip('All totals match','ok'):chip('Totals differ','warn')} Checked ${when(j.checked_at,tz)}: the gifts now in Coffer from this move-in, against your files.</p>${check.donors?totals(check):totals_(check.rows)}<form method="post" action="/app/move-in/crm/check">${hidden('id',j.id)}<button class="secondary">Check totals again</button></form>`):''
  return `<p>${state} ${e(name(j.source))} · ${when(j.created_at,tz)} · ${e(j.created_by)}</p>
  ${j.state==='reviewed'?`<p><a href="/app/move-in/crm/review?id=${e(j.id)}">Open the review</a></p>`:''}<p>${j.state==='completed'?'Everything in this move-in is in Coffer. Moving the same files in again changes nothing.':j.state==='applying'?'This move-in is under way.':j.state==='undone'?'Everything this move-in added was removed. Records that already existed were kept.':'Nothing from this review has been moved in yet.'}${j.acknowledged_before?` Gifts before ${longDay(j.acknowledged_before)} count as already thanked.`:''}</p>
- <div class="grid wide"><div>${progress}${checked}${!check&&r.reconciliation?.rows?box('Totals in your files',totals(r.reconciliation)):''}${r.counts?box('Imported history',counts(r.counts)):''}
+ <div class="grid wide"><div>${progress}${customCaptureForm(j)}${checked}${!check&&r.reconciliation?.rows?box('Totals in your files',totals(r.reconciliation)):''}${r.counts?box('Imported history',counts(r.counts)):''}
  ${r.files?box('Source files',`<ul class="list">${r.files.map((f:Row)=>`<li>${e(f.name)} · ${f.rows} rows</li>`).join('')}</ul><p class="muted">Coffer does not keep the uploaded files. Keep your exports somewhere safe.</p>`):''}</div><div>
  ${j.accepted_reason?box('Accepted differences',`<p>${e(j.accepted_reason)}</p>`):''}
  ${['completed','applying'].includes(j.state)?box('Undo as one step',j.redacted?'<p>A donor was erased. This import can no longer be undone.</p>':`<form method="post" action="/app/move-in/crm/undo">${hidden('id',j.id)}<p>Undo removes every record this move-in added. If anyone has edited or used one since (a gift, a letter, a call), nothing is undone, so work done since stays safe.</p><button class="secondary">Undo this move-in</button></form>`):''}

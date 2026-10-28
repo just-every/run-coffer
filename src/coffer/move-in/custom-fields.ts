@@ -3,6 +3,8 @@ import { all, guard, sha256, sql, type Context, type Row, type Stmt } from '../d
 import { valueText, type SourceRow } from './source-rows'
 import type { CustomImportMapping, ImportedCustomValue, Located, ParseInput, ParsedImport } from './types'
 import type { Plan } from './plan'
+import { createImportDefinitionWrites, customDefinitionUndoGuards, customDefinitionUndoWrites } from './custom-definition-undo'
+export { createImportDefinitionWrites } from './custom-definition-undo'
 
 /** A mapping is explicit and belongs to one CRM and worksheet, never inferred from a label. */
 export function reviewedCustomMappings(input: ParseInput, out: ParsedImport) {
@@ -94,11 +96,11 @@ export async function planCustomValues(c:Context, parsed:ParsedImport, plan:Plan
  if (plan.customWrites.length) plan.checks.push(guard(`NOT EXISTS(SELECT 1 FROM cf_custom_values v JOIN json_each(?) j ON v.field_key=json_extract(j.value,'$.key') AND v.record_id=json_extract(j.value,'$.recordId'))`,'MOVE_IN_CHANGED','A custom value changed. Review the files again.',JSON.stringify(plan.customWrites.map(w=>({key:w.field.key,recordId:w.recordId})))))
 }
 
-export function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:string):Stmt[] {
+export async function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:string):Promise<Stmt[]> {
  const writes:Stmt[] = []
  if (!plan.customWrites.length) return writes
  const fields = plan.customWrites.filter(w=>w.createField).map(w=>w.field)
- if (fields.length) writes.push(sql(`INSERT INTO cf_custom_fields(key,label,kind,type,entry,choices,version,created_at) SELECT json_extract(value,'$.key'),json_extract(value,'$.label'),json_extract(value,'$.kind'),json_extract(value,'$.type'),json_extract(value,'$.entry'),json_extract(value,'$.choices'),1,? FROM json_each(?)`,c.now,JSON.stringify(fields)))
+ writes.push(...await createImportDefinitionWrites(c,fields,source,jobId))
  const values = plan.customWrites.map(w=>{
   const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDonorId:w.donorExternalId,original:w.imported.original}
   const row = {field_key:w.field.key,record_id:w.recordId,donor_id:w.donorId,value:w.imported.value,version:1,source:JSON.stringify(provenance),updated_at:c.now}
@@ -117,9 +119,9 @@ export function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:
 
 const customOwned = "SELECT snapshot FROM cf_move_in_records WHERE job_id=? AND kind='customValue'"
 export function customImportUndoGuards(jobId:string):Stmt[] {
- return [guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN cf_custom_values v ON v.record_id=r.native_id AND v.field_key=json_extract(r.snapshot,'$.field_key') WHERE r.job_id=? AND r.kind='customValue' AND (r.snapshot IS NULL OR v.record_id IS NULL OR v.value<>json_extract(r.snapshot,'$.value') OR v.version<>json_extract(r.snapshot,'$.version') OR v.source<>json_extract(r.snapshot,'$.source') OR v.donor_id<>r.donor_id OR v.updated_at<>json_extract(r.snapshot,'$.updated_at')))`,'MOVE_IN_USED','An imported custom value changed after the move-in. Nothing was undone.',jobId)]
+ return [guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN cf_custom_values v ON v.record_id=r.native_id AND v.field_key=json_extract(r.snapshot,'$.field_key') WHERE r.job_id=? AND r.kind='customValue' AND (r.snapshot IS NULL OR v.record_id IS NULL OR v.value<>json_extract(r.snapshot,'$.value') OR v.version<>json_extract(r.snapshot,'$.version') OR v.source<>json_extract(r.snapshot,'$.source') OR v.donor_id<>r.donor_id OR v.updated_at<>json_extract(r.snapshot,'$.updated_at')))`,'MOVE_IN_USED','An imported custom value changed after the move-in. Nothing was undone.',jobId),...customDefinitionUndoGuards(jobId)]
 }
 export function customImportUndoWrites(jobId:string):Stmt[] {
  return [sql(`DELETE FROM cf_custom_value_history WHERE (field_key,record_id) IN(SELECT json_extract(snapshot,'$.field_key'),json_extract(snapshot,'$.record_id') FROM (${customOwned}))`,jobId),
-  sql(`DELETE FROM cf_custom_values WHERE (field_key,record_id) IN(SELECT json_extract(snapshot,'$.field_key'),json_extract(snapshot,'$.record_id') FROM (${customOwned}))`,jobId)]
+  sql(`DELETE FROM cf_custom_values WHERE (field_key,record_id) IN(SELECT json_extract(snapshot,'$.field_key'),json_extract(snapshot,'$.record_id') FROM (${customOwned}))`,jobId),...customDefinitionUndoWrites(jobId)]
 }

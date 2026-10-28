@@ -34,3 +34,29 @@ async function fits(page,width){
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Import screen fits '+width)
  assert.deepEqual(await page.locator('button,a,[role=button]').evaluateAll(nodes=>nodes.filter(n=>n.checkVisibility()&&!(n.innerText||'').trim()).map(n=>n.outerHTML.slice(0,200))),[],'Authored controls have visible text')
 }
+
+export async function sourceCustomBrowser(h,id,directory,{applied=false}={}){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/move-in/crm/journal?id='+id)
+   await page.getByRole('link',{name:'Review source custom fields',exact:true}).click()
+   await page.getByRole('heading',{name:'Source custom field review',exact:true}).waitFor()
+   const membership=page.locator('fieldset').filter({has:page.locator('legend',{hasText:'Membership · constituent'})})
+   assert.equal(await membership.locator('[name=targetKey]').inputValue(),'existing_membership')
+   await fits(page,width)
+   assert.deepEqual(await page.locator('main :is(p,label,legend,button,select,input)').evaluateAll(nodes=>nodes.filter(n=>n.checkVisibility()&&parseFloat(getComputedStyle(n).fontSize)<13).map(n=>n.tagName)),[],'Review text is at least 13px')
+   await page.screenshot({path:directory+'/MOVE-010-'+(applied?'carried':'review')+'-'+width+'.png',fullPage:true})
+   if(!applied){
+    const topic=page.locator('fieldset').filter({has:page.locator('legend',{hasText:'Topic · interaction'})})
+    await topic.locator('[name=targetLabel]').fill('Imported visit topic')
+    await page.getByRole('button',{name:'Review these choices',exact:true}).click()
+    await page.waitForURL('**/app/move-in/crm/custom-review?id=*')
+    await page.getByRole('heading',{name:'Values waiting for review',exact:true}).waitFor()
+   }
+  }
+  await page.close()
+ })
+}

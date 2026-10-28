@@ -3243,7 +3243,7 @@
       "executable": false
     },
     "src/coffer/move-in/custom-fields.ts": {
-      "sha256": "1a5c97f62c5d4450d8aa27d2d65f575b1a740564f66bbbac058d56ed4634f1fe",
+      "sha256": "764de498abd6d984f4681e6999e626c9fda6c6bf1cb5e25517c8f48dd4abdc78",
       "executable": false
     },
     "src/coffer/move-in/household-writes.ts": {
@@ -3255,7 +3255,7 @@
       "executable": false
     },
     "src/coffer/move-in/http.ts": {
-      "sha256": "9da314727d5bf2113d3bd1fd4bb67544ac9493b9c227a8a1548e9cb796a47b72",
+      "sha256": "a1bd4cf4645eb145d9b1c1a3dcdadb30503dc29bf2ac58fa0229e4d20d3ec452",
       "executable": false
     },
     "src/coffer/move-in/parse-input.ts": {
@@ -3283,7 +3283,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "ddba07981688c71ba180bff1700c36736d209e046bc405667bd4fde168be1a4d",
+      "sha256": "84c9058af49561d1669180d019b78a8252836a9212e4e1b5e870908d30601987",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -3851,7 +3851,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "e90060f524f766ce822a3b142ad733c76b2c9aeb5298f0cc727710844d75c6d8",
+      "sha256": "5ece458db7bdf38d2a7166a92b539f5dbc1d11ba7194d5a85090be585243857d",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6271,7 +6271,7 @@
       "executable": false
     },
     "tests/custom-import-browser.mjs": {
-      "sha256": "e64b8b9900ab5b99e075c86c052ccc7251975722799d59785ed8951d7a7a430c",
+      "sha256": "9a3af5c22b1e68f74b9bc6c4ea2817b5563fc25b986c79d82aa504e87269b572",
       "executable": false
     },
     "tests/dashboard-browser.mjs": {
@@ -6671,7 +6671,7 @@
       "executable": false
     },
     "tests/move-in.test.mjs": {
-      "sha256": "36f777ed2c5ff9832fe3bc876676e0dd6474f30978638a32262b1170e14b7dad",
+      "sha256": "c66095e63e0314f01942b0b897035d521cb47ee8c6d71ff7a0db1935d525a654",
       "executable": false
     },
     "tests/names-browser.mjs": {
@@ -7119,7 +7119,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "abccdde935069a270d364fe191f7e00ef36fa271e92236e762218db42815115d",
+      "sha256": "38058d98e25064c50f671cf97bd8c9d0efca11488717ea7bf5c9227c9942907e",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

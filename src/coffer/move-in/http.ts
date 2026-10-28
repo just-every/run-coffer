@@ -1,3 +1,5 @@
+import { customImportReviewPage } from '../ui/custom-import-review'
+import { customReview, captureCustom, reviseCustom, applyCustom } from './custom-review'
 import { Buffer } from 'node:buffer'
 import { customFields } from '../custom-fields'
 import { manager } from '../auth'
@@ -22,6 +24,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(request.method==='GET') {
   if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c)),c.actor,200,'/app/more')
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
+  if(action==='custom-review'){const job=await customReview(c,url.searchParams.get('id')||'');return api?json({id:job.id,review:job.report.customReview}):page('Review source custom fields',customImportReviewPage(job,await customFields(c)),c.actor,200,'/app/settings')}
   if(action==='review' && !api) {
    const job=await reviewed(c,url.searchParams.get('id')||''), list=await issues(c,job.id,{...q,severity:q.severity??(job.report.canApply?undefined:'error')})
    return page('Review CRM move-in',crmReviewPage(job,{...list,query:{...list.query,show:q.severity??(job.report.canApply?'all':'error')}},today((await settings(c)).timezone,new Date(c.now))),c.actor,200,'/app/more')
@@ -36,6 +39,25 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(request.method!=='POST')fail('post_required','Use the move-in forms.',405)
  const data=api?await readers.jsonBody(request,24*1024*1024):await readers.formBody(request,24*1024*1024)
  const get=(key:string)=>api?data[key]:data.get(key), id=String(get('id')||'')
+ if(action==='custom-capture'||action==='custom-review'||action==='custom-apply') {
+  let result
+  if(action==='custom-capture')result=await captureCustom(c,{id,apiKey:String(get('apiKey')||'')})
+  else if(action==='custom-apply'){
+   if(!api&&get('confirm')!=='yes')fail('confirmation_required','Confirm the reviewed custom values.',400)
+   result=await applyCustom(c,{id,version:Number(get('version'))})
+  }else if(api)result=await reviseCustom(c,data)
+  else {
+   const job=await customReview(c,id),review=job.report.customReview,form=data as FormData,parts=(key:string)=>form.getAll(key).map(String),ids=parts('fieldId'),actions=parts('mappingAction'),existing=parts('existingField'),keys=parts('targetKey'),labels=parts('targetLabel'),fields=await customFields(c)
+   const mappings=review.applied?review.mappings:ids.map((fieldId,index)=>{
+    const prior=review.mappings.find((m:any)=>m.id===fieldId),definition=review.definitions.find((d:any)=>d.id===fieldId),held=fields.find(f=>f.key===existing[index])
+    return {id:fieldId,action:actions[index],field:held?{source:job.source,column:definition.name,...held,choices:JSON.parse(held.choices)}:{...prior.field,key:keys[index],label:labels[index]}}
+   })
+   const valueIds=parts('valueId'),resolutionActions=parts('resolutionAction'),replacements=parts('replacementValue'),resolutions=[...review.resolutions]
+   valueIds.forEach((valueId,index)=>{if(!resolutionActions[index])return;let value:unknown=replacements[index];try{value=JSON.parse(replacements[index])}catch{};const resolution={id:valueId,action:resolutionActions[index],value},at=resolutions.findIndex((r:any)=>r.id===valueId);if(at<0)resolutions.push(resolution);else resolutions[at]=resolution})
+   result=await reviseCustom(c,{id,version:Number(get('version')),mappings,resolutions})
+  }
+  return api?json(result):new Response(null,{status:303,headers:{...headers,location:`/app/move-in/crm/custom-review?id=${encodeURIComponent(id)}`}})
+ }
  if(action==='undo') {const result=await service.undo(c,id);return api?json(result):redirect(result.id)}
  if(action==='continue') {const result=await service.continueApply(c,id);return api?json(result):redirect(result.id)}
  if(action==='check') {const result=await service.recheck(c,id);return api?json(result):redirect(result.id)}
