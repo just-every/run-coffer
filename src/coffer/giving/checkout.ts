@@ -1,3 +1,4 @@
+import { membershipCapture } from '../memberships/service'
 import { prepareGivingForm } from './form-fields'
 import { failedAttempt, protectCheckout } from './protection'
 import { textLink } from './text'
@@ -18,7 +19,8 @@ export async function limit(env: GivingEnv, key: string, max = 10) {
  if (!row || row.count > max) fail('rate_limited', 'Please wait a few minutes before trying again.', 429)
 }
 
-export async function checkout(env: GivingEnv, request: Request, slug: string, p: Record<string, any>, ticket?: Record<string, any>) {
+export async function checkout(env: GivingEnv, request: Request, slug: string, p: Record<string, any>, ticket?: Record<string, any>, membership?: Record<string, any>) {
+ if(membership)p={...p,amountCents:membership.price_cents,amount:(membership.price_cents/100).toFixed(2),frequency:membership.term_months===12?'annually':membership.term_months===3?'quarterly':'monthly',feeCover:'no',wallOptIn:'no',textLink:null}
  if(ticket)p={...p,amount:(ticket.price_cents/100).toFixed(2),frequency:'once',appeal:ticket.appeal_id,feeCover:'no',wallOptIn:'no',emailConsent:'no',textLink:null}
  const c = await campaign({ db: env.DB }, slug)
  if (c.closes_on && today((await settings({ db: env.DB })).timezone) > c.closes_on) fail('campaign_closed', 'This campaign has closed and is no longer accepting new gifts. Thank you for your support.', 409)
@@ -39,7 +41,10 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const prior = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
  const priorRegistration=await one({db:env.DB},'SELECT * FROM cf_event_orders WHERE intent_id=?',id)
  if(prior && (ticket?(!priorRegistration||priorRegistration.ticket_type_id!==ticket.id):Boolean(priorRegistration)))fail('checkout_changed','Reload before changing a checkout between a gift and an event ticket.',409)
- const formCapture=ticket?null:await prepareGivingForm(env.DB,c,p,prior)
+ const priorMembership=await one({db:env.DB},'SELECT * FROM cf_membership_intents WHERE intent_id=?',id)
+ if(prior&&(membership?(!priorMembership||priorMembership.level_id!==membership.id):Boolean(priorMembership)))fail('checkout_changed','Reload before changing a checkout between a gift and a membership.',409)
+ const memberCapture=membership?await membershipCapture(env.DB,id,membership):[]
+ const formCapture=ticket||membership?null:await prepareGivingForm(env.DB,c,p,prior)
  const eventCheckout=ticket?await prepareEventCheckout(env.DB,id,ticket,p,name,mail):null
  const covers = p.feeCover === 'yes'
  // A saved request retains its quoted rate even after campaign settings change.
@@ -55,6 +60,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const storedTribute=tribute??{kind:null,honoree:null,notified_name:null,notified_email:null,notified_address:null,amount_permission:0}
  await env.DB.batch([
   env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at,anonymous,wall_opt_in,recognition_name,appeal,requested_amount_cents,fee_cover_cents,fee_cover_rate_bps,fee_cover_fixed_cents,giving_channel,billing_frequency) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, storedFrequency, consent, new Date().toISOString(),recognition.anonymous,recognition.wallOptIn,recognition.recognitionName,appeal,base,cents-base,covers?rate:null,covers?fixed:null,linkedText?'text':'form',frequency),
+  ...memberCapture.map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...(eventCheckout?eventCheckout.statements:[]),
   ...(formCapture?formCapture.statements.map(s=>env.DB.prepare(s.sql).bind(...s.params)):[]),
   env.DB.prepare('DELETE FROM cf_assert'),
@@ -76,7 +82,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   'allowed_payment_method_types[0]': 'card', 'allowed_payment_method_types[1]': 'link',
   'line_items[0][price_data][currency]': 'usd',
   'line_items[0][price_data][unit_amount]': String(cents),
-  'line_items[0][price_data][product_data][name]': c.name,
+  'line_items[0][price_data][product_data][name]': membership?membership.name:c.name,
   'line_items[0][quantity]': '1', 'metadata[coffer_intent]': id,
   success_url: env.AUTH_ORIGIN + '/giving/thanks?session_id={CHECKOUT_SESSION_ID}',
   cancel_url: env.AUTH_ORIGIN + '/give/' + slug + '?cancelled=1' + (appeal ? '&appeal=' + encodeURIComponent(appeal) : '') + (linkedText ? '&text=' + encodeURIComponent(p.textLink) : ''),
