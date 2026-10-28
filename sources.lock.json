@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a30b6be5aa6717c696cb6aa589d2536fc00c8124b31e2e21ca09ea3421aa5a36",
+      "sha256": "272648c39c602738a857af0ea79b0a2b97bdc09d93d7f7eb6483816152923e3a",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2f8d96ce74a6d515e5489043ed4b56cc42e6d6cdac2b0d688d13b9d24dcefc8f",
+      "sha256": "61896a2ba1a8864508b612ffa6291d9d9eab3e5902d04b1f2e9875dcff33e3c3",
       "executable": false
     },
     "deploy-demo.json": {
@@ -2591,7 +2591,7 @@
       "executable": false
     },
     "src/coffer/communications/constant-contact-campaign.ts": {
-      "sha256": "72eeb8876862d0ab1f5faec02d87cbc881dea2aeb3af0d77e1a08365c4f9a866",
+      "sha256": "f34c15110b00c98c5303ef66e1cfaab605ed0d660c5a7ce0f954927be1bb3dd1",
       "executable": false
     },
     "src/coffer/communications/constant-contact-profile.ts": {
@@ -2639,7 +2639,7 @@
       "executable": false
     },
     "src/coffer/communications/outbound.ts": {
-      "sha256": "f6dea869212a3060ad0f3d153c7b6a903884e68fcc37d447742d7da44e09d452",
+      "sha256": "bed5bc60c089d2d338bc51cf10c0d21e84bfc4da772617e897f7d09ee3ed66f1",
       "executable": false
     },
     "src/coffer/communications/preference-rules.ts": {
@@ -6203,7 +6203,7 @@
       "executable": false
     },
     "tests/constant-contact-journey.mjs": {
-      "sha256": "4d2beb1401786e2fb79fe7dd0d9be8954de82c5f1aa86583d0fa40b3334bbe10",
+      "sha256": "b17d2a2e45dc1e0cdc8ec09096d041ce275eafc2740fbeb97e2fc437e9e89e66",
       "executable": false
     },
     "tests/contact-points-journey.mjs": {

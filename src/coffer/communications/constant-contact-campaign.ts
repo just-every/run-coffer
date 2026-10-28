@@ -1,4 +1,5 @@
-import { fail, type Row } from '../db'
+import { commit, fail, sql, today, type Context, type Row } from '../db'
+import { settings } from '../settings'
 import type { Connection } from './connection'
 import { ccContact, ccPart, ccRequest, constantContactContact } from './constant-contact-api'
 
@@ -53,4 +54,17 @@ export async function constantContactResults(conn:Connection,row:Row):Promise<Ro
   }
  }
  return {rows:results,state:'sent'}
+}
+
+/** An opt-out report is withdrawal evidence even if the contact read lags it.
+ * Historical recipient addresses cannot withdraw a changed or merged identity. */
+export async function recordConstantContactOptout(c:Context,row:Row,email:string){
+ const day=today((await settings(c)).timezone,new Date(c.now))
+ await commit(c,[sql(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
+  SELECT d.id,'email','withdrawn','constant-contact',?,?,?,'Constant Contact result sync'
+  FROM cf_donors d JOIN cf_consents k ON k.id=(SELECT MAX(id) FROM cf_consents WHERE donor_id=d.id AND channel='email')
+  WHERE d.id=? AND d.erased_at IS NULL AND k.status='granted'
+  AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
+  AND (lower(d.email)=lower(?) OR EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.id=? AND p.donor_id=d.id AND p.kind='email' AND p.active=1 AND p.version=? AND lower(p.value)=lower(?)))`,
+  'Constant Contact campaign opt-out: '+row.id,day,c.now,row.donor_id,email,row.recipient_contact_id??null,row.recipient_contact_version??null,email)])
 }

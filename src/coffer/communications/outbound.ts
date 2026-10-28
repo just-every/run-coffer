@@ -11,6 +11,7 @@ import { requireConnection, savedConnection } from './connection'
 import { settings } from '../settings'
 import { reconcileDonor } from './preferences'
 import { communicationAcknowledgment } from '../gift-acknowledgments'
+import { recordConstantContactOptout } from './constant-contact-campaign'
 
 async function savedResult(c: Context, messageId: string, disposition: string) {
  const message = (await one(c, 'SELECT * FROM cf_communications WHERE id=?', messageId))!
@@ -117,6 +118,7 @@ export async function refreshMessages(c:Context,source?:{kind:string;id:string})
   if(!Array.isArray(report.rows))fail('MAILCHIMP_RESPONSE','Mailchimp did not return send results.',502)
   const frozen=row.recipient_email ?? (row.source_kind==='appeal' ? (await one(c,'SELECT email FROM cf_appeal_recipients WHERE appeal_id=? AND donor_id=?',row.source_id,row.donor_id))?.email : null)
   const facts=report.rows.filter((r:Row)=>r.destination?.toLowerCase()===frozen?.toLowerCase())
+  if(conn.provider==='constant-contact'&&row.remote_status!=='unsubscribed'&&facts.some((fact:Row)=>fact.disposition==='unsubscribed'))await recordConstantContactOptout(c,row,frozen)
   const disposition=facts[0]?.disposition??(report.state==='sent'&&report.rows.length===0?'not_sent':report.state==='sent'?'unknown':report.state??'unknown')
   const note=disposition==='sent'?'The provider reports sending this message to the frozen recipient. Delivery is not confirmed.':['accepted','handed-off'].includes(disposition)?'The provider accepted the request. Sending and delivery are unconfirmed.':disposition==='delivered'?'The provider reports acceptance by the recipient’s mail server; this is not proof of reading.':`Provider result: ${disposition}. Check the provider for delivery details.`
   await commit(c,[sql('UPDATE cf_communications SET remote_status=?,checked_at=?,note=? WHERE id=?',disposition,c.now,note,row.id),
