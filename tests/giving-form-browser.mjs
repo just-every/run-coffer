@@ -65,11 +65,13 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
      await page.waitForFunction(() => document.querySelector('[data-form-status]')?.textContent === 'Saved')
     }
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    await page.evaluate(() => scrollTo(0, 0))
     await page.screenshot({path: `${directory}/settings-${width}.png`, fullPage: true})
     await page.goto(origin + '/give/' + campaign.slug)
     await page.getByRole('heading', {name: 'Give local readers a new chapter ' + width, exact: true}).waitFor()
     assert.equal(await page.locator('header img').getAttribute('src'), '/give/' + campaign.slug + '/media/image')
     assert.equal(await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(243, 246, 238)')
+    await page.evaluate(() => scrollTo(0, 0))
     await page.screenshot({path: `${directory}/hosted-${width}.png`, fullPage: true})
     await page.goto(hostOrigin)
     const frame = page.frameLocator('iframe'), iframe = page.locator('iframe')
@@ -104,6 +106,7 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
     assert.ok(await child.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     const tooSmall = await child.evaluate(() => [...document.querySelectorAll('.donation *')].filter(el => el.textContent.trim() && getComputedStyle(el).display !== 'none' && parseFloat(getComputedStyle(el).fontSize) < 13).map(el => el.tagName))
     assert.deepEqual(tooSmall, [])
+    await page.evaluate(() => scrollTo(0, 0))
     await page.screenshot({path: `${directory}/embedded-${width}.png`, fullPage: true})
     const form = frame.locator('.donation form')
     const values = await form.evaluate(el => [...new FormData(el).entries()])
@@ -113,6 +116,7 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
     assert.equal(session.amount_total, width === 1440 ? 5000 : 5181)
     await page.goto(origin + '/giving/thanks?session_id=' + session.id)
     await page.getByRole('heading', {name: 'Thank you for your gift', exact: true}).waitFor()
+    await page.evaluate(() => scrollTo(0, 0))
     await page.screenshot({path: `${directory}/paid-${width}.png`, fullPage: true})
     results.push({width, session, values, mailbox: mailbox(width)})
    }
@@ -121,6 +125,7 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
     await page.setViewportSize({width, height: 1000})
     await page.getByRole('heading', {name: 'Recent form responses', exact: true}).waitFor()
     assert.ok(await page.getByText('For the Saturday reading circle 390', {exact: false}).count())
+    await page.evaluate(() => scrollTo(0, 0))
     await page.screenshot({path: `${directory}/responses-${width}.png`, fullPage: true})
    }
   } finally {await new Promise(resolve => host.close(resolve))}

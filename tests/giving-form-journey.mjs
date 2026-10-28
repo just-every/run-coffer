@@ -49,6 +49,7 @@ export async function givingFormJourney() {
    const gift = history.gifts[0], expected = result.width === 1440 ? 5000 : 5181
    assert.equal(gift.amount_cents, expected)
    assert.equal(gift.fund, 'Tutoring')
+   assert.equal(gift.source, 'stripe')
    assert.equal(capture.gift_id, gift.id)
    assert.equal(capture.employer, 'Riverbend Library')
    assert.equal(capture.comment, 'For the Saturday reading circle ' + result.width)
@@ -70,6 +71,7 @@ export async function givingFormJourney() {
    assert.equal((await h.request('/giving/thanks?session_id=' + result.session.id, {as: ''})).status, 200)
    assert.equal((await responses()).responses.length, 2)
    assert.equal((await h.get('/api/coffer/donors/' + contact.id)).gifts.length, 1)
+   assert.equal(h.messages.filter(m => JSON.stringify(m.to).includes(result.mailbox) && m.text.includes(result.width === 1440 ? '$50.00' : '$51.81')).length, 1)
    result.donorId = contact.id
   }
   assert.equal(edge.sessions.size, 2)
@@ -104,6 +106,9 @@ export async function givingFormJourney() {
   for (const group of [fees.byForm, fees.byCampaign]) assert.deepEqual(group.map(r => [r.id, r.gross_cents]), [[campaign.id, 10181]])
   assert.deepEqual(fees.byFund.map(r => [r.id, r.gross_cents]), [['Tutoring', 10181]])
   assert.equal((await h.get('/api/coffer/giving/campaigns/' + campaign.id)).raisedCents, 10181)
+  const attribution = await h.get('/api/coffer/reports/attribution')
+  assert.equal(attribution.channel.find(r => r.key === 'form').amountCents, 10181)
+  assert.equal(attribution.campaign.find(r => r.key === campaign.id).amountCents, 10181)
   const backup = await archive(h)
   await run(async restored => {
    await restore(restored, backup)
