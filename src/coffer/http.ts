@@ -1,3 +1,4 @@
+import { givingFormErasureStatements } from './giving/form-fields'
 import { reportExportsPage } from './ui/report-exports'
 import { builderDownload } from './report-builder/download'
 import { readBuilderReport } from './report-builder/read'
@@ -476,8 +477,9 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  if (!donor) fail('NOT_FOUND', 'That donor does not exist or was already erased.', 404)
  const checkpoint = await imports.portabilityCheckpoint(c.db)
  const aliases = await c.db.prepare("SELECT email FROM cf_donor_aliases WHERE donor_id=? UNION SELECT value AS email FROM cf_contact_points WHERE donor_id=? AND kind='email' UNION SELECT json_extract(snapshot,'$.value') AS email FROM cf_contact_history WHERE donor_id=? AND json_extract(snapshot,'$.kind')='email'").bind(donorId,donorId,donorId).all<{email:string}>()
+ const emails = [donor.email,...aliases.results.map(a=>a.email)].filter((value):value is string=>Boolean(value))
  const auctionErasure=await auctionErasureStatements(c,donorId,placeholder)
- const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)
+ const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,[...givingFormErasureStatements(donorId,emails),...auctionErasure])
  const givingErasure = [
   {sql:'UPDATE cf_single_letters SET donor_id=? WHERE donor_id=?',params:[placeholder,donorId]},
   ...eventRegistrationErasureStatements(donorId,placeholder,[donor.email,...aliases.results.map(a=>a.email)].filter((value):value is string=>Boolean(value))),
@@ -498,7 +500,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   {sql:'DELETE FROM cf_custom_value_history WHERE donor_id=?',params:[donorId]},
   {sql:'DELETE FROM cf_custom_values WHERE donor_id=?',params:[donorId]},
   { sql: 'DELETE FROM cf_giving_customers WHERE donor_id=?', params: [donorId] },
-  { sql: "UPDATE cf_giving_intents SET donor_id=?,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR email=?", params: [placeholder, donorId, donor.email ?? ''] },
+  { sql: "UPDATE cf_giving_intents SET donor_id=?,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR lower(email) IN (SELECT lower(value) FROM json_each(?))", params: [placeholder, donorId, JSON.stringify(emails)] },
   { sql: "UPDATE cf_subscriptions SET donor_id=?,customer_id='' WHERE donor_id=?", params: [placeholder, donorId] },
  ]
  // The placeholder must exist before its references move; delete the old donor last.

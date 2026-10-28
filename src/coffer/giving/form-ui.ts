@@ -1,12 +1,16 @@
 import { e, money } from '../ui/common'
+import { customDisplay } from '../custom-fields'
+import { centsDecimal } from '../money'
 import type { Row } from '../db'
 
 export function givingQuestion(q: Row) {
  const name = 'answer.' + q.key, required = q.required ? ' required' : ''
  const label = e(q.label) + (q.required ? '' : ' (optional)')
- const choices: unknown[] = typeof q.choices === 'string' ? JSON.parse(q.choices) : q.choices
- if (q.entry === 'pick-many') return `<fieldset class="form-question"><legend>${label}</legend>${choices.map((v, i) => `<label class="consent"><input type="checkbox" name="${e(name)}" value="${e(v)}"><span>${e(v)}</span></label>`).join('')}${q.required ? '<p class="availability">Choose at least one answer.</p>' : ''}</fieldset>`
- if (q.entry === 'pick-one') return `<label class="field"><span>${label}</span><select name="${e(name)}" aria-label="${label}"${required}><option value="">Choose an answer</option>${choices.map(v => `<option value="${e(v)}">${e(v)}</option>`).join('')}</select></label>`
+ const choices: string[] = typeof q.choices === 'string' ? JSON.parse(q.choices) : q.choices
+ const choiceInput = (value: string) => q.type === 'currency' ? centsDecimal(value) : value
+ const choiceLabel = (value: string) => customDisplay(q, value)
+ if (q.entry === 'pick-many') return `<fieldset class="form-question"><legend>${label}</legend>${choices.map((v, i) => `<label class="consent"><input type="checkbox" name="${e(name)}" value="${e(choiceInput(v))}"><span>${e(choiceLabel(v))}</span></label>`).join('')}${q.required ? '<p class="availability">Choose at least one answer.</p>' : ''}</fieldset>`
+ if (q.entry === 'pick-one') return `<label class="field"><span>${label}</span><select name="${e(name)}" aria-label="${label}"${required}><option value="">Choose an answer</option>${choices.map(v => `<option value="${e(choiceInput(v))}">${e(choiceLabel(v))}</option>`).join('')}</select></label>`
  if (q.type === 'checkbox') return `<label class="field"><span>${label}</span><select name="${e(name)}" aria-label="${label}"${required}><option value="">Choose an answer</option><option value="true">Yes</option><option value="false">No</option></select></label>`
  const type = q.type === 'date' ? 'date' : ['number', 'currency', 'year'].includes(q.type) ? 'number' : 'text'
  const numeric = q.type === 'currency' ? ' step="0.01"' : q.type === 'number' ? ' step="any"' : q.type === 'year' ? ' min="1000" max="9999" step="1"' : ''
@@ -23,5 +27,5 @@ export function suggestedAmounts(config: Row) {
 
 export function givingBrandStyle(config: Row) {
  // Every interpolated value is a validated six-digit hexadecimal color.
- return `.configured-form{--form-primary:${config.primaryColor};background:${config.backgroundColor};color:${config.textColor}}.configured-form header,.configured-form h1,.configured-form .description,.configured-form .eyebrow,.configured-form .campaign-media{color:${config.textColor}}.configured-form .scene{display:none}.configured-form .checkout{background:${config.primaryColor}}.configured-form .intro{align-self:start}.configured-form header img{object-fit:contain;width:72px;height:56px}.configured-form .checkout:focus-visible{outline-color:${config.textColor}}`
+ return `.configured-form{--form-primary:${config.primaryColor};background:${config.backgroundColor};color:${config.textColor}}.configured-form .panel{background:#ffffff;color:#172c24}.configured-form header,.configured-form h1,.configured-form .description,.configured-form .eyebrow,.configured-form .campaign-media{color:${config.textColor}}.configured-form .scene{display:none}.configured-form .checkout{background:${config.primaryColor}}.configured-form .intro{align-self:start}.configured-form header img{object-fit:contain;width:72px;height:56px}.configured-form .checkout:focus-visible{outline-color:#172c24}`
 }

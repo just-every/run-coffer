@@ -29,7 +29,7 @@ export async function planSolicitationImports(c:Context,parsed:ParsedImport,plan
   const prior=[...existing.values()].find(m=>m.kind==='consent'&&m.snapshot&&JSON.parse(m.snapshot).donor_id===donorId&&JSON.parse(m.snapshot).channel===r.channel)
   const held=consents.filter(s=>s.donor_id===donorId&&s.channel===r.channel).at(-1)
   if(held&&(!prior||JSON.stringify(held)!==prior.snapshot))conflict(r,`Constituent ${r.donorExternalId} has a newer or separately recorded ${r.channel} preference. The import cannot overwrite it.`)
-  await add('consent',r,{id:++next,donor_id:donorId,channel:r.channel,status:'withdrawn',method:`${parsed.source} export`,evidence:`Imported communication restriction: ${r.codes.join('; ')}`,captured_on:r.sourceOn||day,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
+  await add('consent',r,{id:++next,donor_id:donorId,channel:r.channel,status:r.status??'withdrawn',method:`${parsed.source} export`,evidence:`Imported source preference: ${r.codes.join('; ')}${r.sourceOn?'':' (source date unknown)'}`,captured_on:r.sourceOn||day,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
 }
 

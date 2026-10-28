@@ -21,6 +21,8 @@ export async function givingFormJourney() {
    {key: 'match_ok', label: 'Employer match available', kind: 'constituent', type: 'checkbox'},
    {key: 'class_year', label: 'Class year', kind: 'constituent', type: 'year'},
    {key: 'budget', label: 'Budget', kind: 'gift', type: 'currency'},
+   {key: 'sponsor_amount', label: 'Sponsorship amount', kind: 'gift', type: 'currency', entry: 'pick-one', choices: ['25.50', '125.75']},
+   {key: 'match_amounts', label: 'Matching amounts', kind: 'constituent', type: 'currency', entry: 'pick-many', choices: ['10.25', '20.50']},
   ]
   for (const d of definitions) await h.command('custom.define', d)
   const campaign = await h.api('/api/coffer/giving/campaigns', {name: 'Reading room appeal', slug: 'reading-room', description: 'Keep the reading room open.', fund: 'Reading', goal: '5000', imageBase64: (await readFile('tests/fixtures/campaign-page/story.png')).toString('base64'), imageType: 'image/png', imageDescription: 'Riverbend reading room mark', publicMedia: true, feeCoverEnabled: 'yes', feeCoverRateBps: 290, feeCoverFixedCents: 30})
@@ -41,10 +43,10 @@ export async function givingFormJourney() {
    assert.ok(captured,'Both signed charge delivery and operator sync retain the form response before any browser return')
    assert.equal(captured.fund,'Tutoring')
    assert.equal(captured.employer,'Riverbend Library')
-   assert.equal(captured.answers.length,6)
+   assert.equal(captured.answers.length,8)
   })
   let saved = await h.get(path)
-  assert.equal(saved.questions.length, 6)
+  assert.equal(saved.questions.length, 8)
   await h.api(path, {...editable(saved), version: saved.version - 1}, {status: 409})
   assert.equal((await h.get(path)).version, saved.version)
   const {responses: paid} = await responses()
@@ -61,9 +63,11 @@ export async function givingFormJourney() {
    assert.equal(capture.gift_id, gift.id)
    assert.equal(capture.employer, 'Riverbend Library')
    assert.equal(capture.comment, 'For the Saturday reading circle ' + result.width)
-   assert.deepEqual(Object.fromEntries(capture.answers.map(a => [a.key, a.value])), {reading_interests: ['Books', 'Tutoring'], books: '3', visit_date: '2026-11-20', match_ok: 'false', class_year: '2024', budget: '12575'})
-   assert.equal(history.customValues.length, 6)
+   assert.deepEqual(Object.fromEntries(capture.answers.map(a => [a.key, a.value])), {reading_interests: ['Books', 'Tutoring'], books: '3', visit_date: '2026-11-20', match_ok: 'false', class_year: '2024', budget: '12575', sponsor_amount: '12575', match_amounts: ['1025', '2050']})
+   assert.equal(history.customValues.length, 8)
    assert.equal(history.customValues.find(v => v.field_key === 'budget').value, '"12575"')
+   assert.equal(history.customValues.find(v => v.field_key === 'sponsor_amount').value, '"12575"')
+   assert.equal(history.customValues.find(v => v.field_key === 'match_amounts').value, '["1025","2050"]')
    assert.equal(history.customValues.find(v => v.field_key === 'books').record_id, gift.id)
    assert.equal(history.customValues.find(v => v.field_key === 'reading_interests').record_id, contact.id)
    assert.deepEqual(history.consents.map(c => c.status), result.width === 1440 ? ['granted'] : [])
@@ -100,6 +104,9 @@ export async function givingFormJourney() {
   invalids[1].set('answer.books', 'not a number')
   invalids[2].set('answer.reading_interests', 'Unpublished choice')
   invalids[3].set('designation', 'Unapproved fund')
+  invalids.push(new URLSearchParams(browserResults[0].values), new URLSearchParams(browserResults[0].values))
+  invalids[4].delete('answer.sponsor_amount')
+  invalids[5].set('answer.sponsor_amount', '12575')
   for (const [i, values] of invalids.entries()) {
    values.set('requestId', randomUUID()); values.set('formVersion', saved.version)
    const response = await h.request('/give/reading-room/checkout', {...post(values), headers: {'content-type': 'application/x-www-form-urlencoded', 'cf-connecting-ip': '192.0.2.' + (20 + i)}})
@@ -138,6 +145,17 @@ export async function givingFormJourney() {
   assert.deepEqual((await responses()).responses.find(r => r.comment === 'A second paid response').answers.find(a => a.key === 'reading_interests').value, ['Tutoring'])
   await h.request('/giving/thanks?session_id=' + first.session.id, {as: ''})
   assert.equal((await h.get('/api/coffer/donors/' + first.donorId)).customValues.find(v => v.field_key === 'reading_interests').value, '["Books"]')
+  // An abandoned capture has no donor reference. Correcting the current email
+  // must not put its private answers outside the owner's ordinary erasure door.
+  const abandoned = new URLSearchParams(first.values)
+  abandoned.set('requestId', randomUUID()); abandoned.set('formVersion', saved.version)
+  abandoned.set('comment', 'Private abandoned reading plans')
+  const abandonedCheckout = await h.request('/give/reading-room/checkout', {...post(abandoned), headers: {'content-type': 'application/x-www-form-urlencoded', 'cf-connecting-ip': '192.0.2.45'}})
+  assert.equal(abandonedCheckout.status, 303, await abandonedCheckout.text())
+  const abandonedSession = [...edge.sessions.values()].at(-1)
+  assert.ok(JSON.stringify(await archive(h)).includes('Private abandoned reading plans'), 'The private abandoned response is held before erasure')
+  const {donor: beforeCorrection} = await h.get('/api/coffer/donors/' + first.donorId)
+  await h.command('donor.update', {donorId: first.donorId, version: beforeCorrection.version, name: beforeCorrection.name, email: mailbox('corrected')})
   await h.command('donor.erase', {donorId: first.donorId, confirm: 'ERASE'})
   assert.equal((await responses()).responses.length, 1)
   const replayAfterErasure = await h.request('/give/reading-room/checkout', {...post(first.values), headers: {'content-type': 'application/x-www-form-urlencoded', 'cf-connecting-ip': '192.0.2.44'}})
@@ -145,8 +163,15 @@ export async function givingFormJourney() {
   await h.request('/giving/thanks?session_id=' + first.session.id, {as: ''})
   const erasedArchive = JSON.stringify(await archive(h))
   assert.ok(!erasedArchive.includes('For the Saturday reading circle 1440'))
+  assert.ok(!erasedArchive.includes('Private abandoned reading plans'), 'Erasure follows the old contact history to an abandoned form capture')
+  const abandonedReplay = await h.request('/give/reading-room/checkout', {...post(abandoned), headers: {'content-type': 'application/x-www-form-urlencoded', 'cf-connecting-ip': '192.0.2.46'}})
+  assert.equal(abandonedReplay.status, 409, await abandonedReplay.text())
+  assert.equal((await h.request('/giving/thanks?session_id=' + abandonedSession.id, {as: ''})).status, 409)
+  await edge.paidBeforeReturn(h, abandonedSession, webhookSecret, 409)
+  assert.ok(!(await h.get('/api/coffer/donors')).donors.some(d => d.email === first.mailbox || d.email === mailbox('corrected')))
+  assert.ok(!JSON.stringify(await archive(h)).includes('Private abandoned reading plans'))
   assert.equal((await h.get('/api/coffer/giving/campaigns/' + campaign.id)).raisedCents, 15181)
   assert.equal((await responses()).responses.length, 1)
-  assert.equal(edge.sessions.size, 3)
+  assert.equal(edge.sessions.size, 4)
  }, {bindings: {STRIPE_SECRET_KEY: 'synthetic-coffer-7001',STRIPE_WEBHOOK_SECRET:webhookSecret}, outbound: edge.outbound})
 }

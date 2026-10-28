@@ -32,12 +32,12 @@ export function givingFormEdge() {
   if (path === '/v1/balance_transactions') return Response.json({data: entries, has_more: false})
   assert.fail('Unexpected giving-form payment request ' + path)
  }
- const paidBeforeReturn=async(h,session,secret)=>{
+ const paidBeforeReturn=async(h,session,secret,expectedStatus=200)=>{
   const charge=[...charges.values()].find(c=>c.payment_intent===session.payment_intent)
   const raw=JSON.stringify({id:'synthetic-coffer-paid-'+charge.id,type:'charge.succeeded',data:{object:{id:charge.id}}}),timestamp=Math.floor(Date.now()/1000)
   const signature=createHmac('sha256',secret).update(timestamp+'.'+raw).digest('hex')
   const response=await h.mf.dispatchFetch(h.origin+'/api/coffer/giving/webhook',{method:'POST',headers:{host:new URL(h.origin).host,'content-type':'application/json','stripe-signature':`t=${timestamp},v1=${signature}`},body:raw})
-  assert.equal(response.status,200,await response.text())
+  assert.equal(response.status,expectedStatus,await response.text())
  }
  return {sessions, charges, entries, outbound, paidBeforeReturn}
 }
