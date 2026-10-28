@@ -767,7 +767,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "b406641897465f1c0089e2335c725b0e9c28043ac5b808e5e3b197defa54ef54",
+      "sha256": "08ac67d2d8af9486667ff37a4478973045516da386d69292324fe06f893e35d4",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1450,16 +1450,16 @@
       "sha256": "a6fd47033becb5b3c5a823648f1312e87b700b73ce1ef04a5a74645175ba61fd",
       "executable": false
     },
-    "migrations/core/0169_coffer_giving_forms.sql": {
-      "sha256": "32a3372a56f6e2bd9328c604c3755b490a12ed0f956a685097ed9c03638401c4",
-      "executable": false
-    },
     "migrations/core/0169_coffer_source_unknown_preferences.sql": {
       "sha256": "88ac3d65a8035a97cff0a7af205ad0042b4b0978d2973610ac9c33bf3916c0da",
       "executable": false
     },
     "migrations/core/0170_coffer_spreadsheet_acknowledgments.sql": {
       "sha256": "e600d4fcd520bd19b17ab86be7c130c6a91e1a6fda58d1ea36c13e9212b6b43c",
+      "executable": false
+    },
+    "migrations/core/0171_coffer_giving_forms.sql": {
+      "sha256": "32a3372a56f6e2bd9328c604c3755b490a12ed0f956a685097ed9c03638401c4",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1867,7 +1867,7 @@
       "executable": false
     },
     "RELEASE.json": {
-      "sha256": "1889f0e29212011cafd5f0e0da71a654f3fc64cccc4338ecd9ff41510884558d",
+      "sha256": "f60e44c940585b2375ee8374528fef603343188674c973b39d9c4a919244f983",
       "executable": false
     },
     "rer-project.json": {
@@ -7223,7 +7223,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "df75fc1f83d97c1236aad0960096116ce12a7c6a98a9e52ce5f6ecbf379e6ba2",
+      "sha256": "66641e0fd6bf864fb956e75430956107cf444256bf807163443f6cae80d61fba",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
