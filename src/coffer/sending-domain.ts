@@ -55,7 +55,7 @@ function definition(value: Row, authenticationId: number, domain: string): Sendi
 async function provider(env: Bindings, authenticationId: number, validate = false): Promise<Row> {
  let response: Response
  try {
-  response = await fetch(API + authenticationId + (validate ? '/validate' : ''), { method: validate ? 'POST' : 'GET', redirect: 'error', signal: AbortSignal.timeout(10_000),
+  response = await fetch(API + authenticationId + (validate ? '/validate' : ''), { method: validate ? 'POST' : 'GET', redirect: 'manual', signal: AbortSignal.timeout(10_000),
    headers: { authorization: `Bearer ${env.MAIL_API_KEY}`, accept: 'application/json' } })
  } catch { return fail('sending_domain_provider', 'SendGrid could not be reached. The sending domain has not been verified.', 502) }
  if ([401, 403].includes(response.status)) fail('sending_domain_provider_access', 'The mail key needs access to this SendGrid domain authentication and its validation API.', 409)
@@ -68,7 +68,7 @@ async function dns(name: string, type: 'CNAME' | 'TXT'): Promise<Row[]> {
  const url = new URL(DNS)
  url.searchParams.set('name', name); url.searchParams.set('type', type)
  let response: Response
- try { response = await fetch(url.href, { headers: { accept: 'application/dns-json' }, redirect: 'error', signal: AbortSignal.timeout(10_000) }) }
+ try { response = await fetch(url.href, { headers: { accept: 'application/dns-json' }, redirect: 'manual', signal: AbortSignal.timeout(10_000) }) }
  catch { return fail('sending_domain_dns', 'The DNS resolver could not be reached. The sending domain has not been verified.', 502) }
  const result = await response.json().catch(() => null) as Row | null
  if (!response.ok || !result || ![0, 3].includes(result.Status) || (result.Answer !== undefined && !Array.isArray(result.Answer)))
