@@ -74,8 +74,6 @@ async function fillOptional(page, selector, value, select = false) {
 }
 
 async function pay(page, name, email) {
- const usd = page.getByText('$50.00', {exact:true})
- if(await usd.count() && await usd.first().isVisible())await usd.first().click()
  // https://docs.stripe.com/testing#cards — successful Visa test card.
  await (await visibleField(page, 'input[name="cardNumber"], input[autocomplete="cc-number"]')).fill('4242'.repeat(4))
  await (await visibleField(page, 'input[name="cardExpiry"], input[autocomplete="cc-exp"]')).fill('12' + String(new Date().getUTCFullYear() + 3).slice(-2))

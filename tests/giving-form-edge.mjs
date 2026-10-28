@@ -13,6 +13,7 @@ export function givingFormEdge() {
   if (path === '/v1/checkout/sessions') {
    const id = 'cs_form_' + sequence, total = Number(params.get('line_items[0][price_data][unit_amount]'))
    assert.equal(params.get('mode'), 'payment')
+   assert.equal(params.get('adaptive_pricing[enabled]'), 'false', 'A gift quoted in USD cannot be converted at payment')
    const intent = params.get('metadata[coffer_intent]'), customer = params.get('customer')
    assert.equal(params.get('payment_intent_data[metadata][coffer_intent]'), intent)
    const session = {id, url: 'https://checkout.stripe.com/c/pay/' + id, metadata: {coffer_intent: intent}, customer, currency: 'usd', amount_total: total, status: 'complete', payment_status: 'paid', payment_intent: 'pi_form_' + sequence}
