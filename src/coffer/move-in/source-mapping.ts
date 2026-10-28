@@ -137,7 +137,7 @@ function installment(r: SourceRow, out: ParsedImport) {
 export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {
  const kind = r.kind(); r.get('type')
  if(r.peek('communicationRestrictions'))sourceRestrictions(r,out,input)
- if(kind==='donor')sourceConsents(r,out)
+ if(kind==='donor'||(out.source!=='lgl'&&['email','mail','sms','phone'].some(channel=>r.has(channel+'Consent')||r.has(channel+'OptOut'))))sourceConsents(r,out)
  // LGL repeats display names in gift and relationship reports. Only constituent
  // records define donors: labels on referenced records cannot create or rename one.
  if (out.source === 'lgl') {

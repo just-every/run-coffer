@@ -51,6 +51,7 @@ export async function consentImportBrowser(h,input,preview,directory){
    await form.getByText('Map organization-specific communication codes',{exact:true}).click()
    assert.equal(await form.locator('textarea[name=solicitCodes]').inputValue(),rules,'Recheck retains every reviewed code mapping')
    await capture('review',width)
+   if(directory)await panel.screenshot({path:`${directory}/MOVE-008-preferences-${width}.png`})
    if(width===1440){
     await form.locator('input[name=exports]').setInputFiles(files)
     await form.locator('input[name=noGoodsOrServices]').setChecked(input.noGoodsOrServices===true)
@@ -95,6 +96,7 @@ export async function consentImportBrowser(h,input,preview,directory){
     }
     await consent.scrollIntoViewIfNeeded()
     await capture('donor-history-'+externalId.replace(/[^a-zA-Z0-9_-]/g,'_'),width)
+    if(directory)await consent.screenshot({path:`${directory}/MOVE-008-consent-${externalId}-${width}.png`})
    }
   }
   await page.close()
@@ -106,10 +108,17 @@ async function fits(page,width){
  const failures=await page.evaluate(()=>{
   const visible=node=>node.checkVisibility()&&!node.closest('.sr,[aria-hidden="true"]')
   const small=[...document.querySelectorAll('body *')].filter(node=>visible(node)&&[...node.childNodes].some(n=>n.nodeType===3&&n.textContent.trim())&&parseFloat(getComputedStyle(node).fontSize)<13).map(node=>node.textContent.trim().slice(0,80))
-  const unlabeled=[...document.querySelectorAll('button,a,[role=button]')].filter(node=>visible(node)&&!(node.innerText||'').trim()&&!node.hasAttribute('data-tooltip')&&!node.hasAttribute('data-tip')&&!node.hasAttribute('data-tooltip-content')).map(node=>node.outerHTML.slice(0,150))
+  const unlabeled=[...document.querySelectorAll('button,a,[role=button]')].filter(node=>visible(node)&&!(node.innerText||'').trim()&&!node.hasAttribute('data-tooltip')&&!node.hasAttribute('data-tip')&&!node.hasAttribute('data-tooltip-content')&&!node.querySelector('[role=tooltip]')).map(node=>node.outerHTML.slice(0,150))
   return {overflow:document.documentElement.scrollWidth>innerWidth,small,unlabeled}
  })
  assert.equal(failures.overflow,false,'Screen fits '+width)
  assert.deepEqual(failures.small,[],'Visible text is at least 13px')
- assert.deepEqual(failures.unlabeled,[],'Icon-only controls provide tooltip data')
+ assert.deepEqual(failures.unlabeled,[],'Icon-only controls provide tooltips')
+ for(const control of await page.locator('a.cf-tip,button.cf-tip').all()){
+  if(!await control.isVisible())continue
+  await control.focus()
+  assert.ok(await control.locator('[role=tooltip]').isVisible(),'Keyboard focus reveals the control tooltip')
+  assert.ok((await control.locator('[role=tooltip]').innerText()).trim().split(/\s+/).length>=2,'Tooltip describes the action')
+ }
+ await page.locator('h1').click()
 }

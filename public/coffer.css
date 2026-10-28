@@ -462,3 +462,12 @@
 .coffer .report-document dl { display: block; margin: 0; }
 .coffer .report-document dd { margin: 0 0 12px; }
 .coffer .report-document ol { padding-left: 20px; }
+
+/* Keep the import review and consent-history screens readable at both widths. */
+.cf-app:has(form[action^="/app/move-in/crm"]) .cf-who-name small,
+.cf-app:has(form[action^="/app/move-in/crm"]) .coffer .chip,
+.cf-app:has(#consent) .cf-who-name small,
+.cf-app:has(#consent) .coffer .chip,
+.cf-app:has(#consent) .cf-tip [role=tooltip] { font-size: 13px; }
+.cf-app:has(#consent) small,
+.cf-app:has(#consent) .cf-when { font-size: 13px; }

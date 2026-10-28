@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {readFile,readdir} from 'node:fs/promises'
 import {withBrowserWorker} from './browser-worker.mjs'
 import {mkdir} from 'node:fs/promises'
+import {consentImportJourney} from './consent-import-journey.mjs'
 import {run,donor,archive,restore} from './harness.mjs'
 
 export async function exportInput(source,format='csv') {
@@ -106,14 +107,14 @@ async function sourceAcknowledgments(h,source) {
  assert.ok((await h.get(`${endpoint}/journal?id=${preview.id}`)).records.every(r=>r.n===0),'Undo removes every owned source acknowledgment record')
 }
 
-for(const source of ['lgl','bloomerang','re-nxt'])test(`ACK-001 / MOVE-001..003 / MOVE-007 — ${source}: exports reconcile, source acknowledgment facts govern due gifts, export exactly and undo`,()=>run(async h=>{
+for(const source of ['lgl','bloomerang','re-nxt'])test(`MOVE-008 / ACK-001 / MOVE-001..003 / MOVE-007 — ${source}: exports reconcile, source acknowledgment facts govern due gifts, export exactly and undo`,()=>run(async h=>{
  for(const format of ['csv','xlsx']) {
   const input=await exportInput(source,format)
   await post(h,'preview',input,{as:'',status:401})
   const preview=await post(h,'preview',input)
   assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics))
   assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped))
-  assert.deepEqual(preview.counts,{donors:3,households:1,householdsWithHead:0,householdsWithoutHead:1,gifts:3,pledges:1,installments:2,relationships:1,softCredits:1,notes:3,solicitations:0,channelWithdrawals:0})
+  assert.deepEqual(preview.counts,{donors:3,households:1,householdsWithHead:0,householdsWithoutHead:1,gifts:3,pledges:1,installments:2,relationships:1,softCredits:1,notes:3,solicitations:0,channelWithdrawals:0,consents:12})
   assert.equal(preview.sourceTotals.amountCents,90000)
   assert.equal(preview.sourceTotals.giftCount,3)
   assert.ok(preview.reconciliation.length>=13)
@@ -156,6 +157,7 @@ for(const source of ['lgl','bloomerang','re-nxt'])test(`ACK-001 / MOVE-001..003 
   assert.equal((await h.get(`${endpoint}/journal?id=${applied.id}`)).job.state,'undone')
  }
  await sourceAcknowledgments(h,source)
+ await run(fresh=>consentImportJourney(fresh,source),{entry:'tests/engagement-worker.ts',bindings:{COFFER_TEST_NOW:'2026-10-20T15:00:00.000Z'},verifiedMail:true})
  if(source==='lgl') {
   const input=await exportInput(source)
   const extra={name:'unmapped.csv',base64:Buffer.from('LGL Constituent ID,Name,Favorite Color\r\n104,Jordan Kim,Green\r\n').toString('base64')}
@@ -177,7 +179,7 @@ for(const source of ['lgl','bloomerang','re-nxt'])test(`ACK-001 / MOVE-001..003 
   assert.equal((await h.get('/api/coffer/donors')).total,4)
   assert.equal((await h.get('/api/coffer/donors')).donors.reduce((s,d)=>s+d.total_cents,0),91000)
  }
-}))
+},{entry:'tests/engagement-worker.ts',bindings:{COFFER_TEST_NOW:'2026-10-20T15:00:00.000Z'},verifiedMail:true}))
 
 // A synthetic Little Green Light export in LGL's own layout, large enough to go in several parts.
 test('lgl: a large export moves in part by part, with pledges, soft credits, spouse households and already-thanked history',()=>run(async h=>{

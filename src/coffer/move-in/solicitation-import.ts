@@ -17,7 +17,7 @@ export async function planSolicitationImports(c:Context,parsed:ParsedImport,plan
  for(const r of restrictions) {
   const donorId=plan.donorIds.get(r.donorExternalId)??'', held=current.find(s=>s.donor_id===donorId), prior=previous('solicitation',donorId)
   if(held&&(!prior||JSON.stringify(held)!==prior.snapshot))conflict(r,`Constituent ${r.donorExternalId} has a staff-edited or separately recorded restriction. The import cannot replace it; resolve the source and current restriction explicitly.`)
-  await add('solicitation',r,{donor_id:donorId,version:1,type:r.type,period:'rolling-12-months',starts_on:r.sourceOn||day,ends_on:null,channels:JSON.stringify(r.channels),max_asks:r.maxAsks,source:'import',source_ref:`${parsed.source}:${r.donorExternalId}`,source_on:r.sourceOn||day,recorded_at:c.now,recorded_by_id:c.actor.id,recorded_by_name:c.actor.name},undefined,donorId)
+  await add('solicitation',r,{donor_id:donorId,version:1,type:r.type,period:'rolling-12-months',starts_on:r.sourceOn||day,ends_on:null,channels:JSON.stringify(r.channels),max_asks:r.maxAsks,source:'import',source_ref:`${parsed.source}:${r.donorExternalId}`,source_on:r.sourceOn,recorded_at:c.now,recorded_by_id:c.actor.id,recorded_by_name:c.actor.name},undefined,donorId)
  }
 
 }

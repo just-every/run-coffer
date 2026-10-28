@@ -31,7 +31,8 @@ export async function planConsentImports(c:Context,parsed:ParsedImport,plan:Plan
   const latest=consents.filter(s=>s.donor_id===donorId&&s.channel===r.channel).at(-1)
   const prior=latest&&[...existing.values()].find(m=>m.kind==='consent'&&String(m.native_id)===String(latest.id))
   if(latest&&(!prior||JSON.stringify(latest)!==prior.snapshot))plan.diagnostics.push({...r.location,severity:'error',code:'CONSENT_CHANGED',column:r.channel+' consent',message:`Constituent ${r.donorExternalId} has a newer or separately recorded ${r.channel} preference. The import cannot overwrite it.`})
-  await add('consent',r,{id:++next,donor_id:donorId,channel:r.channel,status:r.status,method:`${sourceNames[parsed.source]} export`,evidence:`${r.evidence} · Source constituent: ${r.donorExternalId} · Source date: ${r.sourceOn||'unknown'} · Imported: ${c.now}`,captured_on:r.sourceOn,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
+  const entity=parsed.channelWithdrawals?.find(w=>w.externalId===r.externalId)??r
+  await add('consent',entity,{id:++next,donor_id:donorId,channel:r.channel,status:r.status,method:`${sourceNames[parsed.source]} export`,evidence:`${r.evidence} · Source constituent: ${r.donorExternalId} · Source date: ${r.sourceOn||'unknown'} · Imported: ${c.now}`,captured_on:r.sourceOn,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
 }
 
@@ -42,5 +43,7 @@ export function consentUndoFence(jobId:string) {
    WHERE r.job_id=? AND r.kind='consent' AND r.owned=1 AND (
     EXISTS(SELECT 1 FROM cf_consents n WHERE n.donor_id=k.donor_id AND n.channel=k.channel AND n.id>k.id AND n.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='consent' AND owned=1))
     OR EXISTS(SELECT 1 FROM cf_appeal_recipients a WHERE a.consent_id=k.id)
+    OR EXISTS(SELECT 1 FROM cf_preference_sync s WHERE s.consent_id=k.id)
+    OR EXISTS(SELECT 1 FROM cf_recovery_steps s WHERE s.consent_id=k.id)
    ))`,'MOVE_IN_USED','A newer preference or prepared audience depends on this consent history. Nothing was undone.',jobId,jobId)
 }

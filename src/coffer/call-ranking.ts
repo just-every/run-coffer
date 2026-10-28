@@ -117,7 +117,7 @@ async function rankManager(c:Context,managerId:string) {
  const source=sourceQuery(c,managerId,day),raw=await all(c,source.query,...source.params),excluded:Row={}
  const preferences=await communicationReasons(c,raw.map(r=>JSON.parse(r.row).id),'phone')
  const candidates=raw.map(r=>scored(JSON.parse(r.row),day,week,s.fiscal_year_start)).filter(r=>r.score>0).filter(r=>{
-  const why=r.status!=='active'?r.status:r.permission==='withdrawn'?'phone consent withdrawn':r.isAsk?preferences.get(r.id):null
+  const why=r.status!=='active'?r.status:r.permission==='withdrawn'?'phone consent withdrawn':r.permission==='unknown'?'phone consent unknown':r.isAsk?preferences.get(r.id):null
   if(why){countReason(excluded,why);return false}return true
  }).sort((a,b)=>b.score-a.score||b.amount-a.amount||(a.name.toLowerCase()<b.name.toLowerCase()?-1:a.name.toLowerCase()>b.name.toLowerCase()?1:0)||(a.id<b.id?-1:a.id>b.id?1:0))
  const runId=newId(),period=fiscalPeriod(day,s.fiscal_year_start),taskCount=Math.min(operator.capacity,candidates.length)

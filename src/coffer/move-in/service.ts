@@ -20,7 +20,7 @@ import type { Diagnostic, ParseInput, ParsedImport } from './types'
 const APPLY_BUDGET_MS = 20_000
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
-const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,(p as any)[k].length])),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).length,...(p.consents?.length?{consents:importedConsents(p).length}:{}),...(p.codeTags?.length?{codeTags:p.codeTags.length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
+const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,(p as any)[k].length])),solicitations:(p.solicitations??[]).length,channelWithdrawals:importedConsents(p).filter(r=>r.status==='withdrawn').length,...(p.consents?.length?{consents:importedConsents(p).length}:{}),...(p.codeTags?.length?{codeTags:p.codeTags.length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
 
 /** Reads and checks the whole export, plans every part against Coffer as apply will, then stores the review.
  * Donor records do not change. */
@@ -33,6 +33,7 @@ export async function preview(c: Context,input: ParseInput) {
   if(saved?.mapping)input={...input,solicitCodes:JSON.parse(saved.mapping)}
  }
  const parsed=await parseExports(input)
+ parsed.consents=importedConsents(parsed)
  const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:parsed.solicitCodes??null,customFields:parsed.customFields})
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
@@ -47,8 +48,9 @@ export async function preview(c: Context,input: ParseInput) {
   }
  }
  const rows=compare(parsed)
- const restrictionIds=[...new Set([...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[])].map(r=>r.donorExternalId))]
- for(const [key,count] of [['Restricted constituents',restrictionIds.length],['Solicitation restrictions',(parsed.solicitations??[]).length],...['email','mail','phone','sms'].map(channel=>[`${channel} withdrawals`,(parsed.channelWithdrawals??[]).filter(r=>r.channel===channel).length])] as [string,number][])rows.push({scope:'restriction',key,sourceCount:count,cofferCount:count,sourceCents:null,cofferCents:0,matches:true})
+ const withdrawals=importedConsents(parsed).filter(r=>r.status==='withdrawn')
+ const restrictionIds=[...new Set([...(parsed.solicitations??[]),...withdrawals].map(r=>r.donorExternalId))]
+ for(const [key,count] of [['Restricted constituents',restrictionIds.length],['Solicitation restrictions',(parsed.solicitations??[]).length],...['email','mail','phone','sms'].map(channel=>[`${channel} withdrawals`,withdrawals.filter(r=>r.channel===channel).length])] as [string,number][])rows.push({scope:'restriction',key,sourceCount:count,cofferCount:count,sourceCents:null,cofferCents:0,matches:true})
  const diagnostics=ordered(parsed.diagnostics)
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
@@ -232,7 +234,7 @@ function contents(part: ParsedImport) {
  const rows=part[main].map(x=>x.location), files=[...new Set(rows.map(l=>l.file))]
  return `${part[main].length} ${kindName[main]} from ${files.map(f=>{const r=rows.filter(l=>l.file===f).map(l=>l.row);return `${f} rows ${Math.min(...r)}–${Math.max(...r)}`}).join(', ')}`
 }
-const label=(kind: Kind)=>({contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',softCreditAcknowledgment:'soft-credit acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
+const label=(kind: Kind)=>({contact:'contact point',solicitation:'solicitation restriction',consent:'channel preference',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',softCreditAcknowledgment:'soft-credit acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation'} as Record<Kind,string>)[kind]
 /** Unique indexes that commit() reports by name. */
 const UNIQUE_CODES: Record<string,[string,string[]]> = {DUPLICATE_EMAIL:['cf_donors',['email']],DUPLICATE_REFERENCE:['cf_gifts',['source','reference']],DUPLICATE_HOUSEHOLD:['cf_households',['name']]}
 /** A database refusal names its part, the rows behind it and the reason, never only "the operation failed". */

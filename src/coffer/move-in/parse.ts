@@ -31,6 +31,9 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  }
  sourceTotals(rows, out.sourceTotals)
  for (const row of rows) if (row.kind() === 'control') { mapRow(row, out, input); controlRow(row, out) } else mapRow(row, out, input)
+ // Combined gift reports can define donors without a separate constituent row.
+ // Their missing preferences still have explicit unknown history and provenance.
+ for(const donor of out.donors)for(const channel of ['email','mail','sms','phone'] as const)if(!out.consents?.some(c=>c.donorExternalId===donor.externalId&&c.channel===channel))out.consents!.push({location:donor.location,externalId:`consent:${channel}:${donor.externalId}`,donorExternalId:donor.externalId,channel,status:'unknown',sourceOn:'',evidence:'No source preference recorded'})
  mapCustomColumns(rows,out)
  inferHouseholds(out)
  validateHouseholdHeads(out)

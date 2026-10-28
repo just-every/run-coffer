@@ -1,3 +1,4 @@
+import { importedConsents } from './consent-import'
 import { all, commit, fail, guard, one, sql, type Context, type Row, type Stmt } from '../db'
 import type { Difference } from './reconcile'
 import type { Diagnostic, ParsedImport } from './types'
@@ -88,7 +89,7 @@ export async function reviewed(c: Context, id: string) {
 }
 
 export const reportOf = (parsed: ParsedImport, review: { rows: Difference[]; canApply: boolean; needsAcceptance: boolean; counts: Row; parts: number }) => ({
- source:parsed.source, solicitCodes: parsed.solicitCodes, restrictionSource: { donorIds:[...new Set([...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[])].map(r=>r.donorExternalId))], solicitationIds:(parsed.solicitations??[]).map(r=>r.donorExternalId), withdrawals:(parsed.channelWithdrawals??[]).map(r=>({donorExternalId:r.donorExternalId,channel:r.channel})) },
+ source:parsed.source, solicitCodes: parsed.solicitCodes, restrictionSource: { donorIds:[...new Set([...(parsed.solicitations??[]),...importedConsents(parsed).filter(r=>r.status==='withdrawn')].map(r=>r.donorExternalId))], solicitationIds:(parsed.solicitations??[]).map(r=>r.donorExternalId), withdrawals:importedConsents(parsed).filter(r=>r.status==='withdrawn').map(r=>({donorExternalId:r.donorExternalId,channel:r.channel})) },
  counts: review.counts, reconciliation: compact(review.rows), files: parsed.files, unmapped: parsed.unmapped.filter(u => u.value).length, leftOut: leftOut(parsed),
  needsAcceptance: review.needsAcceptance, canApply: review.canApply, parts: review.parts, sourceTotals: parsed.sourceTotals, controlTotals: parsed.controlTotals, sample: sample(parsed),
 })
