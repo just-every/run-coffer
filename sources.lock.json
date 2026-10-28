@@ -1450,6 +1450,10 @@
       "sha256": "a6fd47033becb5b3c5a823648f1312e87b700b73ce1ef04a5a74645175ba61fd",
       "executable": false
     },
+    "migrations/core/0169_coffer_mailboxes.sql": {
+      "sha256": "1c00574011727001bbc0328e65eb5afed27bac21dbe47acbe3a278ab018778e4",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -3192,6 +3196,14 @@
     },
     "src/coffer/mail-pieces.ts": {
       "sha256": "c783e57bbc8e52b20eca04373c0f3b76b5872f384bd0c02a3e9e08726ce61363",
+      "executable": false
+    },
+    "src/coffer/mailboxes/connection.ts": {
+      "sha256": "f7d43b87e2badd6ed710bb388f2eff5c39203a474fe67a8fe63b39227cf0b5c2",
+      "executable": false
+    },
+    "src/coffer/mailboxes/provider.ts": {
+      "sha256": "ea04239e1a9d08919366565c976ebec7e39ef7303f830245214257f3db41c1fe",
       "executable": false
     },
     "src/coffer/major-gifts.ts": {
