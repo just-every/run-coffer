@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "565c64148f334ed6e7aac13a276e38c7f5fd2b9d58e8ad0e9ac7637ed67f2b34",
+      "sha256": "38f63cd4ccdb069ff6cd9e209e8d4d6b96f4169009fcf62663d0d3f024e39267",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0c06fb84477390bbc063471e0256a0847830709139fd2b9ad9c9d8ab9b4e116a",
+      "sha256": "6d9be091575e388d1163663234030cd0d7fc9e3cbc17a55ae854ec208e46e3e4",
       "executable": false
     },
     "deploy-demo.json": {
@@ -715,11 +715,15 @@
       "executable": false
     },
     "docs/ONLINE-GIVING.md": {
-      "sha256": "12a4020e4902dbc2056bf8c6c93af72c099d2a1d952e7ba27ba99e711ee63a81",
+      "sha256": "5deca707cb3cb721ebb6781a6aa7118b4d5c01ba12d0439830593306320522bf",
       "executable": false
     },
     "docs/PAYMENTS.md": {
       "sha256": "7aefbf0008e942b5a863b52a79c2f6573bed4463b2c4637089ad64f77dd3cd0f",
+      "executable": false
+    },
+    "docs/peer-fundraising.md": {
+      "sha256": "31311b5d345e48c7833f712ab402cda08df2d28a211c42482a360225ed9f3794",
       "executable": false
     },
     "docs/people.md": {
@@ -743,7 +747,7 @@
       "executable": false
     },
     "docs/site.json": {
-      "sha256": "6a199553c5fe353d13236fe34540fb63408e1f5ac1d8dc4e6ec416edbb177a08",
+      "sha256": "a950e296616703e6d1ef55d9a979cd23777a97a6b9c4972e8a68f38a89ed2614",
       "executable": false
     },
     "docs/SOURCES.md": {
@@ -3472,6 +3476,10 @@
     },
     "src/coffer/peer/http.ts": {
       "sha256": "8dd565b6c3754593478d8c6c990a4e5e7079e0ce0b994a982380d5f08e8a4066",
+      "executable": false
+    },
+    "src/coffer/peer/notices.ts": {
+      "sha256": "c5e6abe12bd160285fee242d000299fe77040d6cf81d2398422fbd498894bf95",
       "executable": false
     },
     "src/coffer/peer/recognition.ts": {
@@ -6755,7 +6763,11 @@
       "executable": false
     },
     "tests/peer-journey.mjs": {
-      "sha256": "3083e101c185d0db4de807031ef13f1c1e58e332c4fac172c60e7b6bf0804225",
+      "sha256": "601c26b46b6ffc96bab6f55a0d3e1e0aa8778171eefd09daf5da985309a94b7e",
+      "executable": false
+    },
+    "tests/peer-notices-journey.mjs": {
+      "sha256": "f300ad4ae4fdf0de240e1cdf33cbfef5fa1658c78b28d13a75372fbf5cc9787e",
       "executable": false
     },
     "tests/pipeline.test.mjs": {

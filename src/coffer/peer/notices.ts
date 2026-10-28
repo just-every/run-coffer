@@ -47,7 +47,7 @@ export async function peerNoticeCommand(c: Context, command: string, p: Row): Pr
   guard(`${uniquePortalEmail} AND EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.email=? AND
    (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,
    'PEER_CONSENT', 'The fundraiser needs current consent and a unique email address.', row.email, row.email, row.donor_id, row.email),
-  guard("EXISTS(SELECT 1 FROM cf_email_connection WHERE id=1 AND provider='mailchimp' AND merge_version=?)", 'PEER_SENDER', 'The approved email connection changed.', connection!.merge_version),
+  guard("EXISTS(SELECT 1 FROM cf_email_connection WHERE id=1 AND provider='mailchimp' AND merge_version=? AND credential=? AND list_id IS ? AND from_name IS ? AND from_email IS ?)", 'PEER_SENDER', 'The approved email connection changed.', connection!.merge_version, conn.credential, conn.listId, conn.fromName, conn.fromEmail),
   ...await communicationGuards(c, [row.donor_id], 'email', 'newsletter', {kind:'welcome',id:key}),
  ]
  const classification = await prepareSolicitationRun(c, {kind:'welcome',id:key,channel:'email',isAsk:false,donorIds:[row.donor_id]})

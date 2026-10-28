@@ -39,10 +39,11 @@ async function give(h,pageId,who,cents,extra={}){
 }
 
 export async function peerJourney(){
- const edge=recognitionEdges(),mail=journeyChimpEdge([address('first.peer'),address('second.peer')])
+ const edge=recognitionEdges(),mail={...journeyChimpEdge([address('first.peer'),address('second.peer')]),contents:[]}
  const stripeOutbound=edge.outbound
  edge.outbound=async request=>{
   if(!new URL(request.url).hostname.endsWith('api.mailchimp.com'))return stripeOutbound(request)
+  if(new URL(request.url).pathname.endsWith('/content'))mail.contents.push(await request.clone().json())
   if(new URL(request.url).pathname.endsWith('/content')&&mail.beforeContent){const change=mail.beforeContent;mail.beforeContent=null;await change()}
   return mail.outbound(request)
  }
@@ -122,9 +123,13 @@ export async function peerJourney(){
    assert.deepEqual(await fresh.get(boardPath(campaign.id),{as:''}),expectedBoard)
    assert.equal((await fresh.request('/giving/peer/state',{as:firstCookie})).status,303,'Restore cannot restore a supporter credential')
    assert.equal((await fresh.get('/api/coffer/donors/'+first.id)).giftDepth.recognitionCents,2500)
+   const messages=(await fresh.get('/api/coffer/donors/'+first.id)).communications.filter(m=>m.message_key.startsWith('peer:'))
+   assert.equal(messages.length,4,'Restore preserves fundraiser notice history')
+   assert.equal((await fresh.command('peer.sendNotice',{recordId:p1.id,version:notices.records[0].version,notice:'thank',confirm:'SEND'})).id,messages.find(m=>m.message_key.endsWith(':thank')&&m.message_key.includes(p1.id)).id,'Restored claims do not require or restore a sending credential')
   },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-9101'},givingProtection:false})
   const file=await h.api('/api/coffer/donors/'+first.id+'/data-request',{requestedOn:'2026-09-15',method:'email'})
   assert.ok(file.records.peer_pages.some(p=>p.id===p1.id))
+  assert.equal(file.records.communications.filter(m=>m.message_key.startsWith('peer:')).length,4,'The fundraiser data file includes their exact notice history')
   assert.ok(!JSON.stringify(file.records).includes('First Actual Giver'),'Fundraiser data file does not expose the donor behind a soft credit')
   await h.command('gift.reverse',{giftId:firstGift.gift.id,reason:'Returned gift',reversedOn:'2026-09-16'})
   assert.equal((await pub(p1.id)).raisedCents,0);assert.equal((await pub(p1.id)).giftCount,0)

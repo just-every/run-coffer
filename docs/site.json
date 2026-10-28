@@ -17,6 +17,7 @@
         { "slug": "receipts", "title": "Sending and printing receipts", "file": "RECEIPTS.md", "summary": "Email approved receipts and year-end statements, track delivery, and print letters for donors without email." },
         { "slug": "appeals", "title": "Appeals", "file": "appeals.md", "summary": "Build an audience of donors who said yes, approve it, export it for your own tool and record the send." },
         { "slug": "online-giving", "title": "Online and monthly giving", "file": "ONLINE-GIVING.md", "summary": "Connect Stripe from Coffer, publish campaign pages and run monthly gifts with a donor card portal." },
+        { "slug": "peer-fundraising", "title": "Supporter fundraising", "file": "peer-fundraising.md", "summary": "Create personal pages and teams, reconcile their credits and review fundraiser email submissions." },
         { "slug": "payments", "title": "Payouts and accounting", "file": "PAYMENTS.md", "summary": "Match each Stripe payout to its gifts and fees, then post it to Pantry or export it for QuickBooks." }
       ]
     },
