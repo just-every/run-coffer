@@ -134,3 +134,11 @@ their maintenance.
 
 Pinned reference: https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/TANSTACK-START-MIGRATION.md
 Native-session/runtime evidence: https://github.com/runeditrun/base/tree/ada9f574d8a7247edc3a1180b593ad182b1fbb37/default-seed
+
+## Lander-Regenerate
+
+After resolving CONTRACT.md, synchronize the existing status views with
+`node scripts/contract-docs.mjs write COMM-003` (replace the ID with the touched
+clauses), then run the same command with `check`. The generator preserves the
+existing acceptance narrative and homepage claim evidence. Regenerate the source
+lock last with `node scripts/edition-authoring/cli.mjs lock`, then run its `check`.

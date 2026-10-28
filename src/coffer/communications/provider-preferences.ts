@@ -20,7 +20,8 @@ export async function providerPreferenceCommand(c:Context,command:string,p:Row):
 
 /** Import only stricter current answers. A provider list or field never grants
  * channel consent, re-enables a removed topic or loosens an appeal cap. */
-export async function importProviderPreferences(c:Context,donorId:string,provider:'mango'|'mailchimp',contact:Row|null,validateOnly=false){
+export async function importProviderPreferences(c:Context,donorId:string,provider:'mango'|'mailchimp'|'constant-contact',contact:Row|null,validateOnly=false){
+ if(provider==='constant-contact')return // Its mapped preferences use the existing encrypted connection and parser.
  if(!c.env)return
  const mapping=await givingConnection(c.env as GivingEnv,provider+'-preferences')
  if(!mapping)return

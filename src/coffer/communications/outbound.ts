@@ -6,7 +6,7 @@ import { nameMergeFields, frozenNameFields } from '../person-names'
 import { letterRecipient } from '../organizations'
 import { all, commit, event, fail, guard, newId, one, sql, type Context, type Row } from '../db'
 import { usd } from '../money'
-import { composeMailchimpCampaign, createMailchimpCampaign, listInMango, providerResults, providerTitle } from './provider'
+import { composeProviderCampaign, createProviderCampaign, listInMango, providerResults, providerTitle } from './provider'
 import { requireConnection, savedConnection } from './connection'
 import { settings } from '../settings'
 import { reconcileDonor } from './preferences'
@@ -37,6 +37,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  const previous=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
  if(previous) return previous
  const conn=await requireConnection(c)
+ if(conn.provider==='constant-contact'&&conn.fromEmail!==String(c.env?.COFFER_REPLY_ADDRESS??'').trim().toLowerCase())fail('CONSTANT_CONTACT_REPLY','The installed reply address changed. Reconnect Constant Contact before sending.',409)
  const d=await one(c, `SELECT d.*,(SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
  (SELECT COUNT(*) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS gift_count,
  (SELECT MAX(received_on) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS last_gift FROM cf_donors d WHERE id=? AND erased_at IS NULL`,input.donorId)
@@ -45,7 +46,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  if(input.expectedContactId&&(currentNames.selected_email_contact_id!==input.expectedContactId||currentNames.selected_email_contact_version!==input.expectedContactVersion))fail('CONTACT_CHANGED','The approved email contact changed. Prepare a new audience.',409)
  const excludedStatus=d.constituent_status!=='active'?d.constituent_status:null
  if(input.expectedEmail!==undefined && input.expectedEmail!==currentNames.email)fail('RECIPIENT_CHANGED','The donor’s email changed after approval. Prepare a new appeal audience.',409)
- const preference=excludedStatus?{allowed:false,state:'excluded',note:`The constituent is ${excludedStatus}; no email was sent.`}:await reconcileDonor(c,d.id,conn.provider==='mailchimp',{emailType:input.emailType})
+ const preference=excludedStatus?{allowed:false,state:'excluded',note:`The constituent is ${excludedStatus}; no email was sent.`}:await reconcileDonor(c,d.id,conn.provider!=='mango',{emailType:input.emailType})
  if(preference.allowed||conn.provider==='mango'&&preference.state==='pending')selectedProfileFields(conn,currentNames)
  const row={id:newId(),email:currentNames.email,name:d.name,subject:input.rendered?.subject??mergeMessage(input.subject,input.merge??currentNames),body:input.rendered?.body??mergeMessage(input.body,input.merge??currentNames)}
  const replyTo=(conn.fromEmail??c.env?.COFFER_REPLY_ADDRESS??'').trim().toLowerCase()
@@ -61,7 +62,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  try {
   // Persist the returned draft before composition/approval. A lost create answer
   // stays uncertain and is never submitted again automatically.
-  const draft=await createMailchimpCampaign(conn,row)
+  const draft=await createProviderCampaign(conn,row)
   await c.db.prepare('UPDATE cf_communications SET campaign_id=?,revision_id=? WHERE id=?').bind(draft.campaignId,draft.revisionId,row.id).run()
   const checked=await profileRecipient(c,d,{emailType:input.emailType});if(checked.email!==row.email||checked.selected_email_contact_id!==currentNames.selected_email_contact_id||checked.selected_email_contact_version!==currentNames.selected_email_contact_version)fail('CONTACT_CHANGED','The email contact changed before sending.',409)
   const current=await reconcileDonor(c,d.id,false,{emailType:input.emailType})
@@ -70,7 +71,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
    return savedResult(c,row.id,'suppressed')
   }
   await commit(c,[...await solicitationRunGuards(c,input.sourceKind,input.sourceId,[d.id]),...(input.sourceKind==='welcome'?await journeySendGuards(c,input.sourceId):[])])
-  await composeMailchimpCampaign(conn,row,draft,()=>handoffGuards(c,input,d.id,currentNames))
+  await composeProviderCampaign(conn,row,draft,()=>handoffGuards(c,input,d.id,currentNames))
   await c.db.batch([
    c.db.prepare("UPDATE cf_communications SET status='submitted',submitted_at=?,note='Submitted to the email provider; email handoff is not yet confirmed.' WHERE id=?").bind(c.now,row.id),
    c.db.prepare(event(c,'marketing.submitted',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,provider:conn.provider,campaignId:draft.campaignId}).sql).bind(...event(c,'marketing.submitted',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,provider:conn.provider,campaignId:draft.campaignId}).params),
@@ -80,7 +81,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
   return savedResult(c,row.id,'accepted')
  }catch(error) {
   const detail=error as {code?:string;details?:{providerStatus?:number}}
-  const rejected=['MANGO_REPLY','MAILCHIMP_REPLY'].includes(detail?.code??'') || ['MANGO_REFUSED','MAILCHIMP_REFUSED'].includes(detail?.code??'') && Number(detail.details?.providerStatus)>=400 && Number(detail.details?.providerStatus)<500
+  const rejected=['MANGO_REPLY','MAILCHIMP_REPLY','CONSTANT_CONTACT_REPLY'].includes(detail?.code??'') || ['MANGO_REFUSED','MAILCHIMP_REFUSED','CONSTANT_CONTACT_REFUSED'].includes(detail?.code??'') && Number(detail.details?.providerStatus)>=400 && Number(detail.details?.providerStatus)<500
   const label=providerTitle(conn.provider),state=rejected?'rejected':'uncertain',note=rejected?`${label} refused this submission. Review the saved draft and sender checks. No email was scheduled by Coffer.`:`${label} submission was not confirmed. Review the saved campaign; no automatic resend.`
   await c.db.prepare('UPDATE cf_communications SET status=?,note=? WHERE id=?').bind(state,note,row.id).run()
   return savedResult(c,row.id,rejected?'not_sent':'unknown')
@@ -109,8 +110,8 @@ async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConne
 }
 export async function refreshMessages(c:Context,source?:{kind:string;id:string}) {
  const conn=await savedConnection(c)
- if(conn?.provider!=='mailchimp')return {checked:0,...(conn?.provider==='mango'?{unavailable:'Mango has no send or delivery result for these saved messages. Check the campaign in Mango.'}:{})}
- const rows=await all(c,`SELECT * FROM cf_communications WHERE provider='mailchimp' AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') AND (? IS NULL OR (source_kind=? AND source_id=?)) ORDER BY COALESCE(checked_at,''),created_at,id LIMIT 8`,source?.kind??null,source?.kind??null,source?.id??null)
+ if(!conn||!['mailchimp','constant-contact'].includes(conn.provider))return {checked:0,...(conn?.provider==='mango'?{unavailable:'Mango has no send or delivery result for these saved messages. Check the campaign in Mango.'}:{})}
+ const rows=await all(c,`SELECT * FROM cf_communications WHERE provider=? AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') AND (? IS NULL OR (source_kind=? AND source_id=?)) ORDER BY COALESCE(checked_at,''),created_at,id LIMIT 8`,conn.provider,source?.kind??null,source?.kind??null,source?.id??null)
  for(const row of rows){
   const report=await providerResults(conn,row)
   if(!Array.isArray(report.rows))fail('MAILCHIMP_RESPONSE','Mailchimp did not return send results.',502)

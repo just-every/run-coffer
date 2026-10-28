@@ -6,6 +6,7 @@ import { settings } from '../settings'
 import { providerTitle, providerContact, captureProviderConsent, restricted, subscribed, suppressProvider } from './provider'
 import { emailConnection, requireConnection } from './connection'
 import { syncMailchimpNames } from './mailchimp'
+import { syncConstantContactProfile } from './constant-contact-profile'
 
 export async function reconcileDonor(c: Context, donorId: string, capture = false,options:{emailType?:string}={}): Promise<Row> {
  const donor = await one(c, `SELECT d.*,k.id AS consent_id,k.status AS consent,k.evidence,k.captured_on FROM cf_donors d
@@ -23,6 +24,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  // when its mapped metadata is malformed. The final import still holds sending.
  if(!contact||!restricted(contact))await importProviderPreferences(c,donorId,conn.provider,contact,true)
  if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) contact = await syncMailchimpNames(conn, donor)
+ if (conn.provider === 'constant-contact' && donor.consent === 'granted' && subscribed(contact)) contact = await syncConstantContactProfile(conn, donor)
  let state = 'pending', note = 'Confirm the donor’s subscription with the email provider before sending.'
  if (contact && restricted(contact) && donor.consent === 'granted') {
   // Never turn a provider opt-out into a grant, or overwrite a newer answer.
@@ -42,6 +44,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
   const s = await settings(c)
   contact = await captureProviderConsent(conn,donor,s.organisation)
   note = `${label} requires the donor’s confirmation. No appeal was sent.`
+  if(conn.provider==='constant-contact'&&subscribed(contact)){state='subscribed';note='Coffer consent and Constant Contact permission agree.'}
  }
  await importProviderPreferences(c,donorId,conn.provider,contact)
  await commit(c, [sql(`INSERT INTO cf_preference_sync(donor_id,email,consent_id,remote_status,state,checked_at,note) VALUES(?,?,?,?,?,?,?)
