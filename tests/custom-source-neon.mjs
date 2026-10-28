@@ -32,6 +32,6 @@ export async function neonCustomJourney(){await run(async h=>{
  await sourceCustomBrowser(h,p.id,'.cache/custom-source-neon',{applied:true})
  const person=(await h.get('/api/coffer/donors')).donors[0],details=await h.get('/api/coffer/donors/'+person.id)
  assert.deepEqual(Object.fromEntries(details.customValues.map(v=>[v.field_key,JSON.parse(v.value)])),{existing_membership:'Board',import_neon_neon_constituent_2:['Books','Music'],import_neon_neon_gift_3:'12345',import_neon_neon_interaction_4:'Source activity call',import_neon_neon_note_4:'Source activity task'})
- const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).customValues,details.customValues);await post(fresh,'undo',{id:p.id});assert.deepEqual((await fresh.get('/api/coffer/custom-fields')).fields.map(f=>f.key),['existing_membership'])})
+ const saved=await archive(h,{maxParts:100});await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).customValues,details.customValues);await post(fresh,'undo',{id:p.id});assert.deepEqual((await fresh.get('/api/coffer/custom-fields')).fields.map(f=>f.key),['existing_membership'])})
  const list=await h.command('list.save',{name:'Neon board',filters:{customKey:'existing_membership',customValue:'Board'}});assert.deepEqual((await h.get('/api/coffer/lists/'+list.id+'/members')).donorIds,[person.id])
 },{outbound:neonEdge()})}

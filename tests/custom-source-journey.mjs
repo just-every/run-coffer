@@ -27,7 +27,7 @@ function bloomerangEdge(){
   if(path==='/constituents')return Response.json(page([{Id:1001+offset,AccountNumber:101+offset,CustomValues:[pick(1,'Board'),many(2,['Books','Music']),many(6,['Alumni','Legacy']),scalar(7,'Private retained source')]},{Id:1002+offset,AccountNumber:102+offset,CustomValues:[pick(1,'Unlisted')]}]))
   if(path==='/transactions/designations')return Response.json(page([{Id:2001+offset,DesignationNumber:201+offset,Type:'Donation',CustomValues:[scalar(3,'123.45')]},{Id:2002+offset,DesignationNumber:202+offset,Type:'Donation',CustomValues:[scalar(3,'not a number')]}]))
   if(path==='/interactions')return Response.json(page([{Id:301+offset,CustomValues:[scalar(4,'Library visit')]}]))
-  if(path==='/notes')return Response.json(page([{Id:401+offset,CustomValues:[scalar(5,'Preserve original note')]}]))
+  if(path==='/notes')return Response.json(page([{Id:401+offset,CustomValues:[scalar(5,offset?'Other source note '+offset:'Preserve original note')]}]))
   assert.fail('Unexpected Bloomerang request '+u.pathname)
  }}
 }
@@ -60,7 +60,7 @@ export async function sourceCustomJourney(){
   const fields=(await h.get('/api/coffer/custom-fields')).fields
   assert.deepEqual(fields.filter(f=>f.key.startsWith('import_bloomerang_')).map(f=>[f.key,f.type,f.entry,JSON.parse(f.choices)]),[['import_bloomerang_constituent_2','text','pick-many',['Books','Music']],['import_bloomerang_gift_3','currency','free-form',[]],['import_bloomerang_interaction_4','text','free-form',[]],['import_bloomerang_note_5','text','free-form',[]]])
   assert.equal(fields.find(f=>f.key==='import_bloomerang_interaction_4').label,'Imported visit topic')
-  const saved=await archive(h)
+  const saved=await archive(h,{maxParts:100})
   await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).customValues,details.customValues);assert.equal((await readReview(fresh,id)).values.filter(v=>v.state==='waiting').length,1);await post(fresh,'undo',{id});assert.deepEqual((await fresh.get('/api/coffer/custom-fields')).fields.map(f=>f.key),['existing_membership']);assert.equal((await fresh.get('/api/coffer/donors')).total,0)})
   const list=await h.command('list.save',{name:'Imported board',filters:{customKey:'existing_membership',customValue:'Board'}})
   assert.deepEqual((await h.get('/api/coffer/lists/'+list.id+'/members')).donorIds,[person.id])
@@ -84,7 +84,7 @@ export async function sourceCustomJourney(){
   await h.command('donor.erase',{donorId:person.id,confirm:'ERASE'})
   assert.equal((await h.get(endpoint+'journal?id='+id)).job.redacted,1)
   await post(h,'custom-capture',capture,{status:409});await post(h,'custom-apply',{id,version:fixed.review.version},{status:409})
-  const after=await archive(h);assert.ok(!JSON.stringify(after).includes('Preserve original note'),'Erasure removes source review values and provenance')
+  const after=await archive(h,{maxParts:100});assert.ok(!JSON.stringify(after).includes('Preserve original note'),'Erasure removes source review values and provenance')
   const admin=await h.person('synthetic-coffer-1602'+String.fromCharCode(64)+'example.test','admin')
   await h.get(endpoint+'custom-review?id='+next,{as:admin.cookie})
   await h.api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})

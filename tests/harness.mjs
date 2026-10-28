@@ -62,9 +62,9 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
  }catch(error){await mf.dispose();await rm(directory,{recursive:true,force:true});throw error}
 }
 export async function run(fn,options){const h=await installation(options);try{return await fn(h)}finally{await h.close()}}
-export async function archive(h) {
+export async function archive(h,{maxParts=1}={}) {
  const {id}=await h.api('/api/portability/exports',{},{status:201})
- let state;do{state=await h.api(`/api/portability/exports/${id}/advance`,{})}while(state.phase!=='complete')
+ let state;do{state=await h.api(`/api/portability/exports/${id}/advance`,{maxParts})}while(state.phase!=='complete')
  const response=await h.request(`/api/portability/exports/${id}/download`);assert.equal(response.status,200)
  return (await response.text()).trim().split('\n').map(x=>JSON.parse(x))
 }

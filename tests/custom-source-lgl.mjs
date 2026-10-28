@@ -40,7 +40,7 @@ export async function lglCustomJourney(){await run(async h=>{
  assert.deepEqual(values,{existing_membership:'Board',import_lgl_category_constituent_32:['Books','Music'],import_lgl_category_gift_33:'Reading',import_lgl_attribute_constituent_51:'Keep source detail'})
  const definitions=(await h.get('/api/coffer/custom-fields')).fields
  assert.equal(definitions.find(f=>f.key==='import_lgl_attribute_constituent_52').type,'number','A waiting-only definition is still created')
- const saved=await archive(h)
+ const saved=await archive(h,{maxParts:100})
  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).customValues,details.customValues);await post(fresh,'undo',{id:preview.id});assert.deepEqual((await fresh.get('/api/coffer/custom-fields')).fields.map(f=>f.key),['existing_membership'])})
  const list=await h.command('list.save',{name:'LGL board',filters:{customKey:'existing_membership',customValue:'Board'}})
  assert.deepEqual((await h.get('/api/coffer/lists/'+list.id+'/members')).donorIds,[person.id])

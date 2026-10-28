@@ -46,7 +46,7 @@ export async function nxtCustomJourney(){await run(async h=>{
  await sourceCustomBrowser(h,p.id,'.cache/custom-source-nxt',{applied:true})
  const person=(await h.get('/api/coffer/donors')).donors[0],details=await h.get('/api/coffer/donors/'+person.id)
  assert.deepEqual(Object.fromEntries(details.customValues.map(v=>[v.field_key,JSON.parse(v.value)])),{existing_membership:'Board',import_re_nxt_nxt_constituent_2:['Books','Music'],import_re_nxt_nxt_gift_3:'12345',import_re_nxt_nxt_interaction_4:'Source action call',import_re_nxt_nxt_note_4:'Source action task'})
- const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);await post(fresh,'undo',{id:p.id});assert.deepEqual((await fresh.get('/api/coffer/custom-fields')).fields.map(f=>f.key),['existing_membership'])})
+ const saved=await archive(h,{maxParts:100});await run(async fresh=>{await restore(fresh,saved);await post(fresh,'undo',{id:p.id});assert.deepEqual((await fresh.get('/api/coffer/custom-fields')).fields.map(f=>f.key),['existing_membership'])})
  review=(await h.get(endpoint+'custom-review?id='+p.id)).review
  const waiting=review.values.find(v=>v.state==='waiting');assert.equal(waiting.original,'not a number')
  const skipped=await post(h,'custom-review',{id:p.id,version:review.version,mappings:review.mappings,resolutions:[{id:waiting.id,action:'skip'}]})
