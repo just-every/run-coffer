@@ -6431,7 +6431,7 @@
       "executable": false
     },
     "tests/custom-import-browser.mjs": {
-      "sha256": "b8455a45825ecb763686a8b6b2fcb80be239cdcabe504b51c88630d990192255",
+      "sha256": "a09132e9f65af065bd2868e788c998bff5d8229a685ebaa768a3d6ad7eb5964c",
       "executable": false
     },
     "tests/custom-source-journey.mjs": {
