@@ -7,6 +7,7 @@ import { fail, one, today, type Row } from '../db'
 import { settings } from '../settings'
 import { stripe, type GivingEnv } from './stripe'
 import { sendOnlineReceipt } from './online-receipt'
+import { enqueueAutomaticReceipt } from '../automatic-receipt-queue'
 import { onlineAttribution } from '../attribution'
 
 export const stripeId = (value: any): string => typeof value === 'string' ? value : value?.id ?? ''
@@ -88,6 +89,7 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
   ...(intent.email_consent ? [env.DB.prepare(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
    SELECT ?,'email','granted','web form',?,?,?,'Giving page' WHERE EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_consents WHERE donor_id=? AND evidence=?)`)
    .bind(intent.donor_id, consentEvidence(intent), day, now, intent.donor_id, intent.donor_id, consentEvidence(intent))] : []),
+  ...[enqueueAutomaticReceipt(id,'online',now)].map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'stripe','Stripe','agent','giving.paid','gift',?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_events WHERE action='giving.paid' AND subject_id=?)`).bind(now, id, intent.donor_id, JSON.stringify({ amountCents: cents, campaignId: intent.campaign_id }), id),
  ])

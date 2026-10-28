@@ -143,6 +143,7 @@ import { listDonors, donorHistory } from './donors'
 import { batchDetail, batches, batchLetters, dueGifts, lettersCsv, currentLetterGiftsCondition } from './acknowledgements'
 import { appealDetail, appeals, recipientsCsv, recipientsOf } from './appeals'
 import { settings } from './settings'
+import { sendingDomain } from './sending-domain'
 import * as imports from './imports/index'
 import { readStripe } from './imports/live-stripe'
 import { available as stripeAvailable } from './giving/stripe'
@@ -563,6 +564,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if(command==='person.defaultsPreview')return page('Review name defaults',`<p>${result.changed} person records will change. Overrides and prepared documents are preserved.</p>${form('person.defaults','<p>Save these defaults for existing and new people.</p>','Save name defaults',result)}<p><a href="/app/settings">Back to settings</a></p>`,actor)
  if(command==='person.defaults')return redirect('/app/settings?saved=1')
  if (command === 'settings.update') return redirect('/app/settings?saved=1')
+ if(command.startsWith('sendingDomain.'))return redirect('/app/settings#sending-domain')
  if (command.startsWith('letterTemplate.')) return redirect('/app/settings?saved=1#thank-you-templates')
  if (command === 'donor.create') return redirect(`/app/donors/${result.id}`)
  if(input.returnGiftId)return redirect('/app/gifts?gift='+encodeURIComponent(input.returnGiftId)+'#selected-gift-acknowledgment')
@@ -706,6 +708,7 @@ async function api(c: Context, url: URL): Promise<Response> {
  if (path === '/api/coffer/reports/attribution') return json(await attributionReport(c,url))
  if (path === '/api/coffer/reports/states.csv') return download(stateReportCsv(await stateReport(c,url)),'coffer-giving-by-state')
  if (path === '/api/coffer/settings') return json(await settings(c))
+ if(path==='/api/coffer/sending-domain')return json(await sendingDomain(c))
  if (path === '/api/coffer/letter-templates') return json({ templates: await letterTemplates(c) })
  return fail('not_found', 'Not found.', 404)
 }
