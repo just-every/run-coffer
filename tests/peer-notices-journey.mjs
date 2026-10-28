@@ -23,6 +23,8 @@ export async function peerNoticesJourney(h,mail,{first,second,firstCookie,second
  assert.equal(before(),0,'Authentication alone never grants email consent')
  for(const d of [first,second])await h.command('consent.record',{donorIds:[d.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic fundraiser email permission',capturedOn:'2026-09-01'})
  const member=await h.person('synthetic-coffer-9191'+at+'example.test')
+ await h.command('peer.noticePreview',{recordId:records[0].id},{as:member.cookie,status:403})
+ await h.command('peer.noticePreview',{recordId:records[0].id},{as:'',status:401})
  await send(records[0],'thank',{}, {as:member.cookie,status:403})
  await send(records[0],'thank',{}, {as:firstCookie,status:401})
  await send(records[0],'thank',{}, {as:'',status:401})
@@ -35,7 +37,13 @@ export async function peerNoticesJourney(h,mail,{first,second,firstCookie,second
  await prefs(first,['newsletter'])
  await h.command('solicitation.set',{donorId:first.id,version:0,type:'stop',startsOn:'2026-09-01'})
  for(const r of records){
+  const preview=await h.command('peer.noticePreview',{recordId:r.id,recordType:r.type})
+  assert.equal(preview.version,r.version);assert.equal(preview.raisedCents,r.total);assert.equal(preview.goalCents,10000)
+  assert.equal(preview.notices.find(n=>n.notice==='thank').previous,null)
   const result=await send(r)
+  assert.equal(result.subject,preview.notices.find(n=>n.notice==='thank').subject)
+  assert.equal(result.body,preview.notices.find(n=>n.notice==='thank').body)
+  assert.equal(result.recipient_email,preview.recipientEmail)
   assert.equal(result.status,'submitted');assert.equal(result.recipient_email,r.donor.id===first.id?'first.peer'+at+'example.test':'second.peer'+at+'example.test')
   assert.equal((await send(r)).id,result.id,'An explicit repeat returns the saved outcome')
  }
@@ -50,6 +58,8 @@ export async function peerNoticesJourney(h,mail,{first,second,firstCookie,second
   const result=await send(r,'milestone');assert.equal(result.status,'submitted')
   assert.ok(result.body.includes('$'+(r.total/100).toFixed(2)))
   assert.equal((await send(r,'milestone')).id,result.id)
+  const preview=await h.command('peer.noticePreview',{recordId:r.id,recordType:r.type})
+  assert.equal(preview.notices.find(n=>n.notice==='milestone').previous.status,'submitted')
  }
  assert.equal(before(),6)
  for(const amount of ['$25.00','$55.00','$80.00'])assert.ok(mail.contents.some(m=>m.plain_text.includes(amount)),amount+' reaches the provider in a milestone email')

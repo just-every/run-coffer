@@ -19,17 +19,31 @@ function factsQuery(kind: 'page' | 'team') {
  WHERE p.id=? AND ${peerVisible('p')}`
 }
 
+function content(row: Row, notice: 'thank' | 'milestone') {
+ return notice === 'thank' ? {subject:'Thank you for fundraising',body:`Thank you for creating “${row.title}” and supporting this campaign.`}
+  : {subject:'Your fundraising goal is reached',body:`Congratulations! “${row.title}” has raised ${usd(row.raisedCents)} toward its ${usd(row.goal_cents)} goal. This is received money after reversals; soft credits are separate.`}
+}
+
 /** Explicit human submission, never a scheduler or a supporter impersonation.
  * Existing communications retain the one-attempt claim, provider result, donor
  * file, reply handling, merge history, archive custody and erasure behavior. */
 export async function peerNoticeCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
- if (command !== 'peer.sendNotice') return
+ if (!['peer.noticePreview','peer.sendNotice'].includes(command)) return
  requireRole(c.actor, ['owner', 'admin'], 'send fundraiser notices')
  const recordId = id(p.recordId, 'Fundraising record'), kind = choice(p.recordType ?? 'page', ['page', 'team'], 'fundraising record type')
+ const query = factsQuery(kind), row = await one(c, query, recordId)
+ if (!row) fail('PEER_CHANGED', 'The published fundraising record changed. Review it before sending.', 409)
+ if(command === 'peer.noticePreview') {
+  await commit(c, [])
+  const notices = await Promise.all((['thank','milestone'] as const).map(async notice => {
+   const previous = await one(c, 'SELECT status,remote_status FROM cf_communications WHERE message_key=?', `peer:${kind}:${recordId}:${notice}`)
+   return {notice,...content(row,notice),goalReached:row.raisedCents>=row.goal_cents,previous}
+  }))
+  return {recordId,recordType:kind,version:row.version,title:row.title,recipientEmail:row.email,raisedCents:row.raisedCents,goalCents:row.goal_cents,notices}
+ }
  const notice = choice(p.notice, ['thank', 'milestone'], 'fundraiser notice'), version = integer(Number(p.version), 'Fundraising version', 1)
  if (p.confirm !== 'SEND') fail('PEER_CONFIRM', 'Confirm SEND for this fundraising record and notice.', 400)
- const query = factsQuery(kind), row = await one(c, query, recordId)
- if (!row || row.version !== version) fail('PEER_CHANGED', 'The published fundraising record changed. Review it before sending.', 409)
+ if (row.version !== version) fail('PEER_CHANGED', 'The published fundraising record changed. Review it before sending.', 409)
  if (!row.email) fail('PEER_EMAIL', 'The fundraiser needs a current, unique email address.', 409)
  if (notice === 'milestone' && row.raisedCents < row.goal_cents) fail('PEER_GOAL', 'The fundraising goal has not been reached.', 409)
  const key = `peer:${kind}:${recordId}:${notice}`
@@ -52,9 +66,7 @@ export async function peerNoticeCommand(c: Context, command: string, p: Row): Pr
  ]
  const classification = await prepareSolicitationRun(c, {kind:'welcome',id:key,channel:'email',isAsk:false,donorIds:[row.donor_id]})
  await commit(c, [...classification.statements, ...await checks(), event(c, 'peer.noticeApproved', 'peer_'+kind, recordId, row.donor_id, {notice,version,isAsk:false,topic:'newsletter'})])
- const subject = notice === 'thank' ? 'Thank you for fundraising' : 'Your fundraising goal is reached'
- const body = notice === 'thank' ? `Thank you for creating “${row.title}” and supporting this campaign.`
-  : `Congratulations! “${row.title}” has raised ${usd(row.raisedCents)} toward its ${usd(row.goal_cents)} goal. This is received money after reversals; soft credits are separate.`
+ const {subject,body} = content(row,notice)
  return submitMessage(c, {key,donorId:row.donor_id,sourceKind:'welcome',sourceId:key,subject,body,listName:'Coffer fundraiser notices',
   rendered:{subject,body},expectedEmail:row.email,checks})
 }

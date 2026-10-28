@@ -16,11 +16,13 @@ first. A subscribed provider contact, current Coffer email consent, a unique
 fundraiser email and newsletter-topic permission are required. Local and demo
 mode suppress submission. No other supporter or ordinary staff member can send.
 
-Use command `peer.sendNotice` with these input fields:
+First call `peer.noticePreview` with `recordId` and `recordType`. It returns the
+current version, recipient, signed total, goal, fixed messages and prior outcomes
+without contacting the provider. Then use `peer.sendNotice` with these input fields:
 
 - `recordId`: the current fundraising page or team identifier.
 - `recordType`: `page` or `team`.
-- `version`: the current record version, available from the supporter's own state.
+- `version`: the current record version, available from the owner or admin preview.
 - `notice`: `thank` or `milestone`.
 - `confirm`: `SEND`.
 

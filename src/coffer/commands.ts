@@ -86,7 +86,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // Who may run each command. Agents prepare letters and appeal audiences; a
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
- 'peer.sendNotice': MANAGERS,
+ 'peer.noticePreview': MANAGERS, 'peer.sendNotice': MANAGERS,
  'report.save':MANAGERS,'report.import':MANAGERS,'report.share':MANAGERS,'report.revoke':MANAGERS,
  ...Object.fromEntries(AUCTION_COMMANDS.map(command=>[command,MANAGERS])),
  'marketing.topicMapping':MANAGERS, 'communication.preferences':MANAGERS, 'marketing.constantContactConnect':MANAGERS, 'marketing.constantContactSync':MANAGERS, 'marketing.constantContactDisconnect':MANAGERS, 'ack.sendPostal':MANAGERS,
