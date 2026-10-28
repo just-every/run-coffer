@@ -50,6 +50,52 @@ this Worker for replies.
 
 The Worker includes Cloudflare’s [`global_fetch_strictly_public` flag](https://developers.cloudflare.com/workers/runtime-apis/fetch/) so self-hosted Workers can call a sibling Worker through its public HTTPS origin.
 
+## Personal mailboxes
+
+Owners and admins open **Settings → Personal mailboxes** and configure their
+Google or Microsoft application with the redirect address shown there. Google
+needs Gmail read-only and send scopes; Microsoft needs delegated User.Read,
+Mail.Read, Mail.Send and offline access. Connect the personal mailbox matching
+the current Coffer sign-in address. Application secrets and refresh tokens are
+encrypted and excluded from archives; a restored installation reconnects.
+
+**Log recent messages** captures a page from the connected mailbox; **Log next
+page** continues when the provider returns one. Only one uniquely matched
+current constituent is eligible. Shared, unknown and multi-party identities
+are refused. The donor timeline shows the subject, plain-text excerpt and
+mailbox link. A received message joins the existing relationship-manager reply
+routing and stop workflow. Explicit new stop requests withdraw immediately;
+ambiguous wording still needs a proposal and confirmation. Automatic replies
+are filed. Forwarding is attempted once and provider acceptance is separate
+from delivery. A manager without the current private mailbox authority keeps
+an assigned follow-up for an owner or admin to review.
+
+On the donor page, **Personal email → Write a personal email** selects the
+sender's own connection and classifies the message as an ask or a non-ask.
+Review the saved exact message, then explicitly submit it. Current email
+permission, active constituent status, topics, per-channel frequency and
+DONOR-015 ask restrictions are checked again before submission. Personal
+non-asks use the newsletter topic and never claim a transactional exemption.
+A replay cannot send twice; a lost response stays uncertain for investigation.
+
+With the installation's `COFFER_REPLY_DOMAIN` routed to this Worker's email
+handler, Settings reveals an opaque BCC address for each current connection.
+Mail from another client must use the connected sender as both its envelope
+and authenticated From address. Cloudflare's trusted DMARC result must pass.
+A single current constituent recipient, message identity and date are required.
+BCC and mailbox capture share the same message identity and cannot log twice.
+Disconnecting, changing the application or revoking native authority stops the
+old BCC capability.
+
+Mailbox excerpts and follow-up notes remain private to owners and admins and
+are withheld from a donor-file export. Logged history remains in installation
+archives and follows merge and undo. Erasure removes the text, and hash-only
+capture and erased-address tombstones prevent historical mail returning.
+The current owner and admin policy is adopted pending ct; broader staff access
+still owes TEAM-001 record and confidential-data authority. The Gmail and Graph
+network-edge journeys qualify Coffer's behavior, without claiming a live
+mailbox or delivery qualification.
+
 ## Preferences and receipts
 
 The donor record and authenticated donor portal offer newsletter, appeals and

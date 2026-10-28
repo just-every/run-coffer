@@ -7,7 +7,7 @@ const address=n=>['synthetic-coffer-'+n,'example.test'].join('@')
 const encode=value=>Buffer.from(value).toString('base64url')
 export async function mailboxesJourney(){
  const inbox={gmail:[],microsoft:[]},submitted=[],keys={clientId:'synthetic-coffer-4001',clientSecret:'synthetic-coffer-4002'}
- let account,uncertain=false,revoked=false,harness,disconnectDuringRead=false
+ let account,uncertain=false,revoked=false,harness,disconnectDuringRead=false,wrongIdentity=false
  const edge=async request=>{
   const u=new URL(request.url),provider=u.hostname==='graph.microsoft.com'||u.hostname==='login.microsoftonline.com'?'microsoft':'gmail'
   if(u.hostname==='oauth2.googleapis.com'||u.hostname==='login.microsoftonline.com'){
@@ -18,8 +18,8 @@ export async function mailboxesJourney(){
    return Response.json({access_token:'synthetic-coffer-4005',refresh_token:'synthetic-coffer-4004',token_type:'Bearer'})
   }
   assert.equal(request.headers.get('authorization'),'Bearer synthetic-coffer-4005')
-  if(u.pathname.endsWith('/profile'))return Response.json({emailAddress:account})
-  if(u.pathname==='/v1.0/me')return Response.json({id:'synthetic-coffer-4006',mail:account})
+  if(u.pathname.endsWith('/profile'))return Response.json({emailAddress:wrongIdentity?address(4099):account})
+  if(u.pathname==='/v1.0/me')return Response.json({id:'synthetic-coffer-4006',mail:wrongIdentity?address(4099):account})
   if(u.pathname.endsWith('/messages/send')||u.pathname.endsWith('/sendMail')){
    const value=await request.json()
    const raw=provider==='gmail'?Buffer.from(value.raw,'base64url').toString():JSON.stringify(value)
@@ -50,13 +50,15 @@ export async function mailboxesJourney(){
   const portfolio=await h.command('portfolio.save',{name:'Synthetic mailbox relationships',managerId:admin.id,untouchedDays:90})
   const prior=(await h.get('/api/coffer/portfolios')).portfolios.find(p=>p.rows.some(r=>r.donor_id===ada.id))
   await h.command('portfolio.assign',{donorId:ada.id,portfolioId:portfolio.id,previousPortfolioId:prior?.id})
-  const connect=async(provider,{as=h.owner}={})=>{
+  const connect=async(provider,{as=h.owner,wrong=false}={})=>{
    await h.command('mailbox.configure',{provider,...keys,confirm:'yes'},{as})
    const started=await h.command('mailbox.start',{provider,confirm:'yes'},{as}),url=new URL(started.authorizeUrl)
    assert.equal(url.searchParams.get('code_challenge_method'),'S256');assert.ok(url.searchParams.get('scope').includes(provider==='gmail'?'gmail.readonly':'Mail.Read'))
    const callback='/app/settings/mailboxes/'+provider+'/callback?'+new URLSearchParams({state:url.searchParams.get('state'),code:'synthetic-coffer-4003'})
    assert.equal((await h.request(callback,{as:member.cookie})).status,403,'A member cannot consume owner mailbox authority')
-   assert.equal((await h.request(callback,{as,headers:{'sec-fetch-site':'cross-site'}})).status,303)
+   wrongIdentity=wrong
+   assert.equal((await h.request(callback,{as,headers:{'sec-fetch-site':'cross-site'}})).status,wrong?409:303)
+   wrongIdentity=false
    assert.equal((await h.request(callback,{as})).status,409,'OAuth state is single use')
   }
   const mail=(provider,key,from,to,body,{sent=false,automatic=false}={})=>{
@@ -70,6 +72,7 @@ export async function mailboxesJourney(){
    await h.command('mailbox.'+command,{provider:'gmail',...keys,confirm:'yes'},agentOptions)
   }
   await h.get('/api/coffer/mailboxes',{as:'',status:401});await h.get('/api/coffer/mailboxes',agentOptions)
+  await connect('gmail',{wrong:true});assert.equal((await h.get('/api/coffer/mailboxes')).some(r=>r.connected),false,'OAuth cannot connect a different mailbox identity')
   for(const provider of ['gmail','microsoft']){
    await connect(provider)
    const state=(await h.get('/api/coffer/mailboxes')).find(r=>r.provider===provider)
@@ -105,8 +108,8 @@ export async function mailboxesJourney(){
    assert.equal((await h.get('/api/coffer/replies',{as:member.cookie})).filter(r=>r.mailbox_id).length,0)
    assert.equal((await h.get('/api/coffer/donors/'+ada.id,{as:member.cookie})).mailboxMessages.length,0,'Private mailbox content is not a broader staff grant')
    const bccKey=provider+'-bcc',bccMessage=mail(provider,bccKey,account,address(4011),'Logged from another mail client.',{sent:true})
-   const bcc=(authenticated=true,to=address(4011))=>h.api('/test-email',{from:account,to:state.bcc,headers:{},raw:`Authentication-Results: mx.cloudflare.net; dmarc=${authenticated?'pass':'fail'} header.from=${account.split('@')[1]}\r\nFrom: ${account}\r\nTo: ${to}\r\nDate: ${fixedNow}\r\nSubject: Library conversation ${bccKey}\r\nMessage-ID: <${address(bccKey)}>\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nLogged from another mail client.`})
-   assert.ok((await bcc(false)).rejected);assert.ok((await bcc(true,shared)).rejected);assert.equal((await bcc()).rejected,null)
+   const bcc=(authenticated=true,to=address(4011),envelope=account)=>h.api('/test-email',{from:envelope,to:state.bcc,headers:{},raw:`Authentication-Results: mx.cloudflare.net; dmarc=${authenticated?'pass':'fail'} header.from=${account.split('@')[1]}\r\nFrom: ${account}\r\nTo: ${to}\r\nDate: ${fixedNow}\r\nSubject: Library conversation ${bccKey}\r\nMessage-ID: <${address(bccKey)}>\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nLogged from another mail client.`})
+   assert.ok((await bcc(false)).rejected);assert.ok((await bcc(true,address(4011),address(4099))).rejected,'A mismatched envelope cannot borrow authenticated header identity');assert.ok((await bcc(true,shared)).rejected);assert.equal((await bcc()).rejected,null)
    const bccRows=(await h.get('/api/coffer/donors/'+rosa.id)).mailboxMessages.filter(r=>r.subject.endsWith(bccKey));assert.equal(bccRows.length,1);assert.equal(bccRows[0].excerpt,'Logged from another mail client.')
    inbox[provider]=[bccMessage];await h.command('mailbox.sync',{provider});await bcc();assert.equal((await h.get('/api/coffer/donors/'+rosa.id)).mailboxMessages.filter(r=>r.subject.endsWith(bccKey)).length,1,'BCC and provider sync share one message identity')
    const draft=await prepare(ada,{provider,subject:'Personal hello '+provider})

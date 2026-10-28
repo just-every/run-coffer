@@ -1,6 +1,6 @@
 import { manager } from '../auth'
 import { all, newId, type Context, type Row } from '../db'
-import { area, box, chip, e, empty, field, form, select, when } from '../ui/common'
+import { area, box, chip, e, empty, field, form, select } from '../ui/common'
 import { mailboxState } from './connection'
 
 const title=(provider:string)=>provider==='gmail'?'Gmail':'Microsoft 365'
@@ -17,7 +17,7 @@ export async function mailboxSettingsPage(c:Context) {
 }
 export function mailboxSyncPage(result:Row,input:Row) {
  const outcomes=result.outcomes as Row[]
- return box('Mailbox logging',`<p role="status">${outcomes.filter(r=>r.logged).length} messages logged.</p>${outcomes.length?`<ul class="list">${outcomes.map(r=>`<li>${r.donorId?`<a href="/app/donors/${e(r.donorId)}#timeline">View constituent timeline</a>`:e(r.reason)}${r.id&&!r.logged?' · Already logged':''}</li>`).join('')}</ul>`:empty('No recent messages to log.')}${result.next?form('mailbox.sync','', 'Log next page',{provider:input.provider,cursor:result.next}):''}<p><a href="/app/settings/mailboxes">Back to my mailboxes</a></p>`)
+ return box('Mailbox logging',`<p role="status">${outcomes.filter(r=>r.logged).length} ${outcomes.filter(r=>r.logged).length===1?'message':'messages'} logged.</p>${outcomes.length?`<ul class="list">${outcomes.map(r=>`<li>${r.donorId?`<a href="/app/donors/${e(r.donorId)}#timeline">View constituent timeline</a>`:e(r.reason)}${r.id&&!r.logged?' · Already logged':''}</li>`).join('')}</ul>`:empty('No recent messages to log.')}${result.next?form('mailbox.sync','', 'Log next page',{provider:input.provider,cursor:result.next}):''}<p><a href="/app/settings/mailboxes">Back to my mailboxes</a></p>`)
 }
 export async function personalMailPanel(c:Context,donor:Row) {
  if(!manager(c.actor))return ''
