@@ -282,3 +282,7 @@ test('CAMP-005: reviewed auction results retain gross payments, benefits, purcha
 test('CAMP-002: table and sponsorship packages keep reviewed guest answers private and account for benefits',{timeout:300000},async()=>{
  const {eventPackagesJourney}=await import('./event-packages-journey.mjs');await eventPackagesJourney()
 })
+
+test('CAMP-004: paid memberships renew once, disclose benefits, reconcile campaigns and retain held reminder custody', {timeout:300000}, async()=>{
+ const {membershipsJourney}=await import('./memberships-journey.mjs');await membershipsJourney()
+})

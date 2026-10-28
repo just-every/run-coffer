@@ -1,3 +1,4 @@
+import { holdMembershipPrice } from '../memberships/service'
 import { all, choice, commit, event, fail, guard, one, sha256, sql, today, type Row } from '../db'
 import { amount } from '../money'
 import { settings } from '../settings'
@@ -46,6 +47,7 @@ export async function changePlan(env:GivingEnv,donor:PortalDonor,data:URLSearchP
  const {c,own}=await ownPlan(env,donor,data.get('subscription')??''),action=cancel?'cancel':choice(data.get('action'),['change','pause','resume'] as const,'recurring gift change')
  if(data.get('confirm')!=='yes')fail('confirmation_required','Confirm this recurring gift change.',400)
  if(data.has('donorId')&&data.get('donorId')!==donor.id)fail('FORBIDDEN','Only your own recurring gift can be changed.',403)
+ if(action==='change')await holdMembershipPrice(c,own.id)
  const id=data.get('requestId')??crypto.randomUUID()
  if(!/^[a-f0-9-]{36,64}$/.test(id))fail('input','Use the recurring gift form.',400)
  const desired=action==='change'?{amountCents:amount({amount:data.get('amount')},'amount','Amount'),frequency:choice(data.get('frequency'),frequencies.map(([v])=>v),'frequency')}:{},payload=JSON.stringify({action,...desired})
