@@ -33,6 +33,10 @@ export async function membershipsJourney(){
   await get(endpoint,{as:'',status:401});await get(endpoint,{as:member.cookie,status:403})
   await api(endpoint,levelInput,{as:member.cookie,status:403})
   await api(endpoint,{...levelInput,benefit:'121'},{status:400})
+  const admin=await h.person(['synthetic-coffer-7406','example.test'].join('@'),'admin')
+  await get(endpoint,{as:admin.cookie})
+  const revoke=await h.request('/auth/signout',{method:'POST',body:{},as:admin.cookie,headers:headers()});assert.equal(revoke.status,204)
+  await api(endpoint,levelInput,{as:admin.cookie,status:401})
   const level=await api(endpoint,levelInput)
   await api(endpoint,{...levelInput,slug:'monthly-reader',name:'Monthly reader',termMonths:1,price:'10',benefit:'0',graceDays:0})
   await api(endpoint,{...levelInput,slug:'quarterly-reader',name:'Quarterly reader',termMonths:3,price:'30',benefit:'5'})
@@ -44,7 +48,7 @@ export async function membershipsJourney(){
   }
   await join(7402,{authorizeRenewal:'no'},400);await join(7402,{levelVersion:'9'},409)
   assert.equal(edge.state.plans.size,0,'No authorization or stale terms reach the processor')
-  const a=await join(7402),b=await join(7403)
+  const a=await join(7402,{amount:'1',amountCents:'100',frequency:'once'}),b=await join(7403)
   assert.equal((await get(endpoint)).memberships.length,0,'A checkout or subscription alone grants no paid membership')
   for(const {sub} of [a,b])await deliver('invoice.paid',sub.latest_invoice)
   let state=await get(endpoint),annual=()=>state.counts.find(c=>c.levelId===level.id)
@@ -105,6 +109,19 @@ export async function membershipsJourney(){
   const beforeExpiry=h.messages.length
   await api('/api/coffer/agent/recovery/run',{})
   assert.equal(h.messages.length,beforeExpiry,'Annual expiry cannot inherit unapproved legacy monthly mail')
+  const noticeAction='/api/coffer/agent/recovery/notice-action'
+  const notices=()=>get('/api/coffer/agent/recovery/notices')
+  await command('consent.record',{donorIds:[first.donor_id],channel:'email',status:'granted',method:'paper form',evidence:'Member authorized private recovery notices.',capturedOn:'2026-12-10'})
+  await command('solicitation.set',{donorId:first.donor_id,version:0,type:'stop',startsOn:'2026-12-10'})
+  await api(noticeAction,{action:'policy',version:(await notices()).policy.version,enabled:true,standingApproval:true,developmentLead:true,majorAmount:'1000'})
+  await api(noticeAction,{action:'permission',donorId:first.donor_id,version:0,enabled:true,channel:'email',intervalDays:2,maxNotices:2,sourceOn:'2026-12-10',evidence:'Member authorized two private card notices at least two days apart.'})
+  await api('/api/coffer/agent/recovery/run',{})
+  const expiryMail=h.messages.filter(m=>m.text?.includes('/giving/portal/confirm?token='))
+  assert.equal(expiryMail.length,1,'Approved annual card expiry reaches its exact restricted member as a transactional notice')
+  assert.ok(expiryMail[0].to.includes(a.input.email))
+  await api('/api/coffer/agent/recovery/run',{})
+  assert.equal(h.messages.filter(m=>m.text?.includes('/giving/portal/confirm?token=')).length,1,'The same card expiry cannot contact the member twice')
+  await api(noticeAction,{action:'permission',donorId:first.donor_id,version:1,enabled:false,channel:'email',intervalDays:2,maxNotices:2,sourceOn:'2026-12-10',evidence:'Member withdrew automatic recovery-contact permission.'})
   edge.state.now='2027-01-10T12:00:00Z'
   staffCookie=await renewSession()
   const tick=await edge.advance(edge.state.now);assert.equal(tick.bills.length,1,'Cancelled renewal never makes a second charge')
@@ -113,7 +130,14 @@ export async function membershipsJourney(){
   const beforeFailure=h.messages.length
   await deliver('invoice.payment_failed',bill.id)
   assert.equal((await history()).gifts.length,1,'Failed renewal records no gift or extra term')
-  assert.equal(h.messages.length,beforeFailure,'No recovery notice without standing approval and member permission')
+  assert.equal(h.messages.length,beforeFailure,'No recovery notice after member permission is withdrawn')
+  assert.equal((await get('/api/coffer/agent')).recovery.rows.find(r=>r.subscription_id===a.sub.id).state,'waiting')
+  await api(noticeAction,{action:'permission',donorId:first.donor_id,version:2,enabled:true,channel:'email',intervalDays:2,maxNotices:2,sourceOn:'2027-01-10',evidence:'Member explicitly renewed permission for two private recovery notices.'})
+  await api('/api/coffer/agent/recovery/run',{})
+  const failedMail=h.messages.filter(m=>m.text?.includes('/giving/portal/confirm?token='))
+  assert.equal(failedMail.length,2);assert.ok(failedMail.at(-1).to.includes(a.input.email))
+  await api('/api/coffer/agent/recovery/run',{})
+  assert.equal(h.messages.filter(m=>m.text?.includes('/giving/portal/confirm?token=')).length,2,'Reconciliation creates no automatic duplicate recovery notice')
   state=await get(endpoint);assert.equal(state.memberships.find(m=>m.id===first.id).state,'grace');assert.equal(annual().grace,2)
   Object.assign(bill,paid,{attempt_count:2});a.sub.status='active'
   await deliver('invoice.paid',bill.id);await deliver('invoice.payment_succeeded',bill.id)
@@ -147,6 +171,12 @@ export async function membershipsJourney(){
   await command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'})
   assert.equal((await get(endpoint)).memberships.find(m=>m.id===first.id).donor_id,first.donor_id)
   // A changed provider amount never changes the membership's price or grants another term.
+  a.sub.items.data[0].price.unit_amount=13000
+  await deliver('customer.subscription.updated',a.sub.id)
+  assert.equal((await get(endpoint)).memberships.find(m=>m.id===first.id).state,'review')
+  a.sub.items.data[0].price.unit_amount=12000
+  await deliver('customer.subscription.updated',a.sub.id)
+  assert.equal((await get(endpoint)).memberships.find(m=>m.id===first.id).state,'active')
   const firstPlan='/api/coffer/giving/plans/'+a.sub.id,source=await command('interaction.record',{donorId:first.donor_id,kind:'call',occurredOn:'2027-02-09',notes:'Member asked to review collection changes.'}),current=await get(firstPlan)
   const change={action:'pause',requestId:randomUUID(),version:current.version,sourceRef:'interaction:'+source.id,reason:'Member requested a pause.',confirm:'yes'}
   edge.state.uncertain=true
@@ -163,4 +193,45 @@ export async function membershipsJourney(){
   const after=await archive(h),protectedCopy=await installation()
   try{await restore(protectedCopy,saved,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}})}finally{await protectedCopy.close()}
  },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-7404',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
+ await membershipTermVariants()
+}
+
+// The same native doors also preserve non-annual quotes and new-plan notice authority.
+async function membershipTermVariants(){
+ const edge=recurringStripeEdge({initialPayment:true})
+ await run(async h=>{
+  const headers=()=>({'x-test-now':edge.state.now}),endpoint='/api/coffer/memberships'
+  const get=p=>h.get(p,{headers:headers()}),api=(p,b)=>h.api(p,b,{headers:headers()})
+  const deliver=async(type,id)=>{
+   const raw=JSON.stringify({id:randomUUID(),type,data:{object:{id}}}),timestamp=Date.parse(edge.state.now)/1000,signature=createHmac('sha256',secret).update(`${timestamp}.${raw}`).digest('hex')
+   const r=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw,headers:{...headers(),'stripe-signature':`t=${timestamp},v1=${signature}`}});assert.equal(r.status,200,await r.text())
+  }
+  await reviewed(h)
+  const campaign=await api('/api/coffer/giving/campaigns',{name:'Term variants',slug:'term-variants',description:'Monthly and quarterly reading support.',fund:'Reading',goal:'1000'})
+  const plans=[]
+  for(const [term,price,benefit,expiry] of [[1,'10','0','2026-02-10'],[3,'30','5','2026-04-10']]){
+   const slug='member-term-'+term
+   await api(endpoint,{action:'create',name:'Reading term '+term,slug,campaignId:campaign.id,price,termMonths:term,benefit,benefitDescription:'Reading membership benefit',graceDays:0})
+   const response=await h.request('/giving/memberships/'+slug+'/checkout',{method:'POST',as:'',headers:{...headers(),'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({requestId:randomUUID(),levelVersion:'1',name:'Synthetic Term '+term,email:['synthetic-coffer-'+(7500+term),'example.test'].join('@'),authorizeRenewal:'yes','cf-turnstile-response':'synthetic-coffer-security-token'}).toString()})
+   assert.equal(response.status,303,await response.text())
+   const sub=[...edge.state.plans.values()].at(-1);plans.push(sub)
+   await deliver('invoice.paid',sub.latest_invoice)
+   const m=(await get(endpoint)).memberships.find(m=>m.subscription_id===sub.id)
+   assert.equal(m.expires_on,expiry);assert.equal(m.state,'active')
+   const detail=await get('/api/coffer/donors/'+m.donor_id)
+   assert.deepEqual(detail.gifts.map(g=>[g.amount_cents,g.goods_cents]),[[Number(price)*100,Number(benefit)*100]])
+  }
+  assert.deepEqual((await get(endpoint)).counts.map(c=>c.active),[1,1])
+  const before=h.messages.length,tick=await edge.advance('2026-02-10T12:00:00Z');assert.equal(tick.bills.length,1)
+  const monthly=plans[0],bill=edge.state.invoices.get(tick.bills[0])
+  Object.assign(bill,{status:'open',amount_paid:0,next_payment_attempt:null,attempt_count:3});monthly.status='unpaid'
+  await deliver('invoice.payment_failed',bill.id);await deliver('invoice.updated',bill.id)
+  assert.equal(h.messages.length,before,'A newly created monthly membership never inherits legacy automatic recovery contact')
+  const state=await get(endpoint),m=state.memberships.find(m=>m.subscription_id===monthly.id)
+  assert.equal(m.state,'lapsed','A zero-grace membership lapses at its unpaid billing boundary')
+  const tasks=(await get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='recovery:'+bill.id)
+  assert.equal(tasks.length,1);assert.equal(tasks[0].donor_id,m.donor_id);assert.equal(tasks[0].is_ask,0)
+  assert.equal(tasks[0].owner_id,(await get('/auth/session')).operator.id,'Exhausted membership recovery creates one ordinary owner task')
+  assert.equal((await get('/api/coffer/donors/'+m.donor_id)).gifts.length,1)
+ },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-7500',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
 }
