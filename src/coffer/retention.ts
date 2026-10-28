@@ -39,20 +39,11 @@ export async function retentionRecordSelection(c:Context,url:URL) {
   ORDER BY lower(d.name),d.id`,params:[...ledgerParams,priorStart, priorStart, start, start, priorStart, end, end,...donorParams]}
 }
 
-export async function retention(c: Context, url: URL) {
- const selected=await retentionRecordSelection(c,url),scope=selected.scope
- const {year,priorYear,asOf,start,priorStart,end,donorSql,donorParams,fund,campaignId}=scope
+export function retentionMetricSelection(scope:Awaited<ReturnType<typeof retentionScope>>,metric:'recognition'|'excluded'|'ledger') {
+ const {start,priorStart,end,donorSql,donorParams,fund,campaignId}=scope
  const ledgerSql = `(? IS NULL OR fund=?) AND (? IS NULL OR campaign_id=?)`
  const ledgerParams = [fund,fund,campaignId,campaignId]
- const [donors, excluded, softCreditRows] = await Promise.all([
-  all<RetentionRow & { earlierCents: number }>(c,selected.query,...selected.params),
-  all<{ priorCents: number; currentCents: number }>(c, `SELECT
-   COALESCE(SUM(CASE WHEN l.received_on<? THEN l.amount_cents ELSE 0 END),0) AS priorCents,
-   COALESCE(SUM(CASE WHEN l.received_on>=? THEN l.amount_cents ELSE 0 END),0) AS currentCents
-   FROM (SELECT * FROM cf_fund_ledger WHERE ${ledgerSql}) l JOIN cf_donors d ON d.id=l.donor_id LEFT JOIN cf_households h ON h.id=d.household_id
-   WHERE l.received_on>=? AND l.received_on<=? AND ${donorSql} AND (d.erased_at IS NOT NULL
-    OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))`, start, start,...ledgerParams,priorStart,end,...donorParams),
-  all<SoftCreditRetentionRow>(c, `SELECT credited.id AS donorId,credited.name,COUNT(*) AS creditCount,
+ if(metric==='recognition')return {query:`SELECT credited.id AS donorId,credited.name,COUNT(*) AS creditCount,
    SUM(CASE WHEN g.received_on<? THEN MIN(s.amount_cents,g.net_cents) ELSE 0 END) AS priorCents,
    SUM(CASE WHEN g.received_on>=? THEN MIN(s.amount_cents,g.net_cents) ELSE 0 END) AS currentCents
    FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id
@@ -63,7 +54,23 @@ export async function retention(c: Context, url: URL) {
     AND EXISTS(SELECT 1 FROM cf_fund_ledger l WHERE l.gift_id=g.id AND (? IS NULL OR l.fund=?) AND (? IS NULL OR l.campaign_id=?))
     AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id IN (hard.id,credited.id))
     AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
-   GROUP BY credited.id,credited.name ORDER BY lower(credited.name),credited.id`, start,start,priorStart,end,...donorParams,...ledgerParams),
+   GROUP BY credited.id,credited.name ORDER BY lower(credited.name),credited.id`,params:[start,start,priorStart,end,...donorParams,...ledgerParams]}
+ return {query:`SELECT l.* FROM (SELECT * FROM cf_fund_ledger WHERE ${ledgerSql}) l
+  JOIN cf_donors d ON d.id=l.donor_id LEFT JOIN cf_households h ON h.id=d.household_id
+  WHERE l.received_on>=? AND l.received_on<=? AND ${donorSql}
+  ${metric==='excluded'?'AND (d.erased_at IS NOT NULL OR EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))':''}`,
+  params:[...ledgerParams,priorStart,end,...donorParams]}
+}
+
+export async function retention(c: Context, url: URL) {
+ const selected=await retentionRecordSelection(c,url),scope=selected.scope
+ const {year,priorYear,asOf,start,priorStart,end,donorSql,donorParams,fund,campaignId}=scope
+ const excludedSelection=retentionMetricSelection(scope,'excluded'),recognitionSelection=retentionMetricSelection(scope,'recognition')
+ const [donors, excluded, softCreditRows] = await Promise.all([
+  all<RetentionRow & { earlierCents: number }>(c,selected.query,...selected.params),
+  all<{priorCents:number;currentCents:number}>(c,`SELECT COALESCE(SUM(CASE WHEN received_on<? THEN amount_cents ELSE 0 END),0) AS priorCents,
+   COALESCE(SUM(CASE WHEN received_on>=? THEN amount_cents ELSE 0 END),0) AS currentCents FROM (${excludedSelection.query})`,start,start,...excludedSelection.params),
+  all<SoftCreditRetentionRow>(c,recognitionSelection.query,...recognitionSelection.params),
  ])
  if(!(await one(c,`SELECT ${scope.scoreCurrentSql} AS current`))?.current)fail('LIST_CHANGED','Giving or engagement facts changed. Refresh this report.',409)
  const groups: Record<RetentionKind, RetentionGroup> = {

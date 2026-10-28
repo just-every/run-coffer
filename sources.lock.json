@@ -1446,6 +1446,10 @@
       "sha256": "436d3ade55bc9fbc82a6cbda0e32d854cb272577d53ac7dd7063d66f6c5ba85d",
       "executable": false
     },
+    "migrations/core/0168_coffer_report_builder.sql": {
+      "sha256": "a6fd47033becb5b3c5a823648f1312e87b700b73ce1ef04a5a74645175ba61fd",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -2559,7 +2563,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "9b916f861e88fd5e999a44bc9d84cf03dc8e7067abad8ba77c2f87ee3a3facb1",
+      "sha256": "171128771b70f290add84fd29ec1b2b0b363bedbed3a32f9e7378d659c330661",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2811,15 +2815,39 @@
       "executable": false
     },
     "src/coffer/exports-records.ts": {
-      "sha256": "377f2d08a3d6b86b2ef6cae37b8015f76bf3fb0101d56a8fdcbabab85b1af1c6",
+      "sha256": "311ecde0091a1e765eea6149b00fd6791e126b56107db1d9cd999995b074bfe5",
+      "executable": false
+    },
+    "src/coffer/exports-report-dashboard.ts": {
+      "sha256": "8817f72e55bdc33ac7dda87ce90bebe52bad82262628b41ef8b3c9bfec2af71b",
+      "executable": false
+    },
+    "src/coffer/exports-report-records.ts": {
+      "sha256": "1b39c905c23188712ae04e61701acfc8c2dc5ebd9d4213f2f76dc31d21f7147f",
+      "executable": false
+    },
+    "src/coffer/exports-report-recurring.ts": {
+      "sha256": "24053352919d16f39a02c0f2a7d4a850318f6bd7de37c3990cc1c81614bdb611",
+      "executable": false
+    },
+    "src/coffer/exports-report-restrictions.ts": {
+      "sha256": "bc00c9f3ab96bdc36db876e01bbea4c0f3c608d9850d9bbea9818f08e3d67564",
+      "executable": false
+    },
+    "src/coffer/exports-report-retention.ts": {
+      "sha256": "76f99f2651d21b80106b8f980b6614f7f598260a795b5e90516f7c0e64de965f",
+      "executable": false
+    },
+    "src/coffer/exports-report-tax.ts": {
+      "sha256": "17c9f3f78933113d41b5c2ee05e2681058d5c620b8ae5b5db9d185eb31abb7c8",
       "executable": false
     },
     "src/coffer/exports-report.ts": {
-      "sha256": "f84e2564a9326d3fcc78e648ce9a9c49ad5413fcec4ee658ba46993c3b1cff29",
+      "sha256": "75c7796b85e427c1223bd44f55c133edd648ac61de78d70e56f5de496afc2f84",
       "executable": false
     },
     "src/coffer/exports-selection.ts": {
-      "sha256": "53d4ab947cd16bd04f721205dd46d776c69fadc7647c027d3e13653ba1cd9744",
+      "sha256": "caa839a9b6afc20e626ea050f1012c226c8f873aed2bd2e9843db9784137a9b8",
       "executable": false
     },
     "src/coffer/exports-tasks.ts": {
@@ -2827,7 +2855,7 @@
       "executable": false
     },
     "src/coffer/exports.ts": {
-      "sha256": "cb2623ebb274812d05021cb80af42d3320b8264ecce241271bb11a13bd965cf5",
+      "sha256": "3dde42774933cf035db654976095e2e728d722edd33adc7662998a0d41e48e89",
       "executable": false
     },
     "src/coffer/fund-report.ts": {
@@ -3059,7 +3087,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "3bbfbea114152a12a9a066c258c01fc9f70e1c96e8073aa0547d7ac6a8e4a59b",
+      "sha256": "3e72a4a65a878446494fdbdafa1d9556cb2bd7dfda73259b9d4f8895a73bbc32",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3163,7 +3191,7 @@
       "executable": false
     },
     "src/coffer/major-gifts.ts": {
-      "sha256": "069f66a8b983548db7c6bf6833b2703de61f741794d493f1b43b6168000b5de6",
+      "sha256": "702102d23771c8348ec88c29ed5ceb0a8c13529401591225feec7c4bad782b7a",
       "executable": false
     },
     "src/coffer/mcp.ts": {
@@ -3575,7 +3603,7 @@
       "executable": false
     },
     "src/coffer/recurring-health.ts": {
-      "sha256": "f6f6f9ab7865429ee3cfd11de563ba252100883b75fc5a8f615ea9c4f0e2b28f",
+      "sha256": "0bb81713e0e89f44d6387d34ae67833be493784a534f779cdaabdd546ffa30b8",
       "executable": false
     },
     "src/coffer/recurring-tasks.ts": {
@@ -3588,6 +3616,30 @@
     },
     "src/coffer/report-authority.ts": {
       "sha256": "52bb1020d356dfd285d9e42c45e14cc208914fb7806359ffdcbcfeaa3657f2fa",
+      "executable": false
+    },
+    "src/coffer/report-builder-selection.ts": {
+      "sha256": "7e159f3e76215b34fc62b889c7c2432261165d718944b753c2f643df5822c816",
+      "executable": false
+    },
+    "src/coffer/report-builder/definition.ts": {
+      "sha256": "6ba1d3369dae52e0a9e9f4c0adea31d9a4199b425deae1972dd7d788a55984a1",
+      "executable": false
+    },
+    "src/coffer/report-builder/download.ts": {
+      "sha256": "b5d8eafdf2f1baecdd034c4a8167648b0ab4f80077a8aaa3867b02339b3dfb6b",
+      "executable": false
+    },
+    "src/coffer/report-builder/read.ts": {
+      "sha256": "2c8a0005f118acac79179c30db52032dd69214694dfff070a52d870aa8bbd12e",
+      "executable": false
+    },
+    "src/coffer/report-builder/store.ts": {
+      "sha256": "d65759c9823d49e7e6f93b4d074717765cf0bbd94c0ce11b23c5651ce58c3345",
+      "executable": false
+    },
+    "src/coffer/report-builder/workbook.ts": {
+      "sha256": "fe6706bbe766e559d0e4e6fe5bb7ff8d651bd90c950157dd12e997479d9a7ffd",
       "executable": false
     },
     "src/coffer/report-delivery.ts": {
@@ -3611,7 +3663,7 @@
       "executable": false
     },
     "src/coffer/restricted-funds.ts": {
-      "sha256": "6bd64bb18747688dbcbddff784346e1f93c145ed21328b7e4f770bce9c42e385",
+      "sha256": "a9ecb2ff576d1ad9110d8e4d172558ac56df877e6adf6484ad6948404167d120",
       "executable": false
     },
     "src/coffer/retention-scope.ts": {
@@ -3619,7 +3671,7 @@
       "executable": false
     },
     "src/coffer/retention.ts": {
-      "sha256": "f4c02b337f475109cb3258e42298166dc13bb6e97899f21477aca13f6e688ec6",
+      "sha256": "9bc99e879755b11e4bf765f6417e445cb46d62919ae27c484259c253c64b61b3",
       "executable": false
     },
     "src/coffer/saved-lists.ts": {
@@ -3627,7 +3679,7 @@
       "executable": false
     },
     "src/coffer/scheduled-report-selection.ts": {
-      "sha256": "f715d5a5fea13448322591e7de04d66ccd23d4dbedab28503343e4a3e472e598",
+      "sha256": "68f5c0d0ec35c85687f316deb0ea09fc6f14fe7d30be469b95e4a345d4fdac58",
       "executable": false
     },
     "src/coffer/settings.ts": {
@@ -3703,7 +3755,7 @@
       "executable": false
     },
     "src/coffer/tax-reports.ts": {
-      "sha256": "db62bcbb3bc826b34fc2cac228310e5375d327b25ae2591e7e82406f32854254",
+      "sha256": "546a487e3d568ef2726b6547ce826f9e38bde9ced636c67dd35fc4c5d9951bd5",
       "executable": false
     },
     "src/coffer/template-fields.ts": {
@@ -3943,7 +3995,7 @@
       "executable": false
     },
     "src/coffer/ui/more.ts": {
-      "sha256": "18d98101b5f8cbde4b76cd1514e3c9b01ae426c4ffadae5aad4c505bcefa05db",
+      "sha256": "cd2213ab6ee2d14431615297c4a24bdfbc8469ed10f14a1ed1639a451875c0e6",
       "executable": false
     },
     "src/coffer/ui/move-in.ts": {
@@ -4008,6 +4060,10 @@
     },
     "src/coffer/ui/recurring-tasks.ts": {
       "sha256": "243d98baa51bdbd2d6e17e3f8531277574030a7da6a847ffb0cbe7a49e04a451",
+      "executable": false
+    },
+    "src/coffer/ui/report-builder.ts": {
+      "sha256": "273a4a941d0e1e66b162182c6bf823468512b1672dc49c5eebe3bcc566f37ca2",
       "executable": false
     },
     "src/coffer/ui/report-schedules.ts": {
@@ -6647,7 +6703,7 @@
       "executable": false
     },
     "tests/pipeline.test.mjs": {
-      "sha256": "184fd660ab75cbd35469a240290374cfc81f4bd3f14920e25336b8e835cd0d79",
+      "sha256": "9186ab45c0560495cf97d11a48250b142f59ced959c5512caded4279e3a7e99f",
       "executable": false
     },
     "tests/planned-giving-journey.mjs": {
@@ -6820,6 +6876,14 @@
     },
     "tests/report-authority-journey.mjs": {
       "sha256": "92a21effc0b471b22e17ab955e0bf557aa74b49f040646169eae19034ed84c1a",
+      "executable": false
+    },
+    "tests/report-builder-browser.mjs": {
+      "sha256": "a04e5d201454377b49009335d38cf8287c99233b71c243818990c5ba2d006897",
+      "executable": false
+    },
+    "tests/report-builder-journey.mjs": {
+      "sha256": "8a8c8380431519884a6e96969c777acdea90186afef83801bb95eb0998625871",
       "executable": false
     },
     "tests/report-schedules-browser.mjs": {

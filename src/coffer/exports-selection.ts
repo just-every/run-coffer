@@ -11,7 +11,7 @@ import type { ExportType } from './exports-records'
 
 export type ExportSelection = {
  source:string; savedId:string|null; timezone:string; year:number; through:string
- ctes:string; params:unknown[]; scoreCurrentSql:string; reportType?:ExportType; reportTotalsSql?:string; giftSelection?:boolean
+ ctes:string; params:unknown[]; scoreCurrentSql:string; reportType?:ExportType; reportTotalsSql?:string; reportRecordQuery?:string; giftSelection?:boolean
  selection:{source:string;listId?:string|null;year?:number|null;filters?:Record<string,unknown>;report?:string;parameters?:Record<string,unknown>}
 }
 

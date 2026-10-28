@@ -164,3 +164,5 @@ test('STEW-001: daily task reminders, manager escalation and owner fallback pres
 test('DEV-010: overdue pledge installments, grant reports and employer matches receive approved reminders, escalation and recorded resolution',async()=>{const {developmentFollowupsJourney}=await import('./development-followups-journey.mjs');await developmentFollowupsJourney()})
 
 test('DEV-005: weekly manager call priorities preserve capacity, non-ask restrictions, overflow and observed giving and retention',async()=>{const {callPrioritiesJourney}=await import('./call-priorities-journey.mjs');await callPrioritiesJourney()})
+
+test('saved reports share current selections, export exact records and move definitions between installations',async()=>{const {reportBuilderJourney}=await import('./report-builder-journey.mjs');await reportBuilderJourney()})

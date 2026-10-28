@@ -9,7 +9,7 @@ const columns = (value: string) => value.split(' ')
 const constituentColumns = columns('id version name prefix first_name middle_name last_name suffix nickname constituent_kind organization_type website ein email phone address_line1 address_line2 city region postal_code country household_id informal_salutation formal_salutation envelope_name constituent_status status_reason deceased_on status_changed_at created_at')
 const giftColumns = columns('id donor_id kind received_on amount_cents gross_cents adjustment_cents refunded_cents stated_value_cents description quantity fund campaign_id allocations method pledge_id created_at custom_fields acknowledgment_status acknowledged_on acknowledgment_method acknowledgment_link')
 const pledgeColumns = columns('id donor_id version pledged_on due_by amount_cents reduced_cents paid_cents remaining_cents fund campaign_id created_at custom_fields')
-const planColumns = columns('id donor_id campaign_id amount_cents status cancel_at_period_end failed_attempts recovered updated_at')
+const planColumns = columns('id donor_id campaign_id amount_cents billing_interval interval_count collection_paused status cancel_at_period_end failed_attempts recovered updated_at')
 const consentColumns = columns('id donor_id channel status method evidence captured_on recorded_at recorded_by')
 const interactionBase = columns('id donor_id kind occurred_on who notes next_step open_question question_resolved_at recorded_at recorded_by')
 const interactionColumns=[...interactionBase,'custom_fields']

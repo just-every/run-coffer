@@ -1,3 +1,7 @@
+import { builderDownload } from './report-builder/download'
+import { readBuilderReport } from './report-builder/read'
+import { savedReports } from './report-builder/store'
+import { builderPage } from './ui/report-builder'
 import { journeySettingsPanel } from './communications/journeys-ui'
 import { journeyState } from './communications/journeys'
 import { postalEvents } from './postal-delivery'
@@ -200,6 +204,16 @@ async function formInput(data: FormData) {
  if (input.command === 'gift.record' && data.has('splitAmount')) {
   const funds=data.getAll('splitFund'),campaigns=data.getAll('splitCampaign')
   input.allocations=data.getAll('splitAmount').map((amount,i)=>({amount,fund:funds[i],campaignId:campaigns[i]}))
+ }
+ if(input.command==='report.save'){
+  const keys=data.getAll('filterField'),operators=data.getAll('filterOperator'),values=data.getAll('filterValue')
+  input.definition={recordType:input.recordType,columns:data.getAll('columns'),groupBy:data.getAll('groupBy'),totals:data.getAll('totals'),from:input.from,through:input.through,solicitation:input.solicitation,
+   filters:keys.flatMap((key,i)=>key?[{field:key,operator:operators[i],value:values[i]}]:[]),acknowledgment:Object.fromEntries(['ackStatus','ackFrom','ackThrough','ackMethod','ackLink','giftOver'].map(k=>[k,input[k]??'']))}
+ }
+ if(input.command==='report.import'){
+  const file=data.get('definitionFile')
+  if(!file||typeof file==='string'||file.size>200000)fail('INPUT','Choose a report JSON file up to 200 KB.',400)
+  input.document=await file.text();delete input.definitionFile
  }
  const customKeys=[...new Set([...data.keys()].filter(key=>key.startsWith('custom.')))]
  if(customKeys.length)input.customFields=Object.fromEntries(customKeys.filter(key=>data.getAll(key).some(value=>String(value).trim()!=='')).map(key=>[key.slice(7),data.has('many.'+key)?data.getAll(key):data.get(key)]))
@@ -410,6 +424,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    if (isApi) return json(result)
    return actionPage(command, input, result, actor, (await settings(c)).timezone)
   }
+  if(request.method==='GET'&&(path==='/app/reports/builder'||path==='/api/coffer/reports/builder')){const file=await builderDownload(c,url);if(file)return file}
   const csvExport=await exportsResponse(request,c);if(csvExport)return csvExport
   if (path === '/app/backup' && request.method === 'POST') {
    if (actor.role !== 'owner') fail('owner_required', 'Only the owner can download a backup.', 403)
@@ -491,6 +506,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
 
 const CONNECT = new Set(['marketing.fields','marketing.connectMango', 'marketing.connectMailchimp', 'marketing.chooseAudience', 'marketing.check', 'marketing.disconnect'])
 function actionPage(command: string, input: any, result: any, actor: Actor, timeZone: string) {
+ if(command.startsWith('report.'))return redirect('/app/reports/builder?id='+encodeURIComponent(result.id))
  if(command==='calendar.start')return page('Connect Google Calendar',`<p>Continue to Google to approve read-only access to your primary calendar.</p><p><a href="${esc(result.authorizeUrl)}" rel="noreferrer">Continue to Google</a></p><p><a href="/app/settings#calendar-settings">Back to Settings</a></p>`,actor,200,'/app/settings')
  if(command==='calendar.configure'||command==='calendar.disconnect'||command==='booking.configure'||command==='booking.disconnect')return redirect('/app/settings#calendar-settings')
  if(command==='calendar.log'||command==='booking.link'||command==='booking.revoke')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#meetings')
@@ -594,6 +610,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
 async function api(c: Context, url: URL): Promise<Response> {
  if(url.pathname==='/api/coffer/webhooks')return json(await webhookState(c,url.searchParams.get('before')))
  if(url.pathname==='/api/coffer/auctions')return json(await auctionState(c,url.searchParams.get('eventId')??'',url.searchParams.get('jobId')??undefined))
+ if(url.pathname==='/api/coffer/reports/builder')return json(url.searchParams.has('id')?await readBuilderReport(c,url):{reports:await savedReports(c)})
  if(url.pathname==='/api/coffer/report-schedules')return json(await reportSchedules(c))
  if(url.pathname==='/api/coffer/agent-grants')return json(await agentGrantsState(c))
  if(url.pathname==='/api/coffer/provider-fields'){if(!manager(c.actor))fail('FORBIDDEN','Only an owner or admin manages shared provider fields.',403);const conn=await savedConnection(c);return json({provider:conn?.provider??null,version:conn?.mergeVersion??1,fields:conn?.mergeSelection??[]})}
@@ -710,6 +727,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  const show = (title: string, body: string) => page(title, body, actor, 200, path)
  if(path==='/app/api-keys')return show('Public API keys',await apiKeysPage(c))
  if(path==='/app/webhooks')return show('Webhooks',await webhookPage(c,url.searchParams.get('before')))
+ if(path==='/app/reports/builder')return show('Report builder',await builderPage(c,url))
  if(path==='/app/report-schedules')return show('Scheduled reports',await reportSchedulesPage(c,url))
  if(path==='/app/reports/custom-fields')return show('Gift custom fields',await customReportPage(c,url))
  if(path==='/app/reports/custom-fields.csv')return download(customReportCsv(await customReport(c,url)),'coffer-custom-gifts')

@@ -55,12 +55,16 @@ export async function majorGiftCommand(c: Context, command: string, p: Row): Pro
  * the displayed cents. Never multiply decimal dollar values in a forecast. */
 export const weightedOpportunityCents = (cents: number, probability: number) => Number((BigInt(cents) * BigInt(probability) + 50n) / 100n)
 
-export async function prospects(c: Context): Promise<Row[]> {
- const [rows, scores, policy] = await Promise.all([
-  all(c, `SELECT p.*,d.name AS donor_name,COALESCE(o.display_name,'Reassignment needed') AS owner_name,o.status AS owner_status,o.role AS owner_role,c.name AS campaign_name
+export function prospectRecordSelection() {
+ return {query:`SELECT p.*,d.name AS donor_name,COALESCE(o.display_name,'Reassignment needed') AS owner_name,o.status AS owner_status,o.role AS owner_role,c.name AS campaign_name
    FROM cf_prospects p JOIN cf_donors d ON d.id=p.donor_id LEFT JOIN oa_operators o ON o.id=p.owner_id LEFT JOIN cf_campaigns c ON c.id=p.campaign_id
    WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
-   ORDER BY p.expected_close_on,lower(d.name),p.id`),
+   ORDER BY p.expected_close_on,lower(d.name),p.id`,params:[] as unknown[]}
+}
+
+export async function prospects(c: Context): Promise<Row[]> {
+ const [rows, scores, policy] = await Promise.all([
+  all(c, prospectRecordSelection().query),
   engagementScores(c), opportunityStages(c),
  ])
  const byDonor = new Map(scores.donors.map(d => [d.donorId, d.engagement]))

@@ -22,7 +22,7 @@ export async function exportSnapshot(c: Context, type: ExportType, url: URL) {
  requireRole(c.actor,['owner','admin'],'export donor records')
  const s = await exportSelection(c,url), spec = exportRecords[type]
  const reportGifts=s.reportType==='gifts'&&type==='gifts'
- const recordQuery=reportGifts?reportGiftRecords(spec.query,'report' in s.selection&&s.selection.report==='honor-roll'):s.giftSelection&&type==='gifts'?`SELECT * FROM (${spec.query}) WHERE (SELECT filtered FROM gift_selection)=0 OR id IN(SELECT id FROM selected_gifts)`:spec.query
+ const recordQuery=s.reportType===type&&s.reportRecordQuery?s.reportRecordQuery:reportGifts?reportGiftRecords(spec.query,'report' in s.selection&&s.selection.report==='honor-roll'):s.reportType===type&&type!=='constituents'?`SELECT * FROM (${spec.query}) WHERE id IN(SELECT id FROM report_entries)`:s.giftSelection&&type==='gifts'?`SELECT * FROM (${spec.query}) WHERE (SELECT filtered FROM gift_selection)=0 OR id IN(SELECT id FROM selected_gifts)`:spec.query
  const query = `WITH ${s.ctes}, records AS MATERIALIZED (${recordQuery}),
  record_json AS MATERIALIZED (SELECT ${recordJson(type)} AS data FROM records r),
  totals AS (SELECT count(*) AS row_count,COALESCE(SUM(length(CAST(data AS BLOB))),0) AS byte_count FROM record_json),

@@ -33,19 +33,25 @@ export async function restrictedFundCommand(c: Context, command: string, p: Row)
  return undefined
 }
 
-export async function restrictionReport(c: Context, url: URL) {
+export async function restrictionRecordSelection(c:Context,url:URL) {
  const through = url.searchParams.get('through') ? date(url.searchParams.get('through'), 'Through') : today((await settings(c)).timezone, new Date(c.now))
+ const fund=url.searchParams.get('fund')||null
+ return {through,fund,query:'SELECT * FROM cf_fund_ledger WHERE received_on<=? AND (? IS NULL OR fund=?)',params:[through,fund,fund]}
+}
+
+export async function restrictionReport(c: Context, url: URL) {
+ const selection=await restrictionRecordSelection(c,url),{through,fund:chosenFund}=selection
  const funds = await all(c, `WITH names AS (SELECT name FROM cf_funds UNION SELECT DISTINCT fund FROM cf_fund_ledger)
  SELECT n.name AS fund,COALESCE(f.restriction,'unrestricted') AS restriction,f.detail,f.release_on,
- COALESCE((SELECT SUM(amount_cents) FROM cf_fund_ledger l WHERE l.fund=n.name AND l.received_on<=?),0) AS given_cents,
+ COALESCE((SELECT SUM(amount_cents) FROM (${selection.query}) l WHERE l.fund=n.name),0) AS given_cents,
  COALESCE((SELECT SUM(amount_cents) FROM cf_fund_spends s WHERE s.fund=n.name AND s.spent_on<=?),0) AS spent_cents
- FROM names n LEFT JOIN cf_funds f ON f.name=n.name ORDER BY n.name`, through, through)
+ FROM names n LEFT JOIN cf_funds f ON f.name=n.name WHERE (? IS NULL OR n.name=?) ORDER BY n.name`, ...selection.params, through,chosenFund,chosenFund)
  for (const fund of funds) {
   const expired = fund.restriction === 'time' && fund.release_on <= through
   fund.released_cents = fund.restriction === 'unrestricted' || expired ? fund.given_cents : fund.spent_cents
   fund.held_cents = fund.given_cents - fund.released_cents
  }
- return { through, funds, spends: await all(c, 'SELECT * FROM cf_fund_spends WHERE spent_on<=? ORDER BY spent_on DESC,created_at DESC,id', through) }
+ return { through, funds, spends: await all(c, 'SELECT * FROM cf_fund_spends WHERE spent_on<=? AND (? IS NULL OR fund=?) ORDER BY spent_on DESC,created_at DESC,id', through,chosenFund,chosenFund) }
 }
 
 export function restrictionLabel(fund: Row) {

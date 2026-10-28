@@ -44,7 +44,7 @@ type Annual = { donorId: string | null; name: string; address: string[]; year: n
 
 /** Numeric working papers from received monetary ledger entries and the current
  * property register. Nothing here determines return accounting or tax status. */
-export async function taxReport(c: Context, url: URL) {
+export async function taxRecordSelection(c: Context, url: URL) {
  const [s, configuration] = await Promise.all([settings(c), policy(c)])
  const asOf = today(s.timezone, new Date(c.now))
  const basis = choice(url.searchParams.get('basis') || 'calendar', ['calendar', 'fiscal'] as const, 'year basis')
@@ -60,15 +60,21 @@ export async function taxReport(c: Context, url: URL) {
  const start = periods[0].start, through = periods[4].through
  // No fund/allocation or recognition joins: each signed monetary entry counts
  // once. Unknown/erased identities remain in the reconciliation, without PII.
- const [entries, properties] = await Promise.all([
-  all(c, `SELECT l.donor_id,l.received_on,SUM(l.amount_cents) AS cents,COUNT(*) AS entries,
+ return {s,configuration,asOf,basis,monthDay,currentYear,year,periods,start,through,
+  monetary:{query:`SELECT l.*,COALESCE(p.gift_id,l.reverses,l.id) AS gift_id FROM cf_monetary_contributions l LEFT JOIN cf_payment_entries p ON p.id=l.id WHERE l.received_on>=? AND l.received_on<=?`,params:[start,through]},
+  property:{query:`SELECT g.*,g.id AS gift_id,0 AS amount_cents,NULL AS campaign_id FROM cf_in_kind_current g WHERE g.received_on>=? AND g.received_on<=?`,params:[start,through]}}
+}
+
+export async function taxReport(c:Context,url:URL) {
+ const source=await taxRecordSelection(c,url)
+ const {s,configuration,asOf,basis,monthDay,currentYear,year,periods,start,through}=source
+ const [entries,properties]=await Promise.all([
+  all(c,`SELECT l.donor_id,l.received_on,SUM(l.amount_cents) AS cents,COUNT(*) AS entries,
    d.name,d.erased_at,d.address_line1,d.address_line2,d.city,d.region,d.postal_code,d.country
-   FROM cf_monetary_contributions l LEFT JOIN cf_donors d ON d.id=l.donor_id
-   WHERE l.received_on>=? AND l.received_on<=? GROUP BY l.donor_id,l.received_on`, start, through),
-  all(c, `SELECT g.id,g.donor_id,g.received_on,g.description,g.quantity,g.stated_value_cents,
-   g.disposed_on,d.name,d.erased_at,d.address_line1,d.address_line2,d.city,d.region,d.postal_code,d.country
-   FROM cf_in_kind_current g LEFT JOIN cf_donors d ON d.id=g.donor_id
-   WHERE g.received_on>=? AND g.received_on<=? ORDER BY g.received_on,g.id`, start, through),
+   FROM (${source.monetary.query}) l LEFT JOIN cf_donors d ON d.id=l.donor_id
+   GROUP BY l.donor_id,l.received_on`,...source.monetary.params),
+  all(c,`SELECT g.*,d.name,d.erased_at,d.address_line1,d.address_line2,d.city,d.region,d.postal_code,d.country
+   FROM (${source.property.query}) g LEFT JOIN cf_donors d ON d.id=g.donor_id ORDER BY g.received_on,g.id`,...source.property.params),
  ])
  await withContributionTypes(c,properties)
  const classifications=await all(c,`SELECT t.kind,COUNT(*) AS giftCount,COALESCE(SUM(l.amount_cents),0) AS monetaryCents FROM cf_monetary_contributions l JOIN cf_contribution_types t ON t.gift_id=COALESCE(l.reverses,l.id) WHERE l.received_on>=? AND l.received_on<=? GROUP BY t.kind`,periods[4].start,through)
