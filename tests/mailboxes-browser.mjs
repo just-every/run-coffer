@@ -2,6 +2,31 @@ import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {withBrowserWorker} from './browser-worker.mjs'
 
+export async function mailboxStopPrivacyBrowser(h,{directory,donorId,memberCookie,privateExcerpt,provider}) {
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  await page.goto(origin+'/app/appeals#donor-replies')
+  const reply=page.locator('#donor-replies li').filter({has:page.getByRole('heading',{name:'Library conversation '+provider+'-ambiguous',exact:true})})
+  await reply.getByText('Read saved reply excerpt',{exact:true}).click()
+  assert.ok((await reply.innerText()).includes(privateExcerpt),'The owner can still read the original private evidence')
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await reply.screenshot({path:`${directory}/COMM-004-private-stop-owner-${provider}-${width}.png`})
+  }
+  await context.clearCookies()
+  await context.addCookies(memberCookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',httpOnly:true,secure:true,sameSite:'Lax'}}))
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/donors/'+donorId+'#consent')
+   assert.equal((await page.locator('main').innerText()).includes(privateExcerpt),false,'The member donor page withholds the original private evidence')
+   assert.equal(await page.locator('#consent').getByText('Email: withdrawn',{exact:true}).count(),1,'The member can see the withdrawal')
+   await page.locator('#consent').screenshot({path:`${directory}/COMM-004-private-stop-member-${provider}-${width}.png`})
+  }
+  await page.close()
+ })
+}
+
 export async function mailboxesBrowser(h,{directory,donorId,keys}) {
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{

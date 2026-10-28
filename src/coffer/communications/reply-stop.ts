@@ -28,7 +28,9 @@ export async function automaticStopStatements(db: D1Database, taskId: string, at
  const fresh = "r.id=? AND r.stop_status='automatic' AND r.stop_withdrawal_id IS NULL AND NOT EXISTS(SELECT 1 FROM cf_interactions i WHERE i.id=r.id)"
  return [
   db.prepare(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
-   SELECT r.donor_id,'email','withdrawn','email reply',substr('Explicit stop reply received '||r.received_at||': '||r.stop_evidence,1,1000),?,?,
+   SELECT r.donor_id,'email','withdrawn','email reply',CASE WHEN r.mailbox_id IS NULL
+    THEN substr('Explicit stop reply received '||r.received_at||': '||r.stop_evidence,1,1000)
+    ELSE 'Explicit stop received in private mailbox; original evidence retained in private reply '||r.id||'.' END,?,?,
    'Email routing (automatic)' FROM cf_reply_tasks r WHERE ${fresh}`).bind(captured, at, taskId),
   db.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'email-routing','Email routing','system','consent.record','donor',r.donor_id,r.donor_id,
@@ -72,7 +74,8 @@ export async function replyStopCommand(c: Context, command: string, p: Row): Pro
    'STOP_CHANGED', 'The automatic withdrawal is no longer the current consent. Review the donor record; this reply cannot reverse a newer preference.', taskId, version),
    sql(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
     SELECT r.donor_id,'email',COALESCE((SELECT status FROM cf_consents WHERE id=r.stop_consent_id AND donor_id=r.donor_id),'withdrawn'),
-    'other',substr('Misread explicit stop reply '||r.received_at||': '||?,1,1000),?,?,? FROM cf_reply_tasks r WHERE r.id=?`, reason, captured, c.now, c.actor.name, taskId),
+    'other',CASE WHEN r.mailbox_id IS NULL THEN substr('Misread explicit stop reply '||r.received_at||': '||?,1,1000)
+     ELSE 'Misread private mailbox stop reversed; reason retained in private reply '||r.id||'.' END,?,?,? FROM cf_reply_tasks r WHERE r.id=?`, reason, captured, c.now, c.actor.name, taskId),
    sql("UPDATE cf_reply_tasks SET stop_status='reversed',stop_version=stop_version+1,stop_reversed_at=?,stop_reversed_by=?,stop_reversal_reason=? WHERE id=?", c.now, c.actor.name, reason, taskId),
    event(c, 'consent.record', 'donor', task.donor_id, task.donor_id, { channel: 'email', method: 'other', replyTaskId: taskId, reversal: true }),
    event(c, command, 'reply', taskId, task.donor_id, { withdrawalConsentId: task.stop_withdrawal_id })])
@@ -92,8 +95,12 @@ export async function replyStopCommand(c: Context, command: string, p: Row): Pro
   await commit(c, [guard(`EXISTS(SELECT 1 FROM cf_reply_tasks r JOIN cf_donors d ON d.id=r.donor_id WHERE r.id=?
    AND r.automatic=0 AND r.stop_status='proposed' AND r.stop_version=? AND ${live} AND ${stopIsCurrent})`,
    'STOP_CHANGED', 'This proposal, donor email or consent changed. Refresh and review the reply before confirming.', taskId, version),
+   // Consent history is shared with staff and donor files; mailbox text stays
+   // in the private reply, linked by its opaque ID rather than copied here.
    sql(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
-    SELECT donor_id,'email','withdrawn','email reply',substr('Reply received '||received_at||': '||stop_evidence,1,1000),?,?,?
+    SELECT donor_id,'email','withdrawn','email reply',CASE WHEN mailbox_id IS NULL
+     THEN substr('Reply received '||received_at||': '||stop_evidence,1,1000)
+     ELSE 'Private mailbox stop confirmed; original evidence retained in private reply '||id||'.' END,?,?,?
     FROM cf_reply_tasks WHERE id=?`, captured, c.now, c.actor.name, taskId),
    sql("UPDATE cf_reply_tasks SET stop_status='confirmed',stop_version=stop_version+1,stop_confirmed_at=?,stop_confirmed_by=? WHERE id=?", c.now, c.actor.name, taskId),
    sql("UPDATE cf_interactions SET next_step=COALESCE(next_step||' ','')||? WHERE id=?", `Email consent withdrawal confirmed by ${c.actor.name}.`, taskId),

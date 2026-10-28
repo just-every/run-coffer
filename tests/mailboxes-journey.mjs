@@ -5,6 +5,20 @@ import {fixedNow} from './fixed-clock.mjs'
 
 const address=n=>['synthetic-coffer-'+n,'example.test'].join('@')
 const encode=value=>Buffer.from(value).toString('base64url')
+async function privateStopCustody(h,member,donorId,privateText,status){
+ const memberDonor=await h.get('/api/coffer/donors/'+donorId,{as:member.cookie})
+ const memberPage=await h.request('/app/donors/'+donorId,{as:member.cookie})
+ assert.equal(memberPage.status,200)
+ const donorFile=await h.api('/api/coffer/donors/'+donorId+'/data-request',{requestedOn:'2026-10-17',method:'email'})
+ const consentExport=await h.request('/api/coffer/exports/consent.csv')
+ assert.equal(consentExport.status,200)
+ const doors={memberAPI:JSON.stringify(memberDonor),memberPage:await memberPage.text(),donorFile:JSON.stringify(donorFile),consentExport:await consentExport.text()}
+ for(const excerpt of privateText){
+  const exposed=Object.entries(doors).filter(([,value])=>value.includes(excerpt)).map(([door])=>door)
+  assert.deepEqual(exposed,[],'A private mailbox stop must not publish its evidence through shared donor doors')
+ }
+ assert.equal(memberDonor.current.email.status,status,'Members still see the effective consent')
+}
 export async function mailboxesJourney(){
  const inbox={gmail:[],microsoft:[]},submitted=[],keys={clientId:'synthetic-coffer-4001',clientSecret:'synthetic-coffer-4002'}
  let account,uncertain=false,revoked=false,harness,disconnectDuringRead=false,wrongIdentity=false
@@ -93,14 +107,21 @@ export async function mailboxesJourney(){
    let replies=await h.get('/api/coffer/replies'),stop=replies.find(r=>r.subject.endsWith(provider+'-stop')),ambiguous=replies.find(r=>r.subject.endsWith(provider+'-ambiguous'))
    assert.equal(replies.find(r=>r.subject.endsWith(provider+'-automatic')).status,'filed');assert.equal(replies.find(r=>r.subject.endsWith(provider+'-automatic')).stop_status,null)
    assert.equal(stop.stop_status,'automatic');assert.equal((await h.get('/api/coffer/donors/'+ada.id)).current.email.status,'withdrawn')
+   await privateStopCustody(h,member,ada.id,[stop.stop_evidence],'withdrawn')
    await h.command('reply.reverseStop',{taskId:stop.id,stopVersion:1},{status:400})
    await h.command('reply.reverseStop',{taskId:stop.id,stopVersion:1,reason:'Synthetic reviewed misinterpretation'})
    assert.equal((await h.get('/api/coffer/donors/'+ada.id)).current.email.status,'granted')
+   await privateStopCustody(h,member,ada.id,[stop.stop_evidence,'Synthetic reviewed misinterpretation'],'granted')
+   assert.equal((await h.get('/api/coffer/replies')).find(r=>r.id===stop.id).stop_reversal_reason,'Synthetic reviewed misinterpretation','The reversal reason remains available to authorized reviewers')
    assert.equal(ambiguous.stop_status,null,'Ambiguous text does not withdraw automatically')
    await h.command('reply.proposeStop',{taskId:ambiguous.id,stopVersion:0},{as:member.cookie,status:403})
    await h.command('reply.proposeStop',{taskId:ambiguous.id,stopVersion:0})
    await h.command('reply.confirmStop',{taskId:ambiguous.id,stopVersion:1},{as:admin.cookie})
    assert.equal((await h.get('/api/coffer/donors/'+rosa.id)).current.email.status,'withdrawn')
+   const privateExcerpt='Perhaps fewer updates would be best.'
+   await privateStopCustody(h,member,rosa.id,[privateExcerpt],'withdrawn')
+   assert.equal((await h.get('/api/coffer/replies')).find(r=>r.id===ambiguous.id).stop_evidence,privateExcerpt,'The original evidence remains in the private reply')
+   if(process.env.COFFER_MAILBOX_BROWSER){const {mailboxStopPrivacyBrowser}=await import('./mailboxes-browser.mjs');await mailboxStopPrivacyBrowser(h,{directory:process.env.COFFER_MAILBOX_BROWSER,donorId:rosa.id,memberCookie:member.cookie,privateExcerpt,provider})}
    await consent(ada);await consent(rosa)
    const before=(await h.get('/api/coffer/donors/'+ada.id)).consents.length
    await h.command('mailbox.sync',{provider})
