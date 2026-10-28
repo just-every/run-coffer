@@ -2959,7 +2959,7 @@
       "executable": false
     },
     "src/coffer/giving/form-manage-ui.ts": {
-      "sha256": "6388e921200c6da16f87e58a050fc4fb90d6c16ac6834dc6e65314f3b966ad58",
+      "sha256": "76119446fd2ccd61e4ffea8b3edd4f54e21e2c9186d6f360db13b18f6061395b",
       "executable": false
     },
     "src/coffer/giving/form-recording.ts": {
@@ -6595,7 +6595,7 @@
       "executable": false
     },
     "tests/giving-form-browser.mjs": {
-      "sha256": "3821d63a1c6818f0e856020cdfcaf7944fd0d4ab9031cc2356bc59de006bac55",
+      "sha256": "1d1d6b62386df949dda7266fc6cd5e6918509c89699a7dbbc248b1040d32b4f4",
       "executable": false
     },
     "tests/giving-form-edge.mjs": {
@@ -6603,7 +6603,7 @@
       "executable": false
     },
     "tests/giving-form-journey.mjs": {
-      "sha256": "95ba86b617adddf4b587b3965183e41607eb845f8183b59ce19f58434d7b2c2f",
+      "sha256": "4a25b8a2f22c531d2d41226952c3f14b2e76a8f8b74124bfe48da49da563650f",
       "executable": false
     },
     "tests/giving-protection-journey.mjs": {

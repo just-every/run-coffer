@@ -28,11 +28,14 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
     const settings = page.locator('[data-giving-form-settings]')
     const change = async (name, value, type = 'fill') => {
      const control = settings.getByLabel(name, {exact: true})
-     const response = page.waitForResponse(r => r.url().endsWith('/app/settings/giving-forms/' + campaign.id) && r.request().method() === 'POST').catch(async error => {throw new Error(name + ': ' + error.message + ' state=' + JSON.stringify(await settings.evaluate(f=>({status:f.querySelector('[data-form-status]').textContent,invalid:[...f.elements].filter(e=>e.validity&&!e.validity.valid).map(e=>({name:e.name,message:e.validationMessage}))}))))})
-     if (type === 'select') await control.selectOption(value)
-     else if (type === 'check') await control.setChecked(value)
-     else { await control.fill(value); await control.press('Tab') }
-     const saved = await response
+     const [saved] = await Promise.all([
+      page.waitForResponse(r => r.url().endsWith('/app/settings/giving-forms/' + campaign.id) && r.request().method() === 'POST'),
+      (async () => {
+       if (type === 'select') await control.selectOption(value)
+       else if (type === 'check') await control.setChecked(value)
+       else { await control.fill(value); await control.press('Tab') }
+      })(),
+     ])
      assert.equal(saved.status(), 200, await saved.text())
      await page.waitForFunction(() => document.querySelector('[data-form-status]')?.textContent === 'Saved')
     }
