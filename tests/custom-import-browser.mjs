@@ -100,8 +100,9 @@ export async function spreadsheetImportBrowser(h,input,directory){
   const form=page.locator('form[action="/app/move-in/crm/preview"]')
   await page.getByText('Map custom report columns',{exact:true}).click()
   for(const f of input.customFields){
-   await page.getByLabel('Target for '+f.column,{exact:true}).selectOption('')
+   await form.locator('tr').filter({has:page.locator('input[name=mapColumn][value='+JSON.stringify(f.column)+']')}).locator('select[name=mapField]').selectOption('')
    const fieldset=form.locator('fieldset').filter({has:page.locator('legend',{hasText:f.column+' · CSV'})})
+   await fieldset.locator('..').locator(':scope > summary').click()
    if(f.version)await fieldset.locator('select[name=customExisting]').selectOption({label:f.label+' · '+f.key})
    else{
     await fieldset.locator('input[name=customKey]').fill(f.key)

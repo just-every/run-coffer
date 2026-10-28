@@ -2,11 +2,14 @@ import { all, guard, sha256, sql, type Context, type Row, type Stmt } from '../d
 import type { SourceDefinition } from './source-definitions'
 import type { ReviewValue } from './custom-review-types'
 
-export async function customTagWrites(c:Context,source:string,jobId:string,definition:SourceDefinition,value:ReviewValue,native:Row):Promise<{writes:Stmt[];added:number}> {
+export async function customTagWrites(c:Context,source:string,jobId:string,definition:SourceDefinition,value:ReviewValue,native:Row,staged:Set<string>):Promise<{writes:Stmt[];added:number}> {
  const decoded=JSON.parse(value.value!),tags:string[]=Array.isArray(decoded)?decoded:[decoded],writes:Stmt[]=[]
  let added=0
  for(const tag of tags){
-  const sourceKey=await sha256(JSON.stringify([native.donor_id,tag])),prior=await all(c,"SELECT 1 FROM cf_move_in_records WHERE source=? AND kind='customTag' AND source_key=?",source,sourceKey)
+  const sourceKey=await sha256(JSON.stringify([native.donor_id,tag]))
+  if(staged.has(sourceKey))continue
+  staged.add(sourceKey)
+  const prior=await all(c,"SELECT 1 FROM cf_move_in_records WHERE source=? AND kind='customTag' AND source_key=?",source,sourceKey)
   if(prior.length)continue
   const existing=await all(c,'SELECT * FROM cf_donor_tags WHERE donor_id=? AND tag=?',native.donor_id,tag)
   if(existing.length)continue

@@ -47,7 +47,7 @@ export async function applyCustom(c:Context,input:{id:string;version:number}) {
  if(!review||input.version!==review.version)fail('MOVE_IN_CHANGED','This custom review changed. Refresh it.',409)
  const fields=await customFields(c),customWrites:CustomImportWrite[]=[],writes:Stmt[]=[fence(job.id,job.rawReport)],records=await readSourceIndex(c,job.id)
  let tagAssignments=0
- const staged=new Set<string>(),custody=await all(c,'SELECT * FROM cf_move_in_records WHERE source=?',job.source)
+ const staged=new Set<string>(),stagedTags=new Set<string>(),custody=await all(c,'SELECT * FROM cf_move_in_records WHERE source=?',job.source)
  for(const value of review.values.filter(v=>v.state==='ready')){
   const definition=review.definitions.find(d=>d.id===value.fieldId)!,mapping=review.mappings.find(m=>m.id===value.fieldId)!,record=records.find(r=>r.kind===definition.kind&&r.externalId===value.recordId)
   if(!record)fail('CUSTOM_RECORD','A source value has no reviewed source record.',409)
@@ -56,7 +56,7 @@ export async function applyCustom(c:Context,input:{id:string;version:number}) {
   if(!native?.snapshot||!native.donor_id)fail('MOVE_IN_CHANGED','A source record was erased or changed. Review the original import.',409)
   const donorId=await canonicalDonor(c,native.donor_id)
   writes.push(guard('EXISTS(SELECT 1 FROM cf_move_in_records WHERE source=? AND kind=? AND source_key=? AND native_id=? AND snapshot IS NOT NULL) AND COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=?),?)=? AND EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=?)','MOVE_IN_CHANGED','This imported record is no longer current.',job.source,kind,recordKey,native.native_id,native.donor_id,native.donor_id,donorId,donorId,donorId))
-  if(mapping.action==='tags'){const tags=await customTagWrites(c,job.source,job.id,definition,value,{...native,donor_id:donorId});writes.push(...tags.writes);tagAssignments+=tags.added;continue}
+  if(mapping.action==='tags'){const tags=await customTagWrites(c,job.source,job.id,definition,value,{...native,donor_id:donorId},stagedTags);writes.push(...tags.writes);tagAssignments+=tags.added;continue}
   const m=mapping.field!,held=fields.find(f=>f.key===m.key),sourceKey=await sha256(JSON.stringify([kind,record.externalId,m.key])),hash=await sha256(JSON.stringify([kind,record.externalId,m.key,value.value]))
   const prior=custody.find(r=>r.kind==='customValue'&&r.source_key===sourceKey)
   if(prior){if(prior.content_hash!==hash||!prior.snapshot)fail('MOVE_IN_CHANGED','An already carried source value changed. Undo before replacing it.',409);continue}

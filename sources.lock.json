@@ -3339,7 +3339,7 @@
       "executable": false
     },
     "src/coffer/move-in/custom-review-tags.ts": {
-      "sha256": "750055dae4f3f4b932fa0ca75a5d86c484258135c5ad74d9d0e9f7957bc36cc0",
+      "sha256": "9d707a61a029613caf0de45cc1f138fedee65364018bb5adf83ac58df8df10c1",
       "executable": false
     },
     "src/coffer/move-in/custom-review-types.ts": {
@@ -3347,7 +3347,7 @@
       "executable": false
     },
     "src/coffer/move-in/custom-review.ts": {
-      "sha256": "ebdf6aaa6d9facd8dc219c52e1496eabf06c668369707f01406c5311701a6f65",
+      "sha256": "bc0dc2257d966caf2a3d1ad3125a502c1119be9155caddd461c3df3b577d52a4",
       "executable": false
     },
     "src/coffer/move-in/custom-source-records.ts": {
@@ -3403,7 +3403,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "b1e535c2df23fed21efed5cfe25745e4229bb60e81660e2efc57e73ab0d2d807",
+      "sha256": "8d263e68534a9b2f1e011e63ddc8fb2ef4cf7985b184a2d6c9d992433b95ceca",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -4003,7 +4003,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "318eed80bba773153064f7021d9280151ac98eda6a2670118cc0aa3270be48e4",
+      "sha256": "889fdfaa00aab89aaef66a2e7c5c7ac539d0028bbeef0c9275a1badfb1420912",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6431,7 +6431,7 @@
       "executable": false
     },
     "tests/custom-import-browser.mjs": {
-      "sha256": "e982b65079831736500e9b83d38cb6274eb10a1ad1de5a2f4effec51f81ada57",
+      "sha256": "83a230d7b16e90649a0bfc2bc815b2fb62db8ec5c1a26ace712a3d74958e0cab",
       "executable": false
     },
     "tests/custom-source-journey.mjs": {
@@ -6439,7 +6439,7 @@
       "executable": false
     },
     "tests/custom-source-lgl.mjs": {
-      "sha256": "e590c55b6d508cec25223d3360e85b7378937dbe7920d5d74858b99163aa5265",
+      "sha256": "da9e9e28e1613d8d9069ca4347bff017ac5ec9c8319ee202da08243f6e8ebe3f",
       "executable": false
     },
     "tests/custom-source-neon.mjs": {
@@ -6771,7 +6771,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "1aceda348cb8ad7fc4e7a17406b3349ab708a90b3d9b23489e347c412830d1de",
+      "sha256": "8dc1afb9b8569cb2af3d724ffbe59c023a145a5d415810c033e24024b1dd5558",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -6871,7 +6871,7 @@
       "executable": false
     },
     "tests/move-in.test.mjs": {
-      "sha256": "3fe99787c2d7aea161ddb0f8b8c29eb9715ced5fe31003c6ad0e2351fc4fd023",
+      "sha256": "7d40693ff0b0783889f18ac536d81babda41af1e7a08a32f24ae2cfca14edf87",
       "executable": false
     },
     "tests/names-browser.mjs": {
