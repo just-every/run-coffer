@@ -25,7 +25,10 @@ function fixture(source){
   if(mode==='denied')return Response.json({message:'denied'},{status:403})
   if(mode==='redirect')return new Response(null,{status:302,headers:{location:'https://invalid.test/private'}})
   const resource=url.pathname.split('/')[2]
-  if(resource==='transactions'&&url.pathname.split('/')[3])return Response.json({data:transactions.find(t=>t.id===url.pathname.split('/')[3])})
+  if(resource==='transactions'&&url.pathname.split('/')[3]){
+   const detail=transactions.find(t=>t.id===url.pathname.split('/')[3])
+   return Response.json(mode==='missing-detail'?null:mode==='mismatched-detail'?{...detail,id:key(7098)}:detail)
+  }
   const values={contacts,transactions,plans,campaigns:[{id:key(7041),title:'Library'},{id:key(7042),title:'Lessons'}]}[resource];assert.ok(values,'Only documented read endpoints are called')
   const page=Number(url.searchParams.get('page')),split=resource==='contacts'?2:values.length,last=resource==='contacts'?Math.ceil(values.length/split):1
   return Response.json({data:values.slice((page-1)*split,page*split),meta:{current_page:page,last_page:last,total:values.length+(mode==='incomplete'?1:0)},links:{next:mode==='foreign'?'https://invalid.test/private':null}})
@@ -59,7 +62,7 @@ export async function platformHistoryJourney(){
   const f=fixture(source),initialPlans=JSON.stringify(f.plans)
   await run(async h=>{
    await reviewed(h)
-   if(source==='givebutter'){for(const mode of ['denied','redirect','incomplete']){f.setMode(mode);await post(h,'preview',f.input,{status:502});assert.equal((await h.get('/api/coffer/donors')).total,0)}f.setMode('ok')}
+   if(source==='givebutter'){for(const mode of ['denied','redirect','incomplete','missing-detail','mismatched-detail']){f.setMode(mode);await post(h,'preview',f.input,{status:502});assert.equal((await h.get('/api/coffer/donors')).total,0)}f.setMode('ok')}
    if(source==='zeffy'){const otherCurrency=structuredClone(f.input),payments=otherCurrency.files.find(f=>f.name==='payments.csv');payments.base64=Buffer.from(Buffer.from(payments.base64,'base64').toString().replace('\"USD\"','\"CAD\"')).toString('base64');const refused=await post(h,'preview',otherCurrency);assert.equal(refused.canApply,false);assert.ok(refused.diagnostics.some(d=>d.code==='PLATFORM_CURRENCY'));await post(h,'apply',{id:refused.id,fingerprint:refused.fingerprint},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,0)}
    const wrongLink=structuredClone(f.input),giftFile=wrongLink.files.find(f=>source==='givebutter'?f.name==='gift-evidence.csv':f.name==='payments.csv')
    giftFile.base64=Buffer.from(Buffer.from(giftFile.base64,'base64').toString().replace(key(7032),key(7031))).toString('base64')

@@ -73,7 +73,12 @@ export async function givebutterInput(input:ParseInput):Promise<ParseInput> {
  }
  const [contacts,transactions,plans,campaigns]=await Promise.all(['contacts','transactions','plans','campaigns'].map(r=>list(r,key!)))
  const details=[]
- for(const transaction of transactions){if(!transaction.id)fail('GIVEBUTTER_SCHEMA','A source transaction has no ID.',502);const result=await get('transactions/'+encodeURIComponent(transaction.id),key!);if(!result.data||result.data.id!==transaction.id)fail('GIVEBUTTER_SCHEMA','Givebutter transaction details do not match the listed ID.',502);details.push(result.data)}
+ for(const transaction of transactions){
+  if(!transaction.id)fail('GIVEBUTTER_SCHEMA','A source transaction has no ID.',502)
+  const result=await get('transactions/'+encodeURIComponent(transaction.id),key!)
+  if(!result||result.id!==transaction.id)fail('GIVEBUTTER_SCHEMA','Givebutter transaction details do not match the listed ID.',502)
+  details.push(result)
+ }
  const extraFiles:ParseInput['files']=[]
  const contactEvidence=new Map<string,RecordRow>(),giftEvidence=new Map<string,RecordRow>(),planEvidence=new Map<string,RecordRow>()
  for(const f of input.files??[]) {

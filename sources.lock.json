@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e39c3761d3c8bdf9258e41f47e0140ab8326755a9f4bf3de8e86d5196d83ebbc",
+      "sha256": "5470f42df76c120e9d4038970189e0396fd8d08e89ab322bf683975e90df89ab",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d359eec3279c0bc49ce0b781f61d2a720387186793e79d70224f2d38f3b4415f",
+      "sha256": "5cbe20b16aca3972af52a1ea1c89b4b9581e16715b22bb17cffe3966ee2ae409",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3307,7 +3307,7 @@
       "executable": false
     },
     "src/coffer/move-in/givebutter.ts": {
-      "sha256": "1e5f72997b974cddaea7d371f80d5af8ba65d888ce161fe9f5b937a67024261b",
+      "sha256": "af4a3d4fc06644c919e55b1a8436b32aa21ce5e85438f9f10df4062237eefc2b",
       "executable": false
     },
     "src/coffer/move-in/household-writes.ts": {
@@ -6835,7 +6835,7 @@
       "executable": false
     },
     "tests/platform-history-journey.mjs": {
-      "sha256": "2a017ea1240ad4d0420e699839eeebedd3630df4871c0c7a711fadd8ea4e9e94",
+      "sha256": "42457c975ca6c81ec455bd124ae91dbca55f718de40f0602afb7577f7d99b206",
       "executable": false
     },
     "tests/pledge-api-release-journey.mjs": {
