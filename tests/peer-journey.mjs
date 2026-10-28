@@ -61,6 +61,12 @@ export async function peerJourney(){
   await portalPost(h,'pages',{...create,campaignId:parent.id,teamId:team.id},firstCookie,409)
   const crossOrigin=await h.request('/giving/peer/pages',{...form(create),as:firstCookie,headers:{'content-type':'application/x-www-form-urlencoded',origin:'https://other.invalid'}})
   assert.equal(crossOrigin.status,403)
+  const shared=await donor(h,'Shared Peer Identity',{email:address('shared.peer'),household:'Peer shared household'})
+  const sharedCookie=(await signInPortal(h,address('shared.peer'))).cookie
+  await donor(h,'Other Shared Peer',{email:address('shared.peer'),household:'Peer shared household'})
+  assert.equal((await h.request('/giving/peer/state',{as:sharedCookie})).status,403)
+  await portalPost(h,'pages',{...create,donorId:first.id},sharedCookie,403)
+  assert.equal((await h.get('/api/coffer/donors/'+shared.id)).totals.lifetimeCents,0)
   assert.equal((await board()).pages.length,2)
   const firstGift=await give(h,p1.id,'First Actual Giver',2500,{wallOptIn:'yes',recognitionName:'Private Giving Name',anonymous:'yes'})
   const secondGift=await give(h,p2.id,'Second Actual Giver',4000,{wallOptIn:'yes',recognitionName:'The Book Circle'})
