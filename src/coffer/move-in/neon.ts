@@ -6,6 +6,7 @@ import type { CustomImportMapping, ExportFile, ParseInput, SourceCoverage } from
 type Facts=Record<string,Record<string,any>>
 type History={ accounts?:Facts; donations?:Facts; registrations?:Facts; households?:Facts; softCredits?:Record<string,any>[] }
 const file=(name:string,rows:Record<string,any>[]):ExportFile=>{const headers=[...new Set(rows.flatMap(Object.keys))];return {name,base64:Buffer.from([headers,...rows.map(r=>headers.map(h=>r[h]??''))].map(row=>row.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n')+'\r\n').toString('base64')}}
+const postalCode=(address:Record<string,any>)=>[address.zipCode,address.zipCodeSuffix].filter(Boolean).join('-')
 const date=(value:unknown)=>typeof value==='string'?value.slice(0,10):''
 const amount=(value:any)=>{if(typeof value!=='number'||!Number.isFinite(value)||value<0||!Number.isSafeInteger(Math.round(value*100))||Math.abs(value*100-Math.round(value*100))>0.00001)fail('NEON_AMOUNT','A Neon amount needs review; this slice accepts exact non-negative USD cents.',400);return value.toFixed(2)}
 const acknowledgment=(facts:Record<string,any>={})=>Object.fromEntries(['Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID'].map(k=>[k,facts[k]??'']))
@@ -54,7 +55,7 @@ function normalizeNeon(s:NeonSnapshot,h:History,input:ParseInput):ParseInput {
   for(const [i,address] of addresses.entries()){
    if(address.addressLine3||address.addressLine4||address.startDate||address.endDate)fail('NEON_UNSUPPORTED','Extended or dated Neon addresses require a separate reviewed mapping.',400)
    const prefix=i?'Address 2 ':''
-   for(const [target,value] of Object.entries({[i?'Street':'Address Line 1']:address.addressLine1,[i?'Street 2':'Address Line 2']:address.addressLine2,City:address.city,State:address.stateProvince?.code,'Postal Code':address.zipCode,Country:address.country?.name}))row[prefix+target]=value
+   for(const [target,value] of Object.entries({[i?'Street':'Address Line 1']:address.addressLine1,[i?'Street 2':'Address Line 2']:address.addressLine2,City:address.city,State:address.stateProvince?.code,'Postal Code':postalCode(address),Country:address.country?.name}))row[prefix+target]=value
    row['Address '+(i+1)+' Type']=address.type?.name?.toLowerCase()??'home';row['Address '+(i+1)+' Primary']=address.isPrimaryAddress?'yes':'no'
    for(let n=1;n<=3;n++)if(address['phone'+n]){if(++phone>3)fail('NEON_UNSUPPORTED','More than three Neon phone contacts need a separate reviewed mapping.',400);row[phone===1?'Phone':'Phone '+phone]=address['phone'+n];row['Phone '+phone+' Type']=(address['phone'+n+'Type']??'other').toLowerCase();row['Phone '+phone+' Primary']=phone===1?'yes':'no'}
   }
@@ -85,7 +86,7 @@ function normalizeNeon(s:NeonSnapshot,h:History,input:ParseInput):ParseInput {
   if(amount(payments[0].amount)!==amount(value))fail('NEON_AMOUNT','Neon payment and transaction amounts do not match.',400)
   const goods=record.taxDeductibleInfo?.nonDeductibleAmount
   const row:Record<string,any>={'Gift ID':externalId,'Constituent ID':accountId,'Gift Type':'Gift','Gift Date':date(payments[0].receivedDate)||date(on),'Amount':amount(value),'Fund':event?'Neon event '+record.eventId:record.fund?.name,'Campaign':record.campaign?.name,'Channel':event?'Event':'','Payment Method':tender?.name??(payments[0].check?'Check':'imported'),'Non-Deductible Amount':goods===undefined?'':amount(goods),'Goods Description':record.taxDeductibleInfo?.nonDeductibleDescription,...acknowledgment(facts)}
-  if(record.tribute){if(!['Honor','Memory'].includes(record.tribute.type))fail('NEON_SCHEMA','Review the Neon tribute kind.',502);Object.assign(row,{'Tribute Honoree':record.tribute.name,'Tribute Type':record.tribute.type,'Tribute Group':facts.tributeGroup,'Tribute Recipient Name':record.acknowledgee?.name,'Tribute Recipient Address':record.acknowledgee?.address?[record.acknowledgee.address.addressLine1,record.acknowledgee.address.city,record.acknowledgee.address.zipCode].filter(Boolean).join(', '):'','Tribute Recipient Email':record.acknowledgee?.email})}
+  if(record.tribute){if(!['Honor','Memory'].includes(record.tribute.type))fail('NEON_SCHEMA','Review the Neon tribute kind.',502);Object.assign(row,{'Tribute Honoree':record.tribute.name,'Tribute Type':record.tribute.type,'Tribute Group':facts.tributeGroup,'Tribute Recipient Name':record.acknowledgee?.name,'Tribute Recipient Address':record.acknowledgee?.address?[record.acknowledgee.address.addressLine1,record.acknowledgee.address.addressLine2,record.acknowledgee.address.addressLine3,record.acknowledgee.address.addressLine4,record.acknowledgee.address.city,record.acknowledgee.address.stateProvince?.code??record.acknowledgee.address.stateProvince?.name,postalCode(record.acknowledgee.address),record.acknowledgee.address.country?.name].filter(Boolean).join(', '):'','Tribute Recipient Email':record.acknowledgee?.email})}
   gifts.push(row)
  }
  for(const donation of s.donations)cash(donation,donation.id,donation.accountId,donation.date,h.donations?.[donation.id]??{})

@@ -15,9 +15,10 @@ function fixture(){
  accounts.push(account(7005,'Eli','Unknown',{consent:{},sendTextOptIn:true}),account(7006,'Finn','Unknown'))
  accounts[5].primaryContact.addresses[0].addressLine1=accounts[4].primaryContact.addresses[0].addressLine1
  accounts[0].primaryContact.salutation='  Dearest Ava  '
+ accounts[0].primaryContact.addresses[0].zipCodeSuffix='4567'
  const payment=(amount,id)=>({id:key(id),amount,paymentStatus:'Succeeded',receivedDate:'2026-09-03T12:00:00Z',tenderType:1})
  const donation=(n,person,extra={})=>({id:key(n),accountId:key(person),date:'2026-09-03T12:00:00Z',amount:500,status:'Succeeded',sendAcknowledgeEmail:true,payments:[payment(500,n+1000)],fund:{id:'1',name:'Reading'},taxDeductibleInfo:{nonDeductibleAmount:0},...extra})
- const donations=[donation(7011,7001,{tribute:{type:'Memory',name:'Jordan Reed'},acknowledgee:{name:'River Reed',address:{addressLine1:'12 River Road',city:'Madison',zipCode:'53703'}}}),donation(7012,7002,{tribute:{type:'Memory',name:'Jordan Reed'}}),donation(7013,7003)]
+ const donations=[donation(7011,7001,{tribute:{type:'Memory',name:'Jordan Reed'},acknowledgee:{name:'River Reed',address:{addressLine1:'12 River Road',addressLine2:'Unit 4',city:'Madison',stateProvince:{code:'WI'},zipCode:'53703',zipCodeSuffix:'1234',country:{name:'United States'}}}}),donation(7012,7002,{tribute:{type:'Memory',name:'Jordan Reed'}}),donation(7013,7003)]
  const registrations=[{id:key(7021),eventId:'20',registrantAccountId:key(7003),registrationDateTime:'2026-09-03T12:00:00Z',registrationAmount:150,totalCharge:150,payments:[payment(150,8021)],taxDeductibleInfo:{nonDeductibleAmount:60,nonDeductibleDescription:'Gala meal'}}]
  const activities=[{id:key(7031),subject:'Source gift thank-you',activityType:{name:'Email'},activityDates:{startDate:'2026-09-04T12:00:00Z'},clientAccount:[{accountId:key(7001)}]},{id:key(7032),subject:'Independent credit thank-you',activityType:{name:'Phone call'},activityDates:{startDate:'2026-09-05T12:00:00Z'},clientAccount:[{accountId:key(7002)}]}]
  const households=[{id:key(7041),name:'Reed readers',salutation:'The Reed Readers',contacts:[{accountId:key(7001),isPrimaryHouseHoldContact:true},{accountId:key(7002),isPrimaryHouseHoldContact:false}]},{id:key(7042),name:'Chen readers',contacts:[{accountId:key(7003),isPrimaryHouseHoldContact:false}]}]
@@ -88,6 +89,7 @@ export async function neonJourney(){
    await page.setViewportSize({width:1440,height:1000});await page.locator('input[name=acknowledged][value=no]').check();await page.locator('input[name=confirm]').check();await page.getByRole('button',{name:'Move these records in',exact:true}).click();try{await page.waitForURL('**/app/move-in/crm/journal?id=*',{timeout:5000})}catch{throw Error('Native Neon apply: '+await page.textContent('body'))}
    assert.ok((await page.textContent('body')).includes('All totals match'))
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/neon-imported-'+width+'.png',fullPage:true})}
+   await page.setViewportSize({width:1440,height:1000})
    const imported=(await h.get('/api/coffer/donors')).donors.find(d=>d.name==='Ava Reed')
    await page.goto(origin+'/app/donors/'+imported.id)
    assert.ok((await page.textContent('body')).includes('Jordan Reed'),'The donor history shows its source tribute')
@@ -101,7 +103,7 @@ export async function neonJourney(){
   const unknown=await h.get('/api/coffer/donors/'+person(7005).id),deceased=await h.get('/api/coffer/donors/'+person(7006).id)
   assert.equal(deceased.donor.constituent_status,'deceased');assert.equal(deceased.donor.deceased_on,'2026-08-01');assert.equal(unknown.donor.household_id,deceased.donor.household_id);assert.equal((await h.get('/api/coffer/households/'+unknown.donor.household_id)).household.head_donor_id,null,'Shared source address never infers a head')
   assert.ok(unknown.consents.every(p=>p.status==='unknown'&&p.evidence.includes('source date unknown')&&p.recorded_at),'Unknown choices retain explicit unknown provenance')
-  assert.equal(ava.donor.informal_salutation,'  Dearest Ava  ');assert.equal(ava.donor.first_name,'Ava')
+  assert.equal(ava.donor.informal_salutation,'  Dearest Ava  ');assert.equal(ava.donor.first_name,'Ava');assert.equal(ava.donor.postal_code,'53703-4567')
   assert.equal(ava.contactPoints.filter(p=>p.kind==='phone')[0].type,'mobile');assert.equal(ava.contactPoints.filter(p=>p.kind==='address')[0].is_primary,1)
   const fields=(await h.get('/api/coffer/custom-fields')).fields,field=fields.find(d=>d.key==='neon_15');assert.equal(field.entry,'pick-one');assert.deepEqual(JSON.parse(field.choices),['Board','Volunteer']);assert.equal(ava.customValues.find(v=>v.field_key==='neon_15').value,'"Board"')
   const gift=ava.gifts.find(g=>g.reference==='neon:'+key(7011)),waiting=bee.gifts[0],event=cleo.gifts.find(g=>g.reference==='neon:event:'+key(7021))
@@ -115,7 +117,7 @@ export async function neonJourney(){
   const hh=await h.get('/api/coffer/households/'+ava.donor.household_id)
   assert.equal(hh.household.head_donor_id,person(7001).id,'Explicit restricted source head remains eligible');assert.equal(hh.household.head_source,'neon');assert.ok(hh.household.head_imported_at);assert.equal(hh.household.addressee_override,'The Reed Reading Family');assert.equal(hh.household.formal_override,'The Reed Readers')
   assert.equal((await h.get('/api/coffer/households/'+cleo.donor.household_id)).household.head_donor_id,null)
-  assert.equal((await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed').totalCents,100000);assert.equal(ava.giftDepth.tributes[0].source_group,key(7045));assert.equal(ava.giftDepth.tributes[0].amount_permission,0)
+  assert.equal((await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed').totalCents,100000);assert.equal(ava.giftDepth.tributes[0].source_group,key(7045));assert.equal(ava.giftDepth.tributes[0].amount_permission,0);assert.equal(ava.giftDepth.tributes[0].notified_address,'12 River Road, Unit 4, Madison, WI, 53703-1234, United States')
   assert.equal((await h.get('/api/coffer/move-in/journal?id='+preview.id)).job.check_report.matches,true)
   const saved=await archive(h);assert.ok(!JSON.stringify(saved).includes(f.input.neon.apiKey),'The archive never retains the Neon key')
   await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person(7002).id)).consents,bee.consents);assert.equal((await fresh.get('/api/coffer/donors/'+person(7001).id)).gifts[0].acknowledgment.link.id,gift.acknowledgment.link.id);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key==='neon_15'),false)})

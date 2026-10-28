@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c7df6468d4a957fc78ffee5b53f3314e63c1bb1ddda99f46389c772d70d038d5",
+      "sha256": "c42657a6dacdd8ed42d721d9574319d7be73c477c342150069a626d8cb520310",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3006e107a31b26b3ed6fc66d2e9ef4a6799cf69c98f1190d02944305c20d72ec",
+      "sha256": "a9ec7689f4c31f558a2561857fa2fb850946b5aa605b0fcb5ef1aa9d7c58f373",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3323,7 +3323,7 @@
       "executable": false
     },
     "src/coffer/move-in/neon.ts": {
-      "sha256": "a3563b0b39e30a9d0e13a2dde6060489d8eb09ca6ebfb4fde27ae6eed7bfe04e",
+      "sha256": "c5ba28913359f4f92ca1da771eb52938ed007913445a53330cea8ad16be3ccae",
       "executable": false
     },
     "src/coffer/move-in/parse-input.ts": {
@@ -6791,7 +6791,7 @@
       "executable": false
     },
     "tests/neon-journey.mjs": {
-      "sha256": "ffafd5a10677af80bcfa624b5691d0bcf3a899c57b00b061bb88063a7f464b76",
+      "sha256": "ab56ea427428649c2d501f1b17d86affe6470727930973a3d0e89be9c28b6c48",
       "executable": false
     },
     "tests/opportunity-journey.mjs": {
