@@ -17,6 +17,8 @@ export function spreadsheetFixture(existing) {
   info(6002,'Blake Chen',{firstName:'Blake',lastName:'Chen',prefix:'Dr.',middleName:'Lee',suffix:'III',nickname:'Bee',informalName:'Dear Bee',formalName:'Doctor Chen',envelopeName:'Doctor Blake Lee Chen III',email:existing.email,householdKey:key(6020),householdName:'Chen family',householdHead:'no',householdAddressee:'The Chen Readers',householdInformal:'Blake and Cleo',communicationRestrictions:'No fundraising',restrictionDate:'2026-09-01'}),
   info(6003,'Cleo Chen',{firstName:'Cleo',lastName:'Chen',householdKey:key(6020),householdName:'Chen family',householdHead:'yes',householdAddressee:'The Chen Readers',householdInformal:'Blake and Cleo',emailPreference:'yes',mailPreference:'yes',smsPreference:'no',phonePreference:'no'}),
   info(6004,'Dana Reed',{firstName:'Dana',lastName:'Reed',householdKey:key(6021),householdName:'Reed family',constituentStatus:'inactive',statusReason:'Source requested a pause'}),
+  info(6005,'Ellis Morgan',{firstName:'Ellis',lastName:'Morgan',addressLine1:'21 Reading Street',constituentStatus:'inactive',statusReason:'Source requested a pause'}),
+  info(6006,'Frankie Morgan',{firstName:'Frankie',lastName:'Morgan',addressLine1:'21 Reading Street',constituentStatus:'inactive',statusReason:'Source requested a pause'}),
  ])],['donations',rows(gifts,[
   {giftId:key(6011),donorId:key(6001),date:'2026-09-04',amount:'300',fund:'Books',method:'Paper',acknowledgmentStatus:'acknowledged',acknowledgmentDate:'2026-09-05',acknowledgmentMethod:'email',acknowledgmentInteraction:key(6031),goodsAmount:'0',tributeType:'memory',tributeHonoree:'Jordan Reed',tributeGroup:key(6041),tributeNotifiedName:'River Reed',tributeNotifiedAddress:'19 Reading Street',softDonor:key(6002),softId:key(6051),softAmount:'100',softAcknowledgmentStatus:'acknowledged',softAcknowledgmentDate:'2026-09-06',softAcknowledgmentMethod:'phone call',softAcknowledgmentInteraction:key(6032)},
   {giftId:key(6012),donorId:key(6002),date:'2026-09-07',amount:'450',fund:'Lessons',method:'Electronic',acknowledgmentStatus:'not acknowledged',goodsAmount:'25',goodsDescription:'Dinner',tributeType:'memory',tributeHonoree:'Jordan Reed',tributeGroup:key(6041)},
@@ -36,7 +38,7 @@ export async function spreadsheetJourney(makeFiles) {
   const fixture=spreadsheetFixture(existing),input={...fixture.input,files:await makeFiles(fixture.tables,format)}
   let preview=await post(h,'preview',input)
   assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped))
-  assert.equal(preview.sourceTotals.amountCents,135000);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,1)
+  assert.equal(preview.sourceTotals.amountCents,135000);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,2)
   assert.ok(preview.diagnostics.some(d=>d.code==='MATCHED_DONOR'))
   const unsafe=structuredClone(input);unsafe.spreadsheet.donorMatches[key(6001)].version++
   assert.equal((await post(h,'preview',unsafe)).canApply,false,'Stale explicit matching cannot allocate gifts')
@@ -52,7 +54,7 @@ export async function spreadsheetJourney(makeFiles) {
   if(format==='csv'){preview=await spreadsheetBrowser(h,input,preview);Object.assign(input,preview.mappedInput)}
   else await apply(h,preview)
   const people=await Promise.all((await h.get('/api/coffer/donors')).donors.map(async d=>(await h.get('/api/coffer/donors/'+d.id)).donor))
-  assert.equal(people.length,4)
+  assert.equal(people.length,6)
   const blake=people.find(d=>d.first_name==='Blake'),cleo=people.find(d=>d.first_name==='Cleo'),dana=people.find(d=>d.first_name==='Dana')
   const ava=await h.get('/api/coffer/donors/'+existing.id),b=await h.get('/api/coffer/donors/'+blake.id),c=await h.get('/api/coffer/donors/'+cleo.id)
   assert.equal(ava.donor.name,'Ava Native','Explicit matching preserves the current native profile')
@@ -74,6 +76,11 @@ export async function spreadsheetJourney(makeFiles) {
   assert.equal(household.household.head_donor_id,cleo.id);assert.equal(household.household.head_source,'spreadsheet');assert.ok(household.household.head_imported_at)
   assert.equal(household.household.addressee_override,'The Chen Readers');assert.equal(household.household.informal_override,'Blake and Cleo')
   assert.equal((await h.get('/api/coffer/households/'+dana.household_id)).household.head_donor_id,null)
+  const ellis=people.find(d=>d.first_name==='Ellis'),frankie=people.find(d=>d.first_name==='Frankie')
+  assert.ok(ellis.household_id,'Shared source address creates an inferred household without a source key')
+  assert.equal(frankie.household_id,ellis.household_id)
+  const inferred=await h.get('/api/coffer/households/'+ellis.household_id)
+  assert.equal(inferred.household.head_donor_id,null,'An inferred household has no head')
   assert.equal(b.donor.informal_salutation,'Dear Bee');assert.equal(b.donor.formal_salutation,'Doctor Chen');assert.equal(b.donor.envelope_name,'Doctor Blake Lee Chen III')
   assert.equal(dana.constituent_status,'inactive');assert.equal((await h.get('/api/coffer/duplicates')).pairs.some(p=>[p.source.id,p.target.id].includes(blake.id)&&[p.source.id,p.target.id].includes(existing.id)),true)
   const tribute=(await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed');assert.equal(tribute.totalCents,75000)
@@ -101,7 +108,7 @@ export async function spreadsheetJourney(makeFiles) {
   await h.command('tributeNotification.approve',{notificationId:notification.id,version:1})
   const download=await h.request('/api/coffer/tribute-notifications/'+notification.id+'/download');assert.equal(download.status,200);assert.ok(!(await download.text()).includes('$300'))
   const appeal=await h.command('appeal.prepare',{name:'Source preference exclusions',channel:'email'})
-  assert.equal(appeal.recipients,1);assert.equal(appeal.excluded['do not solicit'],1);assert.equal(appeal.excluded['no consent recorded'],1);assert.equal(appeal.excluded.inactive,1)
+  assert.equal(appeal.recipients,1);assert.equal(appeal.excluded['do not solicit'],1);assert.equal(appeal.excluded['no consent recorded'],1);assert.equal(appeal.excluded.inactive,3)
   assert.deepEqual((await h.get('/api/coffer/appeals/'+appeal.id)).recipients.map(r=>r.donor_id),[cleo.id])
   await h.command('gift.reverse',{giftId:gift(6012).id,reason:'Source check returned'})
   assert.equal((await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed').totalCents,30000,'Tribute totals follow signed remaining cash')
