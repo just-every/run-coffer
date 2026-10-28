@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // MANUAL ONLY: inject STRIPE_SECRET_KEY with the parent's private injector,
 // then run `node tests/giving-form-live.mjs` in the owned heavy UI and server slot.
-// No key arguments, provider mocks, Stripe CLI, screenshots or disk artifacts.
+// No key arguments, provider mocks or Stripe CLI. Failure screens stay local.
 import assert from 'node:assert/strict'
 import {createHmac, randomUUID} from 'node:crypto'
 import {readFile} from 'node:fs/promises'

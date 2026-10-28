@@ -74,6 +74,8 @@ async function fillOptional(page, selector, value, select = false) {
 }
 
 async function pay(page, name, email) {
+ const usd = page.getByText('$50.00', {exact:true})
+ if(await usd.count() && await usd.first().isVisible())await usd.first().click()
  // https://docs.stripe.com/testing#cards — successful Visa test card.
  await (await visibleField(page, 'input[name="cardNumber"], input[autocomplete="cc-number"]')).fill('4242'.repeat(4))
  await (await visibleField(page, 'input[name="cardExpiry"], input[autocomplete="cc-exp"]')).fill('12' + String(new Date().getUTCFullYear() + 3).slice(-2))
@@ -88,6 +90,8 @@ async function pay(page, name, email) {
   ['input[name="billingPostalCode"], input[autocomplete="billing postal-code"], input[autocomplete="postal-code"]', '62701'],
  ]) await fillOptional(page, selector, value)
  await fillOptional(page, 'select[name="billingAdministrativeArea"], select[autocomplete="billing address-level1"]', 'IL', true)
+ const saveWithLink=page.getByRole('checkbox',{name:/Save my information with Link/})
+ if(await saveWithLink.count())await saveWithLink.uncheck()
  await (await visibleField(page, 'button[type="submit"]')).click()
 }
 
