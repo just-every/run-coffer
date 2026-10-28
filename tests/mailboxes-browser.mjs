@@ -9,7 +9,7 @@ export async function mailboxesBrowser(h,{directory,donorId,keys}) {
   const proof=async(name,width,selector='main')=>{
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mailbox screen fits its viewport')
    assert.equal(await page.locator('button,a,[role=button]').evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&!node.textContent.trim()&&node.querySelector('svg')&&!node.querySelector('[role=tooltip]')).length),0,'Icon-only controls carry tooltips')
-   const small=await page.locator(selector+' *').evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&[...node.childNodes].some(child=>child.nodeType===3&&child.textContent.trim())&&parseFloat(getComputedStyle(node).fontSize)<13).map(node=>node.tagName))
+   const small=await page.locator(selector+' *').evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&[...node.childNodes].some(child=>child.nodeType===3&&child.textContent.trim())&&parseFloat(getComputedStyle(node).fontSize)<13).map(node=>({tag:node.tagName,text:node.textContent.slice(0,60),size:getComputedStyle(node).fontSize})))
    assert.deepEqual(small,[],'Mailbox screen text is at least 13 pixels')
    await page.locator(selector).screenshot({path:`${directory}/COMM-004-${name}-${width}.png`})
   }
@@ -62,6 +62,9 @@ export async function mailboxesBrowser(h,{directory,donorId,keys}) {
    await page.locator('#timeline').getByText('Personal email sent · Reading room visit '+width,{exact:true}).waitFor()
    await page.locator('#timeline').getByRole('link',{name:'Open in mailbox',exact:true}).first().waitFor()
    await proof('timeline',width,'#timeline')
+   await page.goto(origin+'/app/appeals#donor-replies')
+   assert.ok((await page.locator('#donor-replies').innerText()).includes('Library conversation gmail-ambiguous')||(await page.locator('#donor-replies').innerText()).includes('Library conversation microsoft-ambiguous'))
+   await proof('replies',width,'#donor-replies')
   }
   await page.close()
  })
