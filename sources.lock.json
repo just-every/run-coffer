@@ -6359,7 +6359,7 @@
       "executable": false
     },
     "tests/custom-import-browser.mjs": {
-      "sha256": "1cba2fdc07c9bc0f25a5a6658a57a57ae44eef2b6ebcb85a6eb90fab8b6181c0",
+      "sha256": "e6bca746fec388d57f39e558fe882572d3a6c9913e8ff1fb9ac05538b72bcd35",
       "executable": false
     },
     "tests/custom-source-journey.mjs": {
