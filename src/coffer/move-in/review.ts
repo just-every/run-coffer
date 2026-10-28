@@ -82,8 +82,9 @@ export async function allIssues(c: Context, id: string, q: IssueQuery) {
 }
 
 export async function reviewed(c: Context, id: string) {
- const job = await one(c, 'SELECT id,source,state,fingerprint,parts,applied_parts,report,created_at FROM cf_move_in_jobs WHERE id=?', id)
+ const job = await one(c, 'SELECT id,source,state,fingerprint,parts,applied_parts,report,created_at,redacted FROM cf_move_in_jobs WHERE id=?', id)
  if (!job) fail('NOT_FOUND', 'That review does not exist. Upload the files again.', 404)
+ if(job.redacted)fail('MOVE_IN_ERASED','A donor in this review was erased. Its source records are no longer available.',409)
  return { ...job, report: JSON.parse(job.report) } as Row
 }
 

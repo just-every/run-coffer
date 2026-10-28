@@ -101,7 +101,7 @@ function solicitCodeLines(value:string):ParseInput['solicitCodes'] {
   if(Object.hasOwn(rules,code))fail('SOLICITATION_MAPPING','Each code must appear once.',400)
   if(answer==='stop'||answer==='ignore')rules[code]={type:answer}
   else if(/^limit [1-9]\d*$/.test(answer))rules[code]={type:'limit',maxAsks:Number(answer.slice(6))}
-  else if(/^no (email|mail|phone|sms)$/.test(answer))rules[code]={type:'channels',channels:[answer.slice(3) as 'email'|'mail'|'phone'|'sms']}
+  else if(/^no (email|mail|phone|sms)( (email|mail|phone|sms))*$/.test(answer))rules[code]={type:'channels',channels:answer.slice(3).split(' ') as ('email'|'mail'|'phone'|'sms')[]}
   else fail('SOLICITATION_MAPPING','Use stop, ignore, no email/mail/phone/sms, or limit followed by the annual number.',400)
  }
  return rules

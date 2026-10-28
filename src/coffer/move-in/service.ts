@@ -27,7 +27,7 @@ export async function spreadsheetMappings(c:Context) {
  authorize(c)
  const rows=await all(c,"SELECT id,report FROM cf_move_in_jobs WHERE source='spreadsheet' AND state IN ('completed','undone') AND redacted=0 ORDER BY created_at DESC,id DESC")
  const names=new Set<string>()
- return rows.flatMap(row=>{const report=JSON.parse(row.report),mapping=report.spreadsheet;if(!mapping||names.has(mapping.name))return [];names.add(mapping.name);return [{id:row.id,mapping:{...mapping,donorMatches:undefined},customFields:report.customFields??[]}]})
+ return rows.flatMap(row=>{const report=JSON.parse(row.report),mapping=report.spreadsheet;if(!mapping||names.has(mapping.name))return [];names.add(mapping.name);return [{id:row.id,mapping:{...mapping,donorMatches:undefined},customFields:report.customFields??[],solicitCodes:report.solicitCodes??{}}]})
 }
 
 /** Reads and checks the whole export, plans every part against Coffer as apply will, then stores the review.
@@ -46,13 +46,17 @@ export async function preview(c: Context,input: ParseInput) {
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
  if(prior?.redacted)parsed.diagnostics.push({severity:'error',code:'MOVE_IN_ERASED',message:'An imported constituent was erased. This move-in cannot restore their contact or history.'})
- const parts=stageParts(parsed)
+ const parts=stageParts(parsed),nativeDonors=new Set<string>()
  // A bad source row must not hide independent conflicts elsewhere in the files.
  if(!prior || ['reviewed','undone'].includes(prior.state)) {
   const seen=new Set(parsed.diagnostics.map(d=>`${d.code}|${d.file}|${d.sheet}|${d.row}|${d.column}|${d.message}`))
-  for(const part of parts) for(const d of (await planImport(c,part,{preview:true})).diagnostics) {
-   const key=`${d.code}|${d.file}|${d.sheet}|${d.row}|${d.column}|${d.message}`
-   if(!seen.has(key)){seen.add(key);parsed.diagnostics.push(d as Diagnostic)}
+  for(const part of parts) {
+   const plan=await planImport(c,part,{preview:true})
+   if(input.source==='spreadsheet')for(const [externalId,id] of plan.donorIds){nativeDonors.add(id);const donor=part.donors.find(d=>d.externalId===externalId);if(donor)donor.expectedNativeId=id}
+   for(const d of plan.diagnostics) {
+    const key=`${d.code}|${d.file}|${d.sheet}|${d.row}|${d.column}|${d.message}`
+    if(!seen.has(key)){seen.add(key);parsed.diagnostics.push(d as Diagnostic)}
+   }
   }
  }
  const rows=compare(parsed)
@@ -62,7 +66,7 @@ export async function preview(c: Context,input: ParseInput) {
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
  return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }
@@ -72,6 +76,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  authorize(c)
  const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',String(input.id??''))
  if(!job)fail('MOVE_IN_CHANGED','Upload the exports and review them again.',409)
+ if(job.redacted)fail('MOVE_IN_ERASED','A donor in this move-in was erased. This review cannot restore their records.',409)
  if(job.state==='completed')return {id:job.id,state:'completed',unchanged:true,parts:job.parts,appliedParts:job.applied_parts}
  if(job.state==='applying')return continueApply(c,job.id)
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
@@ -96,6 +101,7 @@ export async function continueApply(c: Context,id:string) {
  for(;;) {
   const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',id)
   if(!job)fail('NOT_FOUND','That move-in does not exist.',404)
+  if(job.redacted)fail('MOVE_IN_ERASED','A donor in this move-in was erased. This review cannot continue.',409)
   if(job.state!=='applying')return {id,state:job.state,parts:job.parts,appliedParts:job.applied_parts,unchanged:true}
   const next=await one(c,'SELECT position,payload FROM cf_move_in_parts WHERE job_id=? AND applied_at IS NULL ORDER BY position LIMIT 1',id)
   if(!next){await finish(c,job);return {id,state:'completed',parts:job.parts,appliedParts:job.parts,unchanged:false}}

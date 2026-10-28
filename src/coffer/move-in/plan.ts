@@ -64,7 +64,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const diagnostic = (message: string, location?: Located['location'], severity: 'error'|'warning' = 'error', code = 'MOVE_IN_MAPPING', column = 'Record ID') => plan.diagnostics.push({severity,code,message,column,...location})
  const add = async (kind: Kind, entity: Located & {externalId:string}, row: Row, match?: string, donorId: string | null = null, relatedId: string | null = null) => {
   // A donor's household is inferred from the whole file set, so it is not part of the donor's own details.
-  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string}
+  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,expectedNativeId:_expected,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string;expectedNativeId?:string}
   const hash = await contentHash(payload), previous = existing.get(`${kind}:${key}`)
   if (previous) {
    // A later file (another year's gifts) finds the donors and households an earlier move-in brought, by the CRM's own ID.
@@ -94,7 +94,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
    const selected=donorRows.find(r=>r.id===d.match!.id)
    if(!selected||selected.erased_at||merged.has(d.match.id)||(!prior&&selected.version!==d.match.version)||prior&&canonical(prior.native_id)!==d.match.id)diagnostic(`Constituent ${d.externalId}: the selected donor changed, was erased or merged, or differs from the previous source match. Review the current donor again.`,d.location,'error','DONOR_MATCH')
   }
-  if (prior) { plan.donorIds.set(d.externalId,await add('donor',d,{})); continue }
+  if (prior) { const id=await add('donor',d,{});if(d.expectedNativeId&&d.expectedNativeId!==id)diagnostic(`Constituent ${d.externalId} now resolves to a different donor. Preview and approve the current match again.`,d.location,'error','DONOR_MATCH');plan.donorIds.set(d.externalId,id); continue }
   if ((d.contacts??[]).some(p=>p.kind==='email'&&suppressed.has(erasureHash(p.value))) || suppressed.has(erasureHash(d.email)) || suppressed.has(erasureHash(`${source}:${d.externalId}`)) || suppressed.has(erasureHash(await nativeId(source,'donor',d.externalId)))) diagnostic(`Donor ${d.externalId} was erased from Coffer. Remove this constituent and its linked rows from the exports; erased records cannot be restored.`,d.location)
   // The incumbent's constituent ID wins. A distinct source ID never joins
   // another source constituent merely because their contacts coincide.
@@ -110,6 +110,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   const id=await add('donor',d,{version:1,name:d.name,prefix:d.prefix||null,first_name:d.firstName||null,middle_name:d.middleName||null,last_name:d.lastName||null,suffix:d.suffix||null,nickname:d.nickname||null,constituent_kind:d.organization?'organization':'person',constituent_status:d.constituentStatus||'active',...overrides,status_reason:d.constituentStatus==='inactive'?d.statusReason||`Imported as inactive from ${source}`:null,deceased_on:d.constituentStatus==='deceased'?d.deceasedOn||null:null,status_changed_at:d.constituentStatus&&d.constituentStatus!=='active'?c.now:null,status_changed_by:d.constituentStatus&&d.constituentStatus!=='active'?`${source} move-in`:null,email:d.email||null,phone:d.phone||null,address_line1:d.addressLine1||null,address_line2:d.addressLine2||null,city:d.city||null,region:d.region||null,postal_code:d.postalCode||null,country:d.country||null,household_id:match||d.organization?null:await householdOf(d.householdKey)||null,source:'manual',source_ref:`${source}:${d.externalId}`,created_at:c.now,erased_at:null},match?.id)
   if(d.recognitionName&&!match)await add('recognition',{...d,externalId:d.externalId},{donor_id:id,anonymous:0,recognition_name:d.recognitionName,honor_roll_opt_in:0,version:1},undefined,id)
   plan.donorIds.set(d.externalId,id)
+  if(d.expectedNativeId&&d.expectedNativeId!==id)diagnostic(`Constituent ${d.externalId} now resolves to a different donor. Preview and approve the current match again.`,d.location,'error','DONOR_MATCH')
  }
  const contactEmails=parsed.donors.flatMap(d=>(d.contacts??[]).filter(p=>p.kind==='email').map(p=>p.value))
  const contactOwners=contactEmails.length?await readSet(c,plan,`SELECT json_object('id',p.id,'donor_id',p.donor_id,'value',p.value,'version',p.version,'household_id',d.household_id) AS snapshot FROM cf_contact_points p JOIN cf_donors d ON d.id=p.donor_id WHERE p.kind='email' AND p.active=1 AND d.erased_at IS NULL AND p.value IN(SELECT value FROM json_each(?)) AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY p.id`,[JSON.stringify(contactEmails)]):[]

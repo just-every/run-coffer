@@ -31,7 +31,7 @@ export async function spreadsheetBrowser(h,input,preview) {
    const custom=page.locator('fieldset').filter({has:page.locator('legend',{hasText:'GiftCategory'})})
    await custom.locator('[name=customKey]').fill('source_category');await custom.locator('[name=customLabel]').fill('Source category');await custom.locator('[name=customEntry]').selectOption('pick-one');await custom.locator('[name=customChoices]').fill('Books\nMusic')
    await page.locator('[name=solicitCodes]').fill('No fundraising = stop')
-   await fits(page);await page.screenshot({path:directory+'/columns-'+width+'.png',fullPage:true});await page.screenshot({path:directory+'/columns-top-'+width+'.png'});await custom.screenshot({path:directory+'/custom-'+width+'.png'})
+   await fits(page);await page.screenshot({path:directory+'/columns-'+width+'.png',fullPage:true});await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:directory+'/columns-top-'+width+'.png'});await custom.screenshot({path:directory+'/custom-'+width+'.png'})
    await page.getByRole('button',{name:'Preview mapped spreadsheet',exact:true}).click()
    await page.waitForURL('**/app/move-in/crm/review?id=*')
    const id=new URL(page.url()).searchParams.get('id'),{job}=await h.get('/api/coffer/move-in/journal?id='+id)
@@ -51,6 +51,18 @@ export async function spreadsheetBrowser(h,input,preview) {
   // The saved mapping is reusable through the upload door, without retained source files.
   await page.goto(origin+'/app/move-in/crm/spreadsheet')
   assert.ok(await page.locator('select[name=savedMapping] option').filter({hasText:'Community gifts'}).count())
+  await page.locator('[name=savedMapping]').selectOption(result.id)
+  await page.locator('input[name=exports]').setInputFiles(input.files.map(f=>({name:f.name,mimeType:'text/csv',buffer:Buffer.from(f.base64,'base64')})))
+  await page.getByRole('button',{name:'Map columns',exact:true}).click()
+  assert.equal(await page.locator('[name=mappingName]').inputValue(),'Community gifts')
+  const fund=page.locator('tr').filter({has:page.locator('input[name=mapColumn][value=Designation]')})
+  assert.equal(await fund.locator('[name=mapField]').inputValue(),'fund')
+  assert.equal(await page.locator('[name=fundTranslations]').inputValue(),'Books = Library\nLessons = Tutoring')
+  assert.equal(await page.locator('[name=solicitCodes]').inputValue(),'No fundraising = stop')
+  await page.getByRole('button',{name:'Preview mapped spreadsheet',exact:true}).click();await page.waitForURL('**/app/move-in/crm/review?id=*')
+  result.reusedId=new URL(page.url()).searchParams.get('id')
+  const reused=(await h.get('/api/coffer/move-in/journal?id='+result.reusedId)).job
+  assert.equal(reused.report.canApply,true,JSON.stringify(reused.report));assert.equal(reused.report.sourceTotals.byFund.Library.amountCents,57500)
   await page.close()
   return result
  })
@@ -69,6 +81,7 @@ export async function spreadsheetUndoBrowser(h,id) {
   await page.goto(origin+'/app/move-in/crm/journal?id='+id)
   await page.getByRole('button',{name:'Undo this move-in',exact:true}).click()
   await page.getByText('Everything this move-in added was removed.',{exact:false}).waitFor()
+  assert.equal(await page.locator('form[action="/app/move-in/crm/check"]').count(),0,'An undone import cannot present a live totals recheck')
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await fits(page);await page.screenshot({path:directory+'/undone-'+width+'.png',fullPage:true})}
   await page.close()
  })

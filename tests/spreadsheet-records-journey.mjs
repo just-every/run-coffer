@@ -26,6 +26,13 @@ export async function spreadsheetRecordsJourney(makeFiles) {
   const gifts={source:'spreadsheet',spreadsheet:{name:'Gifts only',recordType:'gift',columns:[{column:'Gift',field:'giftId'},{column:'Person',field:'donorId'},{column:'Amount',field:'amount'},{column:'Date',field:'date'},{column:'Goods',field:'goodsAmount'},{column:'Paid',field:'method'}],donorMatches:{[key(6203)]:{id:native.id,version:(await h.get('/api/coffer/donors/'+native.id)).donor.version}}},files:await makeFiles([['gifts',[['Gift','Person','Amount','Date','Goods','Paid'],[key(6205),key(6203),'37.25','2026-09-01','0','cash']]]],'csv')}
   const gift=await move(h,gifts);assert.equal((await h.get('/api/coffer/donors/'+native.id)).totals.lifetimeCents,3725)
   await post(h,'undo',{id:gift.id});assert.equal((await h.get('/api/coffer/donors/'+native.id)).totals.lifetimeCents,0)
+  interactionInput.spreadsheet.donorMatches[key(6203)].version=(await h.get('/api/coffer/donors/'+native.id)).donor.version
+  const waiting=await post(h,'preview',interactionInput);assert.equal(waiting.canApply,true)
+  await h.command('donor.erase',{donorId:native.id,confirm:'ERASE'})
+  await post(h,'apply',{id:waiting.id,fingerprint:waiting.fingerprint},{status:409})
+  await post(h,'continue',{id:waiting.id},{status:409})
+  assert.equal((await h.request('/app/move-in/crm/review?id='+waiting.id)).status,409)
+  assert.deepEqual((await h.get('/api/coffer/move-in/journal?id='+waiting.id)).job.report,{},'Erasure removes the un-applied preview and its source conversations')
  })
 }
 
