@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add the shared agent-door and Business settings runtime sources and additive storage for policy, reviews, audit and durable Business person bindings. These are schema prerequisites; the existing MCP tools and native agent grants remain the supported agent interface.
+
 - **The run site's homepage follows one spring appeal.** It is rebuilt on the owner-approved page structure (17 October 2026): after the hero, a calendar of the appeal's seven dates leads through moving in, choosing who to ask, sending, a gift, the thank-you, the first night, reconciling, the morning calls, the board report and year-end statements, each drawn as real product cards, then the closing. The old twelve-section layout is gone. `docs/CLAIMS.md` tracks every claim the new page makes.
 
 ## 0.1.0 — 2026-10-18
