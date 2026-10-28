@@ -3111,7 +3111,7 @@
       "executable": false
     },
     "src/coffer/giving/ui.ts": {
-      "sha256": "ff7e50a1840c4a32a88ca000d54e1238b33f09fd10b5ee20550a83c0526eb69e",
+      "sha256": "d0d3606bc4ec7f3525dd6b18076f9a4d7b7c71c0d0e91b0a046ca98888aaa767",
       "executable": false
     },
     "src/coffer/giving/video.ts": {
@@ -6623,7 +6623,7 @@
       "executable": false
     },
     "tests/giving-form-browser.mjs": {
-      "sha256": "1d1d6b62386df949dda7266fc6cd5e6918509c89699a7dbbc248b1040d32b4f4",
+      "sha256": "d0c74beecbe4d0631da88db3c7842a8d74ccd4f166c5571e82435b469962357e",
       "executable": false
     },
     "tests/giving-form-edge.mjs": {
@@ -6631,7 +6631,7 @@
       "executable": false
     },
     "tests/giving-form-journey.mjs": {
-      "sha256": "4a25b8a2f22c531d2d41226952c3f14b2e76a8f8b74124bfe48da49da563650f",
+      "sha256": "2ca557bc2768a9e9c8bb540b8fbaba5c1a09e0828d2dab1b36849e33ba283d7b",
       "executable": false
     },
     "tests/giving-protection-journey.mjs": {

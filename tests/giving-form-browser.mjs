@@ -35,7 +35,7 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
        else if (type === 'check') await control.setChecked(value)
        else { await control.fill(value); await control.press('Tab') }
       })(),
-     ])
+     ]).catch(async error => {console.log('FORM_EDIT', name, await settings.evaluate(f=>({status:f.querySelector('[data-form-status]').textContent,invalid:[...f.elements].filter(e=>e.validity&&!e.validity.valid).map(e=>({name:e.name,message:e.validationMessage})),values:[...new FormData(f)]})));throw error})
      assert.equal(saved.status(), 200, await saved.text())
      await page.waitForFunction(() => document.querySelector('[data-form-status]')?.textContent === 'Saved')
     }

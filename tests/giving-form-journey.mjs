@@ -6,6 +6,7 @@ import {givingFormEdge} from './giving-form-edge.mjs'
 import {givingFormBrowser} from './giving-form-browser.mjs'
 
 const mailbox = value => ['synthetic-coffer-' + value, 'example.test'].join('@')
+const editable = config => ({...config, questions: config.questions.map(({key, label, required}) => ({key, label, required}))})
 const post = values => ({method: 'POST', as: '', headers: {'content-type': 'application/x-www-form-urlencoded'}, raw: new URLSearchParams(values).toString()})
 
 export async function givingFormJourney() {
@@ -36,7 +37,7 @@ export async function givingFormJourney() {
   const browserResults = await givingFormBrowser(h, campaign, edge)
   let saved = await h.get(path)
   assert.equal(saved.questions.length, 6)
-  await h.api(path, {...saved, version: saved.version - 1}, {status: 409})
+  await h.api(path, {...editable(saved), version: saved.version - 1}, {status: 409})
   assert.equal((await h.get(path)).version, saved.version)
   const {responses: paid} = await responses()
   assert.equal(paid.length, 2)
@@ -72,6 +73,15 @@ export async function givingFormJourney() {
    result.donorId = contact.id
   }
   assert.equal(edge.sessions.size, 2)
+  const admin = await h.person(mailbox('admin'), 'admin')
+  const authorized = await h.api(path, editable(saved), {as: admin.cookie})
+  assert.equal(authorized.version, saved.version + 1)
+  const revoke = await h.request('/auth/session/revoke', {method: 'POST', body: {sessionId: admin.session.id}})
+  assert.equal(revoke.status, 204, await revoke.text())
+  await h.api(path, editable(authorized), {as: admin.cookie, status: 401})
+  await h.get('/api/coffer/giving/campaigns/' + campaign.id + '/responses', {as: admin.cookie, status: 401})
+  saved = await h.get(path)
+  assert.equal(saved.version, authorized.version)
   const valid = new URLSearchParams(browserResults[0].values)
   valid.set('requestId', randomUUID())
   valid.delete('answer.reading_interests')
