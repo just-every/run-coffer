@@ -48,7 +48,7 @@ export async function mailboxesJourney(){
   await consent(ada);await consent(rosa)
   const portfolio=await h.command('portfolio.save',{name:'Synthetic mailbox relationships',managerId:admin.id,untouchedDays:90})
   const prior=(await h.get('/api/coffer/portfolios')).portfolios.find(p=>p.rows.some(r=>r.donor_id===ada.id))
-  await h.command('portfolio.assign',{donorId:ada.id,portfolioId:portfolio.id,previousPortfolioId:prior.id})
+  await h.command('portfolio.assign',{donorId:ada.id,portfolioId:portfolio.id,previousPortfolioId:prior?.id})
   const connect=async(provider,{as=h.owner}={})=>{
    await h.command('mailbox.configure',{provider,...keys,confirm:'yes'},{as})
    const started=await h.command('mailbox.start',{provider,confirm:'yes'},{as}),url=new URL(started.authorizeUrl)
