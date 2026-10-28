@@ -21,7 +21,9 @@ export async function captureCustom(c:Context,input:{id:string;apiKey:string}) {
  if(job.report.customReview)return {id:job.id,review:job.report.customReview,unchanged:true}
  const records=job.report.sourceRecords as SourceRecord[]|undefined
  if(!records?.length)fail('CUSTOM_SOURCE','This older import has no complete source record index. Preview and apply the original exports again before enrichment.',409)
- const definitions=job.source==='bloomerang'?await readBloomerangCustom(input.apiKey,records):await readLglCustom(input.apiKey,records.filter(r=>r.kind==='constituent'||r.kind==='gift'))
+ let definitions
+ try{definitions=job.source==='bloomerang'?await readBloomerangCustom(input.apiKey,records):await readLglCustom(input.apiKey,records.filter(r=>r.kind==='constituent'||r.kind==='gift'))}
+ catch(error){if(error instanceof Error&&/^(Bloomerang|Little Green Light): /.test(error.message))fail('CUSTOM_SOURCE_READ',error.message,502);throw error}
  const previous=await one(c,"SELECT json_extract(report,'$.customReview.mappings') AS mappings FROM cf_move_in_jobs WHERE source=? AND id<>? AND state='completed' AND redacted=0 AND json_type(report,'$.customReview.mappings')='array' ORDER BY created_at DESC LIMIT 1",job.source,job.id)
  const review=await buildCustomReview(definitions,defaultMappings(job.source,definitions,previous?.mappings?JSON.parse(previous.mappings):[],await customFields(c)),[],1)
  await commit(c,[fence(job.id,JSON.stringify(job.report)),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview',json(?)) WHERE id=?",JSON.stringify(review),job.id),event(c,'move-in.custom.capture','move-in',job.id,null,{definitions:definitions.length})])
@@ -33,6 +35,8 @@ export async function reviseCustom(c:Context,input:{id:string;version:number;map
  const held=await all(c,"SELECT 1 FROM cf_move_in_records WHERE job_id=? AND kind IN ('customValue','customTag') LIMIT 1",job.id)
  if(held.length&&JSON.stringify(input.mappings)!==JSON.stringify(previous.mappings))fail('MOVE_IN_USED','Values already moved in. Undo this import before changing its field mapping.',409)
  const review=await buildCustomReview(previous.definitions,input.mappings,input.resolutions,previous.version+1)
+ if(previous.applied&&previous.values.some(v=>v.state==='ready'&&!review.values.some(next=>next.id===v.id&&next.state==='ready'&&next.value===v.value)))fail('MOVE_IN_USED','A carried value cannot be replaced or skipped. Undo before changing it.',409)
+ if(previous.applied)review.applied=1
  await commit(c,[fence(job.id,JSON.stringify(job.report)),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview',json(?)) WHERE id=?",JSON.stringify(review),job.id),event(c,'move-in.custom.review','move-in',job.id,null,{version:review.version,waiting:review.values.filter(v=>v.state==='waiting').length})])
  return {id:job.id,review}
 }

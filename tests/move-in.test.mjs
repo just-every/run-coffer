@@ -385,4 +385,6 @@ test('DONOR-001 / DONOR-006: asynchronous incumbent imports keep distinct shared
 test('MOVE-010: source definitions enrich imported records with explicit waiting review and guarded custody',async()=>{
  const {sourceCustomJourney}=await import('./custom-source-journey.mjs')
  await sourceCustomJourney()
+ const {lglCustomJourney}=await import('./custom-source-lgl.mjs')
+ await lglCustomJourney()
 })

@@ -1,4 +1,4 @@
-import { area, box, e, field, hidden, select } from './common'
+import { box, e, field, hidden, select } from './common'
 import type { Row } from '../db'
 import type { CustomReview } from '../move-in/custom-review-types'
 
@@ -11,7 +11,7 @@ export function customImportReviewPage(job:Row,fields:Row[]){
  const r=job.report.customReview as CustomReview|undefined
  if(!r)return '<p>Read the source definitions from the import journal first.</p>'
  const frozen=Boolean(r.applied),forms=r.definitions.map(d=>{
-  const m=r.mappings.find(m=>m.id===d.id)!,f=m.field,eligible=fields.filter(f=>f.kind===d.kind&&f.type===d.type&&f.entry===d.entry&&f.choices===JSON.stringify(d.choices)),count=r.counts.find(c=>c.id===d.id)!
+  const m=r.mappings.find(m=>m.id===d.id)!,f=m.field,eligible=fields.filter(f=>f.kind===d.kind&&f.type===d.type&&f.entry===d.entry&&f.choices===JSON.stringify(m.field?.choices??d.choices)),count=r.counts.find(c=>c.id===d.id)!
   return `<fieldset>${hidden('fieldId',d.id)}<legend>${e(d.name)} · ${e(d.kind)}</legend><p>${e(d.type)} · ${e(d.entry)}${d.choices.length?' · '+e(d.choices.join(', ')):''}</p><p>${count.source} source values · ${count.carried} carried or ready · ${count.waiting} waiting · ${count.skipped} explicitly skipped</p>
   ${select('Destination','mappingAction',[['field','Custom field'],...(d.kind==='constituent'&&d.type==='text'&&d.entry!=='free-form'?[['tags','Constituent tags'] as [string,string]]:[]),['skip','Skip this source field']],m.action,frozen?'disabled':'')}
   ${select('Existing target field','existingField',[['','Create a field'],...eligible.map(f=>[f.key,f.label] as [string,string])],f?.version?f.key:'',frozen?'disabled':'')}

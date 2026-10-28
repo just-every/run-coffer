@@ -4,11 +4,13 @@ import type { CustomImportMapping } from './types'
 import type { SourceDefinition } from './source-definitions'
 import type { CustomReview, FieldMapping, ValueResolution } from './custom-review-types'
 
+const targetChoices=(d:SourceDefinition):string[]=>d.choices.map(value=>JSON.parse(customValue({...d,label:d.name,entry:'free-form',choices:'[]'},value)))
+
 export function defaultMappings(source:string,definitions:SourceDefinition[],saved:FieldMapping[]=[],fields:Row[]=[]):FieldMapping[] {
  return definitions.map(d=>{
   const previous=saved.find(m=>m.id===d.id),held=previous?.field&&fields.find(f=>f.key===previous.field!.key)
   if(previous)return {...previous,...(held?{field:{...previous.field!,label:held.label,version:held.version}}:{})}
-  return {id:d.id,action:'field',field:{source,column:d.name,key:'import_'+source+'_'+d.id.replace(/[^a-z0-9_]/gi,'_').toLowerCase(),label:d.name,kind:d.kind,type:d.type,entry:d.entry,choices:d.choices,version:0} as CustomImportMapping}
+  return {id:d.id,action:'field',field:{source,column:d.name,key:'import_'+source+'_'+d.id.replace(/[^a-z0-9_]/gi,'_').toLowerCase(),label:d.name,kind:d.kind,type:d.type,entry:d.entry,choices:targetChoices(d),version:0} as CustomImportMapping}
  })
 }
 
@@ -22,7 +24,7 @@ export async function buildCustomReview(definitions:SourceDefinition[],mappings:
   if(!m||!['field','tags','skip'].includes(m.action))fail('CUSTOM_MAPPING','Choose a field, tags or skip for every definition.',400)
   if(m.action==='field'){
    const f=m.field
-   if(!f||!/^[a-z][a-z0-9_]{0,79}$/.test(f.key)||!f.label?.trim()||f.label.length>100||f.kind!==d.kind||f.type!==d.type||f.entry!==d.entry||JSON.stringify(f.choices)!==JSON.stringify(d.choices)||keys.has(f.key))fail('CUSTOM_MAPPING','Keep the source kind, type, entry method and choices; use a distinct target field.',400)
+   if(!f||!/^[a-z][a-z0-9_]{0,79}$/.test(f.key)||!f.label?.trim()||f.label.length>100||f.kind!==d.kind||f.type!==d.type||f.entry!==d.entry||JSON.stringify(f.choices)!==JSON.stringify(targetChoices(d))||keys.has(f.key))fail('CUSTOM_MAPPING','Keep the source kind, type, entry method and choices; use a distinct target field.',400)
    keys.add(f.key)
   }
   if(m.action==='tags'&&(d.kind!=='constituent'||d.type!=='text'||d.entry==='free-form'))fail('CUSTOM_MAPPING','Only constituent text pick lists map to constituent tags.',400)
@@ -35,7 +37,7 @@ export async function buildCustomReview(definitions:SourceDefinition[],mappings:
    else try {
     if(source.reason&&!resolution)throw Error(source.reason)
     const input=resolution?resolution.value:source.value
-    row.value=customValue(m.action==='field'?{...m.field,choices:JSON.stringify(m.field!.choices)}:{...d,label:d.name,choices:JSON.stringify(d.choices)},input)
+    row.value=customValue(m.action==='field'?{...m.field,choices:JSON.stringify(m.field!.choices)}:{...d,label:d.name,choices:JSON.stringify(targetChoices(d))},input)
     count.carried++
    }catch(e){row.state='waiting';row.reason=e instanceof Error?e.message:String(e);count.waiting++}
    values.push(row)

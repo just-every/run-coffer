@@ -1,6 +1,6 @@
 import type { SourceDefinition } from './source-definitions'
 import type { CustomImportMapping } from './types'
-export type SourceRecord = {kind:'constituent'|'gift'|'interaction'|'note';externalId:string;donorExternalId:string}
+export type SourceRecord = {sourceObject?:'action'|'note';kind:'constituent'|'gift'|'interaction'|'note';externalId:string;donorExternalId:string}
 export type FieldMapping = {id:string;action:'field'|'tags'|'skip';field?:CustomImportMapping}
 export type ValueResolution = {id:string;action:'fix'|'map'|'skip';value?:unknown}
 export type ReviewValue = {id:string;fieldId:string;recordId:string;original:unknown;value?:string;reason?:string;state:'ready'|'waiting'|'skipped'}

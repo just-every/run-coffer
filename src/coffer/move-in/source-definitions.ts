@@ -47,7 +47,7 @@ function reader(apiKey: string): Read {
   const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 15_000)
   let stream: ReadableStreamDefaultReader<Uint8Array> | undefined
   try {
-   const response = await fetch(url, { method: 'GET', headers: { 'X-API-KEY': apiKey, Accept: 'application/json, text/json' }, redirect: 'error', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: controller.signal })
+   const response = await fetch(url, { method: 'GET', headers: { 'X-API-KEY': apiKey, Accept: 'application/json, text/json' }, redirect: 'manual', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: controller.signal })
    if (!response.ok) invalid(`the read request failed (HTTP ${response.status}); nothing was enriched.`)
    if (!response.body) invalid('the API returned an empty body.')
    stream = response.body.getReader()

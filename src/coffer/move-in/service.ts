@@ -1,3 +1,4 @@
+import { sourceRecords } from './custom-source-records'
 import { customTagUndoGuards, customTagUndoWrites } from './custom-review-tags'
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
 import { customFields } from '../custom-fields'
@@ -36,6 +37,15 @@ export async function preview(c: Context,input: ParseInput) {
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
  if(prior?.redacted)parsed.diagnostics.push({severity:'error',code:'MOVE_IN_ERASED',message:'An imported constituent was erased. This move-in cannot restore their contact or history.'})
+ // A re-upload can add the source index to an older completed import, without
+ // changing native records or reviving redacted custody.
+ if(prior?.state==='completed'&&!prior.redacted){
+  const held=await one(c,'SELECT report FROM cf_move_in_jobs WHERE id=?',prior.id),report=JSON.parse(held!.report)
+  if(!report.sourceRecords){
+   const records=sourceRecords(parsed)
+   await commit(c,[guard('EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND report=? AND redacted=0)','MOVE_IN_CHANGED','This import changed. Review again.',prior.id,held!.report),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.sourceRecords',json(?)) WHERE id=?",JSON.stringify(records),prior.id)])
+  }
+ }
  const parts=stageParts(parsed)
  // A bad source row must not hide independent conflicts elsewhere in the files.
  if(!prior || ['reviewed','undone'].includes(prior.state)) {
@@ -52,7 +62,7 @@ export async function preview(c: Context,input: ParseInput) {
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c),sourceRecords:[...parsed.donors.map(d=>({kind:'constituent',externalId:d.externalId,donorExternalId:d.externalId})),...parsed.gifts.map(g=>({kind:'gift',externalId:g.externalId,donorExternalId:g.donorExternalId})),...parsed.notes.map(n=>({kind:['call','meeting','email'].includes(n.type)?'interaction':'note',externalId:n.externalId,donorExternalId:n.donorExternalId}))]},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c),sourceRecords:sourceRecords(parsed)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
  return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }
