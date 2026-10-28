@@ -151,7 +151,7 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
   message.setReject('Unknown reply sender or address.'); return
  }
  const title = subject(message.headers.get('subject') ?? ''), body = plainExcerpt(raw)
- const headerId = message.headers.get('message-id')?.trim(), contentHash = await sha256(new TextDecoder().decode(raw))
+ const headerId = message.headers.get('message-id')?.trim(), contentHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),value=>value.toString(16).padStart(2,'0')).join('')
  const key = await sha256(`${communication.donor_id}\0${headerId && headerId.length <= 998 ? headerId : contentHash}`)
  const automatic = /^(?!no(?:\s*;|\s*$))\S/i.test(message.headers.get('auto-submitted')?.trim() ?? '') ||
   (message.headers.has('x-autoreply') && !/^\s*no\s*$/i.test(message.headers.get('x-autoreply') ?? '')) ||
