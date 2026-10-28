@@ -60,6 +60,13 @@ export async function immediateReceiptsJourney() {
   await h.command('sendingDomain.verify',{version:pending.version},{as:'',status:401})
   const check=await h.command('sendingDomain.verify',{version:pending.version})
   assert.equal(check.status,'pending');assert.equal(check.records.filter(r=>r.valid).length,0)
+  let domainState=check
+  for(const missing of ['dkim2','mail_cname']) {
+   edge.state.dns=true;edge.state.missing=missing
+   domainState=await h.command('sendingDomain.verify',{version:domainState.version})
+   assert.equal(domainState.status,'pending',`A missing ${missing} record cannot verify the domain`)
+  }
+  edge.state.dns=false;edge.state.missing=null
   const unverified=await give(h,edge.state,'Morgan Reader')
   assert.equal(receipts(edge.state).length,0,'Unverified domain never submits mail')
   const frozen=(await h.get('/api/coffer/letters/receipt-'+unverified.giftId)).letters[0]

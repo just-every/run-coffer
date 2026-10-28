@@ -9,7 +9,10 @@ const statusRows=rows.filter(r=>['published','target','push-further'].includes(r
 const counts=(group)=>[...['done','partial','missing'].map(status=>group.filter(row=>row[4]===status).length),group.length]
 const summary=[['Published',statusRows.filter(r=>r[3]==='published')],['Target and push further',statusRows.filter(r=>r[3]!=='published')],['All',statusRows]].map(([label,group])=>`| ${label} | ${counts(group).join(' | ')} |`).join('\n')
 const replaceSummary=text=>text.replace(/^\| Published \|[^\n]*\n\| Target and push further \|[^\n]*\n\| All \|[^\n]*/m,summary)
-const contract=replaceSummary(original),parsed=parseContract(contract),lines=contract.split('\n')
+const statuses=new Map(statusRows.map(row=>[row[1].replaceAll('`',''),row[4]]))
+// Keep mapped claim status labels synchronized without changing their prose.
+const mapped=ids.reduce((text,id)=>text.replace(new RegExp('(`'+id+'`\\s+)(done|partial|missing)\\b','g'),(_,label)=>label+statuses.get(id)),original)
+const contract=replaceSummary(mapped),parsed=parseContract(contract),lines=contract.split('\n')
 let acceptance=replaceSummary(readFileSync('ACCEPTANCE.md','utf8'))
 acceptance=acceptance.replace(/^Judged from[^\n]*/m,contract.split('\n').find(line=>line.startsWith('Judged from')))
 for(const id of ids){

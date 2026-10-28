@@ -53,7 +53,7 @@ async function submit(env: Bindings, job: Row, now: Date) {
   event(c,'receipt.automatic.claim','acknowledgements',batch.id,letter.donor_id,{source:job.source,suppressed})])
  if(suppressed)return
  try {
-  const sent=await sendReceipt(env,{...letter,attempt_id:attempt})
+  const sent=await sendReceipt(env,{...letter,attempt_id:attempt},{attachPdf:true})
   const accepted={...c,now:new Date().toISOString()}
   await env.DB.batch([...(await receiptAcceptance(accepted,{...letter,attempt_id:attempt},sent.messageId)),sql("UPDATE cf_automatic_receipts SET state='complete' WHERE gift_id=? AND attempt_id=?",job.gift_id,attempt)].map(s=>env.DB.prepare(s.sql).bind(...s.params)))
  } catch(error:any) {

@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "44ea4b1aab83b5db8c7d64a8105a830fb69147c4146a2fa6aac379c5941f8dc4",
+      "sha256": "db3b8a30901c5d77951eef1c53ee44aa8871c5152686a3ceeb5a2cea088ad09c",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "dbc4e02f4cb8d384cc7cba4556205817943bc6b4357d07087323aa38475555ed",
+      "sha256": "e4c04e6b0228cffc3c978d90e4f819e202a4e88d7c8cdfd096b59c0440609674",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1879,7 +1879,7 @@
       "executable": false
     },
     "scripts/contract-docs.mjs": {
-      "sha256": "1ca104a0ebcb4476651ddc00f9a3b40b4a0e047b40294a2736a066993f191dbe",
+      "sha256": "3158f4521c249937fc2586089d5120469c0990725ac075b29401dc6ec03da495",
       "executable": false
     },
     "scripts/delivery/base/artifact.mjs": {
@@ -2551,7 +2551,7 @@
       "executable": false
     },
     "src/coffer/automatic-receipts.ts": {
-      "sha256": "61fed9cc4e83a80c3a6c56d0bf5113a31184a3d6eb41f3492e04eac3d58c1bbc",
+      "sha256": "fccb9475466959ee59479644b3ccfd91a46b4491972c71f0e3a85bd97d9e272e",
       "executable": false
     },
     "src/coffer/automation-grants.ts": {
@@ -3603,7 +3603,7 @@
       "executable": false
     },
     "src/coffer/receipt-mail.ts": {
-      "sha256": "b778b6f356dc4aa8b7aeee5ebb749f9bb53972150e97a34cdce8169baed9dd6c",
+      "sha256": "b9e21c7ddf4d08bcafa6bd314095ab54fb059b3098f0a0910b5362f28f3024a5",
       "executable": false
     },
     "src/coffer/receipt-opens.ts": {
@@ -4031,7 +4031,7 @@
       "executable": false
     },
     "src/coffer/ui/more.ts": {
-      "sha256": "5819fc971c3029ce0cd7c4ab99314684002059663ab228a117e193319499f9d0",
+      "sha256": "5d886288850c3c06401d9111218704503272ff09fe6f0a870f1b05ddda523d69",
       "executable": false
     },
     "src/coffer/ui/move-in.ts": {
@@ -6391,7 +6391,7 @@
       "executable": false
     },
     "tests/fee-cover-journey.mjs": {
-      "sha256": "0ac3708ca63e38662a630814e6a7eb11e4d0a4d6a2e94214394df58dfa2bbb61",
+      "sha256": "1496ee5bc0e04c5f827e0549b61155cc4305a70e004a0bd8d085db629bbc0633",
       "executable": false
     },
     "tests/fixed-clock-worker.ts": {
@@ -6635,11 +6635,11 @@
       "executable": false
     },
     "tests/immediate-receipts-edge.mjs": {
-      "sha256": "35a0a68cc4bd8233dc4b62054ab38caba5f3f7b0b642537cbca37adb2c5a3574",
+      "sha256": "6f2cc77e23da725580666989110cdf059ba4b4c2900f291837135b99c3ca99be",
       "executable": false
     },
     "tests/immediate-receipts-journey.mjs": {
-      "sha256": "75570ee89efb7ec7449c5ebac5dcf3e7ddde6b593cfc53be1e433a23e302a27a",
+      "sha256": "84406595959a27c630d01f4dee50e9712a51b3d2c8cce201220569b08a1b2a3f",
       "executable": false
     },
     "tests/import-ack-journey.mjs": {
@@ -7159,7 +7159,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "abccdde935069a270d364fe191f7e00ef36fa271e92236e762218db42815115d",
+      "sha256": "14a2c7c27d7b18b0a551b34a64c5030b67bb625a21686452a653de35e00c9619",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

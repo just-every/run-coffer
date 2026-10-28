@@ -11,13 +11,13 @@ export const domainRecords = {
 
 /** Only payment, mail and DNS networks are substituted. */
 export function immediateReceiptsEdge() {
- const state={dns:false,provider:true,mail:'accepted',messages:[],sessions:[],customers:0}
+ const state={dns:false,missing:null,provider:true,mail:'accepted',messages:[],sessions:[],customers:0}
  const outbound=async request=>{
   const u=new URL(request.url)
   if(u.hostname==='cloudflare-dns.com') {
-   const name=u.searchParams.get('name'),type=u.searchParams.get('type'),record=Object.values(domainRecords).find(r=>r.host===name)
+   const name=u.searchParams.get('name'),type=u.searchParams.get('type'),[key,record]=Object.entries(domainRecords).find(([,r])=>r.host===name)??[]
    assert.ok(record,'DNS lookup belongs to the configured authentication')
-   return Response.json({Status:0,Answer:state.dns?(type==='CNAME'?[{name,type:5,data:record.data+'.'}]:[{name:domainRecords.mail_cname.data,type:16,data:'"v=spf1 include:sendgrid.net -all"'}]):[]})
+   return Response.json({Status:0,Answer:state.dns&&state.missing!==key?(type==='CNAME'?[{name,type:5,data:record.data+'.'}]:[{name:domainRecords.mail_cname.data,type:16,data:'"v=spf1 include:sendgrid.net -all"'}]):[]})
   }
   if(u.hostname==='api.sendgrid.com') {
    if(u.pathname==='/v3/whitelabel/domains/123')return Response.json({id:123,domain:receiptDomain,automatic_security:true,dns:domainRecords})
