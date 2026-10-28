@@ -52,3 +52,24 @@ export async function builderBrowser(h,{id,member,headers},directory){
   await page.close()
  })
 }
+
+export async function periodBalanceBrowser(h,{includedId,excludedId,giftId,headers},directory){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  await context.setExtraHTTPHeaders(headers)
+  const page=await context.newPage()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(origin+'/app/reports/builder?id='+includedId)
+   await page.locator('td[data-label="id"]').filter({hasText:giftId}).waitFor()
+   assert.ok(await page.getByText('10000',{exact:true}).first().isVisible())
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await page.screenshot({path:`${directory}/builder-period-included-${width}.png`,fullPage:true})
+   await page.goto(origin+'/app/reports/builder?id='+excludedId)
+   assert.equal(await page.locator('td[data-label="id"]').filter({hasText:giftId}).count(),0)
+   assert.ok(await page.getByText('No matching records.',{exact:true}).first().isVisible())
+   await page.screenshot({path:`${directory}/builder-period-excluded-${width}.png`,fullPage:true})
+  }
+  await page.close()
+ })
+}

@@ -3,7 +3,7 @@ import readXlsxFile from 'read-excel-file/node'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
 import {parseCsv as csvRecords} from './exports-journey.mjs'
 const parseCsv=input=>[input.slice(0,input.indexOf('\r\n')).split(','),...csvRecords(input).map(Object.values)]
-import {builderBrowser} from './report-builder-browser.mjs'
+import {builderBrowser,periodBalanceBrowser} from './report-builder-browser.mjs'
 
 const headers={'x-test-now':'2026-10-18T02:00:00.000Z'},options={headers}
 const definition={recordType:'gifts',columns:['id','received_on','fund','amount_cents'],groupBy:['fund','month'],totals:['amount_cents'],from:'2025-01-01',through:'2025-12-31',filters:[]}
@@ -106,5 +106,38 @@ export async function reportBuilderJourney(){
   const data=await h.get('/api/coffer/reports/builder?id='+imported.id,options)
   assert.deepEqual(data.totals,expected);assert.equal(data.count,4);assert.ok(data.definition.columns.includes('method'))
   await h.command('report.import',{name:'Unsafe definition',document:{format:'coffer-report',definition:{...definition,columns:['payment_method']}}},{...options,status:400})
+ })
+ await run(async h=>{
+  await reviewed(h)
+  const d=await donor(h,'Period balance donor',{email:null})
+  const gift=await h.command('gift.record',{donorId:d.id,amount:'100',receivedOn:'2025-05-01',fund:'Library',method:'check',goods:'none'},options)
+  await h.command('gift.reverse',{giftId:gift.id,reason:'Reversed in the following year',reversedOn:'2026-02-01'},options)
+  let includedId,excludedId
+  for(const [from,through,field,value,cents] of [
+   ['2025-01-01','2025-12-31','amount_cents',10000,10000],
+   ['2025-01-01','2025-12-31','amount_cents',0,null],
+   ['2026-01-01','2026-12-31','amount_cents',-10000,-10000],
+   ['2025-01-01','2026-12-31','amount_cents',0,0],
+   ['2025-01-01','2025-12-31','adjustment_cents',0,10000],
+  ]){
+   const saved=await h.command('report.save',{name:'Period giving '+from+' '+field+' '+value,definition:{...definition,from,through,filters:[{field,operator:'eq',value}]}},options)
+   const path='/api/coffer/reports/builder?id='+saved.id,data=await h.get(path,options)
+   assert.deepEqual(data.rows.map(r=>[r.id,r.amount_cents]),cents===null?[]:[[gift.id,cents]],'Filters must match the displayed period balance')
+   assert.equal(data.totals.amount_cents,cents??0)
+   assert.equal(data.groups.reduce((n,g)=>n+g.amount_cents,0),cents??0)
+   const file=await h.request(path+'&download=csv',options);assert.equal(file.status,200)
+   const csv=parseCsv(await file.text());assert.equal(csv.length,cents===null?1:2)
+   if(cents!==null)assert.equal(Number(csv[1][3]),cents)
+   const excel=await h.request(path+'&download=xlsx',options);assert.equal(excel.status,200)
+   const sheet=(await readXlsxFile(Buffer.from(await excel.arrayBuffer())))[0].data
+   assert.deepEqual(sheet.map(r=>r.map(v=>String(v??''))),csv)
+   const records=await h.request('/api/coffer/exports/gifts.csv?report=builder&id='+saved.id,options);assert.equal(records.status,200)
+   const raw=parseCsv(await records.text());assert.equal(raw.length,csv.length)
+   if(cents!==null)assert.equal(Number(raw[1][raw[0].indexOf('amount_cents')]),cents)
+   if(from==='2025-01-01'&&through==='2025-12-31'&&field==='amount_cents'){
+    if(cents===null)excludedId=saved.id;else includedId=saved.id
+   }
+  }
+  await periodBalanceBrowser(h,{includedId,excludedId,giftId:gift.id,headers},process.env.COFFER_REPORT_BUILDER_BROWSER||'.cache/report-builder')
  })
 }
