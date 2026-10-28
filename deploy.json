@@ -52,18 +52,6 @@
       "optional": true
     },
     {
-      "binding": "MAIL_PROVIDER",
-      "environment": "MAIL_PROVIDER",
-      "verifyStandIn": "resend",
-      "label": "Mail provider"
-    },
-    {
-      "binding": "MAIL_FROM",
-      "environment": "MAIL_FROM",
-      "verifyStandIn": "auth@example.test",
-      "label": "Sender address"
-    },
-    {
       "binding": "MAIL_EVENT_PUBLIC_KEY",
       "environment": "MAIL_EVENT_PUBLIC_KEY",
       "optional": true
@@ -116,16 +104,6 @@
     {
       "binding": "COFFER_REPLY_ADDRESS",
       "environment": "COFFER_REPLY_ADDRESS",
-      "optional": true
-    },
-    {
-      "binding": "MAIL_RELAY_URL",
-      "environment": "MAIL_RELAY_URL",
-      "optional": true
-    },
-    {
-      "binding": "MAIL_ACCOUNT_ID",
-      "environment": "MAIL_ACCOUNT_ID",
       "optional": true
     }
   ],

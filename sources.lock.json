@@ -583,7 +583,7 @@
       "executable": false
     },
     "deploy.json": {
-      "sha256": "ea0a74c917bd613033be21ceaf53ab36f5a41496417089263269a7e609ef758c",
+      "sha256": "3fe870d57933527c339d296018f61a6c814caf904c1f562f0ffe73cadb781a26",
       "executable": false
     },
     "docs/AGENT-COMMANDS.md": {
@@ -7135,7 +7135,7 @@
       "executable": false
     },
     "wrangler.jsonc": {
-      "sha256": "200b7af8e5faa32a2636d684142bb2e3f65ca0806e0a3c49c70fa63aaca9328e",
+      "sha256": "f7f92edce96b2ebc1bed8485117c2e903987cb466e54c998af73baea8cea2a70",
       "executable": false
     }
   }
