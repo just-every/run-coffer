@@ -29,8 +29,8 @@ CREATE TRIGGER cf_giving_form_gift_redacted BEFORE INSERT ON cf_giving_form_gift
 WHEN EXISTS(SELECT 1 FROM cf_giving_form_redactions WHERE intent_id=NEW.intent_id)
 BEGIN SELECT RAISE(ABORT,'COFFER_FORM_CAPTURE_ERASED'); END;
 
--- Resolve identity through the existing intent/gift owners. Ordinary audited
--- merge/undo therefore preserves answers without copying private payloads into
+-- Resolve identity through the existing intent and gift owners. Ordinary audited
+-- merge and undo therefore preserves answers without copying private payloads into
 -- a second donor journal. Erasure runs before money moves to its placeholder.
 CREATE TRIGGER cf_giving_form_erasure AFTER UPDATE OF erased_at ON cf_donors
 WHEN OLD.erased_at IS NULL AND NEW.erased_at IS NOT NULL

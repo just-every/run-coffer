@@ -1450,6 +1450,10 @@
       "sha256": "a6fd47033becb5b3c5a823648f1312e87b700b73ce1ef04a5a74645175ba61fd",
       "executable": false
     },
+    "migrations/core/0169_coffer_giving_forms.sql": {
+      "sha256": "32a3372a56f6e2bd9328c604c3755b490a12ed0f956a685097ed9c03638401c4",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -1564,6 +1568,14 @@
     },
     "public/giving/fee-cover.js": {
       "sha256": "9081a3b844ddb9eb805218751390bddf4d09565cb045558b77592d2202023a5e",
+      "executable": false
+    },
+    "public/giving/form-settings.js": {
+      "sha256": "97465651fad072e23201a12a6086e1560354c8352372171dae88853f8d69e8b9",
+      "executable": false
+    },
+    "public/giving/form.js": {
+      "sha256": "5687ef9522268e4826edd27a40d22adbb9a196ec14fb89566af8e5139af6508e",
       "executable": false
     },
     "public/giving/village.webp": {
@@ -2934,6 +2946,38 @@
       "sha256": "c941ac42745b3ce1b6c64d1226a61c2df670ba3c07d5d6def74e8596193cfc09",
       "executable": false
     },
+    "src/coffer/giving/form-configuration.ts": {
+      "sha256": "013aec696d8a38065a2d58b16e3bd49c409e933f70e0912d02ce9ff723330ab7",
+      "executable": false
+    },
+    "src/coffer/giving/form-embed.ts": {
+      "sha256": "afd1065d9207857289e98f6808323e44480940aee7655ac02a683845067d9766",
+      "executable": false
+    },
+    "src/coffer/giving/form-fields.ts": {
+      "sha256": "e7c5569982a2c9104d84eb5e1d07b320ec209c004c12ea2042eeb2cd63fc958e",
+      "executable": false
+    },
+    "src/coffer/giving/form-manage-ui.ts": {
+      "sha256": "6388e921200c6da16f87e58a050fc4fb90d6c16ac6834dc6e65314f3b966ad58",
+      "executable": false
+    },
+    "src/coffer/giving/form-recording.ts": {
+      "sha256": "ffee9bf636b148c62effec424ab091ce90193be1a63a8453d9fbed2c169022dd",
+      "executable": false
+    },
+    "src/coffer/giving/form-response.ts": {
+      "sha256": "3c825709ad01b7c0f8d2932a9e146cefef252a09e6eed529fbc5a27121438228",
+      "executable": false
+    },
+    "src/coffer/giving/form-responses.ts": {
+      "sha256": "67095879a0e07a355642a28219e3a94ede04a4d4b72dce814f3406d48d835538",
+      "executable": false
+    },
+    "src/coffer/giving/form-ui.ts": {
+      "sha256": "c9d37af03e773e8dbe61648d8d419ee479a53c398edc4facb5cba10440df66e9",
+      "executable": false
+    },
     "src/coffer/giving/http.ts": {
       "sha256": "a23c83fa344d0c3d6815e9163d72b5c63b9d31d257683ebaf3c9b098fe206985",
       "executable": false
@@ -3019,7 +3063,7 @@
       "executable": false
     },
     "src/coffer/giving/recording.ts": {
-      "sha256": "c230063e7ce477f1be4993988d938b2e7352586feb3c55fcb32c37db1a78d89e",
+      "sha256": "2acf1dcc5a6a7303a2eb96038e99f2414f670c6e2afb127ddccc367e734f1956",
       "executable": false
     },
     "src/coffer/giving/saved-card-consent.ts": {
@@ -6548,6 +6592,18 @@
     },
     "tests/gift-rules-journey.mjs": {
       "sha256": "e7db781239e656b193dd910ded6f42e7565695cb8994a4ca89adee1ec14324eb",
+      "executable": false
+    },
+    "tests/giving-form-browser.mjs": {
+      "sha256": "3821d63a1c6818f0e856020cdfcaf7944fd0d4ab9031cc2356bc59de006bac55",
+      "executable": false
+    },
+    "tests/giving-form-edge.mjs": {
+      "sha256": "a434f23514c7d685bfe4e42310f84076f4571c64f98a99741a9adcf3e7de969f",
+      "executable": false
+    },
+    "tests/giving-form-journey.mjs": {
+      "sha256": "95ba86b617adddf4b587b3965183e41607eb845f8183b59ce19f58434d7b2c2f",
       "executable": false
     },
     "tests/giving-protection-journey.mjs": {
