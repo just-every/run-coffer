@@ -2,6 +2,7 @@ import { peerResponse } from '../peer/http'
 import { publicPage } from '../peer/service'
 import { fundraisingEvent } from '../fundraising-events'
 import { registrationPage } from '../ui/fundraising-events'
+import { givingEmbedScript } from './form-embed'
 import { givingConnection } from './connections'
 import { startPledgeCheckout, validatePledgeLink, completePledgeCheckout } from '../pledge-checkout'
 import { usd } from '../money'
@@ -97,11 +98,16 @@ export async function givingResponse(request: Request, original: Bindings): Prom
    const response = await page(result.paid ? 'Thank you for your gift' : 'Payment is still processing', result.paid ? `<p>Your ${result.recurring ? 'recurring ' : ''}gift has been recorded. Thank you for your support.</p><p><a href="/giving/portal">Manage my giving</a></p>` : '<p>Stripe has not confirmed payment yet. Please check this page again shortly.</p>')
    response.headers.set('referrer-policy', 'strict-origin'); return response
   }
+  const embed = path.match(/^\/give\/([a-z0-9-]+)\/embed\.js$/)
+  if(embed && request.method==='GET') return givingEmbedScript(await campaign({db:env.DB},embed[1]))
   const m = path.match(/^\/give\/([a-z0-9-]+)(\/checkout)?$/)
-  if (m && !m[2] && ['GET', 'HEAD'].includes(request.method)) { const peerPage=url.searchParams.get('peer')?await publicPage({db:env.DB},url.searchParams.get('peer')!):null; if(peerPage&&peerPage.campaign.slug!==m[1])fail('peer_campaign','Choose a page in this campaign.',409); const linkedText=await textLink(env,m[1],url.searchParams.get('text')); return campaignPage(await campaign({ db: env.DB }, m[1]), env, (await settings({ db: env.DB })).organisation, url.searchParams.has('cancelled'), await trackedAppeal({ db: env.DB }, linkedText ? linkedText.appeal : url.searchParams.get('appeal')), linkedText ? { phone: linkedText.phone, token: url.searchParams.get('text')! } : null, peerPage?.page ?? null) }
+  if (m && !m[2] && ['GET', 'HEAD'].includes(request.method)) { const peerPage=url.searchParams.get('peer')?await publicPage({db:env.DB},url.searchParams.get('peer')!):null; if(peerPage&&peerPage.campaign.slug!==m[1])fail('peer_campaign','Choose a page in this campaign.',409); const linkedText=await textLink(env,m[1],url.searchParams.get('text')); return campaignPage(await campaign({ db: env.DB }, m[1]), env, (await settings({ db: env.DB })).organisation, url.searchParams.has('cancelled'), await trackedAppeal({ db: env.DB }, linkedText ? linkedText.appeal : url.searchParams.get('appeal')), linkedText ? { phone: linkedText.phone, token: url.searchParams.get('text')! } : null, peerPage?.page ?? null, url.searchParams.get('embed')==='1') }
   if (m?.[2] && request.method === 'POST') {
    if (!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) fail('form_required', 'Send the donation form.', 415)
-   const session = await checkout(env, request, m[1], Object.fromEntries(new URLSearchParams(await givingBody(request))))
+   const values = new URLSearchParams(await givingBody(request)), input: Record<string, any> = Object.fromEntries(values)
+   input.answers = Object.fromEntries([...new Set([...values.keys()].filter(k=>k.startsWith('answer.')))].map(k=>[k.slice(7),values.getAll(k).length>1?values.getAll(k):values.get(k)]))
+   for(const key of Object.keys(input))if(key.startsWith('answer.'))delete input[key]
+   const session = await checkout(env, request, m[1], input)
    if (typeof session.url !== 'string' || new URL(session.url).hostname !== 'checkout.stripe.com') fail('checkout_unavailable', 'This checkout is no longer available. Reload the donation page.', 409)
    return givingRedirect(session.url)
   }

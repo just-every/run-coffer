@@ -1,4 +1,5 @@
 import { preparePeerCheckout, verifyPeerCheckout } from '../peer/service'
+import { prepareGivingForm } from './form-fields'
 import { failedAttempt, protectCheckout } from './protection'
 import { textLink } from './text'
 import { givingTribute } from './tribute'
@@ -43,6 +44,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const prior = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
  const priorRegistration=await one({db:env.DB},'SELECT * FROM cf_event_orders WHERE intent_id=?',id)
  if(prior && (ticket?(!priorRegistration||priorRegistration.ticket_type_id!==ticket.id):Boolean(priorRegistration)))fail('checkout_changed','Reload before changing a checkout between a gift and an event ticket.',409)
+ const formCapture=ticket?null:await prepareGivingForm(env.DB,c,p,prior)
  const eventCheckout=ticket?await prepareEventCheckout(env.DB,id,ticket,p,name,mail):null
  const covers = p.feeCover === 'yes'
  // A saved request retains its quoted rate even after campaign settings change.
@@ -61,6 +63,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   ...peerStatements.map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...(!peerPageId ? [env.DB.prepare('INSERT INTO cf_assert(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM cf_peer_intents WHERE intent_id=?) THEN 1 ELSE 0 END').bind(id)] : []),
   ...(eventCheckout?eventCheckout.statements:[]),
+  ...(formCapture?formCapture.statements.map(s=>env.DB.prepare(s.sql).bind(...s.params)):[]),
   env.DB.prepare('INSERT OR IGNORE INTO cf_giving_tributes(intent_id,kind,honoree,notified_name,notified_email,notified_address,amount_permission) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM cf_giving_intents WHERE id=? AND name=? AND email=? AND amount_cents=? AND frequency=?)').bind(id,storedTribute.kind,storedTribute.honoree,storedTribute.notified_name,storedTribute.notified_email,storedTribute.notified_address,storedTribute.amount_permission,id,name,mail,cents,storedFrequency),
   env.DB.prepare('DELETE FROM cf_assert'),
  ])
@@ -89,7 +92,10 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   params['line_items[0][price_data][recurring][interval]'] = frequency === 'annually' ? 'year' : 'month'
   params['line_items[0][price_data][recurring][interval_count]'] = frequency === 'quarterly' ? '3' : '1'
   params['subscription_data[metadata][coffer_intent]'] = id
- } else params['payment_intent_data[metadata][coffer_intent]'] = id
+ } else {
+  params['payment_intent_data[metadata][coffer_intent]'] = id
+  params['adaptive_pricing[enabled]'] = 'false'
+ }
  const session = await provider(env, '/checkout/sessions', params, 'checkout-' + id)
  await env.DB.prepare('UPDATE cf_giving_intents SET session_id=? WHERE id=?').bind(session.id, id).run()
  return session
