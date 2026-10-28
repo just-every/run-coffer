@@ -87,7 +87,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 export const ACCESS: Record<string, Role[]> = {
  'report.save':MANAGERS,'report.import':MANAGERS,'report.share':MANAGERS,'report.revoke':MANAGERS,
  ...Object.fromEntries(AUCTION_COMMANDS.map(command=>[command,MANAGERS])),
- 'marketing.topicMapping':MANAGERS, 'communication.preferences':MANAGERS, 'marketing.constantContactConnect':MANAGERS, 'marketing.constantContactSync':MANAGERS, 'marketing.constantContactDisconnect':MANAGERS, 'ack.sendPostal':MANAGERS,
+ 'marketing.topicMapping':MANAGERS, 'communication.preferences':MANAGERS, 'marketing.connectConstantContact':MANAGERS, 'marketing.constantContactConnect':MANAGERS, 'marketing.constantContactSync':MANAGERS, 'marketing.constantContactDisconnect':MANAGERS, 'ack.sendPostal':MANAGERS,
  'singleLetter.prepare':MANAGERS, 'singleLetter.approve':MANAGERS,
  'calls.rank':MANAGERS, 'calls.policy':MANAGERS,
  'task.teamSave':['owner','admin'], 'task.create':STAFF, 'task.policy':MANAGERS, 'task.reminders':STAFF,

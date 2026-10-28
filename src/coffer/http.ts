@@ -419,6 +419,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
     if (!isApi && command === 'appeal.prepare' && error instanceof CofferError && error.code.startsWith('NCOA_')) return page('Addresses', `<p role="alert" class="alert">${esc(error.message)}</p><p><a href="/app/appeals">Return to appeals</a></p>` + (manager(c.actor)?await addressesPage(c):''), actor, error.status, '/app/addresses')
     // A rejected appeal form comes back on its own page with the answers kept.
     if (!isApi && command === 'appeal.prepare' && error instanceof CofferError && error.status === 400) return page('Appeals', await appealsPage(c, { error: error.message, values: input }), actor, 400, '/app/appeals')
+    if (!isApi && command==='marketing.connectConstantContact' && error instanceof CofferError) return page('Constant Contact settings', `<p role="alert" class="alert">${esc(error.message)}</p>`+await constantContactPreferencesPanel(c), actor, error.status, '/app/settings')
     if (!isApi && CONNECT.has(command) && error instanceof CofferError) return page('Connect email marketing', await connectPage(c, error.message), actor, error.status ?? 409, '/app/appeals')
     throw error
    }
@@ -514,6 +515,7 @@ function actionPage(command: string, input: any, result: any, actor: Actor, time
  if(command.startsWith('auction.'))return redirect('/app/events/'+encodeURIComponent(result.eventId)+'/auctions?jobId='+encodeURIComponent(result.jobId))
  if(command.startsWith('giving.'))return redirect('/app/giving/setup?saved=1')
  if(command==='communication.preferences')return redirect('/app/donors/'+encodeURIComponent(input.donorId)+'#communication-preferences')
+ if(command==='marketing.connectConstantContact')return redirect('/app/settings#constant-contact-sender')
  if(command.startsWith('marketing.constantContact')||command==='marketing.topicMapping')return redirect('/app/settings#constant-contact-preferences')
  if(command==='pledgeTemplate.save')return redirect('/app/settings?saved=1#pledge-template')
  if(command==='custom.define'||command==='custom.renameChoice'||command==='tag.define'||command==='tag.category')return redirect('/app/settings?saved=1#custom-field-definitions')

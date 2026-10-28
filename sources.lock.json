@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a379c67b47762f448002ee22872780c8ec2cb8d8121436729229ea1de18eb7d1",
+      "sha256": "7d319c821b0d115e7203c804b500e70725f0f013f8a13572bf01562b60d2940e",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f7ab0694a14f0a804bbc8e8f55d9f04758640b00163dcd20f33efb7d2ba60641",
+      "sha256": "9af48141dc502a1fcd4d5a8c59eb3fb056842e9622293969b0d3912fcfe5459f",
       "executable": false
     },
     "deploy-demo.json": {
@@ -611,7 +611,7 @@
       "executable": false
     },
     "docs/COMMUNICATIONS.md": {
-      "sha256": "758971b5443ad9bae242c3f8308f4f4840abfdedd01fae426361ab8eaec2f87b",
+      "sha256": "c985d46d1a1bfa533434d92956b00ed1a8a71b04997b655f66e28773417598ed",
       "executable": false
     },
     "docs/consent.md": {
@@ -1444,6 +1444,10 @@
     },
     "migrations/core/0167_coffer_quickbooks.sql": {
       "sha256": "436d3ade55bc9fbc82a6cbda0e32d854cb272577d53ac7dd7063d66f6c5ba85d",
+      "executable": false
+    },
+    "migrations/core/0168_coffer_constant_contact.sql": {
+      "sha256": "8343b55656d4a47019e71f1957f6f14a772612f8a8761bdb13dbcd191e00f7e0",
       "executable": false
     },
     "migrations/core/0168_coffer_report_builder.sql": {
@@ -2567,7 +2571,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "150728eee983b445dc3b2b613a2342bedc31bb108a401fdc5e18b788cb831d17",
+      "sha256": "cb4d9e3b4c1c3798f7fea3767cf9bc323e405ce8342ab360f32bb2141cc8f7e8",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2575,15 +2579,27 @@
       "executable": false
     },
     "src/coffer/communications/connect-ui.ts": {
-      "sha256": "94bfd1ebeafedb110212c1731c3e674a1367a99d40ba25dbac2f3702e565db3d",
+      "sha256": "127dc94519a473a73a4fab7fe8d8f8ead2b86999ccae8dfe1a455704bbc87592",
       "executable": false
     },
     "src/coffer/communications/connect.ts": {
-      "sha256": "7128604dad8dae1c2d5ad4bc27fef1715d4ac4fc66ef213fa48c566b17fc3d5d",
+      "sha256": "637949cb833fb7d77e5222419c61440bd8b8cc902cebb42af70c717f19aa156d",
       "executable": false
     },
     "src/coffer/communications/connection.ts": {
-      "sha256": "73ccbe36d10d9e225924cd864a39072a4b5509c6f5c66d8ca204714d1df44063",
+      "sha256": "5da9ffb9c6299047d9d7b2fb839e1dcf21dd5e8aa812499ddfdbb04763c6e480",
+      "executable": false
+    },
+    "src/coffer/communications/constant-contact-api.ts": {
+      "sha256": "f99f8b9fb44015badf38e47dc8e995738078d1f1bfae8922e89b354ceac99758",
+      "executable": false
+    },
+    "src/coffer/communications/constant-contact-campaign.ts": {
+      "sha256": "72eeb8876862d0ab1f5faec02d87cbc881dea2aeb3af0d77e1a08365c4f9a866",
+      "executable": false
+    },
+    "src/coffer/communications/constant-contact-profile.ts": {
+      "sha256": "604626eee6a379f4a9be3213cf2a9410b9dfa9afffd054a49aafe4d54f8544d9",
       "executable": false
     },
     "src/coffer/communications/constant-contact.ts": {
@@ -2627,7 +2643,7 @@
       "executable": false
     },
     "src/coffer/communications/outbound.ts": {
-      "sha256": "8f04473cb9af68ddbee33400a4724846c5c68c51207bdbdf18d4991669465347",
+      "sha256": "f6dea869212a3060ad0f3d153c7b6a903884e68fcc37d447742d7da44e09d452",
       "executable": false
     },
     "src/coffer/communications/preference-rules.ts": {
@@ -2639,23 +2655,23 @@
       "executable": false
     },
     "src/coffer/communications/preferences-ui.ts": {
-      "sha256": "da6997d1fa0b460f79d0b4068dd5b33bfae0a0f9662c648a90192350295a2777",
+      "sha256": "731f21ff9bce425698f8b9796c8c6fa9d52a8263b302b5b0b0183986118473c7",
       "executable": false
     },
     "src/coffer/communications/preferences.ts": {
-      "sha256": "8d3ed38f556ad01662fe571d98624225a4c6ce1f5774e56240120f2af8ada3be",
+      "sha256": "5dfc8c85063ba6c7a9697877af421825609143151b2c5210e22b925f8a296ae1",
       "executable": false
     },
     "src/coffer/communications/profile-fields.ts": {
-      "sha256": "a9674d135c81d8fbaac8d36e0412450d8cf9ee5353ded836de2d325dce8e288e",
+      "sha256": "2762cd488b40ab00aff5b4dae1256695ac01f9a10ae648e5a14cb451c98a88e3",
       "executable": false
     },
     "src/coffer/communications/provider-preferences.ts": {
-      "sha256": "d8b71c4fbeab2aa4be61e3bc1025e830c864e069e6ce2e9329870de4e3bb2cc7",
+      "sha256": "6866f17c418d76daeaa861c82598f03980d01847c20bf2a38b838a0619d281bf",
       "executable": false
     },
     "src/coffer/communications/provider.ts": {
-      "sha256": "375f0369783d202a9524f89f57b9a47ffbefef27f5f9e746ed149c437d106ac9",
+      "sha256": "6a1f47b695c345c14a5cfd43f5a7ef07fd42ba77b06ea16bfd92d33cc975ef58",
       "executable": false
     },
     "src/coffer/communications/replies-ui.ts": {
@@ -3091,7 +3107,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "78e8cedde9175412155283c13ca038777799ccae4c4be649242c05001b0846f4",
+      "sha256": "476c0cb4bdf485b481656a01586d0e7bafc266aeb8f46242931c45f611fcb15a",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3807,7 +3823,7 @@
       "executable": false
     },
     "src/coffer/ui/appeals.ts": {
-      "sha256": "10e20a6a6040a624aca1cfc861beb34742237f7a7008d5152556a31b6cd8adfb",
+      "sha256": "73d155ae4b3ae5aeadb6ea470338404f3a650f4cffd15a49bdff8e9e650316a0",
       "executable": false
     },
     "src/coffer/ui/attribution.ts": {
@@ -6247,7 +6263,15 @@
       "executable": false
     },
     "tests/communications.test.mjs": {
-      "sha256": "6ae50f6f6539cbcfad9a2257b40e42664cbaaf85d16ea9fbb2ecc4faaf0fbcf9",
+      "sha256": "22e76d60b05353f29cad26935d14eb681147a81af99a547d826e1fb33072fbd7",
+      "executable": false
+    },
+    "tests/constant-contact-edge.mjs": {
+      "sha256": "04754c60a12b5d6e4a80a33c6c5a8f1d91bd5389d3f2693369b7b0bea09cad19",
+      "executable": false
+    },
+    "tests/constant-contact-journey.mjs": {
+      "sha256": "4d2beb1401786e2fb79fe7dd0d9be8954de82c5f1aa86583d0fa40b3334bbe10",
       "executable": false
     },
     "tests/contact-points-journey.mjs": {

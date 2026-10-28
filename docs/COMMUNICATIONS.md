@@ -376,3 +376,55 @@ saved states run at 1440/390. The solicitationJourney additionally exercises
 month and quarter resets across UTC and New York midnight, cross-channel
 counting, competing approved exports, versioned period changes and native
 period controls.
+
+## Constant Contact
+
+In Settings, connect a current Constant Contact access token, the verified sender
+address, and the installed Coffer inbound reply address. Constant Contact requires
+both addresses to be confirmed. The token is encrypted with the installation key,
+never rendered, and omitted from portable archives. An expired or revoked token
+holds synchronization and sending until the owner reconnects.
+
+Open and click tracking remains off. Constant Contact does not expose a campaign
+tracking-disable flag in v3. Its Support team can disable tracking account-wide on
+a paid account. Before connecting, the owner or admin records confirmation that
+Settings → Advanced settings → Email tracking reads Off, with the support case or
+date checked. Coffer records this human confirmation; it cannot independently read
+that setting through v3. Reconfirm it when replacing the connection. See the
+[provider's tracking instructions](https://knowledgebase.constantcontact.com/email-digital-marketing/articles/KnowledgeBase/55284-Disable-email-tracking-for-your-account?lang=en_US).
+
+Prepare and approve an appeal normally. Each frozen recipient has an isolated
+Constant Contact contact list and campaign, with exact reviewed wording. Current
+native consent, topic, frequency, solicitation restrictions, contact identity and
+provider permission are checked before submission. Profile synchronization carries
+the nine name fields and only the extra fields explicitly chosen in connection
+settings. It omits the email subresource during profile updates, preserving a
+provider unsubscribe; it never uses the signup-form resubscription endpoint.
+Existing Constant Contact topic-list and frequency mappings continue to import
+only stricter choices. A newsletter remains separate from an ask.
+
+The send action creates and reads back a v3 campaign activity, verifies its one
+recipient and exact content, then submits it once. A lost answer remains uncertain
+and has no automatic retry. Refresh email results reads recipient send, bounce and
+opt-out reports. A send result does not establish delivery or reading; opens and
+clicks remain unknown. Provider opt-outs append native withdrawals and are used by
+the next audience.
+
+Replies use the configured Coffer Email Routing receiver, not a fictional provider
+reply webhook. They join the existing relationship-manager task routing, automatic
+reply filing, immediate explicit-stop withdrawal, reviewed ambiguous request,
+replay protection, archive, merge, undo and erasure handling.
+
+`tests/communications.test.mjs` — "COMM-003: Constant Contact serves the frozen
+audience, returns results and routes replies with current permission and custody"
+invokes `constantContactJourney` in `tests/constant-contact-journey.mjs`. It uses the
+real application HTTP and browser doors with only the Constant Contact and inbound
+mail network edges faked. Its native settings, connection, appeal results and reply
+screens run at 1440 and 390 on every push Verify. This is no live-account,
+tracking-configuration, mailbox-delivery or provider-rendering claim.
+
+The adapter follows the provider's [contact update rules](https://developer.constantcontact.com/api_guide/contacts_put.html),
+[campaign creation](https://developer.constantcontact.com/api_guide/email_campaign_create.html),
+[activity update](https://developer.constantcontact.com/api_guide/email_campaign_activity_update.html),
+[scheduling](https://developer.constantcontact.com/api_guide/email_campaign_create_schedule.html)
+and [recipient reporting](https://developer.constantcontact.com/api_guide/email-reporting/email-reporting-overview).
