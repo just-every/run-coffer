@@ -1,5 +1,6 @@
 import { columnDefinitions, stageColumnValue } from './column-definitions'
 import { customValue } from '../custom-fields'
+import { spreadsheetDefinitionWrites } from './spreadsheet-definitions'
 import { all, guard, sha256, sql, type Context, type Row, type Stmt } from '../db'
 import { valueText, type SourceRow } from './source-rows'
 import type { CustomImportMapping, ImportedCustomValue, Located, ParseInput, ParsedImport } from './types'
@@ -28,8 +29,8 @@ export function reviewedCustomMappings(input: ParseInput, out: ParsedImport) {
  } catch (e) { out.customFields = []; out.diagnostics.push({severity:'error',code:'CUSTOM_MAPPING',message:String(e instanceof Error ? e.message : e)}) }
 }
 
-export function mapCustomColumns(rows: SourceRow[], out: ParsedImport) {
- if(out.source==='spreadsheet'){const columns=columnDefinitions(out);out.columnDefinitions=columns.definitions;out.columnMappings=columns.mappings}
+export function mapCustomColumns(rows: SourceRow[], out: ParsedImport, deferCustomValues=false) {
+ if(out.source==='spreadsheet'&&deferCustomValues){const columns=columnDefinitions(out);out.columnDefinitions=columns.definitions;out.columnMappings=columns.mappings}
  const inventory = new Map<string,{column:string;sheet:string;kind:string}>(), used = new Set<CustomImportMapping>()
  for (const r of rows) {
   const sourceKind = r.kind(), kind = sourceKind === 'donor' ? 'constituent' : sourceKind === 'note' ? ['call','meeting','email'].includes(r.peek('noteType').toLowerCase()) ? 'interaction' : 'note' : sourceKind
@@ -107,6 +108,7 @@ export async function importedCustomWrites(c:Context, plan:Plan, source:string, 
  if (!plan.customWrites.length) return writes
  const fields = plan.customWrites.filter(w=>w.createField).map(w=>w.field)
  writes.push(...await createImportDefinitionWrites(c,fields,source,jobId))
+ if(source==='spreadsheet')writes.push(...spreadsheetDefinitionWrites(fields,jobId))
  const values = plan.customWrites.map(w=>{
   const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDonorId:w.donorExternalId,original:w.imported.original}
   const row = {field_key:w.field.key,record_id:w.recordId,donor_id:w.donorId,value:w.imported.value,version:1,source:JSON.stringify(provenance),updated_at:c.now}

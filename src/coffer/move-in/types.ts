@@ -3,6 +3,7 @@ import type { FieldMapping } from './custom-review-types'
 /** Normalized, source-referenced preview. No database writes or invented CRM IDs. */
 import type { importSourceNames } from './sources'
 export type ImportSource = keyof typeof importSourceNames
+export type SpreadsheetMapping = { name: string; recordType: 'gift'|'donor'|'note'; columns: {column:string;field:string;sheet?:string}[]; translations?: {fund?:Record<string,string>;method?:Record<string,string>}; donorMatches?: Record<string,{id:string;version:number}> }
 export type ExportFile = { name: string; base64: string }
 export type SourceLocation = { file: string; sheet: string; row: number }
 export type Diagnostic = Partial<SourceLocation> & { severity: 'error' | 'warning'; code: string; message: string; column?: string }
@@ -13,7 +14,7 @@ export type ImportedCustomValue = { mapping: CustomImportMapping; value: string;
 export type Located = { location: SourceLocation; customValues?: ImportedCustomValue[] }
 export type ParsedContact={externalId:string;kind:'email'|'phone'|'address';type:string;value:string;primary:boolean;startsOn:string|null;endsOn:string|null}
 export type ParsedDonor = Located & {
- contacts?:ParsedContact[]; externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
+ expectedNativeId?:string; match?:{id:string;version:number}; contacts?:ParsedContact[]; externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
  city: string; region: string; postalCode: string; country: string; householdKey: string; householdName: string
  firstName: string; lastName: string; prefix?: string; middleName?: string; suffix?: string; nickname?: string; constituentStatus?: string; deceasedOn?: string; statusReason?: string; informalName?: string; formalName?: string; envelopeName?: string; recognitionName?: string; organization: boolean
 }
@@ -40,15 +41,15 @@ export type ControlTotal = Located & {
 }
 export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; channels?: ('email'|'mail'|'phone'|'sms')[]; maxAsks?: number }
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }
-export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:string; channel:'email'|'mail'|'phone'|'sms'; sourceOn:string; codes:string[] }
+export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:string; channel:'email'|'mail'|'phone'|'sms'; sourceOn:string; codes:string[]; status?:'granted'|'withdrawn'|'unknown' }
 export type ParsedImport = {
  columnDefinitions?:SourceDefinition[];columnMappings?:FieldMapping[];
- customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
+ spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
  relationships: ParsedRelationship[]; softCredits: ParsedSoftCredit[]; pledges: ParsedPledge[]
  installments: ParsedInstallment[]; notes: ParsedNote[]; unmapped: UnmappedValue[]; diagnostics: Diagnostic[]
  sourceTotals: ImportTotals; mappedTotals: ImportTotals; controlTotals: ControlTotal[]
  files: { name: string; bytes: number; sheets: string[]; rows: number }[]
 }
-export type ParseInput = { customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
+export type ParseInput = { deferCustomValues?:boolean; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
 export type Cell = string | number | boolean | Date | null
 export type Table = { file: string; sheet: string; rows: Cell[][] }

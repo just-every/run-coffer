@@ -88,19 +88,19 @@ export async function spreadsheetImportBrowser(h,input,directory){
  await mkdir(directory,{recursive:true})
  return withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage(),files=input.files.map(f=>({name:f.name,mimeType:'text/csv',buffer:Buffer.from(f.base64,'base64')}))
-  await page.goto(origin+'/app/move-in/crm')
+  await page.goto(origin+'/app/move-in/crm/spreadsheet')
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
-   await page.locator('select[name=source]').selectOption('spreadsheet')
    await page.locator('input[name=exports]').setInputFiles(files)
    await fits(page,width)
    await page.screenshot({path:directory+'/MOVE-010-spreadsheet-start-'+width+'.png',fullPage:true})
   }
-  await page.getByRole('button',{name:'Preview exports',exact:true}).click()
-  await page.waitForURL('**/app/move-in/crm/review?id=*')
-  await page.getByText('Map custom report columns',{exact:true}).click()
+  await page.getByRole('button',{name:'Map columns',exact:true}).click()
+  await page.getByLabel('Mapping name',{exact:true}).fill('Typed custom source review')
   const form=page.locator('form[action="/app/move-in/crm/preview"]')
+  await page.getByText('Map custom report columns',{exact:true}).click()
   for(const f of input.customFields){
+   await page.getByLabel('Target for '+f.column,{exact:true}).selectOption('')
    const fieldset=form.locator('fieldset').filter({has:page.locator('legend',{hasText:f.column+' · CSV'})})
    if(f.version)await fieldset.locator('select[name=customExisting]').selectOption({label:f.label+' · '+f.key})
    else{
@@ -112,11 +112,15 @@ export async function spreadsheetImportBrowser(h,input,directory){
     await fieldset.locator('textarea[name=customChoices]').fill(f.choices.join('\n'))
    }
   }
-  await form.locator('input[name=exports]').setInputFiles(files)
-  await form.getByRole('button',{name:'Check the files again',exact:true}).click()
+  await page.getByLabel('Review custom values separately after importing records',{exact:true}).check()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});await fits(page,width)
+   await page.screenshot({path:directory+'/MOVE-010-spreadsheet-columns-'+width+'.png',fullPage:true})
+  }
+  await form.getByRole('button',{name:'Preview mapped spreadsheet',exact:true}).click()
   await page.waitForURL('**/app/move-in/crm/review?id=*')
   const id=new URL(page.url()).searchParams.get('id'),{job}=await h.get('/api/coffer/move-in/journal?id='+id)
-  assert.equal(job.report.canApply,true)
+  assert.equal(job.report.canApply,true,JSON.stringify(job.report))
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await fits(page,width)
    await page.screenshot({path:directory+'/MOVE-010-spreadsheet-preview-'+width+'.png',fullPage:true})

@@ -153,7 +153,7 @@
     },
     {
       "name": "move-in",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
         "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-010):' tests/move-in.test.mjs"

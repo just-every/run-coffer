@@ -281,6 +281,7 @@ test('DONOR-013: LGL and Bloomerang contact reports preserve three typed emails 
 
 // Synthetic, configurable incumbent reports exercise the actual CSV and XLSX upload doors.
 async function customReportFiles(tables,format) {
+ const column=index=>{let value='';for(let n=index+1;n>0;n=Math.floor((n-1)/26))value=String.fromCharCode(65+(n-1)%26)+value;return value}
  if(format==='csv')return tables.map(([name,rows])=>({name:name+'.csv',base64:Buffer.from(rows.map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\r\n')).toString('base64')}))
  const {zipSync,strToU8}=await import('fflate'),xml=v=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')
  const files={
@@ -289,7 +290,7 @@ async function customReportFiles(tables,format) {
   'xl/workbook.xml':strToU8('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+tables.map(([name],i)=>`<sheet name="${name}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>'),
   'xl/_rels/workbook.xml.rels':strToU8('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+tables.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')+'</Relationships>'),
  }
- for(const [i,[,rows]] of tables.entries())files[`xl/worksheets/sheet${i+1}.xml`]=strToU8('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+rows.map((row,r)=>`<row r="${r+1}">`+row.map((value,c)=>`<c r="${String.fromCharCode(65+c)}${r+1}" t="inlineStr"><is><t>${xml(value)}</t></is></c>`).join('')+'</row>').join('')+'</sheetData></worksheet>')
+ for(const [i,[,rows]] of tables.entries())files[`xl/worksheets/sheet${i+1}.xml`]=strToU8('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+rows.map((row,r)=>`<row r="${r+1}">`+row.map((value,c)=>`<c r="${column(c)}${r+1}" t="inlineStr"><is><t>${xml(value)}</t></is></c>`).join('')+'</row>').join('')+'</sheetData></worksheet>')
  return [{name:'synthetic-coffer-1400.xlsx',base64:Buffer.from(zipSync(files)).toString('base64')}]
 }
 
@@ -396,4 +397,12 @@ test('MOVE-010: Neon account, donation and activity definitions',async()=>{
 })
 test('MOVE-010: Spreadsheet declarations retain typed values and waiting rows',async()=>{
  const {spreadsheetCustomJourney}=await import('./custom-source-spreadsheet.mjs');await spreadsheetCustomJourney()
+})
+
+test('MOVE-006: mapped spreadsheets reconcile gift history, native matches, source preferences and guarded custody',async()=>{
+ const {spreadsheetJourney}=await import('./spreadsheet-journey.mjs')
+ await spreadsheetJourney(customReportFiles)
+ const {spreadsheetRecordsJourney,spreadsheetAddressJourney}=await import('./spreadsheet-records-journey.mjs')
+ await spreadsheetRecordsJourney(customReportFiles)
+ await spreadsheetAddressJourney(customReportFiles)
 })

@@ -156,6 +156,7 @@ import { updateFeeCover } from './giving/fee-cover'
 import { createCampaign, campaigns } from './giving/campaigns'
 import { publishCampaign } from './giving/campaign-publication'
 import { givingManageResponse } from './giving/manage-ui'
+import { givingFormResponse } from './giving/form-response'
 import { checkStripe, givingSetupPage } from './giving/setup'
 import { invitePerson, people } from './people'
 import { receiptEvents } from './letter-delivery'
@@ -319,6 +320,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if (agent) return agent
   const crmMoveIn = await crmMoveInResponse(request, c, { jsonBody, formBody })
   if (crmMoveIn) return crmMoveIn
+  const formSettings = await givingFormResponse(request,c)
+  if(formSettings)return formSettings
   const staffPlans = await staffPlanResponse(request,c)
   if(staffPlans)return staffPlans
   const payments = await paymentsResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))

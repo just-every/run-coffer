@@ -28,13 +28,14 @@ export class SourceRow {
   this.headers = table.rows[0].map(valueText)
   const aliases = columnFields(result.source)
   for (let i = 0; i < this.headers.length; i++) {
-   const field = aliases.get(normalizeLabel(this.headers[i]))
+   const mapping=result.spreadsheet
+   const field = mapping ? mapping.columns.find(c=>c.column===this.headers[i]&&(!c.sheet||c.sheet===table.sheet))?.field : aliases.get(normalizeLabel(this.headers[i]))
    if (field) { if (!this.fields.has(field)) this.fields.set(field, i); else this.error('DUPLICATE_COLUMN', `Columns map to the same field ${field}; export a single unambiguous column.`, this.headers[i]) }
   }
  }
  has(field: string) { return this.fields.has(field) }
  raw(field: string): Cell | undefined { const i = this.fields.get(field); return i === undefined ? undefined : this.cells[i] }
- peek(field: string) { return valueText(this.raw(field)) }
+ peek(field: string) { const value=valueText(this.raw(field)),translations=this.result.spreadsheet?.translations; const values=field==='fund'?translations?.fund:field==='method'?translations?.method:undefined; return values&&Object.hasOwn(values,value)?values[value]:value }
  get(field: string) { const i = this.fields.get(field); if (i !== undefined) this.used.add(i); return this.peek(field) }
  // Source household overrides keep the exact exported wording and spacing.
  verbatim(field: string) { this.get(field); const value = this.raw(field); return value === undefined || value === null ? '' : String(value) }
@@ -62,7 +63,8 @@ export class SourceRow {
    if (['installment', 'pledgeinstallment'].includes(type)) return 'installment'
    if (['softcredit', 'softcredits'].includes(type)) return 'softCredit'
    if (['gift', 'donation', 'cash', 'paycash', 'pledgepayment', 'payment', 'recurringdonationpayment', 'recurringgiftpayment', 'recurringgiftpaycash', 'onetimegift', 'onetime'].includes(type)) return 'gift'
-   // Missing type is deliberately rejected: a pledge, schedule, or credit may look like cash.
+   if(!type&&this.result.spreadsheet?.recordType==='gift')return 'gift'
+   // Incumbent exports require explicit types; a spreadsheet has a reviewed record kind.
    return 'unsupported'
   }
   if (this.peek('pledgeId') && this.peek('amount')) return 'pledge'
