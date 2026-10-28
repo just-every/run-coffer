@@ -41,7 +41,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const merges = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'into_id',into_id) AS snapshot FROM cf_donor_merges ORDER BY donor_id`)
  const merged = new Map(merges.map(m=>[m.donor_id as string,m.into_id as string]))
  const canonical = (id: string): string => merged.get(id)??id
- const donorRows = await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) OR n.source_ref IN (SELECT value FROM json_each(?)) ORDER BY n.id`, [JSON.stringify(mappings.filter(m=>m.kind==='donor').map(m=>m.native_id)),JSON.stringify(parsed.donors.map(d=>`${source}:${d.externalId}`))])
+ const donorRows = await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) OR n.source_ref IN (SELECT value FROM json_each(?)) ORDER BY n.id`, [JSON.stringify([...mappings.filter(m=>m.kind==='donor').map(m=>m.native_id),...parsed.donors.flatMap(d=>d.match?[d.match.id]:[])]),JSON.stringify(parsed.donors.map(d=>`${source}:${d.externalId}`))])
  const survivors = [...new Set([...donorRows.map(d=>canonical(d.id))])].filter(id=>!donorRows.some(d=>d.id===id))
  if(survivors.length)donorRows.push(...await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) ORDER BY n.id`,[JSON.stringify(survivors)]))
  // Household names are unique in Coffer. An imported household never joins an existing one by name: it takes the next free name.
@@ -90,11 +90,15 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  }
  for (const d of parsed.donors) {
   const prior = existing.get(`donor:${await sourceKey(d.externalId)}`)
+  if(d.match) {
+   const selected=donorRows.find(r=>r.id===d.match!.id)
+   if(!selected||selected.erased_at||merged.has(d.match.id)||(!prior&&selected.version!==d.match.version)||prior&&canonical(prior.native_id)!==d.match.id)diagnostic(`Constituent ${d.externalId}: the selected donor changed, was erased or merged, or differs from the previous source match. Review the current donor again.`,d.location,'error','DONOR_MATCH')
+  }
   if (prior) { plan.donorIds.set(d.externalId,await add('donor',d,{})); continue }
   if ((d.contacts??[]).some(p=>p.kind==='email'&&suppressed.has(erasureHash(p.value))) || suppressed.has(erasureHash(d.email)) || suppressed.has(erasureHash(`${source}:${d.externalId}`)) || suppressed.has(erasureHash(await nativeId(source,'donor',d.externalId)))) diagnostic(`Donor ${d.externalId} was erased from Coffer. Remove this constituent and its linked rows from the exports; erased records cannot be restored.`,d.location)
   // The incumbent's constituent ID wins. A distinct source ID never joins
   // another source constituent merely because their contacts coincide.
-  const matching = donorRows.filter(r=>r.source_ref===`${source}:${d.externalId}`)
+  const matching = donorRows.filter(r=>d.match?r.id===d.match.id:r.source_ref===`${source}:${d.externalId}`)
   const sourceHouseholdId=d.householdKey?(households.get(d.householdKey)||existing.get(`household:${await sourceKey(d.householdKey)}`)?.native_id):null
   const eligibleMatches=matching.filter(r=>!sourceHouseholdId||r.household_id!==sourceHouseholdId||r.source_ref===`${source}:${d.externalId}`)
   const matches = [...new Map(eligibleMatches.map(r=>{const id=canonical(r.id);return [id,donorRows.find(d=>d.id===id)??r]})).values()]

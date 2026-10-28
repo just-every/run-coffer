@@ -15,7 +15,7 @@ const customChoices=(m:Row)=> (m.choices??[]).map((v:string)=>{
  const n=BigInt(v),negative=n<0n,raw=String(negative?-n:n).padStart(3,'0')
  return (negative?'-':'')+raw.slice(0,-2)+'.'+raw.slice(-2)
 }).join('\n')
-function customMapping(source:string,report:Row={}) {
+export function customMapping(source:string,report:Row={}) {
  const columns=report.sourceColumns??[{column:'',sheet:'',kind:'constituent'}], mappings=report.customFields??[], definitions=report.customDefinitions??[]
  return `<details><summary>Map custom report columns</summary><p>Choose the exact exported column and its record kind, then select an existing field or define a new one. Leave the field key empty to leave a column out. USD amounts need at most two decimal places; pick-many cells use a list such as ["Board", "Volunteer"]. Blank cells leave values unset. Preview again to review every mapping before moving in.</p>${columns.map((column:Row)=>{
   const m=mappings.find((v:Row)=>v.column===column.column&&(!v.sheet||v.sheet===column.sheet)&&v.kind===column.kind)??{}, existing=m.version?m.key:''
@@ -33,7 +33,7 @@ const reviewedCustom=(report:Row)=>report.customFields?.length?box('Reviewed cus
 
 
 export function crmMoveInPage(jobs:Row[],tz:string,definitions:Row[]=[]) {
- return `<p>Bring your donor records and gift history into Coffer. Preview every file and compare totals before you switch.</p><div class="grid"><div>
+ return `<p>Bring your donor records and gift history into Coffer. Preview every file and compare totals before you switch.</p><p><a href="/app/move-in/crm/spreadsheet">Map any spreadsheet</a></p><div class="grid"><div>
  ${box('1. Choose your exports',`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${select('Moving from','source',sources)}
  <label>Export files (CSV or XLSX)<input type="file" name="exports" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required></label>
  <p class="muted">Include the constituent and gift exports, plus relationships, pledges, soft credits and notes if you have them. Workbooks can contain several sheets. One move-in takes up to 16 MB of files and 100,000 rows, about 10,000 donors with 80,000 gifts. Larger? Split the gift export by year and move the years in oldest first, uploading constituents.csv again with each year’s file; donors and pledges already moved in are matched by their CRM ID, not copied.</p>
@@ -85,7 +85,7 @@ function leftOutColumns(columns:Row[]) {
  return `<p>These columns have no place in Coffer. Their values stay in your files and are not moved in.</p><div class="scroll"><table class="stack"><thead><tr><th>Column</th><th>File</th><th>Values left out</th><th>For example</th></tr></thead><tbody>${columns.map(c=>`<tr><td class="lead">${e(c.column)}</td><td data-label="File">${e(c.file)}</td><td data-label="Values left out">${c.values}</td><td data-label="For example">“${e(String(c.example).slice(0,60))}” · row ${c.rows.join(', ')}</td></tr>`).join('')}</tbody></table></div>`
 }
 
-const upload=(source:string,title:string,report:Row)=>box(title,`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${hidden('source',source)}
+const upload=(source:string,title:string,report:Row)=>source==='spreadsheet'?box(title,'<p><a href="/app/move-in/crm/spreadsheet">Choose a spreadsheet and its saved mapping</a></p>'):box(title,`<form method="post" action="/app/move-in/crm/preview" enctype="multipart/form-data">${hidden('source',source)}
  <label>Export files (CSV or XLSX)<input type="file" name="exports" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required></label>
  ${restrictionMapping()}${customMapping(source,report)}<label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
  <p class="muted">Upload all the files again, not only the one you changed. Reading and checking 100,000 rows takes up to a minute.</p><button>Check the files again</button></form>`,'again')

@@ -1,4 +1,5 @@
 import { reviewedCustomMappings, mapCustomColumns } from './custom-fields'
+import { reviewedSpreadsheet } from './spreadsheet-mapping'
 import { creditChecks, sharedEmails } from './checks'
 import { inferHouseholds, validateHouseholdHeads } from './households'
 import { pledgeChecks } from './pledge-checks'
@@ -13,9 +14,10 @@ export type { ParsedImport, ParseInput } from './types'
 /** A bounded, pure preview: malformed rows remain visible as structured diagnostics. */
 export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  const out: ParsedImport = { source: input.source, solicitations: [], channelWithdrawals: [], solicitCodes: input.solicitCodes, donors: [], gifts: [], households: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [] }
- if (!['lgl', 'bloomerang', 're-nxt'].includes(input.source)) {
-  out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose Little Green Light, Bloomerang, or Raiser’s Edge NXT.' }); return out
+ if (!['lgl', 'bloomerang', 're-nxt', 'spreadsheet'].includes(input.source)) {
+  out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose an available CRM or spreadsheet.' }); return out
  }
+ if(input.source==='spreadsheet')out.spreadsheet=reviewedSpreadsheet(input.spreadsheet,out)
  reviewedCustomMappings(input,out)
  const tables = await readExports(input.files, out), rows: SourceRow[] = []
  const aliases = columnFields(input.source)
@@ -31,6 +33,7 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  }
  sourceTotals(rows, out.sourceTotals)
  for (const row of rows) if (row.kind() === 'control') { mapRow(row, out, input); controlRow(row, out) } else mapRow(row, out, input)
+ if(out.spreadsheet?.donorMatches)for(const donor of out.donors)if(Object.hasOwn(out.spreadsheet.donorMatches,donor.externalId))donor.match=out.spreadsheet.donorMatches[donor.externalId]
  mapCustomColumns(rows,out)
  inferHouseholds(out)
  validateHouseholdHeads(out)
