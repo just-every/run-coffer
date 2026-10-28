@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "980a3d1ccdcdbd5803d1bd94f0a71bb3bdf52e31a9ebf6b7a9c1935c00f60a02",
+      "sha256": "f1bb95f130be4f1277f25e353e5d963c3150793f4e47d800d817f5bbf6e23abd",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "412cb25af01362bcff2f75e6216e0bcdac17c083133508002a9a055f0660853d",
+      "sha256": "c6808b3596a8c35ea4c56df801c9533fa8df7005d436cc5b8292708b194e9b27",
       "executable": false
     },
     "deploy-demo.json": {
@@ -715,7 +715,7 @@
       "executable": false
     },
     "docs/neon-move-in.md": {
-      "sha256": "c07fda3891ff4f8712d64aed3460e84114d38c0ff2981fe460d1813715ee5b69",
+      "sha256": "b77c377beaef05dfb3b89752724cb012773089c70f09626f324bcb73a26d5eb5",
       "executable": false
     },
     "docs/ONLINE-GIVING.md": {
@@ -3367,7 +3367,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "ed62385c13358fdcf111b8a2dc1b6edd63fd2b387bd411c62f27648e51b9781c",
+      "sha256": "190f86c5987cfb0a27bc4149dec9cfa6a541873808ff3d0a01fabc6a5baf4db5",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {

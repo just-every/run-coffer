@@ -20,6 +20,9 @@ import { compact, ordered, reportOf, store } from './review'
 import type { Diagnostic, ParseInput, ParsedImport, SourceCoverage } from './types'
 
 const APPLY_BUDGET_MS = 20_000
+function confirmedNeonCurrency(job:Row) {
+ if(job.source==='neon'&&JSON.parse(job.report).sourceCoverage?.currency!=='USD')fail('NEON_CURRENCY','This Neon review has no USD confirmation. Read and review it again before applying money.',409)
+}
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
 const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...(['givebutter','zeffy'].includes(p.source)?{recurringReferences:(p.recurringReferences??[]).length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...(['spreadsheet','givebutter','zeffy','neon'].includes(p.source)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
@@ -81,6 +84,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',String(input.id??''))
  if(!job)fail('MOVE_IN_CHANGED','Upload the exports and review them again.',409)
  if(job.redacted)fail('MOVE_IN_ERASED','A donor in this move-in was erased. This review cannot restore their records.',409)
+ confirmedNeonCurrency(job)
  if(job.state==='completed')return {id:job.id,state:'completed',unchanged:true,parts:job.parts,appliedParts:job.applied_parts}
  if(job.state==='applying')return continueApply(c,job.id)
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
@@ -106,6 +110,7 @@ export async function continueApply(c: Context,id:string) {
   const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',id)
   if(!job)fail('NOT_FOUND','That move-in does not exist.',404)
   if(job.redacted)fail('MOVE_IN_ERASED','A donor in this move-in was erased. This review cannot continue.',409)
+  confirmedNeonCurrency(job)
   if(job.state!=='applying')return {id,state:job.state,parts:job.parts,appliedParts:job.applied_parts,unchanged:true}
   const next=await one(c,'SELECT position,payload FROM cf_move_in_parts WHERE job_id=? AND applied_at IS NULL ORDER BY position LIMIT 1',id)
   if(!next){await finish(c,job);return {id,state:'completed',parts:job.parts,appliedParts:job.parts,unchanged:false}}
