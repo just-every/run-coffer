@@ -2959,7 +2959,7 @@
       "executable": false
     },
     "src/coffer/giving/form-manage-ui.ts": {
-      "sha256": "76119446fd2ccd61e4ffea8b3edd4f54e21e2c9186d6f360db13b18f6061395b",
+      "sha256": "f54ef5eb397dc624a92216d7b090882f10b70338d1fcad25ba3641058313407a",
       "executable": false
     },
     "src/coffer/giving/form-recording.ts": {
