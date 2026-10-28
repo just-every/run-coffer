@@ -77,6 +77,8 @@ import { correctReceipt } from './receipt-corrections'
 import { ackCommand } from './acknowledgements'
 import { appealCommand } from './appeals'
 import { settingsCommand } from './settings'
+import { sendingDomainCommand } from './sending-domain'
+import { runAutomaticReceipts } from './automatic-receipts'
 import { letterTemplateCommand } from './letter-templates'
 import { deliveryCommand } from './letter-delivery'
 import { prepareStatements } from './year-end'
@@ -105,6 +107,7 @@ export const ACCESS: Record<string, Role[]> = {
  'giftRule.save': MANAGERS, 'giftRule.publish': MANAGERS, 'giftRule.pause': MANAGERS,
  'sms.registration.refresh': MANAGERS, 'sms.schedule': MANAGERS, 'sms.cancelSchedule': MANAGERS, 'sms.discard': MANAGERS, 'solicitation.set': STAFF, 'sms.preference': STAFF, 'sms.prepare': MANAGERS, 'sms.approve': MANAGERS, 'sms.send': MANAGERS,
  'giftBatch.create': STAFF, 'giftBatch.add': STAFF, 'giftBatch.edit': STAFF, 'giftBatch.close': STAFF,
+ 'sendingDomain.save': MANAGERS, 'sendingDomain.verify': MANAGERS,
  'list.tasks': MANAGERS,'list.welcome': MANAGERS,'list.profile': MANAGERS,'list.profileUndo': MANAGERS, 'list.restorePending': MANAGERS,'list.bulk': MANAGERS, 'list.undo': MANAGERS,
  'list.solicitation': MANAGERS, 'list.save': MANAGERS, 'person.defaultsPreview': MANAGERS, 'person.defaults': MANAGERS, 'organization.contact': STAFF, 'household.update': STAFF, 'household.confirmNames': STAFF, 'statusNotice.acknowledge': STAFF, 'household.defaultsPreview': MANAGERS, 'household.defaults': MANAGERS, 'donor.profile': STAFF,
  'meeting.question.set': STAFF, 'meeting.schedule': STAFF, 'meeting.cancel': STAFF,
@@ -152,6 +155,7 @@ export async function execute(c: Context, command: string, input: unknown): Prom
  if(command==='calls.rank')return rankCalls(c,p)
  if(command==='calls.policy')return saveCallRankPolicy(c,p)
  if (command === 'settings.update') return settingsCommand(c, p)
+ if(command.startsWith('sendingDomain.'))return sendingDomainCommand(c,command,p)
  if(command.startsWith('calendar.'))return (await calendarCommand(c,command,p))!
  if(command.startsWith('booking.'))return (await bookingCommand(c,command,p))!
  if (command.startsWith('agentGrant.')) return (await agentGrantCommand(c,command,p))!
@@ -162,7 +166,10 @@ export async function execute(c: Context, command: string, input: unknown): Prom
    if(command==='consent.record' && p.channel==='email'){ const ids=Array.isArray(p.donorIds)?p.donorIds:[p.donorIds??p.donorId]; result.mango=await syncPreferences(c,ids) }
    if(['reply.confirmStop','reply.reverseStop'].includes(command)) result.mango=await syncPreferences(c,[result.donor_id])
    if(command==='gift.record'||command==='contribution.record')await runGiftRules(c.env!,result.id)
-   if(command==='giftBatch.close')for(const giftId of result.giftIds)await runGiftRules(c.env!,giftId)
+   if(command==='giftBatch.close') {
+    await runAutomaticReceipts(c.env!,new Date(c.now),result.giftIds)
+    for(const giftId of result.giftIds)await runGiftRules(c.env!,giftId)
+   }
    return result
   }
  }

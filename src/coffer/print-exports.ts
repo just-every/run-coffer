@@ -106,7 +106,7 @@ function envelopePages(pdf: PDFDocument, letters: Row[], organisation: string, f
 }
 
 /** A real downloadable PDF; long letters continue without sharing recipients. */
-export async function lettersPdfResponse(letters: Row[], organisation: string, filename = 'letters.pdf', format: PrintFormat = 'letters'): Promise<Response> {
+export async function lettersPdfBytes(letters: Row[], organisation: string, format: PrintFormat = 'letters'): Promise<Uint8Array> {
  if (!letters.length) fail('NO_PRINTABLE_LETTERS', 'There are no letters in this selection.', 409)
  const pdf = await PDFDocument.create()
  pdf.registerFontkit(fontkit)
@@ -117,5 +117,9 @@ export async function lettersPdfResponse(letters: Row[], organisation: string, f
  if (format === 'labels') labelPages(pdf, letters, font)
  else if (format === 'envelopes') envelopePages(pdf, letters, organisation, font)
  else letterPages(pdf, letters, organisation, font)
- return download(await pdf.save(), 'application/pdf', filename)
+ return pdf.save()
+}
+
+export async function lettersPdfResponse(letters: Row[], organisation: string, filename = 'letters.pdf', format: PrintFormat = 'letters'): Promise<Response> {
+ return download(await lettersPdfBytes(letters, organisation, format), 'application/pdf', filename)
 }

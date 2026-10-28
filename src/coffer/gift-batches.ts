@@ -3,6 +3,7 @@ import { amount } from './money'
 import { prepareGiftRecord } from './gifts'
 import { entryAttribution } from './attribution'
 import { settings } from './settings'
+import { enqueueAutomaticReceipt } from './automatic-receipt-queue'
 
 export async function giftBatches(c: Context) {
  return all(c, `SELECT b.*,COALESCE(SUM(e.amount_cents),0) AS total_cents,COUNT(e.id) AS gift_count FROM cf_gift_batches b LEFT JOIN cf_batch_entries e ON e.batch_id=b.id GROUP BY b.id ORDER BY b.created_at DESC,b.id`)
@@ -50,7 +51,7 @@ export async function giftBatchCommand(c: Context, command: string, p: Row): Pro
   if (!batch.entries.length || batch.total_cents !== batch.expected_cents) fail('UNBALANCED','The running total must equal the expected deposit total before closing.')
   const writes = await Promise.all(batch.entries.map((entry: Row) => prepareGiftRecord(c, { customFields:JSON.parse(entry.custom_fields),donorId:entry.donor_id, amountCents:entry.amount_cents, receivedOn:batch.received_on, method:batch.method, reference:entry.reference, fund:entry.fund??batch.fund, campaignId:batch.campaign_id, appeal:entry.appeal??batch.appeal, channel:'mail', goods:entry.goods, goodsValueCents:entry.goods_cents, goodsDescription:entry.goods_description }, entry.id)))
   await commit(c,[open(batchId,version),guard('(SELECT SUM(amount_cents) FROM cf_batch_entries WHERE batch_id=?)=(SELECT expected_cents FROM cf_gift_batches WHERE id=?)','UNBALANCED','The deposit no longer balances.',batchId,batchId),
-   ...writes.flatMap(write=>write.statements),sql('UPDATE cf_batch_entries SET gift_id=id WHERE batch_id=?',batchId),
+   ...writes.flatMap(write=>write.statements),...batch.entries.map(entry=>enqueueAutomaticReceipt(entry.id,'offline',c.now)),sql('UPDATE cf_batch_entries SET gift_id=id WHERE batch_id=?',batchId),
    sql("UPDATE cf_gift_batches SET status='closed',closed_at=?,closed_by=?,version=version+1 WHERE id=?",c.now,c.actor.name,batchId),
    event(c,command,'giftBatch',batchId,null,{giftCount:batch.entries.length,amountCents:batch.total_cents})])
   return { id:batchId,depositId:batchId,version:version+1,giftIds:batch.entries.map(e=>e.id) }

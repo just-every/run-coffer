@@ -1,5 +1,6 @@
 import { receiptText } from './receipt-format'
 import { receiptReplyAddress } from './receipt-replies'
+import { lettersPdfBytes } from './print-exports'
 import type { Bindings } from '../auth.server'
 import { donorMailUnavailable, sendDonorMail, DonorMailError } from './outbound-mail'
 // The shared verifier has no TypeScript declaration; it owns strict DER-to-P1363 conversion.
@@ -25,12 +26,18 @@ export async function sendReceipt(env: Bindings, letter: Row): Promise<{ message
  if (letter.void_reason) fail('VOID_RECEIPT', 'A voided receipt cannot be sent.')
  const body = letter.address&&JSON.parse(letter.address).organization ? `${letter.recipient_name}\n\n${receiptText(letter)}` : receiptText(letter)
  const replyTo = await receiptReplyAddress(env, letter)
+ // Use the same frozen document as the approved print download. No PDF is retained.
+ const organisation = (await env.DB.prepare('SELECT organisation FROM cf_settings WHERE id=1').first<{organisation:string}>())?.organisation ?? ''
+ const bytes = await lettersPdfBytes([letter], letter.receipt_organisation ?? organisation)
+ let binary = ''
+ for (const byte of bytes) binary += String.fromCharCode(byte)
  let result
  try {
   result = await sendDonorMail(env, {
     deliveryId: attemptId, from: env.MAIL_FROM!, to: [letter.recipient_email],
     subject: letter.subject, text: body, html: `<div>${String(body).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]!)).replace(/\n/g,'<br>')}</div>`, ...(replyTo ? { replyTo } : {}),
     customArgs: { coffer_letter_id: letterId, coffer_attempt_id: attemptId },
+    attachments: [{filename:`receipt-${letter.receipt_year}-${letter.receipt_sequence}.pdf`,type:'application/pdf',content:btoa(binary)}],
   })
  } catch (error) {
   // Never expose provider bodies, submitted donor data or credentials.
