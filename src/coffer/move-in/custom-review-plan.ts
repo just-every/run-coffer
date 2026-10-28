@@ -27,7 +27,7 @@ export async function buildCustomReview(definitions:SourceDefinition[],mappings:
    if(!f||!/^[a-z][a-z0-9_]{0,79}$/.test(f.key)||!f.label?.trim()||f.label.length>100||f.kind!==d.kind||f.type!==d.type||f.entry!==d.entry||!Array.isArray(f.choices)||f.choices.length>100||!f.version&&JSON.stringify(f.choices)!==JSON.stringify(targetChoices(d))||keys.has(f.key))fail('CUSTOM_MAPPING','Keep the source kind, type and entry method. New fields keep the source choices; existing fields use their reviewed choices.',400)
    keys.add(f.key)
   }
-  if(m.action==='tags'&&(d.kind!=='constituent'||d.type!=='text'||d.entry==='free-form'))fail('CUSTOM_MAPPING','Only constituent text pick lists map to constituent tags.',400)
+  if(m.action==='tags'&&(d.kind==='note'||d.type!=='text'||d.entry==='free-form'))fail('CUSTOM_MAPPING','Text pick lists on constituents, gifts and interactions can map to constituent tags. Note fields retain their record privacy.',400)
   const count={id:d.id,name:d.name,defined:m.action==='field'?1:0,source:d.values.length,carried:0,waiting:0,skipped:0}
   for(const source of d.values){
    const id=await sha256(JSON.stringify([d.id,source.recordId])),resolution=resolutions.find(r=>r.id===id)

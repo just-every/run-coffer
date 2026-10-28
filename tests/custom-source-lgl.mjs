@@ -5,9 +5,9 @@ const endpoint='/api/coffer/move-in/'
 const post=(h,action,input,options)=>h.api(endpoint+action,input,options)
 const file=(name,rows)=>({name,base64:Buffer.from(rows.map(r=>r.join(',')).join('\r\n')).toString('base64')})
 function lglEdge(){
- const keyword=(id,category_id,name)=>({id,category_id,name}),memberChoices=[keyword(41,31,'Board'),keyword(42,31,'Volunteer')],interests=[keyword(43,32,'Books'),keyword(44,32,'Music')],giftChoices=[keyword(45,33,'Reading')]
+ const keyword=(id,category_id,name)=>({id,category_id,name}),memberChoices=[keyword(41,31,'Board'),keyword(42,31,'Volunteer')],interests=[keyword(43,32,'Books'),keyword(44,32,'Music')],giftChoices=[keyword(45,33,'Reading')],giftTags=[keyword(46,34,'Library supporter')]
  const category=(id,item_type,name,facet_type,keywords)=>({id,item_type,name,facet_type,keywords,key:'synthetic-coffer-'+id})
- const categories=[category(31,'Constituent','Membership','single',[]),category(32,'Constituent','Interests','list',[]),category(33,'Gift','Gift purpose','single',[])]
+ const categories=[category(31,'Constituent','Membership','single',[]),category(32,'Constituent','Interests','list',[]),category(33,'Gift','Gift purpose','single',[]),category(34,'Gift','Gift circle','single',[])]
  const attrs=[{id:51,item_type:0,name:'Source detail',key:'synthetic-coffer-51'},{id:52,item_type:0,name:'Source score',key:'synthetic-coffer-52'}]
  const page=items=>({items_count:items.length,total_items:items.length,offset:0,limit:25,items})
  return async request=>{
@@ -15,11 +15,11 @@ function lglEdge(){
   const p=u.pathname.slice('/api/v1'.length)
   if(p==='/categories.json')return Response.json(page(categories.filter(c=>c.item_type===u.searchParams.get('item_type'))))
   if(p==='/attributes.json')return Response.json(page(attrs))
-  const choices={'/categories/31/keywords.json':memberChoices,'/categories/32/keywords.json':interests,'/categories/33/keywords.json':giftChoices}
+  const choices={'/categories/31/keywords.json':memberChoices,'/categories/32/keywords.json':interests,'/categories/33/keywords.json':giftChoices,'/categories/34/keywords.json':giftTags}
   if(choices[p])return Response.json(page(choices[p]))
   if(p==='/constituents/71.json')return Response.json({id:71,custom_attrs:[{...attrs[0],classification:'text',value:'Keep source detail'},{...attrs[1],classification:'integer',value:'not a number'}]})
   if(p==='/constituents/71/categories.json')return Response.json(page([{...categories[0],keywords:[memberChoices[0]]},{...categories[1],keywords:interests}]))
-  if(p==='/gifts/81.json')return Response.json({id:81,custom_fields:[{...categories[2],values:giftChoices}]})
+  if(p==='/gifts/81.json')return Response.json({id:81,custom_fields:[{...categories[2],values:giftChoices},{...categories[3],values:giftTags}]})
   assert.fail('Unexpected LGL request '+p)
  }
 }
@@ -29,8 +29,8 @@ export async function lglCustomJourney(){await run(async h=>{
  const preview=await post(h,'preview',input);assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint})
  await sourceCaptureBrowser(h,preview.id,'.cache/custom-source-lgl','synthetic-coffer-1650')
  const captured=await post(h,'custom-capture',{id:preview.id,apiKey:'synthetic-coffer-1650'}),r=captured.review
- assert.equal(r.definitions.length,5);assert.equal(r.values.filter(v=>v.state==='waiting').length,1)
- const mappings=r.mappings.map(m=>m.id==='category:constituent:31'?{...m,field:{...m.field,key:'existing_membership',version:1}}:m.id==='attribute:constituent:51'?{...m,field:{...m.field,label:'Imported source detail'}}:m)
+ assert.equal(r.definitions.length,6);assert.equal(r.values.filter(v=>v.state==='waiting').length,1)
+ const mappings=r.mappings.map(m=>m.id==='category:constituent:31'?{...m,field:{...m.field,key:'existing_membership',version:1}}:m.id==='category:gift:34'?{...m,action:'tags'}:m.id==='attribute:constituent:51'?{...m,field:{...m.field,label:'Imported source detail'}}:m)
  const revised=await post(h,'custom-review',{id:preview.id,version:r.version,mappings,resolutions:[]})
  await sourceCustomBrowser(h,preview.id,'.cache/custom-source-lgl',{topic:false})
  const native=(await h.get(endpoint+'custom-review?id='+preview.id)).review
@@ -38,6 +38,7 @@ export async function lglCustomJourney(){await run(async h=>{
  await sourceCustomBrowser(h,preview.id,'.cache/custom-source-lgl',{applied:true,topic:false})
  const person=(await h.get('/api/coffer/donors')).donors[0],details=await h.get('/api/coffer/donors/'+person.id),values=Object.fromEntries(details.customValues.map(v=>[v.field_key,JSON.parse(v.value)]))
  assert.deepEqual(values,{existing_membership:'Board',import_lgl_category_constituent_32:['Books','Music'],import_lgl_category_gift_33:'Reading',import_lgl_attribute_constituent_51:'Keep source detail'})
+ assert.deepEqual(details.ruleTags.map(t=>t.tag),['Library supporter'],'A gift category maps explicitly to a tag on its constituent')
  const definitions=(await h.get('/api/coffer/custom-fields')).fields
  assert.equal(definitions.find(f=>f.key==='import_lgl_attribute_constituent_52').type,'number','A waiting-only definition is still created')
  const saved=await archive(h,{maxParts:100})

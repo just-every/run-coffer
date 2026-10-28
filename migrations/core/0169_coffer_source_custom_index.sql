@@ -20,3 +20,23 @@ BEGIN
  DELETE FROM cf_move_in_issues WHERE job_id IN(SELECT id FROM cf_move_in_jobs WHERE redacted=1);
  DELETE FROM cf_move_in_source_records WHERE job_id IN(SELECT id FROM cf_move_in_jobs WHERE redacted=1);
 END;
+-- Native merges retain immutable importer custody; this lookup follows its current constituent.
+CREATE TRIGGER cf_source_review_merge AFTER INSERT ON cf_donor_merges
+BEGIN
+ UPDATE cf_move_in_source_records SET donor_id=NEW.into_id
+ WHERE donor_id=NEW.donor_id OR EXISTS(
+  SELECT 1 FROM cf_move_in_jobs j JOIN cf_move_in_records r ON r.source=j.source AND r.kind='donor'
+  WHERE j.id=cf_move_in_source_records.job_id AND r.source_key=cf_move_in_source_records.donor_key AND r.donor_id=NEW.donor_id);
+END;
+CREATE TRIGGER cf_source_review_remerge AFTER UPDATE OF into_id ON cf_donor_merges
+BEGIN
+ UPDATE cf_move_in_source_records SET donor_id=NEW.into_id WHERE EXISTS(
+  SELECT 1 FROM cf_move_in_jobs j JOIN cf_move_in_records r ON r.source=j.source AND r.kind='donor'
+  WHERE j.id=cf_move_in_source_records.job_id AND r.source_key=cf_move_in_source_records.donor_key AND r.donor_id=NEW.donor_id);
+END;
+CREATE TRIGGER cf_source_review_merge_undo AFTER DELETE ON cf_donor_merges
+BEGIN
+ UPDATE cf_move_in_source_records SET donor_id=OLD.donor_id WHERE EXISTS(
+  SELECT 1 FROM cf_move_in_jobs j JOIN cf_move_in_records r ON r.source=j.source AND r.kind='donor'
+  WHERE j.id=cf_move_in_source_records.job_id AND r.source_key=cf_move_in_source_records.donor_key AND r.donor_id=OLD.donor_id);
+END;

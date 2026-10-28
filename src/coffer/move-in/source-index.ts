@@ -10,7 +10,7 @@ export async function stageSourceIndex(c:Context,jobId:string,source:string,reco
   const rows=await Promise.all(unique.slice(start,start+250).map(async r=>({...r,sourceKey:await sha256(r.externalId),donorKey:await sha256(r.donorExternalId)})))
   await commit(c,[guard('EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND redacted=0)','MOVE_IN_CHANGED','This import was erased or changed.',jobId),sql(`INSERT INTO cf_move_in_source_records(job_id,kind,external_id,donor_external_id,source_key,donor_key,source_object,donor_id)
    SELECT ?,json_extract(value,'$.kind'),json_extract(value,'$.externalId'),json_extract(value,'$.donorExternalId'),json_extract(value,'$.sourceKey'),json_extract(value,'$.donorKey'),json_extract(value,'$.sourceObject'),
-   (SELECT COALESCE(r.donor_id,r.native_id) FROM cf_move_in_records r WHERE r.source=? AND r.kind='donor' AND r.source_key=json_extract(value,'$.donorKey')) FROM json_each(?)`,jobId,source,JSON.stringify(rows))])
+   (SELECT COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=COALESCE(r.donor_id,r.native_id)),r.donor_id,r.native_id) FROM cf_move_in_records r WHERE r.source=? AND r.kind='donor' AND r.source_key=json_extract(value,'$.donorKey')) FROM json_each(?)`,jobId,source,JSON.stringify(rows))])
  }
  await commit(c,[sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.sourceIndexComplete',json('true')) WHERE id=? AND redacted=0",jobId),
   sql("UPDATE cf_move_in_jobs SET report='{}',redacted=1,accepted_reason=NULL,check_report=NULL WHERE id=? AND EXISTS(SELECT 1 FROM cf_move_in_source_records i JOIN cf_move_in_records r ON r.source=? AND r.kind='donor' AND r.source_key=i.donor_key WHERE i.job_id=? AND r.snapshot IS NULL)",jobId,source,jobId),
