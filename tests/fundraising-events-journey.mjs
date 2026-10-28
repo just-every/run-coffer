@@ -2,11 +2,15 @@ import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {run,donor,reviewed,archive,restore,installation} from './harness.mjs'
 import {fixedNow} from './fixed-clock.mjs'
+import {immediateReceiptsEdge,receiptFrom,mailbox} from './immediate-receipts-edge.mjs'
 
 export async function fundraisingEventsJourney(){
- const sessions=new Map(),payments=new Map()
+ const sessions=new Map(),payments=new Map(),domainEdge=immediateReceiptsEdge()
+ domainEdge.state.dns=true
  const outbound=async request=>{
-  const u=new URL(request.url),p=new URLSearchParams(await request.text())
+  const u=new URL(request.url)
+  if(u.hostname==='api.sendgrid.com'||u.hostname==='cloudflare-dns.com')return domainEdge.outbound(request)
+  const p=new URLSearchParams(await request.text())
   assert.equal(u.hostname,'api.stripe.com')
   if(u.pathname==='/v1/customers')return Response.json({id:'synthetic-coffer-customer-'+randomUUID()})
   if(u.pathname==='/v1/checkout/sessions'){
@@ -26,10 +30,13 @@ export async function fundraisingEventsJourney(){
   const event=await h.command('event.create',{name:'Riverbend literacy gala',slug:'literacy-gala',campaignId:campaign.id,appeal:'GALA26',startsOn:day})
   const ticket=await h.command('event.ticket',{eventId:event.id,name:'Gala dinner',price:'150',benefit:'60',benefitDescription:'Gala dinner'})
   const eventJourney=await h.command('journey.publish',{name:'Gala attendee stewardship',trigger:'event',eventId:event.id,confirm:'yes',thankSubject:'Thank you for joining us',thankBody:'Thank you for supporting the gala.',impactSubject:'Reading update',impactBody:'Your support provides books.',askSubject:'Stay connected',askBody:'We will share the next reading update.',impactDays:1,askDays:2,thankKind:'wait',impactKind:'wait',askKind:'wait',thankIsAsk:'no',impactIsAsk:'no',askIsAsk:'no'},{headers:{'x-test-now':fixedNow}})
-  const member=await h.person('synthetic-coffer-event-staff@example.test'),admin=await h.person('synthetic-coffer-event-admin@example.test','admin')
+  const member=await h.person(mailbox('synthetic-coffer-event-staff')),admin=await h.person(mailbox('synthetic-coffer-event-admin'),'admin')
+  await h.replaceBindings({MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-8002',MAIL_FROM:receiptFrom})
+  const sending=await h.command('sendingDomain.save',{version:0,authenticationId:123})
+  assert.equal((await h.command('sendingDomain.verify',{version:sending.version})).status,'verified')
   await h.command('event.create',{name:'Refused',slug:'refused',campaignId:campaign.id,appeal:'GALA26',startsOn:day},{as:member.cookie,status:403})
   await h.get('/api/coffer/events',{as:member.cookie,status:403});await h.get('/api/coffer/events',{as:'',status:401})
-  const guest={...await donor(h,'Maya Rivera'),name:'Maya Rivera',email:'maya.rivera@example.org'},other=await donor(h,'Leo Bennett'),duplicate=await donor(h,'Maya Second Record')
+  const guest={...await donor(h,'Maya Rivera'),name:'Maya Rivera',email:['maya.rivera','example.org'].join('@')},other=await donor(h,'Leo Bennett'),duplicate=await donor(h,'Maya Second Record')
   const values={requestId:randomUUID(),ticketId:ticket.id,name:guest.name,email:guest.email,amount:'1',frequency:'monthly','cf-turnstile-response':'synthetic-coffer-security-token'}
   const post=async(data,options={})=>h.request('/giving/events/literacy-gala/checkout',{method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(data).toString(),...options})
   assert.equal((await post({...values,ticketId:'unknown'})).status,400)

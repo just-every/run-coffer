@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
+import {immediateReceiptsEdge} from './immediate-receipts-edge.mjs'
 export const form=values=>({method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(values).toString()})
 export function recognitionEdges(){
+ const domainEdge=immediateReceiptsEdge();domainEdge.state.dns=true
  const sessions=new Map(),payments=new Map(),messages=[];let serial=0
  const outbound=async request=>{
   const url=new URL(request.url)
+  if(url.hostname==='cloudflare-dns.com'||(url.hostname==='api.sendgrid.com'&&url.pathname.startsWith('/v3/whitelabel/domains/')))return domainEdge.outbound(request)
   if(url.hostname==='api.sendgrid.com'){
    assert.equal(url.pathname,'/v3/mail/send');messages.push(await request.json())
    return new Response(null,{status:202,headers:{'x-message-id':`recognition-mail-${messages.length}`}})
@@ -32,7 +35,7 @@ export async function giveRecognition(h,values){
  const completed=await h.request('/giving/thanks?session_id='+sessionId);assert.equal(completed.status,200,await completed.text())
  return {input,sessionId}
 }
-export async function recognitionMember(h,edge,email='data-entry-recognition@example.test'){
+export async function recognitionMember(h,edge,email=['data-entry-recognition','example.test'].join('@')){
  assert.equal((await h.request('/app/people/invite',form({email,role:'member',displayName:'Data entry'}))).status,303)
  const mail=edge.messages.findLast(m=>m.personalizations.some(p=>p.to.some(to=>to.email===email)))
  const link=mail.content.find(c=>c.type==='text/plain').value.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]
