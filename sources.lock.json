@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "1e5bff0f83ae5a523af5f9c8d43138228c2316f274c6c26b48348f422db906e7",
+      "sha256": "b92565f6b664a2964ce697bf1301ef22b2599635f89134b241ae9921b798ff94",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "933dd3065ec354f8952d7e297f9fe6bab477b60b8f3214e062a0af32375885cf",
+      "sha256": "80f3d311c72fbc6b7c5bd5d4cefbfc7cf32f5c74627cebf05d9246973bc49f3c",
       "executable": false
     },
     "deploy-demo.json": {
@@ -771,7 +771,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "0f3c4ab641433a60ae547243482ee919975e0424b3b3d7a2e14eba713925b79b",
+      "sha256": "872107aa4a71d488fa9e66a8d85f854098188c0539c13ab46c9defb3324517a7",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -2439,7 +2439,7 @@
       "executable": false
     },
     "src/coffer/agent/recovery-notices-rules.ts": {
-      "sha256": "65510be3acf67f56653ea68a850b2d072f56ea84fd50a9e26a31d4714e6c2a31",
+      "sha256": "1533a63538e6e9e9a67183ac7f11f4c9e9539387bdf7830f2cb4f068f6d3cd6e",
       "executable": false
     },
     "src/coffer/agent/recovery-notices.ts": {
@@ -3279,7 +3279,7 @@
       "executable": false
     },
     "src/coffer/memberships/service.ts": {
-      "sha256": "f0aabf4113b2388b328da2358afe26b059ccf2f6e7a60a2b8e5feea51bde8a4f",
+      "sha256": "44c27476899fff139685fb95a6a3add19237dd0a9b054ecdd1a01aa08276ccc6",
       "executable": false
     },
     "src/coffer/memberships/ui.ts": {
@@ -6791,7 +6791,7 @@
       "executable": false
     },
     "tests/memberships-journey.mjs": {
-      "sha256": "eba6d4798d672986c690d1a4f9e572eb6f9fc9441f579bd2bbf5f61022529aa2",
+      "sha256": "c135b834ff976d77a25e26326d5f85c3dc88e1ecf38a646669f5f5959244aee4",
       "executable": false
     },
     "tests/mobile-journey.mjs": {
