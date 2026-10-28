@@ -2667,7 +2667,7 @@
       "executable": false
     },
     "src/coffer/communications/replies.ts": {
-      "sha256": "270cf40e9134a8148ffe1f0166caf685d2209d617939573907a46875521ae97c",
+      "sha256": "a18e1f2919ab8bd50f6948986e81c15f59358c7fe811efd726b8056a20ff970a",
       "executable": false
     },
     "src/coffer/communications/reply-stop.ts": {
@@ -3211,7 +3211,7 @@
       "executable": false
     },
     "src/coffer/mailboxes/provider.ts": {
-      "sha256": "7b4f29ee6fa907043aadd42a097820e5d9e43f1412eef8b2ede88171d8d01a3b",
+      "sha256": "e1a981fe2a404b5b28e7713517be5d87a08d0cbeb1806c7bb58cbfcffd5d0971",
       "executable": false
     },
     "src/coffer/mailboxes/sending.ts": {
@@ -6687,7 +6687,7 @@
       "executable": false
     },
     "tests/mailboxes-journey.mjs": {
-      "sha256": "fe8eb579aacdfee53f9ba59b7d86ca15af0466e961d2cd06d3eebc84624e0e19",
+      "sha256": "9c3d69306e231d3afd19ab62c12aa716e38b73ddb263aac2b06d7c1df665415e",
       "executable": false
     },
     "tests/mcp-browser.mjs": {

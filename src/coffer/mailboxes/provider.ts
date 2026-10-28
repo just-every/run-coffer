@@ -67,11 +67,16 @@ export async function messages(p:Provider,accessToken:string,account:string,curs
   for(const item of result.messages??[])values.push(gmailMail(await request('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+encodeURIComponent(text(item.id,'Provider message',1000))+'?format=full',{headers}),account))
   return {messages:values,next:result.nextPageToken??null}
  }
- const first='https://graph.microsoft.com/v1.0/me/messages?$top=25&$select=id,internetMessageId,from,toRecipients,ccRecipients,subject,body,receivedDateTime,sentDateTime,webLink,internetMessageHeaders,isDraft'
+ const first='https://graph.microsoft.com/v1.0/me/messages?$top=25&$select=id,isDraft'
  const url=new URL(cursor??first)
  if(url.origin!=='https://graph.microsoft.com'||url.pathname!=='/v1.0/me/messages'||url.username||url.password)fail('MAILBOX_PAGE','This mailbox page is not valid.',400)
  const result=await request(url.href,{headers});if(!Array.isArray(result.value))fail('MAILBOX_RESPONSE','The provider did not return a message list.',502)
- return {messages:result.value.filter((v:Row)=>!v.isDraft).map((v:Row)=>graphMail(v,account)),next:result['@odata.nextLink']??null}
+ const values:Mail[]=[]
+ for(const item of result.value.filter((v:Row)=>!v.isDraft)){
+  const detail=await request('https://graph.microsoft.com/v1.0/me/messages/'+encodeURIComponent(text(item.id,'Provider message',1000))+'?$select=id,internetMessageId,from,toRecipients,ccRecipients,subject,body,receivedDateTime,sentDateTime,webLink,internetMessageHeaders,isDraft',{headers})
+  if(!detail.isDraft)values.push(graphMail(detail,account))
+ }
+ return {messages:values,next:result['@odata.nextLink']??null}
 }
 export async function send(p:Provider,accessToken:string,input:{from:string;to:string;subject:string;body:string;messageId:string}) {
  const subject=text(input.subject,'Subject',400)
