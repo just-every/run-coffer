@@ -2571,7 +2571,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "150728eee983b445dc3b2b613a2342bedc31bb108a401fdc5e18b788cb831d17",
+      "sha256": "1423355ecd6ae5d4c3eac274c0228caa4f48bcf28f0e3a4dc300e4d624aa15a2",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {
@@ -2631,7 +2631,7 @@
       "executable": false
     },
     "src/coffer/communications/outbound.ts": {
-      "sha256": "8f04473cb9af68ddbee33400a4724846c5c68c51207bdbdf18d4991669465347",
+      "sha256": "25be5aef0df708a47616a076c4de840635d2bca05bc04f9fb4e5e35e401a7c36",
       "executable": false
     },
     "src/coffer/communications/preference-rules.ts": {
@@ -3479,7 +3479,7 @@
       "executable": false
     },
     "src/coffer/peer/service.ts": {
-      "sha256": "0bb855b95a5d8b672fd244994edad032b45c3790fbbed27b43f0e644eba18048",
+      "sha256": "f14d0bb417047ee697262949628f181036020543af9e444ad143f1eb4e4441b4",
       "executable": false
     },
     "src/coffer/peer/team.ts": {
@@ -6755,7 +6755,7 @@
       "executable": false
     },
     "tests/peer-journey.mjs": {
-      "sha256": "f37bcdadade0fb4beafbc409b820ea7ee3b5f5ddd77e758e9ce0f7e56e7a7952",
+      "sha256": "3083e101c185d0db4de807031ef13f1c1e58e332c4fac172c60e7b6bf0804225",
       "executable": false
     },
     "tests/pipeline.test.mjs": {
