@@ -83,7 +83,7 @@ export async function mailboxesJourney(){
    const sent=(await h.get('/api/coffer/donors/'+rosa.id)).mailboxMessages.find(m=>m.subject.endsWith(provider+'-sent'))
    assert.equal(sent.excerpt,'Here is your reading room update.');assert.equal(sent.direction,'sent')
    const reply=(await h.get('/api/coffer/replies')).find(r=>r.mailbox_id===entry.id)
-   assert.equal(reply.owner_id,admin.id);assert.equal(reply.status,'forwarded');assert.equal(reply.body,entry.excerpt)
+   assert.equal(reply.source_kind,'mailbox');assert.ok(!timeline.depth.interactions.some(i=>i.id===reply.id),'Mailbox messages appear once on the private timeline');assert.equal(reply.owner_id,admin.id);assert.equal(reply.status,'forwarded');assert.equal(reply.body,entry.excerpt)
    const count=submitted.length;await h.command('mailbox.sync',{provider});assert.equal(submitted.length,count,'Replay never forwards the same reply twice')
    inbox[provider]=[mail(provider,provider+'-automatic',address(4010),account,'Please remove me',{automatic:true}),mail(provider,provider+'-stop',address(4010),account,'Please remove me from email appeals.'),mail(provider,provider+'-ambiguous',address(4011),account,'Perhaps fewer updates would be best.')]
    await h.command('mailbox.sync',{provider})
@@ -114,7 +114,7 @@ export async function mailboxesJourney(){
    const result=await h.command('mailbox.submit',{messageId:draft.id,confirm:'yes'});assert.equal(result.state,'submitted');assert.equal(submitted.length,sentBefore+1)
    const submission=submitted.at(-1);assert.equal(submission.provider,provider)
    if(provider==='gmail'){assert.match(submission.raw,/From: /);assert.ok(submission.raw.includes('To: '+address(4010)));assert.ok(submission.raw.includes(Buffer.from(draft.excerpt).toString('base64')))}
-   else{assert.equal(submission.value.message.toRecipients[0].emailAddress.address,address(4010));assert.equal(submission.value.message.body.content,draft.excerpt)}
+   else{assert.equal(submission.value.message.toRecipients[0].emailAddress.address,address(4010));assert.equal(submission.value.message.body.content,draft.excerpt);const captured=mail(provider,'captured-personal',account,address(4010),draft.excerpt,{sent:true});captured.internetMessageHeaders=submission.value.message.internetMessageHeaders;inbox.microsoft=[captured];await h.command('mailbox.sync',{provider});const saved=(await h.get('/api/coffer/donors/'+ada.id)).mailboxMessages.filter(m=>m.id===draft.id);assert.equal(saved.length,1);assert.ok(saved[0].link.startsWith('https://outlook.office.com/'),'Graph capture fills the personal message link without a duplicate')}
    await h.command('mailbox.submit',{messageId:draft.id,confirm:'yes'},{status:409});assert.equal(submitted.length,sentBefore+1)
   }
   const prefs=async(topics=['newsletter','appeals','events'],frequency='unlimited')=>{const version=(await h.get('/api/coffer/donors/'+ada.id+'/preferences')).channels.find(p=>p.channel==='email').version;return h.command('communication.preferences',{donorId:ada.id,channel:'email',version,topics,frequency,confirm:'yes'})}
@@ -136,6 +136,10 @@ export async function mailboxesJourney(){
   await h.command('mailbox.sync',{provider:'gmail'},{status:409})
   assert.ok(!(await h.get('/api/coffer/donors/'+ada.id)).mailboxMessages.some(r=>r.excerpt.includes('after disconnect')))
   await connect('gmail');await h.command('mailbox.submit',{messageId:revokedDraft.id,confirm:'yes'},{status:409})
+  const followup=(await h.get('/api/coffer/replies')).find(r=>r.mailbox_id&&!r.automatic&&r.status!=='done')
+  await h.command('reply.complete',{taskId:followup.id,notes:'Private library follow-up recorded.'},{as:member.cookie,status:403})
+  await h.command('reply.complete',{taskId:followup.id,notes:'Private library follow-up recorded.'})
+  assert.ok(!JSON.stringify(await h.get('/api/coffer/donors/'+ada.id,{as:member.cookie})).includes('Private library follow-up recorded.'))
   const file=await h.api('/api/coffer/donors/'+ada.id+'/data-request',{requestedOn:'2026-10-17',method:'email'})
   assert.ok(!JSON.stringify(file).includes('would love a reading room visit'),'Private mailbox excerpts remain withheld from donor files')
   if(process.env.COFFER_MAILBOX_BROWSER){const {mailboxesBrowser}=await import('./mailboxes-browser.mjs');await mailboxesBrowser(h,{directory:process.env.COFFER_MAILBOX_BROWSER,donorId:ada.id,keys})}
@@ -151,5 +155,8 @@ export async function mailboxesJourney(){
   await donor(h,'New Ada',{email:address(4010)})
   inbox.gmail=[mail('gmail','gmail-received',address(4010),account,'Thank you. I would love a reading room visit.'),mail('gmail','unseen-old',address(4010),account,'Erased old mailbox content')]
   assert.ok((await h.command('mailbox.sync',{provider:'gmail'})).outcomes.every(r=>!r.logged),'Replay and previously unseen old mail cannot resurrect erased history')
+  const after=await archive(h);assert.ok(!JSON.stringify(after).includes('would love a reading room visit'),'Erasure removes mailbox bodies from current archives and merge snapshots')
+  const protectedRestore=await installation()
+  try{await restore(protectedRestore,portable,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}});assert.equal((await protectedRestore.get('/api/coffer/mailboxes')).some(r=>r.connected),false)}finally{await protectedRestore.close()}
  },{entry:'tests/engagement-worker.ts',bindings:{COFFER_TEST_NOW:fixedNow,COFFER_REPLY_DOMAIN:'replies.example.test'},outbound:edge})
 }

@@ -92,7 +92,7 @@ export async function donorDepth(c: { db: D1Database }, donorId: string): Promis
    WHERE r.donor_id=current.id OR r.related_donor_id=current.id
    ORDER BY lower(other.name),r.type,r.id`, donorId, donorId),
   all<DonorInteraction>(c, `SELECT i.* FROM cf_interactions i JOIN cf_donors d ON d.id=i.donor_id AND d.erased_at IS NULL
-   WHERE i.donor_id=? ORDER BY i.occurred_on DESC,i.recorded_at DESC,i.id DESC`, donorId),
+   WHERE i.donor_id=? AND NOT EXISTS(SELECT 1 FROM cf_reply_tasks r WHERE r.id=i.id AND r.mailbox_id IS NOT NULL) ORDER BY i.occurred_on DESC,i.recorded_at DESC,i.id DESC`, donorId),
  ])
  return { relationships: relationships.map(r => ({ ...r, label: RELATIONSHIP_LABELS[r.type][r.direction] })), interactions }
 }

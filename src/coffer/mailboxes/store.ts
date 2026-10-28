@@ -30,6 +30,7 @@ export async function capture(c:Context,row:Row,mail:Mail,forward:(to:string)=>P
  await commit(c,[...connectionGuards(row),guard('EXISTS(SELECT 1 FROM cf_donors d WHERE id=? AND version=? AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id))','DONOR_CHANGED','The matched constituent changed.',donor.id,donor.version),
   sql('INSERT OR IGNORE INTO cf_mailbox_seen VALUES(?)',key),
   sql("INSERT OR IGNORE INTO cf_mailbox_messages(id,donor_id,operator_id,provider,account_hash,direction,subject,excerpt,link,occurred_at,recorded_at,state) VALUES(?,?,?,?,?,?,?,?,?,?,?,'logged')",key,donor.id,row.operator_id,row.provider,accountHash,mail.direction,mail.subject,mail.body,mail.link,mail.at,c.now),
+  sql('UPDATE cf_mailbox_messages SET link=COALESCE(link,?) WHERE id=?',mail.link,key),
   ...(!prior?[event(c,'mailbox.logged','mailbox',key,donor.id,{direction:mail.direction,provider:row.provider})]:[])])
  if(mail.direction==='received')await recordIncomingReply(c.env!,{id:key,donor_id:donor.id,source_kind:'mailbox',source_id:key,source_type:'mailbox',mailbox_id:key},{title:mail.subject,body:mail.body,key,automatic:mail.automatic,forward})
  return {logged:!prior,id:key,donorId:donor.id}
