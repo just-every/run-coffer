@@ -13,7 +13,7 @@ import { customTagWrites } from './custom-review-tags'
 export async function customReview(c:Context,id:string) {
  const job=await one(c,"SELECT * FROM cf_move_in_jobs WHERE id=? AND state='completed' AND redacted=0",id)
  if(!job)fail('MOVE_IN_CHANGED','Choose a finished, unerased CRM import.',409)
- return {...job,report:JSON.parse(job.report)} as Row
+ return {...job,rawReport:job.report,report:JSON.parse(job.report)} as Row
 }
 const fence=(id:string,report:string)=>guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='completed' AND redacted=0 AND report=?)",'MOVE_IN_CHANGED','This custom review changed. Refresh it before continuing.',id,report)
 export async function captureCustom(c:Context,input:SourceCredentials&{id:string}) {
@@ -26,7 +26,7 @@ export async function captureCustom(c:Context,input:SourceCredentials&{id:string
  const definitions=await readSourceCustom(job.source,input,records)
  const previous=await one(c,"SELECT json_extract(report,'$.customReview.mappings') AS mappings FROM cf_move_in_jobs WHERE source=? AND id<>? AND state='completed' AND redacted=0 AND json_type(report,'$.customReview.mappings')='array' ORDER BY created_at DESC LIMIT 1",job.source,job.id)
  const review=await buildCustomReview(definitions,defaultMappings(job.source,definitions,previous?.mappings?JSON.parse(previous.mappings):[],await customFields(c)),[],1)
- await commit(c,[fence(job.id,JSON.stringify(job.report)),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview',json(?)) WHERE id=?",JSON.stringify(review),job.id),event(c,'move-in.custom.capture','move-in',job.id,null,{definitions:definitions.length})])
+ await commit(c,[fence(job.id,job.rawReport),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview',json(?)) WHERE id=?",JSON.stringify(review),job.id),event(c,'move-in.custom.capture','move-in',job.id,null,{definitions:definitions.length})])
  return {id:job.id,review,unchanged:false}
 }
 export async function reviseCustom(c:Context,input:{id:string;version:number;mappings:FieldMapping[];resolutions:ValueResolution[]}) {
@@ -37,7 +37,7 @@ export async function reviseCustom(c:Context,input:{id:string;version:number;map
  const review=await buildCustomReview(previous.definitions,input.mappings,input.resolutions,previous.version+1)
  if(previous.applied&&previous.values.some(v=>v.state==='ready'&&!review.values.some(next=>next.id===v.id&&next.state==='ready'&&next.value===v.value)))fail('MOVE_IN_USED','A carried value cannot be replaced or skipped. Undo before changing it.',409)
  if(previous.applied)review.applied=1
- await commit(c,[fence(job.id,JSON.stringify(job.report)),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview',json(?)) WHERE id=?",JSON.stringify(review),job.id),event(c,'move-in.custom.review','move-in',job.id,null,{version:review.version,waiting:review.values.filter(v=>v.state==='waiting').length})])
+ await commit(c,[fence(job.id,job.rawReport),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview',json(?)) WHERE id=?",JSON.stringify(review),job.id),event(c,'move-in.custom.review','move-in',job.id,null,{version:review.version,waiting:review.values.filter(v=>v.state==='waiting').length})])
  return {id:job.id,review}
 }
 
@@ -45,7 +45,7 @@ export async function reviseCustom(c:Context,input:{id:string;version:number;map
 export async function applyCustom(c:Context,input:{id:string;version:number}) {
  const job=await customReview(c,input.id),review=job.report.customReview as CustomReview|undefined
  if(!review||input.version!==review.version)fail('MOVE_IN_CHANGED','This custom review changed. Refresh it.',409)
- const fields=await customFields(c),customWrites:CustomImportWrite[]=[],writes:Stmt[]=[fence(job.id,JSON.stringify(job.report))],records=await readSourceIndex(c,job.id)
+ const fields=await customFields(c),customWrites:CustomImportWrite[]=[],writes:Stmt[]=[fence(job.id,job.rawReport)],records=await readSourceIndex(c,job.id)
  const staged=new Set<string>(),custody=await all(c,'SELECT * FROM cf_move_in_records WHERE source=?',job.source)
  for(const value of review.values.filter(v=>v.state==='ready')){
   const definition=review.definitions.find(d=>d.id===value.fieldId)!,mapping=review.mappings.find(m=>m.id===value.fieldId)!,record=records.find(r=>r.kind===definition.kind&&r.externalId===value.recordId)

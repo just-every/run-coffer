@@ -3295,7 +3295,7 @@
       "executable": false
     },
     "src/coffer/move-in/custom-review.ts": {
-      "sha256": "3a909fb0eb396531b947ce83ef47ec9ddb4cb5f10a76da24ea551807bd3e9a5b",
+      "sha256": "fc412ff2e44dffa6151793ef0ddc2da951e43dd44f6afa3e401bb63800aa5061",
       "executable": false
     },
     "src/coffer/move-in/custom-source-records.ts": {
@@ -3363,7 +3363,7 @@
       "executable": false
     },
     "src/coffer/move-in/source-columns.ts": {
-      "sha256": "715559d3c5fad2cfd58658ae363c0eea23faecb55240ccb03b67787270079b2b",
+      "sha256": "c4868796d123f58cfd71e0cd9bdcd8e29b3f4de5d689c9957f758d68d3a1c2db",
       "executable": false
     },
     "src/coffer/move-in/source-custom-reader.ts": {
@@ -6359,7 +6359,7 @@
       "executable": false
     },
     "tests/custom-import-browser.mjs": {
-      "sha256": "92a6d4b794d1255e4f0ca199db3656dcd64f7fddfe4103d5d0c74e63275b4deb",
+      "sha256": "1cba2fdc07c9bc0f25a5a6658a57a57ae44eef2b6ebcb85a6eb90fab8b6181c0",
       "executable": false
     },
     "tests/custom-source-journey.mjs": {
