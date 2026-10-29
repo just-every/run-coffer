@@ -30,6 +30,7 @@ export type ParsedSoftCredit = Located & { externalId: string; donorExternalId: 
 export type ParsedPledge = Located & { externalId: string; donorExternalId: string; pledgedOn: string; amountCents: number; fund: string; note: string }
 export type ParsedInstallment = Located & { externalId: string; pledgeExternalId: string; dueOn: string; amountCents: number }
 export type ParsedVolunteering = Located & { externalId:string; donorExternalId:string; role:string; occurredOn:string; minutes:number }
+export type ParsedSourceHistory = Located & { externalId:string; sourceId:string; donorExternalId:string; kind:'membership'|'mailing'; label:string; occurredOn:string; details:string; payload:Record<string,string|number|null> }
 export type VolunteerTotal = { donorExternalId:string; year:string; minutes:number; activities:number }
 export type ParsedNote = Located & { externalId: string; donorExternalId: string; text: string; date: string; type: string }
 export type Total = { giftCount: number; amountCents: number }
@@ -44,6 +45,7 @@ export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:st
 export type ParsedRecurringReference = Located & {externalId:string;donorExternalId:string;amountCents:number;frequency:string;status:string;method:string;campaign:string;nextOn:string|null;customerReference:string|null;paymentMethodReference:string|null}
 export type SourceCoverage = { currency?:string; counts:Record<string,number>; unsupported:string[] }
 export type ParsedImport = { sourceCoverage?:SourceCoverage;
+ sourceHistory?:ParsedSourceHistory[];
  volunteering?:ParsedVolunteering[];
  recurringReferences?:ParsedRecurringReference[];
  spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]

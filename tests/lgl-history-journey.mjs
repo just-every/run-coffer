@@ -17,11 +17,19 @@ export async function lglHistoryJourney(reportFiles){
    [key(2701),'Dr.','Avery','June','Reed','Jr.',' Avery & friends ',' Dr. Avery  Reed ',' The Avery Reed household ',email(2701),'personal',email(2702),'work','Yes',email(2703),'other','1 Main Street','Springfield','IL','62701','home','2 Lake Street','Madison','WI','53703','vacation','yes','yes','unknown','no','2026-09-01','Do not solicit',''],
    [key(2702),'','Blake','','Rain','','Blake','Blake Rain','Blake Rain',email(2704),'personal','','','','','','3 Main Street','Springfield','IL','62701','home','','','','','','unknown','no','unknown','no','2026-09-01','','+12025552702'],
    [key(2703),'','Cleo','','Chen','','Cleo','Cleo Chen','Cleo Chen',email(2705),'personal','','','','','','4 Main Street','Springfield','IL','62701','home','','','','','','yes','yes','unknown','unknown','2026-09-01','','']]
+  constituents[0].push('Email 4','Email 4 Type','Address 3 Street','Address 3 City','Address 3 State','Address 3 Postal Code','Address 3 Type','Phone 4','Phone 4 Type','Phone 4 Primary')
+  constituents[1].push(email(2717),'other','5 Office Street','Springfield','IL','62701','work','+12025552704','work','Yes')
   const plans=[['LGL Recurring Gift ID','LGL Constituent ID','Amount','Frequency','Plan Status','Payment Method','Campaign','Next Charge Date','Processor Customer Reference','Processor Payment Method Reference'],[key(2711),key(2701),'12','monthly','active','card','Library','2026-11-01',key(2712),key(2713)],[key(2714),key(2702),'24','annual','paused','bank transfer','Lessons','',key(2715),key(2716)]]
   const gifts=[['LGL Gift ID','LGL Constituent ID','Gift Type','Gift Date','Amount','Fund','Payment Method','Deductible Amount','Acknowledgment Template','Do Not Acknowledge via LGL','Acknowledgment Date','Tribute Hon./Mem. Name','Tribute Dedication','Tribute Recipient Name','Tribute Name'],[key(2721),key(2701),'Gift','2026-09-01','500','Library','check','500','Spring thank-you','','2026-09-02','Jordan Reed','In Memory Of','River Reed',key(2729)],[key(2722),key(2701),'Gift','2026-09-03','500','Lessons','check','440','','Yes','','','','',''],[key(2723),key(2703),'Gift','2026-09-04','500','Library','cash','500','','','','','','','']]
+  // LGL records a split donation as distinct gifts, with a shared check number.
+  gifts[0].push('Check No.');gifts[1][4]='300';gifts[1][7]='300';gifts[1].push('synthetic-coffer-2740')
+  const otherPart=[...gifts[1]];otherPart[0]=key(2724);otherPart[4]='200';otherPart[5]='Lessons';otherPart[7]='200';gifts.push(otherPart)
   const credits=[['Soft Credit ID','LGL Constituent ID','Related Gift ID','Soft Credit Amount','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Interaction ID'],[key(2731),key(2702),key(2721),'100','acknowledged','2026-09-06','phone call',key(2732)]]
   const notes=[['Contact Report ID','LGL Constituent ID','Contact Report Date','Contact Report Type','Note'],[key(2732),key(2702),'2026-09-06','call','Independent source credit thank-you']]
-  const tables=[['constituents',constituents],['recurring',plans],['gifts',gifts],['soft-credits',credits],['contacts',notes]]
+  const memberships=[['LGL Membership ID','LGL Constituent ID','Membership Level','Membership Start Date','Membership End Date','Membership Status','Membership Notes'],[key(2801),key(2701),'Library friend','2025-09-01','2026-09-01','expired','Historical membership record'],[key(2802),key(2702),'Volunteer supporter','2026-09-01','','','Source end date unknown']]
+  const mailings=[['LGL Mailing ID','LGL Constituent ID','Mailing Name','Mailing Date','Mailing Channel','Mailing Status','Mailing Notes'],[key(2811),key(2701),'Summer letter','2026-08-01','mail','sent','Private source mailing note'],[key(2812),key(2702),'Program update','2026-08-03','email','opened','Source-reported open only'],[key(2811),key(2702),'Summer letter','2026-08-01','mail','sent','Same mailing to a second constituent']]
+  const controls=[['Year','Fund','Gift Count','Total Gift Amount'],['2026','','4','1500'],['','Library','2','800'],['','Lessons','2','700']]
+  const tables=[['controls',controls],['memberships',memberships],['mailings',mailings],['constituents',constituents],['recurring',plans],['gifts',gifts],['soft-credits',credits],['contacts',notes]]
   const input={source:'lgl',files:await reportFiles(tables,format)}
   for(const [index,value,code] of [[7,'sometime','DATE'],[8,'1234567890123456','PLAN_REFERENCE']]){
    const broken=structuredClone(plans);broken[1][index]=value
@@ -30,9 +38,13 @@ export async function lglHistoryJourney(reportFiles){
   }
   const duplicate=await post(h,'preview',{...input,files:await reportFiles([...tables.filter(([name])=>name!=='recurring'),['recurring',[...plans,plans[1]]]],format)})
   assert.equal(duplicate.canApply,false);assert.ok(duplicate.diagnostics.some(d=>d.code==='DUPLICATE_ID'))
+  for(const [name,rows,code] of [['memberships',[memberships[0],[...memberships[1].slice(0,4),'2024-09-01',...memberships[1].slice(5)]],'MEMBERSHIP_DATES'],['mailings',[mailings[0],[...mailings[1].slice(0,4),'sms',...mailings[1].slice(5)]],'MAILING_CHANNEL'],['mailings',[mailings[0],['',...mailings[1].slice(1)]],'REQUIRED']]){
+   const invalid=await post(h,'preview',{...input,files:await reportFiles(tables.map(([n,r])=>[n,n===name?rows:r]),format)})
+   assert.equal(invalid.canApply,false);assert.ok(invalid.diagnostics.some(d=>d.code===code),JSON.stringify(invalid.diagnostics));await post(h,'apply',{id:invalid.id,fingerprint:invalid.fingerprint},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,0)
+  }
   const p=await post(h,'preview',input)
-  assert.equal(p.canApply,true,JSON.stringify(p.diagnostics));assert.equal(p.needsAcceptance,false,JSON.stringify(p.unmapped));assert.equal(p.counts.recurringReferences,2);assert.equal(p.counts.channelPreferences,12)
-  assert.equal(p.sourceTotals.amountCents,150000);assert.equal(p.sourceTotals.giftCount,3);assert.deepEqual(p.sourceTotals.byFund,{Library:{giftCount:2,amountCents:100000},Lessons:{giftCount:1,amountCents:50000}})
+  assert.equal(p.canApply,true,JSON.stringify(p.diagnostics));assert.equal(p.needsAcceptance,false,JSON.stringify(p.unmapped));assert.equal(p.counts.sourceHistory,5);assert.equal(p.counts.recurringReferences,2);assert.equal(p.counts.channelPreferences,12)
+  assert.equal(p.sourceTotals.amountCents,150000);assert.equal(p.sourceTotals.giftCount,4);assert.ok(p.controlTotals.every(c=>c.matches));assert.deepEqual(p.sourceTotals.byFund,{Library:{giftCount:2,amountCents:80000},Lessons:{giftCount:2,amountCents:70000}})
   assert.equal((await h.get('/api/coffer/donors')).total,0,'Review creates no constituent, permission or billing record')
   const member=await h.person(email(2791)),admin=await h.person(email(2792),'admin')
   await h.api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})
@@ -44,25 +56,40 @@ export async function lglHistoryJourney(reportFiles){
   const a=find(2701),b=find(2702),c=find(2703)
   assert.deepEqual([a.donor.prefix,a.donor.first_name,a.donor.middle_name,a.donor.last_name,a.donor.suffix],['Dr.','Avery','June','Reed','Jr.'])
   assert.deepEqual([a.donor.informal_salutation,a.donor.formal_salutation,a.donor.envelope_name],[' Avery & friends ',' Dr. Avery  Reed ',' The Avery Reed household '],'Source greetings remain verbatim')
-  assert.equal(a.contactPoints.length,5);assert.deepEqual(a.contactPoints.filter(p=>p.kind==='email').map(p=>[p.value,p.type,p.is_primary]).sort(),[[email(2701),'personal',0],[email(2702),'work',1],[email(2703),'other',0]].sort());assert.deepEqual(a.contactPoints.filter(p=>p.kind==='address').map(p=>[p.type,p.is_primary]).sort(),[['home',1],['vacation',0]].sort())
+  assert.equal(a.contactPoints.length,8);assert.deepEqual(a.contactPoints.filter(p=>p.kind==='email').map(p=>[p.value,p.type,p.is_primary]).sort(),[[email(2701),'personal',0],[email(2702),'work',1],[email(2703),'other',0],[email(2717),'other',0]].sort());assert.deepEqual(a.contactPoints.filter(p=>p.kind==='address').map(p=>[p.type,p.is_primary]).sort(),[['home',1],['vacation',0],['work',0]].sort())
+  assert.deepEqual(a.contactPoints.filter(p=>p.kind==='phone').map(p=>[p.value,p.type,p.is_primary]),[['+12025552704','work',1]])
+  assert.equal((await h.get('/api/coffer/donors?q='+encodeURIComponent(email(2717)))).donors[0].id,a.donor.id)
   assert.deepEqual(Object.fromEntries(b.consents.map(p=>[p.channel,p.status])),{email:'unknown',mail:'withdrawn',sms:'unknown',phone:'withdrawn'});assert.ok(b.consents.every(p=>p.captured_on==='2026-09-01'&&p.recorded_at&&p.method==='lgl export'))
   const state=await sourceHistory(h,a.donor.id),bank=await sourceHistory(h,b.donor.id)
   assert.deepEqual(state.plans.map(p=>[p.source_id,p.amount_cents,p.frequency,p.customer_reference,p.payment_method_reference,p.next_on]),[[key(2711),1200,'monthly',key(2712),key(2713),'2026-11-01']]);assert.equal(bank.plans[0].method,'bank transfer');assert.equal(bank.plans[0].next_on,null)
+  assert.deepEqual(state.history.map(r=>[r.source_id,r.kind,r.label,r.occurred_on]).sort(),[[key(2801),'membership','Library friend','2025-09-01'],[key(2811),'mailing','Summer letter','2026-08-01']].sort())
+  assert.deepEqual(JSON.parse(state.history.find(r=>r.kind==='membership').payload),{level:'Library friend',status:'expired',startsOn:'2025-09-01',expiresOn:'2026-09-01',notes:'Historical membership record'})
+  assert.equal(JSON.parse(bank.history.find(r=>r.kind==='membership').payload).expiresOn,null);assert.equal(JSON.parse(bank.history.find(r=>r.kind==='membership').payload).status,'unknown');assert.equal(bank.history.filter(r=>r.kind==='mailing').length,2,'A shared mailing ID retains each separate source recipient')
+  assert.match(await (await h.request('/app/donors/'+a.donor.id+'?timelineKind=note')).text(),/Imported Little Green Light membership · Library friend/)
+  assert.match(await (await h.request('/app/donors/'+a.donor.id+'?timelineKind=note')).text(),/Private source mailing note/)
+  assert.equal((await h.get('/api/coffer/memberships')).memberships.length,0,'Source membership history does not create an active billing entitlement')
   assert.equal(a.subscriptions.length,0);assert.equal(b.subscriptions.length,0,'Opaque source references authorize no replacement billing')
   await sourceHistory(h,a.donor.id,{as:member.cookie,status:403});await sourceHistory(h,a.donor.id,{as:admin.cookie,status:401})
-  const gift=n=>[...a.gifts,...c.gifts].find(g=>g.reference==='lgl:'+key(n))
+  const gift=n=>[...a.gifts,...c.gifts].find(g=>g.reference.split(' / ')[0]==='lgl:'+key(n))
+  assert.deepEqual([gift(2721),gift(2724)].map(g=>[g.amount_cents,g.fund,g.reference.split(' / ')[1]]),[[30000,'Library','synthetic-coffer-2740'],[20000,'Lessons','synthetic-coffer-2740']])
+  assert.notEqual(gift(2721).id,gift(2724).id,'A shared check number cannot combine distinct LGL gift IDs')
+  const funds=(await h.get('/api/coffer/reports/funds')).funds;assert.deepEqual(funds.map(f=>[f.fund,f.amount_cents]).sort(),[['Library',80000],['Lessons',70000]].sort())
+  assert.equal([...a.gifts,...c.gifts].length,4);assert.equal([...a.gifts,...c.gifts].reduce((n,g)=>n+g.amount_cents,0),150000)
   assert.equal(gift(2721).acknowledgment.status,'acknowledged');assert.equal(gift(2721).acknowledgment.source_reference,'Spring thank-you');assert.equal(gift(2722).acknowledgment.status,'do not acknowledge');assert.equal(gift(2722).goods_cents,6000);assert.equal(gift(2723).acknowledgment.status,'not acknowledged')
   assert.deepEqual((await h.get('/api/coffer/letters')).due.map(g=>g.reference),['lgl:'+key(2723)])
   const soft=b.giftDepth.creditedGifts[0];assert.equal(soft.amount_cents,10000);assert.equal(soft.acknowledgment.link.id,b.depth.interactions.find(i=>i.notes==='Independent source credit thank-you').id)
   const tribute=(await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed');assert.equal(tribute.totalCents,50000);assert.equal(a.giftDepth.tributes[0].amount_permission,0)
   assert.equal((await sourceHistory(h,a.donor.id)).outreach.email.excluded['do not solicit'],1);assert.equal(bank.outreach.email.excluded['no consent recorded'],1);assert.equal(bank.outreach.mail.excluded['consent withdrawn'],1)
+  const historyReuse=await post(h,'preview',{...input,files:await reportFiles([...tables,['extra-note',[['LGL Constituent ID','Note ID','Note'],[key(2703),key(2821),'Additional source note']]]],format)})
+  assert.equal(historyReuse.canApply,true,JSON.stringify(historyReuse.diagnostics));await apply(h,historyReuse);assert.equal((await sourceHistory(h,a.donor.id)).history.length,2)
+  await post(h,'undo',{id:p.id},{status:409});await post(h,'undo',{id:historyReuse.id})
   const saved=await archive(h)
   const appeal=await h.command('appeal.prepare',{name:'First LGL appeal',channel:'email'});assert.equal(appeal.recipients,1);assert.equal(appeal.excluded['do not solicit'],1);assert.equal(appeal.excluded['no consent recorded'],1);await h.command('appeal.discard',{appealId:appeal.id,version:1})
   assert.equal((await h.command('appeal.prepare',{name:'Postal history still needs processing',channel:'mail'},{status:409})).error,'NCOA_NOT_CONNECTED')
   const sms=await h.command('sms.prepare',{name:'Source unknown SMS',purpose:'appeal',donorIds:[b.donor.id],body:'Support the reading room.'});assert.equal(sms.recipients,0);assert.deepEqual(sms.excluded.map(r=>r.reason),['no SMS consent recorded'])
-  const journal=await h.get('/api/coffer/move-in/journal?id='+p.id);assert.equal(journal.job.check_report.matches,true,JSON.stringify(journal.job.check_report));assert.equal(journal.records.find(r=>r.kind==='recurringReference').n,2)
+  const journal=await h.get('/api/coffer/move-in/journal?id='+p.id);assert.equal(journal.job.check_report.matches,true,JSON.stringify(journal.job.check_report));assert.equal(journal.records.find(r=>r.kind==='recurringReference').n,2);assert.equal(journal.records.find(r=>r.kind==='sourceHistory').n,5);assert.equal(journal.job.check_report.rows.filter(r=>r.scope==='source history'&&r.matches).length,2)
   if(format==='csv')await historyBrowser(h,p,a.donor.id,'native')
-  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await sourceHistory(fresh,a.donor.id)).plans,state.plans);assert.deepEqual((await fresh.get('/api/coffer/donors/'+a.donor.id)).gifts,a.gifts);assert.deepEqual((await fresh.get('/api/coffer/donors/'+b.donor.id)).consents,b.consents);await post(fresh,'undo',{id:p.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0);assert.equal((await sourceHistory(fresh,a.donor.id)).plans.length,0)},{entry:'tests/fixed-clock-worker.ts'})
+  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await sourceHistory(fresh,a.donor.id)).history,state.history);assert.deepEqual((await sourceHistory(fresh,a.donor.id)).plans,state.plans);assert.deepEqual((await fresh.get('/api/coffer/donors/'+a.donor.id)).gifts,a.gifts);assert.deepEqual((await fresh.get('/api/coffer/donors/'+b.donor.id)).consents,b.consents);await post(fresh,'undo',{id:p.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0);assert.equal((await sourceHistory(fresh,a.donor.id)).plans.length,0);assert.equal((await sourceHistory(fresh,a.donor.id)).history.length,0)},{entry:'tests/fixed-clock-worker.ts'})
   assert.equal((await apply(h,await post(h,'preview',input))).unchanged,true);assert.deepEqual((await sourceHistory(h,a.donor.id)).plans,state.plans)
   await h.command('consent.record',{donorIds:[b.donor.id],channel:'email',status:'withdrawn',method:'paper form',evidence:key(2790),capturedOn:'2026-09-02'})
   const changed=structuredClone(constituents);changed[2][26]='yes'
@@ -71,10 +98,10 @@ export async function lglHistoryJourney(reportFiles){
   const target=await donor(h,'Synthetic LGL survivor',{email:email(2793)})
   const comparison=await h.get('/api/coffer/duplicates/compare?source='+a.donor.id+'&target='+target.id)
   const merge=await h.command('donor.merge',{sourceDonorId:a.donor.id,donorId:target.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
-  assert.deepEqual((await sourceHistory(h,target.id)).plans,state.plans.map(p=>({...p,donor_id:target.id})));await post(h,'undo',{id:p.id},{status:409})
-  await h.command('donor.unmerge',{mergeId:merge.mergeId,reason:'incorrect_match'});assert.deepEqual((await sourceHistory(h,a.donor.id)).plans,state.plans)
-  await h.command('donor.erase',{donorId:a.donor.id,confirm:'ERASE'});assert.equal((await sourceHistory(h,a.donor.id)).plans.length,0)
-  const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes(key(2712))&&!erased.includes(key(2713)),'Erasure removes source instrument references from private archive and review custody')
+  assert.deepEqual((await sourceHistory(h,target.id)).history,state.history.map(r=>({...r,donor_id:target.id})));assert.deepEqual((await sourceHistory(h,target.id)).plans,state.plans.map(p=>({...p,donor_id:target.id})));await post(h,'undo',{id:p.id},{status:409})
+  await h.command('donor.unmerge',{mergeId:merge.mergeId,reason:'incorrect_match'});assert.deepEqual((await sourceHistory(h,a.donor.id)).plans,state.plans);assert.deepEqual((await sourceHistory(h,a.donor.id)).history,state.history)
+  await h.command('donor.erase',{donorId:a.donor.id,confirm:'ERASE'});assert.equal((await sourceHistory(h,a.donor.id)).plans.length,0);assert.equal((await sourceHistory(h,a.donor.id)).history.length,0)
+  const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes('Private source mailing note')&&!erased.includes('Historical membership record'));assert.ok(!erased.includes(key(2712))&&!erased.includes(key(2713)),'Erasure removes source instrument references from private archive and review custody')
   const replay=await post(h,'preview',input);assert.equal(replay.canApply,false);await post(h,'apply',{id:replay.id,fingerprint:replay.fingerprint},{status:409})
  },{entry:'tests/fixed-clock-worker.ts'})
 }
@@ -88,11 +115,12 @@ async function historyBrowser(h,p,donorId,phase){
    await page.setViewportSize({width,height:1000})
    if(phase==='review'){
     await page.goto(origin+'/app/move-in/crm/review?id='+p.id)
+    await page.getByText('Membership and mailing history · 5',{exact:true}).click();await page.getByText(/Historical membership only/).first().waitFor()
     await page.getByText('Channel preferences · 12',{exact:true}).click();await page.getByText(/email: unknown/).first().waitFor()
     await page.getByText('Recurring source evidence · 2',{exact:true}).click();await page.getByText(/Evidence only; no replacement schedule is active/).first().waitFor()
    }else{
     await page.goto(origin+'/app/move-in/crm/journal?id='+p.id);await page.getByText(/Source plans are evidence only/).waitFor()
-    await page.goto(origin+'/app/donors/'+donorId);await page.getByText('Name parts and household eligibility',{exact:true}).click();assert.equal(await page.getByLabel('Informal salutation',{exact:true}).inputValue(),' Avery & friends ')
+    await page.goto(origin+'/app/donors/'+donorId);await page.getByText('Name parts and household eligibility',{exact:true}).click();assert.equal(await page.getByLabel('Informal salutation',{exact:true}).inputValue(),' Avery & friends ');await page.locator('#timeline').getByText('Imported Little Green Light membership · Library friend',{exact:true}).waitFor()
    }
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'LGL history fits '+width)
    if(directory)await page.screenshot({path:`${directory}/MOVE-001-history-${phase}-${width}.png`,fullPage:true})

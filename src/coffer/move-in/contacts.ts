@@ -6,11 +6,11 @@ import type { ParsedDonor, ParsedContact } from './types'
  * not a claim about a vendor's default export. Original types and primaries are
  * validated before any native row is planned. */
 export function sourceContacts(r:SourceRow,donor:ParsedDonor) {
- if(!['email2','email3','emailType','phone2','phone3','phoneType','address2Line1','addressType'].some(k=>r.has(k)))return
+ if(!['emailType','phoneType','addressType'].some(k=>r.has(k))&&!(['email','phone','address'] as const).some(kind=>r.contactIndices(kind).some(n=>n>1)))return
  const contacts:ParsedContact[]=[]
  for(const kind of ['email','phone','address'] as const){
   const points:ParsedContact[]=[]
-  for(let index=1;index<=(kind==='address'?2:3);index++){
+  for(const index of [1,...r.contactIndices(kind).filter(n=>n>1)]){
    const key=index===1?kind:kind+index
    let value=''
    if(kind==='address'){
@@ -18,7 +18,7 @@ export function sourceContacts(r:SourceRow,donor:ParsedDonor) {
     if(a.line1){if(!a.city||!a.region||!a.postalCode)r.error('CONTACT_ADDRESS','An imported postal address needs street, city, state and postal code.',key+'Line1');value=JSON.stringify(a)}
    }else value=(index===1?donor[kind]:r.get(key)).trim()
    const rawType=r.get(key+'Type').toLowerCase(),flag=r.get(key+'Primary').toLowerCase()
-   const type=rawType||(kind==='email'?(index===1?'personal':index===2?'work':'other'):kind==='phone'?(index===1?'mobile':index===2?'home':'work'):index===1?'home':'vacation')
+   const type=rawType||(kind==='email'?(index===1?'personal':index===2?'work':'other'):kind==='phone'?(index===1?'mobile':index===2?'home':'work'):index===1?'home':index===2?'vacation':'other')
    const startsOn=r.get(key+'From'),endsOn=r.get(key+'Through')
    if(!value){if(rawType||flag||startsOn||endsOn)r.error('CONTACT_VALUE','Contact metadata needs its contact value.',key);continue}
    if(!(CONTACT_TYPES[kind] as readonly string[]).includes(type))r.error('CONTACT_TYPE','Choose a supported '+kind+' type.',key+'Type')

@@ -13,6 +13,8 @@ export function timelineFilter(url?:URL){
 /** Current task and delivery sources augment the donor's existing history. */
 export async function timelineSources(c:Context,donorId:string){
  const queries=[
+  "SELECT 'note' AS kind,id,occurred_on AS day,imported_at AS at,'Imported '||CASE source WHEN 'lgl' THEN 'Little Green Light' ELSE source END||' '||kind||' · '||label AS title,details AS body FROM cf_crm_source_history WHERE donor_id=?",
+
   "SELECT 'meeting' AS kind,id,substr(starts_at,1,10) AS day,starts_at AS at,CASE WHEN source='calendly' THEN 'Calendly meeting' WHEN source='google' THEN 'Google Calendar meeting' ELSE 'Scheduled meeting' END AS title,starts_at||CASE WHEN cancelled_at IS NULL THEN '' ELSE ' · cancelled' END AS body FROM cf_donor_meetings WHERE donor_id=?",
   "SELECT 'receipt' AS kind,id,substr(prepared_at,1,10) AS day,prepared_at AS at,'Single letter produced' AS title,subject||' · '||status AS body FROM cf_single_letters WHERE donor_id=?",
   "SELECT 'event' AS kind,r.id,substr(r.checked_in_at,1,10) AS day,r.checked_in_at AS at,e.name AS title,'Checked in to event' AS body FROM cf_event_registrations r JOIN cf_fundraising_events e ON e.id=r.event_id WHERE r.donor_id=? AND r.checked_in_at IS NOT NULL",

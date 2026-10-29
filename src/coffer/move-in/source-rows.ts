@@ -17,7 +17,7 @@ export function day(value: Cell | undefined): string {
  const date = new Date(`${normalized}T00:00:00Z`)
  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === normalized ? normalized : ''
 }
-export type RowKind = 'donor' | 'gift' | 'pledge' | 'softCredit' | 'installment' | 'relationship' | 'note' | 'control' | 'volunteering' | 'unsupported'
+export type RowKind = 'donor' | 'gift' | 'pledge' | 'softCredit' | 'installment' | 'relationship' | 'note' | 'control' | 'volunteering' | 'membership' | 'mailing' | 'unsupported'
 export class SourceRow {
  readonly location: SourceLocation
  readonly used = new Set<number>()
@@ -33,6 +33,7 @@ export class SourceRow {
    if (field) { if (!this.fields.has(field)) this.fields.set(field, i); else this.error('DUPLICATE_COLUMN', `Columns map to the same field ${field}; export a single unambiguous column.`, this.headers[i]) }
   }
  }
+ contactIndices(kind:'email'|'phone'|'address'){const pattern=new RegExp('^'+kind+'([0-9]+)(?:$|[A-Z])');return [...new Set([...this.fields.keys()].flatMap(field=>{const match=pattern.exec(field);return match?[Number(match[1])]:[]}))].sort((a,b)=>a-b)}
  has(field: string) { return this.fields.has(field) }
  raw(field: string): Cell | undefined { const i = this.fields.get(field); return i === undefined ? undefined : this.cells[i] }
  peek(field: string) { const value=valueText(this.raw(field)),translations=this.result.spreadsheet?.translations; const values=field==='fund'?translations?.fund:field==='method'?translations?.method:undefined; return values&&Object.hasOwn(values,value)?values[value]:value }
@@ -50,9 +51,13 @@ export class SourceRow {
  finish() {
   for (let i = 0; i < this.cells.length; i++) if (valueText(this.cells[i]) && !this.used.has(i)) this.unmap(this.headers[i] || `Column ${i + 1}`, valueText(this.cells[i]), `Coffer has no place for “${this.headers[i] || `column ${i + 1}`}” on a ${this.kindLabel()} row, so it would be left out. Delete that column from the file and upload again, or keep it and say below that it can be left out.`)
  }
- kindLabel() { return ({ donor: 'constituent', gift: 'gift', pledge: 'pledge', softCredit: 'soft credit', installment: 'pledge installment', relationship: 'relationship', note: 'note', control: 'totals', volunteering:'volunteer activity', unsupported: 'unrecognized' } as Record<RowKind, string>)[this.kind()] }
+ kindLabel() { return ({ donor: 'constituent', gift: 'gift', pledge: 'pledge', softCredit: 'soft credit', installment: 'pledge installment', relationship: 'relationship', note: 'note', control: 'totals', volunteering:'volunteer activity', membership:'membership history', mailing:'mailing history', unsupported: 'unrecognized' } as Record<RowKind, string>)[this.kind()] }
  kind(): RowKind {
   if (['lgl','givebutter','zeffy'].includes(this.result.source)&&this.peek('planId')) return 'unsupported'
+  if(this.result.source==='lgl'){
+   if(this.has('membershipId')||this.has('membershipDate'))return 'membership'
+   if(this.has('mailingId')||this.has('mailingDate'))return 'mailing'
+  }
   // Duration columns also occur in constituent roll-ups; require activity fields.
   if (this.result.source==='lgl' && (this.has('volunteerId')||this.has('volunteerDate')||this.has('volunteerRole'))) return 'volunteering'
   if (this.peek('controlCount') || this.peek('controlAmount')) return 'control'

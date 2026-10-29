@@ -45,6 +45,8 @@ const vendor: Record<ImportSource, Record<string, string[]>> = {
  givebutter: {}, zeffy: {},
  spreadsheet: {donorId:['Constituent ID'],giftId:['Gift ID'],communicationRestrictions:['Communication Restrictions'],tributeHonoree:['Tribute Honoree'],tributeType:['Tribute Type'],tributeGroup:['Tribute Group'],tributeNotifiedName:['Tribute Recipient Name'],tributeNotifiedEmail:['Tribute Recipient Email'],tributeNotifiedAddress:['Tribute Recipient Address'],emailPreference:['Email Preference'],mailPreference:['Mail Preference'],smsPreference:['SMS Preference'],phonePreference:['Phone Preference'],preferenceDate:['Preference Date']},
  lgl: {
+  membershipId:['LGL Membership ID','Membership ID'], membershipName:['Membership Level','Membership Name'], membershipDate:['Membership Start Date'], membershipEnd:['Membership End Date'], membershipStatus:['Membership Status'], membershipNotes:['Membership Notes','Membership Note'],
+  mailingId:['LGL Mailing ID','Mailing ID'], mailingName:['Mailing Name','Mailing Subject'], mailingDate:['Mailing Date'], mailingChannel:['Mailing Channel'], mailingStatus:['Mailing Status'], mailingNotes:['Mailing Notes'],
   planId:['LGL Recurring Gift ID','Recurring Gift ID','Plan ID'], customerReference:['Processor Customer Reference','LGL Forms Customer Reference'], paymentMethodReference:['Processor Payment Method Reference','LGL Forms Payment Method Reference'],
   emailPreference:['Email Preference'], mailPreference:['Mail Preference'], smsPreference:['SMS Preference'], phonePreference:['Phone Preference'], preferenceDate:['Preference Date'],
   volunteerId:['LGL Volunteer ID','Volunteer ID','Volunteer Activity ID','Volunteer Time ID'], volunteerClassification:['Volunteer Entry Type','Volunteer Record Type','Volunteer Type'], volunteerHoursType:['Hours Type','Volunteer Hours Type'], volunteerCommitment:['Volunteer Commitment ID'], volunteerRole:['Volunteer Category','Volunteer Role','Volunteer Service'], volunteerDate:['Volunteer Date'], volunteerHours:['Volunteer Hours','Hours'], volunteerMinutes:['Volunteer Minutes','Minutes'],
@@ -63,12 +65,15 @@ const vendor: Record<ImportSource, Record<string, string[]>> = {
  },
 }
 export function normalizeLabel(value: string) { return value.toLowerCase().replace(/\uFEFF/g, '').replace(/[^a-z0-9]/g, '') }
+const fieldCache=new Map<ImportSource,Map<string,string>>()
 export function columnFields(source: ImportSource): Map<string, string> {
+ const cached=fieldCache.get(source);if(cached)return cached
  const fields = new Map<string, string>()
- for(const kind of ['email','phone','address'])for(let n=1;n<=(kind==='address'?2:3);n++){const key=kind+(n===1?'':n);for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+n+' '+suffix),key+suffix);if(n===1)for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+suffix),key+suffix);if(n>1&&kind!=='address')for(const label of [kind+' '+n,kind+' Address '+n])fields.set(normalizeLabel(label),key);if(n>1&&kind==='address')for(const [suffix,label] of [['Line1','Street'],['Line2','Street 2'],['City','City'],['Region','State'],['PostalCode','Postal Code'],['Country','Country']])fields.set(normalizeLabel('Address '+n+' '+label),key+suffix)}
+ for(const kind of ['email','phone','address'])for(let n=1;n<=256;n++){const key=kind+(n===1?'':n);for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+n+' '+suffix),key+suffix);if(n===1)for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+suffix),key+suffix);if(n>1&&kind!=='address')for(const label of [kind+' '+n,kind+' Address '+n])fields.set(normalizeLabel(label),key);if(n>1&&kind==='address')for(const [suffix,label] of [['Line1','Street'],['Line2','Street 2'],['City','City'],['Region','State'],['PostalCode','Postal Code'],['Country','Country']])fields.set(normalizeLabel('Address '+n+' '+label),key+suffix)}
  for (const [key, labels] of Object.entries({ ...common, ...(['givebutter','zeffy'].includes(source)?vendor.spreadsheet:{}), ...vendor[source] })) for (const label of labels) {
   fields.set(normalizeLabel(label), key)
   if (key.startsWith('acknowledgment')) fields.set(normalizeLabel(`Soft Credit ${label}`), `soft${key[0].toUpperCase()}${key.slice(1)}`)
  }
+ fieldCache.set(source,fields)
  return fields
 }

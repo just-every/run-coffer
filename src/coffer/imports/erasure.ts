@@ -22,6 +22,7 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     sql(`DELETE FROM cf_move_in_issues WHERE job_id IN (${referencingMoveInJobs})`,donorId),
     sql(`UPDATE cf_move_in_jobs SET report='{}',accepted_reason=NULL,check_report=NULL,redacted=1 WHERE id IN (${referencingMoveInJobs})`,donorId),
     ...developmentReportErasureStatements(donorId),
+    sql('DELETE FROM cf_crm_source_history WHERE donor_id=?',donorId),
     sql('DELETE FROM cf_recurring_source_references WHERE donor_id=?',donorId),
     sql('DELETE FROM cf_platform_gifts WHERE gift_id IN(SELECT id FROM cf_gifts WHERE donor_id=?)',donorId),
     sql('DELETE FROM cf_hygiene_proposals WHERE donor_id=? OR related_donor_id=? OR evidence_id IN (SELECT id FROM cf_hygiene_evidence WHERE donor_id=?)',donorId,donorId,donorId),

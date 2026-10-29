@@ -17,6 +17,7 @@ export const tables = {
  allocation: { table: 'cf_pledge_allocations', key: 'id', columns: ['id','installment_id','gift_id','amount_cents','created_at','created_by'] },
  relationship: { table: 'cf_relationships', key: 'id', columns: ['id','donor_id','related_donor_id','type','created_at','created_by'] },
  softCredit: { table: 'cf_soft_credits', key: 'id', columns: ['id','gift_id','donor_id','amount_cents','created_at','created_by'] },
+ sourceHistory: {table:'cf_crm_source_history',key:'id',columns:['id','donor_id','source','source_id','kind','label','occurred_on','details','payload','imported_at','imported_by']},
  volunteering: {table:'cf_volunteering',key:'id',columns:['id','donor_id','role','occurred_on','minutes','source','source_key','recorded_at','recorded_by']},
  note: { table: 'cf_donor_notes', key: 'id', columns: ['id','donor_id','occurred_on','body','source','recorded_at','recorded_by'] },
  interaction: { table: 'cf_interactions', key: 'id', columns: ['id','donor_id','kind','occurred_on','who','notes','next_step','recorded_at','recorded_by'] },

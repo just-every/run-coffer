@@ -1,3 +1,4 @@
+import { lglSourceHistory } from './lgl-source-history'
 import { lglVolunteerRow } from './lgl-volunteering'
 import { platformGift } from './platform-export'
 import { sourceContacts } from './contacts'
@@ -151,6 +152,8 @@ export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {
  if (out.source !== 'lgl' || kind === 'donor' || kind === 'control') addDonor(r, out)
  if (kind === 'control') { note(r, out); return }
  switch (kind) {
+  case 'membership': lglSourceHistory(r,out,'membership'); break
+  case 'mailing': lglSourceHistory(r,out,'mailing'); break
   case 'volunteering': lglVolunteerRow(r,out); break
   case 'donor': note(r, out); if (r.peek('relatedDonor')) relationship(r, out); break
   case 'gift': gift(r, out, input); break
