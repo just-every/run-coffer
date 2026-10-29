@@ -45,7 +45,10 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
    const payment = await stripe(env, '/payment_intents/' + encodeURIComponent(pi))
    if (payment.metadata?.coffer_intent) intent = await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', payment.metadata.coffer_intent)
   }
-  if (intent?.frequency === 'once' && (intent.customer_id !== customerId || intent.amount_cents !== gross)) fail('payment_mismatch', 'The charge differs from the agreed checkout total.', 409)
+  // Erasure removes the staff request and customer reference from the intent.
+  // Its separate processor tombstone still permits anonymous financial custody.
+  const erasedStaff=intent?.staff_channel&&intent.frequency==='once'&&intent.customer_id===null&&await one(c,'SELECT e.donor_id FROM cf_erased_stripe_customers e JOIN cf_donors d ON d.id=e.donor_id WHERE e.customer_id=? AND e.donor_id=? AND d.erased_at IS NOT NULL',customerId,intent.donor_id)
+  if (intent?.frequency === 'once' && ((intent.customer_id !== customerId&&!erasedStaff) || intent.amount_cents !== gross)) fail('payment_mismatch', 'The charge differs from the agreed checkout total.', 409)
   // A verified paid charge can arrive before the browser return. Use the
   // giving recorder so designation, private answers, consent and receipts have
   // the same frozen source whichever transport observes payment first.
