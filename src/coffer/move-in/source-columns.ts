@@ -2,6 +2,7 @@ import type { ImportSource } from './types'
 
 /** Exact report labels plus documented, user-configurable export label variants. */
 const common: Record<string, string[]> = {
+ pledgeAdjustmentId:['Source Pledge Adjustment ID'],adjustmentOn:['Adjustment Date'],adjustmentReason:['Adjustment Reason'],adjustmentAmount:['Adjustment Amount'],
  sourceEventId:['Source Event ID'],sourceEventName:['Source Event Name'],sourceEventStarts:['Source Event Starts'],sourceGuestId:['Source Guest ID'],sourceAttendeeAccount:['Source Attendee Account ID'],sourceEventGift:['Source Event Gift ID'],sourceRegistration:['Source Registration ID'],sourceTicket:['Source Ticket'],sourceAttendeeName:['Source Attendee Name'],sourceAttendeeEmail:['Source Attendee Email'],sourceAttended:['Source Attended'],sourceRegistrationStatus:['Source Registration Status'],
  membershipId:['Source Membership ID'],membershipLevelId:['Membership Level ID'],membershipLevel:['Membership Level'],membershipTerm:['Membership Term'],membershipStarts:['Membership Starts'],membershipEnds:['Membership Ends'],membershipStatus:['Membership Status'],membershipFee:['Membership Fee'],membershipGift:['Membership Gift ID'],membershipAuto:['Source Auto Renewal'],membershipActive:['Source Active'],
  planId:['Plan ID'],frequency:['Frequency'],planStatus:['Plan Status'],nextOn:['Next Charge Date'],customerReference:['Processor Customer Reference'],paymentMethodReference:['Processor Payment Method Reference'],
@@ -36,7 +37,7 @@ const common: Record<string, string[]> = {
  softId: ['Soft Credit ID', 'Soft Credit Number'], softDonor: ['Soft Credit Constituent ID', 'Soft Credit Account Number', 'Soft Credit Recipient ID'],
  softAmount: ['Soft Credit Amount', 'Soft Credited Amount'], softGift: ['Original Gift ID', 'Original Transaction Number', 'Soft Credit Gift ID', 'Related Gift ID'],
  pledgeId: ['Pledge ID', 'Pledge Number', 'Pledge Transaction Number'], parentId: ['Parent Gift ID', 'LGL Parent Gift ID', 'Parent Transaction Number', 'Linked Pledge ID'],
- paymentInstallment:['Payment Installment ID'],installmentId: ['Installment ID', 'Installment Number'], dueOn: ['Due Date', 'Installment Date', 'Installment Due Date'], installmentAmount: ['Installment Amount'],
+ sourceDonationId:['Neon Donation ID'],sourcePaymentIds:['Neon Payment IDs'],paymentInstallment:['Payment Installment ID'],installmentId: ['Installment ID', 'Installment Number'], dueOn: ['Due Date', 'Installment Date', 'Installment Due Date'], installmentAmount: ['Installment Amount'],
  goodsDescription: ['Goods Description', 'Goods and Services Description', 'Benefit Description'],
  goodsAmount: ['Non-Deductible Amount', 'Nondeductible Amount', 'Goods and Services Amount', 'Benefit Amount'], deductible: ['Deductible', 'Deductible Amount', 'Receipt Amount'],
  controlCount: ['Gift Count', 'Total Number of Gifts', 'Total Gift Count', 'Transaction Count', 'TG Count', 'Total Giving Count'], controlAmount: ['Total Gift Amount', 'Total Amount of Gifts', 'Revenue Total', 'Total Revenue', 'TG Amount', 'Total Giving Amount', 'Lifetime Revenue'],

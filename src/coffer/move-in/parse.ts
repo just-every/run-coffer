@@ -1,3 +1,4 @@
+import { neonPledgeAdjustmentRow } from './neon-pledge-adjustments'
 import { neonEventRow } from './neon-events'
 import { neonMembershipRow } from './neon-records'
 import { platformTables, platformRow } from './platform-export'
@@ -36,7 +37,7 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
   for (let i = 1; i < table.rows.length; i++) if (table.rows[i].some(v => valueText(v))) rows.push(new SourceRow(table, table.rows[i], i + 1, out))
  }
  sourceTotals(rows, out.sourceTotals)
- for (const row of rows) if (neonEventRow(row,out)||neonMembershipRow(row,out)||platformRow(row,out)) continue; else if (row.kind() === 'control') { mapRow(row, out, input); controlRow(row, out) } else mapRow(row, out, input)
+ for (const row of rows) if (neonPledgeAdjustmentRow(row,out)||neonEventRow(row,out)||neonMembershipRow(row,out)||platformRow(row,out)) continue; else if (row.kind() === 'control') { mapRow(row, out, input); controlRow(row, out) } else mapRow(row, out, input)
  if(out.source==='spreadsheet')includeMatchedDonors(input,out)
  if(out.spreadsheet?.donorMatches)for(const donor of out.donors)if(Object.hasOwn(out.spreadsheet.donorMatches,donor.externalId))donor.match=out.spreadsheet.donorMatches[donor.externalId]
  if(out.spreadsheet?.donorMatches)for(const id of Object.keys(out.spreadsheet.donorMatches))if(!out.donors.some(d=>d.externalId===id))out.diagnostics.push({severity:'error',code:'DONOR_MATCH',message:`Source constituent ${id} has no mapped constituent row. Include its identity before choosing a match.`})

@@ -10,9 +10,9 @@ This bounded API slice reads Neon API version 2.12 from its fixed HTTPS origin. 
 - Typed account, donation and activity custom definitions, their ordered pick lists and each record's values. Text, numbers, currency, dates and Boolean values use the native validator; pick-one and pick-many choices must match the source definition. The preview names the generated field key, source definition and choices. Invalid values and collisions with existing definitions block apply.
 - Explicit source households and an explicitly flagged primary household contact as the head. No head is inferred. Household salutations survive as overrides. An unchanged source ID resolves to its earlier import without overwriting native names, contacts or households.
 - Source membership history retains level, term dates, status, source active and renewal flags, and its fee. A paid membership links to the exact received gift and benefits value; complimentary history adds no cash. Source renewal flags authorize no Coffer renewal or future charge.
-- Pledges retain dated installments, received payments and explicit source installment allocations. Promises are not cash. Imported pledge email stays held until the owner reviews the native pledge, schedule and wording. Closed pledges with unrecorded write-offs require separate review.
+- Pledges retain dated installments, received payments and explicit source installment allocations. Promises are not cash. Imported pledge email stays held until the owner reviews the native pledge, schedule and wording. A closed pledge with an unpaid source balance needs explicit source write-off rows; Coffer never guesses a cancellation or its date. Reviewed write-offs name their source installment and reduce only its still-unpaid native balance.
 - Active and inactive recurring schedules retain amount, cadence, source account and next date as migration evidence. Optional reviewed processor references remain opaque. Raw card and bank details from API responses are discarded; no source schedule is stopped and no replacement schedule is activated.
-- Fully paid donations and event registration payments with one successful monetary payment. Registration non-deductible amounts become goods values, never extra cash. Missing goods facts remain unknown. Source soft credits remain independent recognition and never increase cash totals.
+- Fully paid donations retain each successful payment and its actual received date. A donation with several payments needs reviewed per-payment goods values when the donation has a goods answer; their total must match the donation. No goods allocation is guessed. Soft credits on a split donation name their exact source payment. Changing an imported donation between one payment and several payments is refused rather than duplicating cash. Event registration and membership payments currently require one successful monetary payment. Registration non-deductible amounts become goods values, never extra cash. Missing goods facts remain unknown. Source soft credits remain independent recognition and never increase cash totals.
 - Activities retain their source IDs as notes or typed email, call and meeting interactions. An activity linked to several imported accounts appears on each account, with the original source ID and separate native records. Source acknowledgment references resolve to the matching account's copy. Donation tribute honorees, notification contacts and reviewed source groups survive. Imported tribute amounts are withheld from family notifications until native permission exists.
 - All four source channel choices, including unknown. Neon consent `GIVEN` means granted, `DECLINED` means withdrawn and `NOT_ASKED` or an absent answer means unknown. Email opt-out tightens the email choice. These are separate from do-not-solicit, which blocks asks on every channel. New source reviews cannot overwrite separately recorded or later native choices.
 
@@ -20,7 +20,7 @@ This bounded API slice reads Neon API version 2.12 from its fixed HTTPS origin. 
 
 Neon's `sendAcknowledgeEmail` and `sendAcknowledgeLetter` are instructions, not evidence of a historical send. Coffer never turns these options into an acknowledged status. Without source evidence, acknowledgment remains not acknowledged; no date, method or interaction is invented.
 
-Optionally upload one `neon-history.json` file prepared from reviewed source reports. Every map key must be a source ID in the API snapshot. Unsupported properties are refused. It is a source-history interchange format for this Coffer adapter, not a claim that Neon has such an endpoint.
+Optionally upload one `neon-history.json` file prepared from reviewed source reports. Every map key must be a source ID in the API snapshot. Every listed payment, pledge, installment and adjustment must be backed by source history; amounts are USD dollars with at most two decimal places. Unsupported properties are refused. It is a source-history interchange format for this Coffer adapter, not a claim that Neon has such an endpoint.
 
 ```json
 {
@@ -47,6 +47,21 @@ Optionally upload one `neon-history.json` file prepared from reviewed source rep
     }
   },
   "registrations": {},
+  "payments": {
+    "synthetic-coffer-8151": { "goodsAmount": 20 },
+    "synthetic-coffer-8152": { "goodsAmount": 30 }
+  },
+  "pledges": {
+    "synthetic-coffer-7161": {
+      "adjustments": [{
+        "id": "synthetic-coffer-7163",
+        "installmentId": "synthetic-coffer-7162",
+        "amount": 100,
+        "on": "2026-08-10",
+        "reason": "Source-backed cancellation of the unpaid promise"
+      }]
+    }
+  },
   "memberships": {},
   "pledgePayments": {},
   "recurring": {
@@ -84,4 +99,4 @@ Undo is one guarded transaction. It removes only records this import created, in
 
 ## Remaining coverage
 
-This is partial Neon coverage. Replacement recurring schedules and vault transfer remain outside this historical import. Dated contacts, additional source objects and source attendee custom fields, unsupported custom definition kinds, membership custom fields, pledge write-offs and tribute handling, split or pending payments, refunds, disputes and noncash transactions need further reviewed migration. Unsupported payment records stop the preview rather than being counted as cash. Registered guests and explicit source attendance appear under Events as historical records. They create no hosted registration, current checkout or automatic confirmation. Guest rows retain their source registration and link to the received gift and goods value; erasure removes rows naming either the buyer or the linked attendee. A donor data file withholds other guest contacts and private import custody. Keep the incumbent installation and its full exports until every required source object has been separately reconciled. These fixtures establish no live Neon qualification and no completion of CAMP-004 or MOVE-009. Existing DONOR-009 and DONOR-015 requirements remain in force.
+This is partial Neon coverage. Replacement recurring schedules and vault transfer remain outside this historical import. Dated contacts, additional source objects and source attendee custom fields, unsupported custom definition kinds, membership custom fields, multi-payment donations with custom values, multi-payment memberships and registrations, unsettled payments, refunds, disputes and noncash transactions need further reviewed migration. Unsupported payment records stop the preview rather than being counted as cash. Registered guests and explicit source attendance appear under Events as historical records. They create no hosted registration, current checkout or automatic confirmation. Guest rows retain their source registration and link to the received gift and goods value; erasure removes rows naming either the buyer or the linked attendee. A donor data file withholds other guest contacts and private import custody. Keep the incumbent installation and its full exports until every required source object has been separately reconciled. These fixtures establish no live Neon qualification and no completion of CAMP-004 or MOVE-009. Existing DONOR-009 and DONOR-015 requirements remain in force.

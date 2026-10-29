@@ -18,6 +18,7 @@ export const tables = {
  campaign: { table: 'cf_gift_appeals', key: 'gift_id', columns: ['gift_id','appeal'] },
  channel: { table: 'cf_gift_channels', key: 'gift_id', columns: ['gift_id','channel'] },
  allocation: { table: 'cf_pledge_allocations', key: 'id', columns: ['id','installment_id','gift_id','amount_cents','created_at','created_by'] },
+ pledgeAdjustment:{table:'cf_pledge_adjustments',key:'id',columns:['id','pledge_id','installment_id','amount_cents','kind','reason','created_at','created_by']},
  relationship: { table: 'cf_relationships', key: 'id', columns: ['id','donor_id','related_donor_id','type','created_at','created_by'] },
  softCredit: { table: 'cf_soft_credits', key: 'id', columns: ['id','gift_id','donor_id','amount_cents','created_at','created_by'] },
  note: { table: 'cf_donor_notes', key: 'id', columns: ['id','donor_id','occurred_on','body','source','recorded_at','recorded_by'] },

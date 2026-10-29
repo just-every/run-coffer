@@ -27,13 +27,13 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',sourceEvent:'Source event',eventGuest:'Source event guest',membership:'Source membership',recurringReference:'Source plan',platformGift:'Source transaction'}
+const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',pledgeAdjustment:'Source pledge write-off',sourceEvent:'Source event',eventGuest:'Source event guest',membership:'Source membership',recurringReference:'Source plan',platformGift:'Source transaction'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
  const plan: Plan = {customDefinitions:[],customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
- const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.memberships??[]),...(parsed.sourceEvents??[]),...(parsed.eventGuests??[])]
+ const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.memberships??[]),...(parsed.sourceEvents??[]),...(parsed.eventGuests??[]),...(parsed.pledgeAdjustments??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
  const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
@@ -57,6 +57,11 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const suppressed = new Set(erased.map(r=>r.hash))
  const giftBalances=await readSet(c,plan,`SELECT json_object('id',id,'net_cents',net_cents) AS snapshot FROM cf_gift_balances WHERE id IN (SELECT value FROM json_each(?)) ORDER BY id`,[JSON.stringify(mappings.filter(m=>m.kind==='gift').map(m=>m.native_id))])
  const reference = (g: ParsedImport['gifts'][number]) => `${source}:${g.externalId}${g.checkReference?` / ${g.checkReference}`:''}`
+ if(source==='neon'){
+  const groups=[...new Map(parsed.gifts.filter(g=>g.sourceDonationId).map(g=>[g.sourceDonationId!,{id:g.sourceDonationId!,refs:(g.sourcePaymentIds??[]).length===1?['neon:'+g.sourceDonationId]:(g.sourcePaymentIds??[]).map(id=>'neon:'+g.sourceDonationId+':payment:'+id)}])).values()]
+  const old=groups.length?await readSet(c,plan,`SELECT json_object('reference',g.reference) AS snapshot FROM cf_move_in_records r JOIN cf_gifts g ON g.id=r.native_id WHERE r.source='neon' AND r.kind='gift' AND EXISTS(SELECT 1 FROM json_each(?) j WHERE g.reference='neon:'||json_extract(j.value,'$.id') OR substr(g.reference,1,length('neon:'||json_extract(j.value,'$.id')||':payment:'))='neon:'||json_extract(j.value,'$.id')||':payment:') ORDER BY g.id`,[JSON.stringify(groups)]):[]
+  for(const group of groups)if(old.some(r=>(r.reference==='neon:'+group.id||r.reference.startsWith('neon:'+group.id+':payment:'))&&!group.refs.includes(r.reference)))plan.diagnostics.push({severity:'error',code:'NEON_PAYMENT_REPRESENTATION',message:'Donation '+group.id+' already has a different imported payment representation. Undo its untouched source import or make an audited native correction; no duplicate cash was approved.'})
+ }
  const referenced = new Map((await readSet(c,plan,`SELECT json_object('id',id,'reference',reference) AS snapshot FROM cf_gifts WHERE source='manual' AND kind='gift' AND reference IN (SELECT value FROM json_each(?)) ORDER BY id`,[JSON.stringify(parsed.gifts.map(reference))])).map(r=>[r.reference as string,r.id as string]))
  const tributeGiftIds = await Promise.all(parsed.gifts.map(g=>nativeId(source,'gift',g.externalId)))
  const tributeRows = await readSet(c,plan,`SELECT ${snapshot('tribute')} AS snapshot FROM cf_gift_tributes n WHERE n.gift_id IN (SELECT value FROM json_each(?)) ORDER BY n.gift_id`,[JSON.stringify([...tributeGiftIds,...mappings.filter(m=>m.kind==='gift').map(m=>m.native_id)])])
@@ -64,7 +69,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const diagnostic = (message: string, location?: Located['location'], severity: 'error'|'warning' = 'error', code = 'MOVE_IN_MAPPING', column = 'Record ID') => plan.diagnostics.push({severity,code,message,column,...location})
  const add = async (kind: Kind, entity: Located & {externalId:string}, row: Row, match?: string, donorId: string | null = null, relatedId: string | null = null) => {
   // A donor's household is inferred from the whole file set, so it is not part of the donor's own details.
-  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,expectedNativeId:_expected,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string;expectedNativeId?:string}
+  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,expectedNativeId:_expected,sourceDonationId:_donation,sourcePaymentIds:_payments,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string;expectedNativeId?:string;sourceDonationId?:string;sourcePaymentIds?:string[]}
   const hash = await contentHash(payload), previous = existing.get(`${kind}:${key}`)
   if (previous) {
    // A later file (another year's gifts) finds the donors and households an earlier move-in brought, by the CRM's own ID.
@@ -203,6 +208,16 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
     balance-=cents;remaining.set(i.externalId,(remaining.get(i.externalId)||0)-cents)
    }
   }
+ }
+ const adjustmentBalances=(parsed.pledgeAdjustments??[]).length?await readSet(c,plan,`SELECT json_object('id',id,'remaining',amount_cents-paid_cents) AS snapshot FROM cf_pledge_balances WHERE id IN(SELECT value FROM json_each(?)) ORDER BY id`,[JSON.stringify((parsed.pledgeAdjustments??[]).map(a=>installments.get(a.installmentExternalId)))]):[]
+ const adjusted=new Map<string,number>()
+ for(const a of parsed.pledgeAdjustments??[]){
+  const installmentId=installments.get(a.installmentExternalId)!,balance=adjustmentBalances.find(i=>i.id===installmentId)
+  if(!existing.has(`pledgeAdjustment:${await sourceKey(a.externalId)}`)){
+   const total=(adjusted.get(installmentId)??0)+a.amountCents;adjusted.set(installmentId,total)
+   if(balance&&total>balance.remaining)diagnostic('The source write-off exceeds the current native unpaid installment. Existing source and staff corrections are retained.',a.location,'error','PLEDGE_BALANCE')
+  }
+  await add('pledgeAdjustment',a,{pledge_id:pledges.get(a.pledgeExternalId),installment_id:installmentId,amount_cents:a.amountCents,kind:'write_off',reason:'Neon source write-off on '+a.on+': '+a.reason,created_at:c.now,created_by:c.actor.name},undefined,plan.donorIds.get(a.donorExternalId))
  }
  const relationshipRows=await readSet(c,plan,`SELECT ${snapshot('relationship')} AS snapshot FROM cf_relationships n WHERE donor_id IN (SELECT value FROM json_each(?)) OR related_donor_id IN (SELECT value FROM json_each(?)) ORDER BY n.id`,[JSON.stringify([...plan.donorIds.values()]),JSON.stringify([...plan.donorIds.values()])])
  for(const r of parsed.relationships) {

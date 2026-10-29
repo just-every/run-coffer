@@ -57,6 +57,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   batch.push(...group); batchBytes += bytes
  }
  flushGifts()
+ for(const chunk of chunks(parsed.pledgeAdjustments??[])){const ids=new Set(chunk.map(a=>a.pledgeExternalId));part({pledgeAdjustments:chunk,pledges:parsed.pledges.filter(p=>ids.has(p.externalId)),installments:installmentsOf(ids),gifts:parsed.gifts.filter(g=>ids.has(g.pledgeExternalId))},chunk.map(a=>a.donorExternalId))}
  for(const chunk of chunks(parsed.eventGuests??[]))part({eventGuests:chunk,sourceEvents:(parsed.sourceEvents??[]).filter(e=>chunk.some(g=>g.eventExternalId===e.externalId)),gifts:parsed.gifts.filter(g=>chunk.some(v=>v.giftExternalId===g.externalId))},chunk.flatMap(g=>[g.donorExternalId,...(g.attendeeExternalId?[g.attendeeExternalId]:[])]))
  for(const chunk of chunks(parsed.memberships??[]))part({memberships:chunk,gifts:chunk.flatMap(m=>m.giftExternalId&&gifts.has(m.giftExternalId)?[gifts.get(m.giftExternalId)!]:[])},chunk.map(m=>m.donorExternalId))
  for (const chunk of chunks(parsed.softCredits)) {
