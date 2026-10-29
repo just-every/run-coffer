@@ -116,7 +116,7 @@ export async function emailPortalLink(original: GivingEnv, donorId: string, subj
  }
 }
 
-async function session(request: Request, env: GivingEnv) {
+export async function portalSession(request: Request, env: GivingEnv) {
  const cookies = (request.headers.get('cookie') ?? '').split(';').map(part => part.trim()).filter(part => part.startsWith(`${cookieName(env)}=`))
  if (cookies.length !== 1) return null
  const token = cookies[0].slice(cookieName(env).length + 1)
@@ -175,7 +175,7 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
   return requestedPage()
  }
  if (path === '/giving/portal/confirm') return confirm(request, env, read ? url.searchParams.get('token') ?? '' : (await form(request)).get('token') ?? '')
- const donor = await session(request, env)
+ const donor = await portalSession(request, env)
  if (!donor) return read && path === '/giving/portal' ? requestPage() : redirect('/giving/portal')
  if(path==='/giving/portal/saved-card'){
   if(read)return savedCardConsentPage(env,donor,url.searchParams.get('saved')==='1')

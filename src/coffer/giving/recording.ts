@@ -1,5 +1,6 @@
 import { givingFormGiftStatements } from './form-recording'
 import { paymentWrite } from '../payments/write'
+import { peerCreditStatements } from '../peer/accounting'
 import { observePortalPlan } from './portal-plan-facts'
 import { runGiftRules } from '../gift-rules'
 import { tributeGiftStatement } from './tribute'
@@ -87,6 +88,7 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
   ...givingFormGiftStatements(intent.id,id,intent.donor_id,now),
   tributeGiftStatement(id,intent.id,now),
   giftRecognitionStatement(id,intent),
+  ...peerCreditStatements(id,intent.id,now),
   // The donor ticked the separate appeal box at checkout; receipts never depend on it.
   ...(intent.email_consent ? [sql(`INSERT INTO cf_consents(donor_id,channel,status,method,evidence,captured_on,recorded_at,recorded_by)
    SELECT ?,'email','granted','web form',?,?,?,'Giving page' WHERE EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_consents WHERE donor_id=? AND evidence=?)`,intent.donor_id, consentEvidence(intent), day, now, intent.donor_id, intent.donor_id, consentEvidence(intent))] : []),

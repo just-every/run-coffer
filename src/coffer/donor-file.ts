@@ -19,7 +19,7 @@ const DONOR_COLUMNS: Record<string, string[]> = {
 }
 // A column naming a parent record, and the table whose `id` it names.
 const PARENTS: Record<string, string> = {
- intent_id:'cf_giving_intents', gift_id: 'cf_gifts', received_gift_id: 'cf_gifts', first_gift_id: 'cf_gifts', reverses: 'cf_gifts', pledge_id: 'cf_pledges', prospect_id: 'cf_prospects',
+ page_id:'cf_peer_pages', team_id:'cf_peer_teams', intent_id:'cf_giving_intents', gift_id: 'cf_gifts', received_gift_id: 'cf_gifts', first_gift_id: 'cf_gifts', reverses: 'cf_gifts', pledge_id: 'cf_pledges', prospect_id: 'cf_prospects',
  in_kind_id: 'cf_in_kind_gifts', grant_id: 'cf_grants', subscription_id: 'cf_subscriptions', installment_id: 'cf_pledge_installments',
  communication_id: 'cf_communications', letter_id: 'cf_acks', series_id: 'cf_recurring_task_series', soft_credit_id: 'cf_soft_credits',
  draft_id: 'cf_stewardship_drafts', intention_id: 'cf_planned_gifts', charge_id: 'cf_stripe_charges', merge_id: 'cf_donor_merge_journal',
@@ -97,7 +97,8 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
    if (NOT_IN_FILE[t.name] || (!t.donors.length && !t.parents.length)) continue
    const terms: string[] = [], params: string[] = []
    for (const k of t.donors) { terms.push(`${k} IN (SELECT value FROM json_each(?))`); params.push(JSON.stringify(ids)) }
-   for (const k of t.name==='cf_event_registrations'?[]:t.parents) { const p = own.get(PARENTS[k]); if (p?.size) { terms.push(`${k} IN (SELECT value FROM json_each(?))`); params.push(JSON.stringify([...p])) } }
+   // A team relationship is attribution, not ownership of its supporters’ pages.
+   for (const k of ['cf_event_registrations','cf_peer_intents','cf_peer_pages'].includes(t.name)?[]:t.parents) { const p = own.get(PARENTS[k]); if (p?.size) { terms.push(`${k} IN (SELECT value FROM json_each(?))`); params.push(JSON.stringify([...p])) } }
    if (terms.length) reads.push({ t, sql: `SELECT * FROM ${t.name} WHERE ${terms.join(' OR ')}`, params })
   }
   const results = await c.db.batch(reads.map(r => c.db.prepare(r.sql).bind(...r.params)))
@@ -137,6 +138,7 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
    const out: Row = { ...r }
    if(t.name==='cf_source_event_guests'&&!ids.includes(r.attendee_donor_id))for(const key of ['attendee_name','attendee_email','source_id'])if(out[key]!==null)out[key]='[third party withheld]'
    if(t.name==='cf_move_in_records'&&r.kind==='eventGuest')out.snapshot='[private import custody withheld]'
+   if(t.name==='cf_peer_intents')delete out.intent_id
    if(t.name==='cf_auction_rows')for(const key of ['candidates','match_reason','gift_snapshot','property_snapshot','bidder_key','planned_donor_id'])delete out[key]
    if(out.name_fields){const names=JSON.parse(out.name_fields);if(names._attention&&!ids.includes(names._attention)){out.name_fields='[third party withheld]';if(t.name==='cf_communications'){out.subject='[third party withheld]';out.body='[third party withheld]'}if(t.name==='cf_appeal_recipients'){out.merge_fields='[third party withheld]';out.rendered_subject='[third party withheld]';out.rendered_body='[third party withheld]'}}}
    if(t.name==='cf_acks'||t.name==='cf_single_letters'||t.name==='cf_in_kind_acknowledgments') {

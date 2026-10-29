@@ -4,7 +4,7 @@ import { profileRecipient, selectedProfileFields } from './profile-fields'
 import { solicitationAskStatements, solicitationRunGuards } from '../solicitation'
 import { nameMergeFields, frozenNameFields } from '../person-names'
 import { letterRecipient } from '../organizations'
-import { all, commit, event, fail, guard, newId, one, sql, type Context, type Row } from '../db'
+import { all, commit, event, fail, guard, newId, one, sql, type Context, type Row, type Stmt } from '../db'
 import { usd } from '../money'
 import { composeMailchimpCampaign, createMailchimpCampaign, listInMango, providerResults, providerTitle } from './provider'
 import { requireConnection, savedConnection } from './connection'
@@ -18,7 +18,7 @@ async function savedResult(c: Context, messageId: string, disposition: string) {
  return message
 }
 
-export type MessageInput = { key:string; donorId:string; subject:string; body:string; sourceKind:'appeal'|'welcome'; sourceId:string; listName:string; expectedEmail?:string;emailType?:string;expectedContactId?:string;expectedContactVersion?:number; merge?:Row; rendered?:{subject:string;body:string} }
+export type MessageInput = { key:string; donorId:string; subject:string; body:string; sourceKind:'appeal'|'welcome'; sourceId:string; listName:string; expectedEmail?:string;emailType?:string;expectedContactId?:string;expectedContactVersion?:number; merge?:Row; rendered?:{subject:string;body:string}; checks?:()=>Promise<Stmt[]> }
 export function mergeMessage(template: string, values: Row) {
  const fields: Row = {...(values.name_fields ? JSON.parse(values.name_fields) : nameMergeFields(values)),donor_name:values.name,total_given:usd(values.total_cents??0),last_gift:values.last_gift||'No gift recorded',gift_count:String(values.gift_count??0)}
  return fillFields(template,{...fields,...(typeof values.merge_fields==='string'?JSON.parse(values.merge_fields):values.merge_fields??{})})
@@ -28,7 +28,7 @@ async function handoffGuards(c:Context,input:MessageInput,donorId:string,recipie
  if(!donor)fail('DONOR_CHANGED','This donor is no longer available.',409)
  const current=await profileRecipient(c,donor!,{emailType:input.emailType})
  if(current.email!==recipient.email||current.selected_email_contact_id!==recipient.selected_email_contact_id||current.selected_email_contact_version!==recipient.selected_email_contact_version)fail('CONTACT_CHANGED','The email contact changed before handoff.',409)
- await commit(c,[...await solicitationRunGuards(c,input.sourceKind,input.sourceId,[donorId]),...(input.sourceKind==='welcome'?await journeySendGuards(c,input.sourceId):[]),
+ await commit(c,[...(await input.checks?.() ?? []),...await solicitationRunGuards(c,input.sourceKind,input.sourceId,[donorId]),...(input.sourceKind==='welcome'?await journeySendGuards(c,input.sourceId):[]),
   guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.erased_at IS NULL AND d.constituent_status='active' AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s consent or status changed before handoff.',donorId),
   ...(current.selected_email_contact_id?[guard(`EXISTS(SELECT 1 FROM cf_contact_points WHERE id=? AND donor_id=? AND kind='email' AND active=1 AND value=? AND version=?)`,'CONTACT_CHANGED','The email contact changed before handoff.',current.selected_email_contact_id,donorId,current.email,current.selected_email_contact_version)]:[]),
  ])
@@ -36,6 +36,7 @@ async function handoffGuards(c:Context,input:MessageInput,donorId:string,recipie
 export async function submitMessage(c: Context,input:MessageInput):Promise<Row> {
  const previous=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
  if(previous) return previous
+ if(input.checks) await commit(c, await input.checks())
  const conn=await requireConnection(c)
  const d=await one(c, `SELECT d.*,(SELECT COALESCE(SUM(amount_cents),0) FROM cf_monetary_contributions g WHERE g.donor_id=d.id) AS total_cents,
  (SELECT COUNT(*) FROM cf_gift_balances g WHERE g.donor_id=d.id AND net_cents>0) AS gift_count,
@@ -51,7 +52,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  const replyTo=(conn.fromEmail??c.env?.COFFER_REPLY_ADDRESS??'').trim().toLowerCase()
  const allowed=preference.allowed||conn.provider==='mango'&&preference.state==='pending'
  const state=allowed?'preparing':'suppressed'
- await commit(c,[...(input.sourceKind==='welcome'?await journeySendGuards(c,input.sourceId):[]),...(currentNames.selected_email_contact_id?[guard(`EXISTS(SELECT 1 FROM cf_contact_points WHERE id=? AND donor_id=? AND kind='email' AND active=1 AND value=? AND version=?)`,'CONTACT_CHANGED','The email contact changed before preparing the message.',currentNames.selected_email_contact_id,d.id,currentNames.email,currentNames.selected_email_contact_version)]:[]),...(allowed?await solicitationAskStatements(c,input.sourceKind,input.sourceId,[d.id]):[]),...(allowed?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND (d.email=? OR EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id=d.id AND p.kind='email' AND p.active=1 AND p.value=?)) AND d.erased_at IS NULL AND d.constituent_status='active' AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s email or consent changed before sending.',d.id,currentNames.email,currentNames.email)]:[]),sql(`INSERT OR IGNORE INTO cf_communications(id,message_key,donor_id,source_kind,source_id,provider,status,subject,body,reply_to,created_at,note,recipient_email,name_fields,recipient_contact_id,recipient_contact_version)
+ await commit(c,[...(await input.checks?.() ?? []),...(input.sourceKind==='welcome'?await journeySendGuards(c,input.sourceId):[]),...(currentNames.selected_email_contact_id?[guard(`EXISTS(SELECT 1 FROM cf_contact_points WHERE id=? AND donor_id=? AND kind='email' AND active=1 AND value=? AND version=?)`,'CONTACT_CHANGED','The email contact changed before preparing the message.',currentNames.selected_email_contact_id,d.id,currentNames.email,currentNames.selected_email_contact_version)]:[]),...(allowed?await solicitationAskStatements(c,input.sourceKind,input.sourceId,[d.id]):[]),...(allowed?[guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND (d.email=? OR EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id=d.id AND p.kind='email' AND p.active=1 AND p.value=?)) AND d.erased_at IS NULL AND d.constituent_status='active' AND (SELECT status FROM cf_consents WHERE donor_id=d.id AND channel='email' ORDER BY id DESC LIMIT 1)='granted')`,'CONSENT_CHANGED','The recipient’s email or consent changed before sending.',d.id,currentNames.email,currentNames.email)]:[]),sql(`INSERT OR IGNORE INTO cf_communications(id,message_key,donor_id,source_kind,source_id,provider,status,subject,body,reply_to,created_at,note,recipient_email,name_fields,recipient_contact_id,recipient_contact_version)
  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,row.id,input.key,d.id,input.sourceKind,input.sourceId,conn.provider,state,row.subject,row.body,replyTo,c.now,allowed?'Preparing an email campaign.':preference.note,currentNames.email,input.merge?.name_fields??frozenNameFields(currentNames),currentNames.selected_email_contact_id,currentNames.selected_email_contact_version),
  event(c,'marketing.prepare',input.sourceKind,input.sourceId,d.id,{communicationId:row.id,state})])
  const claim=await one(c,'SELECT * FROM cf_communications WHERE message_key=?',input.key)
