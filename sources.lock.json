@@ -803,7 +803,7 @@
       "executable": false
     },
     "integrations/zapier/README.md": {
-      "sha256": "1d5e4c3df8ed0f0477bfd5d65980c33dc98acd101afa01512bfc37e05638d13f",
+      "sha256": "cd20cb551aa8dffb721689927e3f4ec73378872e101c7ae58048e2d6f413ef01",
       "executable": false
     },
     "integrations/zapier/searches/records.js": {
@@ -811,7 +811,7 @@
       "executable": false
     },
     "integrations/zapier/triggers/events.js": {
-      "sha256": "c011e703ee6fb3065ce1fe9b670dd41897b0043a68590594aa5b20eaaeb1c7af",
+      "sha256": "0ca1106c1e6f320079ecba68cec75f2b5ceb08a45dafdd162e7ecfbfa019603d",
       "executable": false
     },
     "LICENSE": {
@@ -8023,7 +8023,7 @@
       "executable": false
     },
     "tests/zapier-journey.mjs": {
-      "sha256": "cf68344c3bdfd44681dea49d9f3d8057ed25dd1fca6d14488e20c6388dc0ba4c",
+      "sha256": "59ac54a182735a9b8f94419939bde8f30753d066a99b865b723b62b5ffd42988",
       "executable": false
     },
     "tsconfig.json": {

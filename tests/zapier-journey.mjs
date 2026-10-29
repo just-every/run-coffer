@@ -225,8 +225,8 @@ export async function zapierHooksJourney(){
   const keyOptions={status:201}
   const full=await h.api(prefix+'/keys',{label:'synthetic-coffer-7550',scope:'full'},keyOptions)
   const targetUrl='https://receiver.example.test/events'
-  const capture=message=>({authData:{baseUrl,apiKey:full.token},inputData:{subscriptionId:signed.id},targetUrl,
-   rawRequest:{content:message.body,headers:{'Coffer-Signature':message.signature,'Coffer-Delivery-Id':message.deliveryId}}})
+  const capture=message=>({authData:{baseUrl,apiKey:full.token},inputData:{subscriptionId:signed.id,targetUrl},
+   rawRequest:{content:message.body,headers:{'Http-Coffer-Signature':message.signature,'Http-Coffer-Delivery-Id':message.deliveryId}}})
   const trigger=(message,changes={})=>test(App.triggers[message.event.type.replace('.','_')].operation.perform,{...capture(message),...changes})
   const first=messages.find(m=>m.event.type==='gift.created')
   if(phase==='erased'){
@@ -256,8 +256,8 @@ export async function zapierHooksJourney(){
   assert.equal((await h.get(prefix+'/tasks/'+tasks[0].id)).data.is_ask,0,'Gift trigger to packaged action creates the exact owned non-ask native task')
   const forged=capture(first);forged.rawRequest.content=first.body+' '
   await denied(()=>trigger(first,forged),403)
-  await denied(()=>trigger(first,{targetUrl:targetUrl+'/unapproved'}),403)
-  const mismatched=capture(first);mismatched.rawRequest.headers['Coffer-Delivery-Id']='synthetic-coffer-7552'
+  await denied(()=>trigger(first,{inputData:{subscriptionId:signed.id,targetUrl:targetUrl+'/unapproved'}}),403)
+  const mismatched=capture(first);mismatched.rawRequest.headers['Http-Coffer-Delivery-Id']='synthetic-coffer-7552'
   await denied(()=>trigger(first,mismatched),403)
   await denied(()=>test(App.triggers.donor_created.operation.perform,capture(first)),400)
   transport.setNow(new Date(stamp+301000).toISOString())

@@ -46,7 +46,8 @@ step when a workflow needs native record context.
 1. Select the trigger and copy its Zapier hook URL.
 2. In native Coffer Settings, explicitly review and approve that exact public
    HTTPS URL and event. Use the same owner or admin who created the connection
-   key. Supply the resulting endpoint ID in the trigger input.
+   key. Supply the resulting endpoint ID and that exact hook URL in the trigger
+   inputs. Zapier does not supply `bundle.targetUrl` during trigger execution.
 3. Use a full key for this connection. Coffer retains its sealed signing key;
    the connector does not copy it into Zapier. To test the trigger, perform the
    actual native operation, then allow Coffer's scheduled delivery to run.
@@ -58,7 +59,8 @@ step when a workflow needs native record context.
    Settings. Zapier cannot pause, create, resume or replay subscriptions.
 
 The trigger forwards the exact raw capture, combined timestamped signature,
-delivery ID and its own target URL to `/api/coffer/v1/webhook-receipts/verify`.
+delivery ID from Zapier’s `Http-Coffer-*` headers and the configured hook URL
+to `/api/coffer/v1/webhook-receipts/verify`.
 This read-only verification door checks the current full key and approver,
 exact active approved endpoint, signed raw bytes within five minutes, current
 signing authority and any explicitly approved overlap, actual event and delivery,
