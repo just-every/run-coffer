@@ -38,7 +38,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
   if(action==='review' && !api) {
    const job=await reviewed(c,url.searchParams.get('id')||''), list=await issues(c,job.id,{...q,severity:q.severity??(job.report.canApply?undefined:'error')})
-   return page('Review CRM move-in',crmReviewPage(job,{...list,query:{...list.query,show:q.severity??(job.report.canApply?'all':'error')}},today((await settings(c)).timezone,new Date(c.now))),c.actor,200,'/app/more')
+   return page('Review CRM move-in',crmReviewPage(job,{...list,query:{...list.query,show:q.severity??(job.report.canApply?'all':'error')}},today((await settings(c)).timezone,new Date(c.now)),c.actor.role==='owner'&&!c.actor.apiKey),c.actor,200,'/app/more')
   }
   if(action==='issues')return json(await issues(c,(await reviewed(c,url.searchParams.get('id')||'')).id,q))
   if(action==='issues.csv') {

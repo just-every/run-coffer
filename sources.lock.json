@@ -3363,7 +3363,7 @@
       "executable": false
     },
     "src/coffer/move-in/http.ts": {
-      "sha256": "2456d0f60fa7bd4a125f54e3066394478e487ab9a97d4f41ce3b6b5c1efd5d4e",
+      "sha256": "695a2fd848e331769ac58d023024b71ba984a2c78d495446c2ab3f26ef35b8d5",
       "executable": false
     },
     "src/coffer/move-in/neon-contact-dates.ts": {
@@ -4043,7 +4043,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "f290729595b75086d0d6a4ad52d4dc3a905ff39e1c4e6b76e4be23d0d632ffc4",
+      "sha256": "d297a5c8c071c8fd86f9b64034b56f536d145d0ff7c8dcf26092716f078709c6",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
