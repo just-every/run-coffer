@@ -51,7 +51,7 @@ existing human approval decision. Later profile edits do not rewrite that text.
 On the provider connection page, extra profile fields start off and require an
 explicit owner/admin selection. A missing profile-context value needs a literal
 default or refuses transfer. Saving the selection sends nothing. See
-[appeal setup](appeals.md) and [declared data flows](data-flows.md).
+[appeal setup](/docs/appeals) and [declared data flows](https://github.com/just-every/run-coffer/blob/main/docs/data-flows.md).
 
 Currency values retain exact integer cents up to the safe-integer boundary.
 Template formatting and currency list comparisons keep the final cent and

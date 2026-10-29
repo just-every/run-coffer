@@ -623,7 +623,7 @@
       "executable": false
     },
     "docs/CUSTOM-FIELDS.md": {
-      "sha256": "8535f07e4e3c89f329d168cbbe9a216c97c2777502e6cd5e8006c13d8d1238d9",
+      "sha256": "5d793739e6498a2714167b34f8cc608b95ed34b75d8d412d69a4fe46cd4bc9ce",
       "executable": false
     },
     "docs/data-flows.md": {
@@ -719,7 +719,7 @@
       "executable": false
     },
     "docs/ONLINE-GIVING.md": {
-      "sha256": "5deca707cb3cb721ebb6781a6aa7118b4d5c01ba12d0439830593306320522bf",
+      "sha256": "ec2998798d70e96b74be9abb94b246fa25f3b921ed5d84a41bb8a75c4f584f44",
       "executable": false
     },
     "docs/PAYMENTS.md": {
@@ -759,7 +759,7 @@
       "executable": false
     },
     "docs/SOURCES.md": {
-      "sha256": "b990f5593b329700632f7aaca1c2212e38d6a440424fec144edbb486927b318b",
+      "sha256": "3ac8115d9bbaf18e9a3ddc90acbd4383a2fcc1d140c7e894fb0e78d96c5ac7ab",
       "executable": false
     },
     "docs/WEBHOOKS.md": {

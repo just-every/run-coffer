@@ -97,5 +97,5 @@ changed gifts or tribute facts need a fresh notification.
 ## Supporter fundraising
 
 Verified supporters can create personal pages and teams from their giving portal.
-See [Supporter fundraising](peer-fundraising.md) for publication, credit, leaderboard
+See [Supporter fundraising](/docs/peer-fundraising) for publication, credit, leaderboard
 and reviewed notice behavior.
