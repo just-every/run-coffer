@@ -84,6 +84,11 @@ export async function blackbaudJourney(){
   const saved=await archive(h);for(const secret of [key(9998),key(9999),key(9997)])assert.ok(!JSON.stringify(saved).includes(secret))
   await run(async fresh=>{await restore(fresh,saved);assert.deepEqual(await fundAmounts(fresh),{Reading:105000,Library:20000});assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities[0].expected_amount_cents,240000);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities.length,0);assert.deepEqual(await fundAmounts(fresh),{});assert.ok(!(await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key.startsWith('sky_')))})
   const repeat=await post(h,'preview',{...f.input(),solicitCodes:undefined});assert.equal(repeat.prior.state,'completed');assert.equal((await apply(h,repeat)).unchanged,true);assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000})
+  // A fresh read must compare changed source facts, even with the same review file.
+  f.gifts[1].amount.value=251;f.gifts[1].gift_splits[0].amount.value=251;f.gifts[1].receipts[0].amount.value=251
+  const changedSource=await post(h,'preview',f.input());assert.notEqual(changedSource.id,repeat.id);assert.equal(changedSource.canApply,false);assert.ok(changedSource.diagnostics.some(d=>d.code==='MOVE_IN_MAPPING'))
+  await post(h,'apply',{id:changedSource.id,fingerprint:changedSource.fingerprint},{status:409});assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000})
+  f.gifts[1].amount.value=250;f.gifts[1].gift_splits[0].amount.value=250;f.gifts[1].receipts[0].amount.value=250
   await post(h,'undo',{id:preview.id});assert.equal((await h.get('/api/coffer/donors?status=all')).total,0)
   preview=await post(h,'preview',f.input());await apply(h,preview)
   const current=await h.get('/api/coffer/households/'+hh.household.id);await h.command('household.update',{householdId:hh.household.id,version:current.household.version,informal_override:'A later reviewed greeting'})
