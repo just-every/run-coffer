@@ -34,8 +34,8 @@ const resources={
  donors:{table:'cf_donors',columns:'r.id,r.version,r.name,r.email,r.phone,r.address_line1,r.address_line2,r.city,r.region,r.postal_code,r.country,r.constituent_status',parent:'id'},
  gifts:{table:'cf_contribution_ledger',columns:'r.id,r.donor_id,r.received_on,r.amount_cents,r.method,r.fund,r.kind,r.reverses',parent:'donor_id'},
  pledges:{table:'cf_pledges',columns:'r.id,r.donor_id,r.amount_cents,r.pledged_on,r.due_by,r.fund',parent:'donor_id'},
- tasks:{table:'cf_call_tasks',columns:'r.id,r.donor_id,r.reason,r.owner_id,r.due_on,r.status,r.version',parent:'donor_id'},
- opportunities:{table:'cf_prospects',columns:'r.id,r.donor_id,r.label,r.stage,r.owner_id,r.ask_amount_cents,r.expected_close_on,r.next_step,r.version',parent:'donor_id'},
+ tasks:{table:'cf_call_tasks',columns:'r.id,r.donor_id,r.reason,r.owner_id,(SELECT display_name FROM oa_operators WHERE id=r.owner_id) AS owner_name,r.due_on,r.status,r.version',parent:'donor_id'},
+ opportunities:{table:'cf_prospects',columns:'r.id,r.donor_id,r.label,r.stage,r.owner_id,(SELECT display_name FROM oa_operators WHERE id=r.owner_id) AS owner_name,r.ask_amount_cents,r.expected_close_on,r.next_step,r.version',parent:'donor_id'},
  interactions:{table:'cf_interactions',columns:'r.id,r.donor_id,r.kind,r.occurred_on,r.who,r.notes,r.next_step',parent:'donor_id'},
 } as const
 export type ReadResource=keyof typeof resources
