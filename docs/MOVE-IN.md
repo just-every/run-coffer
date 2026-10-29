@@ -134,7 +134,9 @@ Account-scoped reference custody uses one-way hashes as well. Removing a review
 retains those bindings; merge moves them to the survivor, restore preserves them,
 and erasure leaves tombstones that also reject a newly labelled source donor.
 Existing retained review rows participate in these checks before another review
-is stored, saved or removed. No hash establishes provider ownership or usability.
+is stored, saved or removed. Erasure also hashes references from older retained
+reviews inside its cleanup transaction before deleting their payloads. No hash
+establishes provider ownership or usability.
 
 Actual PCI transfer and tenant authority, provider instrument verification,
 complete source plans and installment history, source-stop confirmation,

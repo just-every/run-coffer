@@ -711,7 +711,7 @@
       "executable": false
     },
     "docs/MOVE-IN.md": {
-      "sha256": "5dc0d83e8f97753d63d064a4dcc613f78e562fcfcdda224a8fa2db33ca8f95ae",
+      "sha256": "579be74f5e0e27942266423c0d286beb0bf5b41e2d22eafc7e9df8d9ea656b3f",
       "executable": false
     },
     "docs/neon-move-in.md": {
@@ -3743,7 +3743,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "24636724a93e523813cfff4775cfcf9f2713b06a49154d9c0d293d5d7bda151d",
+      "sha256": "9b2d3317bf03300e5707d343ce576d9540518f8d6060e17c5f18517bff35de46",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -4023,7 +4023,7 @@
       "executable": false
     },
     "src/coffer/move-in/vault-mapping.ts": {
-      "sha256": "7f489232a4457888eae2b508ba0b2e0a36024c75de5f37902a937a59e948630d",
+      "sha256": "cf01986235fb7c77a8cadec88a55c933c3496fb763ecf9e3772e9a9c300a7828",
       "executable": false
     },
     "src/coffer/opportunity-close.ts": {

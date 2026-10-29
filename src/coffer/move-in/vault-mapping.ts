@@ -153,6 +153,20 @@ async function referenceCustody(c:Context,review:ReviewAccounts,rows:VaultRow[])
   sql("INSERT OR IGNORE INTO cf_vault_identities SELECT json_extract(value,'$.hash'),json_extract(value,'$.id') FROM json_each(?)",identities),
  ]
 }
+export async function vaultErasureStatements(c:Context,donorId:string){
+ // Older reviews may not have reference hashes yet. Capture their tombstones
+ // in the erasure transaction before its trigger removes the private payloads.
+ const retained=await all<Row & ReviewAccounts>(c,`SELECT r.payload,v.source,v.source_account,v.destination_account
+  FROM cf_vault_rows r JOIN cf_vault_reviews v ON v.id=r.review_id WHERE r.donor_id=?`,donorId)
+ const hashes=new Set<string>()
+ for(const review of retained){
+  // Erasure also withholds an ambiguous file's retained destination reference;
+  // this is a refusal tombstone, never an assertion of usable ownership.
+  const claims=await referenceOwners(review,[{...JSON.parse(review.payload),donorId,category:'matched'}])
+  for(const claim of claims)hashes.add(claim.hash)
+ }
+ return [sql('INSERT OR IGNORE INTO cf_vault_erased_sources SELECT value FROM json_each(?)',JSON.stringify([...hashes]))]
+}
 export async function previewVault(c:Context,value:VaultMappingInput){
  own(c)
  const input=object(value)

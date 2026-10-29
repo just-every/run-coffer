@@ -1,3 +1,4 @@
+import { vaultErasureStatements } from './move-in/vault-mapping'
 import { membershipResponse } from './memberships/http'
 import { reportExportsPage } from './ui/report-exports'
 import { builderDownload } from './report-builder/download'
@@ -480,7 +481,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const checkpoint = await imports.portabilityCheckpoint(c.db)
  const aliases = await c.db.prepare("SELECT email FROM cf_donor_aliases WHERE donor_id=? UNION SELECT value AS email FROM cf_contact_points WHERE donor_id=? AND kind='email' UNION SELECT json_extract(snapshot,'$.value') AS email FROM cf_contact_history WHERE donor_id=? AND json_extract(snapshot,'$.kind')='email'").bind(donorId,donorId,donorId).all<{email:string}>()
  const auctionErasure=await auctionErasureStatements(c,donorId,placeholder)
- const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)
+ const nativeErasure = [...await vaultErasureStatements(c,donorId),...imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)]
  const givingErasure = [
   {sql:'DELETE FROM cf_membership_reminders WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
   {sql:'DELETE FROM cf_membership_payments WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
