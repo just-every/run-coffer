@@ -90,7 +90,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_PEER_BROWSER=.cache/peer COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test --test-skip-pattern='^(CAMP-001|GIFT-011|GIVE-003)' tests/giving.test.mjs"
+        "COFFER_PEER_BROWSER=.cache/peer COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test --test-skip-pattern='^(CAMP-001|CAMP-004|GIFT-011|GIVE-003)' tests/giving.test.mjs"
       ]
     },
     {
@@ -201,7 +201,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='CAMP-001|GIVE-003' tests/giving.test.mjs"
+        "COFFER_MEMBERSHIP_BROWSER=.cache/memberships COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='CAMP-001|CAMP-004|GIVE-003' tests/giving.test.mjs"
       ]
     },
     {

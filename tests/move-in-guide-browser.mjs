@@ -66,3 +66,23 @@ export async function moveInGuideBrowser(h,input,preview){
   }finally{await page.close()}
  })
 }
+
+export async function moveInGuideRenamedBrowser(h){
+ const directory=process.env.COFFER_MOVE_IN_GUIDE_BROWSER||await mkdtemp(join(tmpdir(),'coffer-switching-guide-'))
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  try {
+   await page.goto(origin+base+'?source=bloomerang#installation-checklist')
+   const checklist=page.locator('#installation-checklist')
+   assert.equal(await checklist.locator('[data-switch-step=names]').getAttribute('data-complete'),'false')
+   await checklist.getByText('Compare name evidence',{exact:true}).click()
+   const current=checklist.getByRole('link',{name:'Ava Survivor Updated',exact:true})
+   assert.equal(await current.count(),1,'The native name review links to the renamed survivor')
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000})
+    await page.screenshot({path:join(directory,'checklist-survivor-renamed-'+width+'.png'),fullPage:true})
+   }
+  }finally{await page.close()}
+ })
+}
