@@ -1,3 +1,4 @@
+import { recordMembershipPayment } from '../memberships/service'
 import { completePledgeCheckout } from '../pledge-checkout'
 import { checkoutFailure, invoiceProtection, radarFailure } from './protection'
 import { fail, one } from '../db'
@@ -16,7 +17,8 @@ export async function invoice(env: GivingEnv, id: string, failureEventId?: strin
  const { sub, intent } = synced
  if (current.currency !== 'usd' || stripeId(current.customer) !== intent.customer_id) fail('invalid_payment', 'Stripe returned a different currency or customer.', 409)
  if (current.status === 'paid' && current.amount_paid > 0) {
-  await recordGift(env, intent, current.id, current.amount_paid, current.status_transitions.paid_at, subscriptionId)
+  const giftId=await recordGift(env, intent, current.id, current.amount_paid, current.status_transitions.paid_at, subscriptionId)
+  await recordMembershipPayment(env,intent,sub,current,giftId)
   if (stripeId(sub.latest_invoice) === current.id) await env.DB.prepare('UPDATE cf_subscriptions SET recovered=CASE WHEN failed_attempts>0 OR ?>1 THEN 1 ELSE recovered END,next_attempt_at=NULL WHERE id=?').bind(current.attempt_count, sub.id).run()
  } else if (current.status === 'open' && current.attempt_count > 0 && stripeId(sub.latest_invoice) === current.id) {
   await env.DB.prepare("UPDATE cf_subscriptions SET failed_attempts=MAX(failed_attempts,?),recovered=0,next_attempt_at=? WHERE id=? AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE source='stripe' AND reference=?)").bind(current.attempt_count, current.next_payment_attempt ?? null, sub.id, current.id).run()

@@ -71,12 +71,14 @@ const consentEvidence = (intent: Row) => `Ticked “Email me news and appeals”
 /** The reference and deterministic ID make return page and webhook races harmless. */
 export async function recordGift(env: GivingEnv, intent: Row, reference: string, cents: number, paidAt: number, subscriptionId?: string, authority?: Context) {
  if (!Number.isSafeInteger(cents) || cents <= 0 || !reference || !Number.isSafeInteger(paidAt)) fail('invalid_payment', 'Stripe returned an invalid gift.', 409)
+ const membership=await one({db:env.DB},'SELECT * FROM cf_membership_intents WHERE intent_id=?',intent.id)
+ const benefits=membership?{benefit_cents:Math.min(membership.benefit_cents,cents),benefit_description:membership.benefit_description}:null
  const ticket=await one({db:env.DB},'SELECT * FROM cf_event_orders WHERE intent_id=?',intent.id)
  if(ticket&&cents!==ticket.price_cents)fail('invalid_payment','The payment does not match the event package price.',409)
  const id = 'giving-' + reference, now = new Date().toISOString(), day = today((await settings({ db: env.DB })).timezone, new Date(paidAt * 1000))
  await paymentWrite(env,[
   sql(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,goods_description,source,created_at,created_by)
-   VALUES(?,1,?,'gift',?,?,'card',?,?,?,?,?,'stripe',?,?)`,id, intent.donor_id, day, cents, reference, intent.fund, ticket?'provided':'none',ticket?.benefit_cents??0,ticket?.benefit_description??null, now,intent.staff_actor_name??'Stripe'),
+   VALUES(?,1,?,'gift',?,?,'card',?,?,?,?,?,'stripe',?,?)`,id, intent.donor_id, day, cents, reference, intent.fund, ticket||benefits?'provided':'none',ticket?.benefit_cents??benefits?.benefit_cents??0,ticket?.benefit_description??benefits?.benefit_description??null, now,intent.staff_actor_name??'Stripe'),
   sql('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=? AND kind=\'gift\'',intent.campaign_id, reference),
   ...(ticket?[
    sql('UPDATE cf_event_orders SET paid_at=COALESCE(paid_at,?) WHERE intent_id=?',now,intent.id),
