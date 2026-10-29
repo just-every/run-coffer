@@ -1,3 +1,4 @@
+import { nativeAliasResponse } from './alias'
 import { createAgentDoor, type Trust } from '../../modules/agent-door/index.ts'
 import { createBusinessSettings } from '../../modules/business-settings/index.ts'
 import { operatorAuth, runtimeBindings, type Bindings } from '../../auth.server'
@@ -9,14 +10,14 @@ export function cofferDoor(original:Bindings){
  const env=runtimeBindings(original)
  const configured=[env.RER_OWNER_CLAIM_ISSUER,env.RER_OWNER_CLAIM_INSTALLATION_ID,env.RER_OWNER_CLAIM_PUBLIC_KEYS].some(Boolean)
  const trust:Trust|null=configured?{issuer:env.RER_OWNER_CLAIM_ISSUER??'',installationId:env.RER_OWNER_CLAIM_INSTALLATION_ID??'',appOrigin:env.AUTH_ORIGIN,publicKeys:JSON.parse(env.RER_OWNER_CLAIM_PUBLIC_KEYS??'{}')}:null
- const door=createAgentDoor({seed:'coffer',name:'Coffer',specialist:'development',db:env.DB,origin:env.AUTH_ORIGIN,trust,people:people(env),capabilities,tools:tools(env),paths:['/api/coffer/mcp'],localCredentials:request=>localCredential(env,request),currentScopes:async principal=>principal.clientId?.startsWith('coffer-key:')?keyScopes(env,principal.clientId.slice(11)):[...principal.scopes],notTools:[{clauses:['MOVE-001'],reason:'import-door'},{clauses:['OWN-001'],reason:'installation'},{clauses:['COMM-002'],reason:'connector'},{clauses:['MOBILE-002'],reason:'device'}]})
+ const door=createAgentDoor({seed:'coffer',name:'Coffer',specialist:'development',db:env.DB,origin:env.AUTH_ORIGIN,trust,people:people(env),capabilities,limits:{requestsPerMinute:10000},tools:tools(env),paths:['/api/coffer/mcp'],localCredentials:request=>localCredential(env,request),currentScopes:async principal=>principal.clientId?.startsWith('coffer-key:')?keyScopes(env,principal.clientId.slice(11)):[...principal.scopes],notTools:[{clauses:['MOVE-001'],reason:'import-door'},{clauses:['OWN-001'],reason:'installation'},{clauses:['COMM-002'],reason:'connector'},{clauses:['MOBILE-002'],reason:'device'}]})
  return {...door,async handle(request:Request){
   if(new URL(request.url).pathname==='/api/coffer/mcp'){
    const header=request.headers.get('authorization')
    if(!header)return Response.json({jsonrpc:'2.0',id:null,error:{code:-32001,message:'Use an agent credential'}},{status:request.headers.has('cookie')?403:401})
    if(/^Bearer [A-Za-z0-9_-]{43}$/.test(header)){try{if(!await localCredential(env,request))throw Error()}catch{return Response.json({jsonrpc:'2.0',id:null,error:{code:-32001,message:'Unauthorized'}},{status:401})}}
   }
-  return door.handle(request)
+  return nativeAliasResponse(request,door.handle)
  }}
 }
 export function cofferBusinessSettings(env:Bindings){

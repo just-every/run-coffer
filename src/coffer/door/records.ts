@@ -11,11 +11,11 @@ export function recordReadTool(env:Bindings):ToolDefinition{
   const c=await nativeContext(env,ctx),url=new URL(String(args.path),env.AUTH_ORIGIN)
   if(c.actor.grant)throw new ToolRefusal('GRANT_FORBIDDEN')
   if(url.origin!==env.AUTH_ORIGIN||!url.pathname.startsWith('/api/coffer/')||url.hash||/%2f|%5c/i.test(url.pathname))throw new ToolRefusal('invalid_arguments')
-  if(/^\/api\/coffer\/(documents|donor-files|calendar\/events)(\/|$)/.test(url.pathname))throw new ToolRefusal('FORBIDDEN')
+  if(/^\/api\/coffer\/(documents|donor-files|exports|calendar\/events)(\/|$)/.test(url.pathname))throw new ToolRefusal('FORBIDDEN')
   await reservePreparationGrant(c,'read')
   c.actor={...c.actor,id:ctx.agent.id,role:'agent'}
   const {nativeRecordView}=await import('../http')
-  const response=await nativeRecordView(c,url)
+  const response=await native(async()=>{try{return await nativeRecordView(c,url)}catch(error){if(error&&typeof error==='object'&&'code' in error&&error.code==='not_found')throw new ToolRefusal('FORBIDDEN');throw error}})
   await commit(c,[event(c,'mcp.tool','nativeView',url.pathname,null,{tool:'coffer.records.read'},'cf_access_events')])
   return {result:{body:await response.text(),contentType:response.headers.get('content-type')??'application/json',status:response.status}}
  })})

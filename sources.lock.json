@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "b747ebf346ca9048ac1f63f58b07d0a5a15b4281b8a280d22cbf971aeb040714",
+      "sha256": "2f10ade6d99a283867130c6cd35e806e0c1f04db2a01a618504806bc32612acb",
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
@@ -3478,12 +3478,16 @@
       "sha256": "ad34a9a403988813c6668269c667090bce85b802bc93fb64c917ad7f0cb80f6f",
       "executable": false
     },
+    "src/coffer/door/alias.ts": {
+      "sha256": "f3867066a312d3a83c71b802299e82f192d8feb0d614a154207817ceca2d9984",
+      "executable": false
+    },
     "src/coffer/door/context.ts": {
       "sha256": "efd04a4dcb1e2949842e8b07e200286d188b03b579e1865afc07746feb4ddd1b",
       "executable": false
     },
     "src/coffer/door/index.ts": {
-      "sha256": "3381b63b572a391f6522e495df2a1273199de9d0b0fe5691f87d078bb87e1872",
+      "sha256": "014fad00fe842910aae774922b855edfa024b48db3f2e6cd7dc413946636541f",
       "executable": false
     },
     "src/coffer/door/native-http.ts": {
@@ -3495,7 +3499,7 @@
       "executable": false
     },
     "src/coffer/door/records.ts": {
-      "sha256": "b148096c713ab518e184c655414ae4c51ec185a0913e5e71ab18cb54566364e5",
+      "sha256": "6be07b94510e2855502c746c51761a18950d47cd5ba4c0446795916495c6ad26",
       "executable": false
     },
     "src/coffer/door/tools.ts": {
