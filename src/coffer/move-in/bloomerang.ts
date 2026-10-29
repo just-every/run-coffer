@@ -2,7 +2,8 @@ import { Buffer } from 'node:buffer'
 import { fail } from '../db'
 import { day } from './source-rows'
 import { readBloomerang, sourceId } from './bloomerang-edge'
-import type { ExportFile, ParseInput, ParsedTask, SourceCoverage } from './types'
+import { bloomerangRecurring } from './bloomerang-recurring'
+import type { ExportFile, ParseInput, ParsedTask, ParsedRecurringReference, SourceCoverage } from './types'
 
 type Facts=Record<string,any>
 const file=(name:string,rows:Facts[]):ExportFile=>{const headers=[...new Set(rows.flatMap(Object.keys))];return {name,base64:Buffer.from([headers,...rows.map(r=>headers.map(h=>r[h]??''))].map(row=>row.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n')+'\r\n').toString('base64')}}
@@ -13,17 +14,17 @@ const ackFields=['Acknowledgment Date','Acknowledgment Method','Acknowledgment R
 
 /** v1 omits household, relationship and historical consent and acknowledgment detail.
  * An optional explicit source report supplies those facts, separately from API facts. */
-export async function bloomerangInput(input:ParseInput,importDay:string):Promise<{input:ParseInput;tasks:ParsedTask[];coverage:SourceCoverage}> {
+export async function bloomerangInput(input:ParseInput,importDay:string):Promise<{input:ParseInput;tasks:ParsedTask[];recurringReferences:ParsedRecurringReference[];coverage:SourceCoverage}> {
  const connection=input.bloomerang!
  if(connection.currency!=='USD')fail('BLOOMERANG_CURRENCY','Confirm the source account records USD. No currency conversion is performed.',400)
  if(input.files.length>1||input.files.some(f=>f.name!=='bloomerang-history.json'))fail('BLOOMERANG_HISTORY','Use one optional bloomerang-history.json source-history report.',400)
  let history:Facts={}
  if(input.files[0]){try{history=JSON.parse(Buffer.from(input.files[0].base64,'base64').toString('utf8'))}catch{fail('BLOOMERANG_HISTORY','The Bloomerang source-history report is not valid JSON.',400)}}
- fields(history,['constituents','households','relationships','acknowledgments','softCredits','transactions'])
+ fields(history,['constituents','households','relationships','acknowledgments','softCredits','transactions','recurringPlans'])
  const s=await readBloomerang(connection.apiKey),accountNumbers=new Map<string,string>(),byId=new Map(s.constituents.map(a=>[sourceId(a.Id),a]))
  for(const a of s.constituents){const number=sourceId(a.AccountNumber);if([...accountNumbers.values()].includes(number))fail('BLOOMERANG_SCHEMA','Bloomerang repeated an account number.',502);accountNumbers.set(sourceId(a.Id),number)}
  const person=(id:unknown)=>{const value=accountNumbers.get(sourceId(id));if(!value)fail('BLOOMERANG_REFERENCE','A source record refers to a constituent outside this complete read.',400);return value}
- for(const section of ['constituents','acknowledgments','softCredits','transactions'])if(history[section]!==undefined&&(typeof history[section]!=='object'||history[section]===null||Array.isArray(history[section])))fail('BLOOMERANG_HISTORY','Source-history facts must be keyed by numeric source ID.',400)
+ for(const section of ['constituents','acknowledgments','softCredits','transactions','recurringPlans'])if(history[section]!==undefined&&(typeof history[section]!=='object'||history[section]===null||Array.isArray(history[section])))fail('BLOOMERANG_HISTORY','Source-history facts must be keyed by numeric source ID.',400)
  for(const id of Object.keys(history.constituents??{}))if(!byId.has(id))fail('BLOOMERANG_HISTORY','Source history names a constituent absent from the API read.',400)
  const householdByPerson=new Map<string,Facts>()
  if(history.households!==undefined&&!Array.isArray(history.households)||history.relationships!==undefined&&!Array.isArray(history.relationships))fail('BLOOMERANG_HISTORY','Households and relationships must be source record lists.',400)
@@ -32,7 +33,7 @@ export async function bloomerangInput(input:ParseInput,importDay:string):Promise
   if(!h.id||typeof h.name!=='string'||!h.name.trim()||!Array.isArray(h.members)||!h.members.length||new Set(h.members).size!==h.members.length||h.headId!==undefined&&!h.members.includes(h.headId))fail('BLOOMERANG_HISTORY','Review the source household identity, members and explicit head.',400)
   for(const id of h.members){person(id);if(householdByPerson.has(String(id)))fail('BLOOMERANG_HISTORY','A source member belongs to multiple households.',400);householdByPerson.set(String(id),h)}
  }
- const donors:Facts[]=[],gifts:Facts[]=[],notes:Facts[]=[],pledges:Facts[]=[],credits:Facts[]=[],relationships:Facts[]=[],tasks:ParsedTask[]=[],usedAck=new Set<string>(),usedCredit=new Set<string>()
+ const donors:Facts[]=[],gifts:Facts[]=[],notes:Facts[]=[],pledges:Facts[]=[],credits:Facts[]=[],relationships:Facts[]=[],tasks:ParsedTask[]=[],recurringReferences:ParsedRecurringReference[]=[],usedAck=new Set<string>(),usedCredit=new Set<string>()
  const noCustom=(record:Facts)=>{if(record.CustomFields&&Object.keys(record.CustomFields).length)fail('BLOOMERANG_UNSUPPORTED','Custom values require a separately reviewed field-definition mapping. This API slice does not silently drop them; use the existing export and enrichment doors.',400)}
  const acknowledgment=(record:Facts,id:string)=>{
   const facts=history.acknowledgments?.[id]??{};fields(facts,ackFields);usedAck.add(id)
@@ -64,7 +65,7 @@ export async function bloomerangInput(input:ParseInput,importDay:string):Promise
   }
   donors.push(r)
   const timeline=s.timelines[String(a.Id)]
-  if(timeline.RecurringDonations.length||timeline.RecurringDonationPayments.length)fail('BLOOMERANG_UNSUPPORTED','Recurring source records require the separate reviewed recurring migration. This slice neither starts nor stops a plan; nothing was applied.',400)
+  for(const p of timeline.RecurringDonations){noCustom(p);recurringReferences.push(bloomerangRecurring(p,history.recurringPlans?.[String(p.Id)],person(a.Id)))}
   for(const n of [...timeline.Notes,...timeline.Interactions]){
    noCustom(n)
    const interaction=timeline.Interactions.includes(n),type=interaction?({Email:'email',Phone:'call',InPerson:'meeting'} as Record<string,string>)[n.Channel]:undefined
@@ -72,13 +73,15 @@ export async function bloomerangInput(input:ParseInput,importDay:string):Promise
    notes.push({'Note ID':String(n.Id),'Account Number':person(a.Id),'Note Date':dated(n.Date),'Note Type':type??'general','Note':[n.Subject,n.Note].filter(Boolean).join('\n')})
   }
   for(const p of timeline.Pledges){noCustom(p);if(p.EntryType!=='Pledge')fail('BLOOMERANG_UNSUPPORTED','Unsupported pledge classification.',400);pledges.push({'Transaction Number':String(p.Id),'Account Number':person(a.Id),'Transaction Type':'Pledge','Date':dated(p.Date),'Amount':money(p.Amount),'Fund':p.FundName,'Campaign':p.CampaignName,'Appeal':p.AppealName,'Note':p.Note})}
-  for(const g of [...timeline.Donations,...timeline.PledgePayments]){
+  for(const g of [...timeline.Donations,...timeline.PledgePayments,...timeline.RecurringDonationPayments]){
    noCustom(g)
-   const facts=history.transactions?.[String(g.Id)]??{};fields(facts,['tributeGroup','notifiedName','notifiedEmail','notifiedAddress'])
-   if(!['Donation','PledgePayment'].includes(g.EntryType)||g.IsRefunded||g.RefundedAmount||g.Designations?.length||g.IsInKind)fail('BLOOMERANG_UNSUPPORTED','Split, refunded, noncash or unsupported transactions need separate review; none were counted as cash.',400)
+   const facts=history.transactions?.[String(g.Id)]??{};fields(facts,['tributeGroup','notifiedName','notifiedEmail','notifiedAddress','recurringPlanId'])
+   if(!['Donation','PledgePayment','RecurringDonationPayment'].includes(g.EntryType)||g.IsRefunded||g.RefundedAmount||g.Designations?.length||g.IsInKind)fail('BLOOMERANG_UNSUPPORTED','Split, refunded, noncash or unsupported transactions need separate review; none were counted as cash.',400)
+   const recurring=g.EntryType==='RecurringDonationPayment'
+   if(recurring&&(typeof facts.recurringPlanId!=='number'||!recurringReferences.some(p=>p.externalId===String(facts.recurringPlanId)&&p.donorExternalId===person(a.Id)))||!recurring&&facts.recurringPlanId!==undefined)fail('BLOOMERANG_RECURRING','Each historical recurring payment needs an explicit source-plan link belonging to the same constituent.',400)
    const methods=['Cash','Check','CreditCard','Eft'].filter(k=>g[k]);if(methods.length!==1)fail('BLOOMERANG_UNSUPPORTED','Review the source payment method before importing.',400)
    if(g.Check?.Number!==undefined&&typeof g.Check.Number!=='string')fail('BLOOMERANG_UNSUPPORTED','A source check number needs a text reference. Review it before importing.',400)
-   const r:Facts={'Transaction Number':String(g.Id),'Account Number':person(a.Id),'Transaction Type':g.EntryType==='Donation'?'Donation':'Pledge Payment','Parent Gift ID':g.EntryType==='PledgePayment'?String(sourceId(g.PledgeId)):'','Date':dated(g.Date),'Amount':money(g.Amount),'Fund':g.FundName,'Campaign':g.CampaignName,'Appeal':g.AppealName,'Check Number':g.Check?.Number??'','Payment Method':({Cash:'Cash',Check:'Check',CreditCard:'Credit Card',Eft:'EFT'} as Facts)[methods[0]],'Non-Deductible Amount':g.NonDeductible===undefined?'':money(g.NonDeductible),'Note':g.Note,'Tribute':g.TributeName,'Tribute Type':g.TributeType,'Tribute Group':facts.tributeGroup,'Tribute Recipient Name':facts.notifiedName,'Tribute Recipient Email':facts.notifiedEmail,'Tribute Recipient Address':facts.notifiedAddress,...acknowledgment(g,String(g.Id))}
+   const r:Facts={'Transaction Number':String(g.Id),'Account Number':person(a.Id),'Transaction Type':g.EntryType==='PledgePayment'?'Pledge Payment':'Donation','Parent Gift ID':g.EntryType==='PledgePayment'?String(sourceId(g.PledgeId)):'','Date':dated(g.Date),'Amount':money(g.Amount),'Fund':g.FundName,'Campaign':g.CampaignName,'Appeal':g.AppealName,'Check Number':g.Check?.Number??'','Payment Method':({Cash:'Cash',Check:'Check',CreditCard:'Credit Card',Eft:'EFT'} as Facts)[methods[0]],'Non-Deductible Amount':g.NonDeductible===undefined?'':money(g.NonDeductible),'Note':[g.Note,recurring?'Bloomerang source plan '+facts.recurringPlanId+' (historical payment).':''].filter(Boolean).join('\n'),'Tribute':g.TributeName,'Tribute Type':g.TributeType,'Tribute Group':facts.tributeGroup,'Tribute Recipient Name':facts.notifiedName,'Tribute Recipient Email':facts.notifiedEmail,'Tribute Recipient Address':facts.notifiedAddress,...acknowledgment(g,String(g.Id))}
    gifts.push(r)
    if(g.SoftCredits!==undefined&&!Array.isArray(g.SoftCredits))fail('BLOOMERANG_SCHEMA','Soft credits must be a complete source list.',502)
    for(const credit of g.SoftCredits??[]){
@@ -88,15 +91,21 @@ export async function bloomerangInput(input:ParseInput,importDay:string):Promise
   }
   for(const t of timeline.Tasks){
    noCustom(t)
-   if(t.Status!=='Open'||t.CompletedDate&&t.CompletedDate!=='0001-01-01T00:00:00'||t.InteractionId)fail('BLOOMERANG_UNSUPPORTED','Only open, uncompleted tasks without a linked completed interaction are supported. Review remaining task semantics separately.',400)
+   if(!['Open','Complete','Archived'].includes(t.Status))fail('BLOOMERANG_UNSUPPORTED','Review the unsupported source task status. No task was omitted.',400)
+   const completed=t.CompletedDate&&t.CompletedDate!=='0001-01-01T00:00:00',completedOn=completed?dated(t.CompletedDate):undefined
+   if(t.Status==='Open'&&(completed||t.InteractionId)||t.Status!=='Open'&&(!completedOn||completedOn>importDay))fail('BLOOMERANG_UNSUPPORTED','Open tasks cannot have completion facts; completed and archived tasks need their actual past completion date.',400)
+   const interactionExternalId=t.InteractionId?sourceId(t.InteractionId):undefined
+   if(interactionExternalId&&!timeline.Interactions.some(i=>String(i.Id)===interactionExternalId))fail('BLOOMERANG_REFERENCE','A completed task must link an interaction belonging to the same source constituent.',400)
    const sourceOwnerId=sourceId(t.AssignedToUserId),ownerId=connection.taskOwners?.[sourceOwnerId]
    if(typeof ownerId!=='string'||!ownerId)fail('BLOOMERANG_OWNER','Map every source task owner to a current Coffer team member before previewing. No owner is guessed.',400)
    if(typeof t.Subject!=='string'||!t.Subject.trim()||t.Subject.length>1000)fail('BLOOMERANG_UNSUPPORTED','A task needs a supported source subject.',400)
-   tasks.push({externalId:String(t.Id),donorExternalId:person(a.Id),sourceOwnerId,ownerId,dueOn:dated(t.DueDate),title:t.Subject,location:{file:'Bloomerang Task '+t.Id,sheet:'REST',row:1}})
+   if(t.Note!==undefined&&(typeof t.Note!=='string'||t.Note.length>8000))fail('BLOOMERANG_UNSUPPORTED','A source task note must be text within the native note limit.',400)
+   tasks.push({externalId:String(t.Id),donorExternalId:person(a.Id),sourceOwnerId,ownerId,dueOn:dated(t.DueDate),title:t.Subject,sourceStatus:t.Status,completedOn,interactionExternalId,notes:t.Note||undefined,location:{file:'Bloomerang Task '+t.Id,sheet:'REST',row:1}})
   }
  }
  for(const r of history.relationships??[]){fields(r,['id','accountId','relatedAccountId','type']);if(!r.id||!['spouse','employer','board_member','foundation_officer','introduced_by'].includes(r.type))fail('BLOOMERANG_HISTORY','Review the source relationship identity and classification.',400);relationships.push({'Relationship ID':r.id,'Account Number':person(r.accountId),'Related Account Number':person(r.relatedAccountId),'Relationship Type':r.type})}
  if([...Object.keys(history.acknowledgments??{}),...Object.keys(history.transactions??{})].some(id=>!usedAck.has(id))||Object.keys(history.softCredits??{}).some(id=>!usedCredit.has(id)))fail('BLOOMERANG_HISTORY','Acknowledgment source history names a record absent from the API read.',400)
+ if(Object.keys(history.recurringPlans??{}).some(id=>!recurringReferences.some(p=>p.externalId===id)))fail('BLOOMERANG_RECURRING','The source schedule report names a plan absent from the complete API read.',400)
  const tables=[['constituents',donors],['gifts',gifts],['pledges',pledges],['notes',notes],['soft-credits',credits],['relationships',relationships]] as [string,Facts[]][]
- return {input:{source:'bloomerang',files:tables.filter(([,rows])=>rows.length).map(([name,rows])=>file(name+'.csv',rows)),solicitCodes:input.solicitCodes},tasks,coverage:{currency:'USD',counts:{constituents:donors.length,transactions:gifts.length,pledges:pledges.length,notesAndInteractions:notes.length,tasks:tasks.length,households:(history.households??[]).length,relationships:relationships.length,softCredits:credits.length},unsupported:['Complete custom-field definitions and code lists','Recurring records and stored payment migration','Other contact and source-object classifications','Completed, archived, linked-interaction and other task semantics','Live Bloomerang qualification']}}
+ return {input:{source:'bloomerang',files:tables.filter(([,rows])=>rows.length).map(([name,rows])=>file(name+'.csv',rows)),solicitCodes:input.solicitCodes},tasks,recurringReferences,coverage:{currency:'USD',counts:{constituents:donors.length,transactions:gifts.length,pledges:pledges.length,notesAndInteractions:notes.length,tasks:tasks.length,recurringPlans:recurringReferences.length,households:(history.households??[]).length,relationships:relationships.length,softCredits:credits.length},unsupported:['Complete custom-field definitions and code lists','Provider-validated vault transfer and replacement schedules','Other contact and source-object classifications','Undated tasks and unknown task classifications','Live Bloomerang qualification']}}
 }

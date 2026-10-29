@@ -22,7 +22,7 @@ export const tables = {
  interaction: { table: 'cf_interactions', key: 'id', columns: ['id','donor_id','kind','occurred_on','who','notes','next_step','recorded_at','recorded_by'] },
  acknowledgment: { table: 'cf_gift_acknowledgments', key: 'gift_id', columns: ['gift_id','version','status','acknowledged_on','method','batch_id','letter_id','interaction_id','note_id','communication_id','outcome_unknown','reason','source_reference','source','updated_at','updated_by','updated_by_id','updated_by_role','change_source'] },
  softCreditAcknowledgment: { table: 'cf_soft_credit_acknowledgments', key: 'soft_credit_id', columns: ['soft_credit_id','version','status','acknowledged_on','method','interaction_id','note_id','reason','updated_at','updated_by','source','source_reference'] },
- task: {table:'cf_call_tasks',key:'id',columns:['id','donor_id','source_key','source_kind','reason','amount_cents','owner_id','due_on','status','version','created_at','completed_at','interaction_id','is_ask','task_kind','gift_id','prospect_id','completion_notes']},
+ task: {table:'cf_call_tasks',key:'id',columns:['id','donor_id','source_key','source_kind','reason','amount_cents','owner_id','due_on','status','version','created_at','completed_at','interaction_id','is_ask','task_kind','gift_id','prospect_id','completion_notes','closed_reason']},
 } as const
 export type Kind = keyof typeof tables
 export const kinds = Object.keys(tables) as Kind[]
@@ -31,6 +31,7 @@ export const snapshot = (kind: Kind, alias = 'n') => `json_object(${tables[kind]
 /** Older import snapshots predate the acknowledgment custody columns. Their
  * implicit database defaults still fence any later version or linked record. */
 export const custodySnapshot = (kind: Kind, alias = 'r') => {
+ if(kind==='task')return `json_set(${alias}.snapshot,'$.closed_reason',json_extract(${alias}.snapshot,'$.closed_reason'))`
  if (kind !== 'acknowledgment') return `${alias}.snapshot`
  const defaults: Record<string,string> = {version:'1',outcome_unknown:'0',updated_by_id:"'coffer-import'",updated_by_role:"'owner'",change_source:"'automatic'"}
  return `json_object(${tables.acknowledgment.columns.map(column => {

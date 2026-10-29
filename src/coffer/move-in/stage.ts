@@ -16,7 +16,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   // Include each explicit head's actual source row in the first household part.
   // This resolves matches before headship is set, even across chunk boundaries.
   for (const id of ids) { const h=households.get(donors.get(id)?.householdKey||''); if (h?.headExternalId) ids.add(h.headExternalId) }
-  const linked = new Set([...(fill.gifts ?? []), ...(fill.softCredits ?? [])].map(g => g.acknowledgment?.interactionExternalId).filter(Boolean))
+  const linked = new Set([...[...(fill.gifts ?? []), ...(fill.softCredits ?? [])].map(g => g.acknowledgment?.interactionExternalId),...(fill.tasks??[]).map(t=>t.interactionExternalId)].filter(Boolean))
   const notes = [...new Map([...(fill.notes ?? []), ...parsed.notes.filter(n => linked.has(n.externalId))].map(n => [n.externalId, n])).values()]
   for (const n of notes) ids.add(n.donorExternalId)
   const ds = [...ids].map(id => donors.get(id)).filter(d => d !== undefined)

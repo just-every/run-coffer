@@ -28,7 +28,7 @@ function confirmedNeonCurrency(job:Row) {
 }
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
-const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...(p.tasks!==undefined?{tasks:p.tasks.length}:{}),...(['givebutter','zeffy'].includes(p.source)?{recurringReferences:(p.recurringReferences??[]).length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...((['spreadsheet','givebutter','zeffy','neon'].includes(p.source)||p.source==='bloomerang'&&p.sourceCoverage!==undefined)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
+const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...(p.tasks!==undefined?{tasks:p.tasks.length}:{}),...(p.recurringReferences!==undefined?{recurringReferences:p.recurringReferences.length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...((['spreadsheet','givebutter','zeffy','neon'].includes(p.source)||p.source==='bloomerang'&&p.sourceCoverage!==undefined)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
 
 export async function spreadsheetMappings(c:Context) {
  authorize(c)
@@ -50,12 +50,14 @@ export async function preview(c: Context,input: ParseInput) {
  if(input.source==='spreadsheet')input=await resolveSpreadsheetMatches(c,input)
  let sourceCoverage:SourceCoverage|undefined
  let tasks:import('./types').ParsedTask[]|undefined
- if(input.source==='bloomerang'&&input.bloomerang){const result=await bloomerangInput(input,today((await settings(c)).timezone,new Date(c.now)));input=result.input;sourceCoverage=result.coverage;tasks=result.tasks}
+ let recurringReferences:import('./types').ParsedRecurringReference[]|undefined
+ if(input.source==='bloomerang'&&input.bloomerang){const result=await bloomerangInput(input,today((await settings(c)).timezone,new Date(c.now)));input=result.input;sourceCoverage=result.coverage;tasks=result.tasks;recurringReferences=result.recurringReferences}
  if(input.source==='neon'){const result=await neonInput(input,today((await settings(c)).timezone,new Date(c.now)));input=result.input;sourceCoverage=result.coverage}
  const parsed=await parseExports(input)
+ if(recurringReferences)parsed.recurringReferences=recurringReferences
  if(sourceCoverage){parsed.sourceCoverage=sourceCoverage;if(parsed.source==='bloomerang')for(const gift of parsed.gifts)gift.sourceDesignation=true}
  if(tasks){const owners=await taskOwners(c);parsed.tasks=tasks.map(t=>({...t,ownerName:owners.find(o=>o.id===t.ownerId)?.name}));for(const task of parsed.tasks)if(!task.ownerName)parsed.diagnostics.push({...task.location,severity:'error',code:'BLOOMERANG_OWNER',message:'A reviewed task owner is no longer active. Review the source-owner mapping again.'})}
- const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,tasks:parsed.tasks,sourceCoverage:parsed.sourceCoverage,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})
+ const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,tasks:parsed.tasks,recurringReferences:parsed.recurringReferences,sourceCoverage:parsed.sourceCoverage,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
  // A new REST capture must not retain source PII for an erased constituent,

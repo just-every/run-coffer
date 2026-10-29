@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "99e4acd3237c3ae05442f655cd1c685fa0787c5563fa66eafc961ea91f339c55",
+      "sha256": "342e793b8beb5f8d101951529d7069c1422b458cd0d0dd98cf1dc81a4e6b8aa6",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2add842c049eab80867407bc295680b6724a45bc1a463359ff29ecc0d7ec3bc6",
+      "sha256": "9523ab4d70514daed666e0f199f191d85732b1b043f3dbbed29af6c385252317",
       "executable": false
     },
     "deploy-demo.json": {
@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
-      "sha256": "ccc9ab0310e31d7a375dd29f6a4fc8a6ffa4e4e02b5f2be3ef4a9bcc9afc23f9",
+      "sha256": "6e86ec9644a7dcdc9d4b342abb547292a7093ca9aa55ac67f6b8abb5fccf44f4",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3334,8 +3334,12 @@
       "sha256": "47f321255eeb6861d920376749d9d9327080837596add3f5b34f7ad2004abdbd",
       "executable": false
     },
+    "src/coffer/move-in/bloomerang-recurring.ts": {
+      "sha256": "32486a164e291a719b9e52292bbf11cdc881ee1c3374c91c2fc4ae7e64631ca4",
+      "executable": false
+    },
     "src/coffer/move-in/bloomerang.ts": {
-      "sha256": "0109061ebee78869420569b9d1a72fb2917acb46683271f1c5b0ae6a97c50750",
+      "sha256": "ade3e7b52d32438d654103eedf092310ee683b51f0e6eea3616068b510d19823",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -3383,7 +3387,7 @@
       "executable": false
     },
     "src/coffer/move-in/plan.ts": {
-      "sha256": "f0045fa17b85c2fc59c0245b879b678445240dc897295ae4777a2c2a29f49a16",
+      "sha256": "4c4899e30b499b818ebb652a3a278f99b63ca0dc0280759262458146d44f5b7c",
       "executable": false
     },
     "src/coffer/move-in/platform-export.ts": {
@@ -3403,7 +3407,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "db77bbc38846bb9fda249273eaf95e2ecae198c99b90d39ca4dba0bd21739f27",
+      "sha256": "00e3060a803e156a35e0ea8e4a61053fed9c16a304cd6786f60791ca9157cd48",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -3447,11 +3451,11 @@
       "executable": false
     },
     "src/coffer/move-in/stage.ts": {
-      "sha256": "d1398addccf6f0acc64f669063bc61d632ec32e9d77e7da8c5c5e9733a8f471a",
+      "sha256": "f390f114b80d21d3d942bf37ee74330437d4cdeac3bf2c32209243b256faa109",
       "executable": false
     },
     "src/coffer/move-in/tables.ts": {
-      "sha256": "9a86ddaad5230eac17ad5f2044442156f94358bbf1e9c9e3c63cda2067f812cb",
+      "sha256": "0f01d8e65457c380473ca07d74363697ca56bd9978b16cb3df2bb450a77fb512",
       "executable": false
     },
     "src/coffer/move-in/tributes.ts": {
@@ -3459,7 +3463,7 @@
       "executable": false
     },
     "src/coffer/move-in/types.ts": {
-      "sha256": "f954a39f798edbdbcaa4d61065a71852c1d4eb704c5e2ad6cf5560ce6c21abee",
+      "sha256": "cd3a7275b35ebf1a9f8f191685fc93f06cd29c4aa1ef24b347ac0d70eae898ab",
       "executable": false
     },
     "src/coffer/opportunity-close.ts": {
@@ -3995,7 +3999,7 @@
       "executable": false
     },
     "src/coffer/ui/call-tasks.ts": {
-      "sha256": "437479a01784af3e2b6f0dd48b86d90b9d1a0150d499adcf0e3d10ea419e5c6f",
+      "sha256": "b783d0c32fd2dab940808697db4859bdf5b51e85686102ab2e6536c97c5b86cf",
       "executable": false
     },
     "src/coffer/ui/campaign-progress.ts": {
@@ -4019,7 +4023,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "0f39ce67fa773244ee8cecc45fb31d81fe05eaeb5c65349fad552a743be5c849",
+      "sha256": "018736ed6e77d4ac01b0b734b493c477d9116c93e2db5797aa714316b022e7c4",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6347,7 +6351,7 @@
       "executable": false
     },
     "tests/bloomerang-journey.mjs": {
-      "sha256": "cd056668fdcdfd031bcc49cc5969fa6011d091dc805ccb5f173d8554cc84e7a3",
+      "sha256": "df7358e20b5c24ab84def6f35e797312543e9ffcc0d4bf27ea9b359a14a0222e",
       "executable": false
     },
     "tests/browser-journey.mjs": {

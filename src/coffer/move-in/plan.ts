@@ -235,10 +235,13 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  for(const task of parsed.tasks??[]) {
   const owner=owners.find(o=>o.id===task.ownerId),person=parsed.donors.find(d=>d.externalId===task.donorExternalId)
   if(!owner||owner.status!=='active'||!['owner','admin','member'].includes(owner.role)||owner.name!==task.ownerName)diagnostic('A reviewed task owner changed. Read and review the owner mapping again.',task.location,'error','BLOOMERANG_OWNER')
-  if(!person||person.constituentStatus&&person.constituentStatus!=='active')diagnostic('Open imported tasks need an active source constituent.',task.location,'error','BLOOMERANG_TASK')
+  const done=task.sourceStatus==='Complete'||task.sourceStatus==='Archived'
+  if(!person||!done&&person.constituentStatus&&person.constituentStatus!=='active')diagnostic('Open imported tasks need an active source constituent.',task.location,'error','BLOOMERANG_TASK')
   const donorId=donor(task.donorExternalId,task.location)
-  plan.checks.push(guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL AND constituent_status='active')",'DONOR_CHANGED','This constituent no longer accepts open tasks.',donorId))
-  await add('task',task,{donor_id:donorId,source_key:source+':task:'+task.externalId,source_kind:'imported',reason:task.title,amount_cents:0,owner_id:task.ownerId,due_on:task.dueOn,status:'open',version:1,created_at:c.now,completed_at:null,interaction_id:null,is_ask:0,task_kind:'follow_up',gift_id:null,prospect_id:null,completion_notes:null},undefined,donorId)
+  plan.checks.push(guard(`EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL${done?'':" AND constituent_status='active'"})`,'DONOR_CHANGED','This constituent no longer accepts the reviewed task.',donorId))
+  const interaction=task.interactionExternalId?parsed.notes.find(n=>n.externalId===task.interactionExternalId&&n.donorExternalId===task.donorExternalId&&['email','call','meeting'].includes(n.type)):undefined
+  if(task.interactionExternalId&&!interaction)diagnostic('The source task interaction is absent or belongs to a different constituent.',task.location,'error','BLOOMERANG_TASK')
+  await add('task',task,{donor_id:donorId,source_key:source+':task:'+task.externalId,source_kind:'imported',reason:task.title+(task.notes?'\n'+task.notes:''),amount_cents:0,owner_id:task.ownerId,due_on:task.dueOn,status:done?'done':'open',version:1,created_at:c.now,completed_at:task.completedOn??null,interaction_id:interaction?await nativeId(source,'interaction',interaction.externalId):null,is_ask:0,task_kind:'follow_up',gift_id:null,prospect_id:null,completion_notes:done?`Imported ${task.sourceStatus?.toLowerCase()} task from Bloomerang.`:null,closed_reason:task.sourceStatus==='Archived'?'archived in Bloomerang':null},undefined,donorId)
  }
  await planAcknowledgmentImports(c,parsed,plan,existing,add,readSet)
  await planCustomValues(c,parsed,plan,existing)

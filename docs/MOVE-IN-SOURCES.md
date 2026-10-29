@@ -163,10 +163,10 @@ Source check numbers remain attached to their imported gift references.
 Account numbers are the legacy identity in Coffer; API IDs join timeline records
 to those accounts. The supported slice includes typed contacts (three emails,
 three phones, two addresses, with an explicit primary for each kind), unchanged
-name overrides, donations, pledge payments and commitments, soft credits,
-email, phone and in-person interactions, notes, and open tasks. Refunds,
+name overrides, donations, historical recurring and pledge payments and commitments, soft credits,
+email, phone and in-person interactions, notes, and open, completed and archived tasks. Refunds,
 noncash and split transactions, other interaction classifications, bad or
-extended contacts, recurring records and unreviewed custom values stop the
+extended contacts and unreviewed custom values stop the
 preview rather than disappearing. Complete custom definitions and code lists
 remain MOVE-010 work; the existing export and reviewed enrichment doors remain
 available. Recurring vault migration remains MOVE-009 work. No schedule is
@@ -213,18 +213,63 @@ Mail, Do Not Call and Do Not Solicit restrictions retain their current native
 meaning, source and import date. Newer native preferences, address processing,
 solicitation restrictions and private tribute custody remain enforced.
 
-For every open source task, explicitly map its `AssignedToUserId` to a current
+For every source task, explicitly map its `AssignedToUserId` to a current
 Coffer team member under **Review task owners**. Enter comma-separated source
 user IDs beside the member who will own that work. The HTTP preview accepts
-the same reviewed mapping as `bloomerang.taskOwners`, keyed by source user ID. The source task must have `Status: Open`, a
-`Subject` and a real `DueDate`; its `CompletedDate` is absent or the documented
-uncompleted sentinel. The review names the chosen member, source user, due date
-and task. A revoked or changed owner prevents application. Tasks import as
-non-ask follow-up work without sending a message or making a call. Completed,
-archived and linked-interaction task semantics remain unsupported. The same
+the same reviewed mapping as `bloomerang.taskOwners`, keyed by source user ID.
+Every task needs a `Subject` and a real `DueDate`. An `Open` task's
+`CompletedDate` is absent or the documented uncompleted sentinel. `Complete`
+and `Archived` tasks require their source completion date, never a future date;
+they stay closed and retain any source note. A supplied `InteractionId` must
+identify an imported interaction of the same constituent. The review names the
+chosen member, source user, due date, state and task. A revoked or changed owner
+prevents application. Tasks import as non-ask follow-up work without sending a
+message or making a call. Undated tasks and unknown classifications still stop
+the review. The same
 journal fences, replay protection, archive custody, merge and erasure rules
 apply; edits or new dependencies prevent destructive undo. Private family
 contacts are withheld from donor files in both native tribute records and import
 undo snapshots. A changed source capture containing an erased constituent is
 refused before a new review can retain their personal data. A network fixture
 qualifies this supported mapping, never a live Bloomerang installation.
+
+#### Recurring source history
+
+The same read follows the documented `RecurringDonation` and
+`RecurringDonationPayment` GET doors. Schedule amounts come from the API and
+never count as cash. Supply explicit schedule and opaque processor references
+in the optional source report because REST v1 does not document their complete
+transfer shape. For example, add this section to `bloomerang-history.json`:
+
+```json
+{
+  "recurringPlans": {
+    "801": {
+      "frequency": "monthly", "status": "active", "method": "card",
+      "campaign": "Source campaign", "nextOn": "2026-11-03",
+      "customerReference": "synthetic-coffer-11",
+      "paymentMethodReference": "synthetic-coffer-12"
+    }
+  },
+  "transactions": {"207": {"recurringPlanId": 801}}
+}
+```
+
+Plan keys and historical payment links are API IDs. Every encountered plan
+needs a report row; every recurring payment needs a link to a read plan for
+that same constituent. Missing or conflicting links stop the entire preview.
+Frequencies are daily, weekly, biweekly, monthly, quarterly, semiannual or
+annual; states are active, paused, canceled or completed. Payment kinds are
+card, bank, cash, check or unknown. Preserve a source next date when available;
+absence remains unknown. The two references may be absent, which remains
+visibly incomplete evidence. Only opaque text references are accepted; never
+upload card numbers, bank numbers, routing numbers or card security details.
+Masked payment details returned by the source are never retained.
+
+Historical payments use the ordinary gift, designation, acknowledgment and
+goods validators and retain their source-plan ID on the native gift. Reviewed
+schedule evidence follows archive, restore, merge, erasure and guarded undo.
+This is a source report match, never verification of provider usability. No
+source plan is modified and no replacement subscription or charge is created.
+Provider-authorized vault transfer and replacement schedules remain MOVE-009
+work and need the actual provider account and authorization.
