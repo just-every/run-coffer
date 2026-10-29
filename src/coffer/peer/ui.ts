@@ -31,7 +31,7 @@ export interface PeerLeaderboardValue { teams: PeerLeaderboardRow[]; pages: Peer
 const back = '<p><a href="/giving/portal">Back to my giving</a></p>'
 const checkbox = (name: string, label: string, checked = false) => `<label><input type="checkbox" name="${e(name)}" value="yes"${checked ? ' checked' : ''}> ${e(label)}</label>`
 const goal = (cents = 100000) => field('Fundraising goal (USD)', 'goal', 'number', (cents / 100).toFixed(2), 'required min="0.01" step="0.01" inputmode="decimal"')
-const title = (value = '') => field('Title', 'title', 'text', value, 'required maxlength="200"')
+const title = (value = '') => field('Title', 'title', 'text', value, 'required maxlength="120"')
 const publication = (published = false) => `${checkbox('publish', 'Publish this fundraiser', published)}${checkbox('publicationPermission', 'I permit everyone to see this title, goal, team membership and my public recognition name when I publish.')}`
 const publicPath = (id: string) => `/giving/peer/pages/${encodeURIComponent(id)}`
 const campaignOptions = (campaigns: Campaign[]): [string, string][] => [['', 'Choose a campaign'], ...campaigns.map(c => [c.id, c.name] as [string, string])]

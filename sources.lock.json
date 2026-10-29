@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "9a461126398345ec6931ec8f342458d2e74e66849735975868e5c03973c610c9",
+      "sha256": "caf9e20bceb14bf5ede0c1de85d5dd876d91efc6fdd05ad240dfbcdc0c714d32",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4a73f4847a361e6091a88284ba5fd42a324b75614131a0bc9d716b65fc84d3d6",
+      "sha256": "8eb08a4c9430071cf85ebb53b081fde02546e35e1a33ba4f05c773cd159deb2a",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3587,7 +3587,7 @@
       "executable": false
     },
     "src/coffer/peer/ui.ts": {
-      "sha256": "3f855465a19913c14172a8918d17cf5e9df02f2b150dbb2d9ab51ebf6bfbd0c8",
+      "sha256": "c9b8adb8f69397efe41fdcda3cb2df07a5a0a5c98c53014448475438a6eff9ff",
       "executable": false
     },
     "src/coffer/people.ts": {
@@ -6879,7 +6879,7 @@
       "executable": false
     },
     "tests/peer-browser.mjs": {
-      "sha256": "5829cc2a22364f3e79626a9b7a146ddd0604550d08cd17440ba26487bd1b00de",
+      "sha256": "03d6909f95eb2ac09cce26c6349157fb71755ead9f91dae7e7cf908a9e8d85c9",
       "executable": false
     },
     "tests/peer-journey.mjs": {

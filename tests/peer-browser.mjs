@@ -43,7 +43,10 @@ export async function peerBrowser(h,edge,{campaign,first,second,firstCookie,seco
    const teamTitle=`Reading circle ${width}`,pageTitles=[`First reading page ${width}`,`Second reading page ${width}`],pageIds=[],paid=[]
    for(const [index,as] of [firstCookie,secondCookie].entries()){
     await useSession(as)
-    await page.goto(origin+'/giving/peer')
+    await page.goto(origin+'/giving/portal')
+    await page.getByRole('link',{name:'My fundraising pages',exact:true}).waitFor()
+    if(index===0)await capture(page,directory,'portal-account',width)
+    await page.getByRole('link',{name:'My fundraising pages',exact:true}).click()
     const recognition=page.locator('form[action="/giving/peer/recognition"]')
     await recognition.locator('[name=recognitionName]').fill(`Reading champion ${width} ${index+1}`)
     await recognition.locator('[name=honorRollOptIn]').selectOption('yes')
