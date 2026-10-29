@@ -30,7 +30,7 @@ const snapshots = new WeakMap<ImportPlan, StoredPlan>();
 // Legacy chunks may approach D1's 2 MB value ceiling. Three rows remain below
 // the RPC ceiling even with JSON escaping and whole-result two-byte strings.
 const PLAN_READ_ROWS = 3;
-export function planChunkReads(body: string, fenced = false): number {
+export function planChunkReads(body: string, fenced = false, _chunks?: readonly { body: string }[]): number {
   const envelope = JSON.parse(body);
   // A fenced large plan's revision read precedes its chunk reads.
   return envelope?.d1Plan === 1 ? Math.ceil((envelope.chunks + 1) / PLAN_READ_ROWS) + Number(fenced && large(envelope)) : 0;
