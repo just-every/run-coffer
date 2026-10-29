@@ -4499,7 +4499,7 @@
       "executable": false
     },
     "src/coffer/team-access.ts": {
-      "sha256": "4785b160fb9869e49e97a9b47ef6b9bd684cb919a63bef50e8a0be50d6b3960c",
+      "sha256": "5f5fc3a5050abdfdb601a4e8b9b68790a326d05580328146d8bc136b53ab4f9d",
       "executable": false
     },
     "src/coffer/template-fields.ts": {
@@ -4871,7 +4871,7 @@
       "executable": false
     },
     "src/coffer/ui/team-access.ts": {
-      "sha256": "e6612045d1c1affc8995e649aa755973ca1af00915e6e8b450746f41ba1a5695",
+      "sha256": "34e7d2bc14ea2fb864aa5164aa2d50ac5516aed97569c807dab1bca8efb547e4",
       "executable": false
     },
     "src/coffer/ui/tooltip.ts": {
