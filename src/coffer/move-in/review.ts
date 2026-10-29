@@ -1,5 +1,5 @@
 import { volunteerTotals } from './lgl-volunteering'
-import { all, commit, fail, guard, one, sql, type Context, type Row, type Stmt } from '../db'
+import { all, commit, fail, guard, one, sha256, sql, type Context, type Row, type Stmt } from '../db'
 import type { Difference } from './reconcile'
 import type { Diagnostic, ParsedImport } from './types'
 
@@ -97,6 +97,12 @@ export const reportOf = (parsed: ParsedImport, review: { rows: Difference[]; can
 
 export async function volunteerReview(c:Context,id:string,page=1){
  const job=await reviewed(c,id),current=Math.max(1,Math.floor(Number(page)||1))
- const rows=await all(c,`SELECT j.value FROM cf_move_in_parts p,json_each(p.payload,'$.volunteering') j WHERE p.job_id=? ORDER BY p.position,CAST(j.key AS INTEGER) LIMIT 50 OFFSET ?`,id,(current-1)*50)
- return {rows:rows.map(r=>JSON.parse(r.value)),page:current,pages:Math.ceil((job.report.counts?.volunteering??0)/50)}
+ const offset=(current-1)*50
+ let rows:Row[]
+ if(job.state==='completed'){
+  const donors=new Map(await Promise.all((job.report.volunteerTotals??[]).map(async(v:Row)=>[await sha256(v.donorExternalId),v.donorExternalId])))
+  const native=await all(c,`SELECT v.*,r.donor_source_key FROM cf_move_in_job_volunteering r JOIN cf_volunteering v ON v.id=r.activity_id WHERE r.job_id=? ORDER BY v.occurred_on,v.source_key LIMIT 50 OFFSET ?`,id,offset)
+  rows=native.map(v=>({externalId:v.source_key,donorExternalId:donors.get(v.donor_source_key),role:v.role,occurredOn:v.occurred_on,minutes:v.minutes,importedAt:v.recorded_at,importedBy:v.recorded_by}))
+ }else rows=(await all(c,`SELECT j.value FROM cf_move_in_parts p,json_each(p.payload,'$.volunteering') j WHERE p.job_id=? ORDER BY p.position,CAST(j.key AS INTEGER) LIMIT 50 OFFSET ?`,id,offset)).map(r=>JSON.parse(r.value))
+ return {rows,page:current,pages:Math.ceil((job.report.counts?.volunteering??0)/50)}
 }

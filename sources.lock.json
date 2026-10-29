@@ -3927,7 +3927,7 @@
       "executable": false
     },
     "src/coffer/move-in/lgl-volunteering.ts": {
-      "sha256": "5e3a3d50011944e451859df3798aed95a5dbf604fb60eb96e08818e58b4b0104",
+      "sha256": "4362d5f1d41eece0081d3b137717f9edac9abc1eab6f0668544114c9663a2c16",
       "executable": false
     },
     "src/coffer/move-in/neon-edge.ts": {
@@ -3963,7 +3963,7 @@
       "executable": false
     },
     "src/coffer/move-in/review.ts": {
-      "sha256": "2c440d5fbbc8e6db10b5281be915a04aefa65911e2b9b5d1fac19f6b226926f1",
+      "sha256": "8e2fa0ecf8eb019606da3357a7db0dc120a6aef20d88dafd613adb56129fbeef",
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
@@ -4583,7 +4583,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "6dbf7d355951860ef951c6c094bfc59ebba87f8af240e9085de6ea727bddc459",
+      "sha256": "dfcf7270b03402f2c1847b2934069283290f0109b42e69aebb2f3e7d9260d20d",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -7471,7 +7471,7 @@
       "executable": false
     },
     "tests/lgl-volunteering-browser.mjs": {
-      "sha256": "bda8d5748e4415d372a18a7e4783e332fe2c2374b4cdc7781e82f2b48ef9d2ef",
+      "sha256": "26af9d97037eb141dcb40ddb56b3e532d7389d5d313323ce4792b49862484c4f",
       "executable": false
     },
     "tests/list-pending-browser.mjs": {
@@ -7927,7 +7927,7 @@
       "executable": false
     },
     "tests/volunteering-journey.mjs": {
-      "sha256": "fe469d724e4b143749290af96ede0c6c9176f3d3026ccd6d92fc681ea2df4e22",
+      "sha256": "f5dd1459ba23cabd1ecc75686ebacfe408f68934d2d625eee640ffb3b1e6e51e",
       "executable": false
     },
     "tests/webhook-continuity-journey.mjs": {
