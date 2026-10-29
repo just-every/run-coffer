@@ -15,7 +15,7 @@ Everyone signs in with their own account. What they can do depends on their role
 2. Under **People and roles**, enter the person's email address and, if you like, their name, and choose **Member** or **Admin**.
 3. Press **Send invitation**.
 
-On a hosted Coffer, the person gets an email with a one-use sign-in link. Opening it signs them in with the role you chose; after that they sign in with that address from the sign-in page whenever they like. Invitations need the installation's mail settings ([Host it on Cloudflare](/docs/hosting#mail)).
+On a hosted Coffer, the person gets an email with a one-use sign-in link. Opening it signs them in with the role you chose; after that they sign in with that address from the sign-in page whenever they like. Invitations need the installation's mail settings ([Coffer deployment details](/docs/deployment#mail)).
 
 Coffer on your own computer sends no email. After you invite someone there, a **Sign in as** link appears next to their name: it signs this browser in as them, so you can see Coffer with their role. Open your `RER_OPEN` link again to come back as the owner.
 
