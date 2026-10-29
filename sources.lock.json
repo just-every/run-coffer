@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "19191bedddb3125a31d2bcd9bc8c63b017fd38828e2d0bdc6533d57d8ff0021a",
+      "sha256": "760bfb9d91f7ae8150bd0819d7994f0ae5e0acf588070170d756d1990fe6a0ca",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "be63ae0b250541c6edecc92974cc07e35b0c3af339831a7b64644742ab4295a3",
+      "sha256": "f73ac01ae38b14faf3aeb5d30ef32091d4089cf6059e31fb0a517573750139ac",
       "executable": false
     },
     "deploy-demo.json": {
@@ -635,7 +635,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "b8c70539e882e3ad5943264a1636aefad6901ed2355773d73dbc732a566361c8",
+      "sha256": "3b044d3ca15317c4056f48ad3440cb53b2f7e9b08ec34ebb67cee83d8f282c1a",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -779,7 +779,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "7a9c09a22f9201ee476cdf490ecb7231e616ba083e04cac4818de2a887c2a219",
+      "sha256": "1e763a519598d44fbc05e014d3c0d58c71add12e1a951021ec72301a6fabbb7d",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1486,6 +1486,10 @@
       "sha256": "fd5869469101cd210c8bf1695ff22401969249e1e15cb8ae045619e280825b1a",
       "executable": false
     },
+    "migrations/core/0175_coffer_reply_ingress.sql": {
+      "sha256": "874cc2f77109be38538c293e68de5f79551912a64dc6a870615081a6b45a2201",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -1891,7 +1895,7 @@
       "executable": false
     },
     "RELEASE.json": {
-      "sha256": "40de722e5dd9f666f25e8dad9b7f15e50e615e07fa64f0612d306c7052882f98",
+      "sha256": "f94ef565a06c55a9472b18c5b0a237e8fb196ceeb38b7381bce5e17667cc9f5d",
       "executable": false
     },
     "rer-project.json": {
@@ -2471,11 +2475,11 @@
       "executable": false
     },
     "src/coffer/agent/stewardship-ui.ts": {
-      "sha256": "7f210fc3eb21d788b578e3f205340d5bedb133ede6c93123b24191e706c17682",
+      "sha256": "875139188f1c1570e6cbe2f6e4815f9676f42c628d2b432ff55fa2b0470ffeb3",
       "executable": false
     },
     "src/coffer/agent/stewardship.ts": {
-      "sha256": "e4a5ccb82cda94d31156d515a73af2dca34793e67b44a9d4766a503d90c364dc",
+      "sha256": "9adc25fdccf81842a3fb9f8b272179776c9ba01479b0128823709e569071d93e",
       "executable": false
     },
     "src/coffer/annual-lapses.ts": {
@@ -2707,7 +2711,7 @@
       "executable": false
     },
     "src/coffer/communications/replies.ts": {
-      "sha256": "59b816b99c259c417681030bce07aa25ea498eb30b7ac38ddd2713f0e42dbb53",
+      "sha256": "78d60d5913c976b55d37423ecdf0fc14389c00c284cdeb10585519e4aa3cb929",
       "executable": false
     },
     "src/coffer/communications/reply-stop.ts": {
@@ -2911,7 +2915,7 @@
       "executable": false
     },
     "src/coffer/fundraising-events.ts": {
-      "sha256": "faad9cf9bed0f121241335db77b5f751a5554556d705dcf44a22f2f5418bcbed",
+      "sha256": "16761382f39688a6edd57450ff99fbc3c219dbd9acae9e406ce8243622d2f4f8",
       "executable": false
     },
     "src/coffer/gift-ack-receipt.ts": {
@@ -7206,8 +7210,16 @@
       "sha256": "cc9af435e258d1125a5eccf98c128a5a027154b344026979f163291fa0f97c30",
       "executable": false
     },
+    "tests/stewardship-sources-browser.mjs": {
+      "sha256": "bdf277423bc07d555fd43e42e8b857ab74181eefc1441c2fc8d06b12c624403e",
+      "executable": false
+    },
+    "tests/stewardship-sources-journey.mjs": {
+      "sha256": "3e9ef4bbbadbe29a7bd8da036a0fe773f7530aab9c451ee74b659cd40b1abf81",
+      "executable": false
+    },
     "tests/stewardship.test.mjs": {
-      "sha256": "18ff195d4459a7160b30f7e666d56950008cbabeda90451b4ece35fcca3ca05b",
+      "sha256": "6038406fc6af452478806b49b8bb3372888a193a099d80a1f0b11ca17d4deb37",
       "executable": false
     },
     "tests/task-reminders-browser.mjs": {
