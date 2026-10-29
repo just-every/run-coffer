@@ -98,7 +98,7 @@ changed gifts or tribute facts need a fresh notification.
 
 An owner or admin publishes membership levels under **Settings → Memberships**. Each level fixes its campaign, price, benefit value and description, term from one to 36 months, and grace period. Publish another level to change those terms. Retiring a level closes new joins without removing already earned time.
 
-On the membership form, a donor chooses automatic renewal or one term only and reviews the full price, benefits and contribution part. Automatic renewal requires separate express authorization. Only a confirmed full-price payment earns a term; failed payments earn no time. Cancellation stops future billing and retains the paid term. **Giving → Memberships** shows expiry, grace, lapsed state and distinct member counts for each level.
+On the membership form, a donor chooses automatic renewal or one term only and reviews the full price, benefits and contribution part. Automatic renewal requires separate express authorization. Recurring terms retain the processor’s authorized month-end or leap-day billing anchor. Only a confirmed full-price payment earns a term; failed payments earn no time. Cancellation stops future billing and retains the paid term. **Giving → Memberships** shows expiry, grace, lapsed state and distinct member counts for each level.
 
 A donor opens **Membership terms** in their verified giving account to renew their own single-term membership. Early renewal keeps unexpired time and appends the new term. It starts no recurring plan.
 

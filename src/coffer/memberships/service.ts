@@ -40,8 +40,8 @@ export async function membershipCapture(db:D1Database,intentId:string,level:Row)
 export async function holdMembershipPrice(c:{db:D1Database},subscription:string){
  if(await one(c,'SELECT 1 FROM cf_memberships WHERE subscription_id=? UNION ALL SELECT 1 FROM cf_membership_intents i JOIN cf_giving_intents g ON g.id=i.intent_id JOIN cf_subscriptions s ON s.customer_id=g.customer_id WHERE s.id=? AND i.auto_renew=1 AND (g.staff_channel IS NULL OR EXISTS(SELECT 1 FROM cf_portal_changes p WHERE p.id=i.intent_id AND p.subscription_id=s.id))',subscription,subscription))fail('MEMBERSHIP_TERMS','Membership price and term are fixed to the donor’s authorization. Cancel this plan and join the new level to change them.',409)
 }
-export function endOfTerm(start:string,months:number){
- const d=new Date(start+'T00:00:00Z'),day=d.getUTCDate()
+export function endOfTerm(start:string,months:number,day=Number(start.slice(-2))){
+ const d=new Date(start+'T00:00:00Z')
  d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+months)
  const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate()
  d.setUTCDate(Math.min(day,last));return d.toISOString().slice(0,10)
@@ -56,8 +56,9 @@ export async function recordMembershipPayment(env:GivingEnv,intent:Row,sub:Row,i
  const zone=(await settings(c)).timezone,period=invoice.lines?.data?.find((l:Row)=>l.period&&(!l.subscription||l.subscription===sub.id))?.period
  const start=period?.start??invoice.period_start??invoice.status_transitions.paid_at,end=period?.end??invoice.period_end
  if(!Number.isSafeInteger(start)||end!==undefined&&!Number.isSafeInteger(end))return
- const starts=today(zone,new Date(start*1000)),expires=end?today(zone,new Date(end*1000)):endOfTerm(starts,quote.term_months)
- if(expires!==endOfTerm(starts,quote.term_months))return
+ const starts=today(zone,new Date(start*1000)),anchor=Number.isSafeInteger(sub.billing_cycle_anchor)?today(zone,new Date(sub.billing_cycle_anchor*1000)):starts
+ const expected=endOfTerm(starts,quote.term_months,Number(anchor.slice(-2))),expires=end?today(zone,new Date(end*1000)):expected
+ if(expires!==expected)return
  const membershipId='membership-'+intent.id
  await paymentWrite(env,[
   sql('INSERT OR IGNORE INTO cf_memberships(id,donor_id,intent_id,subscription_id,created_at) SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_memberships WHERE intent_id=? AND subscription_id<>?)',membershipId,intent.donor_id,intent.id,sub.id,new Date().toISOString(),intent.donor_id,intent.id,sub.id),

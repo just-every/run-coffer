@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 
 // Stripe test clock, billing and ledger observations are faked only here.
+function nextCycle(at,months,anchorDay=new Date(at).getUTCDate()){
+ const d=new Date(at);d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+months)
+ const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate()
+ d.setUTCDate(Math.min(anchorDay,last));return d
+}
 export function recurringStripeEdge({initialPayment=false}={}) {
  const state={now:'2026-01-10T12:00:00.000Z',plans:new Map(),sessions:new Map(),invoices:new Map(),charges:new Map(),entries:[],sequence:0,staffSequence:0,mutations:[],uncertain:false,methodType:'card',customerDiscount:false,savedMethods:new Map(),payments:new Map(),expiryMonth:12,expiryYear:2028}
  const outbound=async request=>{
@@ -19,8 +24,8 @@ export function recurringStripeEdge({initialPayment=false}={}) {
     state.entries.push({id:charge.balance_transaction,type:'charge',source:charge.id,amount:charge.amount,fee:103,net:charge.amount-103,currency:'usd',created:paidAt})
     bill.period_start=sub.nextBilling/1000
     sub.latest_invoice=id
-    const date=new Date(sub.nextBilling),recurring=sub.items.data[0].price.recurring
-    date.setUTCMonth(date.getUTCMonth()+(recurring.interval==='year'?12:recurring.interval_count));sub.nextBilling=date.getTime();sub.current_period_end=sub.nextBilling/1000;bill.period_end=sub.current_period_end
+    const recurring=sub.items.data[0].price.recurring,date=nextCycle(sub.nextBilling,recurring.interval==='year'?12:recurring.interval_count,new Date(sub.billing_cycle_anchor*1000).getUTCDate())
+    sub.nextBilling=date.getTime();sub.current_period_end=sub.nextBilling/1000;bill.period_end=sub.current_period_end
     bills.push(id)
    }
    return Response.json({id:'synthetic-coffer-7100',status:'ready',frozen_time:Date.parse(state.now)/1000,bills})
@@ -30,7 +35,7 @@ export function recurringStripeEdge({initialPayment=false}={}) {
   if(path==='/v1/subscriptions'&&request.method==='POST') {
    assert.ok(request.headers.get('idempotency-key'))
    assert.equal(p.get('payment_behavior'),'error_if_incomplete')
-   const count=Number(p.get('items[0][price_data][recurring][interval_count]')),interval=p.get('items[0][price_data][recurring][interval]'),next=new Date(state.now);next.setUTCMonth(next.getUTCMonth()+(interval==='year'?12:count))
+   const count=Number(p.get('items[0][price_data][recurring][interval_count]')),interval=p.get('items[0][price_data][recurring][interval]'),next=nextCycle(state.now,interval==='year'?12:count)
    const sub={id:'sub_staff_recurring_'+(++state.staffSequence),customer:p.get('customer'),metadata:{coffer_intent:p.get('metadata[coffer_intent]')},created:Date.parse(state.now)/1000,status:'active',collection_method:'charge_automatically',billing_cycle_anchor:Date.parse(state.now)/1000,current_period_end:next.getTime()/1000,cancel_at_period_end:false,pause_collection:null,default_payment_method:p.get('default_payment_method'),nextBilling:next.getTime(),items:{data:[{id:'si_staff_recurring_'+state.staffSequence,quantity:1,price:{currency:'usd',product:p.get('items[0][price_data][product]'),unit_amount:Number(p.get('items[0][price_data][unit_amount]')),recurring:{interval,interval_count:count,usage_type:'licensed'}}}]}}
    const n=state.invoices.size+1,id='in_staff_recurring_'+n,paidAt=Date.parse(state.now)/1000
    const bill={id,customer:sub.customer,currency:'usd',parent:{subscription_details:{subscription:sub.id}},status:'paid',amount_paid:sub.items.data[0].price.unit_amount,attempt_count:1,next_payment_attempt:null,status_transitions:{paid_at:paidAt}}
@@ -49,8 +54,8 @@ export function recurringStripeEdge({initialPayment=false}={}) {
    }
    assert.equal(p.get('mode'),'subscription')
    const n=state.sequence,interval=p.get('line_items[0][price_data][recurring][interval]'),count=Number(p.get('line_items[0][price_data][recurring][interval_count]'))
-   const next=new Date(state.now);next.setUTCMonth(next.getUTCMonth()+(interval==='year'?12:count))
-   const sub={id:'sub_recurring_'+n,customer:p.get('customer'),metadata:{coffer_intent:p.get('subscription_data[metadata][coffer_intent]')},created:Date.parse(state.now)/1000,status:'active',collection_method:'charge_automatically',billing_cycle_anchor:next.getTime()/1000,current_period_end:next.getTime()/1000,cancel_at_period_end:false,pause_collection:null,default_payment_method:null,nextBilling:next.getTime(),items:{data:[{id:'si_recurring_'+n,quantity:1,price:{currency:'usd',product:'prod_recurring',unit_amount:Number(p.get('line_items[0][price_data][unit_amount]')),recurring:{interval,interval_count:count,usage_type:'licensed'}}}]}}
+   const next=nextCycle(state.now,interval==='year'?12:count)
+   const sub={id:'sub_recurring_'+n,customer:p.get('customer'),metadata:{coffer_intent:p.get('subscription_data[metadata][coffer_intent]')},created:Date.parse(state.now)/1000,status:'active',collection_method:'charge_automatically',billing_cycle_anchor:Date.parse(state.now)/1000,current_period_end:next.getTime()/1000,cancel_at_period_end:false,pause_collection:null,default_payment_method:null,nextBilling:next.getTime(),items:{data:[{id:'si_recurring_'+n,quantity:1,price:{currency:'usd',product:'prod_recurring',unit_amount:Number(p.get('line_items[0][price_data][unit_amount]')),recurring:{interval,interval_count:count,usage_type:'licensed'}}}]}}
    state.plans.set(sub.id,sub)
    const session={id:'cs_recurring_'+n,url:'https://checkout.stripe.com/c/pay/cs_recurring_'+n,metadata:{coffer_intent:sub.metadata.coffer_intent},customer:sub.customer,currency:'usd',amount_total:sub.items.data[0].price.unit_amount,status:'complete',payment_status:'paid',subscription:sub.id}
    if(initialPayment){

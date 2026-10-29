@@ -229,6 +229,7 @@ export async function membershipsJourney(){
   try{await restore(protectedCopy,saved,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}})}finally{await protectedCopy.close()}
  },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-7404',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
  await membershipTermVariants()
+ await calendarMembershipTerms()
 }
 
 // The same native doors also preserve non-annual quotes and new-plan notice authority.
@@ -416,4 +417,42 @@ export async function membershipTermVariants(){
   assert.equal(tasks[0].owner_id,(await get('/auth/session')).operator.id,'Exhausted membership recovery creates one ordinary owner task')
   assert.equal((await get('/api/coffer/donors/'+m.donor_id)).gifts.length,2,'Failed monthly renewal adds no gift beyond the original and the paid staff membership')
  },{entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:'2026-01-10T12:00:00Z',STRIPE_SECRET_KEY:'synthetic-coffer-7500',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound,outboundService})
+}
+
+export async function calendarMembershipTerms(){
+ for(const spec of [
+  {start:'2026-01-31T12:00:00Z',months:1,price:'10',steps:[['2026-02-28T12:00:00Z','2026-03-31'],['2026-03-31T12:00:00Z','2026-04-30']]},
+  {start:'2024-02-29T12:00:00Z',months:12,price:'120',steps:[['2025-02-28T12:00:00Z','2026-02-28'],['2026-02-28T12:00:00Z','2027-02-28'],['2027-02-28T12:00:00Z','2028-02-29']]},
+ ]){
+  const edge=recurringStripeEdge({initialPayment:true});edge.state.now=spec.start
+  await run(async h=>{
+   let staff=h.owner
+   const headers=()=>({'x-test-now':edge.state.now}),get=p=>h.get(p,{as:staff,headers:headers()}),api=(p,b)=>h.api(p,b,{as:staff,headers:headers()})
+   await reviewed(h)
+   const campaign=await api('/api/coffer/giving/campaigns',{name:'Calendar membership',slug:'calendar-membership',description:'Membership calendar terms.',fund:'Reading',goal:'1000'})
+   await api('/api/coffer/memberships',{action:'create',name:'Calendar reader',slug:'calendar-reader',campaignId:campaign.id,price:spec.price,termMonths:spec.months,benefit:'0',benefitDescription:'Reading support',graceDays:0})
+   const checkout=await h.request('/giving/memberships/calendar-reader/checkout',{method:'POST',as:'',headers:{...headers(),'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({requestId:randomUUID(),levelVersion:'1',name:'Synthetic Calendar Member',email:['synthetic-coffer-7701','example.test'].join('@'),authorizeRenewal:'yes','cf-turnstile-response':'synthetic-coffer-security-token'}).toString()});assert.equal(checkout.status,303)
+   const sub=[...edge.state.plans.values()][0]
+   const paid=async id=>{
+    const raw=JSON.stringify({id:randomUUID(),type:'invoice.paid',data:{object:{id}}}),at=Date.parse(edge.state.now)/1000,signature=createHmac('sha256',secret).update(`${at}.${raw}`).digest('hex')
+    const r=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw,headers:{...headers(),'stripe-signature':`t=${at},v1=${signature}`}});assert.equal(r.status,200,await r.text())
+   }
+   await paid(sub.latest_invoice)
+   let payments=1
+   for(const [instant,expires] of spec.steps){
+    const tick=await edge.advance(instant);assert.equal(tick.bills.length,1)
+    const account=(await h.get('/auth/session')).operator
+    const login=await h.request('/auth/magic-link',{method:'POST',as:'',body:{email:account.email},headers:headers()});assert.equal(login.status,202)
+    const link=h.messages.at(-1).text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]
+    const signed=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:new URL(link).searchParams.get('token')},headers:headers()});assert.equal(signed.status,303)
+    staff=signed.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ')
+    await paid(tick.bills[0]);await paid(tick.bills[0]);payments++
+    const state=await get('/api/coffer/memberships'),member=state.memberships[0]
+    assert.equal(member.expires_on,expires,'Paid calendar renewals retain the processor’s original month-end or leap-day anchor')
+    assert.equal(member.state,'active');assert.equal(state.counts[0].active,1)
+    assert.equal((await get('/api/coffer/donors/'+member.donor_id)).gifts.length,payments)
+    assert.equal((await get('/api/coffer/giving/campaigns/'+campaign.id)).raisedCents,payments*Number(spec.price)*100)
+   }
+  },{entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:spec.start,STRIPE_SECRET_KEY:'synthetic-coffer-7700',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
+ }
 }
