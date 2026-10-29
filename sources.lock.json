@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
-      "sha256": "1363358e65247a7428005871d00f60c77e8b48230034f4972378c68cb0dd9c9e",
+      "sha256": "7e967de5bd9200f20de617ff971c255aa362f52d38d6da413be120e7648a1205",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3335,7 +3335,7 @@
       "executable": false
     },
     "src/coffer/move-in/http.ts": {
-      "sha256": "37c2f362ff1736c34cd321d2ebf3e99e7a224020fc06461a6ce5e081db71a9c8",
+      "sha256": "9c1f2e6851f4ce25bad07b83988c385a14a973ac390f85f5f41fdf054afff60b",
       "executable": false
     },
     "src/coffer/move-in/neon-edge.ts": {
@@ -3987,11 +3987,11 @@
       "executable": false
     },
     "src/coffer/ui/crm-export-steps.ts": {
-      "sha256": "a5ed15eb2c01318fe849e117f24e607b2fdc6c76b1b0740875d0a3194d4df7d0",
+      "sha256": "f92ce3698fd84aa237f9e3ad67d4a0ef88e2c0acc2b349f198b7a8fc77d1aa65",
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "e7e456de4979c9ebe64441fbb3718d8149ccca0167d714b86760bf26ee23ee38",
+      "sha256": "13f3a4481b82b358671bb7a53ec2640f40e56b432801c57b9fc3e1a5e9b2ab92",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {

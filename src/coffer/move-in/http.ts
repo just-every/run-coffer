@@ -1,3 +1,4 @@
+import { sourceOptions, switchingGuide } from '../ui/crm-export-steps'
 import { canonicalDonor } from '../donor-merge'
 import { audience } from '../appeals'
 import { givebutterInput } from './givebutter'
@@ -27,6 +28,11 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)
  const action=url.pathname.slice(base.length+1)
  if(request.method==='GET') {
+  if(action==='guide'&&!api) {
+   const source=url.searchParams.get('source')||'bloomerang'
+   if(!sourceOptions.some(([key])=>key===source))fail('MOVE_IN_SOURCE','Choose a named CRM.',400)
+   return page('Switching guide',switchingGuide(source),c.actor,200,'/app/more')
+  }
   if(action==='spreadsheet'&&!api)return page('Spreadsheet move-in',spreadsheetStart(await service.spreadsheetMappings(c)),c.actor,200,'/app/more')
   if(action==='source-history'&&api) {
    const donorId=await canonicalDonor(c,url.searchParams.get('donorId')||'')
