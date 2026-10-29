@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { PATHS, startLine, type RunData } from '../../../base/run-site'
+import { runPricing } from '../../../base/run-pricing'
 import type { DocsBody, DocsSection } from '../types.ts'
 import { docsDirectory, manifestPath, readManifest } from './manifest.ts'
 import { renderMarkdown } from './render.ts'
@@ -15,12 +17,21 @@ const machinePath = /(?<![\w.@~-])\/(?:Users|home|private|tmp|var|Volumes|root)\
 export function buildDocs(root: string): DocsSite {
   const sections = readManifest(root)
   const pages = sections.flatMap(section => section.pages)
-  const files = [join(root, manifestPath)]
+  const runFile = join(root, 'src/site/run.json')
+  const run: RunData = { ...JSON.parse(readFileSync(runFile, 'utf8')), pricing: runPricing }
+  const recipe: Record<string, string> = {
+    startLine: startLine(run), clone: run.clone, requirements: PATHS.self.requirements,
+  }
+  const files = [join(root, manifestPath), runFile]
   const rendered = new Map(pages.map(page => {
     const file = join(root, docsDirectory, page.file)
     files.push(file)
     // A file's own leading title (kept for reading it on GitHub) gives way to the title in docs/site.json.
-    return [page.slug, renderMarkdown(readFileSync(file, 'utf8').replace(/^# [^\n]*\n+/, ''))] as const
+    const markdown = readFileSync(file, 'utf8').replace(/\{\{run\.(\w+)\}\}/g, (_, key: string) => {
+      if (!Object.hasOwn(recipe, key)) throw new Error(`${docsDirectory}/${page.file}: unknown run recipe ${key}`)
+      return recipe[key]
+    })
+    return [page.slug, renderMarkdown(markdown.replace(/^# [^\n]*\n+/, ''))] as const
   }))
   const problems: string[] = []
   for (const page of pages) {

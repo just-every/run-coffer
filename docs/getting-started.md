@@ -1,14 +1,14 @@
-Coffer runs on your own computer, on macOS, Linux or Windows with WSL2. Git is required; rer brings Node and pnpm.
+Coffer runs on your own computer. {{run.requirements}}
 
 ## Start Coffer
 
 One line installs the `rer` launcher, clones Coffer into `run-coffer` and starts it:
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-coffer
+{{run.startLine}}
 ```
 
-Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-coffer` does the same. If the installer prints a line that puts `rer` on your PATH, run that line too.
+Already have Node 22 or later? `{{run.clone}}` does the same. The one-line launch already finds `rer` for this run. Adding it to your PATH is optional for future terminals.
 
 The first start installs everything and can take a few minutes. If it is interrupted, run the same line again: it picks up where it stopped. When Coffer is ready it prints:
 

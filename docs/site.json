@@ -3,7 +3,7 @@
     {
       "title": "Start here",
       "pages": [
-        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Start Coffer on your own computer in two lines, sign in as the owner and finish setup." },
+        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Start Coffer on your own computer with one line, sign in as the owner and finish setup." },
         { "slug": "first-week", "title": "Your first week", "file": "first-week.md", "summary": "The four steps on Today: your letter wording, your donors, their consent and your first letters." }
       ]
     },
@@ -32,7 +32,7 @@
         { "slug": "platform-history", "title": "Givebutter and Zeffy history", "file": "platform-history.md", "summary": "Review historical payments, source receipts, campaign totals and recurring migration evidence." },
         { "slug": "backup", "title": "Back up, restore and erase", "file": "backup.md", "summary": "Download a backup, restore it into an empty installation, and erase a donor without losing the ledger." },
         { "slug": "deployment", "title": "Coffer deployment details", "file": "deployment.md", "summary": "Coffer mail settings, hosted backups and deployment maintenance." },
-        { "slug": "hosting", "title": "Host it on Cloudflare", "file": "hosting.md", "summary": "Deploy Coffer to your own Cloudflare account with SendGrid mail, back it up, and take it down." }
+        { "slug": "hosting", "title": "Host it on Cloudflare", "file": "hosting.md", "summary": "Run Coffer locally, ask Run Edit Run for help, or put it online in your own Cloudflare account." }
       ]
     }
   ]
