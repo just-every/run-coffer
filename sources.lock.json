@@ -4067,7 +4067,7 @@
       "executable": false
     },
     "src/coffer/payments/donor-match.ts": {
-      "sha256": "87d4127e6a76e3e2978163f876587138b1356c3a085dbaee2ef6dc4927e375c2",
+      "sha256": "7362715bc85540ad0c9f9cfd8a61a1eb710892146b45dae4df59b7f997795470",
       "executable": false
     },
     "src/coffer/payments/entries.ts": {
@@ -7559,7 +7559,7 @@
       "executable": false
     },
     "tests/payment-donor-match-journey.mjs": {
-      "sha256": "188488dddfc3c402ab3a1d4fa162586ddbab94d471a9a3ecbece49d724f47a55",
+      "sha256": "dc69feb31e81743b595b58db6e6fe05439263d7c24d749c1ecc73bf6c2005a6a",
       "executable": false
     },
     "tests/payments-browser.mjs": {

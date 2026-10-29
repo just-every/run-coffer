@@ -40,8 +40,15 @@ export async function holdDonorMatch(env: GivingEnv, charge: Row, mail: string |
   VALUES(?,?,?,'held',?,?,?,?,?,?) ON CONFLICT(charge_id) DO UPDATE SET
   version=version+1,state='held',facts=excluded.facts,candidates=excluded.candidates,email=excluded.email,
   donor_id=NULL,donor_version=NULL,approved_version=NULL,approved_by=NULL,approved_actor_version=NULL,approved_at=NULL,updated_at=excluded.updated_at
-  WHERE cf_payment_donor_matches.state<>'erased' AND (facts<>excluded.facts OR candidates<>excluded.candidates)`,
-  charge.id,installation(env),account,stripeId(charge.customer)||null,mail,snapshot,list,now,now)],authority)
+  WHERE cf_payment_donor_matches.state<>'erased'
+  AND NOT EXISTS(SELECT 1 FROM cf_stripe_charges WHERE id=excluded.charge_id)
+  AND (facts<>excluded.facts OR candidates<>excluded.candidates)`,
+  charge.id,installation(env),account,stripeId(charge.customer)||null,mail,snapshot,list,now,now),
+  // A refund read can fail after the gift commits. Refresh the remaining
+  // evidence without discarding the donor decision that already owns money.
+  sql(`UPDATE cf_payment_donor_matches SET facts=?,candidates=?,email=?,version=version+1,updated_at=?
+   WHERE charge_id=? AND state='approved' AND EXISTS(SELECT 1 FROM cf_stripe_charges WHERE id=charge_id)
+   AND (facts<>? OR candidates<>?)`,snapshot,list,mail,now,charge.id,snapshot,list)],authority)
 }
 
 /** A previously erased source may retain only an opaque charge tombstone. */
@@ -149,8 +156,16 @@ export async function approveDonorMatch(c: Context, env: GivingEnv, chargeId: st
  ])
  const saved=await syncCharge(env,chargeId,c)
  if(!saved)fail('MATCH_CHANGED','The payment changed before recording. Refresh its review.')
+ const recorded=await one(c,'SELECT donor_id FROM cf_gifts WHERE id=?',saved.gift_id)
+ if(recorded?.donor_id!==donorId)fail('MATCH_CHANGED','This payment is already recorded for another donor. Its assignment cannot change here.')
  for(const entry of current.entries)await syncEntry(env,entry,c)
- await commit(c,[sql("UPDATE cf_payment_donor_matches SET state='resolved',version=version+1 WHERE charge_id=? AND state='approved'",chargeId)])
+ await commit(c,[
+  guard(`EXISTS(SELECT 1 FROM cf_payment_donor_matches r JOIN cf_stripe_charges s ON s.id=r.charge_id
+   JOIN cf_gifts g ON g.id=s.gift_id WHERE r.charge_id=? AND r.state IN ('approved','resolved')
+   AND r.donor_id=? AND r.approved_version=? AND g.donor_id=r.donor_id)`,
+   'MATCH_CHANGED','The recorded gift and donor decision must agree before completing review.',chargeId,donorId,version),
+  sql("UPDATE cf_payment_donor_matches SET state='resolved',version=version+1 WHERE charge_id=? AND state='approved'",chargeId),
+ ])
  for(const payout of await all(c,'SELECT payout_id FROM cf_payment_match_payouts WHERE charge_id=?',chargeId))await syncPayout(env,payout.payout_id,c)
  return donorMatchView(c,chargeId)
 }
