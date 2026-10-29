@@ -39,6 +39,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
+        "npm ci --prefix integrations/zapier --no-audit --no-fund",
+        "npm run validate --prefix integrations/zapier",
         "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DONOR-004|DONOR-005|DONOR-007|DONOR-013|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001|API-002):' tests/coffer.test.mjs"
       ]
     },

@@ -394,3 +394,5 @@ test('DEV-012: named and preparation grants enforce scope, template approval, at
 test('API-002: signed native events retain failed delivery attempts, backoff and explicit replay',async()=>{const {webhooksJourney}=await import('./webhooks-journey.mjs');await webhooksJourney()})
 
 test('API-001: scoped versioned records enforce acknowledgment authority and atomic idempotency', async () => { const {restApiJourney}=await import('./rest-api-journey.mjs'); await restApiJourney() })
+
+test('API-003: packaged Zapier action creates one owned non-ask task and preserves native authority and custody', async () => { const {zapierJourney}=await import('./zapier-journey.mjs'); await zapierJourney() })
