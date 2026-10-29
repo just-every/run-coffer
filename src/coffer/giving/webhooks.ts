@@ -1,3 +1,4 @@
+import { observeStaffPayment } from './staff-payment'
 import { recordMembershipPayment } from '../memberships/service'
 import { completePledgeCheckout } from '../pledge-checkout'
 import { checkoutFailure, invoiceProtection, radarFailure } from './protection'
@@ -62,6 +63,8 @@ export async function webhook(env: GivingEnv, request: Request, raw: string) {
   else await completePledgeCheckout(env,object.id)
  } else if(event.type==='checkout.session.async_payment_failed') {
   await checkoutFailure(env,object.id)
+ } else if(event.type==='payment_intent.succeeded') {
+  await observeStaffPayment(env,object.id)
  } else if (['invoice.paid', 'invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.updated'].includes(event.type)) {
   await invoice(env, object.id, event.type === 'invoice.payment_failed' ? event.id : undefined)
  } else if (['customer.subscription.updated', 'customer.subscription.deleted', 'customer.subscription.created'].includes(event.type)) {

@@ -99,3 +99,9 @@ changed gifts or tribute facts need a fresh notification.
 Verified supporters can create personal pages and teams from their giving portal.
 See [Supporter fundraising](/docs/peer-fundraising) for publication, credit, leaderboard
 and reviewed notice behavior.
+
+## An authorized saved-card gift entered by staff
+
+The owner or an admin opens **Charge an authorized saved card** from a constituent record. The donor first grants **One-time gift permission** for their current saved card in their giving account; an existing recurring-gift permission does not grant this authority. The owner or admin records the donor's authorization as a phone call or attaches the mailed authorization before entering the amount, campaign, fund and defined appeal. The review screen shows the exact immediate amount and designation before confirmation. No fee cover or recurring plan is added.
+
+The payment records the entering person and phone or mail source, the full paid gift and actual processor fee. Its receipt uses the existing approval and sending settings. It does not count toward public-form card-testing limits. An uncertain result keeps both staff payment and new-plan entry held, even with a new request identity or after restoring a backup. A verified provider result can record the original payment once; Coffer never retries the charge automatically. New-card entry, bank entry, gift-batch charging and broader staff charging roles remain unavailable.
