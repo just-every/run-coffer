@@ -8,7 +8,7 @@ import { customFields } from '../custom-fields'
 import { importedCustomWrites, customImportUndoGuards, customImportUndoWrites } from './custom-fields'
 import { solicitationImportHistory, restrictionReconciliation } from './solicitation-import'
 import { manager } from '../auth'
-import { all, commit, CofferError, date, event, fail, guard, one, optional, sha256, sql, today, type Context, type Row, type Stmt } from '../db'
+import { all, commit, CofferError, addDays, date, event, fail, guard, one, optional, sha256, sql, today, type Context, type Row, type Stmt } from '../db'
 import { settings } from '../settings'
 import { parseExports } from './parse'
 import { contentHash, planImport, type Plan } from './plan'
@@ -49,6 +49,9 @@ export async function preview(c: Context,input: ParseInput) {
  let sourceCoverage:SourceCoverage|undefined
  if(input.source==='neon'){const result=await neonInput(input,today((await settings(c)).timezone,new Date(c.now)));input=result.input;sourceCoverage=result.coverage}
  const parsed=await parseExports(input)
+ const configuration=await settings(c),policy=await one(c,'SELECT acknowledge_from FROM cf_receipt_autonomy WHERE id=1')
+ const acknowledgmentPreview={thresholdCents:configuration.threshold_cents,defaultFrom:policy?.acknowledge_from??addDays(today(configuration.timezone,new Date(c.now)),-30),byYear:{} as Record<string,{count:number;amountCents:number}>}
+ for(const gift of parsed.gifts)if((gift.acknowledgment?.status??'not acknowledged')==='not acknowledged'&&gift.amountCents>=configuration.threshold_cents){const total=acknowledgmentPreview.byYear[gift.receivedOn.slice(0,4)]??={count:0,amountCents:0};total.count++;total.amountCents+=gift.amountCents}
  if(sourceCoverage)parsed.sourceCoverage=sourceCoverage
  const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})
  const id=fileFingerprint.slice(0,40)
@@ -75,8 +78,8 @@ export async function preview(c: Context,input: ParseInput) {
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{nativeOutcomeFingerprint:projected.fingerprint,...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),previewNativeDonors:[...nativeDonors],spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],outcomeKeys:{gift:projected.giftKeys,softCredit:projected.creditKeys},issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
- return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{acknowledgmentPreview,nativeOutcomeFingerprint:projected.fingerprint,...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),previewNativeDonors:[...nativeDonors],spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],outcomeKeys:{gift:projected.giftKeys,softCredit:projected.creditKeys},issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+ return { ...parsed, acknowledgmentPreview, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }
 

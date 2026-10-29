@@ -57,6 +57,7 @@ export async function reconciliationJourney(files){
   const uploaded=await input()
   const p=await post(h,'preview',uploaded)
   assert.equal(p.canApply,true,JSON.stringify(p.diagnostics));assert.equal(p.needsAcceptance,false,JSON.stringify(p.unmapped));assertControls(p.reconciliation)
+  assert.deepEqual(p.acknowledgmentPreview.byYear,{'2020':{count:1,amountCents:30000},'2026':{count:1,amountCents:25000}},'Review separates old and recent source gifts still waiting for thanks')
   assert.deepEqual([p.sourceTotals.giftCount,p.sourceTotals.amountCents],[5,170000],'Soft credits and goods are never counted as additional cash')
   await post(h,'apply',{id:p.id,fingerprint:'stale'},{status:409})
   const member=await h.person([id(9191),'example.test'].join('@'))

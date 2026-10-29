@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
-      "sha256": "cd7387db7b3bcc033530e5536b8d309f192b94108fed288d43d98b16da593355",
+      "sha256": "c05a35902671a3775c9d3d61c84347d7f3fffc72af9ac73b0b04a551349c386c",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3399,7 +3399,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "a25959a7a1220e93cc2220b7449a44ec63a433625217abf39a2654afad404223",
+      "sha256": "e51dcf23416335babf3f63c966c8b0c67e0ed3c7ff63eec1a30dcb919551c977",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -4015,7 +4015,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "4f8d2ecef67928496e96c6a4a51883c82abe14fad91fb9148e841fbffa96f65d",
+      "sha256": "89d9ffd7e2ddb6c5476289aed3376a59f103595cd804905be419b8e0be1afcf8",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6871,7 +6871,7 @@
       "executable": false
     },
     "tests/move-in-reconciliation-journey.mjs": {
-      "sha256": "e0db8d46fa53ac58f7a32f0c219721f0378f0754d5942c18a4e1617d8a3ecbc4",
+      "sha256": "f4138b7090c05af1eb1831f4be09c5256a7fea4a60dddaf525e8d9487e62e5b0",
       "executable": false
     },
     "tests/move-in.test.mjs": {
