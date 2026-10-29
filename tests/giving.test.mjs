@@ -289,6 +289,11 @@ test('CAMP-003: verified supporters fundraise as teams and personal pages with s
  await peerJourney()
 })
 
-test('CAMP-004: paid memberships renew once, disclose benefits, reconcile campaigns and retain held reminder custody', {timeout:300000}, async()=>{
+// Six real installations cover renewal, archive/restore, erasure fences, term
+// variants and billing calendars, plus native membership screens. Successful
+// Verify runs 40838043933 / 40875935524 took 215.4s / 219.9s; the three-process
+// runner exceeded 300s in 40920377253. CI now gives this unchanged journey its
+// own runner. Bound it at 450s for runtime variance, within the 20-minute job.
+test('CAMP-004: paid memberships renew once, disclose benefits, reconcile campaigns and retain held reminder custody', {timeout:450000}, async()=>{
  const {membershipsJourney}=await import('./memberships-journey.mjs');await membershipsJourney()
 })

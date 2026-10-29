@@ -107,12 +107,24 @@ async function schedule(tier) {
  const units = shards.flatMap(shard => shard.hosted
   ? [{ command: 'node scripts/verify-ci.mjs ' + quote(shard.name), label: shard.name + ': hosted checks', seconds: weight(estimates['hosted checks'] ?? 100) }]
   : shard.commands.flatMap(command => split(command, shard)));
- // Isolate the longest registrations in their own lanes, then use the fewest
- // jobs (8..14) whose three concurrent lanes all fit the fifteen-minute target.
- units.sort((a, b) => b.seconds - a.seconds || a.label.localeCompare(b.label));
- for (let count = MIN_JOBS; count <= MAX_JOBS; count++) {
+ // CAMP-004 takes 215.4s / 219.9s in successful Verify runs 40838043933 /
+ // 40875935524; it exceeded 300s in 40920377253 while sharing its runner
+ // with two other migration-heavy journeys. Keep its full custody/calendar journey on a runner of
+ // its own, with the bounded 450s test timeout documented in giving.test.mjs.
+ // This is a separate job, not just a lane alongside two competing processes.
+ const memberships = units.filter(unit => unit.label.startsWith('campaign-progress: CAMP-004:'));
+ if (memberships.length !== 1) throw Error('Expected exactly one CAMP-004 verification unit');
+ const dedicated = [{
+  name: 'memberships', browser: true,
+  lanes: [{ index: 0, seconds: memberships[0].seconds, units: memberships, isolated: true }],
+ }];
+ const shared = units.filter(unit => !memberships.includes(unit));
+ // Isolate the longest remaining registrations in their own lanes, then use
+ // the fewest total jobs (8..14) whose lanes fit the fifteen-minute target.
+ shared.sort((a, b) => b.seconds - a.seconds || a.label.localeCompare(b.label));
+ for (let count = MIN_JOBS - dedicated.length; count <= MAX_JOBS - dedicated.length; count++) {
   const lanes = Array.from({ length: count * WORKERS }, (_, index) => ({ index, seconds: 0, units: [], isolated: false }));
-  for (const unit of units) {
+  for (const unit of shared) {
    const isolate = unit.seconds >= LANE_TARGET * 0.75;
    const lane = lanes.filter(lane => !lane.isolated && (!isolate || !lane.units.length))
     .sort((a, b) => a.seconds - b.seconds || a.index - b.index)[0];
@@ -121,12 +133,12 @@ async function schedule(tier) {
    lane.seconds += unit.seconds;
    lane.isolated = isolate;
   }
-  if (lanes.reduce((total, lane) => total + lane.units.length, 0) !== units.length
+  if (lanes.reduce((total, lane) => total + lane.units.length, 0) !== shared.length
    || lanes.some(lane => lane.seconds > LANE_TARGET)) continue;
-  return Array.from({ length: count }, (_, index) => ({
+  return [...Array.from({ length: count }, (_, index) => ({
    name: 'balanced-' + (index + 1), browser: true,
    lanes: lanes.filter(lane => lane.index % count === index),
-  }));
+  })), ...dedicated];
  }
  throw Error(`Verification cannot fit ${MAX_JOBS} shards within ${JOB_TARGET}s including setup; split the longest registration group`);
 }
@@ -143,7 +155,7 @@ if (mode === '--matrix') {
  console.log(JSON.stringify(await schedule(value)));
 } else {
  const job = (await schedule(value)).find(job => job.name === mode);
- if (!job) throw Error('Usage: shards.mjs --matrix|--check push|all OR balanced-N push|all');
+ if (!job) throw Error('Usage: shards.mjs --matrix|--check push|all OR balanced-N|memberships push|all');
  const directory = '.cache/ci/' + job.name;
  mkdirSync(directory, { recursive: true });
  const active = new Set();

@@ -1927,7 +1927,7 @@
       "executable": false
     },
     "scripts/ci/shards.mjs": {
-      "sha256": "1f2af104bb0b5fca4b98d7dfc3674b22b7e15e2b331f10ad99e83589542bd5b9",
+      "sha256": "13c5471fc7e3c28a8e7822fe191645f8906170a7303485d407ea1d8d06e72e90",
       "executable": false
     },
     "scripts/contract-docs.mjs": {
@@ -6751,7 +6751,7 @@
       "executable": false
     },
     "tests/giving.test.mjs": {
-      "sha256": "d57821d710606f03966c6195aa07654d715d79218cf3d10427ce40a0bc631dac",
+      "sha256": "43f7fd5fdeb667db1944935399f6e7e72bd371cdcc7f182346b4accc58664ee6",
       "executable": false
     },
     "tests/grants-journey.mjs": {
