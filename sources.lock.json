@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "db17b05a78ad737bfbbaf360372d0cb2afb024c61bbc7bfe0ba5cf5882711356",
+      "sha256": "19191bedddb3125a31d2bcd9bc8c63b017fd38828e2d0bdc6533d57d8ff0021a",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "65177ee4b8336cfac94ed6605cc4231c6f2a8e093f23b0d291e1e3fafe01356a",
+      "sha256": "be63ae0b250541c6edecc92974cc07e35b0c3af339831a7b64644742ab4295a3",
       "executable": false
     },
     "deploy-demo.json": {
@@ -727,7 +727,7 @@
       "executable": false
     },
     "docs/peer-fundraising.md": {
-      "sha256": "d6e0d31ab7d8f47f9c22a60d967a3409ea56c6a81f5d6fe38bd575bff111fda1",
+      "sha256": "1acf3eae678b7a3773764b107c1ddd6df85cd93ce804485ac23db696d8d57032",
       "executable": false
     },
     "docs/people.md": {
@@ -1891,7 +1891,7 @@
       "executable": false
     },
     "RELEASE.json": {
-      "sha256": "f60e44c940585b2375ee8374528fef603343188674c973b39d9c4a919244f983",
+      "sha256": "40de722e5dd9f666f25e8dad9b7f15e50e615e07fa64f0612d306c7052882f98",
       "executable": false
     },
     "rer-project.json": {

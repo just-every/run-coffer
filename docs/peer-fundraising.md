@@ -44,3 +44,7 @@ anonymous financial history. Neither operation authorizes a new send.
 The current owner-only notice default awaits ct approval. It does not establish
 live Stripe or Mailchimp qualification, automatic notice scheduling, broader
 staff delegation or another mail provider's acceptance.
+
+The peer fundraising schema is installed by
+`migrations/core/0174_coffer_peer_fundraising.sql`; apply it after the existing
+core migrations without renumbering previously applied history.
