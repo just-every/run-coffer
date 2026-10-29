@@ -1,4 +1,5 @@
 import { importSourceNames } from './sources'
+import { platformTables, platformRow } from './platform-export'
 import { reviewedCustomMappings, mapCustomColumns } from './custom-fields'
 import { reviewedSpreadsheet } from './spreadsheet-mapping'
 import { includeMatchedDonors } from './spreadsheet-matches'
@@ -21,7 +22,7 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  }
  if(input.source==='spreadsheet')out.spreadsheet=reviewedSpreadsheet(input.spreadsheet,out)
  reviewedCustomMappings(input,out)
- const tables = await readExports(input.files, out), rows: SourceRow[] = []
+ const tables = platformTables(await readExports(input.files, out),out), rows: SourceRow[] = []
  const aliases = columnFields(input.source)
  for (const table of tables) {
   if (!table.rows.length || !table.rows[0].some(v => valueText(v))) {
@@ -34,11 +35,12 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
   for (let i = 1; i < table.rows.length; i++) if (table.rows[i].some(v => valueText(v))) rows.push(new SourceRow(table, table.rows[i], i + 1, out))
  }
  sourceTotals(rows, out.sourceTotals)
- for (const row of rows) if (row.kind() === 'control') { mapRow(row, out, input); controlRow(row, out) } else mapRow(row, out, input)
+ for (const row of rows) if (platformRow(row,out)) continue; else if (row.kind() === 'control') { mapRow(row, out, input); controlRow(row, out) } else mapRow(row, out, input)
  if(out.source==='spreadsheet')includeMatchedDonors(input,out)
  if(out.spreadsheet?.donorMatches)for(const donor of out.donors)if(Object.hasOwn(out.spreadsheet.donorMatches,donor.externalId))donor.match=out.spreadsheet.donorMatches[donor.externalId]
  if(out.spreadsheet?.donorMatches)for(const id of Object.keys(out.spreadsheet.donorMatches))if(!out.donors.some(d=>d.externalId===id))out.diagnostics.push({severity:'error',code:'DONOR_MATCH',message:`Source constituent ${id} has no mapped constituent row. Include its identity before choosing a match.`})
  mapCustomColumns(rows,out,input.deferCustomValues===true)
+ for(const r of out.recurringReferences??[])if(!out.donors.some(d=>d.externalId===r.donorExternalId))out.diagnostics.push({...r.location,severity:'error',code:'MISSING_REFERENCE',message:'Source plan needs its contact row.'})
  inferHouseholds(out)
  validateHouseholdHeads(out)
  sharedEmails(out)

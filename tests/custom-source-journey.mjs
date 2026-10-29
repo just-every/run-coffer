@@ -11,12 +11,12 @@ export const sourceFiles=(offset=0)=>({source:'bloomerang',files:[
  file('notes.csv',[['Note ID','Account Number','Note','Note Date','Note Type'],[401+offset,101+offset,'Source note','2026-10-01','general']]),
 ]})
 function bloomerangEdge(){
- let offset=0,revoked=false
+ let offset=0,revoked=false,privateValue='Private retained source'
  const definitions={Constituent:[{Id:1,Name:'Membership',DataType:'Text',PickType:'PickOne'},{Id:2,Name:'Interests',DataType:'Text',PickType:'PickMultiple'},{Id:6,Name:'Source groups',DataType:'Text',PickType:'PickMultiple'},{Id:7,Name:'Private source field',DataType:'Text',PickType:'Freeform'}],Transaction:[{Id:3,Name:'Budget',DataType:'Currency',PickType:'Freeform'}],Interaction:[{Id:4,Name:'Topic',DataType:'Text',PickType:'Freeform'}],Note:[{Id:5,Name:'Note detail',DataType:'Text',PickType:'Freeform'}]}
  const choices={1:['Board','Volunteer'],2:['Books','Music'],6:['Alumni','Legacy']},choice=(id,value)=>({Id:id*10+(choices[id]?.indexOf(value)??0)+1,FieldId:id,Value:value})
  const scalar=(FieldId,Value)=>({FieldId,Value:{Value}}),pick=(FieldId,Value)=>({FieldId,Value:choice(FieldId,Value)}),many=(FieldId,values)=>({FieldId,Values:values.map(v=>choice(FieldId,v))})
  const page=rows=>({Start:0,ResultCount:rows.length,TotalFiltered:rows.length,Results:rows})
- return {setOffset(n){offset=n},revoke(){revoked=true},async outbound(request){
+ return {setOffset(n){offset=n},setPrivateValue(value){privateValue=value},revoke(){revoked=true},async outbound(request){
   const u=new URL(request.url);assert.equal(u.origin,'https://api.bloomerang.co');assert.equal(request.method,'GET');assert.equal(request.headers.get('X-API-KEY'),'synthetic-coffer-1600')
   if(revoked)return Response.json({error:'revoked'},{status:401})
   const path=u.pathname.slice(3)
@@ -24,7 +24,7 @@ function bloomerangEdge(){
   if(m)return Response.json(u.searchParams.get('isActive')==='false'?[]:definitions[m[1]])
   m=/^\/customValues\/\w+\/(\d+)$/.exec(path)
   if(m)return Response.json(u.searchParams.get('isActive')==='false'?[]:choices[m[1]].map(v=>choice(Number(m[1]),v)))
-  if(path==='/constituents')return Response.json(page([{Id:1001+offset,AccountNumber:101+offset,CustomValues:[pick(1,'Board'),many(2,['Books','Music']),many(6,['Alumni','Legacy']),scalar(7,'Private retained source')]},{Id:1002+offset,AccountNumber:102+offset,CustomValues:[pick(1,'Unlisted')]}]))
+  if(path==='/constituents')return Response.json(page([{Id:1001+offset,AccountNumber:101+offset,CustomValues:[pick(1,'Board'),many(2,['Books','Music']),many(6,['Alumni','Legacy']),scalar(7,privateValue)]},{Id:1002+offset,AccountNumber:102+offset,CustomValues:[pick(1,'Unlisted')]}]))
   if(path==='/transactions/designations')return Response.json(page([{Id:2001+offset,DesignationNumber:201+offset,Type:'Donation',CustomValues:[scalar(3,'123.45')]},{Id:2002+offset,DesignationNumber:202+offset,Type:'Donation',CustomValues:[scalar(3,'not a number')]}]))
   if(path==='/interactions')return Response.json(page([{Id:301+offset,CustomValues:[scalar(4,'Library visit')]}]))
   if(path==='/notes')return Response.json(page([{Id:401+offset,CustomValues:[scalar(5,offset?'Other source note '+offset:'Preserve original note')]}]))
@@ -88,7 +88,43 @@ export async function sourceCustomJourney(){
   assert.ok(changed.version>1)
   await post(h,'custom-apply',{id:next,version:reuse.review.version},{status:409})
   edge.setOffset(0)
+  const privateMarker='synthetic-coffer-1610-private-source'
+  edge.setPrivateValue(privateMarker)
   const shared=await imported(h,{...sourceFiles(),noGoodsOrServices:true});await post(h,'custom-capture',{id:shared,apiKey:capture.apiKey})
+  const captured=await archive(h,{maxParts:100})
+  for(const merge of [false,true])await run(async fresh=>{
+   await restore(fresh,captured)
+   assert.ok(JSON.stringify((await fresh.get(endpoint+'journal?id='+shared)).job.report).includes(privateMarker),'The second import retains the captured private value')
+   const before=(await fresh.get(endpoint+'journal?id='+shared)).job.report
+   await post(fresh,'undo',{id:shared})
+   const undone=(await fresh.get(endpoint+'journal?id='+shared)).job
+   assert.equal(undone.state,'undone');assert.deepEqual(undone.report.counts,before.counts,'Undo preserves historical import totals')
+   assert.equal((await fresh.get('/api/coffer/donors/'+person.id)).donor.id,person.id,'Undo leaves the existing donor intact')
+   await post(fresh,'custom-capture',{id:shared,apiKey:capture.apiKey},{status:409})
+   let eraseId=person.id
+   if(merge){
+    const into=await fresh.command('donor.create',{name:'Synthetic Undone Capture Survivor'})
+    const pair=await fresh.get('/api/coffer/duplicates/compare?source='+person.id+'&target='+into.id)
+    await fresh.command('donor.merge',{sourceDonorId:person.id,donorId:into.id,sourceVersion:pair.source.version,version:pair.target.version,fields:{},reason:'duplicate_record'})
+    eraseId=into.id
+   }
+   const undoneArchive=await archive(fresh,{maxParts:100})
+   await run(async restored=>{
+    await restore(restored,undoneArchive)
+    await restored.command('donor.erase',{donorId:eraseId,confirm:'ERASE'})
+    const journal=(await restored.get(endpoint+'journal?id='+shared)).job
+    assert.equal(journal.redacted,1,'Erasure reaches an undone capture after restore and donor merge')
+    assert.deepEqual(journal.report,{},'The undone journal retains no captured original, skipped or waiting value')
+    assert.ok(!JSON.stringify(await archive(restored,{maxParts:100})).includes(privateMarker),'A fresh archive contains no private value from the undone capture')
+   })
+  })
+  await run(async fresh=>{
+   await restore(fresh,saved)
+   const second=await imported(fresh,{...sourceFiles(),noGoodsOrServices:true})
+   await post(fresh,'custom-capture',{id:second,apiKey:capture.apiKey})
+   await post(fresh,'undo',{id:second});await post(fresh,'undo',{id})
+   assert.equal((await fresh.get('/api/coffer/donors')).total,0,'Retained erasure custody does not prevent undo of the original import')
+  },{outbound:edge.outbound})
   const survivor=await h.command('donor.create',{name:'Synthetic Source Survivor'})
   const comparison=await h.get('/api/coffer/duplicates/compare?source='+person.id+'&target='+survivor.id)
   await h.command('donor.merge',{sourceDonorId:person.id,donorId:survivor.id,sourceVersion:comparison.source.version,version:comparison.target.version,fields:{},reason:'duplicate_record'})
