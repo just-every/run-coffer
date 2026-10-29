@@ -1,3 +1,4 @@
+import { customJsonBatches } from './custom-review-storage'
 import { guard, sha256, sql, type Context, type Row, type Stmt } from '../db'
 
 const columns = ['key','label','kind','type','entry','choices','version','created_at'] as const
@@ -12,11 +13,10 @@ export async function createImportDefinitionWrites(c:Context, fields:Row[], sour
   const [sourceKey,hash] = await Promise.all([sha256(row.key),sha256(snapshot)])
   return {...row,sourceKey,hash,snapshot}
  }))
- const payload = JSON.stringify(definitions)
- return [
+ return customJsonBatches(definitions).flatMap(payload=>[
   sql(`INSERT INTO cf_custom_fields(${columns.join(',')}) SELECT ${columns.map(k=>`json_extract(value,'$.${k}')`).join(',')} FROM json_each(?)`,payload),
   sql(`INSERT INTO cf_move_in_records(source,kind,source_key,native_id,content_hash,job_id,owned,donor_id,related_id,snapshot) SELECT ?,'customDefinition',json_extract(value,'$.sourceKey'),json_extract(value,'$.key'),json_extract(value,'$.hash'),?,1,NULL,NULL,json_extract(value,'$.snapshot') FROM json_each(?)`,source,jobId,payload),
- ]
+ ])
 }
 
 // Saved wording keeps custom names live even before another document is prepared.

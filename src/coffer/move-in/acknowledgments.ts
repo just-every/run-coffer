@@ -29,9 +29,10 @@ export function acknowledgment(r: SourceRow, softCredit = false): ParsedAcknowle
  if (optOut && !['yes','y','true','1','no','n','false','0'].includes(flag)) r.error('ACKNOWLEDGMENT_STATUS', `Do Not Acknowledge value “${optOut}” needs review. Export a yes/no flag.`, field('acknowledgmentOptOut'))
  const acknowledgedOn = date ? r.date(field('acknowledgmentDate')) || null : null
  if (status === 'do not acknowledge' || ['yes','y','true','1'].includes(flag)) status = 'do not acknowledge'
+ else if (!softCredit&&['givebutter','zeffy'].includes(source)&&acknowledgedOn) status='acknowledged'
  else if ((source === 'lgl' && template) || (source === 're-nxt' && (acknowledgedOn || reference))) status = 'acknowledged'
  else status ||= 'not acknowledged'
  if (interactionExternalId && status !== 'acknowledged') r.error('ACKNOWLEDGMENT_LINK', 'A linked acknowledgment interaction requires acknowledged status. Correct the source status, or retain an unrelated historical reference in Acknowledgment Reference instead.', field('acknowledgmentInteraction'))
  const sourceReference = [template && reference ? `Template: ${template}\nReference: ${reference}` : template || reference, interactionExternalId ? `Interaction: ${interactionExternalId}` : ''].filter(Boolean).join('\n') || null
- return { status, acknowledgedOn, method: method || (template && status === 'acknowledged' ? 'letter' : null), reason, sourceReference, ...(interactionExternalId ? { interactionExternalId } : {}) }
+ return { status, acknowledgedOn, method: method || (!softCredit&&['givebutter','zeffy'].includes(source)&&acknowledgedOn&&status==='acknowledged'?'email':null) || (template && status === 'acknowledged' ? 'letter' : null), reason, sourceReference, ...(interactionExternalId ? { interactionExternalId } : {}) }
 }

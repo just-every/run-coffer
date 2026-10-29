@@ -1,4 +1,4 @@
-import { all, fail, sha256, sql, type Stmt } from '../db'
+import { all, fail, sha256, sql, type Row, type Stmt } from '../db'
 import type { CustomReview } from './custom-review-types'
 
 /** Keep each durable value below D1's row limit, without discarding review originals. */
@@ -25,4 +25,18 @@ export async function storedCustomReview(c:{db:D1Database},id:string,value:any):
  const serialized=rows.map(r=>r.payload).join('')
  if(await sha256(serialized)!==value.digest)fail('MOVE_IN_CHANGED','This custom review changed. Nothing can be carried.',409)
  return JSON.parse(serialized) as CustomReview
+}
+
+/** Bound serialized parameters too: originals and snapshots repeat long source values. */
+export function customJsonBatches(rows:Row[]):string[] {
+ const batches:string[]=[],encoder=new TextEncoder()
+ let current:string[]=[],bytes=2
+ for(const row of rows){
+  const value=JSON.stringify(row),size=encoder.encode(value).byteLength
+  if(size>1800000)fail('CUSTOM_SOURCE_LIMIT','One custom definition or value exceeds its durable row bound. Review a smaller source value before carrying it.',413)
+  if(current.length&&bytes+size+1>500000){batches.push('['+current.join(',')+']');current=[];bytes=2}
+  current.push(value);bytes+=size+1
+ }
+ if(current.length)batches.push('['+current.join(',')+']')
+ return batches
 }

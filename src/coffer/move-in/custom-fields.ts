@@ -1,3 +1,4 @@
+import { customJsonBatches } from './custom-review-storage'
 import { columnDefinitions, stageColumnValue } from './column-definitions'
 import { customValue } from '../custom-fields'
 import { spreadsheetDefinitionWrites } from './spreadsheet-definitions'
@@ -37,15 +38,17 @@ export function mapCustomColumns(rows: SourceRow[], out: ParsedImport, deferCust
   if (!['constituent','gift','pledge','interaction','note'].includes(kind)) continue
   for (const [i,column] of r.headers.entries()) if (!r.used.has(i) || out.customFields?.some(m=>m.column===column&&m.kind===kind)) inventory.set(JSON.stringify([r.location.sheet,column,kind]),{column,sheet:r.location.sheet,kind})
   for (const mapping of out.customFields ?? []) {
-   if (mapping.kind !== kind || mapping.sheet && mapping.sheet !== r.location.sheet) continue
+   const targetKind=['givebutter','zeffy'].includes(out.source)&&kind==='gift'&&mapping.kind==='constituent'?'constituent':kind
+   if (mapping.kind !== targetKind || mapping.sheet && mapping.sheet !== r.location.sheet) continue
    const indexes = r.headers.flatMap((h,i) => h === mapping.column ? [i] : [])
    if (!indexes.length) continue
    used.add(mapping)
    if (indexes.length !== 1) { r.error('CUSTOM_MAPPING','The mapped custom column occurs more than once; export one unambiguous column.',mapping.column); continue }
    const original = r.cells[indexes[0]] instanceof Date ? valueText(r.cells[indexes[0]]) : String(r.cells[indexes[0]] ?? '')
    if (!original.trim()) continue
-   const collection = kind === 'constituent' ? out.donors : kind === 'gift' ? out.gifts : kind === 'pledge' ? out.pledges : out.notes
-   const entity = collection.find(x => x.location.file === r.location.file && x.location.sheet === r.location.sheet && x.location.row === r.location.row) ?? (kind === 'constituent' ? out.donors.find(d => d.externalId === r.peek('donorId')) : undefined)
+   if(targetKind!==kind){inventory.delete(JSON.stringify([r.location.sheet,mapping.column,kind]));inventory.set(JSON.stringify([r.location.sheet,mapping.column,targetKind]),{column:mapping.column,sheet:r.location.sheet,kind:targetKind})}
+   const collection = targetKind === 'constituent' ? out.donors : kind === 'gift' ? out.gifts : kind === 'pledge' ? out.pledges : out.notes
+   const entity = collection.find(x => x.location.file === r.location.file && x.location.sheet === r.location.sheet && x.location.row === r.location.row) ?? (targetKind === 'constituent' ? out.donors.find(d => d.externalId === r.peek('donorId')) : undefined)
    if (!entity) { r.error('CUSTOM_MAPPING','This custom value has no successfully mapped source record.',mapping.column); continue }
    if(out.source==='spreadsheet'&&stageColumnValue(out,mapping,entity.externalId,original)){
     out.unmapped=out.unmapped.filter(u=>!(u.file===r.location.file&&u.sheet===r.location.sheet&&u.row===r.location.row&&u.column===mapping.column))
@@ -108,14 +111,13 @@ export async function importedCustomWrites(c:Context, plan:Plan, source:string, 
  if (!plan.customWrites.length) return writes
  const fields = plan.customWrites.filter(w=>w.createField).map(w=>w.field)
  writes.push(...await createImportDefinitionWrites(c,fields,source,jobId))
- if(source==='spreadsheet')writes.push(...spreadsheetDefinitionWrites(fields,jobId))
+ if(['spreadsheet','givebutter','zeffy'].includes(source))writes.push(...spreadsheetDefinitionWrites(fields,jobId))
  const values = plan.customWrites.map(w=>{
   const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDonorId:w.donorExternalId,original:w.imported.original}
   const row = {field_key:w.field.key,record_id:w.recordId,donor_id:w.donorId,value:w.imported.value,version:1,source:JSON.stringify(provenance),updated_at:c.now}
   return {...row,sourceKey:w.sourceKey,hash:w.hash,snapshot:JSON.stringify(row)}
  })
- for(let start=0;start<values.length;start+=50){
- const payload = JSON.stringify(values.slice(start,start+50))
+ for(const payload of customJsonBatches(values)){
  writes.push(sql(`INSERT INTO cf_custom_values(field_key,record_id,donor_id,value,version,source,updated_at) SELECT json_extract(value,'$.field_key'),json_extract(value,'$.record_id'),json_extract(value,'$.donor_id'),json_extract(value,'$.value'),1,json_extract(value,'$.source'),? FROM json_each(?)`,c.now,payload),
   sql(`INSERT INTO cf_custom_value_history(field_key,record_id,donor_id,version,value,source,recorded_at,actor_id) SELECT json_extract(value,'$.field_key'),json_extract(value,'$.record_id'),json_extract(value,'$.donor_id'),1,json_extract(value,'$.value'),json_extract(value,'$.source'),?,? FROM json_each(?)`,c.now,c.actor.id,payload),
   sql(`INSERT INTO cf_move_in_records(source,kind,source_key,native_id,content_hash,job_id,owned,donor_id,related_id,snapshot) SELECT ?,'customValue',json_extract(value,'$.sourceKey'),json_extract(value,'$.record_id'),json_extract(value,'$.hash'),?,1,json_extract(value,'$.donor_id'),NULL,json_extract(value,'$.snapshot') FROM json_each(?)`,source,jobId,payload))

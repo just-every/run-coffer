@@ -33,6 +33,7 @@ const descriptions = [
  owned('cf_address_checks',undefined,['donor_id']), owned('cf_ncoa_members',undefined,['run_id','donor_id']), owned('cf_mail_address_snapshots',undefined,['appeal_id','donor_id'],false),
  owned('cf_donor_meetings'), owned('cf_donor_address_history'), owned('cf_record_documents'),
  owned('cf_gift_acknowledgments',`n.gift_id IN (${gifts})`,['gift_id']),
+ owned('cf_recurring_source_references'),
  owned('cf_gifts'), owned('cf_consents'), owned('cf_pledges'), owned('cf_acks'),
  // Original identities retain these records. The same union scope before and
  // after flattening aliases also fences a later inherited restriction edit.

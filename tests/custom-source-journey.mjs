@@ -14,7 +14,11 @@ function bloomerangEdge({large=false}={}){
  let offset=0,revoked=false
  const definitions={Constituent:[{Id:1,Name:'Membership',DataType:'Text',PickType:'PickOne'},{Id:2,Name:'Interests',DataType:'Text',PickType:'PickMultiple'},{Id:6,Name:'Source groups',DataType:'Text',PickType:'PickMultiple'},{Id:7,Name:'Private source field',DataType:'Text',PickType:'Freeform'}],Transaction:[{Id:3,Name:'Budget',DataType:'Currency',PickType:'Freeform'}],Interaction:[{Id:4,Name:'Topic',DataType:'Text',PickType:'Freeform'}],Note:[{Id:5,Name:'Note detail',DataType:'Text',PickType:'Freeform'},{Id:8,Name:'Note circle',DataType:'Text',PickType:'PickOne'}]}
  const choices={1:['Board','Volunteer'],2:['Books','Music'],6:['Alumni','Legacy'],8:['Source note circle']},choice=(id,value)=>({Id:id*10+(choices[id]?.indexOf(value)??0)+1,FieldId:id,Value:value})
- if(large)definitions.Constituent.push(...Array.from({length:90},(_,i)=>({Id:100+i,Name:'Retained source detail '+i,DataType:'Text',PickType:'Freeform'})))
+ if(large){
+  definitions.Constituent.push(...Array.from({length:90},(_,i)=>({Id:100+i,Name:'Retained source detail '+i,DataType:'Text',PickType:'Freeform'})))
+  definitions.Transaction.push(...Array.from({length:10},(_,i)=>({Id:200+i,Name:'Source designation '+i,DataType:'Text',PickType:'PickOne'})))
+  for(let i=0;i<10;i++)choices[200+i]=Array.from({length:100},(_,n)=>'synthetic-coffer-'+i+'-'+n+' '+('complete source choice '.repeat(85)).slice(0,1850))
+ }
  const longValue=i=>'synthetic-coffer-'+i+' '+('retained source content '.repeat(85)).slice(0,1950)
  const scalar=(FieldId,Value)=>({FieldId,Value:{Value}}),pick=(FieldId,Value)=>({FieldId,Value:choice(FieldId,Value)}),many=(FieldId,values)=>({FieldId,Values:values.map(v=>choice(FieldId,v))})
  const page=rows=>({Start:0,ResultCount:rows.length,TotalFiltered:rows.length,Results:rows})
@@ -27,7 +31,7 @@ function bloomerangEdge({large=false}={}){
   m=/^\/customValues\/\w+\/(\d+)$/.exec(path)
   if(m)return Response.json(u.searchParams.get('isActive')==='false'?[]:choices[m[1]].map(v=>choice(Number(m[1]),v)))
   if(path==='/constituents')return Response.json(page([{Id:1001+offset,AccountNumber:101+offset,CustomValues:[pick(1,'Board'),many(2,['Books','Music']),many(6,['Alumni','Legacy']),scalar(7,'Private retained source'),...(large?Array.from({length:90},(_,i)=>scalar(100+i,longValue(i))):[])]},{Id:1002+offset,AccountNumber:102+offset,CustomValues:[pick(1,'Unlisted'),...(large?Array.from({length:90},(_,i)=>scalar(100+i,longValue(i))):[])]}]))
-  if(path==='/transactions/designations')return Response.json(page([{Id:2001+offset,DesignationNumber:201+offset,Type:'Donation',CustomValues:[scalar(3,'123.45')]},{Id:2002+offset,DesignationNumber:202+offset,Type:'Donation',CustomValues:[scalar(3,'not a number')]}]))
+  if(path==='/transactions/designations')return Response.json(page([{Id:2001+offset,DesignationNumber:201+offset,Type:'Donation',CustomValues:[scalar(3,'123.45'),...(large?Array.from({length:10},(_,i)=>pick(200+i,choices[200+i][0])):[])]},{Id:2002+offset,DesignationNumber:202+offset,Type:'Donation',CustomValues:[scalar(3,'not a number'),...(large?Array.from({length:10},(_,i)=>pick(200+i,choices[200+i][1])):[])]}]))
   if(path==='/interactions')return Response.json(page([{Id:301+offset,CustomValues:[scalar(4,'Library visit')]}]))
   if(path==='/notes')return Response.json(page([{Id:401+offset,CustomValues:[scalar(5,offset?'Other source note '+offset:'Preserve original note'),pick(8,'Source note circle')]}]))
   assert.fail('Unexpected Bloomerang request '+u.pathname)
@@ -126,6 +130,7 @@ async function largeCustomReviewJourney(){
   const id=await imported(h,sourceFiles()),capture={id,apiKey:'synthetic-coffer-1600'}
   const {review}=await post(h,'custom-capture',capture)
   assert.ok(Buffer.byteLength(JSON.stringify(review))>1000000,'The public source read retains a review larger than a single database value')
+  assert.ok(Buffer.byteLength(JSON.stringify(review.definitions))>2000000,'Complete source definitions exceed a single database parameter')
   const original=review.definitions.find(d=>d.id==='constituent:189').values[1].value
   assert.equal((await readReview(h,id)).definitions.find(d=>d.id==='constituent:189').values[1].value,original)
   const mappings=review.mappings.map(m=>m.id==='note:8'?{...m,action:'tags'}:m)
@@ -137,6 +142,8 @@ async function largeCustomReviewJourney(){
    assert.equal(detail.customValues.filter(v=>/^import_bloomerang_constituent_1[0-9][0-9]$/.test(v.field_key)).length,90)
    assert.equal(JSON.parse(detail.customValues.find(v=>v.field_key==='import_bloomerang_constituent_189').value),original)
   }
+  const definitions=(await h.get('/api/coffer/custom-fields')).fields
+  assert.deepEqual(JSON.parse(definitions.find(f=>f.key==='import_bloomerang_gift_209').choices),review.definitions.find(d=>d.id==='gift:209').choices,'Every unused source choice survives definition creation')
   const applied=(await readReview(h,id)),saved=await archive(h,{maxParts:100})
   const savedReviewRows=saved.flatMap(part=>part.items??[]).filter(item=>item.table==='cf_move_in_custom_reviews')
   assert.ok(savedReviewRows.length>1,'The archive carries all bounded custom review rows')
