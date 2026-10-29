@@ -775,7 +775,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "884ff8cba97492c4aa2b74f05a5b039ef77235c9f48609ea03111c5e3c59b207",
+      "sha256": "f4096630b8d5014d74ba9ac28a47d19b5d0f409c819edf0f2f129bfdcae425be",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1474,12 +1474,12 @@
       "sha256": "71da0e5a6b65318ea815c20f95655a5b6d4b69bcb2f4cdd2c1b7fcec4a15493d",
       "executable": false
     },
-    "migrations/core/0173_coffer_memberships.sql": {
-      "sha256": "e1349df229f884bb17cdfd1720a41f68353802d83ac0b1b44888e757f5b504e9",
-      "executable": false
-    },
     "migrations/core/0173_coffer_neon_acknowledgments.sql": {
       "sha256": "027a7a88321ce776c000449e36915d79756fb827ff30045e43b71a0dc2f2939c",
+      "executable": false
+    },
+    "migrations/core/0174_coffer_memberships.sql": {
+      "sha256": "e1349df229f884bb17cdfd1720a41f68353802d83ac0b1b44888e757f5b504e9",
       "executable": false
     },
     "ONBOARDING.md": {
