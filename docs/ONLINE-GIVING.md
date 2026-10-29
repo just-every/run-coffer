@@ -43,6 +43,7 @@ The file stays readable only by you. The webhook is optional on your computer: S
 | Checkout | `checkout.session.completed`, `checkout.session.async_payment_succeeded` |
 | Invoices (monthly gifts) | `invoice.paid`, `invoice.payment_succeeded`, `invoice.payment_failed`, `invoice.updated` |
 | Subscriptions (monthly gifts) | `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` |
+| Bank payment state | `payment_intent.processing`, `payment_intent.succeeded`, `payment_intent.canceled`, `payment_intent.payment_failed` |
 | Charges and refunds | `charge.succeeded`, `charge.updated`, `charge.refunded`, `charge.failed`, `refund.created`, `refund.updated`, `refund.failed`, `payment_intent.payment_failed` |
 | Disputes | `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated` |
 | Payouts | `payout.created`, `payout.updated`, `payout.paid`, `payout.failed`, `payout.canceled`, `payout.reconciliation_completed` |
@@ -51,7 +52,7 @@ Without the signing secret, webhook requests are refused. Coffer verifies each m
 
 ## Campaign pages
 
-An owner or admin opens **Giving**, publishes a campaign with its own page address, story, fund and goal, and shares `/give/<address>`. Donors choose one-time or monthly and continue to Stripe Checkout for card or Link. Apple Pay appears in Stripe Checkout on eligible devices once you register your Coffer's domain under Stripe's payment method domains. US bank giving is coming soon.
+An owner or admin opens **Giving**, publishes a campaign with its own page address, story, fund and goal, and shares `/give/<address>`. Donors choose one-time or monthly and continue to Stripe Checkout for card or Link. Apple Pay appears in Stripe Checkout on eligible devices once you register your Coffer's domain under Stripe's payment method domains. For an ordinary one-time campaign gift, donors can also choose US bank (ACH). Stripe collects the bank details and mandate on its hosted page, with instant verification requested. Recurring, personal fundraising, event, membership, text-link and staff bank checkout are not offered by this slice.
 
 The giving page asks separately whether the donor wants news and appeals by email. That box is optional and unticked; when a donor ticks it, Coffer records email consent with the checkout as evidence once the gift is paid. Gift receipts are transactional and go to the donor's email either way: each paid online gift's receipt is emailed as soon as Coffer records the gift, whatever the amount, using your letter wording. To approve each one first, choose **Hold online receipts for me to approve in Letters** in **Letter settings**. On this computer (local mode) email is switched off, so the receipt is marked “Not emailed” instead.
 
@@ -75,7 +76,7 @@ Donors open **Manage my monthly gift**, request an emailed link and confirm it t
 
 RER Managed does not have the payment connection yet. **Connect Stripe** says so, and any Stripe action on a managed installation says Stripe is not available yet. Use a self-hosted Coffer for giving today.
 
-Advanced form fields, embedding, other recurring frequencies, ACH and PayPal remain on the roadmap in `CONTRACT.md`.
+Broader bank checkout, PayPal and provider qualification remain owed in `CONTRACT.md`.
 
 ### Honor and memory gifts
 
@@ -99,3 +100,41 @@ changed gifts or tribute facts need a fresh notification.
 Verified supporters can create personal pages and teams from their giving portal.
 See [Supporter fundraising](/docs/peer-fundraising) for publication, credit, leaderboard
 and reviewed notice behavior.
+
+
+## One-time bank gifts
+
+Choose **US bank (ACH), one-time** on the ordinary campaign form. The amount,
+optional fee-cover agreement and selected method are frozen before leaving
+Coffer. Stripe hosts all bank collection and authorization; Coffer keeps only
+opaque payment, method and mandate references. Instant verification is requested,
+not claimed as completed by Coffer. Your Stripe account must independently be
+authorized and enabled for ACH; a working API key does not establish that capability.
+
+A processing payment shows **Payment is still processing**. It creates no gift,
+receipt, public recognition or raised total. Current Checkout, PaymentIntent,
+Charge and Mandate reads must agree before a settled gift is recorded once as
+**bank transfer**. Reports retain the full paid amount, actual processor fee and
+net independently of the optional estimated fee cover. A failed first debit
+creates no gift or receipt. Interrupted checkout creation stays held until a
+signed event independently confirms its original session; resubmitting the same
+request cannot create another checkout.
+
+Stripe documents late bank failures after success as disputes. An insufficient
+funds return (NACHA R01) appends the processor debit to Coffer's existing
+reversal ledger and creates one owned, non-ask follow-up task. It never submits
+another debit. The original paid receipt facts remain frozen; existing receipt
+correction and approval rules govern any correction. Returned payments never
+become gifts again when earlier success notifications arrive.
+
+The network-edge journeys establish native behavior, not a live ACH capability,
+actual instant verification or bank settlement qualification. Apple Pay on a real
+device, Google Pay, PayPal and Venmo and the complete provider-test-mode browser
+acceptance remain unproved. No catch-up, automatic debit retry or wider staff
+charging authority is introduced.
+
+Provider references: [hosted ACH collection](https://docs.stripe.com/payments/ach-direct-debit/accept-a-payment),
+[transaction failures](https://docs.stripe.com/payments/ach-direct-debit#transaction-failures),
+[Charge fields](https://docs.stripe.com/api/charges/object),
+[Mandate fields](https://docs.stripe.com/api/mandates/object) and
+[Dispute fields](https://docs.stripe.com/api/disputes/object).

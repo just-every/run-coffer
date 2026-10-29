@@ -78,7 +78,7 @@ export async function recordGift(env: GivingEnv, intent: Row, reference: string,
  const id = 'giving-' + reference, now = new Date().toISOString(), day = today((await settings({ db: env.DB })).timezone, new Date(paidAt * 1000))
  await paymentWrite(env,[
   sql(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,goods_description,source,created_at,created_by)
-   VALUES(?,1,?,'gift',?,?,'card',?,?,?,?,?,'stripe',?,?)`,id, intent.donor_id, day, cents, reference, intent.fund, ticket||benefits?'provided':'none',ticket?.benefit_cents??benefits?.benefit_cents??0,ticket?.benefit_description??benefits?.benefit_description??null, now,intent.staff_actor_name??'Stripe'),
+   VALUES(?,1,?,'gift',?,?,?,?,?,?,?,?,'stripe',?,?)`,id, intent.donor_id, day, cents, intent.payment_method==='us_bank_account'?'bank transfer':'card', reference, intent.fund, ticket||benefits?'provided':'none',ticket?.benefit_cents??benefits?.benefit_cents??0,ticket?.benefit_description??benefits?.benefit_description??null, now,intent.staff_actor_name??'Stripe'),
   sql('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=? AND kind=\'gift\'',intent.campaign_id, reference),
   ...(ticket?[
    sql('UPDATE cf_event_orders SET paid_at=COALESCE(paid_at,?) WHERE intent_id=?',now,intent.id),
