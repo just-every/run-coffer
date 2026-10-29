@@ -17,7 +17,7 @@ export function day(value: Cell | undefined): string {
  const date = new Date(`${normalized}T00:00:00Z`)
  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === normalized ? normalized : ''
 }
-export type RowKind = 'donor' | 'gift' | 'pledge' | 'softCredit' | 'installment' | 'relationship' | 'note' | 'control' | 'unsupported'
+export type RowKind = 'donor' | 'gift' | 'pledge' | 'softCredit' | 'installment' | 'relationship' | 'note' | 'control' | 'volunteering' | 'unsupported'
 export class SourceRow {
  readonly location: SourceLocation
  readonly used = new Set<number>()
@@ -50,9 +50,10 @@ export class SourceRow {
  finish() {
   for (let i = 0; i < this.cells.length; i++) if (valueText(this.cells[i]) && !this.used.has(i)) this.unmap(this.headers[i] || `Column ${i + 1}`, valueText(this.cells[i]), `Coffer has no place for “${this.headers[i] || `column ${i + 1}`}” on a ${this.kindLabel()} row, so it would be left out. Delete that column from the file and upload again, or keep it and say below that it can be left out.`)
  }
- kindLabel() { return ({ donor: 'constituent', gift: 'gift', pledge: 'pledge', softCredit: 'soft credit', installment: 'pledge installment', relationship: 'relationship', note: 'note', control: 'totals', unsupported: 'unrecognized' } as Record<RowKind, string>)[this.kind()] }
+ kindLabel() { return ({ donor: 'constituent', gift: 'gift', pledge: 'pledge', softCredit: 'soft credit', installment: 'pledge installment', relationship: 'relationship', note: 'note', control: 'totals', volunteering:'volunteer activity', unsupported: 'unrecognized' } as Record<RowKind, string>)[this.kind()] }
  kind(): RowKind {
   if (['givebutter','zeffy'].includes(this.result.source)&&this.peek('planId')) return 'unsupported'
+  if (this.result.source==='lgl' && (this.has('volunteerId')||this.has('volunteerHours')||this.has('volunteerMinutes'))) return 'volunteering'
   if (this.peek('controlCount') || this.peek('controlAmount')) return 'control'
   if (this.peek('relationshipType') && this.peek('relatedDonor') && !this.peek('giftId')) return 'relationship'
   if ((this.peek('installmentId') || this.peek('dueOn')) && !this.peek('giftId')) return 'installment'

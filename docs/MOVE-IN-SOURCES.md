@@ -47,6 +47,28 @@ For LGL's [Relationships report](https://help.littlegreenlight.com/article/454-r
 
 The LGL gift report can hold pledges, pledge payments and soft credits in the same file. A `Pledge` row becomes a pledge; its `Campaign` and `Payment Type` are kept in the pledge's note. A `Gift` row with `LGL Parent Gift ID` pays off that pledge. A `Soft credit` row with `Related Gift ID` recognizes its constituent for the original gift; its date, fund and campaign repeat the original gift's, so the original gift keeps them and the money is counted once.
 
+### LGL volunteer time
+
+LGL distinguishes one-row-per-entry **Volunteering** reports from constituent roll-ups and category summaries in [Volunteering](https://help.littlegreenlight.com/article/124-volunteering). Its [volunteer mapping guide](https://help.littlegreenlight.com/article/296-using-the-flex-importer-mapping-volunteer-data) requires a category and positive hours. Export individual completed entries, with their constituent IDs, dates, category or service labels and hours. Keep the authoritative constituent report alongside them. A category label becomes the native volunteer role; this does not create the source category definitions or import custom volunteering fields.
+
+Configure the CSV report labels below, or save the same values in an XLSX worksheet. Preserve a stable source activity ID: `LGL Volunteer ID`, `Volunteer ID`, `Volunteer Activity ID` and `Volunteer Time ID` are accepted labels. A source report that omits entry IDs is insufficient; obtain those IDs from the source export before proceeding. Coffer never invents an ID from a name, date or row number. These are configured report labels, not a claim that every canned LGL template exposes every field.
+
+| Required field | Report label | Meaning |
+| --- | --- | --- |
+| Source entry ID | `LGL Volunteer ID` | One stable, unique LGL activity ID per completed entry |
+| Source constituent ID | `LGL Constituent ID` | Exact ID in the accompanying constituent report |
+| Service date | `Volunteer Date` | Real date; future service is refused |
+| Role or service | `Volunteer Category`, `Volunteer Role` or `Volunteer Service` | The source category label, preserved as the native role |
+| Duration | `Volunteer Hours` or `Volunteer Minutes` | Positive duration representing 1–1440 whole minutes; supplied hours and minutes must agree |
+
+`Type`, `Volunteer Entry Type`, `Volunteer Record Type`, `Volunteer Type`, `Hours Type` and `Volunteer Hours Type`, when present, must explicitly identify Volunteer, Volunteering, Volunteer time, Actual or Completed. Other classifications and any `Volunteer Commitment ID` stop review. Commitments, scheduled shifts, monetary valuations and unsupported classifications never become completed time or cash. Additional fields remain in the ordinary unmapped-column review; complete source definitions remain owed under MOVE-010.
+
+For example, the synthetic entry `synthetic-coffer-1611` for constituent `synthetic-coffer-1601`, dated 2026-09-01, with category Reading tutor and 1.5 hours contributes exactly 90 native minutes. The journey in `tests/volunteering-journey.mjs` generates this documented layout in CSV and XLSX, including mixed decimal-hour and whole-minute entries across donors and years.
+
+Preview lists every accepted activity, 50 per page, its source file and row, and donor-by-calendar-year minute and activity totals. Invalid duration, missing constituent, repeated source ID, unsupported classification or future date blocks apply. Preview changes no native donor or activity. Existing reviewed-part processing applies the activities with the native validator, rechecks authority and source identities, and resumes without duplicates. The journal checks the saved source minute controls against the actual native activities. Source system, source activity ID, import date and importing person remain with each native record and the import journal. The donor timeline, volunteer reports, never-given volunteer segments and configured engagement weights use those same activities.
+
+Volunteer minutes never enter gift, deductible or cash totals. Undo deletes only unchanged activities owned by that review, preserves earlier native activities and refuses later dependencies or a later review using those activities. Archive restoration retains the activities and journal; donor merge retains custody and erasure removes the private activity and review payloads, preventing replay from restoring them. This slice does not complete LGL memberships, mailing history, full contact and name parity, split handling, acknowledgment, preferences and restrictions, tributes, recurring references or vault migration. Existing address verification, before-mail checks, solicitation and custody duties remain in force.
+
 ### LGL source confirmations and limits
 
 Checked against official LGL documentation on 18 October 2026:

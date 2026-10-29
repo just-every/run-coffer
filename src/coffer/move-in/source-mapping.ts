@@ -1,3 +1,4 @@
+import { lglVolunteerRow } from './lgl-volunteering'
 import { platformGift } from './platform-export'
 import { sourceContacts } from './contacts'
 import { spreadsheetPreferences } from './spreadsheet-mapping'
@@ -150,6 +151,7 @@ export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {
  if (out.source !== 'lgl' || kind === 'donor' || kind === 'control') addDonor(r, out)
  if (kind === 'control') { note(r, out); return }
  switch (kind) {
+  case 'volunteering': lglVolunteerRow(r,out); break
   case 'donor': note(r, out); if (r.peek('relatedDonor')) relationship(r, out); break
   case 'gift': gift(r, out, input); break
   case 'pledge': pledge(r, out); break

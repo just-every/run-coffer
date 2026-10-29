@@ -1,3 +1,6 @@
+import { volunteerActivity } from '../volunteering'
+import { settings } from '../settings'
+import { CofferError, today } from '../db'
 import { planCustomValues, type CustomImportWrite } from './custom-fields'
 import { planSolicitationImports } from './solicitation-import'
 import { planAcknowledgmentImports } from './acknowledgment-import'
@@ -27,13 +30,13 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',recurringReference:'Source plan',platformGift:'Source transaction'}
+const label: Record<Kind,string> = {volunteering:'Volunteer activity',contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',recurringReference:'Source plan',platformGift:'Source transaction'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
  const plan: Plan = {customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
- const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[])]
+ const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.volunteering??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
  const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
@@ -230,6 +233,21 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   else await add('note',n,{donor_id:donorId,occurred_on:n.date,body:n.text,source,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
  for(const r of parsed.recurringReferences??[])await add('recurringReference',r,{donor_id:plan.donorIds.get(r.donorExternalId),source,source_id:r.externalId,amount_cents:r.amountCents,frequency:r.frequency,status:r.status,method:r.method,campaign:r.campaign,next_on:r.nextOn,customer_reference:r.customerReference,payment_method_reference:r.paymentMethodReference,imported_at:c.now},undefined,plan.donorIds.get(r.donorExternalId))
+ const volunteerRows=parsed.volunteering??[]
+ if(volunteerRows.length){
+  const day=today((await settings(c)).timezone,new Date(c.now))
+  const held=await readSet(c,plan,`SELECT ${snapshot('volunteering')} AS snapshot FROM cf_volunteering n WHERE source='Little Green Light' AND source_key IN (SELECT value FROM json_each(?)) ORDER BY id`,[JSON.stringify(volunteerRows.map(v=>v.externalId))])
+  for(const v of volunteerRows){
+   const donorId=plan.donorIds.get(v.donorExternalId)
+   if(!donorId){diagnostic('Volunteer activity needs a resolved source constituent.',v.location);continue}
+   try{
+    const row=volunteerActivity({donorId,role:v.role,occurredOn:v.occurredOn,minutes:v.minutes,source:'Little Green Light',sourceKey:v.externalId},day)
+    const prior=existing.get(`volunteering:${await sourceKey(v.externalId)}`)
+    if(held.some(r=>r.source_key===v.externalId&&r.id!==prior?.native_id))diagnostic(`Volunteer activity ${v.externalId} is already recorded outside this move-in. Resolve its source ID before applying.`,v.location)
+    await add('volunteering',v,{...row,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
+   }catch(error){if(!(error instanceof CofferError))throw error;diagnostic(error.message,v.location,'error','VOLUNTEER_ACTIVITY')}
+  }
+ }
  await planAcknowledgmentImports(c,parsed,plan,existing,add,readSet)
  await planCustomValues(c,parsed,plan,existing)
  // Never expose a partial transaction as an option when inputs exceed D1's bound.
