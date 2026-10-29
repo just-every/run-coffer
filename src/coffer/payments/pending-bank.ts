@@ -1,4 +1,4 @@
-import { fail } from '../db'
+import { fail, one } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { settings } from '../settings'
 import { cents, day } from './stripe-data'
@@ -6,6 +6,7 @@ import { cents, day } from './stripe-data'
 /** Retain only processor identity, fund, money, day and status, never bank data. */
 export async function observeBankPayment(env: GivingEnv, id: string) {
  const p=await stripe(env,'/payment_intents/'+encodeURIComponent(id))
+ if(await one({db:env.DB},'SELECT intent_id FROM cf_bank_checkouts WHERE payment_intent_id=?',id))return
  if(!p.payment_method_types?.includes('us_bank_account'))return
  if(p.currency!=='usd'||p.id!==id||cents(p.amount)<=0)fail('invalid_payment','Invalid USD bank payment.',409)
  if(!['processing','succeeded','canceled','requires_payment_method'].includes(p.status))return

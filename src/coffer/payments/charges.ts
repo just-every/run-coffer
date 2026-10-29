@@ -1,3 +1,4 @@
+import { bankCheckoutState } from '../giving/bank-checkout'
 import { pledgeSessionForCharge } from '../pledge-checkout'
 import { identify, recordGift } from '../giving/recording'
 import { runGiftRules } from '../gift-rules'
@@ -36,12 +37,20 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
    const payment = await stripe(env, '/payment_intents/' + encodeURIComponent(pi))
    if (payment.metadata?.coffer_intent) intent = await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', payment.metadata.coffer_intent)
   }
+  if(intent?.payment_method==='us_bank_account'){
+   const capture=await one(c,'SELECT fund FROM cf_giving_form_intents WHERE intent_id=?',intent.id)
+   intent={...intent,fund:capture?.fund??intent.fund}
+   const bank=await bankCheckoutState(env,intent,undefined,charge)
+   if(bank.status!=='succeeded'&&bank.status!=='returned')return null
+   if(intent.donor_id&&!(await one(c,'SELECT id FROM cf_donors WHERE id=? AND erased_at IS NULL',intent.donor_id)))return null
+  }
   if (intent?.frequency === 'once' && (intent.customer_id !== customerId || intent.amount_cents !== gross)) fail('payment_mismatch', 'The charge differs from the agreed checkout total.', 409)
   // A verified paid charge can arrive before the browser return. Use the
   // giving recorder so designation, private answers, consent and receipts have
   // the same frozen source whichever transport observes payment first.
   if(intent){
    const giving = await identify(env,intent.id,customerId,true,authority)
+   if(!giving&&intent.payment_method==='us_bank_account')return null
    if(giving){
     const reference=refs.find(ref=>ref.startsWith('in_'))??(pi||charge.id)
     await recordGift(env,giving,reference,gross,charge.created,undefined,authority)
