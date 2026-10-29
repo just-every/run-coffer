@@ -116,14 +116,19 @@ export async function achCheckoutJourney(){
   await okay(await achEvent(h,item,'payment_intent.succeeded'));assert.match(await (await thanks()).text(),/Bank payment returned/)
   assert.equal((await history()).gifts.filter(g=>g.kind==='reversal').length,1)
   await achBrowser(h,edge,item,{campaign,known,stage:'returned'})
-  // A return may arrive before any success notification. The already captured
+  // A return may arrive before any processing or success notification. The
   // mandate can be inactive by then; reconcile history without authorizing a debit.
   const reorderedDonor=await donor(h,'Reordered Bank',{email:address('reordered.bank')})
   assert.equal((await start(values('Reordered Bank'))).status,303)
   const reordered=[...edge.state.sessions.values()].at(-1)
-  await okay(await achEvent(h,reordered,'payment_intent.processing'))
   reordered.status='succeeded';reordered.returned=true
-  await okay(await achEvent(h,reordered,'charge.dispute.created'))
+  reordered.mandateMethod='pm_other'
+  const reorderedReturnId=randomUUID()
+  assert.equal((await achEvent(h,reordered,'charge.dispute.created',reorderedReturnId)).status,409,'An unobserved settlement still requires the matching mandate')
+  assert.equal((await h.get('/api/coffer/donors/'+reorderedDonor.id)).gifts.length,0)
+  assert.equal((await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='bank-return:ch_ach_'+reordered.n).length,0)
+  reordered.mandateMethod=null
+  for(const id of [reorderedReturnId,reorderedReturnId,randomUUID()])await okay(await achEvent(h,reordered,'charge.dispute.created',id))
   assert.deepEqual((await h.get('/api/coffer/payments/fees')).totals,{gross_cents:0,fee_cents:966,net_cents:-966},'Return-first reconciliation includes both original fees and bank return fees')
   for(const type of ['charge.succeeded','checkout.session.async_payment_succeeded','payment_intent.succeeded'])await okay(await achEvent(h,reordered,type))
   const reorderedHistory=await h.get('/api/coffer/donors/'+reorderedDonor.id)
