@@ -140,6 +140,7 @@ export async function lglHistoryJourney(reportFiles){
   const replay=await post(h,'preview',input);assert.equal(replay.canApply,false);await post(h,'apply',{id:replay.id,fingerprint:replay.fingerprint},{status:409})
  },{entry:'tests/fixed-clock-worker.ts'})
  await contactEnrichmentJourney(reportFiles)
+ await lglAddressJourney(reportFiles)
  await tagCustodyJourney(reportFiles)
  await tagPartsJourney(reportFiles)
 }
@@ -230,7 +231,7 @@ async function tagPartsJourney(reportFiles){
 export async function contactEnrichmentJourney(reportFiles){
  for(const format of ['csv','xlsx'])await run(async h=>{
   await reviewed(h)
-  const initial=[['LGL Constituent ID','Name','Email','Email Type'],[key(3101),'Synthetic LGL contact history',email(3101),'personal']]
+  const initial=[['LGL Constituent ID','Name','Email','Email Type','LGL Volunteer ID','Volunteer Date','Volunteer Role'],[key(3101),'Synthetic LGL contact history',email(3101),'personal','','','']]
   const source=async (rows,withGift=false)=>({source:'lgl',files:await reportFiles([['constituents',rows],...(withGift?[['gifts',[['LGL Gift ID','LGL Constituent ID','Gift Type','Gift Date','Amount','Fund','Payment Method','Deductible Amount'],[key(3110),key(3101),'Gift','2026-09-01','12.34','Library','check','12.34']]]]:[])],format)})
   const first=await post(h,'preview',await source(initial,true));await apply(h,first)
   const person=(await h.get('/api/coffer/donors')).donors[0]
@@ -260,6 +261,17 @@ export async function contactEnrichmentJourney(reportFiles){
    const undone=await fresh.get('/api/coffer/donors/'+person.id)
    assert.deepEqual(undone.contactPoints,original.contactPoints);assert.equal(undone.donor.phone,null);assert.equal(undone.donor.informal_salutation,null)
    await post(fresh,'undo',{id:first.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0)
+  },{entry:'tests/fixed-clock-worker.ts'})
+  if(format==='csv')await run(async edited=>{
+   await restore(edited,saved);await post(edited,'undo',{id:preview.id})
+   const previous=await edited.get('/api/coffer/donors/'+person.id)
+   await edited.command('donor.update',{donorId:person.id,version:previous.donor.version,name:'Staff chosen source identity',email:previous.donor.email})
+   const next=await post(edited,'preview',input);assert.equal(next.canApply,true,JSON.stringify(next.diagnostics));await apply(edited,next)
+   assert.equal((await edited.get('/api/coffer/donors/'+person.id)).donor.name,'Staff chosen source identity')
+   await post(edited,'undo',{id:next.id})
+   assert.equal((await edited.get('/api/coffer/donors/'+person.id)).donor.name,'Staff chosen source identity')
+   await post(edited,'undo',{id:first.id},{status:409})
+   assert.equal((await edited.get('/api/coffer/donors/'+person.id)).donor.name,'Staff chosen source identity','Enrichment cannot adopt a staff edit into the earlier import ownership')
   },{entry:'tests/fixed-clock-worker.ts'})
   if(format==='csv')await run(async used=>{
    await restore(used,saved)
@@ -313,4 +325,53 @@ async function contactEnrichmentBrowser(h,reviewId,donorId,phase){
   }
   await page.close()
  })
+}
+
+
+export async function lglAddressJourney(reportFiles){
+ const {verifiedMailBindings}=await import('./verified-mail-edge.mjs')
+ let provider='ok',calls=0
+ await run(async h=>{
+  await reviewed(h)
+  const people=[['LGL Constituent ID','Name','Email','Email Type'],[key(3201),'Synthetic postal history',email(3201),'personal']]
+  const input=async rows=>({source:'lgl',files:await reportFiles([['constituents',rows]],'csv')})
+  const initial=await post(h,'preview',await input(people));await apply(h,initial)
+  const person=(await h.get('/api/coffer/donors')).donors[0],before=await h.get('/api/coffer/donors/'+person.id)
+  const state=await h.get('/api/coffer/addresses')
+  await h.command('address.processing',{version:state.connection.version,enabled:'yes',pafSigner:'Synthetic signer',pafSignedOn:'2026-01-01',pafLicensee:'Melissa',pafReference:key(3202),reviewed:'yes'})
+  const rows=structuredClone(people);rows[0].push('Address','City','State','ZIP','Address Type','Address 2 Street','Address 2 City','Address 2 State','Address 2 Postal Code','Address 2 Type');rows[1].push('12 reading st','Madison','WI','53703','home','14 library st','Madison','WI','53703','work')
+  const source=await input(rows),review=await post(h,'preview',source);assert.equal(review.canApply,true,JSON.stringify(review.diagnostics));assert.equal(calls,0,'Preview never submits source addresses')
+  await post(h,'apply',{id:review.id,fingerprint:review.fingerprint},{as:'',status:401});assert.equal(calls,0,'An unauthenticated apply submits no address')
+  provider='error';await post(h,'apply',{id:review.id,fingerprint:review.fingerprint,acknowledged:'no'},{status:502})
+  assert.deepEqual((await h.get('/api/coffer/donors/'+person.id)).contactPoints,before.contactPoints,'A provider error saves no contacts or profile changes')
+  assert.equal(calls,1,'A provider error is not retried automatically')
+  provider='ok';const completed=await post(h,'continue',{id:review.id});assert.equal(completed.state,'completed')
+  const current=await h.get('/api/coffer/donors/'+person.id),address=await h.get('/api/coffer/donors/'+person.id+'/addresses')
+  assert.equal(current.donor.address_line1,'12 READING ST');assert.equal(current.donor.country,'US');assert.ok(address.check,'The native address read must show the verified current primary');assert.equal(address.check.status,'verified')
+  assert.deepEqual(current.contactPoints.filter(p=>p.kind==='address').map(p=>[JSON.parse(p.value).line1,p.is_primary]).sort(),[['12 READING ST',1],['14 LIBRARY ST',0]].sort())
+  assert.deepEqual(address.history.map(p=>p.address_line1).sort(),['12 reading st','14 library st'].sort(),'Each standardized address retains the original source spelling')
+  await h.command('appeal.prepare',{name:'Source addresses need a licensed pass',channel:'mail'},{status:409})
+  assert.equal((await post(h,'check',{id:review.id})).matches,true)
+  const saved=await archive(h)
+  await run(async fresh=>{
+   await restore(fresh,saved)
+   await post(fresh,'undo',{id:review.id})
+   const undone=await fresh.get('/api/coffer/donors/'+person.id),state=await fresh.get('/api/coffer/donors/'+person.id+'/addresses')
+   assert.deepEqual(undone.contactPoints,before.contactPoints);assert.equal(undone.donor.address_line1,null);assert.equal(state.check,null);assert.equal(state.history.length,0)
+  },{entry:'tests/fixed-clock-worker.ts'})
+  await h.command('address.verify',{donorId:person.id,version:current.donor.version})
+  await post(h,'undo',{id:review.id},{status:409})
+  await h.command('donor.erase',{donorId:person.id,confirm:'ERASE'})
+  const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes('12 reading st')&&!erased.includes('14 library st'))
+  const replay=await post(h,'preview',source);assert.equal(replay.canApply,false);await post(h,'apply',{id:replay.id,fingerprint:replay.fingerprint},{status:409})
+  const newRows=structuredClone(rows);newRows[1][0]=key(3203);newRows[1][1]='Synthetic new verified source donor';newRows[1][2]=email(3203)
+  const newReview=await post(h,'preview',await input(newRows));assert.equal(newReview.canApply,true,JSON.stringify(newReview.diagnostics));await apply(h,newReview)
+  const newPerson=(await h.get('/api/coffer/donors')).donors.find(p=>p.name==='Synthetic new verified source donor')
+  assert.equal((await h.get('/api/coffer/donors/'+newPerson.id+'/addresses')).check.status,'verified')
+  await post(h,'undo',{id:newReview.id});assert.equal((await h.get('/api/coffer/donors')).donors.some(p=>p.id===newPerson.id),false)
+ },{entry:'tests/fixed-clock-worker.ts',bindings:verifiedMailBindings,outbound:async request=>{
+  assert.equal(new URL(request.url).hostname,'us-street.api.smarty.com');calls++
+  if(provider==='error')return new Response('Unavailable',{status:503})
+  const [r]=await request.json();return Response.json([{input_id:r.input_id,input_index:0,delivery_line_1:r.street.toUpperCase(),delivery_line_2:'',components:{city_name:'Madison',state_abbreviation:'WI',zipcode:'53703'},analysis:{dpv_match_code:'Y',dpv_vacant:'N',dpv_no_stat:'N',dpv_footnotes:'AABB'}}])
+ }})
 }

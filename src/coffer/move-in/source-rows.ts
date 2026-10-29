@@ -61,7 +61,7 @@ export class SourceRow {
    if(this.peek('mailingId')||this.peek('mailingDate')||this.peek('mailingName'))return 'mailing'
   }
   // Duration columns also occur in constituent roll-ups; require activity fields.
-  if (this.result.source==='lgl' && !this.peek('giftId') && (this.has('volunteerId')||this.has('volunteerDate')||this.has('volunteerRole'))) return 'volunteering'
+  if (this.result.source==='lgl' && !this.peek('giftId') && (this.peek('volunteerId')||this.peek('volunteerDate')||this.peek('volunteerRole'))) return 'volunteering'
   if (this.peek('controlCount') || this.peek('controlAmount')) return 'control'
   if (this.peek('relationshipType') && this.peek('relatedDonor') && !this.peek('giftId')) return 'relationship'
   if ((this.peek('installmentId') || this.peek('dueOn')) && !this.peek('giftId')) return 'installment'

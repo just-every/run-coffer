@@ -1,4 +1,5 @@
-import { event, guard, sql, type Context, type Row, type Stmt } from '../db'
+import { event, guard, sql, today, type Context, type Row, type Stmt } from '../db'
+import { settings } from '../settings'
 import { importedOverrides } from '../person-names'
 import { snapshot, type Kind } from './tables'
 import type { Located, ParsedImport } from './types'
@@ -73,26 +74,36 @@ export async function planContactEnrichment(c:Context,parsed:ParsedImport,plan:P
 }
 
 /** Checkpoints live in the existing private, erasure-aware review journal. */
-export function importedProfileWrites(c:Context,changes:ProfileChange[],jobId:string):Stmt[]{
+export async function importedProfileWrites(c:Context,changes:ProfileChange[],jobId:string):Promise<Stmt[]>{
+ if(!changes.length)return []
+ const day=today((await settings(c)).timezone,new Date(c.now))
  return changes.flatMap(({before,after})=>[
   sql(`UPDATE cf_move_in_jobs SET report=json_set(report,?,json_object('before',json(COALESCE(json_extract(report,?),?)),'after',json(?))) WHERE id=?`,`$.profileCheckpoints.${after.id}`,`$.profileCheckpoints.${after.id}.before`,JSON.stringify(before),JSON.stringify(after),jobId),
   guard(`EXISTS(SELECT 1 FROM cf_donors n WHERE id=? AND ${snapshot('donor')}=?)`,'MOVE_IN_CHANGED','This donor changed after contact review.',before.id,JSON.stringify(before)),
   sql('INSERT INTO cf_contact_edit VALUES(1)'),
+  sql('INSERT OR REPLACE INTO cf_address_moves(donor_id,effective_on,source) VALUES(?,?,?)',after.id,day,'lgl profile enrichment '+jobId),
   sql(`UPDATE cf_donors SET version=?,${fields.map(f=>f+'=?').join(',')} WHERE id=?`,after.version,...fields.map(f=>after[f]),after.id),
+  sql('DELETE FROM cf_address_moves WHERE donor_id=?',after.id),
+  sql('DELETE FROM cf_donor_address_history WHERE donor_id=? AND source=? AND address_line1 IS NULL',after.id,'lgl profile enrichment '+jobId),
   sql('DELETE FROM cf_contact_edit'),
-  sql(`UPDATE cf_move_in_records SET snapshot=(SELECT ${snapshot('donor')} FROM cf_donors n WHERE n.id=cf_move_in_records.native_id) WHERE kind='donor' AND native_id=?`,after.id),
+  // Advance only custody we actually held before this change. A staff edit
+  // must continue to fence the earlier import after enrichment is undone.
+  sql(`UPDATE cf_move_in_records SET snapshot=(SELECT ${snapshot('donor')} FROM cf_donors n WHERE n.id=cf_move_in_records.native_id) WHERE kind='donor' AND native_id=? AND snapshot=?`,after.id,JSON.stringify(before)),
   event(c,'move-in.profile-enrichment','donor',after.id,after.id,{jobId,fields:fields.filter(f=>before[f]!==after[f])}),
  ])
 }
 
 export const profileUndoFence=(jobId:string)=>guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_jobs j,json_each(j.report,'$.profileCheckpoints') p LEFT JOIN cf_donors n ON n.id=p.key WHERE j.id=? AND (n.id IS NULL OR ${snapshot('donor')}<>json_extract(p.value,'$.after')))`,'MOVE_IN_USED','An enriched donor changed after this review. Nothing was undone.',jobId)
 
-export function profileUndoWrites(jobId:string):Stmt[]{
+export async function profileUndoWrites(c:Context,jobId:string):Promise<Stmt[]>{
+ const day=today((await settings(c)).timezone,new Date(c.now))
  const affected=`SELECT key FROM cf_move_in_jobs j,json_each(j.report,'$.profileCheckpoints') WHERE j.id=?`
  return [
   sql('INSERT INTO cf_contact_edit VALUES(1)'),
+  sql(`INSERT OR REPLACE INTO cf_address_moves(donor_id,effective_on,source) SELECT key,?,? FROM (${affected})`,day,'lgl profile enrichment '+jobId,jobId),
   sql(`UPDATE cf_donors SET version=version+1,${fields.map(f=>`${f}=json_extract((SELECT report FROM cf_move_in_jobs WHERE id=?),'$.profileCheckpoints.'||cf_donors.id||'.before.${f}')`).join(',')} WHERE id IN(${affected})`,...fields.map(()=>jobId),jobId),
+  sql(`DELETE FROM cf_address_moves WHERE donor_id IN(${affected})`,jobId),
   sql('DELETE FROM cf_contact_edit'),
-  sql(`UPDATE cf_move_in_records SET snapshot=(SELECT ${snapshot('donor')} FROM cf_donors n WHERE n.id=cf_move_in_records.native_id) WHERE kind='donor' AND native_id IN(${affected})`,jobId),
+  sql(`UPDATE cf_move_in_records SET snapshot=(SELECT ${snapshot('donor')} FROM cf_donors n WHERE n.id=cf_move_in_records.native_id) WHERE kind='donor' AND native_id IN(${affected}) AND snapshot=json_extract((SELECT report FROM cf_move_in_jobs WHERE id=?),'$.profileCheckpoints.'||cf_move_in_records.native_id||'.after')`,jobId,jobId),
  ]
 }

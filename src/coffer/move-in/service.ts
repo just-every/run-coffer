@@ -1,5 +1,6 @@
 import { volunteerReconciliation, volunteerTotals } from './lgl-volunteering'
 import { importedProfileWrites, profileUndoFence, profileUndoWrites } from './contact-enrichment'
+import { lglAddresses, lglAddressUndoFence, lglAddressUndoWrites } from './lgl-addresses'
 import { neonInput } from './neon'
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
 import { spreadsheetAddresses } from './spreadsheet-addresses'
@@ -119,12 +120,12 @@ export async function continueApply(c: Context,id:string) {
   if(Date.now()-started>APPLY_BUDGET_MS)return {id,state:'applying',parts:job.parts,appliedParts:job.applied_parts,unchanged:false}
   const part=JSON.parse(next.payload) as ParsedImport, plan=await planImport(c,part), errors=plan.diagnostics.filter(d=>d.severity==='error')
   if(errors.length)fail('MOVE_IN_ERRORS',`Part ${next.position+1} of ${job.parts} (${contents(part)}) could not be applied. ${errors.length} row${errors.length===1?'':'s'}: ${errors.slice(0,5).map(d=>`${d.file} row ${d.row}: ${d.message}`).join(' ')} Nothing from this part was saved; the ${job.applied_parts} part${job.applied_parts===1?'':'s'} before it stay in Coffer. Fix the record in Coffer and press Continue, or undo the whole move-in.`,409,errors.slice(0,50))
-  const addresses=part.source==='spreadsheet'?await spreadsheetAddresses(c,plan):[]
+  const addresses=part.source==='spreadsheet'?await spreadsheetAddresses(c,plan):part.source==='lgl'?await lglAddresses(c,plan,id):[]
   const writes:Stmt[]=[...plan.checks,guard('EXISTS(SELECT 1 FROM cf_move_in_parts WHERE job_id=? AND position=? AND applied_at IS NULL)','MOVE_IN_CHANGED','This part was applied in another window. Refresh the journal.',id,next.position)]
   writes.push(sql('INSERT INTO cf_identity_ingest VALUES(1)'))
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
+  writes.push(...await importedProfileWrites(c,plan.profileChanges,id))
   writes.push(...addresses)
-  writes.push(...importedProfileWrites(c,plan.profileChanges,id))
   writes.push(...importedAcknowledgmentEvents(c,plan,job.source,id))
   writes.push(...importedCustomWrites(c,plan,job.source,id))
   writes.push(...solicitationImportHistory(c,plan.effects,job.source,id))
@@ -225,12 +226,13 @@ export async function undo(c: Context,id:string) {
   const t=tables[kind]
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>${custodySnapshot(kind)}))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
- writes.push(importHouseholdUndoFence(id),profileUndoFence(id),...customImportUndoGuards(id))
+ writes.push(importHouseholdUndoFence(id),profileUndoFence(id),lglAddressUndoFence(id),...customImportUndoGuards(id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_tags t JOIN cf_move_in_records r ON r.native_id=t.id AND r.kind='tagAssignment' WHERE r.job_id=? AND t.owns_assignment=1 AND (t.native_changed=1 OR NOT EXISTS(SELECT 1 FROM cf_donor_tags n WHERE n.donor_id=t.donor_id AND n.tag=t.tag AND n.created_at=t.imported_at AND n.created_by=t.imported_by) OR EXISTS(SELECT 1 FROM cf_move_in_tags o WHERE o.id<>t.id AND o.donor_id=t.donor_id AND o.tag=t.tag)))`,'MOVE_IN_USED','A native tag changed or another source uses it. Nothing was undone.',id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.job_id<>? AND r.kind='contact' AND r.owned=1 AND r.donor_id IN(${owned('donor')}))`,'MOVE_IN_USED','A later source review added contacts to this donor. Undo that review first.',id,id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_donor_tags t WHERE t.donor_id IN (${owned('donor')}) AND NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_move_in_tags m ON m.id=r.native_id WHERE r.job_id=? AND r.kind='tagAssignment' AND m.donor_id=t.donor_id AND m.tag=t.tag))`,'MOVE_IN_USED','A later native tag uses this donor. Nothing was undone.',id,id))
- if(result.job.source==='spreadsheet')writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_address_checks a ON a.donor_id=r.native_id WHERE r.job_id=? AND r.kind='donor' AND r.owned=1 AND (a.version<>1 OR a.source<>'smarty' OR a.checked_at<>json_extract(r.snapshot,'$.created_at')))`,'MOVE_IN_USED','An imported address was checked again. Nothing was undone.',id))
+ if(['spreadsheet','lgl'].includes(result.job.source))writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_address_checks a ON a.donor_id=r.native_id WHERE r.job_id=? AND r.kind='donor' AND r.owned=1 AND (a.version<>1 OR a.source<>'smarty' OR a.checked_at<>json_extract(r.snapshot,'$.created_at')))`,'MOVE_IN_USED','An imported address was checked again. Nothing was undone.',id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1) AND p.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='contact' AND owned=1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id,id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
   ['cf_appeal_recipients','email_contact_id','contact',null,'appeal_id'],['cf_communications','recipient_contact_id','contact',null,'id'],['cf_pledge_installments','recipient_contact_id','contact',null,'id'],['cf_sms_recipients','phone_contact_id','contact',null,'id'],['cf_ncoa_members','contact_id','contact',null,'run_id'],['cf_mail_address_snapshots','contact_id','contact',null,'id'],
@@ -270,7 +272,8 @@ export async function undo(c: Context,id:string) {
  writes.push(...customImportUndoWrites(id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
- writes.push(...profileUndoWrites(id))
+ writes.push(...await profileUndoWrites(c,id))
+ writes.push(...lglAddressUndoWrites(id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_job_history WHERE job_id<>? AND history_id IN (${owned('sourceHistory')}))`,'MOVE_IN_USED','A later move-in uses this source history. Undo that move-in first.',id,id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_job_tags WHERE job_id<>? AND tag_id IN (${owned('tagAssignment')}))`,'MOVE_IN_USED','A later move-in uses these source tags. Undo that move-in first.',id,id))
  writes.push(sql('DELETE FROM cf_move_in_job_tags WHERE job_id=?',id))
@@ -279,7 +282,7 @@ export async function undo(c: Context,id:string) {
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE point_id IN (${owned('contact')})`,id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))
- if(result.job.source==='spreadsheet')writes.push(sql(`DELETE FROM cf_address_checks WHERE donor_id IN (${owned('donor')})`,id))
+ if(['spreadsheet','lgl'].includes(result.job.source))writes.push(sql(`DELETE FROM cf_address_checks WHERE donor_id IN (${owned('donor')})`,id))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}
  writes.push(sql('DELETE FROM cf_move_in_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',id),sql("UPDATE cf_move_in_jobs SET state='undone',undone_at=?,applied_parts=0,report=json_remove(report,'$.solicitationUndoInProgress') WHERE id=?",c.now,id),event(c,'move-in.undo','move-in',id,null))
  try {await commit(c,writes)} catch(error) {

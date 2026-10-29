@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "5c1ce95613a588a6c15877fb4c5eb196bd99ec69e1091c623656be85af4233dc",
+      "sha256": "6abd543c35e05635c0b3daefe006a97a79304c8c05bdc6194eb1c0058e9ddf5d",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f4dd0634aabeecce9c094c883bd28257275a12ab781e3efdcbe0b1e84eaf7413",
+      "sha256": "200fa7c0b94412c23be3ec800469e4de8631a51ff86f425b64427b1ec211d12d",
       "executable": false
     },
     "deploy-demo.json": {
@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
-      "sha256": "29debc69369b5b486e9e500ba048571f38716ae19fa45df1430e7dc934ab59d0",
+      "sha256": "a2d6058ebeb9bcc524b804664f66e6c1c8cd3861862ec57c89e79ca510787eea",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3971,7 +3971,7 @@
       "executable": false
     },
     "src/coffer/move-in/contact-enrichment.ts": {
-      "sha256": "a94d40c4a583e4b5abcc6699f55fedd4273756105f952c092fca032c4ed3f322",
+      "sha256": "45062477407eee119ff39a268016b82444932db3d3b7e41ffb2987fc4fa23336",
       "executable": false
     },
     "src/coffer/move-in/contacts.ts": {
@@ -3996,6 +3996,10 @@
     },
     "src/coffer/move-in/http.ts": {
       "sha256": "dfcdd636a2fff401c20b6afcce787c2e043af6d6835f07b2468beb1c174f37b1",
+      "executable": false
+    },
+    "src/coffer/move-in/lgl-addresses.ts": {
+      "sha256": "171f6d6b8defa8f45c1c2f2fd5dc87b5f75bbdb61df80cfb57954c41985bf24e",
       "executable": false
     },
     "src/coffer/move-in/lgl-source-history.ts": {
@@ -4043,7 +4047,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "38ab4b8d1eb4b24acef6ebb6f45e7c1f7b1e8bd6481dbc25256b924252ee356d",
+      "sha256": "5e8177ebd6c67ee609951f3be5a571951aaca77fa945f4c8ea059909deca1a3c",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -4063,7 +4067,7 @@
       "executable": false
     },
     "src/coffer/move-in/source-rows.ts": {
-      "sha256": "dd2ffd9d95e5bbab73a0395621c8e8dcb21c4e8b5a3a1bcf5aca0bde86e2870a",
+      "sha256": "d34a940609db9391a34cfd5b59df711daac022b9796b8ee1a1605b5d46da6562",
       "executable": false
     },
     "src/coffer/move-in/source-tags.ts": {
@@ -7579,7 +7583,7 @@
       "executable": false
     },
     "tests/lgl-history-journey.mjs": {
-      "sha256": "0ac579e9c8e3e70dc8e60ca07b454933287bbc7b8bdb77a1376592bcc2d5609e",
+      "sha256": "72c781daa48a35d03915320f7857081d0a5f090d7f10662d6ec6df984ecfa11f",
       "executable": false
     },
     "tests/lgl-volunteering-browser.mjs": {
