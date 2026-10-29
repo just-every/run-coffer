@@ -37,7 +37,7 @@ export const outcomeScopes: OutcomeScope[] = ['gift acknowledgment','soft-credit
 export type OutcomeTotals = Record<OutcomeScope, Record<string, Total>>
 export type ControlTotal = Located & {
  scope: 'all' | 'year' | 'fund' | 'donor' | OutcomeScope; key: string; giftCount: number | null; amountCents: number | null
- actual: Total; matches: boolean
+ actual: Total | null; matches: boolean | null
 }
 export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; channels?: ('email'|'mail'|'phone'|'sms')[]; maxAsks?: number }
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }

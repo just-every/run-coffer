@@ -287,6 +287,7 @@ test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans
   const moveInput={source:'spreadsheet',spreadsheet:{name:'Existing monthly donor',recordType:'donor',columns:[['Record','donorId'],['Name','name'],['Scope','controlScope'],['Key','controlKey'],['Count','controlCount'],['Value','controlAmount']].map(([column,field])=>({column,field})),donorMatches:{[recordId]:{id:d.id,version:detail.donor.version}}},files:[{name:'constituents.csv',base64:Buffer.from('Record,Name\n'+recordId+',Ada Rivera\n').toString('base64')},{name:'controls.csv',base64:Buffer.from('Scope,Key,Count,Value\nactive plan,all,2,60\n').toString('base64')}]}
   const planned=await h.api('/api/coffer/move-in/preview',moveInput)
   assert.equal(planned.canApply,true,JSON.stringify(planned.diagnostics));assert.equal(planned.needsAcceptance,false,JSON.stringify(planned.reconciliation))
+  assert.equal(planned.diagnostics.some(d=>d.code==='CONTROL_MISMATCH'),false,'Missing source schedule objects are unknown, not a false mismatch with the independent plan report')
   assert.equal(planned.reconciliation.find(r=>r.scope==='source report active plan').cofferCount,2,'An explicit donor match previews actual adopted native plans')
   let moved=await h.api('/api/coffer/move-in/apply',{id:planned.id,fingerprint:planned.fingerprint,acknowledged:'no'})
   while(moved.state==='applying')moved=await h.api('/api/coffer/move-in/continue',{id:moved.id})

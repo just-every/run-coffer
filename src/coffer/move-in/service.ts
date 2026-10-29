@@ -204,8 +204,8 @@ async function cutoverState(c:Context,job:Row) {
  const required=[['all',''],['constituents','all'],['open pledge','all'],['active plan','all'],['goods','all'],['tribute',''],...['gift acknowledgment','soft-credit acknowledgment'].flatMap(scope=>['acknowledged','not acknowledged','do not acknowledge'].map(key=>[scope,key])),...['email','mail','phone','sms'].flatMap(channel=>['granted','withdrawn','unknown'].map(status=>['consent',channel+' '+status])),...['email','letter','other','unknown'].map(key=>['historical receipt',key])]
  const missing=required.filter(([scope,key])=>!has(scope,key)).map(([scope,key])=>scope+(key?' · '+key:''))
  const suppliedMoney=['all','open pledge','active plan','goods','tribute'].every(scope=>controls.some((r:Row)=>r.scope===scope&&(r.key===''||r.key==='all')&&r.amountCents!==null))
- const owner=report.cutover?await one(c,"SELECT id FROM oa_operators WHERE id=? AND role='owner' AND status='active'",report.cutover.ownerId):null
- return {fingerprint,matches:check.matches,missing:[...missing,...(suppliedMoney?[]:['source amounts for cash, pledges, plans, goods and tributes'])],acknowledgeFrom:policy?.acknowledge_from??null,record:report.cutover??null,current:!!report.cutover&&report.cutover.fingerprint===fingerprint&&!!owner}
+ const owner=report.cutover?await one(c,"SELECT id,version FROM oa_operators WHERE id=? AND role='owner' AND status='active'",report.cutover.ownerId):null
+ return {fingerprint,matches:check.matches,missing:[...missing,...(suppliedMoney?[]:['source amounts for cash, pledges, plans, goods and tributes']),...(report.counts?.recurringReferences?['verified transfer and cutover under MOVE-009']:[])],acknowledgeFrom:policy?.acknowledge_from??null,record:report.cutover??null,current:!!report.cutover&&report.cutover.fingerprint===fingerprint&&!!owner&&report.cutover.ownerVersion===owner.version}
 }
 export async function signOff(c:Context,input:{id:string;fingerprint:string;sourcePlansStopped:unknown;noVaultTransfer:unknown;note:unknown}) {
  if(c.actor.role!=='owner')fail('FORBIDDEN','Only the current owner signs off a cutover.',403)
@@ -218,7 +218,9 @@ export async function signOff(c:Context,input:{id:string;fingerprint:string;sour
  if(!yes(input.sourcePlansStopped)||!yes(input.noVaultTransfer))fail('CUTOVER_HELD','Confirm that source plans are stopped or absent and that no cross-account vault transfer is required. Transferred plans cannot be signed off here.',409)
  const note=text(input.note,'Cutover note',2000)
  if(state.current)return {id:job.id,signedOff:true,unchanged:true}
- const record={fingerprint:state.fingerprint,ownerId:c.actor.id,ownerName:c.actor.name,at:c.now,note,sourcePlansStopped:true,noVaultTransfer:true}
+ const owner=await one(c,"SELECT version FROM oa_operators WHERE id=? AND role='owner' AND status='active'",c.actor.id)
+ if(!owner)fail('FORBIDDEN','Owner authority changed. Sign in again.',403)
+ const record={fingerprint:state.fingerprint,ownerVersion:owner.version,ownerId:c.actor.id,ownerName:c.actor.name,at:c.now,note,sourcePlansStopped:true,noVaultTransfer:true}
  await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='completed' AND redacted=0 AND report=?)",'MOVE_IN_CHANGED','The import changed. Review again.',job.id,job.report),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.cutover',json(?)) WHERE id=?",JSON.stringify(record),job.id),event(c,'move-in.cutover','move-in',job.id,null,{source:job.source,fingerprint:state.fingerprint,sourcePlansStopped:true,noVaultTransfer:true})])
  return {id:job.id,signedOff:true,unchanged:false}
 }

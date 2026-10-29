@@ -47,10 +47,10 @@ export function controlRow(r: SourceRow, out: ParsedImport) {
  if(scope==='tribute source group'&&!key)r.error('CONTROL_KEY','Supply the exact source tribute group.','controlKey')
  if(giftCount===null&&amountCents===null)r.error('CONTROL_EMPTY','Supply at least a count or an amount for this source control.')
  const groups = { year: out.sourceTotals.byYear, fund: out.sourceTotals.byFund, donor: out.sourceTotals.byDonor }
- const actual = scope === 'all' ? { giftCount: out.sourceTotals.giftCount, amountCents: out.sourceTotals.amountCents } : outcomeScopes.includes(scope as OutcomeScope) ? out.outcomeTotals?.[scope as OutcomeScope][key] || {giftCount:0,amountCents:0} : groups[scope as keyof typeof groups][key] || { giftCount: 0, amountCents: 0 }
- const matches = out.sourceTotals.complete && (giftCount !== null || amountCents !== null) && (giftCount === null || giftCount === actual.giftCount) && (amountCents === null || amountCents === actual.amountCents)
+ const actual:Total|null = scope==='active plan'?null:scope === 'all' ? { giftCount: out.sourceTotals.giftCount, amountCents: out.sourceTotals.amountCents } : outcomeScopes.includes(scope as OutcomeScope) ? out.outcomeTotals?.[scope as OutcomeScope][key] || {giftCount:0,amountCents:0} : groups[scope as keyof typeof groups][key] || { giftCount: 0, amountCents: 0 }
+ const matches = actual===null?null:out.sourceTotals.complete && (giftCount !== null || amountCents !== null) && (giftCount === null || giftCount === actual.giftCount) && (amountCents === null || amountCents === actual.amountCents)
  out.controlTotals.push({ location: r.location, scope, key, giftCount, amountCents, actual, matches })
- if (!matches) out.diagnostics.push({ ...r.location, severity: 'warning', code: 'CONTROL_MISMATCH', message: 'Exported report control total does not match the supplied source records. Check source filters and export completeness.' })
+ if (matches===false) out.diagnostics.push({ ...r.location, severity: 'warning', code: 'CONTROL_MISMATCH', message: 'Exported report control total does not match the supplied source records. Check source filters and export completeness.' })
  r.finish()
 }
 function sameGroup(a: Record<string, Total>, b: Record<string, Total>) {

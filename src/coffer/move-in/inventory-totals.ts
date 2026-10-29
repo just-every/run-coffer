@@ -20,7 +20,7 @@ function constituent(out:Inventory,status:string){add(out,'constituents','all');
 function openPledge(out:Inventory,cents:number){if(cents>0)add(out,'open pledge','all',cents)}
 export function parsedInventory(p:ParsedImport):Inventory {
  const out=emptyInventory()
- if(p.recurringReferences===undefined)out['active plan']=Object.create(null)
+ out['active plan']=Object.create(null)
  const preferences=new Map((p.channelWithdrawals??[]).map(r=>[r.donorExternalId+':'+r.channel,r])),paid=new Map<string,number>()
  for(const g of p.gifts)if(g.pledgeExternalId)paid.set(g.pledgeExternalId,(paid.get(g.pledgeExternalId)??0)+g.amountCents)
  for(const d of p.donors){
@@ -28,7 +28,6 @@ export function parsedInventory(p:ParsedImport):Inventory {
   for(const channel of channels){const source=preferences.get(d.externalId+':'+channel);add(out,'consent',channel+' '+(source?(source.status??'withdrawn'):'unknown'))}
  }
  for(const pledge of p.pledges)openPledge(out,Math.max(0,pledge.amountCents-(paid.get(pledge.externalId)??0)))
- for(const plan of p.recurringReferences??[])if(plan.status==='active')add(out,'active plan','all',plan.amountCents)
  for(const g of p.gifts)receiptOutcome(out,g.acknowledgment?.status??'not acknowledged',g.acknowledgment?.method??null,g.amountCents)
  return out
 }

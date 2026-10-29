@@ -46,6 +46,7 @@ async function browser(h,p,source,input){
   if(directory)for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.screenshot({path:directory+'/'+source+'-review-'+width+'.png',fullPage:true})}
   await page.setViewportSize({width:1440,height:1000})
   await page.locator('input[name="acknowledged"][value="no"]').check()
+  await page.getByLabel('Acknowledge from',{exact:true}).fill('2025-01-01')
   await page.locator('input[name="confirm"]').check()
   await page.getByRole('button',{name:'Move these records in',exact:true}).click()
   while(await page.getByRole('button',{name:'Continue',exact:true}).count())await page.getByRole('button',{name:'Continue',exact:true}).click()
