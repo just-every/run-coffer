@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "5779efb723f2acc8eb2e86f34c2272ec408d4670d288128d40c11c4ce18935b0",
+      "sha256": "b0a20c57bba7309a8817a7ead44c74a3fceab527b38da0a7fe6d5e927e896688",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "184c8352b744b1e124e2e1490bd7dc57efa296d5f31d54267f5fe3c456e49153",
+      "sha256": "d01641aca9f4f32994e7380d18f72b60f3bf9283988f2735a153448f6e1b5317",
       "executable": false
     },
     "deploy-demo.json": {
@@ -723,7 +723,7 @@
       "executable": false
     },
     "docs/PAYMENTS.md": {
-      "sha256": "7aefbf0008e942b5a863b52a79c2f6573bed4463b2c4637089ad64f77dd3cd0f",
+      "sha256": "fd36e972ae42236d1b6b2cb233916635716773c2e53df9627e80d9e94488cfc9",
       "executable": false
     },
     "docs/peer-fundraising.md": {
@@ -3175,7 +3175,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "ca2b63ef64397c61a7ebcc60e308ec0cb8b584928bb11b5eaa56365022ea1fd7",
+      "sha256": "56d14f24004bc7d163dd507dfbbf76186ece1903a4208ed8aba8c19b4517cb38",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -3487,7 +3487,7 @@
       "executable": false
     },
     "src/coffer/payments/charges.ts": {
-      "sha256": "52f75dee056618969abdfefbdbd70b0474f4ea0e5c0c50c2ebead6d3c6b042a2",
+      "sha256": "695131b482981514eb6c6f775601285fa8865c37a77dd934b308f57371cf4ece",
       "executable": false
     },
     "src/coffer/payments/disputes.ts": {
@@ -3499,7 +3499,7 @@
       "executable": false
     },
     "src/coffer/payments/donor-match.ts": {
-      "sha256": "08065efd9e8b4895fbc898722259253c904833deee4a76981e840966cbc1b40f",
+      "sha256": "87d4127e6a76e3e2978163f876587138b1356c3a085dbaee2ef6dc4927e375c2",
       "executable": false
     },
     "src/coffer/payments/entries.ts": {
@@ -6915,11 +6915,11 @@
       "executable": false
     },
     "tests/payment-donor-match-browser.mjs": {
-      "sha256": "5b0c7e9bca197642e78fb6728498c9620f069b1b502bdb0f574a5c8ef490bcbc",
+      "sha256": "4cd762fb6b46612d090ae1043e86e0063512447e87c9e7772c818ab472374fc8",
       "executable": false
     },
     "tests/payment-donor-match-journey.mjs": {
-      "sha256": "1d3067d788812817fecff404222a284f2dd2228d037acec678b744debaa3c754",
+      "sha256": "188488dddfc3c402ab3a1d4fa162586ddbab94d471a9a3ecbece49d724f47a55",
       "executable": false
     },
     "tests/payments-browser.mjs": {
