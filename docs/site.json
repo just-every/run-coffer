@@ -27,6 +27,7 @@
         { "slug": "agent-commands", "title": "Agent keys and commands", "file": "AGENT-COMMANDS.md", "summary": "Every endpoint and command an agent or script can call, and who may call it." },
         { "slug": "move-in", "title": "Move in from Stripe", "file": "MOVE-IN.md", "summary": "Read donors, gifts and monthly plans from Stripe, preview and check the totals, then approve or undo." },
         { "slug": "move-in-crm", "title": "Move in from a CRM", "file": "MOVE-IN-SOURCES.md", "summary": "Export from Little Green Light, Bloomerang or Raiser's Edge NXT, check totals and switch in one reviewed step." },
+        { "slug": "neon-move-in", "title": "Move in from Neon CRM", "file": "neon-move-in.md", "summary": "Review supported Neon history, source facts, preferences and totals while keeping unsupported coverage visible." },
         { "slug": "platform-history", "title": "Givebutter and Zeffy history", "file": "platform-history.md", "summary": "Review historical payments, source receipts, campaign totals and recurring migration evidence." },
         { "slug": "backup", "title": "Back up, restore and erase", "file": "backup.md", "summary": "Download a backup, restore it into an empty installation, and erase a donor without losing the ledger." },
         { "slug": "deployment", "title": "Coffer deployment details", "file": "deployment.md", "summary": "Coffer mail settings, hosted backups and deployment maintenance." },

@@ -66,6 +66,12 @@ export async function sourceCaptureBrowser(h,id,directory,apiKey='synthetic-coff
   const page=await context.newPage()
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
+   if(organizationId){
+    await page.goto(origin+'/app/move-in/crm')
+    await page.locator('select[name=source]').selectOption('neon')
+    await page.locator('input[name=neonExportCurrency]').check()
+    await page.screenshot({path:directory+'/MOVE-010-export-confirmation-'+width+'.png',fullPage:true})
+   }
    await page.goto(origin+'/app/move-in/crm/journal?id='+id)
    await page.getByText('Read custom field definitions and values',{exact:true}).click()
    await page.getByLabel(tokenLabel,{exact:true}).fill(apiKey)

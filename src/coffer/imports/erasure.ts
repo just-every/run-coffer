@@ -15,11 +15,11 @@ export const ERASED = 'Erased donor'
  * hashes of the email and donor ID stop a later move-in reviving the person. */
 export function donorErasureStatements(donor: { id: string; email: string | null; emails?: string[] }, placeholderId: string, now: string, afterPlaceholder: D1Sql[] = []): D1Sql[] {
   const donorId = donor.id
-  const pendingSpreadsheetJobs="SELECT id FROM cf_move_in_jobs WHERE EXISTS(SELECT 1 FROM json_each(COALESCE(json_extract(report,'$.previewNativeDonors'),json_extract(report,'$.spreadsheetNativeDonors'),'[]')) WHERE value=?)"
+  const referencingMoveInJobs="SELECT id FROM cf_move_in_jobs WHERE EXISTS(SELECT 1 FROM json_each(COALESCE(json_extract(report,'$.previewNativeDonors'),json_extract(report,'$.neonNativeDonors'),json_extract(report,'$.spreadsheetNativeDonors'),'[]')) WHERE value=?)"
   return [
-    sql(`DELETE FROM cf_move_in_parts WHERE job_id IN (${pendingSpreadsheetJobs})`,donorId),
-    sql(`DELETE FROM cf_move_in_issues WHERE job_id IN (${pendingSpreadsheetJobs})`,donorId),
-    sql(`UPDATE cf_move_in_jobs SET report='{}',accepted_reason=NULL,check_report=NULL,redacted=1 WHERE id IN (${pendingSpreadsheetJobs})`,donorId),
+    sql(`DELETE FROM cf_move_in_parts WHERE job_id IN (${referencingMoveInJobs})`,donorId),
+    sql(`DELETE FROM cf_move_in_issues WHERE job_id IN (${referencingMoveInJobs})`,donorId),
+    sql(`UPDATE cf_move_in_jobs SET report='{}',accepted_reason=NULL,check_report=NULL,redacted=1 WHERE id IN (${referencingMoveInJobs})`,donorId),
     ...developmentReportErasureStatements(donorId),
     sql('DELETE FROM cf_recurring_source_references WHERE donor_id=?',donorId),
     sql('DELETE FROM cf_platform_gifts WHERE gift_id IN(SELECT id FROM cf_gifts WHERE donor_id=?)',donorId),

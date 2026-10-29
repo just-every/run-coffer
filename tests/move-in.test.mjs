@@ -411,3 +411,8 @@ test('MOVE-005: Givebutter and Zeffy history reconciles reviewed cash, source ac
  const {platformHistoryJourney}=await import('./platform-history-journey.mjs')
  await platformHistoryJourney()
 })
+
+test('MOVE-004: reviewed Neon history preserves money, source acknowledgment, preferences and household custody',async()=>{
+ const {neonJourney}=await import('./neon-journey.mjs')
+ await neonJourney()
+})

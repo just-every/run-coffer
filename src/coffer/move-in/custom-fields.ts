@@ -110,7 +110,7 @@ export async function importedCustomWrites(c:Context, plan:Plan, source:string, 
  if (!plan.customWrites.length) return writes
  const fields = plan.customWrites.filter(w=>w.createField).map(w=>w.field)
  writes.push(...await createImportDefinitionWrites(c,fields,source,jobId))
- if(['spreadsheet','givebutter','zeffy'].includes(source))writes.push(...spreadsheetDefinitionWrites(fields,jobId))
+ if(['spreadsheet','givebutter','zeffy','neon'].includes(source))writes.push(...spreadsheetDefinitionWrites(fields,jobId))
  const values = plan.customWrites.map(w=>{
   const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDonorId:w.donorExternalId,original:w.imported.original}
   const row = {field_key:w.field.key,record_id:w.recordId,donor_id:w.donorId,value:w.imported.value,version:1,source:JSON.stringify(provenance),updated_at:c.now}
