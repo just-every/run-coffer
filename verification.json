@@ -5,7 +5,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs"
+        "COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs",
+        "COFFER_RECONCILIATION_SHOTS=.cache/move-in-reconciliation node --test --test-name-pattern='^MOVE-007:' tests/move-in.test.mjs"
       ]
     },
     {
@@ -14,7 +15,7 @@
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004"
+        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-007"
       ]
     },
     {
@@ -31,6 +32,7 @@
       "hosted": true,
       "commands": [
         "pnpm run build",
+        "pnpm run check:deployment-spec",
         "pnpm run test:runtime"
       ]
     },
@@ -152,7 +154,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005|MOVE-007):' tests/move-in.test.mjs"
       ]
     },
     {

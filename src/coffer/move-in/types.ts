@@ -32,9 +32,12 @@ export type ParsedInstallment = Located & { externalId: string; pledgeExternalId
 export type ParsedNote = Located & { externalId: string; donorExternalId: string; text: string; date: string; type: string }
 export type Total = { giftCount: number; amountCents: number }
 export type ImportTotals = Total & { byYear: Record<string, Total>; byFund: Record<string, Total>; byDonor: Record<string, Total>; complete: boolean }
+export type OutcomeScope = 'gift acknowledgment' | 'soft-credit acknowledgment' | 'goods' | 'tribute' | 'tribute source group' | 'constituents' | 'open pledge' | 'consent' | 'active plan' | 'historical receipt'
+export const outcomeScopes: OutcomeScope[] = ['gift acknowledgment','soft-credit acknowledgment','goods','tribute','tribute source group','constituents','open pledge','consent','active plan','historical receipt']
+export type OutcomeTotals = Record<OutcomeScope, Record<string, Total>>
 export type ControlTotal = Located & {
- scope: 'all' | 'year' | 'fund' | 'donor'; key: string; giftCount: number | null; amountCents: number | null
- actual: Total; matches: boolean
+ scope: 'all' | 'year' | 'fund' | 'donor' | OutcomeScope; key: string; giftCount: number | null; amountCents: number | null
+ actual: Total | null; matches: boolean | null
 }
 export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; channels?: ('email'|'mail'|'phone'|'sms')[]; maxAsks?: number }
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }
@@ -46,7 +49,7 @@ export type ParsedImport = { sourceCoverage?:SourceCoverage;
  spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
  relationships: ParsedRelationship[]; softCredits: ParsedSoftCredit[]; pledges: ParsedPledge[]
  installments: ParsedInstallment[]; notes: ParsedNote[]; unmapped: UnmappedValue[]; diagnostics: Diagnostic[]
- sourceTotals: ImportTotals; mappedTotals: ImportTotals; controlTotals: ControlTotal[]
+ outcomeTotals?: OutcomeTotals; sourceTotals: ImportTotals; mappedTotals: ImportTotals; controlTotals: ControlTotal[]
  files: { name: string; bytes: number; sheets: string[]; rows: number }[]
 }
 export type ParseInput = { neon?:{organizationId:string;apiKey:string;currency?:string}; givebutterKey?:string; givebutterAmountUnit?:'cents'|'dollars'; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }

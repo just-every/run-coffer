@@ -37,7 +37,9 @@ const common: Record<string, string[]> = {
  installmentId: ['Installment ID', 'Installment Number'], dueOn: ['Due Date', 'Installment Date', 'Installment Due Date'], installmentAmount: ['Installment Amount'],
  goodsDescription: ['Goods Description', 'Goods and Services Description', 'Benefit Description'],
  goodsAmount: ['Non-Deductible Amount', 'Nondeductible Amount', 'Goods and Services Amount', 'Benefit Amount'], deductible: ['Deductible', 'Deductible Amount', 'Receipt Amount'],
- controlCount: ['Gift Count', 'Total Number of Gifts', 'Total Gift Count', 'Transaction Count', 'TG Count', 'Total Giving Count'], controlAmount: ['Total Gift Amount', 'Total Amount of Gifts', 'Revenue Total', 'Total Revenue', 'TG Amount', 'Total Giving Amount', 'Lifetime Revenue'],
+ controlCount: ['Control Count', 'Gift Count', 'Total Number of Gifts', 'Total Gift Count', 'Transaction Count', 'TG Count', 'Total Giving Count'], controlAmount: ['Control Amount', 'Total Gift Amount', 'Total Amount of Gifts', 'Revenue Total', 'Total Revenue', 'TG Amount', 'Total Giving Amount', 'Lifetime Revenue'],
+ tributeNotifiedName:['Tribute Recipient Name'], tributeNotifiedEmail:['Tribute Recipient Email'], tributeNotifiedAddress:['Tribute Recipient Address'],
+ controlScope: ['Control Scope'], controlKey: ['Control Key'],
  controlYear: ['Year', 'Calendar Year'],
 }
 const vendor: Record<ImportSource, Record<string, string[]>> = {
@@ -54,8 +56,8 @@ const vendor: Record<ImportSource, Record<string, string[]>> = {
   acknowledgmentTemplate: ['Acknowledgment Template', 'Acknowledgement Template', 'Acknowledgment Template Name', 'Acknowledgement Template Name'],
   acknowledgmentOptOut: ['Do Not Acknowledge', 'Do Not Acknowledge?', 'Do Not Acknowledge via LGL'],
  },
- bloomerang: { communicationRestrictions: ['Communication Restrictions', 'Communication Restriction'], tributeHonoree: ['Tribute'], tributeType: ['Tribute Type'], hasTribute: ['Has Tribute'], name: ['Name', 'Full Name', 'Constituent Name'], softName: ['Donor Name', 'Soft Credit Name(s)'], donorId: ['Account Number', 'Constituent ID'], giftId: ['Transaction Number', 'Transaction ID'] },
- 're-nxt': { communicationRestrictions: ['Solicit Codes', 'Solicit Code', 'Constituent Solicit Codes'], tributeHonoree: ['Tribute Honoree'], tributeType: ['Tribute Type'], donorId: ['Constituent ID', 'Constituent System Record ID'], giftId: ['Gift ID', 'Gift System Record ID'],
+ bloomerang: { tributeGroup:['Tribute Group'], communicationRestrictions: ['Communication Restrictions', 'Communication Restriction'], tributeHonoree: ['Tribute'], tributeType: ['Tribute Type'], hasTribute: ['Has Tribute'], name: ['Name', 'Full Name', 'Constituent Name'], softName: ['Donor Name', 'Soft Credit Name(s)'], donorId: ['Account Number', 'Constituent ID'], giftId: ['Transaction Number', 'Transaction ID'] },
+ 're-nxt': { tributeGroup:['Tribute Group'], communicationRestrictions: ['Solicit Codes', 'Solicit Code', 'Constituent Solicit Codes'], tributeHonoree: ['Tribute Honoree'], tributeType: ['Tribute Type'], donorId: ['Constituent ID', 'Constituent System Record ID'], giftId: ['Gift ID', 'Gift System Record ID'],
   acknowledgmentReference: ['Acknowledgment Reference', 'Acknowledgement Reference', 'Acknowledgment Letter', 'Acknowledgement Letter', 'Acknowledgment Letter ID', 'Acknowledgement Letter ID', 'Linked Acknowledgment Letter', 'Linked Acknowledgement Letter'],
  },
 }

@@ -397,3 +397,9 @@ test('MOVE-004: reviewed Neon history preserves money, source acknowledgment, pr
  const {neonJourney}=await import('./neon-journey.mjs')
  await neonJourney()
 })
+
+
+test('MOVE-007: independent source controls reconcile native acknowledgment, goods and signed tribute records',async()=>{
+ const {reconciliationJourney}=await import('./move-in-reconciliation-journey.mjs')
+ await reconciliationJourney(customReportFiles)
+})

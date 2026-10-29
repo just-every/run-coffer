@@ -90,7 +90,7 @@ export async function neonJourney(){
    assert.equal(new URL(page.url()).searchParams.get('id'),preview.id)
    assert.ok((await page.textContent('body')).includes('Neon CRM'));assert.ok(!(await page.content()).includes(f.input.neon.apiKey))
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(width===1440)assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(directory)await page.screenshot({path:directory+'/neon-review-'+width+'.png',fullPage:true})}
-   await page.setViewportSize({width:1440,height:1000});await page.locator('input[name=acknowledged][value=no]').check();await page.locator('input[name=confirm]').check();await page.getByRole('button',{name:'Move these records in',exact:true}).click();try{await page.waitForURL('**/app/move-in/crm/journal?id=*',{timeout:5000})}catch{throw Error('Native Neon apply: '+await page.textContent('body'))}
+   await page.setViewportSize({width:1440,height:1000});await page.locator('input[name=acknowledged][value=no]').check();await page.getByLabel('Acknowledge from',{exact:true}).fill('2025-01-01');await page.locator('input[name=confirm]').check();await page.getByRole('button',{name:'Move these records in',exact:true}).click();try{await page.waitForURL('**/app/move-in/crm/journal?id=*',{timeout:5000})}catch{throw Error('Native Neon apply: '+await page.textContent('body'))}
    assert.ok((await page.textContent('body')).includes('All totals match'))
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/neon-imported-'+width+'.png',fullPage:true})}
    await page.setViewportSize({width:1440,height:1000})

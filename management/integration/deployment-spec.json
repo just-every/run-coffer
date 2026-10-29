@@ -1072,6 +1072,18 @@
       "name": "core-0175_coffer_memberships.sql",
       "sha256": "e1349df229f884bb17cdfd1720a41f68353802d83ac0b1b44888e757f5b504e9",
       "sql": "-- Levels are immutable quotes; new terms use a new level rather than changing a donor's authorization.\nCREATE TABLE cf_membership_levels (\n id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE,\n campaign_id TEXT NOT NULL REFERENCES cf_campaigns(id), price_cents INTEGER NOT NULL CHECK(price_cents>=100),\n term_months INTEGER NOT NULL CHECK(term_months IN (1,3,12)), benefit_cents INTEGER NOT NULL CHECK(benefit_cents>=0 AND benefit_cents<=price_cents),\n benefit_description TEXT NOT NULL, grace_days INTEGER NOT NULL CHECK(grace_days BETWEEN 0 AND 90),\n active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)), version INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL\n);\nCREATE TABLE cf_membership_intents (\n intent_id TEXT PRIMARY KEY REFERENCES cf_giving_intents(id), level_id TEXT NOT NULL REFERENCES cf_membership_levels(id),\n level_version INTEGER NOT NULL, price_cents INTEGER NOT NULL, term_months INTEGER NOT NULL,\n benefit_cents INTEGER NOT NULL, benefit_description TEXT NOT NULL, grace_days INTEGER NOT NULL\n);\nCREATE TABLE cf_memberships (\n id TEXT PRIMARY KEY, donor_id TEXT NOT NULL REFERENCES cf_donors(id),\n intent_id TEXT NOT NULL UNIQUE REFERENCES cf_membership_intents(intent_id),\n subscription_id TEXT NOT NULL UNIQUE REFERENCES cf_subscriptions(id), created_at TEXT NOT NULL\n);\nCREATE INDEX cf_memberships_donor ON cf_memberships(donor_id);\nCREATE TABLE cf_membership_payments (\n gift_id TEXT PRIMARY KEY REFERENCES cf_gifts(id), membership_id TEXT NOT NULL REFERENCES cf_memberships(id),\n starts_on TEXT NOT NULL, expires_on TEXT NOT NULL CHECK(expires_on>starts_on)\n);\nCREATE TABLE cf_membership_reminders (\n id TEXT PRIMARY KEY, membership_id TEXT NOT NULL REFERENCES cf_memberships(id) ON DELETE CASCADE,\n expires_on TEXT NOT NULL, prepared_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'held' CHECK(status='held'),\n UNIQUE(membership_id,expires_on)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0176_coffer_move_in_outcome_refs.sql",
+      "sha256": "89e4a37f382d58ae92f5e567416649232a162a056404fde80591eb366ff73d5d",
+      "sql": "-- Reviewed outcome membership is row-based, like the existing gift journal.\n-- Keeping every source key in one report would exceed D1's per-value limit.\nCREATE TABLE cf_move_in_outcome_refs (\n job_id TEXT NOT NULL REFERENCES cf_move_in_jobs(id) ON DELETE CASCADE,\n kind TEXT NOT NULL CHECK(kind IN ('gift','softCredit')),\n source_key TEXT NOT NULL,\n PRIMARY KEY(job_id,kind,source_key)\n);\nCREATE TRIGGER cf_move_in_outcome_refs_erased AFTER UPDATE OF redacted ON cf_move_in_jobs\nWHEN NEW.redacted=1\nBEGIN\n DELETE FROM cf_move_in_outcome_refs WHERE job_id=NEW.id;\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0177_coffer_move_in_inventory_refs.sql",
+      "sha256": "347d39a22503febebdd03b36ca5cfa1622db6ee27321029d5b1520992c605333",
+      "sql": "-- Inventory membership also includes source records reused from earlier imports.\nCREATE TABLE cf_move_in_inventory_refs (\n job_id TEXT NOT NULL REFERENCES cf_move_in_jobs(id) ON DELETE CASCADE,\n kind TEXT NOT NULL CHECK(kind IN ('donor','pledge')),\n source_key TEXT NOT NULL,\n native_id TEXT,\n PRIMARY KEY(job_id,kind,source_key)\n);\nCREATE TRIGGER cf_move_in_inventory_refs_erased AFTER UPDATE OF redacted ON cf_move_in_jobs\nWHEN NEW.redacted=1\nBEGIN\n DELETE FROM cf_move_in_inventory_refs WHERE job_id=NEW.id;\nEND;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

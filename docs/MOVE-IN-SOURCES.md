@@ -145,3 +145,38 @@ Review lists every typed contact and primary before applying. Newly imported con
 Export each custom column with its exact label and stable source record ID. On the preview, open **Map custom report columns**, select an existing field or define its key, label, record kind, value type and entry method, then check the files again. Only explicitly mapped columns move in. Current LGL, Bloomerang and configured NXT CSV/XLSX reports support constituent, gift, pledge, interaction and note values; opportunities have no source importer yet.
 
 Currency uses USD with at most two decimal places. Pick-many cells contain a JSON list, such as `["Board","Volunteer"]`; blanks leave the value unset. Invalid types and choices name the source row and block apply. Imported values retain the source CRM, record ID, donor ID, column, worksheet and original text. Replay keeps later staff edits; undo removes imported values only while their custody is unchanged. Renaming a field label preserves values and source history. These mappings authorize no provider exposure or outbound action.
+
+
+## Independent reconciliation controls
+
+Upload a separate CSV report, or an XLSX worksheet, alongside the source records. Existing gift totals by year, fund and constituent keep their current headings. For acknowledgment, benefit and tribute controls, use `Control Scope`, `Control Key`, `Control Count` and `Control Amount`. Supply a count, an amount, or both; an omitted value is not a zero. These controls are retained separately from totals calculated from record rows and from the native destination.
+
+| Control Scope | Control Key | Count and amount meaning |
+| --- | --- | --- |
+| all | empty | Received gifts and cash cents |
+| constituents | all, active, inactive, or deceased | Distinct native constituents matched to the supplied source identities; amount is zero |
+| open pledge | all | Open promises and remaining balances after payments, reductions and reversals |
+| consent | Channel then granted, withdrawn, or unknown, such as mail unknown | Current choices for email, mail, phone and SMS; missing evidence stays unknown; amount is zero |
+| active plan | all | Active native schedules for matched constituents and per-installment amounts; neither received cash nor proof of a vault transfer |
+| historical receipt | email, letter, other, or unknown | Acknowledged gifts grouped by recorded method; unknown establishes no method or delivery |
+| gift acknowledgment | acknowledged, not acknowledged, or do not acknowledge | Original gift records and their original amounts, independently of soft credits |
+| soft-credit acknowledgment | acknowledged, not acknowledged, or do not acknowledge | Source-linked credit records and credited amounts, independently of the giver's status |
+| goods | all, none, provided, or unknown | Gift records in that goods category and the recorded non-deductible amount; unknown answers stay unknown and contribute no known goods value |
+| tribute | empty for all tributes, or a normalized key such as memory:river reed | Tribute records and signed remaining gift balances; kind and honoree distinguish groups |
+| tribute source group | Exact source group text | Tribute records and signed remaining balances within the source's own group |
+
+For example, a source report with two acknowledged gifts totaling $900 supplies `gift acknowledgment,acknowledged,2,900.00`. An independent $60 non-deductible total across five gift records supplies `goods,all,5,60.00`. Tribute controls accept signed amounts. Export source groups as `Tribute Name` in LGL, or the configured `Tribute Group` column in Bloomerang and NXT; source group text never grants permission to disclose gift amounts to a family.
+
+The preview lists each difference against the records Coffer would retain, using current native facts for records an earlier move-in already brought. Applying requires a recorded reason before accepting differences. The journal's **Check totals again** reads current native gift and credit acknowledgment statuses, goods answers and tribute balances. It never replaces supplied controls with recalculated values. A reversed tribute gift contributes its zero remaining balance without losing its original source group. A later acknowledgment or goods edit appears as a difference and cannot be undone by replaying the source. Rechecking changes no donor, gift, credit, permission or source control. Source controls and checks are removed with the import's private report when an associated donor is erased; that import cannot be replayed or rechecked to restore it.
+
+The owner may explicitly set **Acknowledge from** in the reviewed apply form. This installation policy is separate from historical acknowledgment facts and the existing **Thanked before** choice. An older not-acknowledged gift retains its source status while remaining absent from the acknowledgment queue and the missing-receipt agent.
+
+The review also lists not-acknowledged source gifts at the configured letter threshold by year. The owner’s acknowledge-from field starts with the saved installation date, or 30 days before the organization’s current date on the first review. Selecting that date excludes older gifts from due letters and recovery without changing their historical acknowledgment status.
+
+Current constituent, pledge, consent and active-plan controls include records reused from an earlier import and explicitly selected spreadsheet matches. Native changes appear on the next check. Where an export has no source-plan records, its calculated plan count is **Not supplied**; an independent active-plan control can still be compared with native schedules. Stored source-plan evidence creates no native plan. Historical receipt methods establish no provider delivery beyond the source facts.
+
+### Owner cutover review
+
+The completed journal offers owner sign-off after every control matches, an acknowledge-from date is saved, and the source report includes counts for all gifts, constituents, open pledges, active plans, goods and all tributes; every gift and soft-credit acknowledgment status; every channel consent status; and every historical acknowledgment method. Include cash, pledge, plan, goods and tribute amounts too, even when zero. The owner confirms that source plans are stopped or absent and that no cross-account card or bank-account transfer is required, then records a note. Admins can inspect reconciliation but cannot sign off.
+
+The approval is bound to the reviewed records. A later native correction, changed import state, changed receipt cutoff or loss of owner authority makes it historical and requires a new review. Replay creates no second approval, undo clears it and donor erasure removes the private report. This door submits no charge, stops no source plan and activates no replacement schedule. Vault-transferred plans, provider usability and missing-instrument reauthorization remain unavailable until MOVE-009 supplies its separately verified transfer and charging boundaries.

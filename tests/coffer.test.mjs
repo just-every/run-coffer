@@ -246,9 +246,10 @@ test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans
  const customer={id:'cus_direct',name:'Ada Rivera',email:'ada@example.org',created}
  const charges=Array.from({length:101},(_,i)=>({id:`ch_direct${i}`,customer:customer.id,status:'succeeded',paid:true,currency:'usd',amount:2500,created,amount_refunded:i===0?500:0}))
  const sub={id:'sub_direct',customer:customer.id,created,status:'active',currency:'usd',cancel_at_period_end:false,items:{data:[{quantity:1,price:{type:'recurring',currency:'usd',unit_amount:2500,billing_scheme:'per_unit',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}}}]}}
- const h=await installation({bindings:{STRIPE_SECRET_KEY:'sk_test_network_edge'},outbound:async request=>{
+ const second={...sub,id:'sub_syntheticcoffer9202',items:{data:[{...sub.items.data[0],price:{...sub.items.data[0].price,unit_amount:3500}}]}}
+ const h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-9200'},outbound:async request=>{
   const u=new URL(request.url);assert.equal(u.hostname,'api.stripe.com');assert.equal(request.method,'GET');calls.push(u)
-  assert.equal(request.headers.get('authorization'),'Bearer sk_test_network_edge')
+  assert.equal(request.headers.get('authorization'),'Bearer synthetic-coffer-9200')
   let data=[]
   if(u.pathname==='/v1/customers/cus_direct')return Response.json(customer)
   if(u.pathname==='/v1/charges'){
@@ -256,7 +257,7 @@ test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans
    return Response.json({object:'list',data,has_more:!after})
   }
   if(u.pathname==='/v1/invoice_payments')data=[]
-  else if(u.pathname==='/v1/subscriptions')data=[sub]
+  else if(u.pathname==='/v1/subscriptions')data=[sub,second]
   else if(u.pathname==='/v1/payment_intents')data=[{id:'pi_direct',created,status:'succeeded',latest_charge:'ch_direct0',amount:2500,currency:'usd',customer:customer.id,client_secret:'must-not-reach-review'}]
   else if(u.pathname==='/v1/invoices')data=[{id:'in_direct',created,status:'paid',amount_paid:2500,currency:'usd',customer:customer.id,parent:{subscription_details:{subscription:sub.id}}}]
   else assert.fail('Unexpected Stripe endpoint '+u.pathname)
@@ -265,7 +266,7 @@ test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans
  try{
   await h.api('/api/coffer/imports/read-stripe',{start:'2026-01-01',end:'2026-01-31'},{as:'',status:401})
   const review=await h.api('/api/coffer/imports/read-stripe',{start:'2026-01-01',end:'2026-01-31',noGoodsOrServices:true})
-  assert.equal(review.donors.length,1);assert.equal(review.gifts.length,101);assert.equal(review.subscriptions.length,1)
+  assert.equal(review.donors.length,1);assert.equal(review.gifts.length,101);assert.equal(review.subscriptions.length,2)
   assert.equal(review.gifts.reduce((n,g)=>n+g.amountCents,0),252000)
   assert.ok(calls.some(u=>u.searchParams.has('starting_after')))
   assert.ok(!JSON.stringify(review).includes('must-not-reach-review'))
@@ -276,12 +277,24 @@ test('REPORT-006: connected Stripe move-in follows pages, previews monthly plans
   assert.deepEqual(journal.totals,{expectedCount:101,expectedCents:252000,actualCount:101,actualCents:252000,matches:true})
   const d=(await h.get('/api/coffer/donors')).donors[0]
   const detail=await h.get('/api/coffer/donors/'+d.id)
-  assert.deepEqual(detail.subscriptions.map(s=>[s.id,s.amount_cents,s.status]),[['sub_direct',2500,'active']])
+  assert.deepEqual(detail.subscriptions.map(s=>[s.id,s.amount_cents,s.status]),[['sub_direct',2500,'active'],['sub_syntheticcoffer9202',3500,'active']])
   const health=await h.get('/api/coffer/reports/recurring?from=2026-01')
-  assert.equal(health.rows[0].newPlans,1)
+  assert.equal(health.rows[0].newPlans,2)
   assert.equal(health.rows.at(-1).activeDonors,1)
-  assert.equal(health.rows.at(-1).mrrCents,2500)
-  assert.equal(health.rows[0].unknownStatePlans,1,'Import does not invent earlier monthly state')
+  assert.equal(health.rows.at(-1).mrrCents,6000)
+  assert.equal(health.rows[0].unknownStatePlans,2,'Import does not invent earlier monthly state')
+  const recordId='synthetic-coffer-9201'
+  const moveInput={source:'spreadsheet',spreadsheet:{name:'Existing monthly donor',recordType:'donor',columns:[['Record','donorId'],['Name','name'],['Scope','controlScope'],['Key','controlKey'],['Count','controlCount'],['Value','controlAmount']].map(([column,field])=>({column,field})),donorMatches:{[recordId]:{id:d.id,version:detail.donor.version}}},files:[{name:'constituents.csv',base64:Buffer.from('Record,Name\n'+recordId+',Ada Rivera\n').toString('base64')},{name:'controls.csv',base64:Buffer.from('Scope,Key,Count,Value\nactive plan,all,2,60\n').toString('base64')}]}
+  const planned=await h.api('/api/coffer/move-in/preview',moveInput)
+  assert.equal(planned.canApply,true,JSON.stringify(planned.diagnostics));assert.equal(planned.needsAcceptance,false,JSON.stringify(planned.reconciliation))
+  assert.equal(planned.diagnostics.some(d=>d.code==='CONTROL_MISMATCH'),false,'Missing source schedule objects are unknown, not a false mismatch with the independent plan report')
+  assert.equal(planned.reconciliation.find(r=>r.scope==='source report active plan').cofferCount,2,'An explicit donor match previews actual adopted native plans')
+  let moved=await h.api('/api/coffer/move-in/apply',{id:planned.id,fingerprint:planned.fingerprint,acknowledged:'no'})
+  while(moved.state==='applying')moved=await h.api('/api/coffer/move-in/continue',{id:moved.id})
+  const checked=await h.api('/api/coffer/move-in/check',{id:moved.id})
+  assert.deepEqual(checked.rows.filter(r=>r.scope==='source report active plan').map(r=>[r.sourceCount,r.cofferCount,r.sourceCents,r.cofferCents,r.matches]),[[2,2,6000,6000,true]],'Current active native plans reconcile separately from stored source-plan evidence')
+  await h.api('/api/coffer/move-in/undo',{id:moved.id})
+  assert.equal((await h.get('/api/coffer/donors/'+d.id)).subscriptions.length,2,'Undoing a matched CRM inventory never removes pre-existing native schedules')
   charges.push({...charges[1],id:'ch_direct101'})
   const next=await h.api('/api/coffer/imports/read-stripe',{start:'2026-01-01',end:'2026-01-31'})
   assert.equal(next.gifts.length,1);assert.equal(next.donors.length,0)

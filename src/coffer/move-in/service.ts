@@ -1,3 +1,5 @@
+import { inventorySnapshot } from './inventory-totals'
+import { nativeOutcomes, nativeOutcomeSnapshot, previewOutcomes } from './outcome-totals'
 import { neonInput } from './neon'
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
 import { spreadsheetAddresses } from './spreadsheet-addresses'
@@ -7,7 +9,7 @@ import { customFields } from '../custom-fields'
 import { importedCustomWrites, customImportUndoGuards, customImportUndoWrites } from './custom-fields'
 import { solicitationImportHistory, restrictionReconciliation } from './solicitation-import'
 import { manager } from '../auth'
-import { all, commit, CofferError, date, event, fail, guard, one, optional, sha256, sql, today, type Context, type Row, type Stmt } from '../db'
+import { all, commit, CofferError, addDays, date, event, fail, guard, one, optional, sha256, sql, text, today, type Context, type Row, type Stmt } from '../db'
 import { settings } from '../settings'
 import { parseExports } from './parse'
 import { contentHash, planImport, type Plan } from './plan'
@@ -48,6 +50,9 @@ export async function preview(c: Context,input: ParseInput) {
  let sourceCoverage:SourceCoverage|undefined
  if(input.source==='neon'){const result=await neonInput(input,today((await settings(c)).timezone,new Date(c.now)));input=result.input;sourceCoverage=result.coverage}
  const parsed=await parseExports(input)
+ const configuration=await settings(c),policy=await one(c,'SELECT acknowledge_from FROM cf_receipt_autonomy WHERE id=1')
+ const acknowledgmentPreview={thresholdCents:configuration.threshold_cents,defaultFrom:policy?.acknowledge_from??addDays(today(configuration.timezone,new Date(c.now)),-30),byYear:{} as Record<string,{count:number;amountCents:number}>}
+ for(const gift of parsed.gifts)if((gift.acknowledgment?.status??'not acknowledged')==='not acknowledged'&&gift.amountCents>=configuration.threshold_cents){const total=acknowledgmentPreview.byYear[gift.receivedOn.slice(0,4)]??={count:0,amountCents:0};total.count++;total.amountCents+=gift.amountCents}
  if(sourceCoverage)parsed.sourceCoverage=sourceCoverage
  const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})
  const id=fileFingerprint.slice(0,40)
@@ -66,15 +71,16 @@ export async function preview(c: Context,input: ParseInput) {
    }
   }
  }
- const rows=compare(parsed)
+ const projected=await previewOutcomes(c,parsed)
+ const rows=compare(parsed,projected.cash,projected.totals)
  const restrictionIds=[...new Set([...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn')].map(r=>r.donorExternalId))]
  for(const [key,count] of [['Restricted constituents',restrictionIds.length],['Solicitation restrictions',(parsed.solicitations??[]).length],...['email','mail','phone','sms'].map(channel=>[`${channel} withdrawals`,(parsed.channelWithdrawals??[]).filter(r=>r.channel===channel&&(!r.status||r.status==='withdrawn')).length])] as [string,number][])rows.push({scope:'restriction',key,sourceCount:count,cofferCount:count,sourceCents:null,cofferCents:0,matches:true})
  const diagnostics=ordered(parsed.diagnostics)
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),previewNativeDonors:[...nativeDonors],spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
- return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{inventoryFingerprint:projected.inventory.fingerprint,acknowledgmentPreview,nativeOutcomeFingerprint:projected.fingerprint,...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),previewNativeDonors:[...nativeDonors],spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],outcomeKeys:{gift:projected.giftKeys,softCredit:projected.creditKeys},inventoryKeys:projected.inventory.keys,inventoryNatives:projected.inventory.natives,issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+ return { ...parsed, acknowledgmentPreview, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }
 
@@ -90,6 +96,8 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
  const report=JSON.parse(job.report)
  if(report.canApply===false || !job.parts)fail('MOVE_IN_ERRORS','This review has rows that must be fixed first. Fix them in your files and upload them again.',409)
+ if(report.nativeOutcomeFingerprint&&(await nativeOutcomeSnapshot(c,job.source,[],[],job.id)).fingerprint!==report.nativeOutcomeFingerprint)fail('MOVE_IN_CHANGED','Native gift or soft-credit facts changed after review. Preview the files and compare the current totals again.',409)
+ if(report.inventoryFingerprint&&(await inventorySnapshot(c,job.source,{donor:[],pledge:[]},job.id)).fingerprint!==report.inventoryFingerprint)fail('MOVE_IN_CHANGED','Native constituent, pledge, preference or plan facts changed after review. Preview the files again.',409)
  const acceptedReason=optional(input.acceptedReason,'Reason for accepting differences',2000)
  if(report.needsAcceptance && !acceptedReason)fail('MOVE_IN_TOTALS','Say why the differences or unused columns are acceptable before moving in, or fix the files and upload again.')
  const acknowledgeFrom=input.acknowledgeFrom?date(input.acknowledgeFrom,'Acknowledge from'):null
@@ -140,7 +148,7 @@ export async function continueApply(c: Context,id:string) {
 
 async function finish(c: Context,job: Row) {
  const check=await totalsCheck(c,job)
- await commit(c,[sql("UPDATE cf_move_in_jobs SET state='completed',checked_at=?,check_report=? WHERE id=? AND state='applying'",c.now,JSON.stringify(check),job.id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',job.id),
+ await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='applying' AND redacted=0)",'MOVE_IN_CHANGED','This move-in changed or an imported donor was erased. Refresh its journal.',job.id),sql("UPDATE cf_move_in_jobs SET state='completed',checked_at=?,check_report=? WHERE id=? AND state='applying'",c.now,JSON.stringify(check),job.id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',job.id),
   event(c,'move-in.complete','move-in',job.id,null,{parts:job.parts,totalsMatch:check.matches})])
 }
 /** Source totals from the files against the gifts now in Coffer for this move-in. */
@@ -154,7 +162,8 @@ async function totalsCheck(c: Context,job: Row) {
  const destination=emptyTotals()
  for(const g of await all(c,"SELECT g.received_on,g.fund,g.donor_id,r.donor_source_key,b.net_cents FROM cf_move_in_job_gifts r JOIN cf_gifts g ON g.id=r.gift_id JOIN cf_gift_balances b ON b.id=g.id WHERE r.job_id=?",job.id))
   if(g.net_cents>0)accumulate(destination,g.net_cents,g.received_on,g.fund??'',external.get(g.donor_source_key??byNative.get(g.donor_id)??'')??g.donor_id)
- const rows=compare({sourceTotals:report.sourceTotals,controlTotals:report.controlTotals??[]} as ParsedImport,destination)
+ const outcomes=report.outcomeTotals?await nativeOutcomes(c,job):undefined
+ const rows=compare({sourceTotals:report.sourceTotals,controlTotals:report.controlTotals??[],outcomeTotals:report.outcomeTotals} as ParsedImport,destination,outcomes)
  rows.push(...await restrictionReconciliation(c,job.source,report))
  return {matches:rows.every(r=>r.matches),...compact(rows)}
 }
@@ -162,8 +171,9 @@ export async function recheck(c: Context,id:string) {
  authorize(c)
  const job=await one(c,"SELECT * FROM cf_move_in_jobs WHERE id=? AND state='completed'",id)
  if(!job)fail('NOT_FOUND','Only a finished move-in can be checked.',404)
+ if(job.redacted)fail('MOVE_IN_ERASED','An imported donor was erased. Source reconciliation is no longer available.',409)
  const check=await totalsCheck(c,job)
- await c.db.prepare('UPDATE cf_move_in_jobs SET checked_at=?,check_report=? WHERE id=?').bind(c.now,JSON.stringify(check),id).run()
+ await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='completed' AND redacted=0)",'MOVE_IN_CHANGED','This move-in changed or an imported donor was erased. Source reconciliation is no longer current.',id),sql('UPDATE cf_move_in_jobs SET checked_at=?,check_report=? WHERE id=?',c.now,JSON.stringify(check),id)])
  return {id,...check}
 }
 
@@ -183,12 +193,44 @@ function writeKind(writes:Stmt[],plan:Plan,kind:Kind,source:string,jobId:string)
  FROM json_each(?) j JOIN ${t.table} n ON n.${t.key}=json_extract(j.value,'$.nativeId')`,source,kind,jobId,records))
 }
 
+/** Cutover approval is a record of the owner's reviewed historical move-in.
+ * No provider plan is stopped, started, charged or retried by this door. */
+async function cutoverState(c:Context,job:Row) {
+ if(job.state!=='completed'||job.redacted)return null
+ const report=JSON.parse(job.report),check=await totalsCheck(c,job)
+ const [inventory,outcomes,policy,configuration]=await Promise.all([inventorySnapshot(c,job.source,{donor:[],pledge:[]},job.id),nativeOutcomeSnapshot(c,job.source,[],[],job.id),one(c,'SELECT acknowledge_from FROM cf_receipt_autonomy WHERE id=1'),settings(c)])
+ const fingerprint=await contentHash({id:job.id,review:job.fingerprint,check,inventory:inventory.fingerprint,outcomes:outcomes.fingerprint,acknowledgeFrom:policy?.acknowledge_from,settingsVersion:configuration.version,imports:await all(c,"SELECT id,state,fingerprint,applied_parts FROM cf_move_in_jobs WHERE source=? AND state IN ('applying','completed') ORDER BY id",job.source)})
+ const controls=report.controlTotals??[],has=(scope:string,key:string)=>controls.some((r:Row)=>r.scope===scope&&r.key===key&&r.giftCount!==null)
+ const required=[['all',''],['constituents','all'],['open pledge','all'],['active plan','all'],['goods','all'],['tribute',''],...['gift acknowledgment','soft-credit acknowledgment'].flatMap(scope=>['acknowledged','not acknowledged','do not acknowledge'].map(key=>[scope,key])),...['email','mail','phone','sms'].flatMap(channel=>['granted','withdrawn','unknown'].map(status=>['consent',channel+' '+status])),...['email','letter','other','unknown'].map(key=>['historical receipt',key])]
+ const missing=required.filter(([scope,key])=>!has(scope,key)).map(([scope,key])=>scope+(key?' · '+key:''))
+ const suppliedMoney=['all','open pledge','active plan','goods','tribute'].every(scope=>controls.some((r:Row)=>r.scope===scope&&(r.key===''||r.key==='all')&&r.amountCents!==null))
+ const owner=report.cutover?await one(c,"SELECT id,version FROM oa_operators WHERE id=? AND role='owner' AND status='active'",report.cutover.ownerId):null
+ return {fingerprint,matches:check.matches,missing:[...missing,...(suppliedMoney?[]:['source amounts for cash, pledges, plans, goods and tributes']),...(report.counts?.recurringReferences?['verified transfer and cutover under MOVE-009']:[])],acknowledgeFrom:policy?.acknowledge_from??null,record:report.cutover??null,current:!!report.cutover&&report.cutover.fingerprint===fingerprint&&!!owner&&report.cutover.ownerVersion===owner.version}
+}
+export async function signOff(c:Context,input:{id:string;fingerprint:string;sourcePlansStopped:unknown;noVaultTransfer:unknown;note:unknown}) {
+ if(c.actor.role!=='owner')fail('FORBIDDEN','Only the current owner signs off a cutover.',403)
+ const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',input.id)
+ if(!job)fail('NOT_FOUND','That import does not exist.',404)
+ const state=await cutoverState(c,job)
+ if(!state||state.fingerprint!==input.fingerprint)fail('MOVE_IN_CHANGED','The import or native records changed. Review the journal again.',409)
+ if(!state.matches||state.missing.length||!state.acknowledgeFrom)fail('CUTOVER_INCOMPLETE','Reconcile every supplied source control, provide the full source inventory and save the acknowledge-from date before sign-off.',409)
+ const yes=(value:unknown)=>value===true||value==='yes'
+ if(!yes(input.sourcePlansStopped)||!yes(input.noVaultTransfer))fail('CUTOVER_HELD','Confirm that source plans are stopped or absent and that no cross-account vault transfer is required. Transferred plans cannot be signed off here.',409)
+ const note=text(input.note,'Cutover note',2000)
+ if(state.current)return {id:job.id,signedOff:true,unchanged:true}
+ const owner=await one(c,"SELECT version FROM oa_operators WHERE id=? AND role='owner' AND status='active'",c.actor.id)
+ if(!owner)fail('FORBIDDEN','Owner authority changed. Sign in again.',403)
+ const record={fingerprint:state.fingerprint,ownerVersion:owner.version,ownerId:c.actor.id,ownerName:c.actor.name,at:c.now,note,sourcePlansStopped:true,noVaultTransfer:true}
+ await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='completed' AND redacted=0 AND report=?)",'MOVE_IN_CHANGED','The import changed. Review again.',job.id,job.report),sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.cutover',json(?)) WHERE id=?",JSON.stringify(record),job.id),event(c,'move-in.cutover','move-in',job.id,null,{source:job.source,fingerprint:state.fingerprint,sourcePlansStopped:true,noVaultTransfer:true})])
+ return {id:job.id,signedOff:true,unchanged:false}
+}
+
 export async function journal(c: Context,id:string):Promise<{job:Row;records:Row[]}> {
  authorize(c)
  const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',id)
  if(!job)fail('NOT_FOUND','That import does not exist.',404)
  const records=await all(c,'SELECT kind,count(*) AS n,sum(owned) AS added FROM cf_move_in_records WHERE job_id=? GROUP BY kind ORDER BY kind',id)
- return {job:{...job,report:JSON.parse(job.report),check_report:job.check_report?JSON.parse(job.check_report):null},records}
+ return {job:{...job,report:JSON.parse(job.report),check_report:job.check_report?JSON.parse(job.check_report):null,...(job.state==='completed'&&!job.redacted?{cutover:await cutoverState(c,job)}:{})},records}
 }
 
 /** Every guard and every deletion share one transaction. Any new use blocks it. */
@@ -244,11 +286,11 @@ export async function undo(c: Context,id:string) {
  writes.push(...customImportUndoWrites(id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
- writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
+ writes.push(sql('DELETE FROM cf_move_in_inventory_refs WHERE job_id=?',id),sql('DELETE FROM cf_move_in_outcome_refs WHERE job_id=?',id),sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))
  if(result.job.source==='spreadsheet')writes.push(sql(`DELETE FROM cf_address_checks WHERE donor_id IN (${owned('donor')})`,id))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}
- writes.push(sql('DELETE FROM cf_move_in_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',id),sql("UPDATE cf_move_in_jobs SET state='undone',undone_at=?,applied_parts=0,report=json_remove(report,'$.solicitationUndoInProgress') WHERE id=?",c.now,id),event(c,'move-in.undo','move-in',id,null))
+ writes.push(sql('DELETE FROM cf_move_in_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',id),sql("UPDATE cf_move_in_jobs SET state='undone',undone_at=?,applied_parts=0,report=json_remove(report,'$.solicitationUndoInProgress','$.cutover') WHERE id=?",c.now,id),event(c,'move-in.undo','move-in',id,null))
  try {await commit(c,writes)} catch(error) {
   if(/FOREIGN KEY constraint failed/i.test(String(error)))fail('MOVE_IN_USED','Other records now use this import. Nothing was undone.')
   throw error

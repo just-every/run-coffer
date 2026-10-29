@@ -35,13 +35,18 @@ export function ordered(diagnostics: Diagnostic[]) {
 
 /** Stores the review: the job first (not yet usable), then parts and review rows in bounded requests, then the
  * part count and fingerprint that make it usable. A review interrupted part-way can never be applied. */
-export async function store(c: Context, review: { id: string; fileFingerprint: string; fingerprint: string; source: string; prior: Row | null; report: Row; parts: ParsedImport[]; issues: Diagnostic[] }) {
+export async function store(c: Context, review: { id: string; fileFingerprint: string; fingerprint: string; source: string; prior: Row | null; report: Row; parts: ParsedImport[]; issues: Diagnostic[]; outcomeKeys?:{gift:string[];softCredit:string[]}; inventoryKeys?:{donor:string[];pledge:string[]}; inventoryNatives?:Record<string,string> }) {
  const { id, prior } = review
  await commit(c, prior ? [guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state IN ('reviewed','undone'))", 'MOVE_IN_CHANGED', 'This move-in started in another window. Open its journal.', id),
-  sql('DELETE FROM cf_move_in_parts WHERE job_id=?', id), sql('DELETE FROM cf_move_in_issues WHERE job_id=?', id),
+  sql('DELETE FROM cf_move_in_inventory_refs WHERE job_id=?',id),sql('DELETE FROM cf_move_in_outcome_refs WHERE job_id=?',id), sql('DELETE FROM cf_move_in_parts WHERE job_id=?', id), sql('DELETE FROM cf_move_in_issues WHERE job_id=?', id),
   sql("UPDATE cf_move_in_jobs SET fingerprint='',state='reviewed',report=?,accepted_reason=NULL,created_at=?,created_by=?,undone_at=NULL,redacted=0,parts=0,applied_parts=0,acknowledged_before=NULL,checked_at=NULL,check_report=NULL WHERE id=?", JSON.stringify(review.report), c.now, c.actor.name, id)]
   : [sql("INSERT INTO cf_move_in_jobs(id,file_fingerprint,fingerprint,source,state,report,created_at,created_by,parts,applied_parts) VALUES(?,?,'',?,'reviewed',?,?,?,0,0)", id, review.fileFingerprint, review.source, JSON.stringify(review.report), c.now, c.actor.name)])
  const statements: [Stmt, number][] = review.parts.map((part, position) => { const payload = JSON.stringify(part); return [sql('INSERT INTO cf_move_in_parts(job_id,position,payload) VALUES(?,?,?)', id, position, payload), payload.length] })
+ for(const [kind,keys] of Object.entries(review.outcomeKeys??{}))for(let i=0;i<keys.length;i+=1000) {
+  const payload=JSON.stringify(keys.slice(i,i+1000))
+  statements.push([sql('INSERT OR IGNORE INTO cf_move_in_outcome_refs(job_id,kind,source_key) SELECT ?,?,value FROM json_each(?)',id,kind,payload),payload.length])
+ }
+ for(const [kind,keys] of Object.entries(review.inventoryKeys??{}))for(let i=0;i<keys.length;i+=1000){const payload=JSON.stringify(keys.slice(i,i+1000).map(key=>({key,nativeId:kind==='donor'?review.inventoryNatives?.[key]??null:null})));statements.push([sql("INSERT OR IGNORE INTO cf_move_in_inventory_refs(job_id,kind,source_key,native_id) SELECT ?,?,json_extract(value,'$.key'),json_extract(value,'$.nativeId') FROM json_each(?)",id,kind,payload),payload.length])}
  for (let i = 0; i < review.issues.length; i += ISSUES_PER_STATEMENT) {
   const rows = JSON.stringify(review.issues.slice(i, i + ISSUES_PER_STATEMENT).map((d, n) => [i + n, d.severity, d.code, d.file ?? null, d.sheet ?? null, d.row ?? null, d.column ?? null, d.message]))
   statements.push([sql(`INSERT INTO cf_move_in_issues(job_id,position,severity,code,file,sheet,row,column_name,message) SELECT ?,${[0, 1, 2, 3, 4, 5, 6, 7].map(k => `json_extract(value,'$[${k}]')`).join(',')} FROM json_each(?)`, id, rows), rows.length])
@@ -91,5 +96,5 @@ export async function reviewed(c: Context, id: string) {
 export const reportOf = (parsed: ParsedImport, review: { rows: Difference[]; canApply: boolean; needsAcceptance: boolean; counts: Row; parts: number }) => ({
  sourceCoverage:parsed.sourceCoverage, solicitCodes: parsed.solicitCodes, restrictionSource: { donorIds:[...new Set([...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn')].map(r=>r.donorExternalId))], solicitationIds:(parsed.solicitations??[]).map(r=>r.donorExternalId), withdrawals:(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').map(r=>({donorExternalId:r.donorExternalId,channel:r.channel})) },
  counts: review.counts, reconciliation: compact(review.rows), files: parsed.files, unmapped: parsed.unmapped.filter(u => u.value).length, leftOut: leftOut(parsed),
- needsAcceptance: review.needsAcceptance, canApply: review.canApply, parts: review.parts, sourceTotals: parsed.sourceTotals, controlTotals: parsed.controlTotals, sample: sample(parsed),
+ needsAcceptance: review.needsAcceptance, canApply: review.canApply, parts: review.parts, outcomeTotals:parsed.outcomeTotals, sourceTotals: parsed.sourceTotals, controlTotals: parsed.controlTotals, sample: sample(parsed),
 })

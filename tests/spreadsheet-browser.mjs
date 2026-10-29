@@ -42,6 +42,7 @@ export async function spreadsheetBrowser(h,input,preview) {
    result={...preview,id,fingerprint:job.fingerprint,mappedInput:{...input,spreadsheet:job.report.spreadsheet,customFields:job.report.customFields}}
   }
   await page.locator('[name=acknowledged][value=no]').check()
+  await page.getByLabel('Acknowledge from',{exact:true}).fill('2025-01-01')
   await page.locator('[name=confirm]').check()
   const applyForm=page.locator('form[action="/app/move-in/crm/apply"]')
   assert.ok(await applyForm.evaluate(f=>f.checkValidity()),await applyForm.evaluate(f=>[...f.elements].filter(e=>e.validity&&!e.validity.valid).map(e=>e.name+': '+e.validationMessage).join('; ')))
