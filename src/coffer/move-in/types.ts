@@ -1,5 +1,8 @@
+import type { SourceDefinition } from './source-definitions'
+import type { FieldMapping } from './custom-review-types'
 /** Normalized, source-referenced preview. No database writes or invented CRM IDs. */
-export type ImportSource = 'lgl' | 'bloomerang' | 're-nxt' | 'spreadsheet' | 'givebutter' | 'zeffy' | 'neon'
+import type { importSourceNames } from './sources'
+export type ImportSource = keyof typeof importSourceNames
 export type SpreadsheetMapping = { name: string; recordType: 'gift'|'donor'|'note'; columns: {column:string;field:string;sheet?:string}[]; translations?: {fund?:Record<string,string>;method?:Record<string,string>}; donorMatches?: Record<string,{id:string;version:number}> }
 export type ExportFile = { name: string; base64: string }
 export type SourceLocation = { file: string; sheet: string; row: number }
@@ -29,7 +32,7 @@ export type ParsedRelationship = Located & { externalId: string; donorExternalId
 export type ParsedSoftCredit = Located & { externalId: string; donorExternalId: string; giftExternalId: string; amountCents: number; pledgeExternalId: string; acknowledgment?: ParsedAcknowledgment }
 export type ParsedPledge = Located & { externalId: string; donorExternalId: string; pledgedOn: string; amountCents: number; fund: string; note: string }
 export type ParsedInstallment = Located & { externalId: string; pledgeExternalId: string; dueOn: string; amountCents: number }
-export type ParsedNote = Located & { externalId: string; donorExternalId: string; text: string; date: string; type: string }
+export type ParsedNote = Located & { sourceObject?:'action'|'activity'|'note'; externalId: string; donorExternalId: string; text: string; date: string; type: string }
 export type Total = { giftCount: number; amountCents: number }
 export type ImportTotals = Total & { byYear: Record<string, Total>; byFund: Record<string, Total>; byDonor: Record<string, Total>; complete: boolean }
 export type ControlTotal = Located & {
@@ -42,6 +45,7 @@ export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:st
 export type ParsedRecurringReference = Located & {externalId:string;donorExternalId:string;amountCents:number;frequency:string;status:string;method:string;campaign:string;nextOn:string|null;customerReference:string|null;paymentMethodReference:string|null}
 export type SourceCoverage = { currency?:string; counts:Record<string,number>; unsupported:string[] }
 export type ParsedImport = { sourceCoverage?:SourceCoverage;
+ columnDefinitions?:SourceDefinition[];columnMappings?:FieldMapping[];
  recurringReferences?:ParsedRecurringReference[];
  spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
  relationships: ParsedRelationship[]; softCredits: ParsedSoftCredit[]; pledges: ParsedPledge[]
@@ -49,6 +53,6 @@ export type ParsedImport = { sourceCoverage?:SourceCoverage;
  sourceTotals: ImportTotals; mappedTotals: ImportTotals; controlTotals: ControlTotal[]
  files: { name: string; bytes: number; sheets: string[]; rows: number }[]
 }
-export type ParseInput = { neon?:{organizationId:string;apiKey:string;currency?:string}; givebutterKey?:string; givebutterAmountUnit?:'cents'|'dollars'; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
+export type ParseInput = { deferCustomValues?:boolean; neonExportCurrency?:string; neon?:{organizationId:string;apiKey:string;currency?:string}; givebutterKey?:string; givebutterAmountUnit?:'cents'|'dollars'; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
 export type Cell = string | number | boolean | Date | null
 export type Table = { file: string; sheet: string; rows: Cell[][] }

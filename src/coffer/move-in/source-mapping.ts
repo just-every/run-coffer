@@ -61,7 +61,7 @@ function note(r: SourceRow, out: ParsedImport, standalone = false) {
  const text = r.get('note'); if (!text) { if (standalone) r.error('NOTE', 'Fill Note with the note text, or remove this empty note row.', 'note'); return }
  const donorExternalId = r.required('donorId'), date = r.peek('noteDate') ? r.date('noteDate') : standalone && r.peek('date') ? r.date('date') : ''
  const externalId = r.get('noteId') || provenanceId(r, 'note'), type = r.get('noteType').toLowerCase()
- if (donorExternalId) out.notes.push({ location: r.location, externalId, donorExternalId, text, date, type })
+ if (donorExternalId) out.notes.push({ location: r.location, sourceObject:out.source==='re-nxt'&&r.headers.some(h=>normalizeLabel(h)==='actionid')?'action':out.source==='neon'&&r.headers.some(h=>normalizeLabel(h)==='activityid')?'activity':'note',externalId, donorExternalId, text, date, type })
 }
 const RELATIONSHIP_TYPES: Record<string, string> = { spouse: 'spouse', employer: 'employer', boardmember: 'board_member', foundationofficer: 'foundation_officer', introducedby: 'introduced_by' }
 function relationship(r: SourceRow, out: ParsedImport) {

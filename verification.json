@@ -10,19 +10,22 @@
     },
     {
       "name": "source",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004"
+        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010",
+        "node --test --test-name-pattern=\"^MOVE-010: Bloomerang\" tests/move-in.test.mjs"
       ]
     },
     {
       "name": "typecheck",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run typecheck"
+        "pnpm run typecheck",
+        "node --test --test-name-pattern=\"^MOVE-010: Little Green Light\" tests/move-in.test.mjs",
+        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-005:' tests/move-in.test.mjs"
       ]
     },
     {
@@ -44,10 +47,11 @@
     },
     {
       "name": "donor-records",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-007|DONOR-013):' tests/coffer.test.mjs"
+        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-007|DONOR-013):' tests/coffer.test.mjs",
+        "node --test --test-name-pattern=\"^MOVE-010: Neon\" tests/move-in.test.mjs"
       ]
     },
     {
@@ -141,10 +145,11 @@
     },
     {
       "name": "pipeline-prospects",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-name-pattern='^MAJOR-' tests/pipeline.test.mjs"
+        "node --test --test-name-pattern='^MAJOR-' tests/pipeline.test.mjs",
+        "node --test --test-name-pattern=\"^MOVE-010: NXT\" tests/move-in.test.mjs"
       ]
     },
     {
@@ -152,7 +157,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005|MOVE-010):' tests/move-in.test.mjs"
       ]
     },
     {
@@ -160,7 +165,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-013|MOVE-005):' tests/move-in.test.mjs",
+        "node --test --test-name-pattern=\"^MOVE-010: Spreadsheet\" tests/move-in.test.mjs"
       ]
     },
     {
