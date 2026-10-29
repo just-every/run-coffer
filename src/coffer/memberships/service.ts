@@ -49,9 +49,10 @@ export async function recordMembershipPayment(env:GivingEnv,intent:Row,sub:Row,i
  if(invoice.amount_paid!==quote.price_cents||sub.items?.data?.length!==1||months!==quote.term_months||sub.items.data[0].price.unit_amount!==quote.price_cents)return
  const zone=(await settings(c)).timezone,period=invoice.lines?.data?.find((l:Row)=>l.period&&(!l.subscription||l.subscription===sub.id))?.period
  const start=period?.start??invoice.period_start??invoice.status_transitions.paid_at,end=period?.end??invoice.period_end
- if(!Number.isSafeInteger(start)||end!==undefined&&!Number.isSafeInteger(end))return
+ if(!Number.isSafeInteger(start)||end!==undefined&&(!Number.isSafeInteger(end)||end<=start))return
+ // The refetched paid invoice owns its period: UTC billing anchors can cross
+ // local daylight-saving dates and return to the original day after February.
  const starts=today(zone,new Date(start*1000)),expires=end?today(zone,new Date(end*1000)):endOfTerm(starts,quote.term_months)
- if(expires!==endOfTerm(starts,quote.term_months))return
  const membershipId='membership-'+intent.id
  await paymentWrite(env,[
   sql('INSERT OR IGNORE INTO cf_memberships(id,donor_id,intent_id,subscription_id,created_at) SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_memberships WHERE intent_id=? AND subscription_id<>?)',membershipId,intent.donor_id,intent.id,sub.id,new Date().toISOString(),intent.donor_id,intent.id,sub.id),
