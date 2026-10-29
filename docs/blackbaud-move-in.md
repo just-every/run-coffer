@@ -3,7 +3,7 @@
 Open **Move in from your CRM → Read Raiser's Edge NXT history**. Supply a current
 Blackbaud access token, the application's subscription key and a reviewed
 `sky-review.json` file. Coffer uses the credentials for this read only; neither
-credential nor source payment tokens enter the review, journal or archive.
+credential nor raw SKY payment tokens enter the review, journal or archive.
 Acquiring production OAuth authority is a separate prerequisite. This adapter
 does not connect, refresh tokens, write to Blackbaud, stop source plans or start
 replacement charges.
@@ -88,12 +88,13 @@ Changes to that owner or pipeline configuration invalidate the approval.
 
 Map all source fund, campaign, appeal and contact-type IDs or labels actually
 encountered. Contacts retain their source values and explicit primary flags.
-Every returned active email, phone and undated address is retained, with its
-source identity, mapped type and exactly one explicit primary per present kind.
+Every returned email, phone and undated address is retained, with its source
+identity, mapped type, primary flag and active or inactive state. Every present
+current kind has one explicit primary.
 There is no three-email or two-address truncation. Contact reads explicitly
-include inactive records so an unsupported historical record blocks preview
-instead of disappearing. Unsupported types, dated or inactive contacts require separate
-review. Available native types are personal, work and other for email; mobile,
+include inactive records. Inactive history remains visible in the preview and
+the owner-only source-history read; it never becomes a current contact choice.
+Unsupported types, dated or seasonal contacts require separate review. Available native types are personal, work and other for email; mobile,
 home and work for phone; home, work, vacation and other for undated addresses.
 
 Use the existing **Code meanings** review for each solicit code, for example:
@@ -186,6 +187,33 @@ ConstituentId and FuzzyDate categories, dated or annotated values and other
 unsupported source types still require a separate migration. This adapter does
 not establish full MOVE-010 parity for those categories or for other importers.
 
+## Recurring schedule history
+
+A supported `RecurringGift` records its amount, status, source designations,
+frequency, start, optional end and next transaction date as evidence. The
+returned `recurring_gift_schedule` supplies those facts for automated source
+plans. For a manual source plan, the optional `plans` dictionary, keyed by the
+source gift ID, must supply a source-attested `schedule` using exactly those
+SKY field names. If both exist they must agree. Supported source frequencies
+are weekly, every two weeks, every four weeks, monthly, quarterly and annually;
+card and direct-debit methods are retained as methods, without the raw account
+token. The status must be explicit. Incomplete dates, unsupported methods or
+unmapped commitment custom values refuse the whole preview.
+
+An attested plan entry may also supply opaque `customerReference` and
+`paymentMethodReference` values from the processor transfer evidence. Missing
+references remain missing. A stored reference establishes no provider usability,
+account authority, debit permission or billing approval. Coffer never retains
+the source response's payment token. Commitment acknowledgment, receipt and
+tribute facts still need separate native mappings and are refused if present.
+
+A `RecurringGiftPayment` needs exactly one read source recurring parent for the
+same constituent. Payments become ordinary historical cash gifts once; their
+source parent remains in their note and the plan's payment-ID history. The
+schedule itself adds no cash and creates no active subscription. Undo, archive
+restore, native merge and erasure preserve this separation. An actual vault
+transfer, provider qualification and replacement schedule remain separate work.
+
 ## Apply, reconcile and undo
 
 Review first, then explicitly confirm apply. One source payment remains **one
@@ -207,8 +235,8 @@ Archives retain the imported history and mappings. Native merge and erasure
 rules apply, and an erased constituent cannot be recreated by replay.
 
 The following remain outside this slice: reference and partial-date custom definitions, dated or annotated values; completed opportunity-linked actions;
-multiple funding links or opportunity fundraisers; split promises; recurring gifts and vault
-transfer; other unsupported gift types and remaining source-object coverage;
+multiple funding links or opportunity fundraisers; split promises; recurring commitment custom values and acknowledgment facts;
+vault transfer and replacement schedules; other unsupported gift types and remaining source-object coverage;
 production OAuth and live provider qualification. Unsupported objects returned
 by a fetched door are refused. Objects from other, unfetched doors remain
 unclaimed and must be inventoried before cutover. No source plan is cancelled

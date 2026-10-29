@@ -8,8 +8,8 @@ const error=(message:string):never=>fail('SKY_CONTACTS',message+' Nothing was ap
 /** Read every current contact, preserving source identities and primary flags.
  * Unsupported historical periods are refused, never silently filtered out. */
 export function blackbaudContacts(points:Row[],kind:ParsedContact['kind'],donorId:string,types:Row) {
- if(points.some(v=>v.constituent_id!==donorId||v.inactive||v.start||v.end||v.seasonal_start||v.seasonal_end))error('Inactive, dated or seasonal source contacts require a separate migration.')
- if(points.length&&points.filter(v=>kind==='address'?v.preferred===true:v.primary===true).length!==1)error('Each present contact kind needs one explicit primary.')
+ if(points.some(v=>v.constituent_id!==donorId||v.inactive!==undefined&&typeof v.inactive!=='boolean'||v.start||v.end||v.seasonal_start||v.seasonal_end))error('Dated, seasonal or incomplete source contacts require a separate migration.')
+ if(points.some(v=>!v.inactive)&&points.filter(v=>!v.inactive&&(kind==='address'?v.preferred===true:v.primary===true)).length!==1)error('Each present contact kind needs one explicit primary.')
  const contacts:ParsedContact[]=[],seen=new Set<string>()
  for(const v of points) {
   const type=Object.hasOwn(types,kind+':'+v.type)?types[kind+':'+v.type]:undefined
@@ -25,9 +25,9 @@ export function blackbaudContacts(points:Row[],kind:ParsedContact['kind'],donorI
    if(lines.length>2)error('More than two source postal lines require a separate mapping.')
    value=JSON.stringify({line1:text(lines[0],'Source address'),line2:optional(lines[1],'Source address line 2'),city:text(v.city,'Source city',100),region:text(v.state,'Source state',100),postalCode:text(v.postal_code,'Source postal code',20),country:optional(v.country,'Source country',100)??'United States'})
   }
-  if(seen.has(value))error('Repeated source contact values need review before applying.')
-  seen.add(value)
-  contacts.push({externalId:donorId+':'+kind+':'+v.id,kind,type,value,primary:primary===true,startsOn:null,endsOn:null})
+  if(!v.inactive&&seen.has(value))error('Repeated current source contact values need review before applying.')
+  if(!v.inactive)seen.add(value)
+  contacts.push({active:v.inactive!==true,externalId:donorId+':'+kind+':'+v.id,kind,type,value,primary:primary===true,startsOn:null,endsOn:null})
  }
  return contacts
 }

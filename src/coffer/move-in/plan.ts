@@ -126,7 +126,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   for(const point of d.contacts??[]){
    const prior=existing.get(`contact:${await sourceKey(point.externalId)}`)
    if(!owned&&!prior)continue
-   await add('contact',{...point,location:d.location},{donor_id:donorId,kind:point.kind,type:point.type,value:point.value,active:1,is_primary:point.primary?1:0,starts_on:point.startsOn,ends_on:point.endsOn,version:1,source:source+' move-in',source_on:c.now.slice(0,10),updated_at:c.now},undefined,donorId)
+   await add('contact',{...point,location:d.location},{donor_id:donorId,kind:point.kind,type:point.type,value:point.value,active:point.active===false?0:1,is_primary:point.primary?1:0,starts_on:point.startsOn,ends_on:point.endsOn,version:1,source:source+' move-in',source_on:c.now.slice(0,10),updated_at:c.now},undefined,donorId)
   }
  }
  await planSolicitationImports(c,parsed,plan,existing,add,readSet)
@@ -237,7 +237,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(['call','meeting','email'].includes(n.type))await add('interaction',n,{donor_id:donorId,kind:n.type,occurred_on:n.date,who:`${source} export`,notes:n.text,next_step:null,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
   else await add('note',n,{donor_id:donorId,occurred_on:n.date,body:n.text,source,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
- for(const r of parsed.recurringReferences??[])await add('recurringReference',r,{donor_id:plan.donorIds.get(r.donorExternalId),source,source_id:r.externalId,amount_cents:r.amountCents,frequency:r.frequency,status:r.status,method:r.method,campaign:r.campaign,next_on:r.nextOn,customer_reference:r.customerReference,payment_method_reference:r.paymentMethodReference,imported_at:c.now},undefined,plan.donorIds.get(r.donorExternalId))
+ for(const r of parsed.recurringReferences??[])await add('recurringReference',r,{donor_id:plan.donorIds.get(r.donorExternalId),source,source_id:r.externalId,amount_cents:r.amountCents,frequency:r.frequency,status:r.status,method:r.method,campaign:r.campaign,next_on:r.nextOn,customer_reference:r.customerReference,payment_method_reference:r.paymentMethodReference,imported_at:c.now,source_details:JSON.stringify(r.details??{})},undefined,plan.donorIds.get(r.donorExternalId))
  for(const o of parsed.opportunities??[]){
   try {
    const prepared=await importedOpportunity(c,o,plan.donorIds.get(o.donorExternalId)??'',{opportunityId:existing.get(`opportunity:${await sourceKey(o.externalId)}`)?.native_id,giftId:o.linkedGiftExternalId?existing.get(`gift:${await sourceKey(o.linkedGiftExternalId)}`)?.native_id??await nativeId(source,'gift',o.linkedGiftExternalId):undefined,pledgeId:o.linkedPledgeExternalId?existing.get(`pledge:${await sourceKey(o.linkedPledgeExternalId)}`)?.native_id??await nativeId(source,'pledge',o.linkedPledgeExternalId):undefined})
