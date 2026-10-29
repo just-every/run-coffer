@@ -42,10 +42,10 @@ export async function bankCheckoutState(env: GivingEnv, saved: Row, suppliedSess
  if(charge.id!==chargeId||stripeId(charge.payment_intent)!==piId||stripeId(charge.customer)!==saved.customer_id||charge.currency!=='usd'||charge.amount!==saved.amount_cents||charge.payment_method_details?.type!=='us_bank_account'||stripeId(charge.payment_method)!==method||!opaque(mandate,'mandate_'))fail('bank_mismatch','Stripe returned a different bank authorization.',409)
  if(prior&&(prior.payment_intent_id!==piId||prior.payment_method_id!==method||prior.mandate_id!==mandate))fail('bank_changed','This bank checkout authorization changed. No gift was recorded.',409)
  const authorization=await stripe(env,'/mandates/'+encodeURIComponent(mandate))
- // A late return can deactivate an already captured mandate before its success
- // notification arrives. Reconcile that same independently settled payment;
+ // A late return can deactivate the mandate before any notification arrives.
+ // Reconcile that same independently settled payment;
  // an inactive mandate grants no new collection or pending-payment authority.
- const historicalMandate=prior&&payment.status==='succeeded'&&authorization.status==='inactive'
+ const historicalMandate=payment.status==='succeeded'&&authorization.status==='inactive'
  if(authorization.id!==mandate||stripeId(authorization.payment_method)!==method||(authorization.status!=='active'&&!historicalMandate)||authorization.payment_method_details?.type!=='us_bank_account'||authorization.customer_acceptance?.type!=='online'||(!Number.isSafeInteger(authorization.customer_acceptance?.accepted_at)||authorization.customer_acceptance.accepted_at<=0))fail('bank_mandate','Stripe has not confirmed the bank mandate.',409)
  if(payment.status==='succeeded'&&(session.payment_status!=='paid'||charge.status!=='succeeded'||!charge.paid||!charge.balance_transaction||payment.amount_received!==saved.amount_cents))fail('bank_uncertain','Stripe has not confirmed settled funds.',409)
  if(payment.status==='succeeded'){
