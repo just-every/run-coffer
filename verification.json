@@ -1,88 +1,11 @@
 {
   "push": [
     {
-      "name": "record-documents",
+      "name": "documents",
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test tests/documents.test.mjs"
-      ]
-    },
-    {
-      "name": "source",
-      "browser": false,
-      "hosted": false,
-      "commands": [
-        "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004"
-      ]
-    },
-    {
-      "name": "typecheck",
-      "browser": false,
-      "hosted": false,
-      "commands": [
-        "pnpm run typecheck"
-      ]
-    },
-    {
-      "name": "runtime",
-      "browser": true,
-      "hosted": true,
-      "commands": [
-        "pnpm run build",
-        "pnpm run test:runtime"
-      ]
-    },
-    {
-      "name": "donors",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DONOR-004|DONOR-005|DONOR-007|DONOR-013|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001|API-002):' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-records",
-      "browser": false,
-      "hosted": false,
-      "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-007|DONOR-013):' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-solicitation",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_SMS_BROWSER=.cache/sms node --test --test-concurrency=1 --test-name-pattern='^DONOR-015:' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-addresses",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-009:' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-operations",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_EXPORTS_BROWSER=.cache/report-exports node --test --test-concurrency=1 --test-name-pattern='^(DATA-002|GIFT-002|GIFT-010|STEW-005):' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-custody",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test --test-concurrency=1 tests/demo.test.mjs",
-        "node --test tests/audit.test.mjs",
-        "node --test tests/hosted-restore.test.mjs",
-        "node --test tests/portability-http.test.mjs"
+        "COFFER_DOCUMENT_BROWSER=.cache/record-documents node --test '--test-name-pattern=^DONOR\\-008:\\ attach,\\ preview\\ and\\ export\\ record\\ documents,\\ restore\\ their\\ R2\\ bytes,\\ and\\ erase\\ them\\ with\\ the\\ constituent$' tests/documents.test.mjs"
       ]
     },
     {
@@ -90,7 +13,58 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test --test-skip-pattern='^(CAMP-001|GIFT-011|GIVE-003)' tests/giving.test.mjs"
+        "COFFER_PRINT_BROWSER=.cache/print-letters node --test '--test-name-pattern=^RCPT\\-003:\\ PDF\\ letters,\\ Avery\\ labels,\\ envelopes,\\ Word\\ merge,\\ reviewed\\ donor\\ copies\\ and\\ tracked\\ postal\\ delivery$' tests/receipts.test.mjs",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_RECOGNITION_BROWSER=.cache/recognition node --test '--test-name-pattern=^GIFT\\-011:\\ checkout\\ publication\\ choices,\\ donor\\ and\\ gift\\ anonymity,\\ honor\\ rolls\\ and\\ custody$' tests/giving.test.mjs",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test '--test-name-pattern=^CAMP\\-002:\\ hosted\\ gala\\ tickets\\ preserve\\ receipt\\ benefits,\\ phone\\ attendance,\\ scoring\\ and\\ custody$' tests/giving.test.mjs",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^RCPT\\-009:\\ household\\ postal\\ appeals\\ freeze\\ consenting\\ addressees,\\ distinct\\ hard\\ gifts,\\ piece\\ counts\\ and\\ version\\ guards$' tests/receipts.test.mjs",
+        "COFFER_TIMELINE_BROWSER=.cache/timeline COFFER_WEBHOOK_BROWSER=.cache/webhooks node --test '--test-name-pattern=^DONOR\\-004:\\ fast\\ role\\-scoped\\ timeline\\ logging,\\ complete\\ current\\ activity\\ and\\ inclusive\\ filters$' tests/coffer.test.mjs",
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-014\\ /\\ DEV\\-009:\\ reconcile\\ five\\ dropped\\ appeal\\ recipients\\ against\\ the\\ frozen\\ audience\\ and\\ signed\\ gifts,\\ then\\ prepare\\ a\\ human\\-approved\\ resend$' tests/agent-appeals.test.mjs",
+        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 '--test-name-pattern=^RCPT\\-010\\ /\\ DONOR\\-013:\\ reviewed\\ pledge\\ templates\\ hold\\ blanks,\\ freeze\\ literal\\ wording\\ and\\ use\\ the\\ chosen\\ current\\ email\\ once$' tests/pledges.test.mjs",
+        "COFFER_MEETING_BROWSER=.cache/meeting-briefs COFFER_CALENDARS_BROWSER=.cache/calendars node --test '--test-name-pattern=^DEV\\-006:\\ schedule,\\ day\\-ahead\\ source\\-linked\\ brief,\\ existing\\ research\\ boundaries\\ and\\ custody$' tests/stewardship.test.mjs",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^RCPT\\-011:\\ versioned\\ gift\\ thank\\-yous,\\ role\\ boundaries,\\ separate\\ soft\\-credit\\ queue,\\ sender\\ acceptance\\ and\\ bounce\\ recovery$' tests/receipts.test.mjs",
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 '--test-name-pattern=^DEV\\-011:\\ monthly\\ development\\ reports\\ cite\\ their\\ sources\\ and\\ require\\ exact\\ director\\ approval\\ before\\ submission$' tests/stewardship.test.mjs",
+        "node --test '--test-name-pattern=^MAJOR\\-004:\\ every\\ constituent\\ has\\ transparent\\ configurable\\ engagement\\ and\\ independent\\ retention\\ risk$' tests/pipeline.test.mjs",
+        "node --test '--test-name-pattern=^MAJOR\\-005:\\ restricted\\ WealthEngine\\ screening\\ retains\\ estimates\\ with\\ provenance\\ and\\ donor\\ custody$' tests/pipeline.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^DONOR\\-010:\\ recorded\\ and\\ imported\\ volunteer\\ roles,\\ yearly\\ hours,\\ never\\-given\\ segments,\\ scoring\\ and\\ custody$' tests/pipeline.test.mjs",
+        "node --test '--test-name-pattern=^MOBILE\\-001:\\ phone\\ lookup,\\ call,\\ meeting,\\ gift\\ and\\ tasks\\ use\\ direct\\ actions\\ with\\ visible\\ restrictions\\ and\\ every\\ staff\\ screen\\ fits$' tests/coffer.test.mjs",
+        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 '--test-name-pattern=^dated\\ pledges\\ remind\\ once,\\ match\\ real\\ gifts\\ by\\ fund\\ and\\ donor,\\ and\\ reopen\\ balances\\ on\\ reversal$' tests/pledges.test.mjs",
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 '--test-name-pattern=^HTTP\\ reconciliation\\ corrects\\ refunded\\ amount\\ and\\ fund,\\ syncs\\ a\\ missing\\ charge,\\ and\\ undoes\\ through\\ immutable\\ compensation$' tests/agent-reconciliation.test.mjs",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test '--test-name-pattern=^REPORT\\-006:\\ monthly\\ health\\ preserves\\ starts,\\ amount\\ changes,\\ failed\\ payments,\\ recoveries\\ and\\ cancellations\\ across\\ the\\ clock$' tests/giving.test.mjs",
+        "node --test '--test-name-pattern=^DONOR\\-014:\\ Mailchimp\\ audience\\ names\\ follow\\ parts\\ and\\ typed\\ overrides\\ for\\ subscribed\\ and\\ new\\ pending\\ members\\ without\\ overriding\\ opt\\-outs$' tests/communications.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^IMPORT\\-001:\\ saved\\ Stripe\\ refunds,\\ every\\ duplicate\\ row,\\ dry\\ run,\\ exact\\ review,\\ journal\\ and\\ undo$' tests/coffer.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^IMPORT\\-001:\\ undo\\ stops\\ at\\ an\\ imported\\ donor\\ a\\ person\\ has\\ since\\ built\\ on$' tests/coffer.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^STEW\\-001:\\ daily\\ task\\ reminders,\\ manager\\ escalation\\ and\\ owner\\ fallback\\ preserve\\ timeline\\ completion$' tests/pipeline.test.mjs",
+        "COFFER_EXPORTS_BROWSER=.cache/report-exports node --test --test-concurrency=1 '--test-name-pattern=^GIFT\\-010:\\ typed\\ stock,\\ DAF\\ and\\ IRA\\ gifts\\ preserve\\ credit,\\ receipt\\ custody\\ and\\ tax\\-report\\ totals$' tests/coffer.test.mjs",
+        "COFFER_EXPORTS_BROWSER=.cache/report-exports node --test --test-concurrency=1 '--test-name-pattern=^STEW\\-005:\\ reviewed\\ rules\\ act\\ once\\ on\\ live\\ gifts\\ and\\ never\\ on\\ historical\\ imports$' tests/coffer.test.mjs"
+      ]
+    },
+    {
+      "name": "donors",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_RECOVERY_BROWSER=.cache/monthly-recovery node --test '--test-name-pattern=^GIVE\\-006:\\ failed\\ monthly\\ gifts\\ recover\\ on\\ Stripe\\ retries,\\ exhausted\\ invoices\\ become\\ owned\\ calls,\\ and\\ expiring\\ cards\\ warn\\ once$' tests/agent-recovery.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^MOVE\\-005:\\ Givebutter\\ and\\ Zeffy\\ history\\ reconciles\\ reviewed\\ cash,\\ source\\ acknowledgments,\\ households\\ and\\ recurring\\ custody$' tests/move-in.test.mjs",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^RCPT\\-007\\ /\\ RCPT\\-010:\\ reviewed\\ thank\\-you\\ templates\\ by\\ kind\\ and\\ campaign,\\ checked\\ facts,\\ precedence\\ and\\ the\\ version\\ on\\ every\\ letter$' tests/receipts.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-014\\ /\\ DONOR\\-002:\\ organizations\\ retain\\ their\\ own\\ gifts,\\ two\\ named\\ contacts,\\ addressed\\ receipts\\ and\\ state\\ attribution$' tests/coffer.test.mjs",
+        "node --test '--test-name-pattern=^DONOR\\-012:\\ deceased\\ and\\ inactive\\ constituents\\ leave\\ every\\ send,\\ task\\ and\\ statement\\ path\\ with\\ a\\ counted\\ reason,\\ and\\ survivors\\ are\\ addressed$' tests/status.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^MOVE\\-006:\\ mapped\\ spreadsheets\\ reconcile\\ gift\\ history,\\ native\\ matches,\\ source\\ preferences\\ and\\ guarded\\ custody$' tests/move-in.test.mjs",
+        "COFFER_TIMELINE_BROWSER=.cache/timeline COFFER_WEBHOOK_BROWSER=.cache/webhooks node --test '--test-name-pattern=^API\\-002:\\ signed\\ native\\ events\\ retain\\ failed\\ delivery\\ attempts,\\ backoff\\ and\\ explicit\\ replay$' tests/coffer.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^REPORT\\-008:\\ giving\\ by\\ state\\ assigns\\ each\\ gift\\ to\\ the\\ address\\ on\\ its\\ date\\ and\\ sums\\ to\\ the\\ ledger$' tests/coffer.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^STEW\\-002:\\ quarterly\\ completion\\ and\\ overdue\\ monthly\\ Cron\\ create\\ exactly\\ one\\ next\\ task,\\ including\\ month\\ ends\\ and\\ custody$' tests/pipeline.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^ACK\\-001\\ /\\ MOVE\\-001\\.\\.003\\ /\\ MOVE\\-007\\ \u2014\\ lgl:\\ exports\\ reconcile,\\ source\\ acknowledgment\\ facts\\ govern\\ due\\ gifts,\\ export\\ exactly\\ and\\ undo$' tests/move-in.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^REPORT\\-001:\\ three\\-year\\ cohorts,\\ fiscal\\ boundaries,\\ movements\\ and\\ scoped\\ ledger\\ drilldowns$' tests/pipeline.test.mjs",
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 '--test-name-pattern=^DEV\\-008:\\ evidence\\-backed\\ hygiene\\ proposals\\ require\\ human\\ review\\ and\\ use\\ audited\\ native\\ commands$' tests/agent-receipts.test.mjs",
+        "node --test '--test-name-pattern=^a\\ split\\ check\\ keeps\\ one\\ payment\\ and\\ one\\ receipt\\ while\\ reporting\\ each\\ fund\\ and\\ its\\ reversal$' tests/split-gifts.test.mjs",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test '--test-name-pattern=^GIVE\\-008:\\ signed\\ keyword\\ links\\ prefill\\ the\\ mobile\\ form,\\ attribute\\ paid\\ gifts\\ and\\ honor\\ STOP\\ without\\ marketing\\ grants$' tests/giving.test.mjs",
+        "node --test '--test-name-pattern=^Managed\\ receipt\\ refusal\\ and\\ uncertain\\ acceptance\\ never\\ retry\\ or\\ claim\\ delivery$' tests/hosted-mail.test.mjs",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^RCPT\\-002\\ RCPT\\-006:\\ approved\\ receipts\\ survive\\ marketing\\ opt\\-outs,\\ send\\ once,\\ track\\ delivery\\ and\\ route\\ bounces\\ to\\ print$' tests/receipts.test.mjs",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^a\\ calendar\\-year\\ statement\\ itemizes\\ every\\ unreversed\\ gift\\ and\\ totals\\ deductible\\ giving$' tests/receipts.test.mjs",
+        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments node --test '--test-name-pattern=^FIN\\-005:\\ a\\ month\\ of\\ pending\\ ACH,\\ late\\ refunds,\\ offline\\ batches\\ and\\ posted\\ payouts\\ accounts\\ for\\ every\\ cent$' tests/payments.test.mjs",
+        "node --test '--test-name-pattern=^STEW\\-003:\\ an\\ anniversary\\ enrolls\\ on\\ the\\ calendar\\ day\\ and\\ its\\ later\\ steps\\ remain\\ active$' tests/communications.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^inherited\\ dispatch\\ names\\ stay\\ unknown\\ without\\ exposing\\ Worker\\ bindings$' tests/coffer.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^a\\ donor\\ entered\\ by\\ hand\\ is\\ erased\\ before\\ any\\ import\\ exists$' tests/coffer.test.mjs",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test '--test-name-pattern=^GIVE\\-007:\\ address\\ bursts\\ pause\\ giving,\\ alert\\ administrators\\ and\\ count\\ verified\\ Radar\\ failures\\ without\\ donor\\ records$' tests/giving.test.mjs"
       ]
     },
     {
@@ -98,37 +72,28 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-skip-pattern='^(RCPT-003|RCPT-012):' tests/receipts.test.mjs"
-      ]
-    },
-    {
-      "name": "payments",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments pnpm run test:payments",
-        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-name-pattern='^RCPT-012:' tests/receipts.test.mjs",
-        "node --test tests/hosted-mail.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-depth",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 --test-skip-pattern='^GIFT-005' tests/soft-credits.test.mjs tests/pledges.test.mjs",
-        "node --test tests/giving-summary.test.mjs",
-        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test tests/duplicates.test.mjs"
-      ]
-    },
-    {
-      "name": "donor-identity",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test tests/status.test.mjs",
-        "COFFER_NAMES_BROWSER=.cache/names node --test tests/names.test.mjs",
-        "node --test tests/split-gifts.test.mjs"
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 '--test-name-pattern=^DEV\\-002:\\ explicit\\ standing\\ approval\\ and\\ donor\\ permissions\\ govern\\ scheduled\\ notices,\\ named\\-lead\\ review,\\ real\\ portal\\ stops\\ and\\ recovery\\ attribution$' tests/agent-recovery.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-005:\\ reviewed\\ incumbent\\ custom\\ columns\\ retain\\ typed\\ source\\ values,\\ replay\\ and\\ archive\\ custody,\\ and\\ guard\\ undo$' tests/move-in.test.mjs",
+        "node --test '--test-name-pattern=^REPORT\\-005:\\ saved\\ selections\\ send\\ current\\ weekly\\ and\\ monthly\\ report\\ attachments\\ once\\ to\\ explicitly\\ approved\\ recipients$' tests/communications.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^saved\\ reports\\ share\\ current\\ selections,\\ export\\ exact\\ records\\ and\\ move\\ definitions\\ between\\ installations$' tests/pipeline.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-001\\ /\\ DONOR\\-006:\\ asynchronous\\ incumbent\\ imports\\ keep\\ distinct\\ shared\\-contact\\ identities\\ and\\ gifts\\ in\\ duplicate\\ review$' tests/move-in.test.mjs",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^RCPT\\-005:\\ written\\ acknowledgments,\\ quid\\ pro\\ quo,\\ frozen\\ token\\ exceptions,\\ religious\\ and\\ property\\ receipts$' tests/receipts.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^backup\\ restores\\ donors,\\ gifts,\\ consent,\\ approvals\\ and\\ import\\ custody\\ into\\ an\\ empty\\ installation\\ only$' tests/coffer.test.mjs",
+        "node --test '--test-name-pattern=^RCPT\\-010:\\ welcome\\ fields\\ share\\ the\\ receipt\\ catalog,\\ hold\\ missing\\ recipients\\ before\\ handoff\\ and\\ resume\\ with\\ literal\\ custom\\ values$' tests/communications.test.mjs",
+        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments node --test '--test-name-pattern=^FIN\\-001:\\ QuickBooks\\ owner\\ connects,\\ maps\\ three\\ funds\\ and\\ posts\\ exact\\ deposits\\ and\\ separate\\ adjustments\\ once\\ across\\ failure\\ and\\ restore$' tests/payments.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^ACK\\-001\\ /\\ MOVE\\-001\\.\\.003\\ /\\ MOVE\\-007\\ \u2014\\ bloomerang:\\ exports\\ reconcile,\\ source\\ acknowledgment\\ facts\\ govern\\ due\\ gifts,\\ export\\ exactly\\ and\\ undo$' tests/move-in.test.mjs",
+        "node --test '--test-name-pattern=^MAJOR\\-007:\\ planned\\ intentions,\\ legacy\\ enrollment\\ and\\ estate\\ distributions\\ preserve\\ ledger,\\ merge\\ and\\ erasure$' tests/pipeline.test.mjs",
+        "node --test '--test-name-pattern=^MAJOR\\-002:\\ portfolios\\ count\\ manager\\ moves,\\ current\\ pipeline,\\ signed\\ giving\\ and\\ untouched\\ prospects\\ with\\ custody$' tests/pipeline.test.mjs",
+        "node --test '--test-name-pattern=^MAJOR\\-003:\\ dated\\ cultivation\\ tasks\\ and\\ attached\\ proposals\\ retain\\ sending,\\ responses\\ and\\ custody$' tests/pipeline.test.mjs",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^RCPT\\-012:\\ saved\\ waiting\\ gifts,\\ read\\-only\\ report\\ filters\\ and\\ reviewed\\ source\\ acknowledgment\\ links$' tests/receipts.test.mjs",
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 '--test-name-pattern=^DEV\\-003\\ /\\ RCPT\\-010:\\ missing\\ and\\ bounced\\ receipts\\ keep\\ human\\ review\\ or\\ explicit\\ standing\\ approval,\\ custody\\ and\\ delivery\\ recovery$' tests/agent-receipts.test.mjs",
+        "node --test '--test-name-pattern=^STEW\\-003:\\ reply\\ branches\\ create\\ owned\\ tasks\\ once,\\ waits\\ send\\ nothing,\\ and\\ list\\ custody\\ requires\\ explicit\\ resume$' tests/communications.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^API\\-004:\\ MCP\\ donor\\ context\\ and\\ preparation\\ retain\\ native\\ keys\\ and\\ human\\ approval$' tests/coffer.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^an\\ appeal\\ reaches\\ only\\ donors\\ with\\ current\\ consent,\\ and\\ a\\ withdrawal\\ stops\\ it$' tests/coffer.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^GIFT\\-001:\\ gifts\\ are\\ exact\\ integer\\-cent\\ ledger\\ lines;\\ corrections\\ are\\ reversals$' tests/coffer.test.mjs",
+        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test '--test-name-pattern=^merge\\ is\\ manager\\-only\\ and\\ refuses\\ stale\\ fields;\\ undo\\ refuses\\ new\\ uses\\ without\\ moving\\ later\\ gifts$' tests/duplicates.test.mjs",
+        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test '--test-name-pattern=^ordered\\ undo\\ restores\\ earlier\\ import\\ aliases\\ and\\ then\\ reverses\\ the\\ earlier\\ merge\\ without\\ reusing\\ stale\\ versions$' tests/duplicates.test.mjs",
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 '--test-name-pattern=^reconciliation\\ verifies\\ Pantry\\ exact\\ payload\\ and\\ posted\\ journal\\ without\\ submitting\\ twice$' tests/agent-reconciliation.test.mjs"
       ]
     },
     {
@@ -136,31 +101,32 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test --test-skip-pattern='^MAJOR-' tests/pipeline.test.mjs"
-      ]
-    },
-    {
-      "name": "pipeline-prospects",
-      "browser": false,
-      "hosted": false,
-      "commands": [
-        "node --test --test-name-pattern='^MAJOR-' tests/pipeline.test.mjs"
-      ]
-    },
-    {
-      "name": "move-in",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
-      ]
-    },
-    {
-      "name": "move-in-fields",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
+        "node --test '--test-name-pattern=^COMM\\-001:\\ portal\\ topics\\ and\\ channel\\ frequency\\ fence\\ current\\ outreach\\ and\\ retain\\ original\\ preference\\ custody$' tests/communications.test.mjs",
+        "node --test '--test-name-pattern=^hosted\\ command\\ restores\\ records\\ and\\ large\\ retained\\ originals,\\ preserves\\ destination\\ owner\\ and\\ refuses\\ overwrite$' tests/hosted-restore.test.mjs",
+        "COFFER_EXPORTS_BROWSER=.cache/report-exports node --test --test-concurrency=1 '--test-name-pattern=^DATA\\-002:\\ live\\ unpaged\\ list\\ exports\\ reconcile\\ all\\ record\\ types\\ and\\ protect\\ custody$' tests/coffer.test.mjs",
+        "COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test '--test-name-pattern=^CAMP\\-001\\ /\\ GIVE\\-002\\ /\\ PAY\\-004:\\ dated\\ campaigns\\ reconcile\\ gifts\\ and\\ custody;\\ public\\ media\\ pages\\ close\\ new\\ giving\\ and\\ count\\ donors$' tests/giving.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^REPORT\\-002:\\ independent\\ annual\\ LYBUNT/SYBUNT\\ lists\\ feed\\ approved\\ appeals\\ and\\ call\\ tasks\\ with\\ ledger\\ custody$' tests/pipeline.test.mjs",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test '--test-name-pattern=^CAMP\\-002:\\ table\\ and\\ sponsorship\\ packages\\ keep\\ reviewed\\ guest\\ answers\\ private\\ and\\ account\\ for\\ benefits$' tests/giving.test.mjs",
+        "node --test '--test-name-pattern=^STEW\\-003:\\ published\\ journeys\\ enroll\\ live\\ giving\\ cohorts\\ and\\ hold\\ shared\\-frequency\\ work\\ with\\ current\\ consent\\ and\\ custody$' tests/communications.test.mjs",
+        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test '--test-name-pattern=^GIFT\\-001\\ /\\ DONOR\\-003\\ /\\ DONOR\\-006:\\ reciprocal\\ relationships\\ and\\ field\\ choices\\ survive\\ merge,\\ undo\\ and\\ custody\\ without\\ changing\\ cash$' tests/duplicates.test.mjs",
+        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test '--test-name-pattern=^DONOR\\-014\\ /\\ DONOR\\-003:\\ explicit\\ household\\ head,\\ salutations,\\ net\\ money,\\ separate\\ recognition,\\ statements\\ and\\ lifecycle\\ \\(DONOR\\-012\\ /\\ RCPT\\-009\\)$' tests/duplicates.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^REPORT\\-003:\\ fiscal\\ dashboard,\\ explicit\\ goals,\\ exact\\ ledger\\ drilldowns,\\ cohorts,\\ recurring\\ sources\\ and\\ pipeline$' tests/pipeline.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^ACK\\-001:\\ an\\ agent\\ prepares\\ frozen\\ letters,\\ a\\ person\\ approves,\\ exports\\ and\\ records\\ each\\ gift\\ acknowledged\\ by\\ letter$' tests/coffer.test.mjs",
+        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments node --test '--test-name-pattern=^FIN\\-002:\\ closed\\ check\\ deposits\\ retain\\ evidence,\\ approval\\ and\\ uncertain\\-submission\\ custody$' tests/payments.test.mjs",
+        "node --test '--test-name-pattern=^hosted\\ restore\\ preserves\\ gaps,\\ authenticates\\ fragments\\ and\\ retries,\\ and\\ verifies\\ durable\\ bytes\\ before\\ publication$' tests/portability-http.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^erasing\\ a\\ donor\\ removes\\ their\\ personal\\ data\\ and\\ Stripe\\ originals\\ but\\ keeps\\ anonymous\\ gifts$' tests/coffer.test.mjs",
+        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test '--test-name-pattern=^GIFT\\-001\\ /\\ DATA\\-001:\\ erasure\\ removes\\ private\\ merge\\ snapshots\\ and\\ aliases\\ and\\ makes\\ the\\ audit\\ undo\\ unavailable$' tests/duplicates.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^DEV\\-012:\\ named\\ and\\ preparation\\ grants\\ enforce\\ scope,\\ template\\ approval,\\ atomic\\ limits\\ and\\ immediate\\ stops\\ through\\ HTTP,\\ MCP\\ and\\ scheduled\\ jobs$' tests/coffer.test.mjs",
+        "COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test '--test-name-pattern=^GIVE\\-003:\\ recurring\\ schedules\\ preserve\\ three\\ clocked\\ installments,\\ receipts,\\ actual\\ fees\\ and\\ provenance$' tests/giving.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^lgl:\\ a\\ large\\ export\\ moves\\ in\\ part\\ by\\ part,\\ with\\ pledges,\\ soft\\ credits,\\ spouse\\ households\\ and\\ already\\-thanked\\ history$' tests/move-in.test.mjs",
+        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test '--test-name-pattern=^duplicates\\ queue\\ requires\\ contact\\ evidence,\\ pages\\ every\\ pair,\\ and\\ excludes\\ a\\ shared\\ household$' tests/duplicates.test.mjs",
+        "node --test '--test-name-pattern=^STEW\\-003:\\ the\\ minute\\ scheduler\\ advances\\ published\\ welcome\\ steps\\ once\\ and\\ stops\\ a\\ repeat\\ giver$' tests/communications.test.mjs",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^RCPT\\-004:\\ January\\ statements,\\ migration\\ benefit\\ facts,\\ approved\\ copy\\ delivery\\ and\\ corrected\\ reissues$' tests/receipts.test.mjs",
+        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-014\\ /\\ GIFT\\-008:\\ public\\ tribute\\ gifts,\\ private\\ family\\ notifications,\\ source\\ memorial\\ totals\\ and\\ approvals$' tests/soft-credits.test.mjs",
+        "COFFER_HOUSEHOLD_BROWSER=.cache/households COFFER_RELATIONSHIPS_BROWSER=.cache/relationships node --test '--test-name-pattern=^CRM\\ notes\\ and\\ future\\ gifts\\ follow\\ the\\ surviving\\ identity\\ while\\ source\\ totals\\ retain\\ their\\ source\\ constituent$' tests/duplicates.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^DEV\\-010:\\ overdue\\ pledge\\ installments,\\ grant\\ reports\\ and\\ employer\\ matches\\ receive\\ approved\\ reminders,\\ escalation\\ and\\ recorded\\ resolution$' tests/pipeline.test.mjs",
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 '--test-name-pattern=^stewardship\\ uses\\ real\\ cited\\ records,\\ protects\\ the\\ key,\\ and\\ only\\ sends\\ an\\ explicitly\\ reviewed\\ consented\\ version\\ once$' tests/stewardship.test.mjs",
+        "node --test '--test-name-pattern=^FIN\\-003:\\ restricted\\ funds\\ carry\\ purpose\\ and\\ time\\ to\\ accounting\\ and\\ release\\ only\\ received\\ gifts$' tests/split-gifts.test.mjs"
       ]
     },
     {
@@ -168,65 +134,73 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:communications"
+        "COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test '--test-name-pattern=^GIVE\\-001:\\ branded\\ campaign\\ forms\\ embed\\ at\\ desktop\\ and\\ phone\\ widths,\\ retain\\ typed\\ paid\\ answers\\ and\\ refuse\\ changed\\ or\\ erased\\ replay$' tests/giving.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-013:\\ LGL\\ and\\ Bloomerang\\ contact\\ reports\\ preserve\\ three\\ typed\\ emails\\ and\\ two\\ addresses\\ through\\ reviewed\\ replay\\ and\\ guarded\\ undo$' tests/move-in.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-009:\\ verified\\ entry\\ and\\ licensed\\ scheduled\\ address\\ passes\\ preserve\\ moves\\ and\\ exclude\\ undeliverable\\ mail$' tests/coffer.test.mjs",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_RECOGNITION_BROWSER=.cache/recognition node --test '--test-name-pattern=^CAMP\\-005:\\ reviewed\\ auction\\ results\\ retain\\ gross\\ payments,\\ benefits,\\ purchases\\ and\\ bidder\\ balances$' tests/giving.test.mjs",
+        "COFFER_NAMES_BROWSER=.cache/names node --test '--test-name-pattern=^DONOR\\-014:\\ name\\ parts\\ compute\\ informal,\\ formal\\ and\\ envelope\\ names;\\ overrides\\ stay\\ as\\ typed;\\ receipts\\ and\\ imports\\ use\\ them$' tests/names.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^API\\-001:\\ scoped\\ versioned\\ records\\ enforce\\ acknowledgment\\ authority\\ and\\ atomic\\ idempotency$' tests/coffer.test.mjs",
+        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments node --test '--test-name-pattern=^DONOR\\-003\\ /\\ FIN\\-003\\ /\\ FIN\\-004\\ /\\ PAY\\-003\\ /\\ PAY\\-004:\\ signed\\ Stripe\\ gifts,\\ staff\\ refunds,\\ disputes,\\ receipts\\ and\\ fees\\ reconcile\\ and\\ post\\ once\\ after\\ approval$' tests/payments.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-005:\\ typed\\ records,\\ live\\ tag\\ segments,\\ exact\\ gift\\ grouping\\ and\\ pick\\-list\\ renames\\ keep\\ their\\ values$' tests/coffer.test.mjs",
+        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 '--test-name-pattern=^STEW\\-004:\\ scheduled\\ overdue\\ pledge\\ tasks\\ use\\ local\\ dates,\\ current\\ managers,\\ unpaid\\ balances\\ and\\ replay\\-safe\\ public\\ task\\ custody$' tests/pledges.test.mjs",
+        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 '--test-name-pattern=^STEW\\-004:\\ scheduled\\ follow\\-up\\ is\\ a\\ non\\-ask\\ sent\\ once\\ per\\ unpaid\\ installment\\ under\\ current\\ email\\ permission$' tests/pledges.test.mjs",
+        "COFFER_SMS_BROWSER=.cache/sms node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-015:\\ ask\\ restrictions\\ preserve\\ transactional\\ contact\\ and\\ deliberate\\ audited\\ exceptions$' tests/coffer.test.mjs",
+        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 '--test-name-pattern=^GIFT\\-006\\ /\\ RCPT\\-011\\ soft\\-credit\\ acknowledgments\\ and\\ separate\\ retention\\ recognition;\\ gift\\ attribution\\ recognizes\\ other\\ donors\\ without\\ duplicating\\ cash,\\ freezes\\ tributes\\ in\\ receipts,\\ and\\ follows\\ actual\\ employer\\ match\\ reversals$' tests/soft-credits.test.mjs",
+        "node --test '--test-name-pattern=^MAJOR\\-001:\\ configurable\\ opportunity\\ boards\\ and\\ lists\\ link\\ wins\\ once\\ and\\ reconcile\\ the\\ probability\\-weighted\\ forecast$' tests/pipeline.test.mjs",
+        "COFFER_MEETING_BROWSER=.cache/meeting-briefs COFFER_CALENDARS_BROWSER=.cache/calendars node --test '--test-name-pattern=^STEW\\-006:\\ personal\\ calendar\\ connection,\\ donor\\ timeline\\ and\\ signed\\ Calendly\\ booking\\ preparation\\ with\\ custody$' tests/stewardship.test.mjs",
+        "node --test '--test-name-pattern=^hosted\\ receipt\\ submission\\ uses\\ the\\ selected\\ provider\\ once\\ and\\ retains\\ its\\ acceptance\\ without\\ claiming\\ delivery$' tests/hosted-mail.test.mjs",
+        "COFFER_SMS_BROWSER=.cache/sms node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-015:\\ incumbent\\ restrictions\\ retain\\ source\\ meaning,\\ previews,\\ reconciliation\\ and\\ undo\\ across\\ current\\ CRM\\ doors$' tests/coffer.test.mjs",
+        "node --test '--test-name-pattern=^TEAM\\-003:\\ owner\\ filters\\ changes\\ by\\ person,\\ record\\ and\\ action\\ and\\ downloads\\ the\\ same\\ audit\\ as\\ CSV$' tests/audit.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^a\\ lapsed\\ donor\\ becomes\\ an\\ owned\\ call,\\ reassignment\\ and\\ snooze\\ preserve\\ it,\\ and\\ completion\\ logs\\ on\\ the\\ donor$' tests/pipeline.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^sign\\-in,\\ origin\\ checks\\ and\\ every\\ role\\ boundary\\ hold\\ in\\ the\\ server\\ handlers$' tests/coffer.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^lgl:\\ the\\ review\\ lists\\ every\\ row\\ to\\ fix,\\ spouses\\ share\\ an\\ email,\\ and\\ a\\ later\\ year\\ finds\\ earlier\\ donors\\ and\\ pledges$' tests/move-in.test.mjs",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test '--test-name-pattern=^GIVE\\-005:\\ donor\\-only\\ documents,\\ plan\\ self\\-service,\\ verified\\ card\\ replacement,\\ preferences\\ and\\ owned\\ cancellation\\ follow\\-up$' tests/giving.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^REPORT\\-006:\\ connected\\ Stripe\\ move\\-in\\ follows\\ pages,\\ previews\\ monthly\\ plans,\\ checks\\ actual\\ totals\\ and\\ undoes\\ without\\ writing\\ Stripe$' tests/coffer.test.mjs",
+        "node --test '--test-name-pattern=^campaign\\ allocations\\ use\\ their\\ own\\ funds,\\ remain\\ exact\\ for\\ large\\ payments,\\ and\\ refuse\\ ambiguous\\ pledge\\ attribution$' tests/split-gifts.test.mjs"
       ]
     },
     {
-      "name": "agent",
+      "name": "move-in",
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/agent-*.test.mjs tests/stewardship.test.mjs"
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^COMM\\-007:\\ frozen\\ asks,\\ coded\\ batch\\ replies,\\ mailing\\ results\\ and\\ inherited\\ household\\ custody$' tests/receipts.test.mjs",
+        "COFFER_PLEDGE_BROWSER=.cache/pledge-balances node --test '--test-name-pattern=^GIFT\\-005\\ /\\ RCPT\\-007\\ /\\ STEW\\-004:\\ quarterly\\ pledge\\ payments,\\ printable\\ invoices,\\ overdue\\ balances,\\ reasoned\\ reductions,\\ write\\-offs\\ and\\ recurring\\ allocation\\ retain\\ history$' tests/pledges.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-013:\\ typed\\ contact\\ points,\\ atomic\\ primary\\ receipts,\\ all\\-contact\\ lookup,\\ household\\ consent\\ and\\ custody$' tests/coffer.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-007:\\ saved\\ giving\\ and\\ consent\\ lists\\ stay\\ live\\ in\\ appeals,\\ retention\\ and\\ exports;\\ audited\\ bulk\\ tags\\ and\\ managers\\ undo\\ atomically$' tests/coffer.test.mjs",
+        "node --test '--test-name-pattern=^COMM\\-005:\\ routed\\ replies\\ reach\\ managers,\\ withdraw\\ explicit\\ stops\\ once\\ and\\ review\\ ambiguous\\ requests\\ with\\ custody$' tests/communications.test.mjs",
+        "COFFER_SMS_BROWSER=.cache/sms node --test --test-concurrency=1 '--test-name-pattern=^DONOR\\-015:\\ SMS\\ asks\\ honor\\ restrictions\\ while\\ approved\\ thank\\-yous\\ and\\ pledge\\ reminders\\ retain\\ consent,\\ quiet\\ hours\\ and\\ STOP$' tests/coffer.test.mjs",
+        "node --test '--test-name-pattern=^COMM\\-008:\\ email\\ appeal\\ results\\ match\\ signed\\ ledger\\ and\\ sender\\ outcomes\\ with\\ tracking\\ off$' tests/communications.test.mjs",
+        "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test '--test-name-pattern=^RCPT\\-008:\\ annual\\ receipt\\ numbers,\\ half\\-refund\\ corrections,\\ voided\\ reversals,\\ property\\ custody\\ and\\ approved\\ corrected\\ delivery$' tests/receipts.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^GIFT\\-001/GIFT\\-009:\\ property\\ acknowledgments\\ omit\\ internal\\ values,\\ disposal\\ reminders\\ and\\ custody\\ stay\\ separate\\ from\\ cash$' tests/pipeline.test.mjs",
+        "node --test '--test-name-pattern=^DONOR\\-014:\\ Connect\\ Mango\\ from\\ the\\ page,\\ send\\ an\\ approved\\ appeal\\ to\\ a\\ Mango\\ list,\\ and\\ keep\\ opt\\-outs\\ in\\ step$' tests/communications.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^DEV\\-005:\\ weekly\\ manager\\ call\\ priorities\\ preserve\\ capacity,\\ non\\-ask\\ restrictions,\\ overflow\\ and\\ observed\\ giving\\ and\\ retention$' tests/pipeline.test.mjs",
+        "node --test '--test-name-pattern=^MAJOR\\-006:\\ foundation\\ requests\\ become\\ restricted\\ pledges\\ with\\ payment\\ schedules,\\ documents\\ and\\ reporting\\ tasks$' tests/pipeline.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^ACK\\-001\\ /\\ MOVE\\-001\\.\\.003\\ /\\ MOVE\\-007\\ \u2014\\ re\\-nxt:\\ exports\\ reconcile,\\ source\\ acknowledgment\\ facts\\ govern\\ due\\ gifts,\\ export\\ exactly\\ and\\ undo$' tests/move-in.test.mjs",
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test '--test-name-pattern=^REPORT\\-007:\\ Schedule\\ B\\ rules\\ and\\ five\\-year\\ donor\\ giving\\ reconcile\\ to\\ monetary\\ and\\ noncash\\ records$' tests/pipeline.test.mjs",
+        "COFFER_EXPORTS_BROWSER=.cache/report-exports node --test --test-concurrency=1 '--test-name-pattern=^GIFT\\-002:\\ keyboard\\ check\\ batches\\ balance\\ once,\\ preserve\\ defaults\\ and\\ legacy\\ lookup,\\ and\\ create\\ a\\ searchable\\ deposit$' tests/coffer.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^the\\ demo\\ preserves\\ frozen\\ work,\\ holds\\ unverified\\ postal\\ mail\\ and\\ sends\\ no\\ invitation$' tests/demo.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^DATA\\-003:\\ a\\ donor\u2019s\\ own\\ file\\ holds\\ every\\ record\\ type\\ for\\ them\\ and\\ nobody\\ else,\\ and\\ the\\ request\\ is\\ logged$' tests/coffer.test.mjs",
+        "node --test '--test-name-pattern=^TEAM\\-003:\\ the\\ log\\ pages\\ without\\ losing\\ events\\ and\\ identity\\ changes\\ retain\\ their\\ actor$' tests/audit.test.mjs",
+        "node --test '--test-name-pattern=^STEW\\-003:\\ shared\\ welcome\\ caps\\ retain\\ uncertain\\ claims\\ and\\ merged\\ donor\\ custody\\ without\\ automatic\\ retry$' tests/communications.test.mjs",
+        "COFFER_FOLLOWUP_BROWSER=.cache/pledge-followups COFFER_PLEDGE_PAY_BROWSER=.cache/pledge-payments node --test --test-concurrency=1 '--test-name-pattern=^STEW\\-004:\\ quarterly\\ pledge\\ reminder\\ and\\ printed\\ invoice\\ pay\\ exactly\\ the\\ unpaid\\ installment\\ through\\ hosted\\ checkout$' tests/pledges.test.mjs",
+        "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 '--test-name-pattern=^GIFT\\-003:\\ entry,\\ a\\ tracked\\-link\\ form\\ and\\ a\\ CRM\\ import\\ attribute\\ gifts\\ to\\ funds,\\ a\\ campaign,\\ appeals\\ and\\ channels\\ whose\\ totals\\ sum\\ to\\ the\\ ledger$' tests/coffer.test.mjs",
+        "COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test '--test-name-pattern=^CAMP\\-001:\\ recurring\\ campaign\\ progress;\\ a\\ failed\\ monthly\\ donation\\ recovers\\ on\\ its\\ second\\ retry\\ without\\ duplicate\\ gifts,\\ with\\ a\\ private\\ card\\ and\\ cancellation\\ portal$' tests/giving.test.mjs",
+        "node --test '--test-name-pattern=^Managed\\ pledge\\ reminders\\ retain\\ the\\ due\\ consent\\ checks\\ and\\ submit\\ a\\ durable\\ relay\\ attempt\\ only\\ once$' tests/hosted-mail.test.mjs",
+        "node --test '--test-name-pattern=^giving\\ summary\\ follows\\ fiscal\\ boundaries,\\ reversals,\\ pledges\\ and\\ separate\\ recognition$' tests/giving-summary.test.mjs",
+        "node --test --test-concurrency=1 '--test-name-pattern=^MOVE-004: reviewed Neon history preserves money, source acknowledgment, preferences and household custody$' tests/move-in.test.mjs"
       ]
     },
     {
-      "name": "timeline",
+      "name": "runtime",
       "browser": true,
-      "hosted": false,
+      "hosted": true,
       "commands": [
-        "COFFER_TIMELINE_BROWSER=.cache/timeline COFFER_WEBHOOK_BROWSER=.cache/webhooks node --test --test-name-pattern='DONOR-004|API-002' tests/coffer.test.mjs"
-      ]
-    },
-    {
-      "name": "recognition",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_RECOGNITION_BROWSER=.cache/recognition node --test --test-name-pattern='GIFT-011' tests/giving.test.mjs",
-        "COFFER_MEETING_BROWSER=.cache/meeting-briefs COFFER_CALENDARS_BROWSER=.cache/calendars node --test --test-name-pattern='^(DEV-006|STEW-006):' tests/stewardship.test.mjs"
-      ]
-    },
-    {
-      "name": "campaign-progress",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_PLANS_BROWSER=.cache/recurring-plans COFFER_CAMPAIGN_BROWSER=.cache/campaign COFFER_CAMPAIGN_PAGE_BROWSER=.cache/campaign-page node --test --test-name-pattern='CAMP-001|GIVE-003' tests/giving.test.mjs"
-      ]
-    },
-    {
-      "name": "pledge-balances",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_PLEDGE_BROWSER=.cache/pledge-balances node --test --test-name-pattern='GIFT-005' tests/pledges.test.mjs"
-      ]
-    },
-    {
-      "name": "monthly-recovery",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "COFFER_RECOVERY_BROWSER=.cache/monthly-recovery node --test --test-name-pattern=GIVE-006 tests/agent-recovery.test.mjs"
-      ]
-    },
-    {
-      "name": "phone-staff",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node --test --test-name-pattern='^MOBILE-001:' tests/coffer.test.mjs",
-        "COFFER_PRINT_BROWSER=.cache/print-letters node --test --test-name-pattern='^RCPT-003:' tests/receipts.test.mjs"
+        "pnpm run check --profile first-party",
+        "node scripts/contract-docs.mjs check REPORT-004 DATA-004",
+        "pnpm run typecheck",
+        "pnpm run build",
+        "pnpm run test:runtime"
       ]
     }
   ],

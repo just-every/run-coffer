@@ -12,7 +12,7 @@ on:
         default: push
       timeout:
         type: number
-        default: 12
+        default: 10
 
 permissions:
   contents: read
@@ -52,7 +52,7 @@ jobs:
     needs: plan
     if: ${{ needs.plan.outputs.skip != 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ inputs.timeout || ((matrix.name == 'pipeline' || matrix.name == 'donors') && 20 || 12) }}
+    timeout-minutes: ${{ inputs.timeout || 10 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -88,9 +88,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.cache/ms-playwright ~/.cache/rer-apt/archives
-          sudo env "PATH=$PATH" "APT_ARCHIVES=$HOME/.cache/rer-apt/archives" python3 scripts/install-chromium-deps.py
-          sudo chown -R "$(id -u):$(id -g)" ~/.cache
           pnpm exec playwright install chromium
+          probe='const {chromium}=require("@playwright/test"); (async()=>{const browser=await chromium.launch({headless:true,args:["--no-sandbox"]}); try {const page=await browser.newPage(); await page.goto("about:blank");} finally {await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});'
+          if ! node -e "$probe"; then
+            sudo env "PATH=$PATH" "APT_ARCHIVES=$HOME/.cache/rer-apt/archives" python3 scripts/install-chromium-deps.py
+            sudo chown -R "$(id -u):$(id -g)" ~/.cache
+            node -e "$probe"
+          fi
       - name: Reserve disk for native runtime journeys
         if: matrix.browser
         run: |
@@ -99,10 +103,98 @@ jobs:
             if [ "$(free_kib)" -ge "$((20 * 1024 * 1024))" ]; then break; fi
             sudo rm -rf -- "$unused_tools"
           done
+      - name: Check every test has exactly one push owner
+        if: matrix.name == 'runtime'
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync,readdirSync} from 'node:fs';
+          import {spawnSync} from 'node:child_process';
+          import {createRequire} from 'node:module';
+          const ts=createRequire(process.cwd()+'/package.json')('typescript');
+          const expected=new Map(), owners=new Map();
+          for (const file of readdirSync('tests').filter(name=>name.endsWith('.test.mjs'))) {
+            const path='tests/'+file, source=ts.createSourceFile(file,readFileSync(path,'utf8'),ts.ScriptTarget.Latest,true);
+            function visit(node) {
+              if (ts.isCallExpression(node)&&node.expression.getText(source)==='test') {
+                const arg=node.arguments[0], names=[];
+                if (ts.isStringLiteral(arg)||ts.isNoSubstitutionTemplateLiteral(arg)) names.push(arg.text);
+                else {
+                  assert(ts.isTemplateExpression(arg),'Review unsupported test registration in '+path);
+                  let loop=node.parent;
+                  while (loop&&!ts.isForOfStatement(loop)) loop=loop.parent;
+                  assert(loop&&ts.isArrayLiteralExpression(loop.expression),'Review dynamic test registration in '+path);
+                  const variable=loop.initializer.declarations[0].name.getText(source);
+                  for (const item of loop.expression.elements) {
+                    assert(ts.isStringLiteral(item),'Review dynamic test case in '+path);
+                    let name=arg.head.text;
+                    for (const span of arg.templateSpans) {
+                      assert.equal(span.expression.getText(source),variable);
+                      name+=item.text+span.literal.text;
+                    }
+                    names.push(name);
+                  }
+                }
+                for (const name of names) {
+                  const key=path+' :: '+name;
+                  assert(!expected.has(key),'Duplicate registration: '+key);
+                  expected.set(key,{path,name});
+                }
+              }
+              ts.forEachChild(node,visit);
+            }
+            visit(source);
+          }
+          const plan=JSON.parse(readFileSync('verification.json','utf8'));
+          assert(plan.push.length<=8,'Push verification exceeds the shard-job budget');
+          for (const shard of plan.push) for (const command of shard.commands) {
+            if (!command.includes('node --test')) continue;
+            const parsed=spawnSync('python3',['-c','import json,shlex,sys;print(json.dumps(shlex.split(sys.argv[1])))',command],{encoding:'utf8'});
+            assert.equal(parsed.status,0,'Cannot inspect test command');
+            const args=JSON.parse(parsed.stdout);
+            const include=args.find(arg=>arg.startsWith('--test-name-pattern='))?.split('=').slice(1).join('=');
+            const exclude=args.find(arg=>arg.startsWith('--test-skip-pattern='))?.split('=').slice(1).join('=');
+            for (const [key,{path,name}] of expected) {
+              if (!args.includes(path)||(include&&!new RegExp(include).test(name))||(exclude&&new RegExp(exclude).test(name))) continue;
+              owners.set(key,[...(owners.get(key)||[]),shard.name]);
+            }
+          }
+          for (const key of expected.keys()) assert.equal(owners.get(key)?.length,1,'Test must run in exactly one push shard: '+key);
+          console.log('Every registered test has exactly one push owner: '+expected.size);
+          NODE
       - name: Run this shard
         env:
           SHARD: ${{ matrix.name }}
-        run: node scripts/verify-ci.mjs "$SHARD"
+        run: |
+          node --input-type=module <<'NODE'
+          import {spawn, spawnSync} from 'node:child_process';
+          import {verificationPlan} from './scripts/verify-app.mjs';
+          const plan=await verificationPlan();
+          const shard=[...plan.push,...plan.nightly].find(item=>item.name===process.env.SHARD);
+          if (!shard) throw Error('Unknown shard');
+          if (shard.hosted) {
+            // Preserve rer verify's production output and hydration checks once.
+            const result=spawnSync(process.execPath,['scripts/verify-ci.mjs',shard.name],{stdio:'inherit'});
+            process.exitCode=result.status??1;
+          } else {
+            let next=0, failed=false;
+            async function worker() {
+              while (next<shard.commands.length) {
+                const command=shard.commands[next++], started=Date.now();
+                console.log('START '+command);
+                const code=await new Promise(resolve=>{
+                  const child=spawn('/bin/bash',['-euo','pipefail','-c',command],{stdio:'inherit',env:process.env});
+                  child.once('error',error=>{console.error(error);resolve(1);});
+                  child.once('exit',code=>resolve(code??1));
+                });
+                failed ||= code!==0;
+                console.log('END exit='+code+' seconds='+((Date.now()-started)/1000).toFixed(1)+' '+command);
+              }
+            }
+            await Promise.all(Array.from({length:Math.min(3,shard.commands.length)},()=>worker()));
+            process.exitCode=failed?1:0;
+          }
+          NODE
 
   verify:
     needs: [plan, shards]

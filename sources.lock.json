@@ -543,7 +543,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "436ffddc395aa5ad50bf9e28f23dfce978c6c80d4b3ee754728279018921707b",
+      "sha256": "94347d84e7f7eb093ae38603958c3f99345875787a6c862c4e2045d6d2c28518",
       "executable": false
     },
     ".gitignore": {
@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "18839d4c93bfc8a5ebf8924ccf6ab562d50dfd5bea407ede6f2ffb98ae593e53",
+      "sha256": "2a83a7eec2ce54e26b405482cdcf9651ed4ddeb8f62828090f569005682f9dff",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f5b30556698cd5f5808ffd4da6a2dc3be5fb742f702782e21fc83f1af57c0478",
+      "sha256": "a6e160ce6cbc4dc1082458834f88fecc3ada2455630f28f27d4bbfff42890c5c",
       "executable": false
     },
     "deploy-demo.json": {
@@ -7267,7 +7267,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "60fbff418fd0de10c799dd15876f9819e560cafed6433e6b112bf7d9856358d9",
+      "sha256": "a265ce8db5090f8af0269321f3cc000393ae18c47892f020f9a434f7ba319ed5",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
