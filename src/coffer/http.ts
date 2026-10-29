@@ -1,3 +1,4 @@
+import { nativeAgentHttp } from './door/native-http'
 import { restrictedRead, teamAccessState } from './team-access'
 import { readOnlyPage, teamAccessPage } from './ui/team-access'
 import { membershipResponse } from './memberships/http'
@@ -32,9 +33,7 @@ import { scheduledReportLink } from './report-links'
 import { reportSchedules } from './report-schedules'
 import { reportSchedulesPage } from './ui/report-schedules'
 import { agentGrantsPanel } from './ui/agent-grants'
-import { reservePreparationGrant } from './agent-grants-legacy'
 import { agentGrantsState } from './agent-grants'
-import { grantedRead } from './agent-grants-reads'
 import { savedConnection } from './communications/connection'
 import { profileFieldsPanel } from './communications/profile-fields'
 import { pledgeTemplatePanel } from './ui/pledge-template'
@@ -86,7 +85,6 @@ import { researchState } from './research'
 import { researchPage } from './ui/research'
 import { volunteering, volunteerCsv } from './volunteering'
 import { volunteeringPage } from './ui/volunteering'
-import { mcpResponse } from './mcp'
 import { taxReport } from './tax-reports'
 import { taxReportsPage } from './ui/tax-reports'
 import { inKindState, inKindAcknowledgment } from './in-kind'
@@ -291,6 +289,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   } else originGuard(request, env, auth.bearer, request.method === 'GET' && path === '/app/settings/quickbooks/callback')
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
   responseAuthorities.set(request,c)
+  if(actor.role==='agent')return nativeAgentHttp(request,env,!!actor.grant)
   if(actor.teamAccess?.readOnly){
    const read=await restrictedRead(c,request)
    return isApi?json(read.result):readOnlyPage(actor,read.resource,read.result,path)
@@ -298,18 +297,6 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if(path==='/app/settings/team-access'&&request.method==='GET')return page('Team access',await teamAccessPage(c),actor,200,path)
   if(path==='/api/coffer/team-access'&&request.method==='GET')return json(await teamAccessState(c))
   if(path==='/app/calendar/google/callback'&&request.method==='GET'){await calendarCallback(c,url);return redirect('/app/settings#calendar-settings')}
-  if(c.actor.preparationGrant&&(request.method==='GET'||path==='/api/coffer/mcp'))await reservePreparationGrant(c,'read')
-  if (path === '/api/coffer/mcp') {
-   if (!auth.bearer || actor.role !== 'agent') fail('agent_key_required', 'Use an existing Coffer agent key for MCP.', 403)
-   if (request.headers.has('origin') && request.headers.get('origin') !== url.origin) fail('invalid_origin', 'This MCP request came from another origin.', 403)
-   return await mcpResponse(request, c, () => textBody(request, LIMIT))
-  }
-  if(actor.grant) {
-   if(request.method==='GET' && path==='/api/coffer/donors')return json(await grantedRead(c,'donors.list',Object.fromEntries(url.searchParams)))
-   const scopedDonor=path.match(/^\/api\/coffer\/donors\/([^/]+)$/)
-   if(request.method==='GET'&&scopedDonor)return json(await grantedRead(c,'donors.context',{donorId:decodeURIComponent(scopedDonor[1])}))
-   if(!(request.method==='POST'&&path==='/api/coffer/commands'))fail('GRANT_FORBIDDEN','This endpoint is outside the named agent grant.',403)
-  }
   if (!['GET', 'POST', 'PUT', 'HEAD'].includes(request.method)) fail('method_not_allowed', 'That method is not supported here.', 405)
   if (!isApi && person(actor)) actor.org = (await settings(c)).organisation || undefined
   const scheduledLink=path.match(/^\/app\/scheduled-reports\/([^/]+)$/)
@@ -452,7 +439,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    return new Response(await service.exports.download(id), { headers: { ...headers, 'content-type': 'application/x-ndjson', 'content-disposition': 'attachment; filename="coffer.rer"' } })
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') fail('method_not_allowed', 'Use the page’s buttons for changes.', 405)
-  return isApi ? await api(c, url) : await screen(c, url, request)
+  return isApi ? await nativeRecordView(c, url) : await screen(c, url, request)
  } catch (error: any) {
   const known = error instanceof CofferError || error instanceof imports.ImportError || typeof error?.code === 'string'
   // The import kit reports its refusals by code, alone or inside a D1 error.
@@ -626,7 +613,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
  return fail('not_found', 'Not found.', 404)
 }
 
-async function api(c: Context, url: URL): Promise<Response> {
+export async function nativeRecordView(c: Context, url: URL): Promise<Response> {
  if(url.pathname==='/api/coffer/webhooks')return json(await webhookState(c,url.searchParams.get('before')))
  if(url.pathname==='/api/coffer/auctions')return json(await auctionState(c,url.searchParams.get('eventId')??'',url.searchParams.get('jobId')??undefined))
  if(url.pathname==='/api/coffer/reports/builder')return json(url.searchParams.has('id')?await readBuilderReport(c,url):{reports:await savedReports(c)})

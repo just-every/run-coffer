@@ -21,11 +21,17 @@ acceptance=acceptance.replace(/^Judged from[^\n]*/m,contract.split('\n').find(li
 for(const id of ids){
  const clause=parsed.clauses.find(c=>c.id===id)
  if(!clause)throw Error('Unknown clause '+id)
- const row=lines[clause.row-1].split('|').map(cell=>cell.trim()),evidence=row[5],point=clause.text.split('*Acceptance:*')[1]?.trim()
+ const delimiter=clause.text.includes('*Acceptance:*')?'*Acceptance:*':'**Acceptance.**'
+ const row=lines[clause.row-1].split('|').map(cell=>cell.trim()),evidence=row[5],point=clause.text.split(delimiter)[1]?.trim()
  if(!point)throw Error('Clause has no acceptance '+id)
- const requirement=clause.text.split('*Acceptance:*')[0].trim()
+ const requirement=clause.text.split(delimiter)[0].trim()
  const pattern=new RegExp('^([0-9]+\\. )\\*\\*`'+id+'`[^\\n]*','m')
- if(!pattern.test(acceptance))throw Error('Acceptance view has no clause '+id)
+ if(!pattern.test(acceptance)){
+  if(!id.startsWith('BASE-AGENT-'))throw Error('Acceptance view has no clause '+id)
+  if(!acceptance.includes('### Agent door'))acceptance+='\n### Agent door\n'
+  const number=Math.max(...[...acceptance.matchAll(/^([0-9]+)\. /gm)].map(match=>Number(match[1])))+1
+  acceptance+=`\n${number}. **\`${id}\` ${clause.title}** (${clause.status}).\n`
+ }
  acceptance=acceptance.replace(pattern,(_,number)=>`${number}**\`${id}\` ${clause.title}** (${clause.status}). ${point} Requirement: ${requirement}${evidence?' Evidence: '+evidence+'.':''}${clause.gap?' Remaining: '+clause.gap:''}`)
 }
 // Claim copy remains owner-owned. Only the reviewed backing and status of a
@@ -39,6 +45,7 @@ const claimMappings={
 }
 for(const id of ids)if(claims.includes('`'+id+'`')){
  const mapping=claimMappings[id]
+ if(id==='API-004'){claims=claims.replaceAll('src/coffer/mcp.ts','src/coffer/door/index.ts');continue}
  if(!mapping)throw Error('A changed homepage claim needs its mapped source generator: '+id)
  claims=claims.split('\n').map(line=>{
   const cells=line.split('|').map(cell=>cell.trim()),entry=mapping[Number(cells[1])]

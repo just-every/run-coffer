@@ -9,11 +9,11 @@ Everything the screens do goes through the same server handlers, which check the
 | Owner | Everything below, plus backup, restore (`/api/portability/*`) and `donor.erase`. |
 | Admin | All commands except backup, restore and erasure; CSV downloads; the Stripe move-in. |
 | Member | Read; `donor.create`, `donor.update`, `gift.record`, `pledge.create`, `consent.record`. |
-| Agent key | Read; `ack.prepare` and `appeal.prepare` only. |
+| Agent key | Donor list/context and frozen preparation through the company-policy door; named standing receipt grants may also dispatch. See [Agents and MCP](/docs/agents). |
 
 An agent key is created in **Data & access** (or `{"command":"agent.create","input":{"label":"…"}}` by an owner or admin). The response holds `{id,label,token,expiresAt}` once; `expiresAt` is epoch milliseconds, 30 days ahead. Revoke with `agent.revoke` and `{"id":"<key-id>"}`. A key stops working when it is revoked, expires, or the person who created it is deactivated or changes role. A key can read donor records: treat it as private data access.
 
-Agents send `Authorization: Bearer <token>`. Native sessions send their cookie and, for changes, the exact `Origin`. Never send an `actor` or role field; the server decides who you are.
+Agents send `Authorization: Bearer <token>` and adopt a complete company policy at `/agents`; native HTTP mutations also require `Idempotency-Key`. Native sessions send their cookie and, for changes, the exact `Origin`. Never send an `actor` or role field; the server decides who you are.
 
 ## Reading
 

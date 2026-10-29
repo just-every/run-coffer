@@ -1,3 +1,4 @@
+import { cofferAgentResponse, cofferBusinessResponse } from './coffer/door'
 import { runScheduledTexts } from './coffer/sms-scheduler'
 import { runScheduledJourneys } from './coffer/communications/journey-runner'
 import { advanceDevelopmentReports } from './coffer/agent/development-report-scheduler'
@@ -66,6 +67,10 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
+    const business = await cofferBusinessResponse(request,env)
+    if (business) return business
+    const agent = await cofferAgentResponse(request,env)
+    if (agent) return agent
     const auth = await authResponse(request, env)
     if (auth) return auth
     // The installed variant: the Lobby at / and the public claim state it reads.

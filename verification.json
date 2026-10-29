@@ -14,7 +14,7 @@
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004"
+        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 API-004 BASE-AGENT-001 BASE-AGENT-002 BASE-AGENT-003 BASE-AGENT-004 BASE-AGENT-005 BASE-AGENT-006 BASE-AGENT-007 BASE-AGENT-008 BASE-AGENT-009 BASE-AGENT-010 BASE-AGENT-011 BASE-AGENT-012 BASE-AGENT-013"
       ]
     },
     {
