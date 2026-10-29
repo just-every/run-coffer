@@ -13,7 +13,7 @@ import { settings } from '../settings'
 import { page } from '../ui/common'
 import { csv } from '../csv'
 import { crmMoveInPage, crmReviewPage, crmJournalPage, reasonName } from '../ui/crm-move-in'
-import { allIssues, issues, reviewed, type IssueQuery } from './review'
+import { allIssues, issues, reviewed, volunteerReview, type IssueQuery } from './review'
 import * as service from './service'
 import type { ParseInput, SpreadsheetMapping } from './types'
 
@@ -36,9 +36,10 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
   if(action==='spreadsheet-mappings'&&api)return json(await service.spreadsheetMappings(c))
   if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c)),c.actor,200,'/app/more')
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
+  if(action==='volunteering'&&api)return json(await volunteerReview(c,url.searchParams.get('id')||'',Number(url.searchParams.get('volunteerPage'))||1))
   if(action==='review' && !api) {
    const job=await reviewed(c,url.searchParams.get('id')||''), list=await issues(c,job.id,{...q,severity:q.severity??(job.report.canApply?undefined:'error')})
-   return page('Review CRM move-in',crmReviewPage(job,{...list,query:{...list.query,show:q.severity??(job.report.canApply?'all':'error')}},today((await settings(c)).timezone,new Date(c.now))),c.actor,200,'/app/more')
+   return page('Review CRM move-in',crmReviewPage({...job,volunteers:await volunteerReview(c,job.id,Number(url.searchParams.get('volunteerPage'))||1)},{...list,query:{...list.query,show:q.severity??(job.report.canApply?'all':'error')}},today((await settings(c)).timezone,new Date(c.now))),c.actor,200,'/app/more')
   }
   if(action==='issues')return json(await issues(c,(await reviewed(c,url.searchParams.get('id')||'')).id,q))
   if(action==='issues.csv') {

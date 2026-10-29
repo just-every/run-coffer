@@ -45,6 +45,7 @@ const vendor: Record<ImportSource, Record<string, string[]>> = {
  givebutter: {}, zeffy: {},
  spreadsheet: {donorId:['Constituent ID'],giftId:['Gift ID'],communicationRestrictions:['Communication Restrictions'],tributeHonoree:['Tribute Honoree'],tributeType:['Tribute Type'],tributeGroup:['Tribute Group'],tributeNotifiedName:['Tribute Recipient Name'],tributeNotifiedEmail:['Tribute Recipient Email'],tributeNotifiedAddress:['Tribute Recipient Address'],emailPreference:['Email Preference'],mailPreference:['Mail Preference'],smsPreference:['SMS Preference'],phonePreference:['Phone Preference'],preferenceDate:['Preference Date']},
  lgl: {
+  volunteerId:['LGL Volunteer ID','Volunteer ID','Volunteer Activity ID','Volunteer Time ID'], volunteerClassification:['Volunteer Entry Type','Volunteer Record Type','Volunteer Type'], volunteerHoursType:['Hours Type','Volunteer Hours Type'], volunteerCommitment:['Volunteer Commitment ID'], volunteerRole:['Volunteer Category','Volunteer Role','Volunteer Service'], volunteerDate:['Volunteer Date'], volunteerHours:['Volunteer Hours','Hours'], volunteerMinutes:['Volunteer Minutes','Minutes'],
   communicationRestrictions: ['Communication Tags', 'Communication Tag', 'Communication Preferences'],
   tributeHonoree: ['Tribute Hon./Mem. Name'], tributeGroup: ['Tribute Name'], tributeType: ['Tribute Dedication'],
   tributeNotifiedName: ['Tribute Recipient Name'], tributeNotifiedEmail: ['Tribute Recipient Email'], tributeNotifiedAddress: ['Tribute Recipient Address'],

@@ -1,3 +1,4 @@
+import { volunteerTotals } from './lgl-volunteering'
 import { all, commit, fail, guard, one, sql, type Context, type Row, type Stmt } from '../db'
 import type { Difference } from './reconcile'
 import type { Diagnostic, ParsedImport } from './types'
@@ -89,7 +90,13 @@ export async function reviewed(c: Context, id: string) {
 }
 
 export const reportOf = (parsed: ParsedImport, review: { rows: Difference[]; canApply: boolean; needsAcceptance: boolean; counts: Row; parts: number }) => ({
- sourceCoverage:parsed.sourceCoverage, solicitCodes: parsed.solicitCodes, restrictionSource: { donorIds:[...new Set([...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn')].map(r=>r.donorExternalId))], solicitationIds:(parsed.solicitations??[]).map(r=>r.donorExternalId), withdrawals:(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').map(r=>({donorExternalId:r.donorExternalId,channel:r.channel})) },
+ ...((parsed.volunteering??[]).length?{volunteerTotals:volunteerTotals(parsed.volunteering!)}:{}), sourceCoverage:parsed.sourceCoverage, solicitCodes: parsed.solicitCodes, restrictionSource: { donorIds:[...new Set([...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn')].map(r=>r.donorExternalId))], solicitationIds:(parsed.solicitations??[]).map(r=>r.donorExternalId), withdrawals:(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').map(r=>({donorExternalId:r.donorExternalId,channel:r.channel})) },
  counts: review.counts, reconciliation: compact(review.rows), files: parsed.files, unmapped: parsed.unmapped.filter(u => u.value).length, leftOut: leftOut(parsed),
  needsAcceptance: review.needsAcceptance, canApply: review.canApply, parts: review.parts, sourceTotals: parsed.sourceTotals, controlTotals: parsed.controlTotals, sample: sample(parsed),
 })
+
+export async function volunteerReview(c:Context,id:string,page=1){
+ const job=await reviewed(c,id),current=Math.max(1,Math.floor(Number(page)||1))
+ const rows=await all(c,`SELECT j.value FROM cf_move_in_parts p,json_each(p.payload,'$.volunteering') j WHERE p.job_id=? ORDER BY p.position,CAST(j.key AS INTEGER) LIMIT 50 OFFSET ?`,id,(current-1)*50)
+ return {rows:rows.map(r=>JSON.parse(r.value)),page:current,pages:Math.ceil((job.report.counts?.volunteering??0)/50)}
+}

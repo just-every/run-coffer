@@ -4,12 +4,19 @@ import { parseCsv } from './move-in/parse-input'
 import { csv } from './csv'
 
 /** Decimal hours are accepted only when they represent a whole minute. */
-function minutes(value: unknown) {
+export function volunteerMinutes(value: unknown) {
  const raw=String(value??'').trim()
  if(!/^\d+(\.\d{1,10})?$/.test(raw))fail('INPUT','Hours must be a positive decimal number representing whole minutes.',400)
  const amount=Number(raw)*60, rounded=Math.round(amount)
  if(!Number.isSafeInteger(rounded)||Math.abs(amount-rounded)>0.000001||rounded<1||rounded>1440)fail('INPUT','Hours must represent 1–1440 whole minutes per dated activity.',400)
  return rounded
+}
+export function volunteerActivity(input: Row, day: string) {
+ const donorId=id(input.donorId,'Donor'),role=text(input.role,'Volunteer role',200),on=date(input.occurredOn,'Volunteer date')
+ const duration=input.minutes===undefined?volunteerMinutes(input.hours):input.minutes
+ if(!Number.isSafeInteger(duration)||duration<1||duration>1440)fail('INPUT','Hours must represent 1–1440 whole minutes per dated activity.',400)
+ if(on>day)fail('INPUT','Volunteer activity cannot be in the future.',400)
+ return {donor_id:donorId,role,occurred_on:on,minutes:duration,source:text(input.source,'Source',100),source_key:optional(input.sourceKey,'Source activity ID',200)}
 }
 export async function volunteering(c: Context, donorId?: string, year?: string) {
  if(year&&!/^\d{4}$/.test(year))fail('INPUT','Choose a four-digit calendar year.',400)
@@ -35,9 +42,8 @@ export async function volunteerCommand(c:Context,command:string,p:Row):Promise<R
  }else inputs=[{...p,source:'Manual',sourceKey:null}]
  const seen=new Set<string>()
  for(const input of inputs){
-  const donorId=id(input.donorId,'Donor'),role=text(input.role,'Volunteer role',200),on=date(input.occurredOn,'Volunteer date'),duration=minutes(input.hours),source=text(input.source,'Source',100),sourceKey=optional(input.sourceKey,'Source activity ID',200),activityId=newId()
+  const {donor_id:donorId,role,occurred_on:on,minutes:duration,source,source_key:sourceKey}=volunteerActivity({...input,minutes:undefined},day),activityId=newId()
   if(command==='volunteer.import'&&!sourceKey)fail('INPUT','Every imported activity needs its source_id.',400)
-  if(on>day)fail('INPUT','Volunteer activity cannot be in the future.',400)
   const key=source+'\n'+sourceKey;if(sourceKey&&seen.has(key))fail('INPUT','The CSV repeats a source activity ID.',400);seen.add(key)
   writes.push(guard('EXISTS(SELECT 1 FROM cf_donors d WHERE id=? AND erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))','DONOR_CHANGED','Choose an active, unmerged donor record.',donorId))
   if(sourceKey)writes.push(guard('NOT EXISTS(SELECT 1 FROM cf_volunteering WHERE source=? AND source_key=?)','VOLUNTEER_DUPLICATE','This source activity is already recorded. Nothing was imported.',source,sourceKey))

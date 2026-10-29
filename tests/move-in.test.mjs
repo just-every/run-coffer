@@ -397,3 +397,9 @@ test('MOVE-004: reviewed Neon history preserves money, source acknowledgment, pr
  const {neonJourney}=await import('./neon-journey.mjs')
  await neonJourney()
 })
+
+
+test('MOVE-001: LGL volunteer reports preview every activity and reconcile native minutes without money or custody loss',async()=>{
+ const {lglVolunteeringJourney}=await import('./volunteering-journey.mjs')
+ await lglVolunteeringJourney(customReportFiles)
+})
