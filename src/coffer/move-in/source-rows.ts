@@ -52,7 +52,7 @@ export class SourceRow {
   for (let i = 0; i < this.cells.length; i++) if (valueText(this.cells[i]) && !this.used.has(i)) this.unmap(this.headers[i] || `Column ${i + 1}`, valueText(this.cells[i]), `Coffer has no place for “${this.headers[i] || `column ${i + 1}`}” on a ${this.kindLabel()} row, so it would be left out. Delete that column from the file and upload again, or keep it and say below that it can be left out.`)
  }
  kindLabel() { return ({ donor: 'constituent', gift: 'gift', pledge: 'pledge', softCredit: 'soft credit', installment: 'pledge installment', relationship: 'relationship', note: 'note', control: 'totals', volunteering:'volunteer activity', membership:'membership history', mailing:'mailing history', unsupported: 'unrecognized' } as Record<RowKind, string>)[this.kind()] }
- mixedLglRecord(){return this.result.source==='lgl'&&!!this.peek('giftId')&&['membershipId','mailingId','volunteerId','planId'].some(field=>!!this.peek(field))}
+ mixedLglRecord(){return this.result.source==='lgl'&&['giftId','membershipId','mailingId','volunteerId','planId'].filter(field=>!!this.peek(field)).length>1}
  kind(): RowKind {
   if(this.mixedLglRecord())return 'unsupported'
   if (['lgl','givebutter','zeffy'].includes(this.result.source)&&this.peek('planId')) return 'unsupported'

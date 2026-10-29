@@ -1,4 +1,5 @@
 import { volunteerReconciliation, volunteerTotals } from './lgl-volunteering'
+import { importedProfileWrites, profileUndoFence, profileUndoWrites } from './contact-enrichment'
 import { neonInput } from './neon'
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
 import { spreadsheetAddresses } from './spreadsheet-addresses'
@@ -123,10 +124,12 @@ export async function continueApply(c: Context,id:string) {
   writes.push(sql('INSERT INTO cf_identity_ingest VALUES(1)'))
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
   writes.push(...addresses)
+  writes.push(...importedProfileWrites(c,plan.profileChanges,id))
   writes.push(...importedAcknowledgmentEvents(c,plan,job.source,id))
   writes.push(...importedCustomWrites(c,plan,job.source,id))
   writes.push(...solicitationImportHistory(c,plan.effects,job.source,id))
   writes.push(...importedHouseholdWrites(c,plan.householdChanges,job.source,id))
+  for(const change of plan.profileChanges)writes.push(sql(`UPDATE cf_move_in_jobs SET report=json_set(report,?,json((SELECT ${snapshot('donor')} FROM cf_donors n WHERE n.id=?))) WHERE id=?`,`$.profileCheckpoints.${change.after.id}.after`,change.after.id,id))
   if(job.acknowledged_before)writes.push(sql(`INSERT OR IGNORE INTO cf_prior_acknowledgements(gift_id,job_id,acknowledged_before) SELECT json_extract(value,'$.id'),?,? FROM json_each(?) WHERE json_extract(value,'$.received_on')<?`,id,job.acknowledged_before,JSON.stringify(plan.effects.filter(e=>e.kind==='gift'&&e.owned).map(e=>({id:e.nativeId,received_on:e.row.received_on}))),job.acknowledged_before))
   const jobGifts=await Promise.all(part.gifts.map(async g=>({giftId:plan.giftIds.get(g.externalId),donorKey:await sha256(g.donorExternalId)})))
   writes.push(sql("INSERT OR IGNORE INTO cf_move_in_job_gifts(job_id,gift_id,donor_source_key) SELECT ?,json_extract(value,'$.giftId'),json_extract(value,'$.donorKey') FROM json_each(?)",id,JSON.stringify(jobGifts)))
@@ -189,9 +192,9 @@ export async function recheck(c: Context,id:string) {
 function writeKind(writes:Stmt[],plan:Plan,kind:Kind,source:string,jobId:string) {
  const effects=plan.effects.filter(e=>e.kind===kind);if(!effects.length)return
  if(kind==='contact'){
-  const donorIds=[...new Set(effects.filter(e=>e.owned).map(e=>e.donorId))]
-  // Only newly owned donors have contact effects. Replace the automatically
-  // mirrored primary rows before inserting the complete reviewed contact set.
+  const donorIds=plan.effects.filter(e=>e.kind==='donor'&&e.owned).map(e=>e.nativeId)
+  // New donors replace automatic mirrors; enrichment never deletes contacts
+  // already belonging to a matched native donor.
   writes.push(sql('DELETE FROM cf_contact_history WHERE donor_id IN(SELECT value FROM json_each(?))',JSON.stringify(donorIds)),sql('DELETE FROM cf_contact_points WHERE donor_id IN(SELECT value FROM json_each(?))',JSON.stringify(donorIds)))
  }
  const t=tables[kind], rows=JSON.stringify(effects.map(e=>({...e.row,_owned:e.owned?1:0})))
@@ -222,7 +225,7 @@ export async function undo(c: Context,id:string) {
   const t=tables[kind]
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>${custodySnapshot(kind)}))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
- writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id))
+ writes.push(importHouseholdUndoFence(id),profileUndoFence(id),...customImportUndoGuards(id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_tags t JOIN cf_move_in_records r ON r.native_id=t.id AND r.kind='tagAssignment' WHERE r.job_id=? AND t.owns_assignment=1 AND (t.native_changed=1 OR NOT EXISTS(SELECT 1 FROM cf_donor_tags n WHERE n.donor_id=t.donor_id AND n.tag=t.tag AND n.created_at=t.imported_at AND n.created_by=t.imported_by) OR EXISTS(SELECT 1 FROM cf_move_in_tags o WHERE o.id<>t.id AND o.donor_id=t.donor_id AND o.tag=t.tag)))`,'MOVE_IN_USED','A native tag changed or another source uses it. Nothing was undone.',id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
@@ -230,6 +233,7 @@ export async function undo(c: Context,id:string) {
  if(result.job.source==='spreadsheet')writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_address_checks a ON a.donor_id=r.native_id WHERE r.job_id=? AND r.kind='donor' AND r.owned=1 AND (a.version<>1 OR a.source<>'smarty' OR a.checked_at<>json_extract(r.snapshot,'$.created_at')))`,'MOVE_IN_USED','An imported address was checked again. Nothing was undone.',id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1) AND p.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='contact' AND owned=1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id,id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
+  ['cf_appeal_recipients','email_contact_id','contact',null,'appeal_id'],['cf_communications','recipient_contact_id','contact',null,'id'],['cf_pledge_installments','recipient_contact_id','contact',null,'id'],['cf_sms_recipients','phone_contact_id','contact',null,'id'],['cf_ncoa_members','contact_id','contact',null,'run_id'],['cf_mail_address_snapshots','contact_id','contact',null,'id'],
   ['cf_crm_source_history','donor_id','donor','sourceHistory','id'],['cf_recurring_source_references','donor_id','donor','recurringReference','id'],['cf_platform_gifts','gift_id','gift','platformGift','gift_id'],
   ['cf_auction_rows','donor_id','donor',null,'id'],['cf_auction_rows','gift_id','gift',null,'id'],
   ['cf_development_report_donors','donor_id','donor',null,'report_id'],
@@ -266,12 +270,14 @@ export async function undo(c: Context,id:string) {
  writes.push(...customImportUndoWrites(id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
+ writes.push(...profileUndoWrites(id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_job_history WHERE job_id<>? AND history_id IN (${owned('sourceHistory')}))`,'MOVE_IN_USED','A later move-in uses this source history. Undo that move-in first.',id,id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_job_tags WHERE job_id<>? AND tag_id IN (${owned('tagAssignment')}))`,'MOVE_IN_USED','A later move-in uses these source tags. Undo that move-in first.',id,id))
  writes.push(sql('DELETE FROM cf_move_in_job_tags WHERE job_id=?',id))
  writes.push(sql('DELETE FROM cf_move_in_job_history WHERE job_id=?',id))
  writes.push(sql('DELETE FROM cf_move_in_job_volunteering WHERE job_id=?',id))
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
+ writes.push(sql(`DELETE FROM cf_contact_history WHERE point_id IN (${owned('contact')})`,id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))
  if(result.job.source==='spreadsheet')writes.push(sql(`DELETE FROM cf_address_checks WHERE donor_id IN (${owned('donor')})`,id))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}

@@ -1,4 +1,5 @@
 import { planSourceTags } from './source-tags'
+import { planContactEnrichment, type ProfileChange } from './contact-enrichment'
 import { volunteerActivity } from '../volunteering'
 import { settings } from '../settings'
 import { CofferError, today } from '../db'
@@ -15,7 +16,7 @@ import { accumulate, emptyTotals } from './source-totals'
 import { importedOverrides } from '../person-names'
 
 export type Effect = { kind: Kind; sourceKey: string; contentHash: string; nativeId: string; owned: boolean; row: Row; donorId: string | null; relatedId: string | null; location?: Located['location'] }
-export type Plan = { customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
+export type Plan = { profileChanges:ProfileChange[]; customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
 const stable = (value: unknown): string => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))) : v)
 export const contentHash = (value: unknown) => sha256(stable(value))
 export const nativeId = async (source: string, kind: string, key: string) => `crm-${(await contentHash([source,kind,key])).slice(0,40)}`
@@ -35,7 +36,7 @@ const label: Record<Kind,string> = {tagAssignment:'Source tag',sourceHistory:'So
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
- const plan: Plan = {customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
+ const plan: Plan = {profileChanges:[],customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
  const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.volunteering??[]),...(parsed.sourceHistory??[]),...(parsed.sourceTags??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
@@ -123,12 +124,13 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   const ownedDonor=plan.effects.find(e=>e.kind==='donor'&&e.owned&&e.nativeId===donorId),owned=!!ownedDonor
   for(const email of (d.contacts??[]).filter(p=>p.kind==='email'))if(contactOwners.some(o=>o.value===email.value&&o.donor_id!==donorId&&(!ownedDonor?.row.household_id||o.household_id!==ownedDonor.row.household_id)))diagnostic('An unrelated existing constituent uses a contact email from '+d.externalId+'. The distinct source identity is retained for duplicate review.',d.location,'warning','SHARED_EMAIL','Email')
   // Existing identities retain their current contacts, as all other profile fields do.
-  for(const point of d.contacts??[]){
+  for(const point of parsed.source==='lgl'&&!owned?[]:d.contacts??[]){
    const prior=existing.get(`contact:${await sourceKey(point.externalId)}`)
    if(!owned&&!prior)continue
    await add('contact',{...point,location:d.location},{donor_id:donorId,kind:point.kind,type:point.type,value:point.value,active:1,is_primary:point.primary?1:0,starts_on:point.startsOn,ends_on:point.endsOn,version:1,source:source+' move-in',source_on:c.now.slice(0,10),updated_at:c.now},undefined,donorId)
   }
  }
+ await planContactEnrichment(c,parsed,plan,existing,add,readSet,sourceKey,personDefaults.name_defaults)
  await planSolicitationImports(c,parsed,plan,existing,add,readSet)
  await planSourceTags(c,parsed,plan,existing,add,readSet,preview)
  // Source headship is set only after all source identities have resolved. A

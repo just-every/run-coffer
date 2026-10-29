@@ -59,6 +59,11 @@ const sourceCoverage=(report:Row)=>report.sourceCoverage?box('Neon coverage in t
 const counts=(values:Row)=>`<ul class="list">${Object.entries(values).map(([k,v])=>`<li><strong>${v}</strong> ${e(({sourceTags:'reviewed source tags',sourceHistory:'membership and mailing history records',recurringReferences:'source recurring plans',softCredits:'soft credits',solicitations:'constituents with solicitation restrictions',volunteering:'volunteer activities',channelWithdrawals:'channel permission withdrawals',channelPreferences:'source channel preferences',householdsWithHead:'households with a source head',householdsWithoutHead:'households without a head'} as Record<string,string>)[k]||k)}</li>`).join('')}</ul>`
 const location=(v:Row)=>`${e(v.file||'')}${v.sheet&&v.sheet!=='CSV'?` / ${e(v.sheet)}`:''}${v.row?` · row ${v.row}`:''}${v.column?` · ${e(v.column)}`:''}`
 const records=(title:string,total:number,values:Row[],render:(v:Row)=>string)=>`<details class="card"><summary>${e(title)} · ${total}</summary>${values.length?`<ul class="list">${values.map(v=>`<li>${render(v)}<br><span class="muted">${location(v.location||v)}</span></li>`).join('')}</ul>${total>values.length?`<p class="muted">The first ${values.length} of ${total} are shown. The totals check covers all of them.</p>`:''}`:empty('None in these exports.')}</details>`
+const sourceMailingSnapshot=(h:Row)=>{
+ const p=h.kind==='mailing'?h.payload:null
+ if(!p||![p.content,p.recipientName,p.recipientEmail,p.recipientAddress].some(Boolean))return ''
+ return `<details><summary>Source mailing snapshot</summary><p>Historical evidence only. Current contacts and permission stay unchanged.</p>${p.recipientName?`<p>Source recipient: ${e(p.recipientName)}</p>`:''}${p.recipientEmail?`<p>Source email: ${e(p.recipientEmail)}</p>`:''}${p.recipientAddress?`<p>Source postal address: ${e(p.recipientAddress)}</p>`:''}${p.content?`<p class="copy">${e(p.content)}</p>`:''}</details>`
+}
 const plural=(n:number,one:string,many=one+'s')=>`${n} ${n===1?one:many}`
 const SEVERITY:Record<string,string>={error:'Must fix',warning:'Check'}
 const query=(id:string,q:Row)=>new URLSearchParams(Object.entries({id,...q}).filter(([,v])=>v!==undefined&&v!==''&&v!==null).map(([k,v])=>[k,String(v)])).toString()
@@ -116,7 +121,7 @@ export function crmReviewPage(job:Row,list:Row,today:string) {
  ${records('Donors',r.counts.donors,s.donors,d=>`<strong>${e(d.name)}</strong> · ${e(d.externalId)}${d.householdName?` · ${e(d.householdName)}`:''}${d.contacts?.length?`<ul>${d.contacts.map((p:ParsedContact)=>`<li>${e(p.kind)} · ${e(p.type)}${p.primary?' · primary':''}: ${e(p.kind==='address'?Object.values(JSON.parse(p.value)).filter(Boolean).join(', '):p.value)}${p.startsOn?` · ${e(p.startsOn)} through ${e(p.endsOn)}`:''}</li>`).join('')}</ul>`:''}`)}
  ${records('Households',r.counts.households,s.households,h=>`${e(h.name)} · ${e(h.externalId.startsWith('members:')?`linked as spouses or at one address`:h.externalId)}`)}
  ${r.counts.sourceTags?records('Reviewed source tags',r.counts.sourceTags,s.sourceTags??[],t=>`${e(t.donorExternalId)} · ${e(t.tag)} · source date ${e(t.sourceOn||'unknown')}`):''}
- ${r.counts.sourceHistory?records('Membership and mailing history',r.counts.sourceHistory,s.sourceHistory??[],h=>`${e(h.kind)} · ${e(h.label)} · ${longDay(h.occurredOn)}<br>${e(h.details)}`):''}
+ ${r.counts.sourceHistory?records('Membership and mailing history',r.counts.sourceHistory,s.sourceHistory??[],h=>`${e(h.kind)} · ${e(h.label)} · ${longDay(h.occurredOn)}<br>${e(h.details)}${sourceMailingSnapshot(h)}`):''}
  ${volunteerReview(job)}
  ${records('Gifts',r.counts.gifts,s.gifts,g=>`${e(g.externalId)} · donor ${e(g.donorExternalId)} · ${longDay(g.receivedOn)} · ${money(g.amountCents)} · ${e(g.fund)}${g.campaign?` · ${e(g.campaign)}`:''}${g.platform?` · source fee ${money(g.platform.feeCents)}`:''}`)}
  ${records('Relationships',r.counts.relationships,s.relationships,x=>`${e(x.donorExternalId)} → ${e(x.relatedDonorExternalId)} · ${e(x.type)}`)}
