@@ -4,6 +4,7 @@ import { prepareSolicitationRun, solicitationRunGuards } from './solicitation'
 import { askFlag, phoneHolds, withTaskRestrictions, completedAsk } from './solicitation-tasks'
 import { addDays, all, choice, commit, date, event, fail, guard, id, integer, longText, newId, one, optional, sql, today, type Context, type Row } from './db'
 import { requireRole } from './auth'
+import { stewardshipTaskGuards } from './agent/stewardship'
 import { settings } from './settings'
 import { lapses } from './lapses'
 import { annualLapses } from './annual-lapses'
@@ -33,7 +34,8 @@ export async function taskCandidates(c: Context, isAsk=true) {
 export const taskSources = async (c: Context) => (await taskCandidates(c)).sources
 export async function callTasks(c: Context, ownerId?: string | null, status?: string | null) {
  const rows=await withTaskRestrictions(c,await all(c, `SELECT t.*,d.name AS donor_name,d.phone,o.display_name AS owner_name,o.status AS owner_status
-  FROM cf_call_tasks t JOIN cf_donors d ON d.id=t.donor_id AND d.erased_at IS NULL LEFT JOIN oa_operators o ON o.id=t.owner_id
+  ,s.id AS stewardship_draft_id,s.format AS stewardship_format,s.reviewed_version=s.version AND s.status='draft' AS stewardship_reviewed
+  FROM cf_call_tasks t JOIN cf_donors d ON d.id=t.donor_id AND d.erased_at IS NULL LEFT JOIN oa_operators o ON o.id=t.owner_id LEFT JOIN cf_stewardship_drafts s ON s.task_id=t.id
   WHERE (? IS NULL OR t.status=?) ORDER BY CASE t.status WHEN 'done' THEN 1 ELSE 0 END,t.due_on,t.created_at`, status || null, status || null))
  const policy=await taskPolicy(c),day=today((await settings(c)).timezone,new Date(c.now))
  for(const task of rows)task.escalated_to=task.status!=='done'&&businessDue(task.due_on,policy.escalation_days)<day?await escalationOwner(c,task.owner_id):null
@@ -82,7 +84,7 @@ export async function callTaskCommand(c: Context, command: string, p: Row): Prom
  const taskId = id(p.taskId, 'Task'), version = integer(p.version, 'Task version', 1)
  const task = await one(c, 'SELECT * FROM cf_call_tasks WHERE id=?', taskId)
  if (!task) fail('NOT_FOUND', 'That task no longer exists.', 404)
- const checks = [live(task.donor_id), guard("EXISTS(SELECT 1 FROM cf_call_tasks WHERE id=? AND version=? AND status<>'done')", 'TASK_CHANGED', 'This task changed or is already done. Refresh before saving.', taskId,version)]
+ const checks = [live(task.donor_id), ...await stewardshipTaskGuards(c,taskId,command==='task.complete'), guard("EXISTS(SELECT 1 FROM cf_call_tasks WHERE id=? AND version=? AND status<>'done')", 'TASK_CHANGED', 'This task changed or is already done. Refresh before saving.', taskId,version)]
  if (command === 'task.assign') {
   const ownerId = id(p.ownerId,'Owner'), due = date(p.dueOn,'Due date')
   await commit(c,[...checks,owner(ownerId),sql('UPDATE cf_call_tasks SET owner_id=?,due_on=?,version=version+1 WHERE id=?',ownerId,due,taskId),event(c,command,'task',taskId,task.donor_id,{ownerId,dueOn:due})])

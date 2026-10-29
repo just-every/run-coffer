@@ -42,3 +42,47 @@ export async function stewardshipSourcesBrowser(h,{person,draft,directory,calls}
   assert.equal(calls.length,before,'Reading sources never submits donor data or mail')
  })
 }
+
+export async function stewardshipTouchesBrowser(h,{people,directory}){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage();page.setDefaultTimeout(15000)
+  for(const [index,person] of people.entries()){
+   const draft=person.draft,format=index===0?'call':'card',notes=index===0?'Made the reviewed thank-you call.':'Handwrote the reviewed card.'
+   await page.goto(origin+'/app/agent/stewardship?donorId='+person.id)
+   const card=page.locator('#draft-'+draft.id)
+   assert.deepEqual(await page.getByLabel('Touch format',{exact:true}).selectOption(format),[format])
+   await page.getByLabel('Task due date',{exact:true}).fill('2026-10-19')
+   assert.match(await card.innerText(),index===0?/Thank-you call notes/:/Handwritten-card text/)
+   assert.equal(await card.getByRole('button',{name:'Send reviewed email',exact:true}).count(),0)
+   await card.getByLabel('Body',{exact:true}).fill(draft.row.body+'\nWith gratitude.')
+   await card.getByRole('button',{name:'Save reviewed note',exact:true}).click()
+   await card.getByRole('heading',{name:index===0?'Use the saved call notes':'Handwrite the saved card text',exact:true}).waitFor()
+   assert.match(await card.innerText(),/Use this exact reviewed text/)
+   assert.match(await card.innerText(),/With gratitude/)
+   const reviewed=(await h.get('/api/coffer/agent/stewardship?donorId='+person.id)).drafts.find(d=>d.id===draft.id)
+   const refused=await h.api('/api/coffer/agent/stewardship/send',{id:reviewed.id,version:reviewed.version,confirm:'SEND'},{status:409})
+   assert.equal(refused.error,'OFFLINE_TOUCH','Even reviewed call and card text cannot submit email')
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000});await page.evaluate(()=>scrollTo(0,0))
+    await page.screenshot({path:`${directory}/DEV-004-${format}-review-${width}.png`,fullPage:true})
+   }
+   await page.setViewportSize({width:1440,height:1000})
+   await card.getByRole('link',{name:'Assigned touch task',exact:true}).click()
+   const task=page.locator('#task-'+draft.taskId)
+   await task.getByRole('link',{name:'Open stewardship review',exact:true}).waitFor()
+   assert.match(await task.innerText(),/Exact text reviewed/)
+   await task.locator('summary').filter({hasText:'Complete task'}).click()
+   if(index===0)await task.getByLabel('Call outcome',{exact:true}).selectOption('connected')
+   await task.getByLabel('Completion notes',{exact:true}).fill(notes)
+   await task.getByRole('button',{name:'Complete task',exact:true}).click()
+   await page.waitForURL('**/app/calls?owner=&status=done')
+   assert.match(await task.innerText(),new RegExp(notes.replace('.','\\.')))
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000});await page.evaluate(()=>scrollTo(0,0))
+    await page.screenshot({path:`${directory}/DEV-004-${format}-completed-${width}.png`,fullPage:true})
+   }
+   await page.setViewportSize({width:1440,height:1000})
+  }
+ })
+}

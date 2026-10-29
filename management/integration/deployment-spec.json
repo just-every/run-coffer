@@ -1078,6 +1078,12 @@
       "name": "core-0175_coffer_reply_ingress.sql",
       "sha256": "874cc2f77109be38538c293e68de5f79551912a64dc6a870615081a6b45a2201",
       "sql": "-- Opaque replay receipts survive erasure without retaining a donor identity,\n-- sender address, subject or excerpt. Deleting the private task leaves only\n-- its one-way ingress hash, so an old capture cannot move to a new identity.\nCREATE TABLE cf_reply_ingress (\n id TEXT PRIMARY KEY CHECK(length(id)=64),\n task_id TEXT REFERENCES cf_reply_tasks(id) ON DELETE SET NULL\n);\nCREATE INDEX cf_reply_ingress_task ON cf_reply_ingress(task_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0176_coffer_stewardship_touches.sql",
+      "sha256": "fa73759114978370fa750ac3aadd0a18f37d61dfa0dac33155ac04259bb64a15",
+      "sql": "-- Task lists carry the work assignment, never a copy of private draft sources.\nALTER TABLE cf_stewardship_drafts ADD COLUMN format TEXT NOT NULL DEFAULT 'email'\n CHECK(format IN ('email','call','card'));\nALTER TABLE cf_stewardship_drafts ADD COLUMN task_id TEXT REFERENCES cf_call_tasks(id) ON DELETE SET NULL;\nCREATE UNIQUE INDEX cf_stewardship_task ON cf_stewardship_drafts(task_id) WHERE task_id IS NOT NULL;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
