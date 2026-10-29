@@ -38,7 +38,8 @@ export async function peerBrowser(h,edge,{campaign,first,second,firstCookie,seco
   provider.on('Fetch.requestPaused',async({requestId})=>provider.send('Fetch.fulfillRequest',{requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'text/plain'}],body:Buffer.from('Stripe test boundary').toString('base64')}))
   const state=as=>h.get('/giving/peer/state',{as})
   const publicState=id=>h.get(`/giving/peer/pages/${id}?format=json`,{as:''})
-  for(const width of [1440,390]){
+  for(const width of [Number(process.env.COFFER_PEER_WIDTH??1440)]){
+   assert.ok([1440,390].includes(width),'Peer browser width is 1440 or 390')
    await page.setViewportSize({width,height:1000})
    const teamTitle=`Reading circle ${width}`,pageTitles=[`First reading page ${width}`,`Second reading page ${width}`],pageIds=[],paid=[]
    for(const [index,as] of [firstCookie,secondCookie].entries()){
