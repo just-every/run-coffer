@@ -20,7 +20,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   const notes = [...new Map([...(fill.notes ?? []), ...parsed.notes.filter(n => linked.has(n.externalId))].map(n => [n.externalId, n])).values()]
   for (const n of notes) ids.add(n.donorExternalId)
   const ds = [...ids].map(id => donors.get(id)).filter(d => d !== undefined)
-  parts.push({ source: parsed.source, spreadsheet:parsed.spreadsheet, donors: ds, households: [...new Set(ds.map(d => d.householdKey).filter(Boolean))].map(k => households.get(k)!).filter(Boolean),
+  parts.push({ source: parsed.source, sourceCoverage:parsed.sourceCoverage, spreadsheet:parsed.spreadsheet, donors: ds, households: [...new Set(ds.map(d => d.householdKey).filter(Boolean))].map(k => households.get(k)!).filter(Boolean),
    gifts: [], relationships: [], softCredits: [], pledges: [], installments: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [], solicitCodes: parsed.solicitCodes, solicitations:(parsed.solicitations??[]).filter(r=>ids.has(r.donorExternalId)), channelWithdrawals:(parsed.channelWithdrawals??[]).filter(r=>ids.has(r.donorExternalId)), ...fill, notes })
  }
  // A part also stays under PART_BYTES of its own records, so long notes never push one past D1's 2 MB value limit.
@@ -63,6 +63,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   const ids = new Set([...credited.values()].map(g => g.pledgeExternalId).filter(Boolean)), used = [...ids].map(id => pledges.get(id)!).filter(Boolean)
   part({ softCredits: chunk, gifts: [...credited.values()], pledges: used, installments: installmentsOf(ids) }, [...chunk.map(s => s.donorExternalId), ...[...credited.values()].map(g => g.donorExternalId), ...used.map(p => p.donorExternalId)])
  }
+ for (const chunk of chunks(parsed.opportunities??[])) part({opportunities:chunk},chunk.map(o=>o.donorExternalId))
  for (const chunk of chunks(parsed.notes)) part({ notes: chunk }, chunk.map(n => n.donorExternalId))
  return parts
 }

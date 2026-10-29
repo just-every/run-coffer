@@ -145,3 +145,12 @@ Review lists every typed contact and primary before applying. Newly imported con
 Export each custom column with its exact label and stable source record ID. On the preview, open **Map custom report columns**, select an existing field or define its key, label, record kind, value type and entry method, then check the files again. Only explicitly mapped columns move in. Current LGL, Bloomerang and configured NXT CSV/XLSX reports support constituent, gift, pledge, interaction and note values; opportunities have no source importer yet.
 
 Currency uses USD with at most two decimal places. Pick-many cells contain a JSON list, such as `["Board","Volunteer"]`; blanks leave the value unset. Invalid types and choices name the source row and block apply. Imported values retain the source CRM, record ID, donor ID, column, worksheet and original text. Replay keeps later staff edits; undo removes imported values only while their custody is unchanged. Renaming a field label preserves values and source history. These mappings authorize no provider exposure or outbound action.
+
+### Read-only SKY preview
+
+The native CRM move-in screen also reads the supported NXT SKY history slice.
+See [Blackbaud source mappings and boundaries](./blackbaud-move-in.md) before
+supplying current credentials and the source-linked review file. Preview
+includes parent gifts, designation allocations and reviewed open opportunities;
+unsupported source objects and incomplete pagination refuse the read. This
+does not establish full NXT parity, live OAuth qualification or vault transfer.
