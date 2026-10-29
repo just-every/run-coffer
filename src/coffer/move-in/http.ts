@@ -1,3 +1,5 @@
+import * as vault from './vault-mapping'
+import { vaultStart, vaultReview } from '../ui/vault-mapping'
 import { canonicalDonor } from '../donor-merge'
 import { audience } from '../appeals'
 import { givebutterInput } from './givebutter'
@@ -27,6 +29,9 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)
  const action=url.pathname.slice(base.length+1)
  if(request.method==='GET') {
+  if(action==='vault')return api?json(await vault.vaultReviews(c)):page('Review transferred payment references',vaultStart(await vault.vaultReviews(c),await all(c,"SELECT id,name,version FROM cf_donors d WHERE erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY name,id LIMIT 1000")),c.actor,200,'/app/more')
+  if(action==='vault/review'){const review=await vault.getVault(c,url.searchParams.get('id')||'');return api?json(review):page('Payment mapping review',vaultReview(review),c.actor,200,'/app/more')}
+
   if(action==='spreadsheet'&&!api)return page('Spreadsheet move-in',spreadsheetStart(await service.spreadsheetMappings(c)),c.actor,200,'/app/more')
   if(action==='source-history'&&api) {
    const donorId=await canonicalDonor(c,url.searchParams.get('donorId')||'')
@@ -50,6 +55,24 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(request.method!=='POST')fail('post_required','Use the move-in forms.',405)
  const data=api?await readers.jsonBody(request,24*1024*1024):await readers.formBody(request,24*1024*1024)
  const get=(key:string)=>api?data[key]:data.get(key), id=String(get('id')||'')
+ if(action.startsWith('vault/')) {
+  let result
+  if(action==='vault/preview'){
+   let input
+   if(api)input=data
+   else {
+    const upload=async(f:FormDataEntryValue|null)=>{if(!f||typeof f==='string'||f.size>750*1024)fail('VAULT_FILE','Choose a file of at most 750 KB.',400);return {name:f.name,base64:Buffer.from(await f.arrayBuffer()).toString('base64')}}
+    let donors:Record<string,unknown>={}
+    const from=(data as FormData).getAll('sourceDonor'),to=(data as FormData).getAll('nativeDonor')
+    for(let i=0;i<from.length;i++){if(!String(from[i]).trim())continue;const key=String(from[i]).trim();if(Object.hasOwn(donors,key))fail('VAULT_IDENTITY','Choose each source donor exactly once.',400);try{donors[key]=JSON.parse(String(to[i]))}catch{fail('VAULT_IDENTITY','Choose a current donor for each source identity.',400)}}
+    input={source:get('source'),sourceAccount:get('sourceAccount'),destinationAccount:get('destinationAccount'),donors,plans:await upload((data as FormData).get('plans')),mappings:await Promise.all((data as FormData).getAll('mappings').map(upload))}
+   }
+   result=await vault.previewVault(c,input)
+  }else if(action==='vault/save')result=await vault.saveVault(c,{id,fingerprint:get('fingerprint'),version:get('version'),confirm:get('confirm')})
+  else if(action==='vault/remove')result=await vault.removeVault(c,{id,fingerprint:get('fingerprint'),version:get('version'),confirm:get('confirm')})
+  else fail('not_found','That payment mapping action does not exist.',404)
+  return api?json(result):new Response(null,{status:303,headers:{...headers,location:'/app/move-in/crm/vault/review?id='+encodeURIComponent(result.id)}})
+ }
  if(action==='undo') {const result=await service.undo(c,id);return api?json(result):redirect(result.id)}
  if(action==='continue') {const result=await service.continueApply(c,id);return api?json(result):redirect(result.id)}
  if(action==='check') {const result=await service.recheck(c,id);return api?json(result):redirect(result.id)}

@@ -52,3 +52,20 @@ export type ParsedImport = { sourceCoverage?:SourceCoverage;
 export type ParseInput = { neon?:{organizationId:string;apiKey:string;currency?:string}; givebutterKey?:string; givebutterAmountUnit?:'cents'|'dollars'; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
 export type Cell = string | number | boolean | Date | null
 export type Table = { file: string; sheet: string; rows: Cell[][] }
+
+/** Explicitly reviewed file evidence; none of these references grant billing authority. */
+export type VaultMappingInput = {
+ source: ImportSource; sourceAccount: string; destinationAccount: string;
+ plans: ExportFile; mappings: ExportFile[];
+ donors: Record<string,{id:string;version:number}>;
+}
+export type VaultPlan = {
+ source_plan_id:string; source_donor_id:string; source_customer_id:string; source_payment_id:string;
+ payment_type:string; amount_cents:number; currency:string; frequency:string; fund:string; campaign:string;
+ next_charge_on:string; history_reference:string; authorization_reference:string; authorization_date:string; authorization_method:string;
+}
+export type VaultRow = {
+ donorId:string; donorVersion:number; sourceIdentityHash:string; plan:VaultPlan;
+ mapping:null|{old_customer_id:string;new_customer_id:string;old_source_id:string;new_source_id:string};
+ category:'matched'|'missing'|'conflicting'|'unsupported'; reason:string;
+}
