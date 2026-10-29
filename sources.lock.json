@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "85c8f19ad3378d9806743c7e4d757d64fc14395a05664f8253a92e5340497124",
+      "sha256": "3ca03eecf9c1285fc63438929e530f60756e548bdda484a88b0f85822973b960",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d3d866db9e8bed2daf837c3f121f009228c780cbcdf1446c0d748b5245402161",
+      "sha256": "2aea8d88c8d779c3040c4046a94e8401fe4fe4d8f5ea009f11b592978ba9c755",
       "executable": false
     },
     "deploy-demo.json": {
@@ -635,7 +635,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "416949d6e81b599d6f7c563c01419fad82fd1eb39ae04d26e2f62118e6ce16fa",
+      "sha256": "b37d0a0f6f3ddf4b7c55bc2e8f3a80197723ec06ef8011aaae2b11358f3db50a",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -779,7 +779,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "f896fd63b52ebfa6f1714b1dab9cdff223433b0dd6484091cf3e3c8f909718c7",
+      "sha256": "cfe9db6cd1f7c40e55dc71c6cdab863a45773e63c4f5b81d0130cdfe78363053",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1492,6 +1492,10 @@
     },
     "migrations/core/0175_coffer_reply_ingress.sql": {
       "sha256": "874cc2f77109be38538c293e68de5f79551912a64dc6a870615081a6b45a2201",
+      "executable": false
+    },
+    "migrations/core/0176_coffer_stewardship_touches.sql": {
+      "sha256": "d45434235faae35b12609e85934ab82d12173790e53e7049c84330ee52378272",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2403,7 +2407,7 @@
       "executable": false
     },
     "src/coffer/agent/http.ts": {
-      "sha256": "1620086838f954bb2c2fa5ceb94322d37ae3f50773631189da49bcee7f0e72e2",
+      "sha256": "81c5480140417db6ba2f2f9a68aee9cea113110301a349049bd69ec95d862087",
       "executable": false
     },
     "src/coffer/agent/hygiene-ui.ts": {
@@ -2479,11 +2483,11 @@
       "executable": false
     },
     "src/coffer/agent/stewardship-ui.ts": {
-      "sha256": "875139188f1c1570e6cbe2f6e4815f9676f42c628d2b432ff55fa2b0470ffeb3",
+      "sha256": "f7c646797308142fdcaa2ebdb79840e9a9bb0545b0f609e14b017bc508bb6fc7",
       "executable": false
     },
     "src/coffer/agent/stewardship.ts": {
-      "sha256": "9adc25fdccf81842a3fb9f8b272179776c9ba01479b0128823709e569071d93e",
+      "sha256": "fa8d79a30a63937627394edafb0e4b202ad5acf851073ab90304b3ed9d5f7788",
       "executable": false
     },
     "src/coffer/annual-lapses.ts": {
@@ -2611,7 +2615,7 @@
       "executable": false
     },
     "src/coffer/call-tasks.ts": {
-      "sha256": "18aa38e32dd7c71e448d48562fc03ba30a1b32ffe7e78ef6b3e838b939b1bb76",
+      "sha256": "0da69cc89ad5c842079a20cb7eb787b2b3757bab324cefd6c0d1df7cb1a5b7ab",
       "executable": false
     },
     "src/coffer/campaign-progress.ts": {
@@ -3775,7 +3779,7 @@
       "executable": false
     },
     "src/coffer/relationship-owner.ts": {
-      "sha256": "86cf33d4a54fb991161cb81ea11fa2a044c8e65d78abf74cbe19e8b65756b1c8",
+      "sha256": "f2f6ee2da3b88d0e7d41ecd665ac799c05ab2776cbfd3a0809b805246bec4549",
       "executable": false
     },
     "src/coffer/report-authority.ts": {
@@ -3987,7 +3991,7 @@
       "executable": false
     },
     "src/coffer/ui/call-tasks.ts": {
-      "sha256": "437479a01784af3e2b6f0dd48b86d90b9d1a0150d499adcf0e3d10ea419e5c6f",
+      "sha256": "34e79b2bae9d99affd87a25298e9599ec45ac1d29c252f232a20ad8cd68184f1",
       "executable": false
     },
     "src/coffer/ui/campaign-progress.ts": {
@@ -7239,11 +7243,15 @@
       "executable": false
     },
     "tests/stewardship-sources-journey.mjs": {
-      "sha256": "6afe8fd968ce7f3b978202cbca2223f00b2fbf0efa403d20f9f988ba69fae904",
+      "sha256": "29c3462ea1552880039c318a273f84ea2a9927868e23908e5e9d439206560ade",
+      "executable": false
+    },
+    "tests/stewardship-touches-journey.mjs": {
+      "sha256": "4b31dc1fdf9f71bf5aef0c699596cd237b480362de3572f1c27525db4f49d327",
       "executable": false
     },
     "tests/stewardship.test.mjs": {
-      "sha256": "6038406fc6af452478806b49b8bb3372888a193a099d80a1f0b11ca17d4deb37",
+      "sha256": "af8a24e0b40bd2f76de22f8876d89821fdf90744039e304dd6832be8df87fa16",
       "executable": false
     },
     "tests/task-reminders-browser.mjs": {
