@@ -67,7 +67,7 @@ Use immutable SKY record IDs as keys. For example:
 
 Use your current native person's ID and version from `./auth/session` or the
 installation's native people read. Map every source opportunity status to a
-current pipeline stage with its existing open, won or lost outcome. Map its single source fundraiser to an active
+current pipeline stage with its existing open, won or lost outcome. Map its source fundraiser to an active
 native owner, admin or member; use `unassigned` explicitly for an opportunity
 with no source fundraiser. Names are never identity matches. The source ask and
 expected amounts remain opportunity amounts and never become received cash.
@@ -83,7 +83,12 @@ has no funding link. Historical closures are excluded from open forecasts and
 create no additional gift or pledge. Duplicate funding claims, wrong native
 outcomes and inconsistent source amounts refuse review. The native funding
 guard also prevents reusing a pledge and one of its payments for two closures.
-Review the displayed donor, source status, mapped stage, owner and amounts.
+With several source fundraisers, the opportunity entry must explicitly select
+one source `owner` identity. All source fundraiser IDs and their known credit
+amounts remain historical evidence; missing credit amounts stay unknown.
+Only the selected mapping assigns the native opportunity. Other source people
+gain no native access or current authority. Review the displayed donor, source
+status, mapped stage, owner and amounts.
 Changes to that owner or pipeline configuration invalidate the approval.
 
 Map all source fund, campaign, appeal and contact-type IDs or labels actually
@@ -94,7 +99,11 @@ current kind has one explicit primary.
 There is no three-email or two-address truncation. Contact reads explicitly
 include inactive records. Inactive history remains visible in the preview and
 the owner-only source-history read; it never becomes a current contact choice.
-Unsupported types, dated or seasonal contacts require separate review. Available native types are personal, work and other for email; mobile,
+Past address start and end dates retain their effective-date provenance.
+Ended and inactive addresses stay outside current selection. Annual seasonal
+month and day bounds map to the native seasonal address type; overlapping
+active seasons refuse preview. Future absolute address periods need separate
+activation support and are refused rather than made current early. Available native types are personal, work and other for email; mobile,
 home and work for phone; home, work, vacation and other for undated addresses.
 
 Use the existing **Code meanings** review for each solicit code, for example:
@@ -227,6 +236,18 @@ review never duplicates records. The review identity includes all normalized
 SKY records; changing a source gift while reusing the same mapping file requires
 a new review, and conflicting previously imported facts block apply.
 
+Partially paid, unsplit pledges reconcile their source balance against every
+read `PledgePayment`. Each payment must link to its pledge and use that
+constituent and fund. A source pledge and its payment cannot fund two separate
+closed opportunities. Promise, paid and remaining cents remain separate from
+received cash. Missing payment history refuses the whole preview. Commitment
+acknowledgment and tribute facts still require separate mapping.
+
+Refreshing owner mappings for a previously imported opportunity or task keeps
+its native assignment and later edits. Changes to its source business facts
+still require review rather than overwriting history. Existing native donor
+profiles and contacts also remain authoritative on later source-ID matches.
+
 The journal compares source parent counts and cents by year, donor and fund
 with the native ledger. Undo removes untouched import-owned records together,
 including allocations and opportunities. A later household, opportunity,
@@ -235,7 +256,8 @@ Archives retain the imported history and mappings. Native merge and erasure
 rules apply, and an erased constituent cannot be recreated by replay.
 
 The following remain outside this slice: reference and partial-date custom definitions, dated or annotated values; completed opportunity-linked actions;
-multiple funding links or opportunity fundraisers; split promises; recurring commitment custom values and acknowledgment facts;
+multiple funding links for one closure; split promises; future absolute
+address periods; pledge acknowledgment and tribute facts; recurring commitment custom values and acknowledgment facts;
 vault transfer and replacement schedules; other unsupported gift types and remaining source-object coverage;
 production OAuth and live provider qualification. Unsupported objects returned
 by a fetched door are refused. Objects from other, unfetched doors remain

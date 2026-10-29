@@ -61,7 +61,7 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
   if(person.requests_no_email)withdraw(row,p.id,'email','SKY constituent requests no email')
   for(const [kind,path] of [['email','emailaddresses'],['phone','phones'],['address','addresses']] as const){
    const points=await list(`/constituent/v1/constituents/${encodeURIComponent(p.id)}/${path}?include_inactive=true`)
-   const contacts=blackbaudContacts(points,kind,p.id,review!.contactTypes)
+   const contacts=blackbaudContacts(points,kind,p.id,review!.contactTypes,importDay)
    contactsByDonor.set(p.id,[...(contactsByDonor.get(p.id)??[]),...contacts])
    const primary=contacts.find(v=>v.primary&&v.active!==false)
    if(primary){
@@ -107,7 +107,7 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
  const rawGifts=await list('/gift/v1/gifts'),giftDetails=new Map<string,Row>()
  for(const item of rawGifts){
   const g=await read('/gift/v1/gifts/'+encodeURIComponent(item.id)),facts=review!.gifts[item.id]??{}
-  if(g?.id!==item.id||!ids.has(g.constituent_id)||!['Donation','Pledge','RecurringGift','RecurringGiftPayment'].includes(g.type)||g.is_anonymous||g.linked_gifts?.length&&!['RecurringGift','RecurringGiftPayment'].includes(g.type)||g.gift_status&&!['Active',...(g.type==='RecurringGift'?['Held','Terminated','Completed','Cancelled']:[])].includes(g.gift_status))error('Unsupported gift classification, anonymity, state or links must be resolved before import.')
+  if(g?.id!==item.id||!ids.has(g.constituent_id)||!['Donation','Pledge','PledgePayment','RecurringGift','RecurringGiftPayment'].includes(g.type)||g.is_anonymous||g.linked_gifts?.length&&!['Pledge','PledgePayment','RecurringGift','RecurringGiftPayment'].includes(g.type)||g.gift_status&&!['Active',...(g.type==='RecurringGift'?['Held','Terminated','Completed','Cancelled']:[])].includes(g.gift_status))error('Unsupported gift classification, anonymity, state or links must be resolved before import.')
   if(Object.keys(facts).some(k=>!['goodsValue','acknowledgmentMethod','acknowledgmentInteractionId','tribute'].includes(k)))error('A gift source-history fact has no supported mapping.')
   used.gifts.add(g.id);giftDetails.set(g.id,g)
   const amount=cents(g.amount),parts=g.gift_splits
@@ -130,7 +130,7 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
    continue
   }
   const row:Row={'Gift ID':g.id,'Constituent ID':g.constituent_id,'Gift Type':g.type==='Pledge'?'Pledge':'Gift','Gift Date':day(g.date),'Amount':dollars(amount),'Fund':parts.length>1?'':dimensions[0].fund,'Campaign':dimensions[0].campaign,'Appeal':dimensions[0].appeal,'Gift Note':g.reference}
-  if(g.type==='Pledge'){if(parts.length!==1||g.soft_credits?.length||cents(g.balance)!==amount)error('Only unpaid, unsplit pledges are supported.');customValues(await list(`/gift/v1/gifts/${encodeURIComponent(g.id)}/customfields`),'pledge',row);pledges.push(row);continue}
+  if(g.type==='Pledge'){if(parts.length!==1||g.soft_credits?.length||cents(g.balance)>amount||g.acknowledgements?.length||g.receipts?.length||Object.keys(facts).length)error('Review an unsplit pledge, its balance and payment history. Commitment acknowledgment and tribute facts require separate mapping.');customValues(await list(`/gift/v1/gifts/${encodeURIComponent(g.id)}/customfields`),'pledge',row);pledges.push(row);continue}
   if(g.payments?.length!==1)error('Each cash gift needs one supported source payment method.')
   const method=({Cash:'Cash',PersonalCheck:'Check',CreditCard:'Card',DirectDebit:'Bank transfer',Other:'Other',PayPal:'Online'} as Row)[g.payments[0].payment_method]
   if(!method)error('The source payment method is unsupported.');row['Payment Method']=method
@@ -144,9 +144,20 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
   row['Non-Deductible Amount']=goods===null?'':dollars(goods)
   if(facts.tribute){const t=facts.tribute;if(!t.honoree||!['honor','memory'].includes(t.kind)||Object.keys(t).some(k=>!['kind','honoree','sourceGroup','recipientName','recipientAddress'].includes(k)))error('Review the source tribute type, honoree and private recipient facts.');Object.assign(row,{'Tribute Type':t.kind,'Tribute Honoree':t.honoree,'Tribute Group':t.sourceGroup,'Tribute Recipient Name':t.recipientName,'Tribute Recipient Address':t.recipientAddress})}
   customValues(await list(`/gift/v1/gifts/${encodeURIComponent(g.id)}/customfields`),'gift',row)
+  if(g.type==='PledgePayment'){if(g.linked_gifts?.length!==1)error('A pledge payment needs one source pledge parent.');row['Parent Gift ID']=g.linked_gifts[0]}
   if(g.type==='RecurringGiftPayment'){if(g.linked_gifts?.length!==1)error('A recurring payment needs one source recurring-gift parent.');row['Gift Note']=[g.reference,'Source recurring gift: '+g.linked_gifts[0]].filter(Boolean).join('\n')}
   gifts.push(row);if(parts.length>1)splits.set(g.id,dimensions)
   for(const credit of g.soft_credits??[]){const f=review!.softCredits[credit.id]??{};if(!credit.id||!ids.has(credit.constituent_id)||credit.gift_id!==g.id||Object.keys(f).some(k=>!['status','date','method','reference','interactionId'].includes(k)))error('Review each soft credit identity and its independent acknowledgment facts.');used.softCredits.add(credit.id);credits.push({'Soft Credit ID':credit.id,'Constituent ID':credit.constituent_id,'Related Gift ID':g.id,'Amount':dollars(cents(credit.amount)),'Acknowledgment Status':f.status??'not acknowledged','Acknowledgment Date':f.date,'Acknowledgment Method':f.method,'Acknowledgment Reference':f.reference,'Acknowledgment Interaction ID':f.interactionId?'action:'+f.interactionId:''})}
+ }
+ for(const pledge of giftDetails.values())if(pledge.type==='Pledge'){
+  const payments=[...giftDetails.values()].filter(g=>g.type==='PledgePayment'&&g.linked_gifts[0]===pledge.id)
+  if(cents(pledge.balance)!==cents(pledge.amount)-payments.reduce((n,g)=>n+cents(g.amount),0))error('The pledge balance must reconcile exactly to every read source payment; missing history cannot be imported as a complete pledge.')
+  const links=pledge.linked_gifts??[]
+  if(!Array.isArray(links)||links.some((id:any)=>!payments.some(g=>g.id===id)))error('The source pledge has unresolved linked payments.')
+ }
+ for(const gift of giftDetails.values())if(gift.type==='PledgePayment'){
+  const parent=giftDetails.get(gift.linked_gifts[0])
+  if(parent?.type!=='Pledge'||parent.constituent_id!==gift.constituent_id)error('A pledge payment must resolve to a read pledge for the same constituent.')
  }
  for(const gift of giftDetails.values())if(gift.type==='RecurringGiftPayment'){
   const parent=recurringReferences.find(p=>p.externalId===gift.linked_gifts[0])??error('Every recurring payment needs its read source plan.')
@@ -160,9 +171,15 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
  }
  const fundingClaims=new Set<string>()
  for(const o of await list('/opportunity/v1/opportunities?include_inactive=true')){
-  const facts=review!.opportunities[o.id]??{},stage=review!.stages[o.status],fundraiser=o.fundraisers?.length===1?o.fundraisers[0].constituent_id:o.fundraisers?.length?error('Multiple source opportunity fundraisers need separate review.'):'unassigned',owner=review!.owners[fundraiser]
+  const facts=review!.opportunities[o.id]??{},stage=review!.stages[o.status],sourceFundraisers=(o.fundraisers??[]).map((f:Row)=>{
+   if(!f||typeof f.constituent_id!=='string'||!ids.has(f.constituent_id))error('An opportunity fundraiser has an unresolved source identity.')
+   return {externalId:f.constituent_id,creditAmountCents:f.credit_amount?cents(f.credit_amount):null}
+  })
+  if(new Set(sourceFundraisers.map((f:Row)=>f.externalId)).size!==sourceFundraisers.length)error('Repeated opportunity fundraiser identities need source review.')
+  const fundraiser=facts.owner??(sourceFundraisers.length===1?sourceFundraisers[0].externalId:sourceFundraisers.length?error('Choose one explicitly reviewed native owner for the source fundraisers.'):'unassigned'),owner=review!.owners[fundraiser]
+  if(facts.owner&&!(sourceFundraisers.length?sourceFundraisers.map((f:Row)=>f.externalId):['unassigned']).includes(facts.owner))error('The selected opportunity owner must map a source fundraiser identity.')
   used.opportunities.add(o.id)
-  if(!ids.has(o.constituent_id)||!stage||!owner||!o.name||Object.keys(stage).some(k=>!['stage','probability'].includes(k))||Object.keys(owner).some(k=>!['id','version'].includes(k))||Object.keys(facts).some(k=>!['nextStep','closedOn'].includes(k)))error('Review source opportunity identities, stages, next steps and current owners.')
+  if(!ids.has(o.constituent_id)||!stage||!owner||!o.name||Object.keys(stage).some(k=>!['stage','probability'].includes(k))||Object.keys(owner).some(k=>!['id','version'].includes(k))||Object.keys(facts).some(k=>!['nextStep','closedOn','owner'].includes(k)))error('Review source opportunity identities, stages, next steps and current owners.')
   const funded=o.funded_amount?cents(o.funded_amount):0,closedOn=o.funded_date?day(o.funded_date):facts.closedOn?day(facts.closedOn):undefined,links=o.linked_gifts??[]
   if(!Array.isArray(links)||links.length>1||funded>0&&!closedOn||links.length&&!closedOn||o.inactive&&!closedOn||closedOn&&closedOn>importDay||facts.closedOn&&o.funded_date&&day(facts.closedOn)!==closedOn)error('A closed source opportunity needs a reviewed historical close date and at most one received gift or pledge.')
   if(links.length&&fundingClaims.has(links[0]))error('The same source funding cannot close several opportunities.')
@@ -170,9 +187,10 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
   const linked=links.length?giftDetails.get(links[0]):undefined,fund=mapped(review!.funds,o.fund_id,'fund')||'Unrestricted'
   if(links.length&&(!linked||linked.constituent_id!==o.constituent_id||cents(linked.amount)!==funded||linked.gift_splits.length!==1||mapped(review!.funds,linked.gift_splits[0].fund_id,'fund')!==fund))error('The opportunity funding must reconcile exactly to its source-linked gift or pledge for the same constituent and fund.')
   if(funded>0&&!linked)error('A funded source opportunity needs its received gift or pledge; it is not extra cash.')
+  if(linked&&(linked.type==='Pledge'&&[...fundingClaims].some(id=>{const g=giftDetails.get(id);return g?.type==='PledgePayment'&&g.linked_gifts[0]===linked.id})||linked.type==='PledgePayment'&&fundingClaims.has(linked.linked_gifts[0])))error('A source pledge and its payment cannot fund separate closed opportunities.')
   const nextStep=facts.nextStep??o.summary
   if(typeof nextStep!=='string'||!nextStep.trim())error('Review an explicit native next step for each source opportunity.')
-  opportunities.push({externalId:o.id,donorExternalId:o.constituent_id,label:o.name,stage:stage.stage,sourceStage:o.status,ownerId:owner.id,ownerVersion:owner.version,askAmountCents:cents(o.ask_amount),expectedAmountCents:cents(o.expected_amount),probability:stage.probability,fund,sourceCampaign:mapped(review!.campaigns,o.campaign_id,'campaign'),expectedCloseOn:day(o.expected_date||o.deadline||closedOn),nextStep:nextStep+(o.purpose?'\nSource purpose: '+o.purpose:''),closedOn,sourceFundedAmountCents:funded,linkedGiftExternalId:linked&&['Donation','RecurringGiftPayment'].includes(linked.type)?linked.id:undefined,linkedPledgeExternalId:linked?.type==='Pledge'?linked.id:undefined,location:{file:'sky-opportunities.json',sheet:'SKY',row:opportunities.length+1}})
+  opportunities.push({sourceFundraisers,externalId:o.id,donorExternalId:o.constituent_id,label:o.name,stage:stage.stage,sourceStage:o.status,ownerId:owner.id,ownerVersion:owner.version,askAmountCents:cents(o.ask_amount),expectedAmountCents:cents(o.expected_amount),probability:stage.probability,fund,sourceCampaign:mapped(review!.campaigns,o.campaign_id,'campaign'),expectedCloseOn:day(o.expected_date||o.deadline||closedOn),nextStep:nextStep+(o.purpose?'\nSource purpose: '+o.purpose:''),closedOn,sourceFundedAmountCents:funded,linkedGiftExternalId:linked&&['Donation','PledgePayment','RecurringGiftPayment'].includes(linked.type)?linked.id:undefined,linkedPledgeExternalId:linked?.type==='Pledge'?linked.id:undefined,location:{file:'sky-opportunities.json',sheet:'SKY',row:opportunities.length+1}})
  }
  for(const section of ['gifts','softCredits','actions','opportunities','plans'] as const)if(Object.keys(review![section]).some(id=>!used[section].has(id)))error('Source history names an object that was not read from SKY.')
  const parsed=await parseExports({source:'re-nxt',files:[...[["constituents.csv",donors],["gifts.csv",gifts],["pledges.csv",pledges],["relationships.csv",relationships],["interactions.csv",notes],["soft-credits.csv",credits]].filter(([,rows])=>(rows as Row[]).length).map(([name,rows])=>file(name as string,rows as Row[]))],solicitCodes:input.solicitCodes?Object.fromEntries(Object.entries(input.solicitCodes).map(([k,v])=>[k,v.type==='channels'?{type:'ignore' as const}:v])):undefined,customFields:custom},fields.definitions)
@@ -192,6 +210,6 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
  parsed.recurringReferences=recurringReferences
  parsed.tasks=tasks
  parsed.opportunities=opportunities
- parsed.sourceCoverage={provider:'Blackbaud SKY',currency:'USD',counts:{constituents:donors.length,gifts:gifts.length,designations:[...splits.values()].reduce((n,v)=>n+v.length,0),pledges:pledges.length,relationships:relationships.length,actionsAndNotes:notes.length,openTasks:tasks.length,recurringReferences:recurringReferences.length,opportunities:opportunities.length},unsupported:['Reference and partial-date custom fields, dated or annotated values','Recurring commitment custom values, vault transfer and replacement schedules','Multiple linked gifts or multiple opportunity fundraisers','Completed opportunity-linked actions','Other gift classifications and remaining source objects','Live OAuth, account and provider qualification']}
+ parsed.sourceCoverage={provider:'Blackbaud SKY',currency:'USD',counts:{constituents:donors.length,gifts:gifts.length,designations:[...splits.values()].reduce((n,v)=>n+v.length,0),pledges:pledges.length,relationships:relationships.length,actionsAndNotes:notes.length,openTasks:tasks.length,recurringReferences:recurringReferences.length,opportunities:opportunities.length},unsupported:['Reference and partial-date custom fields, dated or annotated values','Recurring commitment custom values, vault transfer and replacement schedules','Multiple linked gifts for one closed opportunity','Completed opportunity-linked actions','Other gift classifications and remaining source objects','Live OAuth, account and provider qualification']}
  return parsed
 }

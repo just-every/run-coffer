@@ -73,7 +73,8 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if (previous) {
    // A later file (another year's gifts) finds the donors and households an earlier move-in brought, by the CRM's own ID.
    if (previous.snapshot === null) diagnostic(`${label[kind]} ${entity.externalId} was erased from Coffer after an earlier move-in. Remove this row and rows linked to it from the exports; erased records cannot be restored.`,entity.location)
-   else if (previous.content_hash !== hash && (kind==='donor'||kind==='household')) diagnostic(`${label[kind]} ${entity.externalId} is already in Coffer from an earlier move-in. Coffer keeps that record as it is; this file’s details for it differ and are not applied.`,entity.location,'warning','ALREADY_MOVED_IN')
+   else if (previous.content_hash !== hash && (kind==='donor'||kind==='household'||kind==='contact'&&plan.sourceProvider==='Blackbaud SKY')) diagnostic(`${label[kind]} ${entity.externalId} is already in Coffer from an earlier move-in. Coffer keeps that record as it is; this file’s details for it differ and are not applied.`,entity.location,'warning','ALREADY_MOVED_IN')
+   else if(previous.content_hash!==hash&&['opportunity','callTask'].includes(kind)&&keptAssignment(kind,row,JSON.parse(previous.snapshot),canonical))diagnostic(`${label[kind]} ${entity.externalId} is already in Coffer. The refreshed owner review leaves its current native assignment and later edits unchanged.`,entity.location,'warning','ALREADY_MOVED_IN')
    else if (previous.content_hash !== hash) diagnostic(`${label[kind]} ${entity.externalId} is already in Coffer from an earlier move-in with different details. Export it as it was, or undo the earlier move-in first.`,entity.location)
    plan.already++;return kind==='donor'?canonical(previous.native_id):previous.native_id as string
   }
@@ -126,7 +127,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   for(const point of d.contacts??[]){
    const prior=existing.get(`contact:${await sourceKey(point.externalId)}`)
    if(!owned&&!prior)continue
-   await add('contact',{...point,location:d.location},{donor_id:donorId,kind:point.kind,type:point.type,value:point.value,active:point.active===false?0:1,is_primary:point.primary?1:0,starts_on:point.startsOn,ends_on:point.endsOn,version:1,source:source+' move-in',source_on:c.now.slice(0,10),updated_at:c.now},undefined,donorId)
+   await add('contact',{...point,location:d.location},{donor_id:donorId,kind:point.kind,type:point.type,value:point.value,active:point.active===false?0:1,is_primary:point.primary?1:0,starts_on:point.startsOn,ends_on:point.endsOn,version:1,source:source+' move-in'+(point.sourceEffectiveFrom||point.sourceEffectiveThrough?`; effective from ${point.sourceEffectiveFrom??'unknown'}; ended ${point.sourceEffectiveThrough??'not recorded'}`:''),source_on:point.sourceEffectiveFrom??c.now.slice(0,10),updated_at:c.now},undefined,donorId)
   }
  }
  await planSolicitationImports(c,parsed,plan,existing,add,readSet)
@@ -241,17 +242,17 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  for(const o of parsed.opportunities??[]){
   try {
    const prepared=await importedOpportunity(c,o,plan.donorIds.get(o.donorExternalId)??'',{opportunityId:existing.get(`opportunity:${await sourceKey(o.externalId)}`)?.native_id,giftId:o.linkedGiftExternalId?existing.get(`gift:${await sourceKey(o.linkedGiftExternalId)}`)?.native_id??await nativeId(source,'gift',o.linkedGiftExternalId):undefined,pledgeId:o.linkedPledgeExternalId?existing.get(`pledge:${await sourceKey(o.linkedPledgeExternalId)}`)?.native_id??await nativeId(source,'pledge',o.linkedPledgeExternalId):undefined})
-   plan.checks.push(...prepared.checks)
+   plan.checks.push(...(existing.has(`opportunity:${await sourceKey(o.externalId)}`)?prepared.identityChecks:prepared.checks))
    await add('opportunity',o,prepared.row,undefined,plan.donorIds.get(o.donorExternalId))
   }catch(error){diagnostic(error instanceof Error?error.message:'Review opportunity identity, stage and owner.',o.location,'error','SKY_OPPORTUNITY')}
  }
  await planAcknowledgmentImports(c,parsed,plan,existing,add,readSet)
  for(const t of parsed.tasks??[]){
   try {
-   const donorId=plan.donorIds.get(t.donorExternalId)??'',donorRow=plan.effects.find(e=>e.kind==='donor'&&e.nativeId===donorId)?.row??donorRows.find(d=>d.id===donorId)
-   if(!donorRow||donorRow.constituent_status!=='active')throw Error('Source tasks require a current active constituent.')
+   const priorTask=existing.get(`callTask:${await sourceKey(t.externalId)}`),donorId=plan.donorIds.get(t.donorExternalId)??'',donorRow=plan.effects.find(e=>e.kind==='donor'&&e.nativeId===donorId)?.row??donorRows.find(d=>d.id===donorId)
+   if(!priorTask&&(!donorRow||donorRow.constituent_status!=='active'))throw Error('Source tasks require a current active constituent.')
    const restrictions=await phoneHolds(c,[donorId],t.isAsk)
-   if(restrictions.get(donorId))throw Error('The source task is held: '+restrictions.get(donorId))
+   if(!priorTask&&restrictions.get(donorId))throw Error('The source task is held: '+restrictions.get(donorId))
    const prospect=t.opportunityExternalId?await nativeId(source,'opportunity',t.opportunityExternalId):null
    const prepared=await importedCallTask(c,t,donorId,prospect)
    plan.checks.push(...prepared.checks)
@@ -263,4 +264,13 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  // Never expose a partial transaction as an option when inputs exceed D1's bound.
  if(!preview && plan.effects.length>3000)fail('MOVE_IN_LIMIT','Split this export into smaller reviews (at most 1,000 source rows).',400)
  return plan
+}
+
+/** Source assignments are reviewed against today's people. Replaying an owned
+ * record never overwrites its current native assignee or later staff edits. */
+function keptAssignment(kind:Kind,row:Row,original:Row,canonical:(id:string)=>string) {
+ if(canonical(original.donor_id)!==row.donor_id)return false
+ const keys=kind==='opportunity'?['label','stage','ask_amount_cents','expected_amount_cents','probability_percent','fund','campaign_id','expected_close_on','pledge_id','gift_id','closed_on']:['source_key','source_kind','reason','amount_cents','due_on','status','is_ask','task_kind','gift_id','prospect_id','completed_at','interaction_id','completion_notes']
+ if(keys.some(key=>(row[key]??null)!==(original[key]??null)))return false
+ return kind!=='opportunity'||String(row.next_step).split('\nSource fundraiser credits:')[0]===String(original.next_step).split('\nSource fundraiser credits:')[0]
 }

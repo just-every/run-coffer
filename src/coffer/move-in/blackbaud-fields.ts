@@ -39,12 +39,13 @@ export async function blackbaudFields(reader:Reader,mappings:CustomImportMapping
  const values=(rows:Row[],scope:string,kind:CustomImportMapping['kind'],target:Row)=>{
   const groups=new Map<string,Row[]>()
   for(const value of rows){
-   if(!value||typeof value.category!=='string'||!byScope.has(scope+':'+value.category)||value.comment||value.end||value.start)error('Every custom value must resolve to a read source definition; dated or annotated values need separate migration.')
+   if(!value||typeof value.category!=='string'||!byScope.has(scope+':'+value.category)||value.comment||value.date||value.end||value.start)error('Every custom value must resolve to a read source definition; dated or annotated values need separate migration.')
    const definition=byScope.get(scope+':'+value.category)!
    if(value.type&&value.type!==definition.type)error('A custom value disagrees with its source definition.')
    groups.set(value.category,[...(groups.get(value.category)??[]),value])
   }
   for(const [name,rows] of groups){
+   if(new Set(rows.map(r=>JSON.stringify(r.value))).size!==rows.length)error('Repeated source custom selections need review; observations will not be collapsed.')
    const definition=byScope.get(scope+':'+name)!,mapping=mappings.find(m=>m.kind===kind&&m.column===name)??error('Review a mapping for every source custom value.')
    if(!mapping||Object.hasOwn(target,name)||rows.length>1&&(mapping.entry!=='pick-many'||definition.one_per_record===true))error('Every source value needs an unambiguous mapping that preserves its multiplicity.')
    const scalar=(v:any)=>{

@@ -9,6 +9,7 @@ export const contactPoints=(c:{db:D1Database},donorId:string)=>all(c,'SELECT * F
 const annualDay=(v:unknown,label:string)=>{const value=text(v,label,5);date('2000-'+value,label);return value}
 const inRange=(day:string,from:string,to:string)=>from<=to?day>=from&&day<=to:day>=from||day<=to
 const intersects=(a:Row,b:Row)=>Array.from({length:366},(_,i)=>new Date(Date.UTC(2000,0,1+i)).toISOString().slice(5,10)).some(day=>inRange(day,a.starts_on,a.ends_on)&&inRange(day,b.starts_on,b.ends_on))
+export const contactSeasonsOverlap=intersects
 export async function contactCommand(c:Context,command:string,p:Row):Promise<Row|undefined>{
  if(command!=='contact.save')return
  const donorId=id(p.donorId,'Donor'),donorVersion=integer(Number(p.donorVersion),'Donor version',1),donor=await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',donorId)

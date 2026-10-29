@@ -9,8 +9,9 @@ export function blackbaudFixture(){
  people[3].requests_no_email=true
  const split=(n,value,fund)=>({id:key(n),amount:{value},fund_id:fund,campaign_id:'c1',appeal_id:'a1'})
  const gift=(n,donor,value,extra={})=>({id:key(n),constituent_id:key(donor),date:'2026-09-03T12:00:00',amount:{value},gift_splits:[split(n+100,value,'f1')],gift_status:'Active',type:'Donation',payments:[{payment_method:'PersonalCheck',account_token:key(9997)}],receipts:[{amount:{value},status:'Receipted'}],acknowledgements:[{status:'NotAcknowledged'}],...extra})
- const gifts=[gift(9011,9001,500,{gift_splits:[split(9111,300,'f1'),split(9112,200,'f2')],receipts:[{amount:{value:450},status:'Receipted'}],acknowledgements:[{status:'Acknowledged',date:'2026-09-04T12:00:00',letter:'Source letter 14'}],soft_credits:[{id:key(9031),gift_id:key(9011),constituent_id:key(9002),amount:{value:100}}]}),gift(9012,9002,250,{acknowledgements:[{status:'DoNotAcknowledge'}]}),gift(9013,9003,500),{id:key(9014),type:'Pledge',constituent_id:key(9003),date:'2026-09-01T12:00:00',amount:{value:1000},balance:{value:1000},gift_splits:[split(9114,1000,'f1')]}]
+ const gifts=[gift(9011,9001,500,{gift_splits:[split(9111,300,'f1'),split(9112,200,'f2')],receipts:[{amount:{value:450},status:'Receipted'}],acknowledgements:[{status:'Acknowledged',date:'2026-09-04T12:00:00',letter:'Source letter 14'}],soft_credits:[{id:key(9031),gift_id:key(9011),constituent_id:key(9002),amount:{value:100}}]}),gift(9012,9002,250,{acknowledgements:[{status:'DoNotAcknowledge'}]}),gift(9013,9003,500),{id:key(9014),type:'Pledge',constituent_id:key(9003),date:'2026-09-01T12:00:00',amount:{value:1000},balance:{value:900},gift_splits:[split(9114,1000,'f1')]}]
  gifts.push({id:key(9015),type:'RecurringGift',constituent_id:key(9001),date:'2026-09-01T00:00:00',amount:{value:40},gift_status:'Active',gift_splits:[split(9115,40,'f1')],payments:[{payment_method:'DirectDebit',account_token:key(9997)}],recurring_gift_schedule:{frequency:'MONTHLY',start_date:'2026-09-01T00:00:00',next_transaction_date:'2026-11-01T00:00:00'}},gift(9016,9001,40,{type:'RecurringGiftPayment',linked_gifts:[key(9015)],date:'2026-09-10T00:00:00'}))
+ gifts.push(gift(9017,9003,100,{type:'PledgePayment',linked_gifts:[key(9014)],date:'2026-09-10T00:00:00'}))
  const actions=[{id:key(9021),constituent_id:key(9001),category:'Email',completed:true,date:'2026-09-04T12:00:00',summary:'Original thank you',description:'Source email acknowledgment'},{id:key(9022),constituent_id:key(9002),category:'Phone Call',completed:true,date:'2026-09-05T12:00:00',summary:'Recognition call',description:'Separate soft-credit thanks'}]
  actions.push({id:key(9024),constituent_id:key(9003),category:'Meeting',completed:false,date:'2026-11-10T12:00:00',summary:'Review library proposal',description:'A human follow-up, with no automatic contact',opportunity_id:key(9051),fundraisers:[key(9001)]})
  const relationships=[{id:key(9041),constituent_id:key(9001),relation_id:key(9002),is_spouse:true,is_constituent_head_of_household:true},{id:key(9042),constituent_id:key(9003),relation_id:key(9004),is_spouse:true}]
@@ -19,11 +20,12 @@ export function blackbaudFixture(){
  const review={currency:'USD',funds:{f1:'Reading',f2:'Library'},campaigns:{c1:'Autumn books'},appeals:{a1:'Annual reading'},stages:{Proposal:{stage:'ask',probability:80}},owners:{},contactTypes:{'email:Email':'personal','email:Work':'work','phone:Mobile':'mobile','address:Home':'home'},households:{[key(9061)]:{name:'Source Reed family',members:[key(9001),key(9002)],headId:key(9001),addressee:'  The Reading Family  ',formal:'Dear Reed Readers',informal:'Dear Ava and Bee'},[key(9062)]:{name:'Source Chen family',members:[key(9003),key(9004)]}},gifts:{[key(9011)]:{acknowledgmentMethod:'email',acknowledgmentInteractionId:key(9021),tribute:{kind:'memory',honoree:'Jordan Reed',sourceGroup:key(9081),recipientName:'River Reed',recipientAddress:'12 River Road'}},[key(9012)]:{tribute:{kind:'memory',honoree:'Jordan Reed',sourceGroup:key(9081)}}},actions:{[key(9024)]:{isAsk:false}},softCredits:{[key(9031)]:{status:'acknowledged',date:'2026-09-05',method:'phone call',reference:'Source phone thanks',interactionId:key(9022)}},customFields:[{source:'re-nxt',column:'Membership',key:'sky_membership',label:'Membership interest',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer'],version:0},{source:'re-nxt',column:'Gift detail',key:'sky_detail',label:'Gift detail',kind:'gift',type:'text',entry:'free-form',choices:[],version:0}]}
  Object.assign(review.stages,{Funded:{stage:'closed_won',probability:100},Declined:{stage:'closed_lost',probability:0}})
  review.opportunities={
-  [key(9051)]:{nextStep:'Discuss the source proposal'},
+  [key(9051)]:{owner:key(9001),nextStep:'Discuss the source proposal'},
   [key(9052)]:{nextStep:'Retain the completed source gift history'},
   [key(9053)]:{nextStep:'Retain the declined source proposal',closedOn:'2026-09-05'},
   [key(9054)]:{nextStep:'Retain the source pledge commitment'}
  }
+ opportunities[0].fundraisers.push({constituent_id:key(9002),credit_amount:{value:600}})
  opportunities.push(
   {id:key(9052),constituent_id:key(9003),name:'Completed reading proposal',status:'Funded',ask_amount:{value:700},expected_amount:{value:500},funded_amount:{value:500},funded_date:'2026-09-04T00:00:00',linked_gifts:[key(9013)],fund_id:'f1',campaign_id:'c1',fundraisers:[{constituent_id:key(9001)}],inactive:false},
   {id:key(9053),constituent_id:key(9003),name:'Declined reading proposal',status:'Declined',ask_amount:{value:400},expected_amount:{value:400},fund_id:'f1',campaign_id:'c1',fundraisers:[{constituent_id:key(9001)}],inactive:true},
@@ -52,7 +54,10 @@ export function blackbaudFixture(){
  contacts[key(9001)].emailaddresses.push({id:key(9194),constituent_id:key(9001),address:email(9194),primary:false,type:'Work',inactive:true})
  contacts[key(9001)].phones.push({id:key(9195),constituent_id:key(9001),number:'+12025550189',primary:false,type:'Home',inactive:true})
  contacts[key(9001)].addresses.push({id:key(9196),constituent_id:key(9001),address_lines:'30 Earlier Road',city:'Madison',state:'WI',postal_code:'53703',country:'United States',type:'Home',preferred:false,inactive:true})
- Object.assign(review.contactTypes,{'email:Other':'other','phone:Home':'home','phone:Work':'work','address:Work':'work','address:Vacation':'vacation'})
+ contacts[key(9001)].addresses[0].start='2020-01-01T00:00:00'
+ contacts[key(9001)].addresses[2].seasonal_start={m:7,d:1};contacts[key(9001)].addresses[2].seasonal_end={m:8,d:31}
+ contacts[key(9001)].addresses.at(-1).start='2018-01-01T00:00:00';contacts[key(9001)].addresses.at(-1).end='2020-01-01T00:00:00'
+ Object.assign(review.contactTypes,{'email:Other':'other','phone:Home':'home','phone:Work':'work','address:Work':'work','address:Vacation':'seasonal'})
  const calls=[],state={badPages:false,crossHost:false,denied:false}
  const blackbaud={accessToken:key(9998),subscriptionKey:key(9999)},solicitCodes={'Do not solicit':{type:'stop'},'Do not mail':{type:'channels',channels:['mail']},'Solicit once annually':{type:'limit',maxAsks:1}}
  const input=()=>({source:'re-nxt',blackbaud,files:[sourceFile(review)],solicitCodes})

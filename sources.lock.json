@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "50cfef7e44dda67a8594e3d6b41192f994c64cb66aaf3d4571b8baabbcf0d139",
+      "sha256": "aec3b677d128bacd537ede69a94baf2b9a837362cfe5b51fef93b28c89a61539",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0fd4b8a3a8f8f5d8556572a2a2fc5f3b3177db565dd75416034dee77ff5e0e86",
+      "sha256": "4c786d3f7914484c60440b230a6a6a5689866454989a5c7bfac7502c032a6b44",
       "executable": false
     },
     "deploy-demo.json": {
@@ -607,7 +607,7 @@
       "executable": false
     },
     "docs/blackbaud-move-in.md": {
-      "sha256": "6c227d51b3fb23beb56cafb86bddd39c6b70925da2d51c3b998bb316c319505f",
+      "sha256": "0e4ed5a0c35a0746d7b0a0e4340489f5e9be8af60419510cecfd9945a324a19a",
       "executable": false
     },
     "docs/CLAIMS.md": {
@@ -2739,7 +2739,7 @@
       "executable": false
     },
     "src/coffer/contact-points.ts": {
-      "sha256": "d345749d97c54a9affedc35794279ae2c2ed25ae010a1b8cc1bd47bcf9569ead",
+      "sha256": "22a9d2d9afc7a79561453032a5eb864184ad0ea5d150625cbcd9e240397670a1",
       "executable": false
     },
     "src/coffer/contribution-receipts.ts": {
@@ -3283,7 +3283,7 @@
       "executable": false
     },
     "src/coffer/major-gifts.ts": {
-      "sha256": "3e87643d6ca71089d4e429c8815d3b6f3469fcf6f159d7f7455b32795e6e75bc",
+      "sha256": "e27f9b0590bd782ef82e3a3c378f140efe24614b8144964e69239a879513468c",
       "executable": false
     },
     "src/coffer/mcp.ts": {
@@ -3335,7 +3335,7 @@
       "executable": false
     },
     "src/coffer/move-in/blackbaud-contacts.ts": {
-      "sha256": "8dd624e419c965ca173b2dce07119f5963b5f3b990f48dd275940ad674ecc4a4",
+      "sha256": "b5af2fa8dce2d681d4a8423929bd2986c377a37c43086e0584385d43ba7abe45",
       "executable": false
     },
     "src/coffer/move-in/blackbaud-edge.ts": {
@@ -3343,11 +3343,11 @@
       "executable": false
     },
     "src/coffer/move-in/blackbaud-fields.ts": {
-      "sha256": "86f3d5ce999a13ab8081d52f7e950d2061d5a9a746bfbb4ca2203a0d7d2fd3a2",
+      "sha256": "926022691661bc788e39202436acbec2d0d76a04dac3d9afed1da51da8064d9f",
       "executable": false
     },
     "src/coffer/move-in/blackbaud.ts": {
-      "sha256": "2394f641ce859fcb92682a5c3e3a739482633d291494cecf4259235ae4bf59fb",
+      "sha256": "c7f9c5b6888fb3ba8f1111953f69b04468b06efef809574fd7fb100e50946eb7",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -3395,7 +3395,7 @@
       "executable": false
     },
     "src/coffer/move-in/plan.ts": {
-      "sha256": "1195038a23f3a4fdee1c3075533031fdb8add01b5dfaebb26ad1c8cbb507b13f",
+      "sha256": "6c5afe9c9d032fa4e4056093e5a1d2455a4a376fa55b4676cb45ed9f13a0e29d",
       "executable": false
     },
     "src/coffer/move-in/platform-export.ts": {
@@ -3471,7 +3471,7 @@
       "executable": false
     },
     "src/coffer/move-in/types.ts": {
-      "sha256": "e85e25c66dcbf63f8868cee83a473b38739450711673305683fcc50dc7f65eea",
+      "sha256": "f330a190873029cd5bd97d9a5632ae344086bf043b7c5f8704646d0b463c380e",
       "executable": false
     },
     "src/coffer/opportunity-close.ts": {
@@ -4031,7 +4031,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "2e58f1af231bbb503a4a07f4103d8b0d05eb07f09c1fb155432bdc4594328457",
+      "sha256": "9b40f76c20cf18491426b15d88d8fe4bc9305ec39b5587332401da37dc306c54",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6359,11 +6359,11 @@
       "executable": false
     },
     "tests/blackbaud-fixture.mjs": {
-      "sha256": "9e72a70a8c25c7483e35ecbb9499403da10ea688ad7a2eb286872cdd06eb47b6",
+      "sha256": "ae82856eaff0de7f9df6348b8e7cc74d55b540216446a381193f551d4591a13c",
       "executable": false
     },
     "tests/blackbaud-journey.mjs": {
-      "sha256": "74f8e54033f615e5f75c2701d12b297f849975f598ca218572caa1020c4d673c",
+      "sha256": "eb1c95b388c2ffdbd17a6cc3be52b6e28387181c726970865b50bbfc03d54658",
       "executable": false
     },
     "tests/browser-journey.mjs": {
