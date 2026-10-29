@@ -1,3 +1,5 @@
+import {journeyChimpEdge} from './journey-chimp-edge.mjs'
+import {peerNoticesJourney} from './peer-notices-journey.mjs'
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
@@ -37,7 +39,13 @@ async function give(h,pageId,who,cents,extra={}){
 }
 
 export async function peerJourney(){
- const edge=recognitionEdges()
+ const edge=recognitionEdges(),mail=journeyChimpEdge([address('first.peer'),address('second.peer')])
+ const stripeOutbound=edge.outbound
+ edge.outbound=async request=>{
+  if(!new URL(request.url).hostname.endsWith('api.mailchimp.com'))return stripeOutbound(request)
+  if(new URL(request.url).pathname.endsWith('/content')&&mail.beforeContent){const change=mail.beforeContent;mail.beforeContent=null;await change()}
+  return mail.outbound(request)
+ }
  await run(async h=>{
   const {parent,campaign,first,second,firstCookie,secondCookie}=await seed(h)
   const state=as=>h.get('/giving/peer/state',{as}),pub=id=>h.get(pagePath(id)+'?format=json',{as:''}),board=()=>h.get(boardPath(campaign.id),{as:''})
@@ -107,6 +115,7 @@ export async function peerJourney(){
   assert.equal((await h.request(pagePath(p1.id),{as:''})).status,404,'A later recognition grant does not republish a withdrawn page')
   const own=(await state(firstCookie)).pages.find(p=>p.id===p1.id)
   await portalPost(h,'pages',{...create,id:p1.id,version:own.version,title:'First reading page',teamId:team.id},firstCookie)
+  const notices=await peerNoticesJourney(h,mail,{first,second,firstCookie,secondCookie,p1,p2,team,campaign,portalPost,create})
   const saved=await archive(h),expectedBoard=await board()
   await run(async fresh=>{
    await restore(fresh,saved)
@@ -123,11 +132,14 @@ export async function peerJourney(){
   assert.equal((await h.get('/api/coffer/giving/campaigns/'+parent.id)).raisedCents,5500)
   assert.equal((await h.request('/giving/thanks?session_id='+firstGift.sessionId,{as:''})).status,200)
   assert.equal((await pub(p1.id)).raisedCents,0,'Replayed paid capture cannot reverse a reversal')
+  await notices.send(notices.records[0],'milestone',{}, {status:409})
+  assert.equal(mail.handoffs.length,notices.handoffs,'Reversal never resubmits a now-invalid milestone')
   const comparison=await h.get('/api/coffer/duplicates/compare?source='+first.id+'&target='+second.id)
   const merged=await h.command('donor.merge',{sourceDonorId:first.id,donorId:second.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
   assert.equal((await h.request('/giving/peer/state',{as:firstCookie})).status,303)
   assert.equal((await h.request('/giving/peer/state',{as:secondCookie})).status,303)
   assert.equal((await board()).pages.length,0,'Merge invalidates both public permissions')
+  await notices.send(notices.records[0],'thank',{}, {status:409});assert.equal(mail.handoffs.length,notices.handoffs)
   await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'})
   assert.equal((await board()).pages.length,0,'Undo does not revive public permissions')
   assert.equal((await h.get('/api/coffer/donors/'+second.id)).giftDepth.recognitionCents,4000)
@@ -136,6 +148,7 @@ export async function peerJourney(){
   await portalPost(h,'pages',{...create,id:p1.id,version:revived.version,title:'First reading page'},freshCookie)
   await h.command('donor.erase',{donorId:first.id,confirm:'ERASE'})
   assert.equal((await h.request(pagePath(p1.id),{as:''})).status,404)
+  await notices.send(notices.records[0],'thank',{}, {status:409});assert.equal(mail.handoffs.length,notices.handoffs)
   assert.equal((await h.request('/giving/peer/state',{as:freshCookie})).status,303)
   assert.equal((await h.request('/giving/thanks?session_id='+firstGift.sessionId,{as:''})).status,200)
   assert.equal((await board()).pages.length,0)
