@@ -46,13 +46,13 @@ jobs:
       - id: plan
         env:
           TIER: ${{ inputs.tier || 'push' }}
-        run: echo "matrix=$(node scripts/verify-ci.mjs --matrix "$TIER")" >> "$GITHUB_OUTPUT"
+        run: echo "matrix=$(node scripts/ci/shards.mjs --matrix "$TIER")" >> "$GITHUB_OUTPUT"
 
   shards:
     needs: plan
     if: ${{ needs.plan.outputs.skip != 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ inputs.timeout || ((matrix.name == 'pipeline' || matrix.name == 'donors') && 20 || 12) }}
+    timeout-minutes: ${{ inputs.timeout || 12 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -83,14 +83,17 @@ jobs:
           key: seed-ubuntu24-${{ runner.arch }}-browser-${{ matrix.browser }}-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run deps
-      - name: Install Chromium and system libraries
+      - name: Install Chromium and probe system libraries
         if: matrix.browser
         run: |
           set -euo pipefail
           mkdir -p ~/.cache/ms-playwright ~/.cache/rer-apt/archives
-          sudo env "PATH=$PATH" "APT_ARCHIVES=$HOME/.cache/rer-apt/archives" python3 scripts/install-chromium-deps.py
-          sudo chown -R "$(id -u):$(id -g)" ~/.cache
           pnpm exec playwright install chromium
+          if ! node scripts/ci/chromium-probe.mjs; then
+            sudo env "PATH=$PATH" "APT_ARCHIVES=$HOME/.cache/rer-apt/archives" python3 scripts/install-chromium-deps.py
+            node scripts/ci/chromium-probe.mjs
+          fi
+          sudo chown -R "$(id -u):$(id -g)" ~/.cache
       - name: Reserve disk for native runtime journeys
         if: matrix.browser
         run: |
@@ -102,7 +105,8 @@ jobs:
       - name: Run this shard
         env:
           SHARD: ${{ matrix.name }}
-        run: node scripts/verify-ci.mjs "$SHARD"
+          TIER: ${{ inputs.tier || 'push' }}
+        run: node scripts/ci/shards.mjs "$SHARD" "$TIER"
 
   verify:
     needs: [plan, shards]
