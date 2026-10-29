@@ -36,7 +36,7 @@ export async function achCheckoutJourney(){
   assert.equal(item.amount,10330,'Independent $100 gift plus agreed $3.30 cover')
   const thanks=()=>h.request('/giving/thanks?session_id='+item.session.id,{as:''})
   const pending=await thanks();await okay(pending);assert.match(await pending.text(),/Payment is still processing/)
-  for(const type of ['checkout.session.completed','payment_intent.processing'])await okay(await achEvent(h,item,type))
+  for(const type of ['checkout.session.completed','payment_intent.processing','charge.succeeded'])await okay(await achEvent(h,item,type))
   assert.deepEqual([(await history()).gifts.length,(await history()).letters.length,(await progress()).raisedCents,h.messages.length],[0,0,0,0])
   assert.doesNotMatch(await wall(),/Book Circle/)
   assert.equal((await start({...v,paymentMethod:'card'})).status,409,'Saved method cannot be changed')
@@ -47,7 +47,15 @@ export async function achCheckoutJourney(){
   edge.state.mismatch=true;assert.equal((await thanks()).status,409);edge.state.mismatch=false
   assert.equal((await history()).gifts.length,0)
   await achBrowser(h,edge,item,{campaign,known,stage:'pending',input:v})
+  item.mandateStatus='inactive'
+  assert.equal((await thanks()).status,409,'A revoked mandate cannot authorize a pending payment')
+  assert.equal((await history()).gifts.length,0)
+  item.mandateStatus=null
   item.status='succeeded'
+  item.mandateMethod='pm_other'
+  assert.equal((await thanks()).status,409,'A mandate for another instrument cannot settle this quote')
+  assert.equal((await history()).gifts.length,0)
+  item.mandateMethod=null
   // A charge can beat both the session and PaymentIntent notifications.
   await okay(await achEvent(h,item,'charge.succeeded'))
   const paid=await history(),gift=paid.gifts.find(g=>g.kind==='gift')
@@ -108,6 +116,24 @@ export async function achCheckoutJourney(){
   await okay(await achEvent(h,item,'payment_intent.succeeded'));assert.match(await (await thanks()).text(),/Bank payment returned/)
   assert.equal((await history()).gifts.filter(g=>g.kind==='reversal').length,1)
   await achBrowser(h,edge,item,{campaign,known,stage:'returned'})
+  // A return may arrive before any success notification. The already captured
+  // mandate can be inactive by then; reconcile history without authorizing a debit.
+  const reorderedDonor=await donor(h,'Reordered Bank',{email:address('reordered.bank')})
+  assert.equal((await start(values('Reordered Bank'))).status,303)
+  const reordered=[...edge.state.sessions.values()].at(-1)
+  await okay(await achEvent(h,reordered,'payment_intent.processing'))
+  reordered.status='succeeded';reordered.returned=true
+  await okay(await achEvent(h,reordered,'charge.dispute.created'))
+  assert.deepEqual((await h.get('/api/coffer/payments/fees')).totals,{gross_cents:0,fee_cents:966,net_cents:-966},'Return-first reconciliation includes both original fees and bank return fees')
+  for(const type of ['charge.succeeded','checkout.session.async_payment_succeeded','payment_intent.succeeded'])await okay(await achEvent(h,reordered,type))
+  const reorderedHistory=await h.get('/api/coffer/donors/'+reorderedDonor.id)
+  assert.deepEqual(reorderedHistory.gifts.map(g=>g.amount_cents).sort((a,b)=>a-b),[-10000,10000])
+  assert.equal(reorderedHistory.gifts.find(g=>g.kind==='gift').method,'bank transfer')
+  assert.equal(reorderedHistory.totals.lifetimeCents,0)
+  assert.equal((await progress()).raisedCents,0)
+  assert.match(await (await h.request('/giving/thanks?session_id='+reordered.session.id,{as:''})).text(),/Bank payment returned/)
+  const reorderedTasks=(await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='bank-return:ch_ach_'+reordered.n)
+  assert.equal(reorderedTasks.length,1);assert.equal(reorderedTasks[0].is_ask,0)
   // Restore preserves the returned authorization, reversal, one task and frozen receipt.
   const saved=await archive(h)
   await run(async fresh=>{

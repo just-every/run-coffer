@@ -125,7 +125,11 @@ funds return (NACHA R01) appends the processor debit to Coffer's existing
 reversal ledger and creates one owned, non-ask follow-up task. It never submits
 another debit. The original paid receipt facts remain frozen; existing receipt
 correction and approval rules govern any correction. Returned payments never
-become gifts again when earlier success notifications arrive.
+become gifts again when earlier success notifications arrive. If the return
+notification arrives first, Coffer reconciles the already captured mandate and
+independently settled payment even when Stripe has since deactivated that mandate.
+This historical reconciliation grants no permission to collect another payment;
+an inactive mandate cannot authorize a still-pending gift.
 
 The network-edge journeys establish native behavior, not a live ACH capability,
 actual instant verification or bank settlement qualification. Apple Pay on a real

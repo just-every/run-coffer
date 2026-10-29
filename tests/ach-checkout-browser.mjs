@@ -12,6 +12,12 @@ export async function achBrowser(h,edge,item,{campaign,known,stage,input}){
   const capture=async name=>{
    for(const width of widths){
     await page.setViewportSize({width,height:1000})
+    await page.evaluate(async()=>{
+     await document.fonts.ready
+     for(let y=0;y<document.documentElement.scrollHeight;y+=innerHeight){scrollTo(0,y);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))}
+     scrollTo(0,0)
+     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))
+    })
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),name+' fits '+width)
     await page.screenshot({path:`${directory}/ACH-${name}-${width}.png`,fullPage:true,timeout:60000})
    }
