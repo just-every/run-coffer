@@ -10,10 +10,10 @@ const WORKERS = 3;
 const JOB_TARGET = 15 * 60;
 const SETUP_SECONDS = 120;
 const LANE_TARGET = JOB_TARGET - SETUP_SECONDS;
-// Successful END lines from Verify 40911159077 (fb0d74b6), including its
-// browser opt-ins. The run was cancelled, so incomplete units retain the prior
-// samples. The computed move-in group uses its larger, fixed-complement local
-// observation. Pad observations by 10%; reserve two minutes for runner setup.
+// Successful END lines from Verify 40911159077 and 40920377253, including
+// browser opt-ins; retain the larger observation for each registration. The
+// computed move-in group retains its larger fixed-complement local sample.
+// Pad observations by 10%; reserve two minutes for runner setup.
 const weight = seconds => Math.ceil(seconds * 1.1);
 const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
 const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -37,6 +37,7 @@ function split(command, shard) {
  }))];
  if (!files.length) throw Error(`No test files for ${command}`);
  const names = new Set();
+ const timeouts = new Map();
  for (const file of files) {
   // Recognize only direct, literal registrations. The complement below always
   // runs too: loops, computed names, suites and future registration forms cannot
@@ -46,7 +47,10 @@ function split(command, shard) {
   for (const match of source.matchAll(literals)) {
    const body = match[1].slice(1, -1);
    if (/\\[^'"\\]/.test(body)) continue;
-   names.add(body.replace(/\\(['"\\])/g, '$1'));
+   const name = body.replace(/\\(['"\\])/g, '$1');
+   names.add(name);
+   const timeout = /^\s*\{\s*timeout\s*:\s*(\d+)\s*\}/.exec(source.slice(match.index + match[0].length));
+   if (timeout) timeouts.set(name, Number(timeout[1]) / 1000);
   }
  }
  if (!names.size) return [{ command, label: shard.name, seconds: 100 }];
@@ -60,11 +64,20 @@ function split(command, shard) {
   const flag = '--test-name-pattern=' + quote(intersection);
   return include ? command.replace(option, () => flag) : command.replace(/\bnode --test\b/, match => match + ' ' + flag);
  };
- const units = [...names].filter(selected).map(name => ({
-  command: filtered('^' + escape(name) + '(?:$| > )'),
-  label: shard.name + ': ' + name,
-  seconds: weight(estimates[name] ?? 90),
- }));
+ const units = [...names].filter(selected).map(name => {
+  const seconds = weight(estimates[name] ?? 90);
+  // Verify 40920377253 timed out CAMP-004 at its existing 300s deadline
+  // while two other lanes were active; CAMP-002 took 273s against the same
+  // deadline. Give registrations near a declared timeout the whole runner,
+  // without changing the test timeout, command or browser opt-ins.
+  const exclusive = timeouts.has(name) && seconds >= timeouts.get(name) * 0.75;
+  return {
+   command: filtered('^' + escape(name) + '(?:$| > )'),
+   label: shard.name + ': ' + name,
+   seconds: exclusive ? Math.max(seconds, Math.ceil(timeouts.get(name))) : seconds,
+   exclusive,
+  };
+ });
  units.push({
   // Node also matches the synthetic <root> ancestor. A negative include matches
   // that root and runs every descendant again, including browser journeys.
@@ -107,12 +120,24 @@ async function schedule(tier) {
  const units = shards.flatMap(shard => shard.hosted
   ? [{ command: 'node scripts/verify-ci.mjs ' + quote(shard.name), label: shard.name + ': hosted checks', seconds: weight(estimates['hosted checks'] ?? 100) }]
   : shard.commands.flatMap(command => split(command, shard)));
- // Isolate the longest registrations in their own lanes, then use the fewest
- // jobs (8..14) whose three concurrent lanes all fit the fifteen-minute target.
+ // Serial jobs give timeout-sensitive registrations a runner without competing
+ // lanes. Their estimates reserve at least the full existing test deadline.
+ // Other jobs retain three lanes and isolate their longest registrations.
  units.sort((a, b) => b.seconds - a.seconds || a.label.localeCompare(b.label));
+ const serial = [];
+ for (const unit of units.filter(unit => unit.exclusive)) {
+  if (unit.seconds > LANE_TARGET) throw Error(`Registration exceeds CI target: ${unit.label}`);
+  let lane = serial.find(lane => lane.seconds + unit.seconds <= LANE_TARGET);
+  if (!lane) { lane = { seconds: 0, units: [] }; serial.push(lane); }
+  lane.units.push(unit);
+  lane.seconds += unit.seconds;
+ }
+ const concurrent = units.filter(unit => !unit.exclusive);
  for (let count = MIN_JOBS; count <= MAX_JOBS; count++) {
-  const lanes = Array.from({ length: count * WORKERS }, (_, index) => ({ index, seconds: 0, units: [], isolated: false }));
-  for (const unit of units) {
+  const parallelJobs = count - serial.length;
+  if (parallelJobs <= 0) continue;
+  const lanes = Array.from({ length: parallelJobs * WORKERS }, (_, index) => ({ index, seconds: 0, units: [], isolated: false }));
+  for (const unit of concurrent) {
    const isolate = unit.seconds >= LANE_TARGET * 0.75;
    const lane = lanes.filter(lane => !lane.isolated && (!isolate || !lane.units.length))
     .sort((a, b) => a.seconds - b.seconds || a.index - b.index)[0];
@@ -121,12 +146,14 @@ async function schedule(tier) {
    lane.seconds += unit.seconds;
    lane.isolated = isolate;
   }
-  if (lanes.reduce((total, lane) => total + lane.units.length, 0) !== units.length
+  if (lanes.reduce((total, lane) => total + lane.units.length, 0) !== concurrent.length
    || lanes.some(lane => lane.seconds > LANE_TARGET)) continue;
-  return Array.from({ length: count }, (_, index) => ({
+  return [...Array.from({ length: parallelJobs }, (_, index) => ({
    name: 'balanced-' + (index + 1), browser: true,
-   lanes: lanes.filter(lane => lane.index % count === index),
-  }));
+   lanes: lanes.filter(lane => lane.index % parallelJobs === index),
+  })), ...serial.map((lane, index) => ({
+   name: 'balanced-' + (parallelJobs + index + 1), browser: true, lanes: [lane],
+  }))];
  }
  throw Error(`Verification cannot fit ${MAX_JOBS} shards within ${JOB_TARGET}s including setup; split the longest registration group`);
 }

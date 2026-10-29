@@ -1971,11 +1971,11 @@
       "executable": false
     },
     "scripts/ci/durations.json": {
-      "sha256": "aa099be96e756c9a1bcc98a4b5346a64d4585ebbfc7e05e4d4b2a0a16d6bd640",
+      "sha256": "5b7e7fc467e572da2e07d8e2ca44b21d952488cc4f8461586b9646783ded599a",
       "executable": false
     },
     "scripts/ci/shards.mjs": {
-      "sha256": "1f2af104bb0b5fca4b98d7dfc3674b22b7e15e2b331f10ad99e83589542bd5b9",
+      "sha256": "b27b4bf838716ed5ea910adc4792e2494b1b0651e66d05c75751f3b5aa8ca117",
       "executable": false
     },
     "scripts/contract-docs.mjs": {
