@@ -9,7 +9,13 @@ const statusRows=rows.filter(r=>['published','target','push-further'].includes(r
 const counts=(group)=>[...['done','partial','missing'].map(status=>group.filter(row=>row[4]===status).length),group.length]
 const summary=[['Published',statusRows.filter(r=>r[3]==='published')],['Target and push further',statusRows.filter(r=>r[3]!=='published')],['All',statusRows]].map(([label,group])=>`| ${label} | ${counts(group).join(' | ')} |`).join('\n')
 const replaceSummary=text=>text.replace(/^\| Published \|[^\n]*\n\| Target and push further \|[^\n]*\n\| All \|[^\n]*/m,summary)
-const contract=replaceSummary(original),parsed=parseContract(contract),lines=contract.split('\n')
+let contract=replaceSummary(original)
+// Claim status summaries derive from the same touched Status rows.
+for(const id of ids){
+ const source=statusRows.find(row=>row[1]==='`'+id+'`')
+ if(source)contract=contract.replace(new RegExp('(`'+id+'`) (done|partial|missing)(?= · | [|])','g'),(_,clause)=>clause+' '+source[4])
+}
+const parsed=parseContract(contract),lines=contract.split('\n')
 let acceptance=replaceSummary(readFileSync('ACCEPTANCE.md','utf8'))
 acceptance=acceptance.replace(/^Judged from[^\n]*/m,contract.split('\n').find(line=>line.startsWith('Judged from')))
 for(const id of ids){

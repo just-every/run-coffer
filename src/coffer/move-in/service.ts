@@ -4,6 +4,7 @@ import { customCustodyWrites } from './custom-custody'
 import { buildCustomReview } from './custom-review-plan'
 import { sourceRecords } from './custom-source-records'
 import { customTagUndoGuards, customTagUndoWrites } from './custom-review-tags'
+import { neonInput } from './neon'
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
 import { spreadsheetAddresses } from './spreadsheet-addresses'
 import { resolveSpreadsheetMatches } from './spreadsheet-matches'
@@ -22,12 +23,15 @@ import { stageParts } from './stage'
 import { accumulate, emptyTotals } from './source-totals'
 import { custodySnapshot, kinds, snapshot, tables, type Kind } from './tables'
 import { compact, ordered, reportOf, store } from './review'
-import type { Diagnostic, ParseInput, ParsedImport } from './types'
+import type { Diagnostic, ParseInput, ParsedImport, SourceCoverage } from './types'
 
 const APPLY_BUDGET_MS = 20_000
+function confirmedNeonCurrency(job:Row) {
+ if(job.source==='neon'&&JSON.parse(job.report).sourceCoverage?.currency!=='USD')fail('NEON_CURRENCY','This Neon review has no USD confirmation. Read and review it again before applying money.',409)
+}
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
-const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...(['givebutter','zeffy'].includes(p.source)?{recurringReferences:(p.recurringReferences??[]).length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...(['spreadsheet','givebutter','zeffy'].includes(p.source)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
+const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...(['givebutter','zeffy'].includes(p.source)?{recurringReferences:(p.recurringReferences??[]).length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...(['spreadsheet','givebutter','zeffy','neon'].includes(p.source)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
 
 export async function spreadsheetMappings(c:Context) {
  authorize(c)
@@ -47,8 +51,18 @@ export async function preview(c: Context,input: ParseInput) {
   if(saved?.mapping)input={...input,solicitCodes:JSON.parse(saved.mapping)}
  }
  if(input.source==='spreadsheet')input=await resolveSpreadsheetMatches(c,input)
+ let sourceCoverage:SourceCoverage|undefined
+ if(input.source==='neon'){
+  if(input.neon){const result=await neonInput(input,today((await settings(c)).timezone,new Date(c.now)));input=result.input;sourceCoverage=result.coverage}
+  else {
+   if(input.neonExportCurrency!=='USD')fail('NEON_CURRENCY','Confirm that these Neon exports record USD amounts before reviewing money. No currency conversion is performed.',400)
+   sourceCoverage={fromExports:true,currency:'USD',counts:{},unsupported:['Source objects absent from the supplied exports','Recurring-donation migration and processor references']}
+  }
+ }
  const parsed=await parseExports(input)
- const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet,...(input.deferCustomValues===true?{deferCustomValues:true}:{})}: {})})
+ if(sourceCoverage?.fromExports)sourceCoverage.counts={accounts:parsed.donors.length,donations:parsed.gifts.length,activities:parsed.notes.length,households:parsed.households.length}
+ if(sourceCoverage)parsed.sourceCoverage=sourceCoverage
+ const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,...(sourceCoverage?.fromExports?{neonExportCurrency:'USD'}:{}),...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet,...(input.deferCustomValues===true?{deferCustomValues:true}:{})}: {})})
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
  if(prior?.redacted)parsed.diagnostics.push({severity:'error',code:'MOVE_IN_ERASED',message:'An imported constituent was erased. This move-in cannot restore their contact or history.'})
@@ -89,6 +103,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',String(input.id??''))
  if(!job)fail('MOVE_IN_CHANGED','Upload the exports and review them again.',409)
  if(job.redacted)fail('MOVE_IN_ERASED','A donor in this move-in was erased. This review cannot restore their records.',409)
+ confirmedNeonCurrency(job)
  if(job.state==='completed')return {id:job.id,state:'completed',unchanged:true,parts:job.parts,appliedParts:job.applied_parts}
  if(job.state==='applying')return continueApply(c,job.id)
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
@@ -115,6 +130,7 @@ export async function continueApply(c: Context,id:string) {
   const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',id)
   if(!job)fail('NOT_FOUND','That move-in does not exist.',404)
   if(job.redacted)fail('MOVE_IN_ERASED','A donor in this move-in was erased. This review cannot continue.',409)
+  confirmedNeonCurrency(job)
   if(job.state!=='applying')return {id,state:job.state,parts:job.parts,appliedParts:job.applied_parts,unchanged:true}
   const next=await one(c,'SELECT position,payload FROM cf_move_in_parts WHERE job_id=? AND applied_at IS NULL ORDER BY position LIMIT 1',id)
   if(!next){await finish(c,job);return {id,state:'completed',parts:job.parts,appliedParts:job.parts,unchanged:false}}
@@ -210,7 +226,7 @@ export async function undo(c: Context,id:string) {
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>${custodySnapshot(kind)}))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
  writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id),...customTagUndoGuards(id))
- if(['spreadsheet','givebutter','zeffy'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoGuards(id))
+ if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
  if(result.job.source==='spreadsheet')writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_address_checks a ON a.donor_id=r.native_id WHERE r.job_id=? AND r.kind='donor' AND r.owned=1 AND (a.version<>1 OR a.source<>'smarty' OR a.checked_at<>json_extract(r.snapshot,'$.created_at')))`,'MOVE_IN_USED','An imported address was checked again. Nothing was undone.',id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1) AND p.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='contact' AND owned=1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id,id))
@@ -250,7 +266,7 @@ export async function undo(c: Context,id:string) {
  writes.push(sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.solicitationUndoInProgress',json('true')) WHERE id=?",id))
  writes.push(sql(`DELETE FROM cf_solicitation_history WHERE donor_id IN (${owned('solicitation')})`,id))
  writes.push(...customTagUndoWrites(id),...customImportUndoWrites(id))
- if(['spreadsheet','givebutter','zeffy'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoWrites(id))
+ if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))

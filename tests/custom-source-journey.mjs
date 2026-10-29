@@ -13,7 +13,7 @@ export const sourceFiles=(offset=0)=>({source:'bloomerang',files:[
 function bloomerangEdge({large=false}={}){
  let offset=0,revoked=false
  const definitions={Constituent:[{Id:1,Name:'Membership',DataType:'Text',PickType:'PickOne'},{Id:2,Name:'Interests',DataType:'Text',PickType:'PickMultiple'},{Id:6,Name:'Source groups',DataType:'Text',PickType:'PickMultiple'},{Id:7,Name:'Private source field',DataType:'Text',PickType:'Freeform'}],Transaction:[{Id:3,Name:'Budget',DataType:'Currency',PickType:'Freeform'}],Interaction:[{Id:4,Name:'Topic',DataType:'Text',PickType:'Freeform'}],Note:[{Id:5,Name:'Note detail',DataType:'Text',PickType:'Freeform'},{Id:8,Name:'Note circle',DataType:'Text',PickType:'PickOne'}]}
- const choices={1:['Board','Volunteer'],2:['Books','Music'],6:['Alumni','Legacy'],8:['Source note circle']},choice=(id,value)=>({Id:id*10+(choices[id]?.indexOf(value)??0)+1,FieldId:id,Value:value})
+ const choices={1:['Board','Volunteer','2026','true','null'],2:['Books','Music'],6:['Alumni','Legacy'],8:['Source note circle']},choice=(id,value)=>({Id:id*10+(choices[id]?.indexOf(value)??0)+1,FieldId:id,Value:value})
  if(large){
   definitions.Constituent.push(...Array.from({length:90},(_,i)=>({Id:100+i,Name:'Retained source detail '+i,DataType:'Text',PickType:'Freeform'})))
   definitions.Transaction.push(...Array.from({length:10},(_,i)=>({Id:200+i,Name:'Source designation '+i,DataType:'Text',PickType:'PickOne'})))
@@ -42,7 +42,7 @@ async function readReview(h,id){return (await h.get(endpoint+'custom-review?id='
 export async function sourceCustomJourney(){
  const edge=bloomerangEdge()
  await run(async h=>{
-  await h.command('custom.define',{key:'existing_membership',label:'Membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer','Advisor']})
+  await h.command('custom.define',{key:'existing_membership',label:'Membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer','Advisor','2026','true','null']})
   const olderFiles=sourceFiles();olderFiles.files=olderFiles.files.map(f=>({...f,base64:Buffer.from(Buffer.from(f.base64,'base64').toString()+'\r\n').toString('base64')}))
   const older=await post(h,'preview',olderFiles)
   const id=await imported(h,sourceFiles()),capture={id,apiKey:'synthetic-coffer-1600'}
@@ -53,12 +53,13 @@ export async function sourceCustomJourney(){
   const result=await post(h,'custom-capture',capture),review=result.review
   assert.equal(review.definitions.length,8);assert.deepEqual(review.counts.find(c=>c.id==='gift:3'),{id:'gift:3',name:'Budget',defined:1,source:2,carried:1,waiting:1,skipped:0})
   assert.match(review.values.find(v=>v.state==='waiting'&&v.fieldId==='gift:3').reason,/number/)
-  const mappings=review.mappings.map(m=>m.id==='constituent:1'?{...m,field:{...m.field,key:'existing_membership',version:1,choices:['Board','Volunteer','Advisor']}}:m.id==='interaction:4'?{...m,field:{...m.field,label:'Imported visit topic'}}:m.id==='constituent:6'?{...m,action:'tags'}:m.id==='constituent:7'?{...m,action:'skip'}:m)
+  const mappings=review.mappings.map(m=>m.id==='constituent:1'?{...m,field:{...m.field,key:'existing_membership',version:1,choices:['Board','Volunteer','Advisor','2026','true','null']}}:m.id==='interaction:4'?{...m,field:{...m.field,label:'Imported visit topic'}}:m.id==='constituent:6'?{...m,action:'tags'}:m.id==='constituent:7'?{...m,action:'skip'}:m)
   const invalidChoice=review.values.find(v=>v.fieldId==='constituent:1'&&v.state==='waiting');assert.equal(invalidChoice.original,'Unlisted');assert.match(invalidChoice.reason,/source choice/);const mappedChoice={id:invalidChoice.id,action:'map',value:'Volunteer'}
   let updated=await post(h,'custom-review',{id,version:review.version,mappings,resolutions:[mappedChoice]})
   await post(h,'custom-review',{id,version:review.version,mappings,resolutions:[]},{status:409})
   await post(h,'custom-apply',{id,version:review.version},{status:409})
-  await sourceCustomBrowser(h,id,'.cache/custom-source',{noteTags:true})
+  await post(h,'custom-review',{id,version:updated.review.version,mappings,resolutions:[]})
+  await sourceCustomBrowser(h,id,'.cache/custom-source',{noteTags:true,textResolution:{field:'Membership',record:'102',valueId:invalidChoice.id}})
   updated.review=await readReview(h,id)
   const applied=await post(h,'custom-apply',{id,version:updated.review.version});assert.equal(applied.carried,6);assert.equal(applied.waiting,1);await sourceCustomBrowser(h,id,'.cache/custom-source',{applied:true})
   const people=(await h.get('/api/coffer/donors')).donors,person=people.find(p=>p.name==='Synthetic Source Fields'),waitingPerson=people.find(p=>p.name==='Synthetic Waiting Values'),details=await h.get('/api/coffer/donors/'+person.id)

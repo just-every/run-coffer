@@ -41,8 +41,8 @@ const common: Record<string, string[]> = {
  controlYear: ['Year', 'Calendar Year'],
 }
 const vendor: Record<ImportSource, Record<string, string[]>> = {
+ neon: {donorId:['Account ID','Constituent ID'],giftId:['Donation ID','Gift ID'],noteId:['Activity ID',...common.noteId],noteType:['Activity Type',...common.noteType],noteDate:['Activity Date',...common.noteDate],communicationRestrictions:['Contact Restrictions','Communication Restrictions'],tributeHonoree:['Tribute Honoree'],tributeType:['Tribute Type'],tributeGroup:['Tribute Group'],tributeNotifiedName:['Tribute Recipient Name'],tributeNotifiedEmail:['Tribute Recipient Email'],tributeNotifiedAddress:['Tribute Recipient Address'],emailPreference:['Email Preference'],mailPreference:['Mail Preference'],smsPreference:['SMS Preference'],phonePreference:['Phone Preference'],preferenceDate:['Preference Date']},
  givebutter: {}, zeffy: {},
- neon:{donorId:['Account ID','Constituent ID'],giftId:['Donation ID','Gift ID'],noteId:['Activity ID','Note ID'],noteType:['Activity Type','Note Type'],noteDate:['Activity Date','Note Date'],communicationRestrictions:['Contact Restrictions']},
  spreadsheet: {donorId:['Constituent ID','Donor ID'],giftId:['Gift ID'],communicationRestrictions:['Communication Restrictions'],tributeHonoree:['Tribute Honoree'],tributeType:['Tribute Type'],tributeGroup:['Tribute Group'],tributeNotifiedName:['Tribute Recipient Name'],tributeNotifiedEmail:['Tribute Recipient Email'],tributeNotifiedAddress:['Tribute Recipient Address'],emailPreference:['Email Preference'],mailPreference:['Mail Preference'],smsPreference:['SMS Preference'],phonePreference:['Phone Preference'],preferenceDate:['Preference Date']},
  lgl: {
   communicationRestrictions: ['Communication Tags', 'Communication Tag', 'Communication Preferences'],

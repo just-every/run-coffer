@@ -35,7 +35,7 @@ async function fits(page,width){
  assert.deepEqual(await page.locator('button,a,[role=button]').evaluateAll(nodes=>nodes.filter(n=>n.checkVisibility()&&!(n.innerText||'').trim()).map(n=>n.outerHTML.slice(0,200))),[],'Authored controls have visible text')
 }
 
-export async function sourceCustomBrowser(h,id,directory,{applied=false,topic=true,noteTags=false}={}){
+export async function sourceCustomBrowser(h,id,directory,{applied=false,topic=true,noteTags=false,textResolution}={}){
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
@@ -44,6 +44,24 @@ export async function sourceCustomBrowser(h,id,directory,{applied=false,topic=tr
    await page.goto(origin+'/app/move-in/crm/journal?id='+id)
    await page.getByRole('link',{name:'Review source custom fields',exact:true}).click()
    await page.getByRole('heading',{name:'Source custom field review',exact:true}).waitFor()
+   if(textResolution&&width===1440){
+    for(const text of ['2026','true','null','Volunteer']){
+     const waiting=page.locator('fieldset').filter({has:page.locator('legend',{hasText:textResolution.field+' · source record '+textResolution.record})})
+     await waiting.locator('[name=resolutionAction]').selectOption('map')
+     await waiting.locator('[name=replacementValue]').fill(text)
+     await page.getByRole('button',{name:'Review these choices',exact:true}).click()
+     await page.waitForURL('**/app/move-in/crm/custom-review?id=*')
+     const {review}=await h.get('/api/coffer/move-in/custom-review?id='+id),value=review.values.find(v=>v.id===textResolution.valueId)
+     assert.equal(value.state,'ready','Native text mapping accepts '+text+' exactly as entered')
+     assert.equal(JSON.parse(value.value),text)
+     assert.equal(value.original,'Unlisted','The original invalid source choice remains available')
+     if(text!=='Volunteer'){
+      const reset=await h.api('/api/coffer/move-in/custom-review',{id,version:review.version,mappings:review.mappings,resolutions:review.resolutions.filter(r=>r.id!==textResolution.valueId)})
+      assert.equal(reset.review.values.find(v=>v.id===textResolution.valueId).state,'waiting')
+      await page.reload()
+     }
+    }
+   }
    const membership=page.locator('fieldset').filter({has:page.locator('legend',{hasText:'Membership · constituent'})})
    assert.equal(await membership.locator('[name=targetKey]').inputValue(),'existing_membership')
    if(!applied&&noteTags&&width===1440){const note=page.locator('fieldset').filter({has:page.locator('legend',{hasText:'Note circle · note'})});await note.locator('[name=mappingAction]').selectOption('tags')}
@@ -132,6 +150,65 @@ export async function spreadsheetImportBrowser(h,input,directory){
    await page.setViewportSize({width,height:1000});await fits(page,width)
    await page.screenshot({path:directory+'/MOVE-010-spreadsheet-preview-'+width+'.png',fullPage:true})
   }
+  await page.close();return {id,fingerprint:job.fingerprint}
+ })
+}
+
+
+export async function resolveWaitingCustomBrowser(h,id,resolution,directory){
+ await mkdir(directory,{recursive:true})
+ return withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  await page.setViewportSize({width:1440,height:1000})
+  await page.goto(origin+'/app/move-in/crm/custom-review?id='+id)
+  const waiting=page.locator('fieldset').filter({has:page.locator('legend',{hasText:resolution.field+' · source record '+resolution.record})})
+  await waiting.locator('[name=resolutionAction]').selectOption(resolution.action)
+  await waiting.locator('[name=replacementValue]').fill(resolution.value)
+  await page.getByRole('button',{name:'Review these choices',exact:true}).click()
+  await page.waitForURL('**/app/move-in/crm/custom-review?id=*')
+  const {review}=await h.get('/api/coffer/move-in/custom-review?id='+id)
+  const field=review.definitions.find(d=>d.name===resolution.field),value=review.values.find(v=>v.fieldId===field.id&&v.recordId===resolution.record)
+  assert.equal(value.state,'ready','An explicit native correction resolves the waiting source value')
+  assert.equal(JSON.parse(value.value),resolution.value)
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await fits(page,width)
+   await page.screenshot({path:directory+'/MOVE-010-corrected-'+width+'.png',fullPage:true})
+  }
+  await page.close();return review
+ })
+}
+
+
+export async function neonExportBrowser(h,input,directory){
+ await mkdir(directory,{recursive:true})
+ return withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  await page.setViewportSize({width:1440,height:1000})
+  const fill=async()=>{
+   await page.goto(origin+'/app/move-in/crm')
+   const form=page.locator('form[action="/app/move-in/crm/preview"]').filter({has:page.locator('select[name=source]')})
+   await form.locator('select[name=source]').selectOption('neon')
+   await form.locator('input[name=exports]').setInputFiles(input.files.map(f=>({name:f.name,mimeType:'text/csv',buffer:Buffer.from(f.base64,'base64')})))
+   return form
+  }
+  let form=await fill()
+  const rejected=page.waitForResponse(r=>new URL(r.url()).pathname==='/app/move-in/crm/preview'&&r.request().method()==='POST')
+  await form.getByRole('button',{name:'Preview exports',exact:true}).click()
+  assert.equal((await rejected).status(),400,'Native Neon exports require explicit USD confirmation')
+  assert.equal((await h.get('/api/coffer/donors')).total,0)
+  form=await fill()
+  await form.locator('[name=neonExportUsd]').check()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});await fits(page,width)
+   await form.screenshot({path:directory+'/MOVE-010-neon-exports-'+width+'.png'})
+  }
+  await form.getByRole('button',{name:'Preview exports',exact:true}).click()
+  await page.waitForURL('**/app/move-in/crm/review?id=*')
+  const id=new URL(page.url()).searchParams.get('id'),{job}=await h.get('/api/coffer/move-in/journal?id='+id)
+  assert.equal(job.report.sourceCoverage.currency,'USD')
+  assert.deepEqual(job.report.sourceCoverage.counts,{accounts:1,donations:2,activities:2,households:0})
+  assert.equal(job.report.canApply,true,JSON.stringify(job.report))
   await page.close();return {id,fingerprint:job.fingerprint}
  })
 }

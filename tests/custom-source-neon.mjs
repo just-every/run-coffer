@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {run,archive,restore} from './harness.mjs'
-import {sourceCaptureBrowser,sourceCustomBrowser} from './custom-import-browser.mjs'
+import {sourceCaptureBrowser,sourceCustomBrowser,neonExportBrowser} from './custom-import-browser.mjs'
 const endpoint='/api/coffer/move-in/',post=(h,action,input,options)=>h.api(endpoint+action,input,options)
 const file=(name,rows)=>({name,base64:Buffer.from(rows.map(r=>r.join(',')).join('\r\n')).toString('base64')})
 function neonEdge(){
@@ -19,8 +19,10 @@ function neonEdge(){
 }
 export async function neonCustomJourney(){await run(async h=>{
  await h.command('custom.define',{key:'existing_membership',label:'Membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer']})
- const input={source:'neon',files:[file('accounts.csv',[['Account ID','Name'],[41,'Synthetic Neon Custom']]),file('donations.csv',[['Donation ID','Account ID','Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount'],[42,41,'Donation','2026-10-01','50','Check',0],[45,41,'Donation','2026-10-01','25','Check',0]]),file('activities.csv',[['Activity ID','Account ID','Activity Date','Activity Type','Note'],[43,41,'2026-10-01','call','Source activity call'],[44,41,'2026-10-01','task','Source activity task']])]}
- const p=await post(h,'preview',input);assert.equal(p.canApply,true,JSON.stringify(p.diagnostics));await post(h,'apply',{id:p.id,fingerprint:p.fingerprint})
+ const input={source:'neon',neonExportCurrency:'USD',files:[file('accounts.csv',[['Account ID','Name'],[41,'Synthetic Neon Custom']]),file('donations.csv',[['Donation ID','Account ID','Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount'],[42,41,'Donation','2026-10-01','50','Check',0],[45,41,'Donation','2026-10-01','25','Check',0]]),file('activities.csv',[['Activity ID','Account ID','Activity Date','Activity Type','Note'],[43,41,'2026-10-01','call','Source activity call'],[44,41,'2026-10-01','task','Source activity task']])]}
+ for(const neonExportCurrency of [undefined,'CAD'])await post(h,'preview',{...input,neonExportCurrency},{status:400})
+ assert.equal((await h.get('/api/coffer/donors')).total,0,'Unconfirmed source currency changes no native records')
+ const p=await neonExportBrowser(h,input,'.cache/custom-source-neon');await post(h,'apply',{id:p.id,fingerprint:p.fingerprint})
  await sourceCaptureBrowser(h,p.id,'.cache/custom-source-neon','synthetic-coffer-1671',{organizationId:'synthetic-coffer-1670'})
  let review=(await h.get(endpoint+'custom-review?id='+p.id)).review
  assert.equal(review.definitions.length,5);assert.equal(review.values.filter(v=>v.state==='waiting').length,1)

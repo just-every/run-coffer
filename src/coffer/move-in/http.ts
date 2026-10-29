@@ -67,7 +67,15 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
     return {id:fieldId,action:actions[index],field:held?{source:job.source,column:definition.name,...held,choices:JSON.parse(held.choices)}:{...prior.field,key:keys[index],label:labels[index]}}
    })
    const valueIds=parts('valueId'),resolutionActions=parts('resolutionAction'),replacements=parts('replacementValue'),resolutions=[...review.resolutions]
-   valueIds.forEach((valueId,index)=>{if(!resolutionActions[index])return;let value:unknown=replacements[index];try{value=JSON.parse(replacements[index])}catch{};const resolution={id:valueId,action:resolutionActions[index],value},at=resolutions.findIndex((r:any)=>r.id===valueId);if(at<0)resolutions.push(resolution);else resolutions[at]=resolution})
+   valueIds.forEach((valueId,index)=>{
+    if(!resolutionActions[index])return
+    const waiting=review.values.find((v:any)=>v.id===valueId),definition=review.definitions.find((d:any)=>d.id===waiting?.fieldId)
+    let value:unknown=replacements[index]
+    // Scalar form values stay literal; only a multi-selection needs a JSON list.
+    if(definition?.entry==='pick-many')try{value=JSON.parse(replacements[index])}catch{}
+    const resolution={id:valueId,action:resolutionActions[index],value},at=resolutions.findIndex((r:any)=>r.id===valueId)
+    if(at<0)resolutions.push(resolution);else resolutions[at]=resolution
+   })
    result=await reviseCustom(c,{id,version:Number(get('version')),mappings,resolutions})
   }
   return api?json(result):new Response(null,{status:303,headers:{...headers,location:`/app/move-in/crm/custom-review?id=${encodeURIComponent(id)}`}})
@@ -116,7 +124,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
     spreadsheet={name:String(get('mappingName')||''),recordType:get('recordType'),columns:parts('mapColumn').flatMap((column,i)=>targets[i]?[{column,field:targets[i],sheet:sheets[i]||undefined}]:[]),translations:{fund:translationLines(String(get('fundTranslations')||'')),method:translationLines(String(get('methodTranslations')||''))},donorMatches}
    }catch(error){fail('SPREADSHEET_MAPPING',error instanceof Error?error.message:'Review the spreadsheet mapping.',400)}
   }
-  input={source:get('source'),files,spreadsheet,givebutterKey:get('givebutterKey')||undefined,givebutterAmountUnit:get('givebutterAmountUnit')||undefined,deferCustomValues:get('deferCustomValues')==='yes',noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
+  input={source:get('source'),...(get('source')==='neon'&&(get('apiKey')||get('organizationId'))?{neon:{organizationId:String(get('organizationId')||''),apiKey:String(get('apiKey')||''),currency:get('neonUsd')==='USD'?'USD':undefined}}:{}),files,spreadsheet,givebutterKey:get('givebutterKey')||undefined,givebutterAmountUnit:get('givebutterAmountUnit')||undefined,deferCustomValues:get('deferCustomValues')==='yes',neonExportCurrency:get('neonExportUsd')==='USD'?'USD':undefined,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
  }
  if(action==='preview') {const result=await service.preview(c,input.source==='givebutter'&&input.givebutterKey?await givebutterInput(input):input);return api?json(result):new Response(null,{status:303,headers:{...headers,location:`/app/move-in/crm/review?id=${encodeURIComponent(result.id)}`}})}
  return fail('not_found','That move-in action does not exist.',404)

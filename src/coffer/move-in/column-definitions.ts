@@ -2,6 +2,8 @@ import type { SourceDefinition } from './source-definitions'
 import type { CustomImportMapping, ParsedImport } from './types'
 import type { FieldMapping } from './custom-review-types'
 
+const repeatedValueReason='Repeated source rows disagree on this custom field. Review every original value and explicitly fix, map or skip it.'
+
 const sourceChoice=(m:CustomImportMapping,value:string)=>{
  if(m.type!=='currency')return value
  const cents=BigInt(value),negative=cents<0n,raw=String(negative?-cents:cents).padStart(3,'0')
@@ -23,6 +25,14 @@ export function stageColumnValue(parsed:ParsedImport,mapping:CustomImportMapping
  if(!definition)return false
  let value:unknown=original
  if(mapping.entry==='pick-many')try{value=JSON.parse(original)}catch{}
- definition.values.push({recordId,value})
+ const prior=definition.values.find(v=>v.recordId===recordId)
+ if(!prior)definition.values.push({recordId,value})
+ else {
+  const originals=prior.reason===repeatedValueReason?prior.value as unknown[]:[prior.value]
+  if(!originals.some(original=>JSON.stringify(original)===JSON.stringify(value))){
+   prior.value=[...originals,value]
+   prior.reason=repeatedValueReason
+  }
+ }
  return true
 }

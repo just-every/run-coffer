@@ -107,3 +107,18 @@ A confidential or changed note is refused before any tag is written. Mapping
 alone writes no tags; carrying the reviewed values does. Repeating apply creates
 no duplicate tag. Undo removes only untouched import-created tags and definitions
 and keeps pre-existing definitions.
+
+
+## Correcting values in the native review
+
+Single-value replacements retain exactly the text entered. A text choice such as
+`2026`, `true` or `null` remains text; it does not require JSON quotes. Pick-many
+replacements use a JSON list and still pass the field's ordinary typed validator.
+The original invalid value remains in the retained review after correction.
+
+For explicitly declared spreadsheet columns, repeated constituent rows with the
+same source ID and identical custom value produce one assignment. If those rows
+disagree, every distinct original appears together in one waiting value. Nothing
+is selected automatically: explicitly fix, map or skip that value before it can
+be carried. Reconciliation counts assignments per source record and field,
+rather than counting duplicate copies of the same row.
