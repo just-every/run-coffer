@@ -8,6 +8,24 @@ const require = createRequire(import.meta.url)
 const axe = await readFile(require.resolve('axe-core/axe.min.js'), 'utf8')
 const mailbox = width => ['synthetic-coffer-' + width, 'example.test'].join('@')
 
+async function panelContrast(page) {
+ return page.evaluate(() => {
+  const rgb = value => value.match(/[\d.]+/g).map(Number)
+  const luminance = values => values.slice(0, 3).map(c => {c /= 255; return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4}).reduce((n, c, i) => n + c * [.2126, .7152, .0722][i], 0)
+  const body = rgb(getComputedStyle(document.body).backgroundColor), failures = []
+  for (const label of document.querySelectorAll('.panel .field>span,.panel .gift-amount,.panel .consent>span,.panel legend,.panel summary,.panel h2,.panel p')) {
+   const panel = getComputedStyle(label.closest('.panel')), foreground = luminance(rgb(getComputedStyle(label).color))
+   const stops = panel.backgroundImage.match(/rgba?\([^)]+\)/g) ?? [panel.backgroundColor]
+   for (const stop of stops) {
+    const color = rgb(stop), alpha = color[3] ?? 1, background = luminance(color.slice(0, 3).map((c, i) => c * alpha + body[i] * (1 - alpha)))
+    const ratio = (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05)
+    if (ratio < 4.5) failures.push({label: label.textContent.trim().slice(0, 80), ratio})
+   }
+  }
+  return failures
+ })
+}
+
 export async function givingFormBrowser(h, campaign, edge, directory = '.cache/giving-forms', beforeReturn = async () => {}) {
  await mkdir(directory, {recursive: true})
  const results = []
@@ -60,28 +78,39 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
      await change('Allow a comment', true, 'check')
      await settings.getByText('Custom questions', {exact: true}).click()
      // Fieldsets are selected by their legend text, then ordinary labelled controls.
-     for (const key of ['reading_interests', 'books', 'visit_date', 'match_ok', 'class_year', 'budget']) {
+     for (const key of ['reading_interests', 'books', 'visit_date', 'match_ok', 'class_year', 'budget', 'sponsor_amount', 'match_amounts']) {
       const question = settings.locator('fieldset').filter({has: page.locator('[name="question.' + key + '"]')})
       const response = page.waitForResponse(r => r.url().endsWith('/app/settings/giving-forms/' + campaign.id) && r.request().method() === 'POST')
       await question.getByRole('checkbox', {name: 'Publish this question on the giving form'}).check()
       assert.equal((await response).status(), 200)
       await page.waitForFunction(() => document.querySelector('[data-form-status]')?.textContent === 'Saved')
      }
-     const required = settings.locator('fieldset').filter({has: page.locator('[name="question.reading_interests"]')})
-     const response = page.waitForResponse(r => r.url().endsWith('/app/settings/giving-forms/' + campaign.id) && r.request().method() === 'POST')
-     await required.getByRole('checkbox', {name: 'Require an answer'}).check(); assert.equal((await response).status(), 200)
-     await page.waitForFunction(() => document.querySelector('[data-form-status]')?.textContent === 'Saved')
+     for (const key of ['reading_interests', 'sponsor_amount', 'match_amounts']) {
+      const required = settings.locator('fieldset').filter({has: page.locator('[name="question.' + key + '"]')})
+      const response = page.waitForResponse(r => r.url().endsWith('/app/settings/giving-forms/' + campaign.id) && r.request().method() === 'POST')
+      await required.getByRole('checkbox', {name: 'Require an answer'}).check(); assert.equal((await response).status(), 200)
+      await page.waitForFunction(() => document.querySelector('[data-form-status]')?.textContent === 'Saved')
+     }
     }
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     await page.evaluate(() => scrollTo(0, 0))
     await page.screenshot({path: `${directory}/settings-${width}.png`, fullPage: true})
     embedMarkup = (await page.getByLabel('Embed script', {exact:true}).inputValue()).replace(h.origin,origin)
+    const palette = async colors => {
+     const saved = await h.get('/api/coffer/giving/campaigns/' + campaign.id + '/form')
+     await h.api('/api/coffer/giving/campaigns/' + campaign.id + '/form', {...saved, ...colors, questions: saved.questions.map(({key,label,required}) => ({key,label,required}))})
+    }
+    await palette({primaryColor: '#254f3f', backgroundColor: '#f3f6ee', textColor: '#182d26'})
     await page.goto(origin + '/give/' + campaign.slug)
     await page.getByRole('heading', {name: 'Give local readers a new chapter ' + width, exact: true}).waitFor()
     assert.equal(await page.locator('header img').getAttribute('src'), '/give/' + campaign.slug + '/media/image')
     assert.equal(await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(243, 246, 238)')
     await page.evaluate(() => scrollTo(0, 0))
     await page.screenshot({path: `${directory}/hosted-${width}.png`, fullPage: true})
+    await palette({primaryColor: '#767676', backgroundColor: '#000000', textColor: '#ffffff'})
+    await page.reload()
+    if (width === 1440) assert.deepEqual(await panelContrast(page), [], 'An accepted dark palette keeps labels readable on the pale form panels')
+    await page.screenshot({path: `${directory}/hosted-dark-${width}.png`, fullPage: true})
     await page.goto(hostOrigin)
     const frame = page.frameLocator('iframe'), iframe = page.locator('iframe')
     await frame.getByRole('heading', {name: 'Give local readers a new chapter ' + width, exact: true}).waitFor()
@@ -101,6 +130,9 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
     await frame.getByLabel('Employer match available (optional)', {exact: true}).selectOption('false')
     await frame.getByLabel('Class year (optional)', {exact: true}).fill('2024')
     await frame.getByLabel('Budget (optional)', {exact: true}).fill('125.75')
+    await frame.getByLabel('Sponsor amount', {exact: true}).selectOption({label: '$125.75'})
+    await frame.getByRole('checkbox', {name: '$5.00', exact: true}).check()
+    await frame.getByRole('checkbox', {name: '$10.50', exact: true}).check()
     await frame.getByLabel('Full name', {exact: true}).fill('Riverbend Reader ' + width)
     await frame.getByLabel('Email address', {exact: true}).fill(mailbox(width))
     await frame.locator('[name=emailConsent]').setChecked(width === 1440)
@@ -110,7 +142,7 @@ export async function givingFormBrowser(h, campaign, edge, directory = '.cache/g
     await frame.getByLabel('Honoree name', {exact: true}).fill('Our community tutors')
     const child = page.frames().find(f => f.url().includes('?embed=1'))
     await child.evaluate(axe)
-    const accessibility = await child.evaluate(async () => (await window.axe.run(document.querySelector('.donation'), {runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']}})).violations.map(v => ({id: v.id, nodes: v.nodes.map(n => n.target)})))
+    const accessibility = await child.evaluate(async () => (await window.axe.run(document, {runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']}})).violations.map(v => ({id: v.id, nodes: v.nodes.map(n => n.target)})))
     assert.deepEqual(accessibility, [], 'Donation form passes axe WCAG AA checks')
     assert.ok(await child.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     const tooSmall = await child.evaluate(() => [...document.querySelectorAll('.donation *')].filter(el => el.textContent.trim() && getComputedStyle(el).display !== 'none' && parseFloat(getComputedStyle(el).fontSize) < 13).map(el => el.tagName))
