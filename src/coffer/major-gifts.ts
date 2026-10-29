@@ -29,7 +29,7 @@ export async function majorGiftCommand(c: Context, command: string, p: Row): Pro
  const version = existingId ? integer(Number(p.version), 'Prospect version', 1) : 0
  const statements = [liveDonor(donorId),
   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND opportunity_stages_version=?)', 'VERSION', 'Pipeline stages changed. Refresh before saving.', policy.version),
-  guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))", 'OWNER_CHANGED', 'Choose an active owner, admin or member as the prospect owner.', ownerId)]
+  opportunityOwnerGuard(ownerId)]
  if (campaignId) statements.push(guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=? AND fund=?)', 'CAMPAIGN_CHANGED', 'Choose a campaign for this opportunity’s fund.', campaignId, fund))
  if (existingId) statements.push(
   guard('EXISTS(SELECT 1 FROM cf_prospects WHERE id=? AND donor_id=? AND version=? AND closed_on IS NULL)', 'VERSION', 'This prospect changed or is closed. Refresh before saving your changes.', prospectId, donorId, version),
@@ -110,5 +110,10 @@ export async function importedOpportunity(c:Context,o:import('./move-in/types').
  o.ownerName=owner.display_name;o.stageLabel=stage.label
  const ask=amount({amountCents:o.askAmountCents},'amount','Source ask amount',{allowZero:true}),expected=amount({amountCents:o.expectedAmountCents},'amount','Source expected amount',{allowZero:true})
  const probability=integer(Number(o.probability),'Reviewed probability (%)',0,100)
- return {checks:[guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND opportunity_stages_version=?)','VERSION','Pipeline stages changed. Preview SKY again.',policy.version),guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active' AND role IN ('owner','admin','member'))",'OWNER_CHANGED','The reviewed opportunity owner changed.',ownerId,version)],row:{donor_id:donorId,label:text(o.label,'Opportunity name',200),stage:stage.id,owner_id:ownerId,ask_amount_cents:ask,expected_amount_cents:expected,probability_percent:probability,fund:text(o.fund,'Source fund',100),campaign_id:null,expected_close_on:date(o.expectedCloseOn,'Source expected close date'),next_step:text(o.nextStep,'Source next step',2000)+(o.sourceCampaign?'\nSource campaign: '+o.sourceCampaign:''),version:1,created_at:c.now,created_by:c.actor.id,updated_at:c.now,updated_by:c.actor.id,pledge_id:null,gift_id:null,closed_on:null}}
+ return {checks:[guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND opportunity_stages_version=?)','VERSION','Pipeline stages changed. Preview SKY again.',policy.version),opportunityOwnerGuard(ownerId,version)],row:{donor_id:donorId,label:text(o.label,'Opportunity name',200),stage:stage.id,owner_id:ownerId,ask_amount_cents:ask,expected_amount_cents:expected,probability_percent:probability,fund:text(o.fund,'Source fund',100),campaign_id:null,expected_close_on:date(o.expectedCloseOn,'Source expected close date'),next_step:text(o.nextStep+(o.sourceCampaign?'\nSource campaign: '+o.sourceCampaign:''),'Source next step',2000),version:1,created_at:c.now,created_by:c.actor.id,updated_at:c.now,updated_by:c.actor.id,pledge_id:null,gift_id:null,closed_on:null}}
+}
+
+/** Native entry and source review enforce the same live owner boundary. */
+export function opportunityOwnerGuard(ownerId:string,version?:number):Stmt {
+ return guard(`EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member')${version===undefined?'':' AND version=?'})`,'OWNER_CHANGED','Choose a current active owner, admin or member; refresh a changed source review.',ownerId,...(version===undefined?[]:[version]))
 }
