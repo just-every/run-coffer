@@ -93,6 +93,8 @@ export async function mergeDonor(c: Context, p: Row, tail: Stmt[] = []): Promise
   sql('DELETE FROM cf_address_moves WHERE donor_id=?',target),
   sql('UPDATE cf_donors SET version=version+1 WHERE id=?',source),
   sql('UPDATE cf_gifts SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
+  sql('UPDATE cf_source_event_guests SET donor_id=? WHERE donor_id=?',target,source),
+  sql('UPDATE cf_source_event_guests SET attendee_donor_id=? WHERE attendee_donor_id=?',target,source),
   sql('UPDATE cf_source_memberships SET donor_id=? WHERE donor_id=?',target,source),
   sql('UPDATE cf_recurring_source_references SET donor_id=? WHERE donor_id=?',target,source),
   sql('UPDATE cf_consents SET donor_id=? WHERE donor_id=?',target,source),

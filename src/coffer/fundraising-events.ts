@@ -4,13 +4,14 @@ import { requireRole } from './auth'
 import { defineEventQuestion, eventQuestions } from './event-questions'
 import { matchEventGuest } from './event-guest-review'
 
-export const fundraisingEvents = (c: {db:D1Database}) => all(c, 'SELECT e.*,c.name AS campaign FROM cf_fundraising_events e JOIN cf_campaigns c ON c.id=e.campaign_id ORDER BY starts_on DESC,e.id')
+export const fundraisingEvents = (c: {db:D1Database}) => all(c, `SELECT e.id,e.name,e.campaign_id,e.appeal_id,e.slug,e.starts_on,e.created_at,c.name AS campaign,NULL AS import_source FROM cf_fundraising_events e JOIN cf_campaigns c ON c.id=e.campaign_id UNION ALL SELECT id,name,NULL,NULL,NULL,starts_on,imported_at,source||' history',source FROM cf_source_events ORDER BY starts_on DESC,id`)
 export async function fundraisingEvent(c:{db:D1Database},slug:string):Promise<Row & {tickets:Row[];questions:Row[]}>{
  const row=await one(c,'SELECT e.*,c.slug AS campaign_slug FROM cf_fundraising_events e JOIN cf_campaigns c ON c.id=e.campaign_id WHERE e.slug=? AND c.active=1',slug)
  if(!row)fail('NOT_FOUND','That event is unavailable.',404)
  return {...row,tickets:await all(c,'SELECT * FROM cf_event_ticket_types WHERE event_id=? ORDER BY name,id',row.id),questions:await eventQuestions(c,row.id)}
 }
 export async function eventGuests(c:{db:D1Database},eventId:string){
+ if(await one(c,'SELECT id FROM cf_source_events WHERE id=?',eventId))return all(c,`SELECT g.*,e.name AS event_name,e.source FROM cf_source_event_guests g JOIN cf_source_events e ON e.id=g.event_id JOIN cf_donors d ON d.id=g.donor_id LEFT JOIN cf_donors a ON a.id=g.attendee_donor_id WHERE g.event_id=? AND d.erased_at IS NULL AND (g.attendee_donor_id IS NULL OR a.erased_at IS NULL) ORDER BY lower(g.attendee_name),g.id`,eventId)
  return all(c,`SELECT r.*,e.name AS event_name,o.ticket_name,o.kind,o.seats FROM cf_event_registrations r JOIN cf_fundraising_events e ON e.id=r.event_id
  JOIN cf_event_orders o ON o.intent_id=r.intent_id LEFT JOIN cf_donors d ON d.id=r.donor_id
  WHERE r.event_id=? AND o.paid_at IS NOT NULL AND (r.donor_id IS NULL OR d.erased_at IS NULL) ORDER BY lower(r.attendee_name),r.id`,eventId)

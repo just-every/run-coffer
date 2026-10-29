@@ -135,6 +135,8 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
   const found = rows.get(t.name); if (!found?.length) continue
   records[t.name.slice(3)] = found.map(r => {
    const out: Row = { ...r }
+   if(t.name==='cf_source_event_guests'&&!ids.includes(r.attendee_donor_id))for(const key of ['attendee_name','attendee_email','source_id'])if(out[key]!==null)out[key]='[third party withheld]'
+   if(t.name==='cf_move_in_records'&&r.kind==='eventGuest')out.snapshot='[private import custody withheld]'
    if(t.name==='cf_auction_rows')for(const key of ['candidates','match_reason','gift_snapshot','property_snapshot','bidder_key','planned_donor_id'])delete out[key]
    if(out.name_fields){const names=JSON.parse(out.name_fields);if(names._attention&&!ids.includes(names._attention)){out.name_fields='[third party withheld]';if(t.name==='cf_communications'){out.subject='[third party withheld]';out.body='[third party withheld]'}if(t.name==='cf_appeal_recipients'){out.merge_fields='[third party withheld]';out.rendered_subject='[third party withheld]';out.rendered_body='[third party withheld]'}}}
    if(t.name==='cf_acks'||t.name==='cf_single_letters'||t.name==='cf_in_kind_acknowledgments') {

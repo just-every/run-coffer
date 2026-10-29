@@ -39,11 +39,13 @@ export type ControlTotal = Located & {
 export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; channels?: ('email'|'mail'|'phone'|'sms')[]; maxAsks?: number }
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }
 export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:string; channel:'email'|'mail'|'phone'|'sms'; sourceOn:string; codes:string[]; status?:'granted'|'withdrawn'|'unknown' }
+export type ParsedSourceEvent = Located & {externalId:string;name:string;startsOn:string}
+export type ParsedEventGuest = Located & {externalId:string;eventExternalId:string;donorExternalId:string;attendeeExternalId:string|null;giftExternalId:string|null;registrationId:string;ticketName:string;name:string;email:string|null;attended:boolean|null;status:string}
 export type ParsedMembership = Located & {externalId:string;donorExternalId:string;levelId:string;levelName:string;termName:string;startsOn:string;endsOn:string|null;status:string;feeCents:number;giftExternalId:string|null;sourceAutoRenewal:boolean;sourceActive:boolean}
 export type ParsedRecurringReference = Located & {externalId:string;donorExternalId:string;amountCents:number;frequency:string;status:string;method:string;campaign:string;nextOn:string|null;customerReference:string|null;paymentMethodReference:string|null}
 export type SourceCoverage = { currency?:string; counts:Record<string,number>; unsupported:string[] }
 export type ParsedImport = { sourceCoverage?:SourceCoverage;
- memberships?:ParsedMembership[]; recurringReferences?:ParsedRecurringReference[];
+ sourceEvents?:ParsedSourceEvent[];eventGuests?:ParsedEventGuest[];memberships?:ParsedMembership[]; recurringReferences?:ParsedRecurringReference[];
  spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
  relationships: ParsedRelationship[]; softCredits: ParsedSoftCredit[]; pledges: ParsedPledge[]
  installments: ParsedInstallment[]; notes: ParsedNote[]; unmapped: UnmappedValue[]; diagnostics: Diagnostic[]

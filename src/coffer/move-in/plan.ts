@@ -27,13 +27,13 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',membership:'Source membership',recurringReference:'Source plan',platformGift:'Source transaction'}
+const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',sourceEvent:'Source event',eventGuest:'Source event guest',membership:'Source membership',recurringReference:'Source plan',platformGift:'Source transaction'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
  const plan: Plan = {customDefinitions:[],customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
- const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.memberships??[])]
+ const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.memberships??[]),...(parsed.sourceEvents??[]),...(parsed.eventGuests??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
  const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
@@ -78,6 +78,8 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   plan.effects.push({kind,sourceKey:key,contentHash:hash,nativeId:id,owned:!match,row,donorId:kind==='donor'?id:donorId,relatedId,location:entity.location})
   return id
  }
+ const eventIds=new Map<string,string>()
+ for(const e of parsed.sourceEvents??[])eventIds.set(e.externalId,await add('sourceEvent',e,{source,source_id:e.externalId,name:e.name,starts_on:e.startsOn,imported_at:c.now}))
  const householdOf = async (key: string) => {
   if (!key || households.has(key)) return households.get(key)
   const h = parsed.households.find(x=>x.externalId===key); if (!h) return undefined
@@ -229,6 +231,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(['call','meeting','email'].includes(n.type))await add('interaction',n,{donor_id:donorId,kind:n.type,occurred_on:n.date,who:`${source} export`,notes:n.text,next_step:null,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
   else await add('note',n,{donor_id:donorId,occurred_on:n.date,body:n.text,source,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
+ for(const g of parsed.eventGuests??[])await add('eventGuest',g,{event_id:eventIds.get(g.eventExternalId),donor_id:plan.donorIds.get(g.donorExternalId),attendee_donor_id:g.attendeeExternalId?plan.donorIds.get(g.attendeeExternalId):null,gift_id:g.giftExternalId?plan.giftIds.get(g.giftExternalId):null,source_id:g.externalId,registration_id:g.registrationId,ticket_name:g.ticketName,attendee_name:g.name,attendee_email:g.email,source_attended:g.attended===null?null:g.attended?1:0,source_status:g.status,imported_at:c.now},undefined,plan.donorIds.get(g.donorExternalId),g.attendeeExternalId?plan.donorIds.get(g.attendeeExternalId):null)
  for(const m of parsed.memberships??[])await add('membership',m,{donor_id:plan.donorIds.get(m.donorExternalId),source,source_id:m.externalId,level_id:m.levelId,level_name:m.levelName,term_name:m.termName,starts_on:m.startsOn,ends_on:m.endsOn,status:m.status,fee_cents:m.feeCents,gift_id:m.giftExternalId?plan.giftIds.get(m.giftExternalId):null,source_auto_renewal:m.sourceAutoRenewal?1:0,source_active:m.sourceActive?1:0,imported_at:c.now},undefined,plan.donorIds.get(m.donorExternalId))
  for(const r of parsed.recurringReferences??[])await add('recurringReference',r,{donor_id:plan.donorIds.get(r.donorExternalId),source,source_id:r.externalId,amount_cents:r.amountCents,frequency:r.frequency,status:r.status,method:r.method,campaign:r.campaign,next_on:r.nextOn,customer_reference:r.customerReference,payment_method_reference:r.paymentMethodReference,imported_at:c.now},undefined,plan.donorIds.get(r.donorExternalId))
  await planAcknowledgmentImports(c,parsed,plan,existing,add,readSet)

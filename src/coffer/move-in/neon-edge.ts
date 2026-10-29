@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 import { fail } from '../db'
 
 type RecordValue = Record<string,any>
-export type NeonSnapshot = { accounts:RecordValue[]; tenders:RecordValue[]; definitions:RecordValue[]; donations:RecordValue[]; activities:RecordValue[]; registrations:RecordValue[]; households:RecordValue[]; memberships:RecordValue[]; pledges:RecordValue[]; recurring:RecordValue[] }
+export type NeonSnapshot = { accounts:RecordValue[]; tenders:RecordValue[]; definitions:RecordValue[]; donations:RecordValue[]; activities:RecordValue[]; registrations:RecordValue[]; households:RecordValue[]; memberships:RecordValue[]; pledges:RecordValue[]; recurring:RecordValue[]; events:RecordValue[] }
 /** Neon v2.12 public schema: https://developer.neoncrm.com/api-v2/
  * Read-only endpoints, fixed provider origin, no stored connection or raw payment data. */
 export async function readNeon(connection:{organizationId:string;apiKey:string}):Promise<NeonSnapshot> {
@@ -37,7 +37,7 @@ export async function readNeon(connection:{organizationId:string;apiKey:string})
   return result
  }
  const accountIds=ids(await paged('/accounts/search','searchResults','Account ID'),'Account ID')
- const snapshot:NeonSnapshot={accounts:[],tenders:await read('/payments/tenders'),definitions:[],donations:[],activities:[],registrations:[],memberships:[],pledges:[],recurring:[],households:await read('/households/listHouseholds')}
+ const snapshot:NeonSnapshot={accounts:[],tenders:await read('/payments/tenders'),definitions:[],donations:[],activities:[],registrations:[],memberships:[],pledges:[],recurring:[],events:[],households:await read('/households/listHouseholds')}
  for(const category of ['Account','Donation','Activity']){const definitions=await read('/customFields?category='+category);if(!Array.isArray(definitions))fail('NEON_SCHEMA','Neon custom definitions were incomplete.',502);snapshot.definitions.push(...definitions.map(f=>({...f,component:category})))}
  if(!Array.isArray(snapshot.tenders)||!Array.isArray(snapshot.definitions)||!Array.isArray(snapshot.households))fail('NEON_SCHEMA','Neon definitions or households were incomplete.',502)
  const donationIds=new Set<string>(),registrationIds=new Set<string>(),membershipIds=new Set<string>(),pledgeIds=new Set<string>()
@@ -65,6 +65,7 @@ export async function readNeon(connection:{organizationId:string;apiKey:string})
    registrationIds.add(registration.id);snapshot.registrations.push(registration)
   }
  }
+ for(const id of new Set(snapshot.registrations.map(r=>r.eventId))){if(typeof id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(id))fail('NEON_SCHEMA','A registration needs a valid source event ID.',502);const event=await read('/events/'+encodeURIComponent(id));if(event?.id!==id)fail('NEON_SCHEMA','The event details do not match the registration.',502);snapshot.events.push(event)}
  const recurringIds=new Set<string>()
  for(const status of ['Active','Inactive'])for(const summary of await paged('/recurring?status='+status,'recurringDonations')){
   const id=String(summary.id??'')

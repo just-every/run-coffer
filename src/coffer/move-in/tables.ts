@@ -1,5 +1,6 @@
 /** Server-owned table descriptions. Never accept SQL identifiers from an upload. */
 export const tables = {
+ sourceEvent: {table:'cf_source_events',key:'id',columns:['id','source','source_id','name','starts_on','imported_at']},
  household: { table: 'cf_households', key: 'id', columns: ['id','version','name','created_at','head_donor_id','addressee_override','formal_override','informal_override','overrides_review','head_source','head_imported_at'] },
  donor: { table: 'cf_donors', key: 'id', columns: ['id','version','name','prefix','first_name','middle_name','last_name','suffix','nickname','constituent_kind','constituent_status','informal_salutation','formal_salutation','envelope_name','status_reason','deceased_on','status_changed_at','status_changed_by','email','phone','address_line1','address_line2','city','region','postal_code','country','household_id','source','source_ref','created_at','erased_at'] },
  contact: { table:'cf_contact_points',key:'id',columns:['id','donor_id','kind','type','value','active','is_primary','starts_on','ends_on','version','source','source_on','updated_at'] },
@@ -11,6 +12,7 @@ export const tables = {
  gift: { table: 'cf_gifts', key: 'id', columns: ['id','version','donor_id','kind','reverses','received_on','amount_cents','method','reference','fund','pledge_id','goods','goods_cents','goods_description','note','source','created_at','created_by'] },
  tribute: { table: 'cf_gift_tributes', key: 'gift_id', columns: ['gift_id','version','kind','honoree','notified_name','notified_email','notified_address','amount_permission','group_key','source_group','donor_id','created_at','created_by'] },
  recurringReference: {table:'cf_recurring_source_references',key:'id',columns:['id','donor_id','source','source_id','amount_cents','frequency','status','method','campaign','next_on','customer_reference','payment_method_reference','imported_at']},
+ eventGuest:{table:'cf_source_event_guests',key:'id',columns:['id','event_id','donor_id','attendee_donor_id','gift_id','source_id','registration_id','ticket_name','attendee_name','attendee_email','source_attended','source_status','imported_at']},
  membership: {table:'cf_source_memberships',key:'id',columns:['id','donor_id','source','source_id','level_id','level_name','term_name','starts_on','ends_on','status','fee_cents','gift_id','source_auto_renewal','source_active','imported_at']},
  platformGift: {table:'cf_platform_gifts',key:'gift_id',columns:['gift_id','source','source_id','campaign_id','campaign_name','fee_cents']},
  campaign: { table: 'cf_gift_appeals', key: 'gift_id', columns: ['gift_id','appeal'] },

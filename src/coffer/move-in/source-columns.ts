@@ -2,6 +2,7 @@ import type { ImportSource } from './types'
 
 /** Exact report labels plus documented, user-configurable export label variants. */
 const common: Record<string, string[]> = {
+ sourceEventId:['Source Event ID'],sourceEventName:['Source Event Name'],sourceEventStarts:['Source Event Starts'],sourceGuestId:['Source Guest ID'],sourceAttendeeAccount:['Source Attendee Account ID'],sourceEventGift:['Source Event Gift ID'],sourceRegistration:['Source Registration ID'],sourceTicket:['Source Ticket'],sourceAttendeeName:['Source Attendee Name'],sourceAttendeeEmail:['Source Attendee Email'],sourceAttended:['Source Attended'],sourceRegistrationStatus:['Source Registration Status'],
  membershipId:['Source Membership ID'],membershipLevelId:['Membership Level ID'],membershipLevel:['Membership Level'],membershipTerm:['Membership Term'],membershipStarts:['Membership Starts'],membershipEnds:['Membership Ends'],membershipStatus:['Membership Status'],membershipFee:['Membership Fee'],membershipGift:['Membership Gift ID'],membershipAuto:['Source Auto Renewal'],membershipActive:['Source Active'],
  planId:['Plan ID'],frequency:['Frequency'],planStatus:['Plan Status'],nextOn:['Next Charge Date'],customerReference:['Processor Customer Reference'],paymentMethodReference:['Processor Payment Method Reference'],
  campaignId:['Campaign ID'],fee:['Fees','Fee'],paymentStatus:['Payment Status'],refunded:['Refunded Amount'],currency:['Currency'],

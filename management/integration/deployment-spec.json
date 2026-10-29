@@ -1066,6 +1066,12 @@
       "name": "core-0174_coffer_neon_membership_history.sql",
       "sha256": "68cb17206f77ab62f2b0daf7d41d6d8b6a6a8263cf87327aec03d91692444e78",
       "sql": "-- Incumbent history is distinct from a native charging authorization.\nCREATE TABLE cf_source_memberships (\n id TEXT PRIMARY KEY,\n donor_id TEXT NOT NULL REFERENCES cf_donors(id) ON DELETE CASCADE,\n source TEXT NOT NULL,\n source_id TEXT NOT NULL,\n level_id TEXT NOT NULL,\n level_name TEXT NOT NULL,\n term_name TEXT NOT NULL,\n starts_on TEXT NOT NULL,\n ends_on TEXT,\n status TEXT NOT NULL,\n fee_cents INTEGER NOT NULL CHECK(fee_cents>=0),\n gift_id TEXT REFERENCES cf_gifts(id),\n source_auto_renewal INTEGER NOT NULL CHECK(source_auto_renewal IN (0,1)),\n source_active INTEGER NOT NULL CHECK(source_active IN (0,1)),\n imported_at TEXT NOT NULL,\n UNIQUE(source,source_id)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0175_coffer_source_event_history.sql",
+      "sha256": "f38a793cee509a4f6b3f087b8e02146bf0cf5afcd987e37630d63f7bd1fcbfa6",
+      "sql": "CREATE TABLE cf_source_events (\n id TEXT PRIMARY KEY,source TEXT NOT NULL,source_id TEXT NOT NULL,\n name TEXT NOT NULL,starts_on TEXT NOT NULL,imported_at TEXT NOT NULL,\n UNIQUE(source,source_id)\n);\n-- Historical seats never create a checkout intent or a current payment claim.\nCREATE TABLE cf_source_event_guests (\n id TEXT PRIMARY KEY,event_id TEXT NOT NULL REFERENCES cf_source_events(id),\n donor_id TEXT NOT NULL REFERENCES cf_donors(id),\n attendee_donor_id TEXT REFERENCES cf_donors(id),\n gift_id TEXT REFERENCES cf_gifts(id),\n source_id TEXT NOT NULL,registration_id TEXT NOT NULL,ticket_name TEXT NOT NULL,\n attendee_name TEXT NOT NULL,attendee_email TEXT,\n source_attended INTEGER CHECK(source_attended IS NULL OR source_attended IN (0,1)),\n source_status TEXT NOT NULL,imported_at TEXT NOT NULL\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
