@@ -6879,7 +6879,7 @@
       "executable": false
     },
     "tests/peer-browser.mjs": {
-      "sha256": "1c4900a65f91b392375f9e760d47fba4dd6e2a6c46d094d689f41b534808ea7e",
+      "sha256": "5829cc2a22364f3e79626a9b7a146ddd0604550d08cd17440ba26487bd1b00de",
       "executable": false
     },
     "tests/peer-journey.mjs": {

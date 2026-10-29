@@ -54,7 +54,7 @@ export async function peerBrowser(h,edge,{campaign,first,second,firstCookie,seco
     assert.equal(recognized.recognition.honor_roll_opt_in,1)
     assert.equal(recognized.recognition.anonymous,0)
     if(index===0){
-     const team=page.locator('form[action="/giving/peer/teams"]').filter({has:page.getByRole('button',{name:'Create team',exact:true})})
+     const team=page.locator('form[action="/giving/peer/teams"]:not(:has(input[name=id]))')
      await openDetails(team)
      await team.locator('[name=campaignId]').selectOption(campaign.id)
      await team.locator('[name=title]').fill(teamTitle)
@@ -65,7 +65,7 @@ export async function peerBrowser(h,edge,{campaign,first,second,firstCookie,seco
     }
     const available=await state(as),team=available.teams.find(t=>t.title===teamTitle)
     assert.ok(team,'Published team is available to both supporters')
-    const create=page.locator('form[action="/giving/peer/pages"]').filter({has:page.getByRole('button',{name:'Create fundraising page',exact:true})})
+    const create=page.locator('form[action="/giving/peer/pages"]:not(:has(input[name=id]))')
     await openDetails(create)
     await create.locator('[name=campaignId]').selectOption(campaign.id)
     await create.locator('[name=title]').fill(pageTitles[index])
