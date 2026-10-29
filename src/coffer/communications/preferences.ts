@@ -19,6 +19,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  const latest=await one(c,"SELECT id AS consent_id,status AS consent,evidence,captured_on FROM cf_consents WHERE donor_id=? AND channel='email' ORDER BY id DESC LIMIT 1",donorId)
  if(latest)Object.assign(donor,latest)
  const conn = await requireConnection(c), label = providerTitle(conn.provider)
+ conn.checkAuthority=()=>commit(c,[])
  await commit(c,[])
  let contact = await providerContact(conn, donor.email)
  // Validate before profile or signup writes, but preserve a known opt-out even

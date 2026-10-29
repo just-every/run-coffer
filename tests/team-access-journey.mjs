@@ -7,6 +7,8 @@ const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {
 
 export async function teamAccessJourney(){
  let pauseToken=false,pauseAddress=false,tokenEntered=deferred(),tokenRelease=deferred(),addressEntered=deferred(),addressRelease=deferred()
+ let pauseChimp=null,chimpEntered=deferred(),chimpRelease=deferred()
+ const chimpDefinitions=new Map(),chimpWrites=[],chimpEmail=mailbox(4)
  const calls=[]
  await run(async h=>{
   const owner=(await h.get('/auth/session')).operator,member=await h.person(mailbox(1)),admin=await h.person(mailbox(2),'admin')
@@ -136,6 +138,35 @@ export async function teamAccessJourney(){
   pauseAddress=false
   await h.command('address.processing',{version:1,enabled:false})
   await set(false)
+  // A member's consent entry legitimately syncs Mailchimp. Restriction changes
+  // during a provider read or field creation must stop every later submission.
+  const chimpDonor=await donor(h,'Synthetic Coffer Provider Donor',{email:chimpEmail})
+  const syncConsent=(options={})=>h.command('consent.record',{donorIds:[chimpDonor.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic explicit permission',capturedOn:'2026-09-01'},{...as,...options})
+  await h.command('marketing.connectMailchimp',{apiKey:'synthetic-us21'})
+  await h.command('marketing.chooseAudience',{listId:'synthetic-coffer-list',fromName:'Synthetic Coffer',fromEmail:chimpEmail})
+  await syncConsent()
+  assert.equal(chimpDefinitions.size,9,'Allowed sync creates the name definitions')
+  assert.equal(chimpWrites.at(-1).method,'PATCH')
+  assert.equal(chimpWrites.at(-1).body.merge_fields.CF_ENVELOP,'Synthetic Coffer Provider Donor','Allowed member sync submits the donor name')
+  for(const phase of ['read','create']){
+   if(phase==='create')for(const tag of ['CF_INFORM','CF_FORMAL'])chimpDefinitions.delete(tag)
+   chimpEntered=deferred();chimpRelease=deferred();pauseChimp=phase
+   const pendingSync=syncConsent({status:401})
+   await chimpEntered.promise
+   const submitted=chimpWrites.length,requests=calls.length
+   await set(true)
+   // Removing the restriction cannot revive a request captured at an old version.
+   if(phase==='create')await set(false)
+   chimpRelease.resolve()
+   assert.equal((await pendingSync).error,'SESSION_CHANGED')
+   assert.equal(chimpWrites.length,submitted,'Restriction change during '+phase+' prevents further Mailchimp writes')
+   assert.equal(calls.length,requests,'Restriction change during '+phase+' prevents further Mailchimp requests')
+   pauseChimp=null
+   await set(false)
+   await syncConsent()
+   assert.equal(chimpDefinitions.size,9)
+   assert.equal(chimpWrites.at(-1).method,'PATCH','A fresh authorized request can sync after explicit removal')
+  }
   // A completed token refresh is followed by a fresh authority check before
   // submitting any event request. Fakes exist only at Google's network edge.
   await h.command('calendar.configure',{clientId:'synthetic-coffer-client',clientSecret:'synthetic-coffer-secret',confirm:'yes'})
@@ -180,6 +211,19 @@ export async function teamAccessJourney(){
   assert.ok(audit.rows.some(r=>r.actor_id===owner.id),'Owner assignments are audited')
  },{bindings:{SMARTY_AUTH_ID:'synthetic-coffer-1',SMARTY_AUTH_TOKEN:'synthetic-coffer-2',MELISSA_SMARTMOVER_KEY:'synthetic-coffer-3'},outbound:async request=>{
   const url=new URL(request.url);calls.push(url.origin+url.pathname)
+  if(url.hostname==='us21.api.mailchimp.com'){
+   const method=request.method,body=method==='GET'?null:await request.json()
+   if(method!=='GET')chimpWrites.push({method,path:url.pathname,body})
+   if(url.pathname==='/3.0/lists')return Response.json({lists:[{id:'synthetic-coffer-list',name:'Synthetic Coffer',stats:{member_count:1}}]})
+   if(url.pathname.endsWith('/merge-fields')){
+    if(method==='POST')chimpDefinitions.set(body.tag,body)
+    if(pauseChimp===(method==='GET'?'read':'create')){chimpEntered.resolve();await chimpRelease.promise}
+    return Response.json(method==='GET'?{merge_fields:[...chimpDefinitions.values()],total_items:chimpDefinitions.size}:body)
+   }
+   assert.match(url.pathname,/\/members\/[^/]+$/)
+   assert.ok(['GET','PATCH'].includes(method))
+   return Response.json({id:'synthetic-coffer-member',email_address:chimpEmail,status:'subscribed',merge_fields:body?.merge_fields??{}})
+  }
   if(url.hostname==='us-street.api.smarty.com'){
    if(pauseAddress){addressEntered.resolve();await addressRelease.promise}
    const batch=JSON.parse(await request.text())

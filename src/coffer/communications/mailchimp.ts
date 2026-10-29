@@ -35,6 +35,9 @@ export async function mailchimpLists(key: string): Promise<{ id: string; name: s
 }
 async function request(conn: Connection, path: string, method = 'GET', body?: unknown, missing = false): Promise<Row | null> {
  const target = { origin: mailchimpOrigin(conn.credential), key: conn.credential }
+ // A sync crosses several network awaits. Recheck the captured authority at
+ // each submission, including field creation and the final donor-name PATCH.
+ await conn.checkAuthority?.()
  let response: Response
  try {
   response = await fetch(target.origin + path, {method,redirect:'manual',signal:AbortSignal.timeout(20_000),
