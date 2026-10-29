@@ -715,7 +715,7 @@
       "executable": false
     },
     "docs/ONLINE-GIVING.md": {
-      "sha256": "914792e4a3f35d125562d1e5619ba91c06b46db1635e28b3a9bb5fcd062dbc7a",
+      "sha256": "7c48215d4ad62569c7715a5f075b5cf4442186ce5df0abe386e9958dd46c8107",
       "executable": false
     },
     "docs/PAYMENTS.md": {
@@ -1472,6 +1472,14 @@
     },
     "migrations/core/0173_coffer_memberships.sql": {
       "sha256": "e1349df229f884bb17cdfd1720a41f68353802d83ac0b1b44888e757f5b504e9",
+      "executable": false
+    },
+    "migrations/core/0174_coffer_membership_notices.sql": {
+      "sha256": "27a006a2c0525b5d95ce6a06cce33e07841524b83bf9501bdcd95b8e4f563d66",
+      "executable": false
+    },
+    "migrations/core/0175_coffer_membership_entry.sql": {
+      "sha256": "9053127685f2599260b0920bc657c02cbd3453d8155f878db062fb1923d1d154",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3274,8 +3282,20 @@
       "sha256": "b9096ea829eab47a730a5d260a9f64fcac813602cbfccbbb024bbb741c36d5b2",
       "executable": false
     },
+    "src/coffer/memberships/entry.ts": {
+      "sha256": "873d39cb6d1babbfc7a852915f80351e9aaf5759653bb447793c035357d60fec",
+      "executable": false
+    },
     "src/coffer/memberships/http.ts": {
       "sha256": "b17a01aab37e084088815db3c9b604f162124219f6c87597d62a72070a975cc9",
+      "executable": false
+    },
+    "src/coffer/memberships/portal.ts": {
+      "sha256": "9664761908cc51909b7a0f0261312ce01a7c9b591b776beee4fff9ebce149e29",
+      "executable": false
+    },
+    "src/coffer/memberships/reminders.ts": {
+      "sha256": "0a2772be2a4fa0d80ba1b1b2514b8c19f3c2fe651583bfbc54a18016d057064b",
       "executable": false
     },
     "src/coffer/memberships/service.ts": {
@@ -3283,7 +3303,7 @@
       "executable": false
     },
     "src/coffer/memberships/ui.ts": {
-      "sha256": "ba1f277dd66176c98bcef015b90293f32ec0b6a0b71e85107bc62bf1f9b0c660",
+      "sha256": "60c827307d80d529f18a80ca6e673d689e0836b0cebced63b28c73bf72759542",
       "executable": false
     },
     "src/coffer/merge-facts.ts": {
@@ -6791,7 +6811,7 @@
       "executable": false
     },
     "tests/memberships-journey.mjs": {
-      "sha256": "2f9bfe1b1427c6b3667080e813a06b21d5fb160a0ea019f1a5b42d3c96faeec7",
+      "sha256": "97e5cce562bb1b66a4a597f42528afe13d063dc99ad32e9a4210eba2af173c80",
       "executable": false
     },
     "tests/mobile-journey.mjs": {

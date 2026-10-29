@@ -186,6 +186,9 @@ export async function membershipsJourney(){
   // A changed membership quote cannot alter a previously authorized plan.
   await api(endpoint,{action:'retire',id:level.id,version:2},{status:409})
   await api(endpoint,{action:'retire',id:level.id,version:1})
+  const afterRetirement=h.messages.length
+  await api(endpoint,send(),{status:409})
+  assert.equal(h.messages.length,afterRetirement,'A retired level cannot submit another renewal request')
   assert.equal((await h.request('/giving/memberships/annual-reader',{headers:headers(),as:''})).status,404)
   state=await get(endpoint);assert.equal(state.memberships.find(m=>m.id===first.id).price_cents,12000)
   const saved=await archive(h),fresh=await installation({givingProtection:false,entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-7404',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})

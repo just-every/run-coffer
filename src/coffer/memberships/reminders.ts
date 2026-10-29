@@ -10,7 +10,7 @@ import { membershipState, membershipStaff } from './service'
 export async function membershipReminder(c:Context,id:string){
  const state=await membershipState(c),reminder=state.reminders.find(r=>r.id===id),member=state.memberships.find(m=>m.id===reminder?.membership_id)
  if(!reminder||!member)fail('NOT_FOUND','This renewal reminder is no longer available.',404)
- if(member.state==='review'||member.expires_on!==reminder.expires_on)fail('REMINDER_CHANGED','This member has renewed or needs review. Prepare current reminders.',409)
+ if(member.state==='review'||member.expires_on!==reminder.expires_on||!state.levels.find(l=>l.id===member.level_id)?.active)fail('REMINDER_CHANGED','This member has renewed, needs review, or the level is retired. Prepare current reminders.',409)
  const donor=await one(c,'SELECT id,version,name,email FROM cf_donors WHERE id=? AND erased_at IS NULL',member.donor_id)
  if(!donor?.email)fail('RECIPIENT_UNAVAILABLE','This member needs a current email address.',409)
  const organisation=(await settings(c)).organisation,subject='Renew your '+member.level_name+' membership'
