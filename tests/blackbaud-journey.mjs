@@ -23,6 +23,13 @@ export async function blackbaudJourney(){
   f.gifts[0].gift_splits[1].amount.value=199.99;await post(h,'preview',f.input(),{status:400});f.gifts[0].gift_splits[1].amount.value=200
   f.gifts[0].type='RecurringGift';await post(h,'preview',f.input(),{status:400});f.gifts[0].type='Donation'
   f.opportunities[0].status='Unmapped stage';await post(h,'preview',f.input(),{status:400});f.opportunities[0].status='Proposal'
+  const fieldChoices=f.review.definitions[0].choices
+  f.review.definitions[0].choices=['Volunteer'];await post(h,'preview',f.input(),{status:400});f.review.definitions[0].choices=fieldChoices
+  const next=f.review.recurring[key(9015)].nextOn
+  f.review.recurring[key(9015)].nextOn='2026-08-01';await post(h,'preview',f.input(),{status:400});f.review.recurring[key(9015)].nextOn=next
+  const opaque=f.review.recurring[key(9015)].paymentMethodReference
+  f.review.recurring[key(9015)].paymentMethodReference='1234567890123456';await post(h,'preview',f.input(),{status:400});f.review.recurring[key(9015)].paymentMethodReference=opaque
+  assert.equal((await h.get('/api/coffer/donors')).total,empty,'Unsafe metadata and plan references never apply a partial import')
   const ownerMapping=f.review.owners[key(9001)];f.review.owners[key(9001)]={id:admin.id,version:1}
   const badOwner=await post(h,'preview',f.input());assert.equal(badOwner.canApply,false);assert.ok(badOwner.diagnostics.some(d=>d.code==='SKY_OPPORTUNITY'));await post(h,'apply',{id:badOwner.id,fingerprint:badOwner.fingerprint},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,empty);f.review.owners[key(9001)]=ownerMapping
   const badAck=structuredClone(f.review);badAck.softCredits[key(9031)].interactionId=key(9021)
@@ -36,6 +43,7 @@ export async function blackbaudJourney(){
   assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped))
   assert.equal(preview.sourceTotals.giftCount,3);assert.equal(preview.sourceTotals.amountCents,125000)
   assert.deepEqual(preview.sourceTotals.byFund,{Reading:{giftCount:3,amountCents:105000},Library:{giftCount:1,amountCents:20000}})
+  assert.equal(preview.counts.recurringReferences,1);assert.equal(preview.sourceCoverage.counts.sourceCustomDefinitions,6);assert.equal(preview.definitionMappings.length,6);
   assert.equal(preview.counts.opportunities,1);assert.equal(preview.counts.designations,2);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,2)
   assert.equal((await h.get('/api/coffer/donors')).total,empty,'Preview has no native records')
   for(const secret of [key(9998),key(9999),key(9997)])assert.ok(!JSON.stringify(preview).includes(secret))
@@ -64,8 +72,17 @@ export async function blackbaudJourney(){
   const mailChoice=bee.consents.find(c=>c.channel==='mail');assert.equal(mailChoice.status,'withdrawn');assert.equal(mailChoice.captured_on,'2026-09-01');assert.match(mailChoice.evidence,/Do not mail/);assert.ok(!mailChoice.evidence.includes('source date unknown'))
   const noAddress=await h.get('/api/coffer/donors/'+person(9004).id);assert.equal(noAddress.donor.email,null);assert.equal(noAddress.consents.find(c=>c.channel==='email').status,'withdrawn');assert.match(noAddress.consents.find(c=>c.channel==='email').evidence,/SKY constituent requests no email/)
   assert.equal(ava.donor.name,'Dr. Ava Reed');assert.equal(ava.donor.informal_salutation,'  Dearest Ava  ');assert.equal(ava.donor.envelope_name,'  The original Ava addressee  ')
-  assert.deepEqual(ava.contactPoints.filter(p=>p.kind==='email').map(p=>p.type).sort(),['personal','work']);assert.equal(ava.contactPoints.filter(p=>p.kind==='email'&&p.is_primary).length,1)
+  assert.deepEqual(ava.contactPoints.filter(p=>p.kind==='email').map(p=>p.type).sort(),['other','other','personal','work']);assert.equal(ava.contactPoints.filter(p=>p.kind==='email'&&p.is_primary).length,1);assert.equal(ava.contactPoints.filter(p=>p.kind==='address').length,3);assert.equal(ava.contactPoints.filter(p=>p.kind==='address'&&p.is_primary).length,1)
   assert.equal(ava.customValues.find(v=>v.field_key==='sky_membership').value,'"Board"');assert.equal(ava.customValues.find(v=>v.field_key==='sky_detail').value,'"Books <and> music"')
+  assert.equal(ava.customValues.find(v=>v.field_key==='sky_interests').value,'["Books","Music"]');assert.equal(ava.customValues.find(v=>v.field_key==='sky_value').value,'"1234"');assert.equal(ava.customValues.find(v=>v.field_key==='sky_outcome').value,'"Thanked"')
+  const sourceMembership=JSON.parse(ava.customValues.find(v=>v.field_key==='sky_membership').source)
+  assert.equal(sourceMembership.sourceMetadata[0].start,'2026-01-01');assert.equal(sourceMembership.sourceMetadata[0].comment,'Original source membership evidence')
+  const nativeFields=(await h.get('/api/coffer/custom-fields')).fields
+  assert.equal(nativeFields.find(f=>f.key==='sky_unused').type,'year');assert.equal(nativeFields.find(f=>f.key==='sky_outcome').choices,'["Thanked","Follow-up"]')
+  assert.ok(!ava.customValues.some(v=>v.field_key==='sky_unused'),'An empty source definition creates no invented record value')
+  const sourcePlans=(await h.get('/api/coffer/move-in/source-history?donorId='+cleo.donor.id)).plans
+  assert.equal(sourcePlans.length,1);assert.equal(sourcePlans[0].amount_cents,2500);assert.equal(sourcePlans[0].fund,'Reading');assert.equal(sourcePlans[0].campaign,'Autumn books');assert.equal(sourcePlans[0].appeal,'Annual reading');assert.equal(sourcePlans[0].next_on,'2026-11-01');assert.deepEqual(JSON.parse(sourcePlans[0].source_schedule),{startsOn:'2026-09-01',endsOn:null});assert.equal(sourcePlans[0].payment_method_reference,key(9602))
+  assert.equal((await h.get('/api/coffer/giving/plans')).plans.length,0,'Source references never activate replacement billing')
   assert.equal(ava.gifts.length,1);const gift=ava.gifts[0]
   assert.equal(gift.amount_cents,50000);assert.equal(gift.goods,'provided');assert.equal(gift.goods_cents,5000);assert.equal(ava.totals.lifetimeCents,50000)
   assert.equal(gift.acknowledgment.status,'acknowledged');assert.equal(gift.acknowledgment.acknowledged_on,'2026-09-04');assert.equal(gift.acknowledgment.link.id,ava.depth.interactions[0].id);assert.match(gift.acknowledgment.source_reference,/Source letter 14/)
@@ -82,8 +99,10 @@ export async function blackbaudJourney(){
   assert.equal((await h.get('/api/coffer/households/'+cleo.donor.household_id)).household.head_donor_id,null);assert.equal((await h.get('/api/coffer/households/'+(await h.get('/api/coffer/donors/'+person(9005).id)).donor.household_id)).household.head_donor_id,null)
   await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const [name,path] of [['donor','/app/donors/'+ava.donor.id],['opportunity','/app/pipeline']]){await page.goto(origin+path);assert.ok((await page.locator('body').innerText()).includes(name==='donor'?'Ava':'Library renewal'));for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/sky-'+name+'-'+width+'.png',fullPage:true})}}await page.close()})
   const saved=await archive(h);for(const secret of [key(9998),key(9999),key(9997)])assert.ok(!JSON.stringify(saved).includes(secret))
-  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual(await fundAmounts(fresh),{Reading:105000,Library:20000});assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities[0].expected_amount_cents,240000);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities.length,0);assert.deepEqual(await fundAmounts(fresh),{});assert.ok(!(await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key.startsWith('sky_')))})
+  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual(await fundAmounts(fresh),{Reading:105000,Library:20000});assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities[0].expected_amount_cents,240000);assert.equal((await fresh.get('/api/coffer/move-in/source-history?donorId='+cleo.donor.id)).plans[0].next_on,'2026-11-01');assert.ok((await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key==='sky_unused'));await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities.length,0);assert.deepEqual(await fundAmounts(fresh),{});assert.ok(!(await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key.startsWith('sky_')))})
   const repeat=await post(h,'preview',{...f.input(),solicitCodes:undefined});assert.equal(repeat.prior.state,'completed');assert.equal((await apply(h,repeat)).unchanged,true);assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000})
+  f.gifts[0].reference='A changed source reference after the first import'
+  const sourceChanged=await post(h,'preview',f.input());assert.notEqual(sourceChanged.id,preview.id);assert.equal(sourceChanged.canApply,false);await post(h,'apply',{id:sourceChanged.id,fingerprint:sourceChanged.fingerprint},{status:409});assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000});delete f.gifts[0].reference
   await post(h,'undo',{id:preview.id});assert.equal((await h.get('/api/coffer/donors?status=all')).total,0)
   preview=await post(h,'preview',f.input());await apply(h,preview)
   const current=await h.get('/api/coffer/households/'+hh.household.id);await h.command('household.update',{householdId:hh.household.id,version:current.household.version,informal_override:'A later reviewed greeting'})
@@ -97,8 +116,8 @@ export async function blackbaudJourney(){
   const second=await h.command('appeal.prepare',{name:'Second annual ask',channel:'email',donorIds:[cleo.donor.id]},{status:409});assert.equal(second.details['solicitation limit'],1)
   const target=await donor(h,'Native merged identity'),source=(await h.get('/api/coffer/donors/'+cleo.donor.id)).donor
   await h.command('donor.merge',{sourceDonorId:source.id,donorId:target.id,sourceVersion:source.version,version:target.version,reason:'duplicate_record'})
-  assert.equal((await h.get('/api/coffer/pipeline')).opportunities[0].donor_id,target.id);assert.equal((await h.get('/api/coffer/donors/'+target.id)).gifts[0].amount_cents,50000)
-  await h.command('donor.erase',{donorId:target.id,confirm:'ERASE'});assert.equal((await h.get('/api/coffer/pipeline')).opportunities.length,0)
+  assert.equal((await h.get('/api/coffer/pipeline')).opportunities[0].donor_id,target.id);assert.equal((await h.get('/api/coffer/move-in/source-history?donorId='+target.id)).plans[0].source_id,key(9015));assert.equal((await h.get('/api/coffer/donors/'+target.id)).gifts[0].amount_cents,50000)
+  await h.command('donor.erase',{donorId:target.id,confirm:'ERASE'});assert.equal((await h.get('/api/coffer/pipeline')).opportunities.length,0);assert.equal((await h.get('/api/coffer/move-in/source-history?donorId='+target.id)).plans.length,0)
   assert.equal((await post(h,'preview',f.input())).canApply,false,'An erased merged identity cannot return through replay')
   const erased=await h.get('/api/coffer/move-in/journal?id='+preview.id);assert.equal(erased.job.redacted,1);assert.deepEqual(erased.job.report,{})
   await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{status:409});assert.ok(!JSON.stringify(await archive(h)).includes(email(9003)))

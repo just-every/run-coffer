@@ -13,7 +13,7 @@ import { accumulate, emptyTotals } from './source-totals'
 import { importedOverrides } from '../person-names'
 
 export type Effect = { kind: Kind; sourceKey: string; contentHash: string; nativeId: string; owned: boolean; row: Row; donorId: string | null; relatedId: string | null; location?: Located['location'] }
-export type Plan = { sourceProvider?:string; customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
+export type Plan = { sourceProvider?:string; customDefinitionWrites:Row[]; customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
 const stable = (value: unknown): string => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))) : v)
 export const contentHash = (value: unknown) => sha256(stable(value))
 export const nativeId = async (source: string, kind: string, key: string) => `crm-${(await contentHash([source,kind,key])).slice(0,40)}`
@@ -33,7 +33,7 @@ const label: Record<Kind,string> = {opportunity:'Opportunity',giftDesignation:'G
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
- const plan: Plan = {sourceProvider:parsed.sourceCoverage?.provider,customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
+ const plan: Plan = {sourceProvider:parsed.sourceCoverage?.provider,customDefinitionWrites:[],customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
  const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.opportunities??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
@@ -235,7 +235,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(['call','meeting','email'].includes(n.type))await add('interaction',n,{donor_id:donorId,kind:n.type,occurred_on:n.date,who:`${source} export`,notes:n.text,next_step:null,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
   else await add('note',n,{donor_id:donorId,occurred_on:n.date,body:n.text,source,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
- for(const r of parsed.recurringReferences??[])await add('recurringReference',r,{donor_id:plan.donorIds.get(r.donorExternalId),source,source_id:r.externalId,amount_cents:r.amountCents,frequency:r.frequency,status:r.status,method:r.method,campaign:r.campaign,next_on:r.nextOn,customer_reference:r.customerReference,payment_method_reference:r.paymentMethodReference,imported_at:c.now},undefined,plan.donorIds.get(r.donorExternalId))
+ for(const r of parsed.recurringReferences??[])await add('recurringReference',r,{donor_id:plan.donorIds.get(r.donorExternalId),source,source_id:r.externalId,amount_cents:r.amountCents,frequency:r.frequency,status:r.status,method:r.method,campaign:r.campaign,fund:r.fund??'',appeal:r.appeal??'',source_schedule:JSON.stringify(r.schedule??{}),next_on:r.nextOn,customer_reference:r.customerReference,payment_method_reference:r.paymentMethodReference,imported_at:c.now},undefined,plan.donorIds.get(r.donorExternalId))
  for(const o of parsed.opportunities??[]){
   try {
    const prepared=await importedOpportunity(c,o,plan.donorIds.get(o.donorExternalId)??'')
