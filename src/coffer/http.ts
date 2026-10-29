@@ -1,3 +1,5 @@
+import { restrictedRead, teamAccessState } from './team-access'
+import { readOnlyPage, teamAccessPage } from './ui/team-access'
 import { membershipResponse } from './memberships/http'
 import { reportExportsPage } from './ui/report-exports'
 import { builderDownload } from './report-builder/download'
@@ -260,7 +262,7 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
  if (response && response.status < 400 && !provider && !response.headers.get('location')?.startsWith('/signin') && ROUTES.test(path)) {
   const env = runtimeBindings(original), captured=responseAuthorities.get(request)
   const auth=captured?null:await identity(request,env)
-  try { await recordRequest(captured??{ db:env.DB,actor:auth!.actor,authority:auth!.authority,now:new Date().toISOString(),env },request,response) }
+  try { if(captured)await commit(captured,[]);await recordRequest(captured??{ db:env.DB,actor:auth!.actor,authority:auth!.authority,now:new Date().toISOString(),env },request,response) }
   catch (error) { if (error instanceof CofferError) return json({error:error.code,message:error.message},error.status); throw error }
  }
  responseAuthorities.delete(request)
@@ -289,6 +291,12 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   } else originGuard(request, env, auth.bearer, request.method === 'GET' && path === '/app/settings/quickbooks/callback')
   const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
   responseAuthorities.set(request,c)
+  if(actor.teamAccess?.readOnly){
+   const read=await restrictedRead(c,request)
+   return isApi?json(read.result):readOnlyPage(actor,read.resource,read.result,path)
+  }
+  if(path==='/app/settings/team-access'&&request.method==='GET')return page('Team access',await teamAccessPage(c),actor,200,path)
+  if(path==='/api/coffer/team-access'&&request.method==='GET')return json(await teamAccessState(c))
   if(path==='/app/calendar/google/callback'&&request.method==='GET'){await calendarCallback(c,url);return redirect('/app/settings#calendar-settings')}
   if(c.actor.preparationGrant&&(request.method==='GET'||path==='/api/coffer/mcp'))await reservePreparationGrant(c,'read')
   if (path === '/api/coffer/mcp') {
@@ -429,6 +437,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
     throw error
    }
    if (isApi) return json(result)
+   if(command==='team.access')return redirect('/app/settings/team-access')
    return actionPage(command, input, result, actor, (await settings(c)).timezone)
   }
   if(request.method==='GET'&&(path==='/app/reports/builder'||path==='/api/coffer/reports/builder')){const file=await builderDownload(c,url);if(file)return file}

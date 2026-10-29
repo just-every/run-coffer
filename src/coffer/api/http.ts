@@ -1,3 +1,4 @@
+import { readOnlyRecords, readOnlyRefusal } from '../team-access'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { originGuard } from '../auth'
 import { CofferError, commit, event, fail, object, type Context, type Row } from '../db'
@@ -32,8 +33,14 @@ export async function restApiResponse(request:Request,original:Bindings):Promise
   if(request.headers.has('origin')&&request.headers.get('origin')!==env.AUTH_ORIGIN)fail('INVALID_ORIGIN','This API request came from another origin.',403)
   const auth=await apiIdentity(request,env);c=auth.context
   originGuard(request,env,auth.bearer)
+  if(c.actor.teamAccess?.readOnly&&request.method!=='GET')return readOnlyRefusal()
   await rateLimit(c,auth.principal)
   const path=url.pathname.slice(PREFIX.length)||'/'
+  if(c.actor.teamAccess?.readOnly){
+   const match=path.match(/^\/(donors|gifts|pledges|tasks|opportunities|interactions)(?:\/([^/]+))?$/)
+   if(!match)return readOnlyRefusal()
+   return {response:json(await readOnlyRecords(c,match[1],url,match[2]?decodeURIComponent(match[2]):undefined)),context:c}
+  }
   if(path==='/keys'||/^\/keys\/[^/]+\/revoke$/.test(path)){
    if(auth.bearer)fail('SESSION_REQUIRED','Use your signed-in owner or admin session to manage API keys.',403)
    if(path==='/keys'&&request.method==='GET')return {response:json(await keyState(c)),context:c}
