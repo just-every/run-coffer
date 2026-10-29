@@ -164,7 +164,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(MOVE-005|MOVE-001):' tests/move-in.test.mjs"
+        "node scripts/verify-move-in-fields.mjs"
       ]
     },
     {

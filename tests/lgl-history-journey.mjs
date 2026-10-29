@@ -139,10 +139,11 @@ export async function lglHistoryJourney(reportFiles){
   const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes('Private source mailing note')&&!erased.includes('Historical membership record')&&!erased.includes('Private historical content')&&!erased.includes(email(2830)));assert.ok(!erased.includes(key(2712))&&!erased.includes(key(2713)),'Erasure removes source instrument references from private archive and review custody')
   const replay=await post(h,'preview',input);assert.equal(replay.canApply,false);await post(h,'apply',{id:replay.id,fingerprint:replay.fingerprint},{status:409})
  },{entry:'tests/fixed-clock-worker.ts'})
- await contactEnrichmentJourney(reportFiles)
- await lglAddressJourney(reportFiles)
- await tagCustodyJourney(reportFiles)
- await tagPartsJourney(reportFiles)
+ for(const group of [[contactEnrichmentJourney,lglAddressJourney],[tagCustodyJourney,tagPartsJourney]]){
+  const finished=await Promise.allSettled(group.map(journey=>journey(reportFiles)))
+  const failed=finished.filter(result=>result.status==='rejected')
+  if(failed.length)throw new AggregateError(failed.map(result=>result.reason),'LGL source custody journeys failed')
+ }
 }
 
 async function historyBrowser(h,p,donorId,phase,input){

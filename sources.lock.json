@@ -2750,6 +2750,10 @@
       "sha256": "f9b126130837144e43a65d10d370d602b63daad2be7ff66c93178d461a7521d9",
       "executable": false
     },
+    "scripts/verify-move-in-fields.mjs": {
+      "sha256": "9096609a0336da5237e19a68194fe57ba0dd772fd72048cd5ff5b78995a61dd5",
+      "executable": false
+    },
     "scripts/verify-plan.mjs": {
       "sha256": "45fe2ab9c5cbc72d0186bf77fab32c985605caae6ecee50676dd618612c3e78f",
       "executable": false
@@ -7583,7 +7587,7 @@
       "executable": false
     },
     "tests/lgl-history-journey.mjs": {
-      "sha256": "72c781daa48a35d03915320f7857081d0a5f090d7f10662d6ec6df984ecfa11f",
+      "sha256": "ecd40b51a16223bf35b358b168d350cde4e41cec9e69aa0e88473d41fd4baefd",
       "executable": false
     },
     "tests/lgl-volunteering-browser.mjs": {
@@ -7627,7 +7631,7 @@
       "executable": false
     },
     "tests/move-in.test.mjs": {
-      "sha256": "d525121223932bdaf88378a4e619f3d44873241c4be29edbe2d7dff2e7a77670",
+      "sha256": "58b949e298b6f4540cbfdaad90013c34d60904d272ff9e6e71a2bb361cd36777",
       "executable": false
     },
     "tests/names-browser.mjs": {
@@ -8119,7 +8123,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "0df981a823efb243cbbc4e7b6ea108d1b419cd311672b499385110da39601456",
+      "sha256": "a7057ee90928190fe7ec5bdd0ff3c0e2c94d11a541a5872e83e6423ee68ae912",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
