@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3ca03eecf9c1285fc63438929e530f60756e548bdda484a88b0f85822973b960",
+      "sha256": "c36794e797f80fcaae807785538fbbbd36a09ab0b632f32ee18d4fdeb6b7a8d3",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2aea8d88c8d779c3040c4046a94e8401fe4fe4d8f5ea009f11b592978ba9c755",
+      "sha256": "0706aa0f959a39894941f8247f5846c7c908b762cad4f7d7db6e6197a262de11",
       "executable": false
     },
     "deploy-demo.json": {
@@ -635,7 +635,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "b37d0a0f6f3ddf4b7c55bc2e8f3a80197723ec06ef8011aaae2b11358f3db50a",
+      "sha256": "2cf847e0b5d5a8e99c8f468b576629245f4c347256af740b1b16bcdb4b471973",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -2487,7 +2487,7 @@
       "executable": false
     },
     "src/coffer/agent/stewardship.ts": {
-      "sha256": "fa8d79a30a63937627394edafb0e4b202ad5acf851073ab90304b3ed9d5f7788",
+      "sha256": "d4db23786d2f2c7cad9ac440a74ef9bc055e4d9614929a5cdd13cc839262b111",
       "executable": false
     },
     "src/coffer/annual-lapses.ts": {
@@ -3779,7 +3779,7 @@
       "executable": false
     },
     "src/coffer/relationship-owner.ts": {
-      "sha256": "f2f6ee2da3b88d0e7d41ecd665ac799c05ab2776cbfd3a0809b805246bec4549",
+      "sha256": "2eb69c9a391f3924d45e93cbb363af8cbe6e96e4945cb480627d73b14c488cea",
       "executable": false
     },
     "src/coffer/report-authority.ts": {
@@ -7247,7 +7247,7 @@
       "executable": false
     },
     "tests/stewardship-touches-journey.mjs": {
-      "sha256": "4b31dc1fdf9f71bf5aef0c699596cd237b480362de3572f1c27525db4f49d327",
+      "sha256": "02d808601d138ff63c49f57ffefb59748d32e4a371a346bdf4c66b4e0f5fbcf5",
       "executable": false
     },
     "tests/stewardship.test.mjs": {

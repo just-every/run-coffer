@@ -22,7 +22,7 @@ const RECENT_GIFTS = "SELECT id FROM cf_gifts WHERE donor_id=d.id AND kind='gift
 // guard, so a refund, correction or compensating undo invalidates old drafts.
 const SOURCE_SQL = `SELECT json_object(
  'donor',json_object('id',d.id,'name',d.name,'version',d.version),
- 'relationship_manager',json((SELECT json_object('id',id,'role',role) FROM (${routingOwnerSql('d.id')}))),
+ 'relationship_manager',json((SELECT json_object('id',id,'role',role,'version',version) FROM (${routingOwnerSql('d.id')}))),
  'organisation',(SELECT organisation FROM cf_settings WHERE id=1),
  'gifts',json((SELECT json_group_array(json(j)) FROM (
   SELECT json_object('id',g.id,'original_amount_cents',g.amount_cents,'received_on',g.received_on,'original_fund',g.fund,'note',g.note,

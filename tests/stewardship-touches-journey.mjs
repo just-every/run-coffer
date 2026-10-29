@@ -9,10 +9,12 @@ const address=n=>['synthetic-coffer-'+n,'example.test'].join(String.fromCharCode
 
 export async function stewardshipTouchesJourney(){
  const calls=[],bindings={COFFER_TEST_NOW:fixedNow}
+ let beforeReviewResponse
  const outbound=async request=>{
   assert.equal(new URL(request.url).hostname,'api.anthropic.com')
   const input=JSON.parse((await request.json()).messages[0].content);calls.push(input)
   assert.ok(!JSON.stringify(input).includes('CONFIDENTIAL PRIVATE SOURCE'))
+  if(input.subject&&beforeReviewResponse){const change=beforeReviewResponse;beforeReviewResponse=null;await change()}
   const gift=input.sources.find(s=>s.kind==='gift')
   const output=input.subject?{assessment:'The recorded gift supports this touch.',supported:true,isAsk:false,sourceIds:[gift.id]}:
    {subject:'A personal thank-you',body:`${input.format}: Thank you for your $${gift.facts.current_amount_usd} gift to ${gift.facts.original_fund}.`,citations:[{sourceId:gift.id}]}
@@ -155,6 +157,15 @@ export async function stewardshipTouchesJourney(){
   assert.equal((await h.api(route('schedule'),{...memberReview,dueOn:'2026-10-30',confirm:'SCHEDULE'},{status:409})).error,'MANAGER_SCOPE')
   assert.equal(h.messages.length,initialMail+1)
   await h.command('portfolio.save',{portfolioId:portfolio.id,version:changed.version,name:'Current relationships',managerId:admin.id,untouchedDays:30})
+  // Revocation while the factual reviewer responds cannot publish an approval.
+  const revoked=await getDraft(people[0],'card')
+  beforeReviewResponse=()=>h.api('/auth/operator/role',{operatorId:admin.id,role:'member'})
+  await h.api(route('save'),{...revoked,subject:revoked.row.subject,body:revoked.row.body},{as:admin.cookie,status:401})
+  const unreviewed=(await state(people[0])).drafts.find(d=>d.id===revoked.id)
+  assert.equal(unreviewed.version,revoked.version);assert.equal(unreviewed.reviewed_version,null)
+  await h.get('/api/coffer/agent/stewardship',{as:admin.cookie,status:401})
+  await h.api('/auth/operator/role',{operatorId:admin.id,role:'admin'})
+  assert.equal((await h.api(route('save'),{...revoked,subject:revoked.row.subject,body:revoked.row.body},{status:409})).error,'SOURCES_CHANGED','Restoring a role cannot revive review from its earlier authority version')
   const erasedTask=await getDraft(people[0],'card'),erasedReview=await h.api(route('save'),{...erasedTask,subject:erasedTask.row.subject,body:erasedTask.row.body})
   const queued=await h.api(route('schedule'),{...erasedReview,dueOn:'2026-10-30',confirm:'SCHEDULE'})
   await h.command('donor.erase',{donorId:people[0].id,confirm:'ERASE'})
