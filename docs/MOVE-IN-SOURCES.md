@@ -159,6 +159,7 @@ unfinished pagination prevents a usable review. The bounded read accepts at
 most 10,000 constituents, 1,500 requests, 2 MiB per response and 12 MiB total;
 use the reviewed export door for a larger account.
 
+Source check numbers remain attached to their imported gift references.
 Account numbers are the legacy identity in Coffer; API IDs join timeline records
 to those accounts. The supported slice includes typed contacts (three emails,
 three phones, two addresses, with an explicit primary for each kind), unchanged

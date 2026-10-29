@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
-      "sha256": "d9212199957b67924d78fa59946e1455572f7d17957814eca8dd0d5a7feb1ffd",
+      "sha256": "ccc9ab0310e31d7a375dd29f6a4fc8a6ffa4e4e02b5f2be3ef4a9bcc9afc23f9",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3335,7 +3335,7 @@
       "executable": false
     },
     "src/coffer/move-in/bloomerang.ts": {
-      "sha256": "995e1ad073466a568fc5976a12ae3f4198b9776b9ef205a061a18e2da2fed35a",
+      "sha256": "0109061ebee78869420569b9d1a72fb2917acb46683271f1c5b0ae6a97c50750",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -4019,7 +4019,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "389f1aa7104682186755e9f3aceb2a5673c1d186faf6417de0ae16f11daae734",
+      "sha256": "0f39ce67fa773244ee8cecc45fb31d81fe05eaeb5c65349fad552a743be5c849",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6347,7 +6347,7 @@
       "executable": false
     },
     "tests/bloomerang-journey.mjs": {
-      "sha256": "1b7e73759b4c5e589c4e8fcfa34152e59284bed69cb67f4b69fb21d509159966",
+      "sha256": "cd056668fdcdfd031bcc49cc5969fa6011d091dc805ccb5f173d8554cc84e7a3",
       "executable": false
     },
     "tests/browser-journey.mjs": {
