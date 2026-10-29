@@ -46,7 +46,7 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
   // Finish Base's first-run review so the owner's /app pages open.
   const firstRun=await request('/setup',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:'confirm=yes'});assert.equal(firstRun.status,303)
   const api=async(path,body,{status=200,...options}={})=>{const response=await request(path,{...(body===undefined?{}:{method:'POST',body}),...options});const value=await response.json();assert.equal(response.status,status,JSON.stringify(value));return value}
-  const command=(command,input={},options={})=>api('/api/coffer/commands',{command,input},options)
+  const command=(command,input={},options={})=>api('/api/coffer/commands',{command,input},{...options,headers:{...(options.headers??{}),...(options.headers?.authorization?{'idempotency-key':randomUUID()}: {})}})
   const get=(path,options={})=>api(path,undefined,options)
   if(givingProtection)await command('giving.protection',{siteKey:givingToken,secret:givingToken})
   const person=async(email,role='member')=>{

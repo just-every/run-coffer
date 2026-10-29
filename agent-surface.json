@@ -1,0 +1,253 @@
+{
+  "schema": "rer-agent-surface/1",
+  "seed": "coffer",
+  "specialist": "development",
+  "capabilities": [
+    "tools",
+    "policy",
+    "pause",
+    "audit",
+    "idempotency"
+  ],
+  "tools": [
+    {
+      "name": "coffer.donors.list",
+      "scope": "coffer:donors.list",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "DONOR-001",
+        "BASE-AGENT-002"
+      ]
+    },
+    {
+      "name": "coffer.donors.get",
+      "scope": "coffer:donors.context",
+      "readOnly": true,
+      "classes": [
+        "sensitive"
+      ],
+      "clauses": [
+        "DONOR-004",
+        "BASE-AGENT-002"
+      ]
+    },
+    {
+      "name": "coffer.ack.prepare",
+      "scope": "coffer:ack.prepare",
+      "readOnly": false,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "ACK-001",
+        "BASE-AGENT-002"
+      ]
+    },
+    {
+      "name": "coffer.appeal.prepare",
+      "scope": "coffer:appeal.prepare",
+      "readOnly": false,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "APPEAL-001",
+        "BASE-AGENT-002"
+      ]
+    },
+    {
+      "name": "coffer.ack.send",
+      "scope": "coffer:ack.send",
+      "readOnly": false,
+      "classes": [
+        "external"
+      ],
+      "clauses": [
+        "DEV-012",
+        "BASE-AGENT-002"
+      ]
+    },
+    {
+      "name": "coffer.workspace.snapshot",
+      "scope": "coffer:donors.list",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "BASE-AGENT-012"
+      ]
+    }
+  ],
+  "notTools": [
+    {
+      "clauses": [
+        "MOVE-001"
+      ],
+      "reason": "import-door"
+    },
+    {
+      "clauses": [
+        "OWN-001"
+      ],
+      "reason": "installation"
+    },
+    {
+      "clauses": [
+        "COMM-002"
+      ],
+      "reason": "connector"
+    },
+    {
+      "clauses": [
+        "MOBILE-002"
+      ],
+      "reason": "device"
+    }
+  ],
+  "resources": [],
+  "witness": {
+    "tool": "coffer.workspace.snapshot",
+    "args": {}
+  },
+  "escalations": [],
+  "journey": [
+    {
+      "id": "snapshot",
+      "tool": "coffer.workspace.snapshot",
+      "args": {},
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "list",
+      "tool": "coffer.donors.list",
+      "args": {},
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "classes": [
+          "standard"
+        ],
+        "confirmExternal": true
+      }
+    },
+    {
+      "id": "read",
+      "tool": "coffer.donors.get",
+      "args": {
+        "donorId": {
+          "$fixture": "main",
+          "pointer": "/donor/id"
+        }
+      },
+      "expect": [
+        {
+          "class": "sensitive",
+          "facts": {
+            "kind": "personal",
+            "measure": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "ack",
+      "tool": "coffer.ack.prepare",
+      "args": {
+        "giftIds": [
+          {
+            "$fixture": "main",
+            "pointer": "/gift/id"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "appeal",
+      "tool": "coffer.appeal.prepare",
+      "args": {
+        "name": "Synthetic frozen appeal",
+        "channel": "email",
+        "subject": "Thank you",
+        "body": "Dear {{donor_name}}, thank you."
+      },
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "local-ack",
+      "tool": "coffer.ack.prepare",
+      "client": "receipt",
+      "args": {
+        "giftIds": [
+          {
+            "$fixture": "local",
+            "pointer": "/gift/id"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "send",
+      "tool": "coffer.ack.send",
+      "client": "receipt",
+      "args": {
+        "batchId": {
+          "$from": "local-ack",
+          "pointer": "/id"
+        },
+        "version": 1,
+        "expected_revision": 1
+      },
+      "expect": [
+        {
+          "class": "external",
+          "facts": {
+            "measure": 1,
+            "counterparty": "known"
+          }
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "fixtures": {
+      "module": "tests/door-native-fixtures.mjs"
+    },
+    "owner": {
+      "bindings": {
+        "MAIL_FROM": {
+          "module": "tests/door-mail-from.mjs"
+        },
+        "MAIL_PROVIDER": {
+          "module": "tests/door-mail-provider.mjs"
+        }
+      }
+    },
+    "journey": "tests/door-native-journey.mjs"
+  }
+}

@@ -7,6 +7,7 @@ function doors(h,key) {
  const http=(command,input,status=200)=>h.command(command,input,{as:'',headers,status})
  const get=(path,status=200)=>h.get(path,{as:'',headers,status})
  const mcp=async(name,args={},expectedError=null,status=200)=>{
+  name='coffer.'+(name==='donors.context'?'donors.get':name);if(!name.includes('.donors.'))args={...args,idempotency_key:crypto.randomUUID()}
   const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':'tools/call','mcp-name':name},body:{jsonrpc:'2.0',id:++sequence,method:'tools/call',params:{name,arguments:args,_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
   const answer=await response.json();assert.equal(response.status,status,JSON.stringify(answer))
   if(status!==200)return answer
@@ -14,7 +15,7 @@ function doors(h,key) {
   const value=answer.result.structuredContent??JSON.parse(answer.result.content[0].text)
   if(expectedError==='either')return {isError:answer.result.isError,value}
   assert.equal(answer.result.isError,!!expectedError,JSON.stringify(answer))
-  if(expectedError)assert.equal(value.error,expectedError)
+  if(expectedError)assert.equal(value.code,expectedError)
   return value
  }
  return {http,get,mcp}
@@ -36,6 +37,7 @@ export async function agentGrantsJourney() {
  })
  proof('starting receipt authority journey')
  return run(async h=>{
+  await h.api('/agents/api/policy',{document:{schema:'rer-agent-policy/1',catalogue:'rer-agent-classes/1',rules:[{id:'all',class:'*',do:'autonomous'}],spend:{none:true}}},{method:'PUT'})
   proof('receipt installation ready')
   await reviewed(h)
   const template=await h.command('letterTemplate.save',{kind:'major_gift',name:'Standard thank-you',minAmount:'250',subject:settings.letterSubject,body:settings.letterTemplate})
@@ -60,7 +62,7 @@ export async function agentGrantsJourney() {
   assert.equal((await api.get('/api/coffer/settings',403)).error,'GRANT_FORBIDDEN')
   assert.equal((await api.get('/api/coffer/donors?relatedTo='+ben.id,403)).error,'GRANT_SCOPE')
   await api.http('donor.create',{name:'Forbidden'},403)
-  await api.mcp('appeal.prepare',{name:'Forbidden audience',channel:'email'},'GRANT_FORBIDDEN')
+  await api.mcp('appeal.prepare',{name:'Forbidden audience',channel:'email'},null,403)
   const privateGift=await h.command('gift.record',{donorId:ben.id,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'})
   assert.equal((await api.http('ack.prepare',{giftIds:[privateGift.id]},403)).error,'GRANT_SCOPE')
   await api.mcp('ack.prepare',{giftIds:[privateGift.id]},'GRANT_SCOPE')
@@ -81,7 +83,7 @@ export async function agentGrantsJourney() {
   assert.equal((await api.http('ack.send',{batchId:batches[0].id,version:1})).submitted,1)
   const race=await Promise.all(batches.slice(1).map(batch=>api.mcp('ack.send',{batchId:batch.id,version:1},'either')))
   assert.equal(race.filter(r=>!r.isError&&r.value.submitted===1).length,1)
-  assert.equal(race.filter(r=>r.isError&&r.value.error==='DAILY_LIMIT').length,1)
+  assert.equal(race.filter(r=>r.isError&&r.value.code==='DAILY_LIMIT').length,1)
   const held=batches[1+race.findIndex(r=>r.isError)]
   assert.equal(messages.length,2)
   const detail=await h.get(`/api/coffer/letters/${batches[0].id}`)
@@ -107,7 +109,7 @@ export async function agentGrantsJourney() {
   await api.mcp('donors.context',{donorId:house.id},'GRANT_SCOPE')
   assert.equal((await api.http('ack.prepare',{giftIds:[gifts[2].id]},403)).error,'GRANT_FORBIDDEN')
   await h.command('agentGrant.disable',{id:grant.id,version:narrow.version})
-  await api.get('/api/coffer/donors',403)
+  await api.get('/api/coffer/donors',401)
   await api.mcp('donors.list',{},null,401)
   assert.equal(messages.length,2,'Refusals never submit more mail')
   // Legacy keys retain their AGENT-001 behavior until explicitly attached.
@@ -117,7 +119,7 @@ export async function agentGrantsJourney() {
   assert.ok((await legacy.get('/api/coffer/donors')).total>1)
   assert.ok((await legacy.mcp('donors.list')).total>1)
   await legacy.get('/api/coffer/donors',409)
-  await legacy.mcp('donors.list',{},null,409)
+  await legacy.mcp('donors.list',{},'DAILY_LIMIT')
   await h.command('agentGrant.legacyLimits',{id:preparation.id,version:2,readLimit:10,prepareLimit:1})
   await legacy.http('ack.prepare',{giftIds:[privateGift.id]})
   assert.equal((await legacy.http('appeal.prepare',{name:'Over preparation limit',channel:'email'},409)).error,'DAILY_LIMIT')

@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import { run, donor, reviewed } from './harness.mjs'
 
+const canonical=name=>'coffer.'+(name==='donors.context'?'donors.get':name)
+const policy={schema:'rer-agent-policy/1',catalogue:'rer-agent-classes/1',rules:[{id:'all',class:'*',do:'autonomous'}],spend:{none:true}}
 const path = '/api/coffer/mcp', current = '2026-07-28', legacy = '2025-11-25'
 // A real JSON-RPC client over the public Worker door, with no application fake.
 function client(h, key, version = current) {
  let sequence = 0
- const envelope = (method, params = {}, id = ++sequence) => ({ jsonrpc: '2.0', id, method, params: version === current ? { ...params, _meta: { 'io.modelcontextprotocol/protocolVersion': version, 'io.modelcontextprotocol/clientInfo': { name: 'coffer-journey', version: '1.0.0' }, 'io.modelcontextprotocol/clientCapabilities': {} } } : params })
+ const envelope = (method, params = {}, id = ++sequence) => {if(method==='tools/call'){const args=params.arguments;params={...params,name:canonical(params.name),arguments:args&&typeof args==='object'&&!Array.isArray(args)?{...args,...(!params.name.startsWith('donors.')?{idempotency_key:crypto.randomUUID()}:{} )}:args}};return ({ jsonrpc: '2.0', id, method, params: version === current ? { ...params, _meta: { 'io.modelcontextprotocol/protocolVersion': version, 'io.modelcontextprotocol/clientInfo': { name: 'coffer-journey', version: '1.0.0' }, 'io.modelcontextprotocol/clientCapabilities': {} } } : params })}
  const headers = message => ({ authorization: `Bearer ${key.token}`, accept: 'application/json, text/event-stream', 'mcp-protocol-version': version, ...(version === current ? { 'mcp-method': message.method, ...(message.method === 'tools/call' ? { 'mcp-name': message.params.name } : {}) } : {}) })
  const send = async (message, options = {}) => h.request(path, { method: 'POST', as: '', body: message, ...options, headers: { ...headers(message), ...options.headers } })
  const rpc = async (method, params, options = {}) => {
@@ -27,20 +29,22 @@ function client(h, key, version = current) {
 
 export async function mcpJourney() {
  await run(async h => {
+  await h.api('/agents/api/policy',{document:policy},{method:'PUT'})
   const ana = await donor(h, 'Ana MCP'), gift = await h.command('gift.record', { donorId: ana.id, amount: '250', receivedOn: '2026-09-20', method: 'check', goods: 'none' })
   const key = await h.command('agent.create', { label: 'Nonprofit MCP assistant' }), mcp = client(h, key)
   const discovery = (await mcp.rpc('server/discover')).result
   assert.ok(discovery.supportedVersions.includes(current)); assert.ok(discovery.supportedVersions.includes(legacy)); assert.ok(discovery.capabilities.tools)
   const catalog = (await mcp.rpc('tools/list')).result.tools
-  for (const name of ['donors.list', 'donors.context', 'ack.prepare', 'appeal.prepare']) assert.ok(catalog.some(tool => tool.name === name && tool.inputSchema.type === 'object'))
-  assert.ok(!catalog.some(tool => /approve|send|export/.test(tool.name)))
+  for (const name of ['donors.list', 'donors.context', 'ack.prepare', 'appeal.prepare']) assert.ok(catalog.some(tool => tool.name === canonical(name) && tool.inputSchema.type === 'object'))
+  assert.ok(!catalog.some(tool => /approve|export/.test(tool.name)))
+  assert.equal((await mcp.rpc('tools/call',{name:'ack.send',arguments:{batchId:'not-granted',version:1}},{status:403})).error.data.code,'insufficient_scope')
   const found = await mcp.call('donors.list', { q: 'Ana MCP' })
   assert.deepEqual(found.donors.map(d => d.id), [ana.id])
   const context = await mcp.call('donors.context', { donorId: ana.id })
   assert.ok(context.gifts.some(g => g.id === gift.id))
   const unreviewed = await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: { giftIds: [gift.id] } })
   assert.equal(unreviewed.result.isError, true)
-  assert.equal(JSON.parse(unreviewed.result.content[0].text).error, 'SETTINGS_UNREVIEWED')
+  assert.equal(JSON.parse(unreviewed.result.content[0].text).code, 'SETTINGS_UNREVIEWED')
   await reviewed(h)
   const batch = await mcp.call('ack.prepare', { giftIds: [gift.id] })
   assert.equal(batch.letters, 1)
@@ -59,11 +63,11 @@ export async function mcpJourney() {
   const before = (await h.get('/api/coffer/donors')).total
   assert.equal((await mcp.rpc('tools/call', { name: 'donor.create', arguments: { name: 'Outside grant' } }, { status: 400 })).error.code, -32602)
   assert.equal((await h.get('/api/coffer/donors')).total, before)
-  assert.equal((await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: { command: 'ack.approve' } }, { status: 400 })).error.code, -32602)
+  assert.equal((await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: { command: 'ack.approve' } })).result._meta['com.runeditrun/error'].code, 'invalid_arguments')
   assert.equal((await mcp.rpc('unknown/method', {}, { status: 404 })).error.code, -32601)
   assert.equal((await mcp.rpc('ping', {}, { status: 404 })).error.code, -32601)
-  assert.equal((await mcp.rpc('tools/call', { name: 'donors.context', arguments: { donorId: 9 } }, { status: 400 })).error.code, -32602)
-  assert.equal((await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: null }, { status: 400 })).error.code, -32602)
+  assert.equal((await mcp.rpc('tools/call', { name: 'donors.context', arguments: { donorId: 9 } })).result._meta['com.runeditrun/error'].code, 'invalid_arguments')
+  assert.equal((await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: null })).result._meta['com.runeditrun/error'].code, 'idempotency_key_required')
   const invalid = mcp.envelope('tools/list')
   for (const raw of ['{', '[]', '{"jsonrpc":"2.0","id":null,"method":"tools/list"}', '{"jsonrpc":"2.0","id":1,"result":{}}']) {
    const response = await mcp.send(invalid, { raw }); assert.equal(response.status, 400); assert.ok((await response.json()).error)

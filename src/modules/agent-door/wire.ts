@@ -1,3 +1,4 @@
+import { capabilitySet, offers } from './capabilities.mjs'
 import { json } from './errors.ts'
 import type { CallResult, Runtime } from './types.ts'
 
@@ -10,9 +11,15 @@ export const resourceMetadata = (rt: Runtime) => `${rt.options.origin}/.well-kno
 export const challenge = (rt: Runtime, scope?: string) => ({ 'www-authenticate': `Bearer ${scope ? `error="insufficient_scope", scope="${scope}", ` : ''}resource_metadata="${resourceMetadata(rt)}"` })
 export const cache = { resultType: 'complete', ttlMs: 0, cacheScope: 'private' }
 export const capabilities = { tools: { listChanged: true }, resources: { subscribe: true, listChanged: false }, prompts: { listChanged: false } }
+export function doorCapabilities(rt: Runtime) {
+  if (rt.options.capabilities === undefined) return capabilities
+  return { tools: { listChanged: offers(rt.options.capabilities, 'subscriptions') },
+    ...(offers(rt.options.capabilities, 'resources') ? { resources: { subscribe: offers(rt.options.capabilities, 'subscriptions'), listChanged: false } } : {}),
+    ...(offers(rt.options.capabilities, 'prompts') ? { prompts: { listChanged: false } } : {}) }
+}
 export function discovery(rt: Runtime) {
-  return { ...cache, supportedVersions: versions, capabilities, instructions: `${rt.options.name}: tools for the ${rt.options.specialist} specialist. Act for the sponsoring person under their company policy; people decide approvals at the supplied URL.`,
-    _meta: { 'io.modelcontextprotocol/serverInfo': { name: rt.options.name, version: rt.options.version ?? '1' }, 'com.runeditrun/limits': rt.options.limits, 'com.runeditrun/notTools': rt.options.notTools ?? [] } }
+  return { ...cache, supportedVersions: versions, capabilities: doorCapabilities(rt), instructions: `${rt.options.name}: tools for the ${rt.options.specialist} specialist. Act for the sponsoring person under their company policy; people decide approvals at the supplied URL.`,
+    _meta: { 'com.runeditrun/capabilities': capabilitySet(rt.options.capabilities), 'io.modelcontextprotocol/serverInfo': { name: rt.options.name, version: rt.options.version ?? '1' }, 'com.runeditrun/limits': rt.options.limits, 'com.runeditrun/notTools': rt.options.notTools ?? [] } }
 }
 export function toolResult(result: CallResult, version: string, clientCapabilities: unknown) {
   const meta: Record<string, unknown> = { 'com.runeditrun/decision': result.decision }
@@ -37,7 +44,10 @@ export function headerName(value: string | null): string | null {
   try { return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(value.slice(9, -2)), c => c.charCodeAt(0))) } catch { return null }
 }
 export async function parseRequest(rt: Runtime, request: Request): Promise<Rpc | Response> {
-  if (request.method !== 'POST') return rpcError(null, -32600, 'Method not allowed', 405)
+  if (request.method !== 'POST') return rpcError(null, -32600, 'Method not allowed', 405, undefined, {allow:'POST'})
+  if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') return rpcError(null,-32600,'Send application/json',415)
+  const accept=(request.headers.get('accept')??'').split(',').map(part=>part.trim().toLowerCase()).filter(part=>!/;\s*q=0(?:\.0*)?(?:;|$)/.test(part)).map(part=>part.split(';')[0].trim())
+  if (!accept.includes('application/json') && !accept.includes('*/*')) return rpcError(null,-32600,'Accept application/json',406)
   if (request.headers.has('origin') && request.headers.get('origin') !== rt.options.origin) return rpcError(null, -32600, 'Origin refused', 403)
   if (new URL(request.url).searchParams.has('access_token')) return rpcError(null, -32001, 'Unauthorized', 401, undefined, challenge(rt))
   const max = rt.options.limits!.maxBodyBytes!
@@ -55,9 +65,9 @@ export async function parseRequest(rt: Runtime, request: Request): Promise<Rpc |
     const bytes = new Uint8Array(length); let offset = 0
     for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length }
     rpc = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as Rpc
-    if (!rpc || typeof rpc !== 'object' || Array.isArray(rpc) || rpc.jsonrpc !== '2.0' || typeof rpc.method !== 'string' ||
+    if (!rpc || typeof rpc !== 'object' || Array.isArray(rpc) || rpc.jsonrpc !== '2.0' || typeof rpc.method !== 'string' || !rpc.method || Object.hasOwn(rpc,'result') || Object.hasOwn(rpc,'error') ||
       (rpc.params !== undefined && (!rpc.params || typeof rpc.params !== 'object' || Array.isArray(rpc.params))) ||
-      (rpc.id !== undefined && rpc.id !== null && typeof rpc.id !== 'string' && typeof rpc.id !== 'number')) throw new Error()
+      (Object.hasOwn(rpc,'id') && !(typeof rpc.id === 'string' || typeof rpc.id === 'number' && Number.isSafeInteger(rpc.id)))) throw new Error()
   } catch { return rpcError(null, -32700, 'Invalid JSON-RPC request') }
   const version = request.headers.get('mcp-protocol-version') ?? (rpc.method === 'initialize' && rpc.params?.protocolVersion === '2025-11-25' ? '2025-11-25' : null), meta = metaOf(rpc)
   if (version && !versions.includes(version)) return rpcError(rpc.id, -32022, 'UnsupportedProtocolVersion', 400, { supported: versions, requested: version })
@@ -66,5 +76,8 @@ export async function parseRequest(rt: Runtime, request: Request): Promise<Rpc |
     (!modern && meta['io.modelcontextprotocol/protocolVersion'] !== undefined && meta['io.modelcontextprotocol/protocolVersion'] !== version) ||
     ((modern || request.headers.has('mcp-method')) && request.headers.get('mcp-method') !== rpc.method) ||
     (named && (modern || request.headers.has('mcp-name')) && headerName(request.headers.get('mcp-name')) !== (rpc.method === 'resources/read' ? rpc.params?.uri : rpc.params?.name))) return rpcError(rpc.id, -32020, 'HeaderMismatch')
+  const client=meta['io.modelcontextprotocol/clientCapabilities']
+  if (modern && (!client || typeof client!=='object' || Array.isArray(client))) return rpcError(rpc.id,-32602,'Supply client capabilities')
+  if (rpc.id === undefined && !['notifications/initialized','notifications/cancelled','notifications/progress'].includes(rpc.method)) return rpcError(null,-32600,'A tool call requires an id')
   return rpc
 }

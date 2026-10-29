@@ -27,9 +27,9 @@ export async function all<T = Row>(c: { db: D1Database }, text: string, ...param
 }
 
 /** The audit row for a change: identifiers and amounts only, never donor personal data. */
-export function event(c: { now: string; actor: { id: string; name: string; role: string; grant?: { id: string; version: number }; preparationGrant?: {id:string;version:number}; apiKey?: {id:string;scope:string} } }, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}, table: 'cf_events' | 'cf_access_events' = 'cf_events'): Stmt {
+export function event(c: { now: string; actor: { id: string; name: string; role: string; doorAgent?: Actor['doorAgent']; grant?: { id: string; version: number }; preparationGrant?: {id:string;version:number}; apiKey?: {id:string;scope:string} } }, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}, table: 'cf_events' | 'cf_access_events' = 'cf_events'): Stmt {
  return sql(`INSERT INTO ${table}(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,?,?,?,?,?)`,
-  c.now, c.actor.id, c.actor.name, c.actor.role, action, subjectKind, subjectId, donorId, JSON.stringify({ ...detail, ...(c.actor.apiKey ? {apiKeyId:c.actor.apiKey.id,apiKeyScope:c.actor.apiKey.scope}:{}), ...((c.actor.grant??c.actor.preparationGrant) ? { grantId: (c.actor.grant??c.actor.preparationGrant)!.id, grantVersion: (c.actor.grant??c.actor.preparationGrant)!.version } : {}) }))
+  c.now, c.actor.doorAgent?.id??c.actor.id, c.actor.name, c.actor.doorAgent?'agent':c.actor.role, action, subjectKind, subjectId, donorId, JSON.stringify({ ...detail, ...(c.actor.doorAgent?{agent:c.actor.doorAgent,preparedBy:c.actor.doorAgent.id,forPerson:c.actor.doorAgent.sponsorId}:{}), ...(c.actor.apiKey ? {apiKeyId:c.actor.apiKey.id,apiKeyScope:c.actor.apiKey.scope}:{}), ...((c.actor.grant??c.actor.preparationGrant) ? { grantId: (c.actor.grant??c.actor.preparationGrant)!.id, grantVersion: (c.actor.grant??c.actor.preparationGrant)!.version } : {}) }))
 }
 
 /** One D1 transaction: the caller's current authority, then the writes and

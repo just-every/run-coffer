@@ -142,6 +142,9 @@ Regenerate the touched clauses and summary counts together; homepage claims that
 do not refer to those clauses retain their approved source mapping.
 
 Lander-Regenerate: node scripts/contract-docs.mjs write REPORT-004 DATA-004 MOVE-004
+Lander-Regenerate: node scripts/contract-docs.mjs write API-004 BASE-AGENT-{001..013}
 Lander-Regenerate: node scripts/edition-authoring/cli.mjs lock
 
 Check with `node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004`.
+
+Check the core door views with `node scripts/contract-docs.mjs check API-004 BASE-AGENT-{001..013}`.
