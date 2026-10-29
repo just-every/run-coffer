@@ -1,5 +1,6 @@
 import { peerResponse } from '../peer/http'
 import { publicPage } from '../peer/service'
+import { publicMembershipResponse } from '../memberships/http'
 import { fundraisingEvent } from '../fundraising-events'
 import { registrationPage } from '../ui/fundraising-events'
 import { givingEmbedScript } from './form-embed'
@@ -48,6 +49,8 @@ export async function givingResponse(request: Request, original: Bindings): Prom
    return Response.json({ received: true }, { headers })
   }
   if (!['GET', 'HEAD'].includes(request.method) && request.headers.get('origin') !== env.AUTH_ORIGIN) fail('invalid_origin', 'This request did not come from Coffer.', 403)
+  const membership=await publicMembershipResponse(request,env)
+  if(membership)return membership
   if(path==='/giving/pledge/thanks'&&request.method==='GET'){
    const result=await completePledgeCheckout(env,url.searchParams.get('session_id')??'')
    if(!result)fail('not_found','That pledge payment is unavailable.',404)
