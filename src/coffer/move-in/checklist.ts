@@ -35,7 +35,9 @@ export async function installationChecklist(c:Context,source:unknown,jobId?:stri
  const job=await one(c,`SELECT * FROM cf_move_in_jobs WHERE source=? ${jobId?'AND id=?':''} ORDER BY created_at DESC,id DESC LIMIT 1`,selected,...(jobId?[jobId]:[]))
  if(jobId&&!job)fail('NOT_FOUND','That move-in does not belong to this source.',404)
  let complete=!!job&&job.state==='completed'&&!job.redacted&&job.parts>0&&job.parts===job.applied_parts
- const report:Row=job&&!job.redacted?JSON.parse(job.report):{}
+ const imports:Row[]=complete?await all(c,"SELECT id,fingerprint,state,redacted,parts,applied_parts,report FROM cf_move_in_jobs WHERE source=? AND state='completed' AND redacted=0 ORDER BY created_at,id",selected):[]
+ const reports=imports.map(j=>JSON.parse(j.report))
+ const active="r.source=? AND EXISTS(SELECT 1 FROM cf_move_in_jobs j WHERE j.id=r.job_id AND j.state='completed' AND j.redacted=0)"
  let records:Row={},definitions:Row[]=[],custom:Row={count:0,hashes:[]},reconciliation:Row={matches:false,rows:[]}
  const names:{original:Row|null;current:Row|null}[]=[]
  let nameCount=0,namesIntact=true,customIntact=true
@@ -43,7 +45,7 @@ export async function installationChecklist(c:Context,source:unknown,jobId?:stri
   // Identifiers come only from the server-owned table catalog.
   for(const kind of kinds) {
    const t=tables[kind]
-   records[kind]=await evidenceRows(c,`SELECT r.kind,r.source_key,r.snapshot AS original,CASE WHEN n.${t.key} IS NULL THEN NULL ELSE ${snapshot(kind)} END AS current FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=?`,[job.id,kind],rows=>{
+   records[kind]=await evidenceRows(c,`SELECT r.kind,r.source_key,r.snapshot AS original,CASE WHEN n.${t.key} IS NULL THEN NULL ELSE ${snapshot(kind)} END AS current FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE ${active} AND r.kind=?`,[selected,kind],rows=>{
     if(kind!=='donor')return
     nameCount+=rows.length
     for(const row of rows){
@@ -52,29 +54,29 @@ export async function installationChecklist(c:Context,source:unknown,jobId?:stri
     }
    })
   }
-  custom=await evidenceRows(c,`SELECT r.source_key,r.snapshot AS original,v.field_key,v.record_id,v.value,v.version,v.source FROM cf_move_in_records r LEFT JOIN cf_custom_values v ON v.record_id=r.native_id AND v.field_key=json_extract(r.snapshot,'$.field_key') WHERE r.job_id=? AND r.kind='customValue'`,[job.id],rows=>{if(rows.some(v=>!v.field_key))customIntact=false})
-  definitions=await all(c,`SELECT f.* FROM cf_custom_fields f WHERE f.key IN (SELECT json_extract(value,'$.key') FROM json_each(?)) ORDER BY f.key`,JSON.stringify(report.customFields??[]))
+  custom=await evidenceRows(c,`SELECT r.source_key,r.snapshot AS original,v.field_key,v.record_id,v.value,v.version,v.source FROM cf_move_in_records r LEFT JOIN cf_custom_values v ON v.record_id=r.native_id AND v.field_key=json_extract(r.snapshot,'$.field_key') WHERE ${active} AND r.kind='customValue'`,[selected],rows=>{if(rows.some(v=>!v.field_key))customIntact=false})
+  definitions=await all(c,`SELECT f.* FROM cf_custom_fields f WHERE f.key IN (SELECT json_extract(value,'$.key') FROM json_each(?)) ORDER BY f.key`,JSON.stringify(reports.flatMap(r=>r.customFields??[])))
   reconciliation=await totalsCheck(c,job)
  }
  if(!namesIntact){complete=false;names.length=0;definitions=[];reconciliation={matches:false,rows:[]}}
- const mappings:Row[]=complete?report.customFields??[]:[]
+ const mappings:Row[]=complete?[...new Map(reports.flatMap(r=>r.customFields??[]).map(m=>[JSON.stringify([m.column,m.sheet,m.kind,m.key]),m])).values()]:[]
  const namesAvailable=complete&&nameCount>0&&namesIntact
- const fieldsAvailable=complete&&mappings.length>0&&!report.unmapped&&definitions.length===new Set(mappings.map(m=>m.key)).size&&custom.count>0&&customIntact
- const fingerprint=await sha256(JSON.stringify({job:job?[job.id,job.fingerprint,job.state,job.redacted,job.parts,job.applied_parts,job.report]:null,records,custom,definitions,reconciliation}))
+ const fieldsAvailable=complete&&mappings.length>0&&!reports.some(r=>r.unmapped)&&definitions.length===new Set(mappings.map(m=>m.key)).size&&custom.count>0&&customIntact
+ const fingerprint=await sha256(JSON.stringify({job:job?[job.id,job.fingerprint,job.state,job.redacted,job.parts,job.applied_parts,job.report]:null,imports,records,custom,definitions,reconciliation}))
  const same=saved?.job_id===job?.id
  const reviewed=(step:ChecklistStep)=>same&&saved?.[step+'_hash']===fingerprint
  const steps=[
   {id:'exports',done:complete,available:false,detail:complete?'Supported history import completed.':job?.redacted?'Import evidence was erased.':job?.state==='undone'?'The import was undone.':'Complete a supported reviewed import first.'},
   {id:'transfer',done:false,available:false,detail:'Unavailable: direct processor-to-Stripe vault transfer is not recorded here.'},
   {id:'payment-mapping',done:false,available:false,detail:'Unavailable: Stripe mapping-file upload and validation are unbuilt.'},
-  {id:'names',done:namesAvailable&&reviewed('names'),available:namesAvailable,detail:namesAvailable?'Compare source names with current donor names below.':'No complete, unerased donor mapping is available.'},
+  {id:'names',done:namesAvailable&&reviewed('names'),available:namesAvailable,detail:namesAvailable?'Compare source names from the completed imports with current donor names below.':'No complete, unerased donor mapping is available.'},
   {id:'fields',done:fieldsAvailable&&reviewed('fields'),available:fieldsAvailable,detail:fieldsAvailable?'Review the supported mapped columns and current field definitions below.':'Import explicit supported field mappings and resolve every left-out value first. Full source-definition parity remains owed.'},
   {id:'reconciliation',done:complete&&reconciliation.matches&&reviewed('reconciliation'),available:complete&&reconciliation.matches,detail:complete?(reconciliation.matches?'Current supported gift and restriction controls match. Review the source inventory separately.':'Current controls differ. Inspect the journal and resolve every difference.'):'A completed import is required for a current comparison.'},
   {id:'source-stop',done:false,available:false,detail:'Unavailable: confirm each source plan is stopped before replacement charging; Coffer never cancels it.'},
   {id:'cutover',done:false,available:false,detail:'Unavailable: full owner cutover sign-off and replacement charging remain unbuilt.'},
   {id:'email',done:false,available:false,detail:'Incomplete: choose Mango or Mailchimp separately; no connection or send is established here.'},
  ]
- return {source:selected,version:saved?.version??0,jobId:job?.id??null,jobState:job?.state??null,fingerprint,steps,names,nameCount,mappings,definitions,reconciliation,reviewedAt:same?saved?.reviewed_at??null:null}
+ return {source:selected,imports:imports.map(j=>({id:j.id})),version:saved?.version??0,jobId:job?.id??null,jobState:job?.state??null,fingerprint,steps,names,nameCount,mappings,definitions,reconciliation,reviewedAt:same?saved?.reviewed_at??null:null}
 }
 
 export async function reviewChecklist(c:Context,input:Row) {

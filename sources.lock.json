@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "5918d069136aaabbf930fef2895506219c1bcfe896fe3c0b6d3412f770a46374",
+      "sha256": "c8c9a5032ed13e4cd98498162bfd2eb9e24f216ca4454fb83243060219ae36ca",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6339476bd84a3f809b5026e7046c9e5fd0ce0724848b8af2fcb3373952435dd8",
+      "sha256": "f391a2e35a5568742271c7bfeb48ea3f00f474ea50eba61afa80166a44f11129",
       "executable": false
     },
     "deploy-demo.json": {
@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
-      "sha256": "9111f16ea41d124e8c191eda6cc25093c300eea5ad77b00f87a577981195d8a0",
+      "sha256": "ea15ad9c28334c88211fb97411d65b42e77c46d8e753e93762c3c0b0a02361d3",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3331,7 +3331,7 @@
       "executable": false
     },
     "src/coffer/move-in/checklist.ts": {
-      "sha256": "6ded16d6f0af6a94493c4573ffa8508613294e2c8a91c43cdfc18f9c7499046f",
+      "sha256": "a3b28b2f07ad632dfd6971be7034e1ebaad3708730c9665b1c3de8d117c18cd8",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -4011,7 +4011,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-export-steps.ts": {
-      "sha256": "f92ce3698fd84aa237f9e3ad67d4a0ef88e2c0acc2b349f198b7a8fc77d1aa65",
+      "sha256": "342883ae9c135636d11fba8b7de4cd65cf8ba4cd3709dcd5df41135e49c65181",
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
@@ -4175,7 +4175,7 @@
       "executable": false
     },
     "src/coffer/ui/move-in-checklist.ts": {
-      "sha256": "347f5aca6ffd9d7c73b67855aaa2355b5c2220dd02da2dd797c405d8d3a263ed",
+      "sha256": "e655329dcb6e3d8c3ff91b82743a352cdc7c3178bda3b7d88e9d8ed775553a13",
       "executable": false
     },
     "src/coffer/ui/move-in.ts": {
@@ -6875,7 +6875,7 @@
       "executable": false
     },
     "tests/move-in-guide-journey.mjs": {
-      "sha256": "2d988ddff67c04b3080bffe2d69a09f0f07f1cab5d6c843a0eba71c6be890ab8",
+      "sha256": "cc89616ea93aed45623d3aa7188ebbd8f7d48b9c7a4aa8a8791438bf08d938ab",
       "executable": false
     },
     "tests/move-in.test.mjs": {

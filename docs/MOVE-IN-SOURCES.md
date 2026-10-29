@@ -204,7 +204,7 @@ unavailable work without treating documentation as completed work.
 
 ### Givebutter switching order
 
-1. **Read and import history:** Settings → Integrations → API → create an API key, then paste it into Read Givebutter history. Check a known source amount before choosing cents or USD dollars. Review contacts, transactions, campaigns and recurring references; attach source evidence for facts absent from the API. See the [history reference](/docs/platform-history) and [Givebutter API documentation](https://docs.givebutter.com/). The read changes no source plan.
+1. **Read and import history:** Settings → Developers → API → New API key, then paste it into Read Givebutter history. Check a known source amount before choosing cents or USD dollars. Review contacts, transactions, campaigns and recurring references; attach source evidence for facts absent from the API. See the [history reference](/docs/platform-history) and [Givebutter API documentation](https://docs.givebutter.com/). The read changes no source plan.
 2. **Request the PCI transfer:** ask Givebutter which processor holds each payment method, then use the direct request below.
 3. **Upload Stripe mapping files:** preserve each card and ACH mapping below. Stored processor references never substitute for this unavailable upload and validation.
 4. **Review name mapping:** compare contact first and last names with native donor names and source IDs.
@@ -267,3 +267,8 @@ files, source stops, full cutover sign-off or bulk email readiness. Those steps
 remain unavailable or incomplete until their actual doors and proof exist.
 The owner must stop each old plan before its replacement first charges; Coffer
 never cancels an original plan and this change starts no replacement charge.
+
+When a later year reuses donors or custom values from an earlier completed import,
+name and field review includes that earlier import’s current, unerased custody.
+The selected import still owns its own totals comparison. A new preview does not
+complete an import, and changed or undone evidence requires a fresh review.
