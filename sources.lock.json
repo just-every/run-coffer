@@ -6895,7 +6895,7 @@
       "executable": false
     },
     "tests/neon-journey.mjs": {
-      "sha256": "a607204443ea04ba9054277949e38d9a571db763341f03ca2d1f38de0dc3eb38",
+      "sha256": "f4ce78594b5c287764461fc98a6f392c0acf5641282ccff08f300cb83ebc2dbf",
       "executable": false
     },
     "tests/opportunity-journey.mjs": {
