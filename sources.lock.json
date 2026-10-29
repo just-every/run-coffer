@@ -779,7 +779,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "54d8ba34c702416056c00bd17f13383714f53f06bb23397df11032ba2434b591",
+      "sha256": "e24b5811c6ad0139af82d0ac4b843dcf30851848c4b195d400cc9f81a11dea73",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -7355,7 +7355,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "9dc9b13b8acfa31d360bb85d7e252b68095745058680f3e61141aa39a330ba95",
+      "sha256": "263fd485732ff47109806831d91b65b231840222c8fc2654df635b5b9f6075ef",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

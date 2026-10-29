@@ -32,6 +32,7 @@
       "hosted": true,
       "commands": [
         "pnpm run build",
+        "pnpm run check:deployment-spec",
         "pnpm run test:runtime"
       ]
     },
