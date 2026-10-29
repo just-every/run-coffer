@@ -10,6 +10,12 @@ const known:Record<string,SolicitCodeRule|{withdraw:'email'|'mail'|'phone'|'sms'
 }
 const same = (a:unknown,b:unknown) => JSON.stringify(a)===JSON.stringify(b)
 
+export function sourceRestrictionMappings(source:ParsedImport['source'],raw:string,configured:NonNullable<ParseInput['solicitCodes']>={}) {
+ if(!configured||typeof configured!=='object'||Array.isArray(configured))return []
+ const codes=[...new Set((Object.hasOwn(configured,raw)?[raw]:raw.split(/[;,|\r\n]+/)).map(s=>s.trim()).filter(Boolean))].sort()
+ return codes.map(code=>({code,mapping:Object.hasOwn(configured,code)?configured[code]:source!=='re-nxt'&&Object.hasOwn(known,normalizeLabel(code))?known[normalizeLabel(code)]:undefined}))
+}
+
 /** Known incumbent communication restrictions have exact meanings. NXT's
  * organization-defined codes always require a reviewed explicit dictionary. */
 export function sourceRestrictions(r:SourceRow,out:ParsedImport,input:ParseInput) {
@@ -17,15 +23,13 @@ export function sourceRestrictions(r:SourceRow,out:ParsedImport,input:ParseInput
  if(!raw)return
  if(!donorExternalId){r.error('SOLICITATION_DONOR','Restriction needs a constituent ID.','donorId');return}
  const sourceOn=r.peek('restrictionDate')?r.date('restrictionDate'):''
- const codes=[...new Set((input.solicitCodes&&Object.hasOwn(input.solicitCodes,raw)?[raw]:raw.split(/[;,|\r\n]+/)).map(s=>s.trim()).filter(Boolean))].sort()
  let stop=false,limit:number|null=null
  const restricted=new Set<string>(),withdrawals=new Set<'email'|'mail'|'phone'|'sms'>()
  const configured=input.solicitCodes??{}
  if(typeof configured!=='object'||Array.isArray(configured)){r.error('SOLICITATION_MAPPING','Supply an explicit solicit-code mapping object.');return}
  if(Object.keys(configured).length>200){r.error('SOLICITATION_MAPPING','Use at most 200 configured solicit codes.');return}
- for(const code of codes) {
-  const key=normalizeLabel(code)
-  const mapping=Object.hasOwn(configured,code)?configured[code]:out.source!=='re-nxt'&&Object.hasOwn(known,key)?known[key]:undefined
+ const entries=sourceRestrictionMappings(out.source,raw,configured),codes=entries.map(entry=>entry.code)
+ for(const {code,mapping} of entries) {
   if(!mapping) {
    r.error('SOLICITATION_CODE',`Map communication code “${code}” explicitly before importing; its restriction cannot be guessed.`,'communicationRestrictions');continue
   }

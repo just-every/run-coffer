@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { fail } from '../db'
 import { day } from './source-rows'
+import { sourceRestrictionMappings } from './solicitation-mapping'
 import { readBloomerang, sourceId } from './bloomerang-edge'
 import type { ExportFile, ParseInput, ParsedTask, SourceCoverage } from './types'
 
@@ -55,8 +56,9 @@ export async function bloomerangInput(input:ParseInput,importDay:string):Promise
    }
   }
   if(facts.preferences!==undefined)fields(facts.preferences,['email','mail','phone','sms'])
+  const sourceWithdrawals=new Set<string>(sourceRestrictionMappings('bloomerang',String(facts.restrictions??''),input.solicitCodes).flatMap(({mapping})=>mapping&&typeof mapping==='object'&&'withdraw' in mapping?[mapping.withdraw]:[]))
   for(const channel of ['email','mail','phone','sms']){
-   let state=facts.preferences?.[channel]??'unknown'
+   let state=facts.preferences?.[channel]??(sourceWithdrawals.has(channel)?'no':'unknown')
    // "All" is an email-interest category, never evidence of affirmative consent.
    if(channel==='email'&&a.EmailInterestType==='OptedOut')state='no'
    if(!['yes','no','unknown'].includes(state))fail('BLOOMERANG_HISTORY','Source channel preferences must be yes, no or unknown.',400)

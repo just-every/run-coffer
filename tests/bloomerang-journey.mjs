@@ -49,6 +49,24 @@ export async function bloomerangJourney(){
   await reviewed(h)
   const receiptPolicy=await h.get('/api/coffer/agent/receipts/settings');await h.api('/api/coffer/agent/receipts/settings',{version:receiptPolicy.version,keyId:'',acknowledgeFrom:'2026-01-01',maxStandardAmount:'1000'})
   const session=await h.get('/auth/session');f.input.bloomerang.taskOwners={'901':session.operator.id}
+  const restrictionOnly=structuredClone(f.history)
+  delete restrictionOnly.constituents[102].preferences;delete restrictionOnly.constituents[103].preferences
+  const restrictionInput={...f.input,files:[historyFile(restrictionOnly)]}
+  const conflicting=structuredClone(restrictionOnly);conflicting.constituents[102].preferences={mail:'yes'}
+  const conflict=await post(h,'preview',{...f.input,files:[historyFile(conflicting)]})
+  assert.equal(conflict.canApply,false);assert.ok(conflict.diagnostics.some(d=>d.code==='CHANNEL_PREFERENCE'))
+  await post(h,'apply',{id:conflict.id,fingerprint:conflict.fingerprint},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,0)
+  const restrictionPreview=await post(h,'preview',restrictionInput)
+  assert.equal(restrictionPreview.canApply,true,JSON.stringify(restrictionPreview.diagnostics))
+  await apply(h,restrictionPreview)
+  for(const [account,channel,untouched] of [['10102','mail','phone'],['10103','phone','mail']]){
+   const person=(await h.get('/api/coffer/donors?q='+account)).donors[0]
+   const detail=await h.get('/api/coffer/donors/'+person.id),consent=detail.consents.find(c=>c.channel===channel)
+   assert.equal(consent.status,'withdrawn','A source restriction supplies consent no without optional preferences')
+   assert.equal(consent.method,'bloomerang export');assert.equal(consent.captured_on,'2026-09-01');assert.ok(consent.recorded_at.startsWith('2026-10-20'))
+   assert.equal(detail.consents.find(c=>c.channel===untouched).status,'unknown','Unspecified unrestricted channels remain unknown')
+  }
+  await post(h,'undo',{id:restrictionPreview.id});assert.equal((await h.get('/api/coffer/donors')).total,0)
   for(const [property,value] of [['reject',true],['brokenPages',true],['repeat',true],['unknown',true]]){f.state[property]=value;await post(h,'preview',f.input,{status:502});f.state[property]=false;assert.equal((await h.get('/api/coffer/donors')).total,0)}
   await post(h,'preview',{...f.input,bloomerang:{...f.input.bloomerang,currency:'CAD'}},{status:400})
   await post(h,'preview',{...f.input,bloomerang:{...f.input.bloomerang,taskOwners:{}}},{status:400})
