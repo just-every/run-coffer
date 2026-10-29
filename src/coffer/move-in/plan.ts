@@ -129,7 +129,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   for(const point of d.contacts??[]){
    const prior=existing.get(`contact:${await sourceKey(point.externalId)}`)
    if(!owned&&!prior)continue
-   await add('contact',{...point,location:d.location},{donor_id:donorId,kind:point.kind,type:point.type,value:point.value,active:1,is_primary:point.primary?1:0,starts_on:point.startsOn,ends_on:point.endsOn,version:1,source:source+' move-in',source_on:c.now.slice(0,10),updated_at:c.now},undefined,donorId)
+   await add('contact',{...point,location:d.location},{donor_id:donorId,kind:point.kind,type:point.type,value:point.value,active:1,is_primary:point.primary?1:0,starts_on:point.startsOn,ends_on:point.endsOn,version:1,source:source+' move-in'+(point.sourceDateEvidence?' · '+point.sourceDateEvidence:''),source_on:c.now.slice(0,10),updated_at:c.now},undefined,donorId)
   }
  }
  await planSolicitationImports(c,parsed,plan,existing,add,readSet)

@@ -9,7 +9,7 @@ export type CustomImportKind = 'constituent' | 'gift' | 'pledge' | 'interaction'
 export type CustomImportMapping = { source: ImportSource; column: string; sheet?: string; key: string; label: string; kind: CustomImportKind; type: 'text'|'number'|'currency'|'date'|'year'|'checkbox'; entry: 'free-form'|'pick-one'|'pick-many'; choices: string[]; version?: number }
 export type ImportedCustomValue = { mapping: CustomImportMapping; value: string; original: string; location: SourceLocation }
 export type Located = { location: SourceLocation; customValues?: ImportedCustomValue[] }
-export type ParsedContact={externalId:string;kind:'email'|'phone'|'address';type:string;value:string;primary:boolean;startsOn:string|null;endsOn:string|null}
+export type ParsedContact={sourceDateEvidence?:string;externalId:string;kind:'email'|'phone'|'address';type:string;value:string;primary:boolean;startsOn:string|null;endsOn:string|null}
 export type ParsedDonor = Located & {
  expectedNativeId?:string; match?:{id:string;version:number}; contacts?:ParsedContact[]; externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
  city: string; region: string; postalCode: string; country: string; householdKey: string; householdName: string
@@ -44,7 +44,7 @@ export type ParsedSourceEvent = Located & {externalId:string;name:string;startsO
 export type ParsedEventGuest = Located & {externalId:string;eventExternalId:string;donorExternalId:string;attendeeExternalId:string|null;giftExternalId:string|null;registrationId:string;ticketName:string;name:string;email:string|null;attended:boolean|null;status:string}
 export type ParsedMembership = Located & {externalId:string;donorExternalId:string;levelId:string;levelName:string;termName:string;startsOn:string;endsOn:string|null;status:string;feeCents:number;giftExternalId:string|null;sourceAutoRenewal:boolean;sourceActive:boolean}
 export type ParsedRecurringReference = Located & {externalId:string;donorExternalId:string;amountCents:number;frequency:string;status:string;method:string;campaign:string;nextOn:string|null;customerReference:string|null;paymentMethodReference:string|null}
-export type SourceCoverage = { currency?:string; counts:Record<string,number>; unsupported:string[] }
+export type SourceCoverage = { organizationId?:string;organizationHash?:string;requiresLegacyConfirmation?:boolean;currency?:string; counts:Record<string,number>; unsupported:string[] }
 export type ParsedImport = { sourceCoverage?:SourceCoverage;
  pledgeAdjustments?:ParsedPledgeAdjustment[];sourceEvents?:ParsedSourceEvent[];eventGuests?:ParsedEventGuest[];memberships?:ParsedMembership[]; recurringReferences?:ParsedRecurringReference[];
  spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]

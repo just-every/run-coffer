@@ -55,7 +55,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(action==='check') {const result=await service.recheck(c,id);return api?json(result):redirect(result.id)}
  if(action==='apply') {
   if(!api && get('confirm')!=='yes')fail('confirmation_required','Tick the box to approve the reviewed move-in first.',400)
-  const result=await service.apply(c,{id,fingerprint:String(get('fingerprint')||''),acceptedReason:get('acceptedReason')||undefined,acknowledged:get('acknowledged')||undefined,acknowledgedBefore:get('acknowledgedBefore')||undefined})
+  const result=await service.apply(c,{id,fingerprint:String(get('fingerprint')||''),acceptedReason:get('acceptedReason')||undefined,confirmLegacyNeon:get('confirmLegacyNeon'),acknowledged:get('acknowledged')||undefined,acknowledgedBefore:get('acknowledgedBefore')||undefined})
   return api?json(result):redirect(result.id)
  }
  let input:ParseInput

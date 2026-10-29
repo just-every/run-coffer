@@ -1,3 +1,4 @@
+import { neonIdentityOf, neonIdentityPreview, neonIdentityWrites, requireNeonIdentity } from './neon-identity'
 import { neonInput } from './neon'
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
 import { spreadsheetAddresses } from './spreadsheet-addresses'
@@ -46,10 +47,10 @@ export async function preview(c: Context,input: ParseInput) {
  }
  if(input.source==='spreadsheet')input=await resolveSpreadsheetMatches(c,input)
  let sourceCoverage:SourceCoverage|undefined
- if(input.source==='neon'){const result=await neonInput(input,today((await settings(c)).timezone,new Date(c.now)));input=result.input;sourceCoverage=result.coverage}
+ if(input.source==='neon'){const identity=await neonIdentityPreview(c,input);const result=await neonInput(input,today((await settings(c)).timezone,new Date(c.now)));input=result.input;sourceCoverage={...result.coverage,...identity}}
  const parsed=await parseExports(input)
  if(sourceCoverage)parsed.sourceCoverage=sourceCoverage
- const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})
+ const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,...(input.source==='neon'?{neonOrganization:sourceCoverage?.organizationHash}:{}),...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
  if(prior?.redacted)parsed.diagnostics.push({severity:'error',code:'MOVE_IN_ERASED',message:'An imported constituent was erased. This move-in cannot restore their contact or history.'})
@@ -83,13 +84,14 @@ export async function preview(c: Context,input: ParseInput) {
 }
 
 /** Approves the staged review and applies its first parts. */
-export async function apply(c: Context,input:{id:string;fingerprint:string;acceptedReason?:string;acknowledged?:string;acknowledgedBefore?:string;acknowledgeFrom?:string}) {
+export async function apply(c: Context,input:{id:string;fingerprint:string;acceptedReason?:string;acknowledged?:string;acknowledgedBefore?:string;acknowledgeFrom?:string;confirmLegacyNeon?:boolean|string}) {
  authorize(c)
  const job=await one(c,'SELECT * FROM cf_move_in_jobs WHERE id=?',String(input.id??''))
  if(!job)fail('MOVE_IN_CHANGED','Upload the exports and review them again.',409)
  if(job.redacted)fail('MOVE_IN_ERASED','A donor in this move-in was erased. This review cannot restore their records.',409)
  confirmedNeonCurrency(job)
- if(job.state==='completed')return {id:job.id,state:'completed',unchanged:true,parts:job.parts,appliedParts:job.applied_parts}
+ if(job.source==='neon')neonIdentityOf(job)
+ if(job.state==='completed'){await requireNeonIdentity(c,job);return {id:job.id,state:'completed',unchanged:true,parts:job.parts,appliedParts:job.applied_parts}}
  if(job.state==='applying')return continueApply(c,job.id)
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
  const report=JSON.parse(job.report)
@@ -99,7 +101,8 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  const acknowledgeFrom=input.acknowledgeFrom?date(input.acknowledgeFrom,'Acknowledge from'):null
  if(acknowledgeFrom&&c.actor.role!=='owner')fail('FORBIDDEN','Only the owner sets the installation acknowledge-from date during move-in.',403)
  const acknowledgedBefore=input.acknowledged==='no'?null:date(input.acknowledgedBefore||today((await settings(c)).timezone,new Date(c.now)),'Thanked before')
- await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='reviewed' AND fingerprint=?)",'MOVE_IN_CHANGED','This move-in changed. Review it again.',job.id,job.fingerprint),
+ const sourceIdentity=await neonIdentityWrites(c,job,input.confirmLegacyNeon)
+ await commit(c,[...sourceIdentity,guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='reviewed' AND fingerprint=?)",'MOVE_IN_CHANGED','This move-in changed. Review it again.',job.id,job.fingerprint),
   ...(acknowledgeFrom?[sql('UPDATE cf_receipt_autonomy SET version=version+1,acknowledge_from=?,updated_at=?,updated_by=? WHERE id=1',acknowledgeFrom,c.now,c.actor.id),event(c,'agent.receipts.cutoff','receipt_autonomy','1',null,{acknowledgeFrom,moveInId:job.id})]:[]),
   sql("UPDATE cf_move_in_jobs SET state='applying',accepted_reason=?,acknowledged_before=?,created_at=?,created_by=? WHERE id=?",acceptedReason,acknowledgedBefore,c.now,c.actor.name,job.id),
   event(c,'move-in.apply','move-in',job.id,null,{source:job.source,counts:report.counts,parts:job.parts,acceptedDifferences:!!acceptedReason,acknowledgedBefore})])
@@ -115,6 +118,7 @@ export async function continueApply(c: Context,id:string) {
   if(!job)fail('NOT_FOUND','That move-in does not exist.',404)
   if(job.redacted)fail('MOVE_IN_ERASED','A donor in this move-in was erased. This review cannot continue.',409)
   confirmedNeonCurrency(job)
+  await requireNeonIdentity(c,job)
   if(job.state!=='applying')return {id,state:job.state,parts:job.parts,appliedParts:job.applied_parts,unchanged:true}
   const next=await one(c,'SELECT position,payload FROM cf_move_in_parts WHERE job_id=? AND applied_at IS NULL ORDER BY position LIMIT 1',id)
   if(!next){await finish(c,job);return {id,state:'completed',parts:job.parts,appliedParts:job.parts,unchanged:false}}
@@ -126,6 +130,8 @@ export async function continueApply(c: Context,id:string) {
   writes.push(sql('INSERT INTO cf_identity_ingest VALUES(1)'))
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
   writes.push(...addresses)
+  const adjustedPledges=[...new Set(plan.effects.filter(e=>e.kind==='pledgeAdjustment'&&e.owned).map(e=>e.row.pledge_id))]
+  for(const pledgeId of adjustedPledges)writes.push(sql('UPDATE cf_pledges SET version=version+1 WHERE id=?',pledgeId),event(c,'move-in.pledgeWriteOff','pledge',pledgeId,plan.effects.find(e=>e.kind==='pledgeAdjustment'&&e.row.pledge_id===pledgeId)?.donorId??null,{source:job.source,jobId:id,amountCents:plan.effects.filter(e=>e.kind==='pledgeAdjustment'&&e.owned&&e.row.pledge_id===pledgeId).reduce((sum,e)=>sum+e.row.amount_cents,0)}))
   writes.push(...importedAcknowledgmentEvents(c,plan,job.source,id))
   writes.push(...importedCustomWrites(c,plan,job.source,id))
   writes.push(...solicitationImportHistory(c,plan.effects,job.source,id))

@@ -19,7 +19,7 @@ export function sourceContacts(r:SourceRow,donor:ParsedDonor) {
    }else value=(index===1?donor[kind]:r.get(key)).trim()
    const rawType=r.get(key+'Type').toLowerCase(),flag=r.get(key+'Primary').toLowerCase()
    const type=rawType||(kind==='email'?(index===1?'personal':index===2?'work':'other'):kind==='phone'?(index===1?'mobile':index===2?'home':'work'):index===1?'home':'vacation')
-   const startsOn=r.get(key+'From'),endsOn=r.get(key+'Through')
+   const startsOn=r.get(key+'From'),endsOn=r.get(key+'Through'),sourceDateEvidence=r.result.source==='neon'?r.get(key+'SourceDates')||undefined:undefined
    if(!value){if(rawType||flag||startsOn||endsOn)r.error('CONTACT_VALUE','Contact metadata needs its contact value.',key);continue}
    if(!(CONTACT_TYPES[kind] as readonly string[]).includes(type))r.error('CONTACT_TYPE','Choose a supported '+kind+' type.',key+'Type')
    if(flag&&!['yes','no','true','false','1','0'].includes(flag))r.error('CONTACT_PRIMARY','Primary is Yes or No.',key+'Primary')
@@ -27,7 +27,7 @@ export function sourceContacts(r:SourceRow,donor:ParsedDonor) {
    if(kind==='phone'&&value.length>40)r.error('CONTACT_PHONE','Phone values hold at most 40 characters.',key)
    if(type==='seasonal'){for(const bound of [startsOn,endsOn])if(!/^\d{2}-\d{2}$/.test(bound)||!day('2000-'+bound))r.error('CONTACT_SEASON','Seasonal bounds are real MM-DD dates.',key+'From')}
    else if(startsOn||endsOn)r.error('CONTACT_SEASON','Only seasonal addresses have annual bounds.',key+'From')
-   points.push({externalId:donor.externalId+':'+key,kind,type,value,primary:['yes','true','1'].includes(flag),startsOn:type==='seasonal'?startsOn:null,endsOn:type==='seasonal'?endsOn:null})
+   points.push({externalId:donor.externalId+':'+key,sourceDateEvidence,kind,type,value,primary:['yes','true','1'].includes(flag),startsOn:type==='seasonal'?startsOn:null,endsOn:type==='seasonal'?endsOn:null})
   }
   if(points.filter(p=>p.primary).length>1)r.error('CONTACT_PRIMARY','Choose exactly one primary per contact kind.',kind+'Primary')
   if(points.length&&!points.some(p=>p.primary))points[0].primary=true

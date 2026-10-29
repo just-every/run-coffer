@@ -1078,6 +1078,12 @@
       "name": "core-0175_coffer_source_event_history.sql",
       "sha256": "f38a793cee509a4f6b3f087b8e02146bf0cf5afcd987e37630d63f7bd1fcbfa6",
       "sql": "CREATE TABLE cf_source_events (\n id TEXT PRIMARY KEY,source TEXT NOT NULL,source_id TEXT NOT NULL,\n name TEXT NOT NULL,starts_on TEXT NOT NULL,imported_at TEXT NOT NULL,\n UNIQUE(source,source_id)\n);\n-- Historical seats never create a checkout intent or a current payment claim.\nCREATE TABLE cf_source_event_guests (\n id TEXT PRIMARY KEY,event_id TEXT NOT NULL REFERENCES cf_source_events(id),\n donor_id TEXT NOT NULL REFERENCES cf_donors(id),\n attendee_donor_id TEXT REFERENCES cf_donors(id),\n gift_id TEXT REFERENCES cf_gifts(id),\n source_id TEXT NOT NULL,registration_id TEXT NOT NULL,ticket_name TEXT NOT NULL,\n attendee_name TEXT NOT NULL,attendee_email TEXT,\n source_attended INTEGER CHECK(source_attended IS NULL OR source_attended IN (0,1)),\n source_status TEXT NOT NULL,imported_at TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0176_coffer_neon_source_identity.sql",
+      "sha256": "ac68327abfe6d1df6a481d75580303325247fea90210c647d6fe4abe5535a6c6",
+      "sql": "-- A provider's local record IDs cannot join records from another organization.\n-- This is provenance, never an API key or a live provider authorization.\nCREATE TABLE cf_neon_source_identity (\n singleton INTEGER PRIMARY KEY CHECK(singleton=1),\n organization_hash TEXT NOT NULL,\n organization_id TEXT NOT NULL,\n reviewed_at TEXT NOT NULL,\n reviewed_by TEXT NOT NULL\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

@@ -1,3 +1,4 @@
+import { neonContactDates } from './neon-contact-dates'
 import { neonFields } from './neon-fields'
 import { Buffer } from 'node:buffer'
 import { fail } from '../db'
@@ -24,7 +25,7 @@ export async function neonInput(input:ParseInput,importDay:string):Promise<{inpu
   try{history=JSON.parse(Buffer.from(input.files[0].base64,'base64').toString('utf8'))}catch{fail('NEON_HISTORY','The Neon source-history file is not valid JSON.',400)}
   if(!history||typeof history!=='object'||Array.isArray(history)||Object.keys(history).some(k=>!['accounts','donations','registrations','households','softCredits','memberships','pledgePayments','recurring','payments','pledges'].includes(k)))fail('NEON_HISTORY','Review the documented Neon source-history sections.',400)
  }
- for(const [section,allowed] of Object.entries({accounts:['status','deceasedOn','statusReason','codes','restrictionOn','preferenceOn'],households:['addressee','informal'],donations:['Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID','tributeGroup'],memberships:['Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID'],pledgePayments:['tributeGroup','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID'],pledges:['adjustments','tributeGroup'],payments:['goodsAmount','goodsDescription','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID'],recurring:['customerReference','paymentMethodReference'],registrations:['Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID']}))for(const facts of Object.values((history as Record<string,any>)[section]??{})){
+ for(const [section,allowed] of Object.entries({accounts:['status','deceasedOn','statusReason','codes','restrictionOn','preferenceOn','seasonalAddresses'],households:['addressee','informal'],donations:['Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID','tributeGroup'],memberships:['Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID'],pledgePayments:['tributeGroup','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID'],pledges:['adjustments','tributeGroup'],payments:['goodsAmount','goodsDescription','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID'],recurring:['customerReference','paymentMethodReference'],registrations:['Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Reason','Acknowledgment Reference','Acknowledgment Interaction ID']}))for(const facts of Object.values((history as Record<string,any>)[section]??{})){
   if(!facts||typeof facts!=='object'||Array.isArray(facts)||Object.keys(facts).some(k=>!allowed.includes(k)))fail('NEON_HISTORY','A source-history field has no supported mapping. Review it before importing.',400)
  }
  for(const facts of Object.values(history.accounts??{}))if(facts.deceasedOn){const day=sourceDay(facts.deceasedOn);if(!day||day>importDay)fail('NEON_HISTORY','A supplied date of death must be a real date on or before today in the organization time zone.',400)}
@@ -51,13 +52,16 @@ function normalizeNeon(s:NeonSnapshot,h:History,input:ParseInput,importDay:strin
   for(const [i,key] of ['email1','email2','email3'].entries()){row[i?'Email '+(i+1):'Email']=p[key];if(p[key]){row['Email '+(i+1)+' Type']=i?'other':'personal';row['Email '+(i+1)+' Primary']=i?'no':'yes'}}
   const addresses=p.addresses??[]
   if(!Array.isArray(addresses)||addresses.length>32||addresses.length&&addresses.filter((v:any)=>v.isPrimaryAddress).length!==1)fail('NEON_UNSUPPORTED','Review Neon contacts: this bounded preview supports up to 32 addresses with one explicit primary.',400)
+  const seasonal=facts.seasonalAddresses??{}
+  if(!seasonal||typeof seasonal!=='object'||Array.isArray(seasonal)||Object.keys(seasonal).some(id=>!addresses.some((a:any)=>a.addressId===id)))fail('NEON_CONTACT_DATES','Each reviewed date mapping must name an address on this source account.',400)
   let phone=0
   addresses.sort((a:any,b:any)=>Number(b.isPrimaryAddress)-Number(a.isPrimaryAddress))
   for(const [i,address] of addresses.entries()){
-   if(address.startDate||address.endDate)fail('NEON_UNSUPPORTED','Dated Neon addresses require a separate reviewed mapping; their date meaning cannot be inferred.',400)
+   const dates=neonContactDates(address,seasonal[address.addressId])
+
    const prefix=i?'Address '+(i+1)+' ':''
    for(const [target,value] of Object.entries({[i?'Street':'Address Line 1']:address.addressLine1,[i?'Street 2':'Address Line 2']:[address.addressLine2,address.addressLine3,address.addressLine4].filter(Boolean).join(', '),City:address.city,State:address.stateProvince?.code,'Postal Code':postalCode(address),Country:address.country?.name}))row[prefix+target]=value
-   row['Address '+(i+1)+' Type']=address.type?.name?.toLowerCase()??'home';row['Address '+(i+1)+' Primary']=address.isPrimaryAddress?'yes':'no'
+   row['Address '+(i+1)+' Type']=dates?'seasonal':address.type?.name?.toLowerCase()??'home';if(dates){row['Address '+(i+1)+' From']=dates.from;row['Address '+(i+1)+' Through']=dates.through;row['Address '+(i+1)+' Source Dates']=dates.evidence};row['Address '+(i+1)+' Primary']=address.isPrimaryAddress?'yes':'no'
    for(let n=1;n<=3;n++)if(address['phone'+n]){if(++phone>32)fail('NEON_UNSUPPORTED','More than 32 Neon phone contacts need a separate reviewed mapping.',400);row[phone===1?'Phone':'Phone '+phone]=address['phone'+n];row['Phone '+phone+' Type']=(address['phone'+n+'Type']??'other').toLowerCase();row['Phone '+phone+' Primary']=phone===1?'yes':'no'}
   }
   for(const channel of ['email','mail','phone','sms']){

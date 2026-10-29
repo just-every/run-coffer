@@ -28,6 +28,8 @@ const ACTIONS: Record<string, string> = {
  'interaction.record': 'Conversation recorded', 'tribute.record': 'Tribute recorded',
  'match.record': 'Employer match expected', 'match.receive': 'Employer match received',
  'pledge.create': 'Pledge recorded', 'pledge.match': 'Gift applied to a pledge', 'pledge.remind': 'Pledge reminder sent', 'pledge.reminder': 'Pledge reminder sent',
+ 'move-in.neonIdentity': 'Neon source organization reviewed',
+ 'move-in.pledgeWriteOff': 'Source pledge write-off imported',
  'planned.save': 'Planned intention saved', 'planned.realize': 'Estate gift linked', 'planned.unlink': 'Estate gift unlinked', 'legacy.set': 'Legacy society membership changed',
  'prospect.save': 'Prospect saved', 'relationship.create': 'Relationship added', 'relationship.remove': 'Relationship removed',
  'settings.update': 'Letter settings saved', 'softCredit.record': 'Soft credit recorded', 'softCredit.remove': 'Soft credit removed',

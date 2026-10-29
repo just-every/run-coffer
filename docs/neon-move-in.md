@@ -1,12 +1,12 @@
 # Move reviewed Neon CRM history into Coffer
 
-Open More, Move in from your CRM, then **Read Neon history**. Supply the Neon organization ID and a read-capable API key, then explicitly confirm that the organization records USD amounts. The API does not identify currency; other or unconfirmed currencies are refused and no conversion is performed. An earlier review without this recorded confirmation cannot apply or continue. The key is used for this preview only; Coffer does not save it in the review, journal or archive. Preview does not change donor records. Review the accounts, source IDs, custom definitions, household counts, preferences and cash totals before approving **Move these records in**.
+Open More, Move in from your CRM, then **Read Neon history**. Supply the Neon organization ID and a read-capable API key, then explicitly confirm that the organization records USD amounts. The API does not identify currency; other or unconfirmed currencies are refused and no conversion is performed. An earlier review without this recorded confirmation cannot apply or continue. The key is used for this preview only; Coffer does not save it in the review, journal or archive. Preview does not change donor records. Approval binds the installation to this Neon organization so that another organization cannot reuse its account or payment IDs. Older unbound Neon history requires the current native owner to confirm its exact source organization; an admin or API key cannot make that confirmation. Undo does not clear this provenance binding. Review the accounts, source IDs, custom definitions, household counts, preferences and cash totals before approving **Move these records in**.
 
 This bounded API slice reads Neon API version 2.12 from its fixed HTTPS origin. It pages account search results, reads each account and its donations, memberships, pledges and event registrations, reads payment tender names, account, donation and activity custom definitions and households, then reads active and inactive recurring schedules and searches and reads activities. The documented schema is at <https://developer.neoncrm.com/api-v2/>. An HTTP failure, incomplete page, repeated identity or unsupported payment stops the preview; it never approves a truncated organization. An owner or admin must still have an active native session for preview, apply, continue and undo.
 
 ## Supported records
 
-- Individual and company accounts, name parts and unchanged salutations; three emails and up to 32 phone contacts and explicitly primary-labelled postal addresses within the bounded review. The primary source address is retained independently of its position in the API array. Extra street lines remain in the postal address. Supported contact types use Coffer's typed contact validator. Dated source addresses require separate review.
+- Individual and company accounts, name parts and unchanged salutations; three emails and up to 32 phone contacts and explicitly primary-labelled postal addresses within the bounded review. The primary source address is retained independently of its position in the API array. Extra street lines remain in the postal address. Supported contact types use Coffer's typed contact validator. Dated source addresses require an explicit reviewed annual interpretation; their exact source dates remain in contact provenance.
 - Typed account, donation and activity custom definitions, their ordered pick lists and each record's values. Text, numbers, currency, dates and Boolean values use the native validator; pick-one and pick-many choices must match the source definition. The preview names the generated field key, source definition and choices. Invalid values and collisions with existing definitions block apply.
 - Explicit source households and an explicitly flagged primary household contact as the head. No head is inferred. Household salutations survive as overrides. An unchanged source ID resolves to its earlier import without overwriting native names, contacts or households.
 - Source membership history retains level, term dates, status, source active and renewal flags, and its fee. A paid membership links to the exact received gift and benefits value; complimentary history adds no cash. Source renewal flags authorize no Coffer renewal or future charge.
@@ -28,7 +28,15 @@ Optionally upload one `neon-history.json` file prepared from reviewed source rep
     "synthetic-coffer-7001": {
       "preferenceOn": "2026-09-01",
       "restrictionOn": "2026-09-01",
-      "codes": ["No fundraising"]
+      "codes": ["No fundraising"],
+      "seasonalAddresses": {
+        "synthetic-coffer-7194": {
+          "sourceStart": "2026-05-01",
+          "sourceEnd": "2026-10-01",
+          "from": "05-01",
+          "through": "10-01"
+        }
+      }
     }
   },
   "households": {
@@ -85,6 +93,8 @@ Optionally upload one `neon-history.json` file prepared from reviewed source rep
 }
 ```
 
+A seasonal address mapping names the exact source address ID, the unchanged API `startDate` and `endDate`, and explicit annual `MM-DD` bounds. Missing or changed source dates refuse the preview; they never become a guessed annual rule. The current native contact choice still wins on later source review. One-time dated-address moves require a different native representation and remain unsupported.
+
 Account history can also carry `status` (active, inactive or deceased), `statusReason` and `deceasedOn`. The normal status validator applies. Source history cannot clear a current Neon deceased flag, and a supplied death date must be real and no later than today in the organization time zone. Unknown source dates stay explicitly unknown in preference evidence; import time is retained separately. Household history can supply addressee and informal overrides; the API's household salutation supplies the formal override.
 
 Donation and registration histories accept the six acknowledgment columns shown in the preview: status, date, method, reason, reference and interaction ID, with the exact `Acknowledgment ` prefix used above. Donation history can additionally supply `tributeGroup`. Status is acknowledged, not acknowledged or do not acknowledge. An interaction link must belong to the same donor, or to the independently credited donor, and match each supplied date and method. It never claims a Coffer send.
@@ -99,4 +109,4 @@ Undo is one guarded transaction. It removes only records this import created, in
 
 ## Remaining coverage
 
-This is partial Neon coverage. Replacement recurring schedules and vault transfer remain outside this historical import. Dated contacts, additional source objects and source attendee custom fields, unsupported custom definition kinds, membership custom fields, multi-payment donations with custom values, multi-payment memberships and registrations, unsettled payments, refunds, disputes and noncash transactions need further reviewed migration. Unsupported payment records stop the preview rather than being counted as cash. Registered guests and explicit source attendance appear under Events as historical records. They create no hosted registration, current checkout or automatic confirmation. Guest rows retain their source registration and link to the received gift and goods value; erasure removes rows naming either the buyer or the linked attendee. A donor data file withholds other guest contacts and private import custody. Keep the incumbent installation and its full exports until every required source object has been separately reconciled. These fixtures establish no live Neon qualification and no completion of CAMP-004 or MOVE-009. Existing DONOR-009 and DONOR-015 requirements remain in force.
+This is partial Neon coverage. Replacement recurring schedules and vault transfer remain outside this historical import. Nonannual dated contacts, additional source objects and source attendee custom fields, unsupported custom definition kinds, membership custom fields, multi-payment donations with custom values, multi-payment memberships and registrations, unsettled payments, refunds, disputes and noncash transactions need further reviewed migration. Unsupported payment records stop the preview rather than being counted as cash. Registered guests and explicit source attendance appear under Events as historical records. They create no hosted registration, current checkout or automatic confirmation. Guest rows retain their source registration and link to the received gift and goods value; erasure removes rows naming either the buyer or the linked attendee. A donor data file withholds other guest contacts and private import custody. Keep the incumbent installation and its full exports until every required source object has been separately reconciled. These fixtures establish no live Neon qualification and no completion of CAMP-004 or MOVE-009. Existing DONOR-009 and DONOR-015 requirements remain in force.
