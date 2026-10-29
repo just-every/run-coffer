@@ -152,12 +152,12 @@ body:has(> .bar) .bar nav a:hover { color: var(--on-night); }
 body:has(> .bar) h1 { color: var(--on-night); font-weight: 800; letter-spacing: -.035em; }
 body:has(> .bar) .sub, body:has(> .bar) .facts { color: var(--on-night-body); }
 body:has(> .bar) .facts a { color: var(--on-night); }
-body:has(> .bar) .step { background: var(--card); border-color: transparent; box-shadow: var(--card-shadow); color: var(--card-ink); backdrop-filter: none; }
-body:has(> .bar) .step h2 { color: var(--card-ink); font-weight: 700; }
-body:has(> .bar) .body > p { color: var(--card-body); }
-body:has(> .bar) .step code { color: var(--card-ink); }
+/* The shared chooser and hosting page keep Coffer's white cards on the night. */
+body:has(> .bar) .door, body:has(> .bar) .card { background: var(--card); }
+body:has(> .bar) .self a, body:has(> .bar) .door a, body:has(> .bar) .card a:not(.btn) { color: var(--violet-ink); }
+body:has(> .bar) .quiet { color: var(--on-night-body); }
+body:has(> .bar) .diy { --site-ink: var(--on-night); --site-body: var(--on-night-body); }
 body:has(> .bar) .code pre code { color: inherit; }
-body:has(> .bar) .num { background: var(--violet); color: #fff; font-weight: 700; }
 body:has(> .bar) .btn { background: var(--violet); color: #fff; box-shadow: 0 14px 30px -14px rgba(124, 77, 255, .9); }
 body:has(> .bar) .link { color: var(--on-night); }
 body:has(> .bar) .art img { -webkit-mask-image: linear-gradient(transparent, #000 45%); mask-image: linear-gradient(transparent, #000 45%); }
