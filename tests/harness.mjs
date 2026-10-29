@@ -48,6 +48,9 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
   const api=async(path,body,{status=200,...options}={})=>{const response=await request(path,{...(body===undefined?{}:{method:'POST',body}),...options});const value=await response.json();assert.equal(response.status,status,JSON.stringify(value));return value}
   const command=(command,input={},options={})=>api('/api/coffer/commands',{command,input},{...options,headers:{...(options.headers??{}),...(options.headers?.authorization?{'idempotency-key':randomUUID()}: {})}})
   const get=(path,options={})=>api(path,undefined,options)
+  // The native fixture owner explicitly chooses a complete company policy.
+  // Unanswered-policy proof uses the separate production conformance lifecycle.
+  await api('/agents/api/policy',{document:{schema:'rer-agent-policy/1',catalogue:'rer-agent-classes/1',rules:[{id:'fixture-owner',class:'*',do:'autonomous'}],spend:{none:true}}},{method:'PUT'})
   if(givingProtection)await command('giving.protection',{siteKey:givingToken,secret:givingToken})
   const person=async(email,role='member')=>{
    // The Data & access invite form, which sends Base's invitation.

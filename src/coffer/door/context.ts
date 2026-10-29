@@ -41,5 +41,5 @@ export async function keyScopes(env:Bindings,id:string){
  const key=await one({db:env.DB},`SELECT k.id,k.grant_id,g.permissions FROM cf_agent_keys k JOIN oa_operators o ON o.id=k.created_by LEFT JOIN cf_agent_grants g ON g.id=k.grant_id WHERE k.id=? AND k.revoked_at IS NULL AND k.expires_at>MAX(?,unixepoch('now')*1000) AND o.status='active' AND o.version=k.creator_version AND o.role IN ('owner','admin') AND EXISTS(SELECT 1 FROM cf_agent_grant_control WHERE id=1 AND enabled=1)`,id,Date.now())
  if(!key)return []
  const permissions:string[]=key.grant_id?JSON.parse(key.permissions??'[]'):['donors.list','donors.context','ack.prepare','appeal.prepare']
- return permissions.map(p=>'coffer:'+p)
+ return [...permissions.map(p=>'coffer:'+p),...(!key.grant_id?['coffer:native.read']:[])]
 }

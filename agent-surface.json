@@ -80,6 +80,18 @@
       "clauses": [
         "BASE-AGENT-012"
       ]
+    },
+    {
+      "name": "coffer.records.read",
+      "scope": "coffer:native.read",
+      "readOnly": true,
+      "classes": [
+        "sensitive"
+      ],
+      "clauses": [
+        "BASE-AGENT-002",
+        "BASE-AGENT-005"
+      ]
     }
   ],
   "notTools": [
@@ -229,6 +241,22 @@
           "facts": {
             "measure": 1,
             "counterparty": "known"
+          }
+        }
+      ]
+    },
+    {
+      "id": "native-record",
+      "tool": "coffer.records.read",
+      "args": {
+        "path": "/api/coffer/in-kind"
+      },
+      "expect": [
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 1,
+            "kind": "personal"
           }
         }
       ]

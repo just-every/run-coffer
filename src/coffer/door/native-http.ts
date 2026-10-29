@@ -13,8 +13,9 @@ export async function nativeAgentHttp(request:Request,env:Bindings,namedGrant=fa
   if(reader)try{for(;;){const part=await reader.read();if(part.done)break;length+=part.value.byteLength;if(length>1048576){await reader.cancel();return Response.json({error:'body_too_large'},{status:413})}chunks.push(part.value)}}finally{reader.releaseLock()}
   try{const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length}const body=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));command=String(body.command??'');args=body.input&&typeof body.input==='object'&&!Array.isArray(body.input)?body.input:{}}catch{return Response.json({error:'invalid_arguments'},{status:400})}
   args={...args,idempotency_key:request.headers.get('idempotency-key')??args.idempotency_key}
- }else command='unavailable'
- const name=names[command]??'coffer.native.unavailable'
+ }else if(request.method==='GET'&&url.pathname.startsWith('/api/coffer/')){command='records.read';args={path:url.pathname+url.search}}else command='unavailable'
+ if(command==='ack.prepare'&&!namedGrant&&!Object.hasOwn(args,'giftIds'))args.selection='due'
+ const name=command==='records.read'?'coffer.records.read':names[command]??'coffer.native.unavailable'
  const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.set('accept','application/json');headers.set('mcp-protocol-version','2026-07-28');headers.set('mcp-method','tools/call');headers.set('mcp-name',name);headers.delete('content-length')
  const response=await cofferDoor(env).handle(new Request(env.AUTH_ORIGIN+'/mcp',{method:'POST',headers,body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args,_meta:{'io.modelcontextprotocol/protocolVersion':'2026-07-28','io.modelcontextprotocol/clientCapabilities':{}}}})}))
  const rpc=await response!.json() as any
@@ -22,5 +23,6 @@ export async function nativeAgentHttp(request:Request,env:Bindings,namedGrant=fa
  if(rpc.result.resultType==='input_required')return Response.json(rpc.result,{status:202,headers:{'cache-control':'no-store'}})
  const error=rpc.result._meta?.['com.runeditrun/error']
  if(error)return Response.json({error:error.code},{status:error.status??(['FORBIDDEN','GRANT_FORBIDDEN','GRANT_REQUIRED','GRANT_SCOPE'].includes(error.code)?403:error.code==='invalid_arguments'||error.code==='idempotency_key_required'?400:409),headers:{'cache-control':'no-store'}})
+ if(command==='records.read'){const value=rpc.result.structuredContent;return new Response(value.body,{status:value.status,headers:{'content-type':value.contentType,'cache-control':'no-store'}})}
  return Response.json(rpc.result.structuredContent,{headers:{'cache-control':'no-store'}})
 }

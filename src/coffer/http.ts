@@ -439,7 +439,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    return new Response(await service.exports.download(id), { headers: { ...headers, 'content-type': 'application/x-ndjson', 'content-disposition': 'attachment; filename="coffer.rer"' } })
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') fail('method_not_allowed', 'Use the page’s buttons for changes.', 405)
-  return isApi ? await api(c, url) : await screen(c, url, request)
+  return isApi ? await nativeRecordView(c, url) : await screen(c, url, request)
  } catch (error: any) {
   const known = error instanceof CofferError || error instanceof imports.ImportError || typeof error?.code === 'string'
   // The import kit reports its refusals by code, alone or inside a D1 error.
@@ -613,7 +613,7 @@ async function moveIn(request: Request, c: Context, authority: Authority, path: 
  return fail('not_found', 'Not found.', 404)
 }
 
-async function api(c: Context, url: URL): Promise<Response> {
+export async function nativeRecordView(c: Context, url: URL): Promise<Response> {
  if(url.pathname==='/api/coffer/webhooks')return json(await webhookState(c,url.searchParams.get('before')))
  if(url.pathname==='/api/coffer/auctions')return json(await auctionState(c,url.searchParams.get('eventId')??'',url.searchParams.get('jobId')??undefined))
  if(url.pathname==='/api/coffer/reports/builder')return json(url.searchParams.has('id')?await readBuilderReport(c,url):{reports:await savedReports(c)})
