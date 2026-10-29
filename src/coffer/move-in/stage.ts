@@ -64,5 +64,6 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   part({ softCredits: chunk, gifts: [...credited.values()], pledges: used, installments: installmentsOf(ids) }, [...chunk.map(s => s.donorExternalId), ...[...credited.values()].map(g => g.donorExternalId), ...used.map(p => p.donorExternalId)])
  }
  for (const chunk of chunks(parsed.notes)) part({ notes: chunk }, chunk.map(n => n.donorExternalId))
+ for (const chunk of chunks(parsed.tasks??[])) part({tasks:chunk},chunk.map(t=>t.donorExternalId))
  return parts
 }

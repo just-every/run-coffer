@@ -11,6 +11,7 @@ export const tables = {
  gift: { table: 'cf_gifts', key: 'id', columns: ['id','version','donor_id','kind','reverses','received_on','amount_cents','method','reference','fund','pledge_id','goods','goods_cents','goods_description','note','source','created_at','created_by'] },
  tribute: { table: 'cf_gift_tributes', key: 'gift_id', columns: ['gift_id','version','kind','honoree','notified_name','notified_email','notified_address','amount_permission','group_key','source_group','donor_id','created_at','created_by'] },
  recurringReference: {table:'cf_recurring_source_references',key:'id',columns:['id','donor_id','source','source_id','amount_cents','frequency','status','method','campaign','next_on','customer_reference','payment_method_reference','imported_at']},
+ designation: {table:'cf_import_gift_designations',key:'gift_id',columns:['gift_id','source','campaign','appeal']},
  platformGift: {table:'cf_platform_gifts',key:'gift_id',columns:['gift_id','source','source_id','campaign_id','campaign_name','fee_cents']},
  campaign: { table: 'cf_gift_appeals', key: 'gift_id', columns: ['gift_id','appeal'] },
  channel: { table: 'cf_gift_channels', key: 'gift_id', columns: ['gift_id','channel'] },
@@ -21,6 +22,7 @@ export const tables = {
  interaction: { table: 'cf_interactions', key: 'id', columns: ['id','donor_id','kind','occurred_on','who','notes','next_step','recorded_at','recorded_by'] },
  acknowledgment: { table: 'cf_gift_acknowledgments', key: 'gift_id', columns: ['gift_id','version','status','acknowledged_on','method','batch_id','letter_id','interaction_id','note_id','communication_id','outcome_unknown','reason','source_reference','source','updated_at','updated_by','updated_by_id','updated_by_role','change_source'] },
  softCreditAcknowledgment: { table: 'cf_soft_credit_acknowledgments', key: 'soft_credit_id', columns: ['soft_credit_id','version','status','acknowledged_on','method','interaction_id','note_id','reason','updated_at','updated_by','source','source_reference'] },
+ task: {table:'cf_call_tasks',key:'id',columns:['id','donor_id','source_key','source_kind','reason','amount_cents','owner_id','due_on','status','version','created_at','completed_at','interaction_id','is_ask','task_kind','gift_id','prospect_id','completion_notes']},
 } as const
 export type Kind = keyof typeof tables
 export const kinds = Object.keys(tables) as Kind[]

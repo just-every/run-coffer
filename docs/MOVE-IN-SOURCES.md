@@ -145,3 +145,78 @@ Review lists every typed contact and primary before applying. Newly imported con
 Export each custom column with its exact label and stable source record ID. On the preview, open **Map custom report columns**, select an existing field or define its key, label, record kind, value type and entry method, then check the files again. Only explicitly mapped columns move in. Current LGL, Bloomerang and configured NXT CSV/XLSX reports support constituent, gift, pledge, interaction and note values; opportunities have no source importer yet.
 
 Currency uses USD with at most two decimal places. Pick-many cells contain a JSON list, such as `["Board","Volunteer"]`; blanks leave the value unset. Invalid types and choices name the source row and block apply. Imported values retain the source CRM, record ID, donor ID, column, worksheet and original text. Replay keeps later staff edits; undo removes imported values only while their custody is unchanged. Renaming a field label preserves values and source history. These mappings authorize no provider exposure or outbound action.
+
+### Bloomerang REST preview
+
+The native **Read Bloomerang history** form uses the nonprofit's private key for
+one read. It stores neither the key nor a connection. The adapter implements the
+[documented REST v1 interface](https://bloomerang.com/api/rest-api-v1): raw key
+Basic authentication (key followed by a colon, without Base64), paged
+`GET /v1/Constituent?skip=0&take=50`, constituent detail and each constituent's
+`GET /v1/Timeline/{id}`, followed by the documented individual record GETs.
+There are no provider writes or redirects. Missing, repeated, changed or
+unfinished pagination prevents a usable review. The bounded read accepts at
+most 10,000 constituents, 1,500 requests, 2 MiB per response and 12 MiB total;
+use the reviewed export door for a larger account.
+
+Account numbers are the legacy identity in Coffer; API IDs join timeline records
+to those accounts. The supported slice includes typed contacts (three emails,
+three phones, two addresses, with an explicit primary for each kind), unchanged
+name overrides, donations, pledge payments and commitments, soft credits,
+email, phone and in-person interactions, notes, and open tasks. Refunds,
+noncash and split transactions, other interaction classifications, bad or
+extended contacts, recurring records and unreviewed custom values stop the
+preview rather than disappearing. Complete custom definitions and code lists
+remain MOVE-010 work; the existing export and reviewed enrichment doors remain
+available. Recurring vault migration remains MOVE-009 work. No schedule is
+created, charged, canceled or authorized by this read.
+
+REST v1 does not document complete household, relationship, channel-preference
+or acknowledgment-history fields. Supply those separately as one optional
+`bloomerang-history.json` source report. Do not infer these facts from source
+names or email-interest categories. The report has these optional sections:
+
+```json
+{
+  "constituents": {
+    "101": {
+      "preferences": {"email": "yes", "mail": "yes", "phone": "unknown", "sms": "unknown"},
+      "preferenceOn": "2026-09-01",
+      "restrictions": "Do Not Solicit",
+      "restrictionOn": "2026-09-01"
+    }
+  },
+  "households": [{"id": "synthetic-coffer-1", "name": "Source family", "members": [101, 102], "headId": 101, "addressee": "The source family", "formal": "Source formal greeting", "informal": "Source informal greeting"}],
+  "relationships": [{"id": "synthetic-coffer-2", "accountId": 101, "relatedAccountId": 102, "type": "spouse"}],
+  "acknowledgments": {"201": {"Acknowledgment Date": "2026-09-02", "Acknowledgment Method": "email", "Acknowledgment Interaction ID": "301"}},
+  "softCredits": {"401": {"Acknowledgment Date": "2026-09-02", "Acknowledgment Method": "email", "Acknowledgment Interaction ID": "302"}}
+}
+```
+
+Section keys and member references use API IDs, never display names. Constituent
+facts may also contain `deceasedOn` and `statusReason`; death dates must agree
+with the API deceased status. Relationships accept spouse, employer,
+board_member, foundation_officer and introduced_by. Acknowledgment facts may
+also carry `Acknowledgment Reference` and `Acknowledgment Reason`. The actual
+status comes from the payment's or independent soft credit's
+`AcknowledgementStatus`; a linked interaction must belong to that same
+constituent. Source `NonDeductible` supplies the goods answer, including an
+explicit zero. Missing goods remain unknown.
+
+`EmailInterestType: OptedOut` always withdraws email permission. `All` and
+`Custom` do not prove consent; missing preferences remain unknown. Known Do Not
+Mail, Do Not Call and Do Not Solicit restrictions retain their current native
+meaning, source and import date. Newer native preferences, address processing,
+solicitation restrictions and private tribute custody remain enforced.
+
+For every open source task, explicitly map its `AssignedToUserId` to a current
+Coffer team member in **Reviewed task owners**, for example
+`{"501":"current-member-id"}`. The source task must have `Status: Open`, a
+`Subject` and a real `DueDate`; its `CompletedDate` is absent or the documented
+uncompleted sentinel. The review names the chosen member, source user, due date
+and task. A revoked or changed owner prevents application. Tasks import as
+non-ask follow-up work without sending a message or making a call. Completed,
+archived and linked-interaction task semantics remain unsupported. The same
+journal fences, replay protection, archive custody, merge and erasure rules
+apply; edits or new dependencies prevent destructive undo. A network fixture
+qualifies this supported mapping, never a live Bloomerang installation.

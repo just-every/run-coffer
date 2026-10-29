@@ -67,8 +67,8 @@ export async function attributionRecordSelection(c: Context, url: URL) {
  const from = q.get('from') ? date(q.get('from'), 'From') : `${asOf.slice(0, 4)}-01-01`, to = q.get('to') ? date(q.get('to'), 'To') : asOf
  if (from > to) fail('INPUT', 'The start date must be on or before the end date.', 400)
  const acknowledgment=acknowledgmentPredicate(url,'l.gift_id')
- const query = `SELECT l.donor_id,l.gift_id,l.amount_cents,l.kind,l.source,l.fund,l.campaign_id,cm.name AS campaign,a.code AS appeal,a.name AS appeal_name,ch.channel
-  FROM cf_fund_ledger l LEFT JOIN cf_campaigns cm ON cm.id=l.campaign_id
+ const query = `SELECT l.donor_id,l.gift_id,l.amount_cents,l.kind,l.source,l.fund,COALESCE(l.campaign_id,CASE WHEN ds.campaign<>'' THEN 'imported:'||ds.source||':'||ds.campaign END) AS campaign_id,COALESCE(cm.name,NULLIF(ds.campaign,'')) AS campaign,COALESCE(a.code,NULLIF(ds.appeal,'')) AS appeal,COALESCE(a.name,NULLIF(ds.appeal,'')) AS appeal_name,ch.channel
+  FROM cf_fund_ledger l LEFT JOIN cf_import_gift_designations ds ON ds.gift_id=l.gift_id LEFT JOIN cf_campaigns cm ON cm.id=l.campaign_id
   LEFT JOIN cf_gift_appeals ga ON ga.gift_id=l.gift_id LEFT JOIN cf_appeal_codes a ON a.code=ga.appeal
   LEFT JOIN cf_gift_channels ch ON ch.gift_id=l.gift_id
   WHERE l.received_on>=? AND l.received_on<=? AND ${acknowledgment.sql}`

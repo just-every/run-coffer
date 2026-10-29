@@ -1,3 +1,4 @@
+import { taskOwners } from '../call-tasks'
 import { canonicalDonor } from '../donor-merge'
 import { audience } from '../appeals'
 import { givebutterInput } from './givebutter'
@@ -34,7 +35,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
    return json({outreach:{email:channels[0],mail:channels[1]},plans:await all(c,"SELECT * FROM cf_recurring_source_references WHERE donor_id=?",donorId),gifts:await all(c,"SELECT p.*,g.amount_cents,g.received_on FROM cf_platform_gifts p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?",donorId)})
   }
   if(action==='spreadsheet-mappings'&&api)return json(await service.spreadsheetMappings(c))
-  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c)),c.actor,200,'/app/more')
+  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c),await taskOwners(c)),c.actor,200,'/app/more')
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
   if(action==='review' && !api) {
    const job=await reviewed(c,url.searchParams.get('id')||''), list=await issues(c,job.id,{...q,severity:q.severity??(job.report.canApply?undefined:'error')})
@@ -94,7 +95,13 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
     spreadsheet={name:String(get('mappingName')||''),recordType:get('recordType'),columns:parts('mapColumn').flatMap((column,i)=>targets[i]?[{column,field:targets[i],sheet:sheets[i]||undefined}]:[]),translations:{fund:translationLines(String(get('fundTranslations')||'')),method:translationLines(String(get('methodTranslations')||''))},donorMatches}
    }catch(error){fail('SPREADSHEET_MAPPING',error instanceof Error?error.message:'Review the spreadsheet mapping.',400)}
   }
-  input={source:get('source'),...(get('source')==='neon'?{neon:{organizationId:String(get('organizationId')||''),apiKey:String(get('apiKey')||''),currency:get('neonUsd')==='USD'?'USD':undefined}}:{}),files,spreadsheet,givebutterKey:get('givebutterKey')||undefined,givebutterAmountUnit:get('givebutterAmountUnit')||undefined,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
+  let bloomerang:ParseInput['bloomerang']
+  if(get('bloomerangApi')==='yes'){
+   let taskOwners:Record<string,string>={}
+   try{taskOwners=JSON.parse(String(get('bloomerangOwners')||'{}'))}catch{fail('BLOOMERANG_OWNER','Write the source user IDs and selected Coffer member IDs as a JSON object.',400)}
+   bloomerang={apiKey:String(get('bloomerangKey')||''),currency:get('bloomerangUsd')==='USD'?'USD':undefined,taskOwners}
+  }
+  input={source:get('source'),bloomerang,...(get('source')==='neon'?{neon:{organizationId:String(get('organizationId')||''),apiKey:String(get('apiKey')||''),currency:get('neonUsd')==='USD'?'USD':undefined}}:{}),files,spreadsheet,givebutterKey:get('givebutterKey')||undefined,givebutterAmountUnit:get('givebutterAmountUnit')||undefined,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
  }
  if(action==='preview') {const result=await service.preview(c,input.source==='givebutter'&&input.givebutterKey?await givebutterInput(input):input);return api?json(result):new Response(null,{status:303,headers:{...headers,location:`/app/move-in/crm/review?id=${encodeURIComponent(result.id)}`}})}
  return fail('not_found','That move-in action does not exist.',404)

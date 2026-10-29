@@ -1,0 +1,122 @@
+import assert from 'node:assert/strict'
+import {mkdir} from 'node:fs/promises'
+import {run,reviewed,archive,restore} from './harness.mjs'
+import {withBrowserWorker} from './browser-worker.mjs'
+const key=n=>'synthetic-coffer-'+n
+const email=n=>[key(n),'example.test'].join('@')
+const post=(h,action,body,options)=>h.api('/api/coffer/move-in/'+action,body,options)
+const historyFile=history=>({name:'bloomerang-history.json',base64:Buffer.from(JSON.stringify(history)).toString('base64')})
+const apply=async(h,p)=>{let j=await post(h,'apply',{id:p.id,fingerprint:p.fingerprint,acknowledged:'no',acknowledgeFrom:'2026-01-01'});while(j.state==='applying')j=await post(h,'continue',{id:p.id});assert.equal(j.state,'completed');return j}
+
+function fixture(){
+ const contact=(id,type,value,primary=true)=>({Id:id+1000,AccountId:id,TypeName:type,Value:value,IsPrimary:primary})
+ const address=(id,street,primary=true)=>({Id:id+2000,AccountId:id,TypeName:primary?'Home':'Vacation',Street:street,City:'Madison',State:'WI',PostalCode:'53703',Country:'United States',IsPrimary:primary})
+ const constituent=(Id,first,last)=>({Id,AccountNumber:Id+10000,Type:'Individual',Status:'Active',FirstName:first,LastName:last,FullName:first+' '+last,InformalName:'Dear '+first,EnvelopeName:'The '+last+' reader',EmailInterestType:'All',Emails:[contact(Id,'Home',email(Id))],Phones:[],Addresses:[address(Id,Id+' Reading Street')],CustomFields:{}})
+ const constituents=[constituent(101,'Ava','Reed'),constituent(102,'Bee','Reed'),constituent(103,'Cleo','Chen'),constituent(104,'Dana','Chen')]
+ constituents[0].Emails.push(contact(101,'Work',email(105),false),contact(101,'Other',email(106),false));constituents[0].Addresses.push(address(101,'Second Reading Street',false));constituents[0].InformalName='  Ava and family  ';constituents[0].EnvelopeName='  The Reed readers  '
+ constituents[1].EmailInterestType='OptedOut'
+ const gift=(Id,AccountId,extra={})=>({Id,AccountId,EntryType:'Donation',Date:'2026-09-03',Amount:500,NonDeductible:0,AcknowledgementStatus:'No',FundName:'Reading',CampaignName:'Autumn books',AppealName:'September appeal',Check:{Number:key(Id)},SoftCredits:[],...extra})
+ const gifts=[gift(201,101,{Date:'2024-09-03',AcknowledgementStatus:'Yes',TributeName:'Jordan Reed',TributeType:'In Memory of',SoftCredits:[{Id:701,AccountId:102,Amount:100,AcknowledgementStatus:'Yes'}]}),gift(202,102,{Date:'2025-09-03',AcknowledgementStatus:'DoNotAcknowledge',TributeName:'Jordan Reed',TributeType:'In Memory of',CampaignName:'Winter books',AppealName:'Winter appeal'}),gift(203,103),gift(204,101,{Amount:150,NonDeductible:60,AcknowledgementStatus:'Yes',FundName:'Events',CampaignName:'Gala',AppealName:'Gala appeal'}),gift(205,101,{EntryType:'PledgePayment',Amount:100,PledgeId:301,AcknowledgementStatus:'DoNotAcknowledge'})]
+ const pledge={Id:301,AccountId:101,EntryType:'Pledge',Date:'2025-01-01',Amount:1000,FundName:'Reading'}
+ const interactions=[{Id:501,AccountId:101,Date:'2024-09-04',Channel:'Email',Subject:'Gift acknowledgment',Note:'Source thank-you'},{Id:502,AccountId:102,Date:'2024-09-05',Channel:'Phone',Subject:'Board credit acknowledgment',Note:'Independent source credit thank-you'}]
+ const note={Id:401,AccountId:101,Date:'2026-09-02',Note:'A source note to preserve'}
+ const task={Id:601,AccountId:101,Status:'Open',AssignedToUserId:901,DueDate:'2027-01-01',Subject:'Review the source follow-up',CompletedDate:'0001-01-01T00:00:00'}
+ const history={constituents:{101:{preferences:{email:'yes',mail:'yes',phone:'yes',sms:'unknown'},preferenceOn:'2026-09-01',restrictions:'Do Not Solicit',restrictionOn:'2026-09-01'},102:{preferences:{email:'yes',mail:'no',phone:'yes',sms:'unknown'},preferenceOn:'2026-09-01',restrictions:'Do Not Mail',restrictionOn:'2026-09-01'},103:{preferences:{email:'yes',mail:'yes',phone:'no',sms:'unknown'},preferenceOn:'2026-09-01',restrictions:'Do Not Call',restrictionOn:'2026-09-01'}},households:[{id:key(8801),name:'Source Reed family',members:[101,102],headId:101,addressee:'The original Reed household',informal:'Ava and Bee',formal:'The Reed family'},{id:key(8802),name:'Source Chen family',members:[103,104]}],relationships:[{id:key(8803),accountId:101,relatedAccountId:102,type:'spouse'}],acknowledgments:{201:{'Acknowledgment Date':'2024-09-04','Acknowledgment Method':'email','Acknowledgment Interaction ID':'501'},204:{'Acknowledgment Date':'2026-09-04','Acknowledgment Method':'letter'}},softCredits:{701:{'Acknowledgment Date':'2024-09-05','Acknowledgment Method':'phone call','Acknowledgment Interaction ID':'502'}}}
+ const calls=[],state={reject:false,brokenPages:false,repeat:false,unknown:false}
+ const outbound=async request=>{
+  const url=new URL(request.url);assert.equal(url.origin,'https://api.bloomerang.com');assert.equal(request.method,'GET');assert.equal(request.headers.get('authorization'),'Basic '+key(8899)+':');calls.push(url.pathname+url.search)
+  if(state.reject)return new Response('Read refused',{status:401})
+  if(url.pathname==='/v1/Constituent'){
+   assert.equal(url.searchParams.get('take'),'50');const start=Number(url.searchParams.get('skip')),rows=constituents.slice(state.repeat&&start?0:start,(state.repeat&&start?0:start)+2)
+   return Response.json({Total:state.brokenPages?5:4,Start:start,MaxItems:2,Results:rows.map(c=>({Id:c.Id}))})
+  }
+  const a=/^\/v1\/Constituent\/(\d+)$/.exec(url.pathname);if(a)return Response.json(constituents.find(c=>c.Id===Number(a[1])))
+  const t=/^\/v1\/Timeline\/(\d+)$/.exec(url.pathname)
+  if(t){const id=Number(t[1]);return Response.json({Id:id,Notes:id===101?[{Id:401}]:[],Interactions:interactions.filter(i=>i.AccountId===id).map(i=>({Id:i.Id})),Donations:gifts.filter(g=>g.AccountId===id&&g.EntryType==='Donation').map(g=>({Id:g.Id})),PledgePayments:gifts.filter(g=>g.AccountId===id&&g.EntryType==='PledgePayment').map(g=>({Id:g.Id})),Pledges:id===101?[{Id:301}]:[],RecurringDonations:[],RecurringDonationPayments:[],Tasks:id===101?[{Id:601}]:[],...(state.unknown?{UnsupportedEntries:[{Id:999}]}:{})})}
+  const [,kind,idText]=/^\/v1\/(Donation|PledgePayment|Pledge|Note|Interaction|Task)\/(\d+)$/.exec(url.pathname)??[],id=Number(idText)
+  const record=kind==='Donation'||kind==='PledgePayment'?gifts.find(g=>g.Id===id):kind==='Pledge'?pledge:kind==='Note'?note:kind==='Interaction'?interactions.find(i=>i.Id===id):kind==='Task'?task:undefined
+  assert.ok(record,'Unexpected documented Bloomerang request '+url.pathname);return Response.json(record)
+ }
+ const input={source:'bloomerang',bloomerang:{apiKey:key(8899),currency:'USD',taskOwners:{}},files:[historyFile(history)]}
+ return {input,history,constituents,gifts,task,calls,state,outbound}
+}
+
+/** One account migration through public HTTP and native review; only the vendor network is faked. */
+export async function bloomerangJourney(){
+ const f=fixture()
+ await run(async h=>{
+  await reviewed(h)
+  const session=await h.get('/auth/session');f.input.bloomerang.taskOwners={'901':session.operator.id}
+  for(const [property,value] of [['reject',true],['brokenPages',true],['repeat',true],['unknown',true]]){f.state[property]=value;await post(h,'preview',f.input,{status:502});f.state[property]=false;assert.equal((await h.get('/api/coffer/donors')).total,0)}
+  await post(h,'preview',{...f.input,bloomerang:{...f.input.bloomerang,currency:'CAD'}},{status:400})
+  await post(h,'preview',{...f.input,bloomerang:{...f.input.bloomerang,taskOwners:{}}},{status:400})
+  f.gifts[0].IsRefunded=true;await post(h,'preview',f.input,{status:400});delete f.gifts[0].IsRefunded
+  f.task.Status='Complete';await post(h,'preview',f.input,{status:400});f.task.Status='Open'
+  f.constituents[0].CustomFields={'Source choice':['Board']};await post(h,'preview',f.input,{status:400});f.constituents[0].CustomFields={}
+  const bad=structuredClone(f.history);bad.softCredits[701]['Acknowledgment Interaction ID']='501'
+  const refused=await post(h,'preview',{...f.input,files:[historyFile(bad)]});assert.equal(refused.canApply,false);assert.ok(refused.diagnostics.some(d=>d.code==='ACKNOWLEDGMENT_LINK'));await post(h,'apply',{id:refused.id,fingerprint:refused.fingerprint},{status:409})
+  let preview=await post(h,'preview',f.input)
+  assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped));assert.equal(preview.sourceTotals.amountCents,175000);assert.equal(preview.sourceTotals.giftCount,5)
+  assert.equal(preview.counts.tasks,1);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,1);assert.equal(preview.counts.softCredits,1);assert.equal(preview.counts.pledges,1)
+  assert.ok(!JSON.stringify(preview).includes(key(8899)))
+  const member=await h.person(email(8871)),admin=await h.person(email(8872),'admin')
+  const stale=await post(h,'preview',{...f.input,bloomerang:{...f.input.bloomerang,taskOwners:{901:admin.id}}})
+  await h.api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})
+  await post(h,'apply',{id:stale.id,fingerprint:stale.fingerprint},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,0,'A revoked mapped owner blocks application before any donor is written')
+  const reads=f.calls.length
+  await post(h,'preview',f.input,{as:member.cookie,status:403});await post(h,'preview',f.input,{as:admin.cookie,status:401});assert.equal(f.calls.length,reads)
+  await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{as:member.cookie,status:403});await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{as:admin.cookie,status:401});await post(h,'apply',{id:preview.id,fingerprint:'stale'},{status:409})
+  const directory=process.env.COFFER_BLOOMERANG_SHOTS;if(directory)await mkdir(directory,{recursive:true})
+  const messages=h.messages.length
+  await withBrowserWorker(h,async(context,origin)=>{
+   const page=await context.newPage();await page.goto(origin+'/app/move-in/crm')
+   const form=page.locator('form').filter({has:page.getByRole('button',{name:'Preview Bloomerang history',exact:true})})
+   await form.getByLabel('Bloomerang private API key',{exact:true}).fill(f.input.bloomerang.apiKey);await form.locator('input[name=bloomerangUsd]').check();await form.locator('textarea[name=bloomerangOwners]').fill(JSON.stringify(f.input.bloomerang.taskOwners));await form.locator('input[type=file]').setInputFiles({name:'bloomerang-history.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(f.history))})
+   await form.getByRole('button',{name:'Preview Bloomerang history',exact:true}).click();await page.waitForURL('**/app/move-in/crm/review?id=*')
+   assert.equal(new URL(page.url()).searchParams.get('id'),preview.id);assert.ok(!(await page.content()).includes(f.input.bloomerang.apiKey))
+   await page.getByText('Open tasks · 1',{exact:true}).click();assert.ok((await page.textContent('body')).includes('Review the source follow-up'));assert.ok((await page.textContent('body')).includes(session.operator.displayName??session.operator.display_name??'Morgan Lee'))
+   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(width===1440)assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(directory)await page.screenshot({path:directory+'/bloomerang-review-'+width+'.png',fullPage:true})}
+   await page.setViewportSize({width:1440,height:1000});await page.locator('input[name=acknowledged][value=no]').check();await page.locator('input[name=confirm]').check();await page.getByRole('button',{name:'Move these records in',exact:true}).click();await page.waitForURL('**/app/move-in/crm/journal?id=*')
+   assert.ok((await page.textContent('body')).includes('All totals match'))
+   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/bloomerang-journal-'+width+'.png',fullPage:true})}
+   await page.goto(origin+'/app/calls');assert.ok((await page.textContent('body')).includes('Review the source follow-up'))
+   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/bloomerang-task-'+width+'.png',fullPage:true})}
+   await page.close()
+  })
+  assert.equal(h.messages.length,messages,'Importing a task and acknowledgment history sends nothing')
+  const people=(await h.get('/api/coffer/donors')).donors,person=n=>people.find(d=>d.source_ref==='bloomerang:'+String(n+10000))
+  assert.equal(people.length,4)
+  const ava=await h.get('/api/coffer/donors/'+person(101).id),bee=await h.get('/api/coffer/donors/'+person(102).id),cleo=await h.get('/api/coffer/donors/'+person(103).id)
+  assert.equal((await h.get('/api/coffer/donors?q=10101')).donors[0].id,person(101).id)
+  assert.equal(ava.donor.informal_salutation,'  Ava and family  ');assert.equal(ava.donor.envelope_name,'  The Reed readers  ')
+  assert.equal(ava.contactPoints.filter(p=>p.kind==='email').length,3);assert.equal(ava.contactPoints.filter(p=>p.kind==='address').length,2);assert.deepEqual(ava.contactPoints.filter(p=>p.kind==='email').map(p=>p.type).sort(),['other','personal','work']);assert.equal(ava.contactPoints.filter(p=>p.kind==='email'&&p.is_primary).length,1)
+  assert.equal(ava.depth.relationships[0].type,'spouse');assert.ok(ava.notes.some(n=>n.body==='A source note to preserve'))
+  const household=await h.get('/api/coffer/households/'+ava.donor.household_id)
+  assert.equal(household.household.head_donor_id,person(101).id);assert.equal(household.household.head_source,'bloomerang');assert.ok(household.household.head_imported_at);assert.equal(household.household.addressee_override,'The original Reed household');assert.equal((await h.get('/api/coffer/households/'+cleo.donor.household_id)).household.head_donor_id,null)
+  const tasks=(await h.get('/api/coffer/tasks')).tasks,task=tasks.find(t=>t.source_key==='bloomerang:task:601')
+  assert.equal(task.owner_id,session.operator.id);assert.equal(task.status,'open');assert.equal(task.is_ask,0);assert.equal(task.task_kind,'follow_up')
+  const allGifts=[...ava.gifts,...bee.gifts,...cleo.gifts]
+  const grouped=key=>Object.fromEntries([...new Set(allGifts.map(key))].map(k=>[k,allGifts.filter(g=>key(g)===k).reduce((n,g)=>n+g.amount_cents,0)]))
+  assert.deepEqual(grouped(g=>g.received_on.slice(0,4)),{'2024':50000,'2025':50000,'2026':75000});assert.deepEqual(grouped(g=>g.fund),{Reading:160000,Events:15000})
+  assert.deepEqual(grouped(g=>g.appeal),{'September appeal':110000,'Winter appeal':50000,'Gala appeal':15000})
+  assert.deepEqual(grouped(g=>g.note?.match(/Campaign: (.*)/)?.[1]),{'Autumn books':110000,'Winter books':50000,Gala:15000})
+  const gift=ava.gifts.find(g=>g.reference==='bloomerang:201'),gala=ava.gifts.find(g=>g.reference==='bloomerang:204')
+  assert.equal(gift.acknowledgment.status,'acknowledged');assert.equal(gift.acknowledgment.link.id,ava.depth.interactions.find(i=>i.kind==='email').id)
+  assert.equal(bee.giftDepth.creditedGifts[0].amount_cents,10000);assert.equal(bee.giftDepth.creditedGifts[0].acknowledgment.link.id,bee.depth.interactions[0].id)
+  assert.equal(gala.goods,'provided');assert.equal(gala.goods_cents,6000);assert.equal(gala.amount_cents-gala.goods_cents,9000)
+  assert.deepEqual((await h.get('/api/coffer/letters')).due.map(g=>g.reference),['bloomerang:203'])
+  assert.equal(ava.pledges[0].amount_cents,100000);assert.equal(ava.pledges[0].paid_cents,10000)
+  assert.equal((await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed').totalCents,100000);assert.equal(ava.giftDepth.tributes[0].amount_permission,0)
+  assert.equal(ava.solicitation.type,'stop');assert.equal(ava.solicitation.source,'Bloomerang');assert.equal(bee.consents.find(c=>c.channel==='email').status,'withdrawn');assert.equal(bee.consents.find(c=>c.channel==='mail').status,'withdrawn');assert.equal(cleo.consents.find(c=>c.channel==='phone').status,'withdrawn')
+  const check=(await h.get('/api/coffer/move-in/journal?id='+preview.id)).job.check_report;assert.equal(check.matches,true)
+  const saved=await archive(h);assert.ok(!JSON.stringify(saved).includes(f.input.bloomerang.apiKey))
+  await run(async fresh=>{await restore(fresh,saved);assert.equal((await fresh.get('/api/coffer/tasks')).tasks.find(t=>t.id===task.id).status,'open');await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0);assert.equal((await fresh.get('/api/coffer/tasks')).tasks.length,0)})
+  const repeat=await post(h,'preview',f.input);assert.equal(repeat.prior.state,'completed');assert.equal((await apply(h,repeat)).unchanged,true)
+  await post(h,'undo',{id:preview.id});assert.equal((await h.get('/api/coffer/donors')).total,0);assert.equal((await h.get('/api/coffer/tasks')).tasks.length,0)
+  preview=await post(h,'preview',f.input);await apply(h,preview)
+  await h.command('task.assign',{taskId:task.id,version:1,ownerId:session.operator.id,dueOn:'2027-02-01'});await post(h,'undo',{id:preview.id},{status:409});assert.equal((await h.get('/api/coffer/tasks')).tasks.find(t=>t.id===task.id).due_on,'2027-02-01')
+  for(const channel of ['email','mail']){const appeal=await h.command('appeal.prepare',{name:'First Bloomerang '+channel+' appeal',channel});assert.equal(appeal.excluded['do not solicit'],1);assert.equal(appeal.excluded['consent withdrawn'],1);assert.equal(appeal.excluded['no consent recorded'],1)}
+  await h.command('donor.erase',{donorId:person(101).id,confirm:'ERASE'});assert.equal((await h.get('/api/coffer/tasks')).tasks.some(t=>t.id===task.id),false);assert.equal((await post(h,'preview',f.input)).canApply,false);await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{status:409})
+  assert.ok(!JSON.stringify(await archive(h)).includes(email(101)))
+ },{outbound:f.outbound})
+}

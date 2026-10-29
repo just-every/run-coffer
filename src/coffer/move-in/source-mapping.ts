@@ -23,7 +23,7 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  const externalId = r.required('donorId'); if (!externalId) return
  // An organization keeps no household: LGL's Is Org, a Bloomerang Organization type, or an organization name alone.
  const organization = /^(yes|true|y|1)$/i.test(r.get('isOrg')) || normalizeLabel(r.peek('type')) === 'organization' || (!!names[1] && !names[2] && !names[4])
- const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], middleName: names[3], lastName: names[4], prefix, suffix, nickname:r.get('nickname'), recognitionName:r.get('recognitionName'), constituentStatus:sourceStatus(r), deceasedOn:r.peek('deceasedOn')?r.date('deceasedOn'):'', statusReason:r.get('statusReason'), informalName:out.source==='neon'?r.verbatim('informalName'):r.get('informalName'), formalName:out.source==='neon'?r.verbatim('formalName'):r.get('formalName'), envelopeName:out.source==='neon'?r.verbatim('envelopeName'):r.get('envelopeName'), organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
+ const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], middleName: names[3], lastName: names[4], prefix, suffix, nickname:r.get('nickname'), recognitionName:r.get('recognitionName'), constituentStatus:sourceStatus(r), deceasedOn:r.peek('deceasedOn')?r.date('deceasedOn'):'', statusReason:r.get('statusReason'), informalName:['neon','bloomerang'].includes(out.source)?r.verbatim('informalName'):r.get('informalName'), formalName:['neon','bloomerang'].includes(out.source)?r.verbatim('formalName'):r.get('formalName'), envelopeName:['neon','bloomerang'].includes(out.source)?r.verbatim('envelopeName'):r.get('envelopeName'), organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
  sourceContacts(r,donor)
  donor.email = donor.email.toLowerCase()
  if (donor.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donor.email)) r.error('EMAIL', 'Export a single valid primary email address.', 'email')
@@ -139,7 +139,7 @@ function installment(r: SourceRow, out: ParsedImport) {
 export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {
  const kind = r.kind(); r.get('type')
  if(r.peek('communicationRestrictions'))sourceRestrictions(r,out,input)
- if(['spreadsheet','givebutter','zeffy','neon'].includes(out.source))spreadsheetPreferences(r,out)
+ if(['spreadsheet','givebutter','zeffy','neon','bloomerang'].includes(out.source))spreadsheetPreferences(r,out)
  // LGL repeats display names in gift and relationship reports. Only constituent
  // records define donors: labels on referenced records cannot create or rename one.
  if (out.source === 'lgl') {

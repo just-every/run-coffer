@@ -397,3 +397,8 @@ test('MOVE-004: reviewed Neon history preserves money, source acknowledgment, pr
  const {neonJourney}=await import('./neon-journey.mjs')
  await neonJourney()
 })
+
+test('MOVE-002: read-only Bloomerang REST history retains reviewed task owners, source facts and guarded custody',async()=>{
+ const {bloomerangJourney}=await import('./bloomerang-journey.mjs')
+ await bloomerangJourney()
+})
