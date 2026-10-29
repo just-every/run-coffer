@@ -8,7 +8,7 @@ import type { Difference } from './reconcile'
 export function lglVolunteerRow(r:SourceRow,out:ParsedImport){
  const externalId=r.required('volunteerId'),donorExternalId=r.required('donorId'),role=r.required('volunteerRole'),occurredOn=r.date('volunteerDate')
  for(const field of ['type','volunteerClassification','volunteerHoursType']){
-  const classification=r.get(field).toLowerCase().replace(/[^a-z]/g,'')
+  const classification=r.get(field).toLowerCase().replace(/[^a-z0-9]/g,'')
   if(classification&&!['volunteer','volunteering','volunteertime','actual','completed'].includes(classification))r.error('VOLUNTEER_CLASSIFICATION','Export completed volunteer time only; this classification is unsupported.',field)
  }
  if(r.get('volunteerCommitment'))r.error('VOLUNTEER_CLASSIFICATION','Volunteer commitments need separate review and cannot become completed service.','volunteerCommitment')

@@ -18,17 +18,20 @@ export async function lglVolunteeringBrowser(h,input,preview,donorId,phase){
    await page.getByRole('button',{name:'Preview exports',exact:true}).click()
    await page.locator('#volunteer-review').getByText(/120 minutes/).waitFor()
    assert.equal(await page.locator('#volunteer-review li').filter({hasText:'Reading tutor'}).count(),1)
+   if(directory)await page.locator('#volunteer-review').screenshot({path:`${directory}/MOVE-001-review-${width}.png`})
    await page.getByRole('link',{name:'Next volunteer rows',exact:true}).click()
    await page.locator('#volunteer-review').getByText('Page 2 of 17',{exact:false}).waitFor()
-   if(directory)await page.locator('#volunteer-review').screenshot({path:`${directory}/MOVE-001-review-${width}.png`})
    }else{
    await page.goto(origin+'/app/move-in/crm/journal?id='+preview.id)
    await page.getByText(/volunteering/).first().waitFor()
    if(directory)await page.screenshot({path:`${directory}/MOVE-001-journal-${width}.png`,fullPage:true})
+   await page.getByRole('link',{name:'Review imported volunteer activities',exact:true}).click()
+   await page.locator('#volunteer-review').getByText(/Imported.*Morgan Lee/).first().waitFor()
+   assert.equal(await page.locator('#volunteer-review li').filter({hasText:'synthetic-coffer-1700'}).count(),1)
    await page.goto(origin+'/app/donors/'+donorId+'#volunteering')
    await page.locator('#timeline').getByText('Volunteering · Reading tutor',{exact:false}).waitFor()
    assert.match(await page.locator('#timeline').innerText(),/Little Green Light/)
-   if(directory)await page.locator('#volunteering').screenshot({path:`${directory}/MOVE-001-native-${width}.png`})
+   if(directory)await page.locator('#timeline').screenshot({path:`${directory}/MOVE-001-native-${width}.png`})
    }
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Native screen fits '+width)
   }
