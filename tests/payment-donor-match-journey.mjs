@@ -47,7 +47,7 @@ export async function paymentDonorMatchJourney(){
    if(swap)account='acct_synthetic_coffer_2899'
    return Response.json({data:incomplete?[]:data,has_more:false})
   }
-  if(u.pathname.startsWith('/v1/refunds/'))return refundReadOutage?Response.json({error:{message:'Synthetic refund read unavailable'}},{status:503}):Response.json(refunds.get(u.pathname.split('/').at(-1)))
+  if(u.pathname.startsWith('/v1/refunds/'))return refundReadOutage?Response.json({error:{}},{status:503}):Response.json(refunds.get(u.pathname.split('/').at(-1)))
   if(u.pathname.startsWith('/v1/balance_transactions/'))return Response.json(transactions.get(u.pathname.split('/').at(-1)))
   if(u.pathname==='/v1/balance_transactions')return Response.json({data:payouts.get(u.searchParams.get('payout')).map(id=>transactions.get(id)),has_more:false})
   if(u.pathname==='/v1/payouts/'+paid.id)return Response.json(paid)
@@ -136,10 +136,35 @@ export async function paymentDonorMatchJourney(){
   assert.equal(known.gifts.length,1);assert.equal(known.gifts[0].amount_cents,1200);assert.equal(known.totals.lifetimeCents,1200)
   assert.ok(!(await h.get('/api/coffer/payments/donor-matches')).matches.some(r=>r.charge_id==='ch_synthetic_coffer_2825'))
   assert.equal((await h.get('/api/coffer/giving/campaigns')).campaigns.find(c=>c.id===campaign.id).raised_cents,1200)
-  // An interrupted recording pins its money to the selected donor. A fresh
-  // candidate review cannot transfer the gift while completing its refund.
+  // Recording can be interrupted after the donor's gift has committed. A
+  // candidate edit and refresh cannot give that recorded payment a new owner.
   const interrupted=external(2831),interruptedRefund=refund(interrupted,2832,2500)
   await deliver(h,2833,'charge.succeeded',interrupted.id)
+  let pending=await h.get(path(interrupted.id))
+  refundReadOutage=true
+  await h.api(path(interrupted.id)+'/approve',select(pending,two),{status:502})
+  refundReadOutage=false
+  const first=await h.get('/api/coffer/donors/'+one.id)
+  await h.command('donor.update',{donorId:one.id,version:first.donor.version,name:'Synthetic First Updated',email:mail(2803),household:'Synthetic shared household'})
+  pending=await h.api(path(interrupted.id)+'/refresh',{})
+  assert.equal(pending.state,'approved');assert.equal(pending.donor_id,two.id)
+  await h.api(path(interrupted.id)+'/approve',select(pending,one),{status:409})
+  const completed=await h.api(path(interrupted.id)+'/approve',select(pending,two))
+  assert.equal(completed.state,'resolved');assert.equal(completed.donor_id,two.id);assert.equal(completed.gift.donor_id,two.id)
+  await h.api(path(interrupted.id)+'/approve',select(pending,two))
+  await deliver(h,2834,'refund.created',interruptedRefund.id)
+  const resumed=await h.get('/api/coffer/donors/'+two.id)
+  assert.equal(resumed.totals.lifetimeCents,19200)
+  assert.equal(resumed.gifts.filter(g=>g.reference===interrupted.id&&g.kind==='gift').length,1)
+  assert.equal((await h.get('/api/coffer/donors/'+one.id)).totals.lifetimeCents,1200)
+  const actualFees=await h.get('/api/coffer/payments/fees')
+  assert.equal(actualFees.lines.filter(l=>l.id===interrupted.balance_transaction).length,1)
+  assert.equal(actualFees.lines.find(l=>l.id===interrupted.balance_transaction).fee_cents,320)
+  {
+  // An interrupted recording pins its money to the selected donor. A fresh
+  // candidate review cannot transfer the gift while completing its refund.
+  const interrupted=external(2836),interruptedRefund=refund(interrupted,2837,2500)
+  await deliver(h,2838,'charge.succeeded',interrupted.id)
   let pending=await h.get(path(interrupted.id))
   const beforeFees=(await h.get('/api/coffer/payments/fees')).totals
   const feeDelta=async()=>Object.fromEntries(Object.entries((await h.get('/api/coffer/payments/fees')).totals).map(([k,v])=>[k,v-beforeFees[k]]))
@@ -155,13 +180,13 @@ export async function paymentDonorMatchJourney(){
   pending=await h.api(path(interrupted.id)+'/refresh',{})
   const unchangedDonors=await Promise.all([one,two].map(d=>h.get('/api/coffer/donors/'+d.id)))
   await h.api(path(interrupted.id)+'/approve',select(pending,two),{status:409})
-  assert.equal((await h.get(path(interrupted.id))).state,'held')
+  const pinned=await h.get(path(interrupted.id));assert.equal(pinned.state,'approved');assert.equal(pinned.donor_id,one.id);assert.equal(pinned.gift.donor_id,one.id)
   assert.deepEqual(await Promise.all([one,two].map(d=>h.get('/api/coffer/donors/'+d.id))),unchangedDonors,'Refused reassignment changes no donor or gift')
   assert.deepEqual(await feeDelta(),{gross_cents:10000,fee_cents:320,net_cents:9680})
   const resume=select(pending,one)
   await h.api(path(interrupted.id)+'/approve',resume)
   await h.api(path(interrupted.id)+'/approve',resume)
-  await deliver(h,2834,'charge.succeeded',interrupted.id);await deliver(h,2835,'refund.created',interruptedRefund.id)
+  await deliver(h,2839,'charge.succeeded',interrupted.id);await deliver(h,2840,'refund.created',interruptedRefund.id)
   const completed=await h.get(path(interrupted.id)),originalDonor=await h.get('/api/coffer/donors/'+one.id)
   assert.equal(completed.state,'resolved');assert.equal(completed.donor_id,one.id);assert.equal(completed.gift.donor_id,one.id)
   assert.equal(originalDonor.gifts.filter(g=>g.kind==='gift'&&g.reference===interrupted.id).length,1)
@@ -170,6 +195,7 @@ export async function paymentDonorMatchJourney(){
   const otherDonor=await h.get('/api/coffer/donors/'+two.id)
   assert.deepEqual(otherDonor.gifts,unchangedDonors[1].gifts);assert.equal(otherDonor.totals.lifetimeCents,unchangedDonors[1].totals.lifetimeCents)
   assert.deepEqual(await feeDelta(),{gross_cents:7500,fee_cents:320,net_cents:7180})
+  }
   // Merge cannot make an old candidate selection current by following an alias.
   const beforeMerge=await h.api(path(unresolved.id)+'/refresh',{}),comparison=await h.get('/api/coffer/duplicates/compare?source='+one.id+'&target='+two.id)
   await h.command('donor.merge',{sourceDonorId:one.id,donorId:two.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
