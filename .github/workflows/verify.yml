@@ -12,7 +12,7 @@ on:
         default: push
       timeout:
         type: number
-        default: 10
+        default: 20
 
 permissions:
   contents: read
@@ -52,7 +52,9 @@ jobs:
     needs: plan
     if: ${{ needs.plan.outputs.skip != 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ inputs.timeout > 20 && 20 || inputs.timeout || 10 }}
+    # Conservative per-journey timings exceed nine minutes with eight jobs.
+    # Keep the prediction below 15 minutes and every shard capped at 20.
+    timeout-minutes: ${{ inputs.timeout > 20 && 20 || inputs.timeout || 20 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
