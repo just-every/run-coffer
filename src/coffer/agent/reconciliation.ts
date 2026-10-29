@@ -1,4 +1,5 @@
 import { manager } from '../auth'
+import { approvalFingerprint, currentFinanceApprovals, financeApprovedContext, recordFinanceApproval } from './reconciliation-approval'
 import { automated } from '../automation-grants'
 import { all, commit, event, fail, guard, newId, one, sql, text, type Context, type Row, type Stmt, today } from '../db'
 import { available, managed, stripe } from '../giving/stripe'
@@ -17,11 +18,16 @@ function authorize(c: Context, scheduled = false) {
 }
 export async function reconciliationData(c: Context) {
  const rows = await all(c,`SELECT * FROM cf_agent_issues WHERE (?=1 OR kind NOT LIKE 'quickbooks_%') ORDER BY CASE state WHEN 'open' THEN 0 ELSE 1 END,found_at DESC,id DESC LIMIT 100`,c.actor.role==='owner'?1:0)
- return { quickbooksRun:c.actor.role==='owner'?await one(c,"SELECT * FROM cf_agent_runs WHERE job='reconciliation.quickbooks'"):null, lastRun:await one(c,"SELECT * FROM cf_agent_runs WHERE job='reconciliation'"), issues:rows.map((r):Row=>({...r,evidence:JSON.parse(r.evidence),proposed:JSON.parse(r.proposed)})) }
+ const approvals = new Map((await currentFinanceApprovals(c,rows.map(r=>r.id))).map(a=>[a.issue_id,a]))
+ const issues = rows.map((r):Row => {
+  const action = r.state === 'applied' ? 'undo' : 'apply'
+  return {...r,evidence:JSON.parse(r.evidence),proposed:JSON.parse(r.proposed),approvalFingerprint:approvalFingerprint(r,action),financeApproval:approvals.get(r.id)??null}
+ })
+ return { quickbooksRun:c.actor.role==='owner'?await one(c,"SELECT * FROM cf_agent_runs WHERE job='reconciliation.quickbooks'"):null, lastRun:await one(c,"SELECT * FROM cf_agent_runs WHERE job='reconciliation'"), issues }
 }
 async function save(c: Context, finding: Finding) {
  const hash=await fingerprint(finding)
- await commit(c,[sql(`INSERT INTO cf_agent_issues(id,source_id,kind,state,summary,why,evidence,proposed,fingerprint,found_at)
+ await commit(c,[sql("DELETE FROM cf_reconciliation_approvals WHERE action='apply' AND issue_id IN (SELECT id FROM cf_agent_issues WHERE source_id=? AND kind=? AND state='open' AND fingerprint<>?)",finding.sourceId,finding.kind,hash),sql(`INSERT INTO cf_agent_issues(id,source_id,kind,state,summary,why,evidence,proposed,fingerprint,found_at)
   VALUES(?,?,?,'open',?,?,?,?,?,?) ON CONFLICT(source_id,kind) WHERE state='open' DO UPDATE SET
   summary=excluded.summary,why=excluded.why,evidence=excluded.evidence,proposed=excluded.proposed,fingerprint=excluded.fingerprint,found_at=excluded.found_at`,
   newId(),finding.sourceId,finding.kind,finding.summary,finding.why,JSON.stringify(finding.evidence),JSON.stringify(finding.proposed),hash,c.now)])
@@ -96,6 +102,21 @@ function contribution(c:Context,proposal:Row,change:Correction,id:string):Stmt {
  return sql(`INSERT INTO cf_payment_entries(id,source_id,charge_id,kind,amount_cents,fee_cents,net_cents,fund,gift_id,contribution_cents,currency,received_on,created_at)
   VALUES(?,?,?,'reconciliation',0,0,0,?,?,?,'usd',?,?)`,id,id,proposal.chargeId,change.fund,proposal.giftId,change.cents,proposal.receivedOn,c.now)
 }
+/** Exact human approval prepares authority only; it does not apply a correction. */
+export async function approveReconciliation(c:Context,env:PaymentsEnv,input:Row) {
+ authorize(c)
+ const id=text(input.id,'Issue ID',100),issue=await one(c,'SELECT * FROM cf_agent_issues WHERE id=?',id)
+ const action=input.action
+ if(!['apply','undo'].includes(action)) fail('INPUT','Choose correction or undo approval.',400)
+ if(!issue || issue.state!==(action==='apply'?'open':'applied') || input.fingerprint!==approvalFingerprint(issue,action)) fail('ISSUE_CHANGED','This correction changed. Refresh and review it again.')
+ if(!['contribution','missing_gift'].includes(issue.kind)) fail('REVIEW_REQUIRED','Accounting discrepancies require their existing Payments approval door.')
+ if(input.financeLead!==true && input.financeLead!=='yes') fail('FINANCE_LEAD','Explicitly accept finance-lead responsibility for this exact correction.',400)
+ if(action==='apply') {
+  const current=await chargeFinding(c,await stripe(env,'/charges/'+encodeURIComponent(issue.source_id)),env)
+  if(!current || current.proposed.action==='review' || await fingerprint(current)!==issue.fingerprint) fail('ISSUE_CHANGED','Stripe or the contribution ledger changed. Run reconciliation again before approving.')
+ } else if(!await one(c,"SELECT 1 FROM cf_agent_activity WHERE id=? AND undo_kind='reconciliation' AND undone_at IS NULL",issue.activity_id)) fail('ISSUE_CHANGED','This correction has already been undone.')
+ return recordFinanceApproval(c,issue,action)
+}
 export async function applyReconciliation(c:Context,env:PaymentsEnv,input:Row) {
  authorize(c)
  const id=text(input.id,'Issue ID',100),issue=await one(c,'SELECT * FROM cf_agent_issues WHERE id=?',id)
@@ -103,6 +124,7 @@ export async function applyReconciliation(c:Context,env:PaymentsEnv,input:Row) {
  if(!['contribution','missing_gift'].includes(issue.kind)) fail('REVIEW_REQUIRED','This discrepancy requires review in Payments, QuickBooks or Pantry; no safe automatic correction is available.')
  const current=await chargeFinding(c,await stripe(env,'/charges/'+encodeURIComponent(issue.source_id)),env)
  if(!current || current.proposed.action==='review' || await fingerprint(current)!==issue.fingerprint) fail('ISSUE_CHANGED','Stripe or the contribution ledger changed. Run reconciliation again before applying.')
+ c=await financeApprovedContext(c,issue,'apply')
  if(issue.kind==='missing_gift') {
   const existing=new Set((await all(c,"SELECT id FROM cf_gifts WHERE source='stripe' AND kind='gift'")).map(row=>row.id))
   const linked=await syncCharge(env,issue.source_id,c)
@@ -127,6 +149,7 @@ export async function undoReconciliation(c:Context,input:Row) {
  if(!issue || issue.state!=='applied') fail('ISSUE_CHANGED','Only an applied reconciliation correction can be undone.')
  const original=await one(c,"SELECT * FROM cf_agent_activity WHERE id=? AND undo_kind='reconciliation' AND undone_at IS NULL",issue.activity_id)
  if(!original) fail('ISSUE_CHANGED','This correction has already been undone.')
+ c=await financeApprovedContext(c,issue,'undo')
  const saved=JSON.parse(original.undo_data),activity=activityStatement(c,{kind:'reconciliation.undone',subjectId:id,summary:'Undid contribution reconciliation with compensating entries.',why:'The original correction and all provider money remain in the immutable ledger.'})
  let compensation:Stmt[]
  if(saved.type==='missing_gift') {

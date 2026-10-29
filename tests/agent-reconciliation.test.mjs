@@ -1,13 +1,14 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {run} from './harness.mjs'
+import {run,archive,restore,installation} from './harness.mjs'
+import {reconciliationApprovalBrowser} from './reconciliation-approval-browser.mjs'
 
 const at=Math.floor(Date.now()/1000)-3600
 const saved={id:'ch_ReconcileA',object:'charge',amount:10000,amount_refunded:1000,currency:'usd',paid:true,status:'succeeded',created:at,customer:'cus_Reconcile',metadata:{fund:'Reading'},billing_details:{email:'reconcile@example.test',name:'River Donor'}}
 const missing={id:'ch_ReconcileB',object:'charge',amount:4000,amount_refunded:0,currency:'usd',paid:true,status:'succeeded',created:at,metadata:{fund:'Meals'},billing_details:{email:'new@example.test',name:'New Donor'}}
 const customer={id:'cus_Reconcile',object:'customer',name:'River Donor',email:'reconcile@example.test',created:at}
 
-test('HTTP reconciliation corrects refunded amount and fund, syncs a missing charge, and undoes through immutable compensation',async()=>{
+test('HTTP reconciliation requires exact finance approval, corrects refunded amount and fund, syncs a missing charge, and undoes through immutable compensation',async()=>{
  let live={...saved,amount_refunded:2000,metadata:{fund:'Meals'}},calls=[],chargePages=0,payoutPages=0
  const outbound=async request=>{
   assert.equal(request.method,'GET','Reconciliation never charges, refunds or submits an external deposit')
@@ -40,10 +41,40 @@ test('HTTP reconciliation corrects refunded amount and fund, syncs a missing cha
   assert.equal(JSON.stringify(result.issues).includes(customer.email),false,'Evidence stores source IDs and amounts without donor PII')
   const screen=await h.request('/app/agent/reconcile');assert.equal(screen.status,200)
   await h.api('/api/coffer/agent/reconcile/apply',{id:issue.id},{as:member.cookie,status:403})
+  await h.api('/api/coffer/agent/reconcile/apply',{id:issue.id},{status:409})
+  const approval={id:issue.id,action:'apply',fingerprint:issue.fingerprint,financeLead:'yes'}
+  await h.api('/api/coffer/agent/reconcile/approve',approval,{as:member.cookie,status:403})
+  const agent=await h.command('agent.create',{label:'Synthetic reconciliation preparer'})
+  await h.api('/api/coffer/agent/reconcile/approve',approval,{as:'',headers:{authorization:'Bearer '+agent.token},status:403})
+  await h.api('/api/coffer/agent/reconcile/approve',{...approval,financeLead:undefined},{status:400})
+  await h.api('/api/coffer/agent/reconcile/approve',{...approval,fingerprint:'synthetic-coffer-stale'},{status:409})
+  const admin=await h.person(['synthetic-coffer-finance','example.test'].join('@'),'admin')
+  await h.api('/api/coffer/agent/reconcile/approve',approval,{as:admin.cookie})
+  assert.equal((await h.get('/api/coffer/donors/'+donor.id)).totals.lifetimeCents,9000,'Approval alone changes no ledger')
+  await h.api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})
+  const revoked=await h.api('/api/coffer/agent/reconcile/apply',{id:issue.id},{status:409})
+  assert.equal(revoked.error,'FINANCE_APPROVAL')
+  await h.api('/api/coffer/agent/reconcile/approve',approval)
   live={...live,amount_refunded:2500}
   await h.api('/api/coffer/agent/reconcile/apply',{id:issue.id},{status:409})
   assert.equal((await h.get('/api/coffer/donors/'+donor.id)).totals.lifetimeCents,9000)
+  const changed=(await h.api('/api/coffer/agent/reconcile/run',{})).issues.find(i=>i.id===issue.id)
+  assert.equal(changed.financeApproval,null,'Changed source facts clear approval')
+  await h.api('/api/coffer/agent/reconcile/apply',{id:issue.id},{status:409})
+  await h.api('/api/coffer/agent/reconcile/approve',approval,{status:409})
   live={...live,amount_refunded:2000}
+  assert.equal((await h.api('/api/coffer/agent/reconcile/run',{})).issues.find(i=>i.id===issue.id).financeApproval,null,'Returning source facts cannot revive a cleared approval')
+  await reconciliationApprovalBrowser(h,{issueId:issue.id,phase:'correction',approve:true})
+  const savedArchive=await archive(h),fresh=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1501'},outbound,givingProtection:false})
+  try{
+   await restore(fresh,savedArchive)
+   assert.equal((await fresh.get('/api/coffer/agent/reconcile')).issues.find(i=>i.id===issue.id).financeApproval,null,'Archive history never restores sign-in authority')
+   await fresh.api('/api/coffer/agent/reconcile/apply',{id:issue.id},{status:409})
+   assert.equal((await fresh.get('/api/coffer/donors/'+donor.id)).totals.lifetimeCents,9000)
+   await fresh.api('/api/coffer/agent/reconcile/approve',approval)
+   await fresh.api('/api/coffer/agent/reconcile/apply',{id:issue.id})
+   assert.equal((await fresh.get('/api/coffer/donors/'+donor.id)).totals.lifetimeCents,8000,'The new owner must explicitly approve the restored correction')
+  }finally{await fresh.close()}
   await h.api('/api/coffer/agent/reconcile/apply',{id:issue.id})
   await h.api('/api/coffer/agent/reconcile/apply',{id:issue.id},{status:409})
   const corrected=await h.get('/api/coffer/donors/'+donor.id)
@@ -51,18 +82,28 @@ test('HTTP reconciliation corrects refunded amount and fund, syncs a missing cha
   assert.deepEqual(corrected.gifts.find(g=>g.id===original.id),{...original,reversed_by:null})
   const clean=await h.api('/api/coffer/agent/reconcile/run',{})
   assert.equal(clean.issues.filter(i=>i.kind==='contribution'&&i.state==='open').length,0)
+  await h.api('/api/coffer/agent/reconcile/apply',{id:absent.id},{status:409})
+  await h.api('/api/coffer/agent/reconcile/approve',{id:absent.id,action:'apply',fingerprint:absent.fingerprint,financeLead:'yes'})
   const synced=await h.api('/api/coffer/agent/reconcile/apply',{id:absent.id})
   const newDonor=(await h.get('/api/coffer/donors')).donors.find(d=>d.email==='new@example.test')
   assert.equal((await h.get('/api/coffer/donors/'+newDonor.id)).totals.lifetimeCents,4000)
   assert.ok(synced.giftId)
+  await h.api('/api/coffer/agent/reconcile/undo',{id:absent.id},{status:409})
+  const appliedMissing=(await h.get('/api/coffer/agent/reconcile')).issues.find(i=>i.id===absent.id)
+  await h.api('/api/coffer/agent/reconcile/approve',{id:absent.id,action:'undo',fingerprint:appliedMissing.approvalFingerprint,financeLead:'yes'})
   await h.api('/api/coffer/agent/reconcile/undo',{id:absent.id})
   assert.equal((await h.get('/api/coffer/donors/'+newDonor.id)).totals.lifetimeCents,0)
+  await h.api('/api/coffer/agent/reconcile/undo',{id:issue.id},{status:409})
+  await reconciliationApprovalBrowser(h,{issueId:issue.id,phase:'undo',approve:true})
   await h.api('/api/coffer/agent/reconcile/undo',{id:issue.id})
   await h.api('/api/coffer/agent/reconcile/undo',{id:issue.id},{status:409})
   assert.equal((await h.get('/api/coffer/donors/'+donor.id)).totals.lifetimeCents,9000)
   const final=(await h.api('/api/coffer/agent/reconcile/run',{})).issues.find(i=>i.kind==='contribution'&&i.state==='open'&&i.source_id===saved.id)
   assert.deepEqual(final.proposed.changes,issue.proposed.changes,'Undo restores the previous fund allocation as well as its amount')
   assert.equal(final.evidence.entries.length,4,'Corrections and their opposites remain as immutable lines')
+  const audits=(await h.get('/api/coffer/audit?action=reconciliation.approved')).rows.filter(e=>e.action==='reconciliation.approved')
+  assert.ok(audits.length>=4,'Each exact correction approval is audited')
+  assert.ok(audits.every(e=>JSON.parse(e.detail).financeLead===true))
  },{bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1501'},outbound})
  const beforeManaged=calls.length
  await run(async h=>{

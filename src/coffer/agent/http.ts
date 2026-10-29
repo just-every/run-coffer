@@ -21,7 +21,7 @@ import { managed } from '../giving/stripe'
 import { activity, action } from './activity'
 import { recoveryData, recoveryAction, runRecovery } from './recovery'
 import { recoveryPage } from './recovery-ui'
-import { reconciliationData, runReconciliation, runQuickbooksReconciliation, applyReconciliation, undoReconciliation } from './reconciliation'
+import { reconciliationData, runReconciliation, runQuickbooksReconciliation, approveReconciliation, applyReconciliation, undoReconciliation } from './reconciliation'
 import { reconciliationPage } from './reconciliation-ui'
 import { missingReceipts, queueMissingReceipts, undoReceiptQueue } from './receipts'
 import { receiptAgentPage } from './receipts-ui'
@@ -88,6 +88,7 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  else if(tail==='/appeals/prepare'){result=await prepareResend(c,p);back='/app/appeals/'+result.id}
  else if(tail==='/reconcile/quickbooks/run'){result=await runQuickbooksReconciliation(c,env);back='/app/agent/reconcile'}
  else if(tail==='/reconcile/run'){result=await runReconciliation(c,env);back='/app/agent/reconcile'}
+ else if(tail==='/reconcile/approve'){result=await approveReconciliation(c,env,p);back='/app/agent/reconcile'}
  else if(tail==='/reconcile/apply'){result=await applyReconciliation(c,env,p);back='/app/agent/reconcile'}
  else if(tail==='/reconcile/undo'){result=await undoReconciliation(c,p);back='/app/agent/reconcile'}
  else if(tail==='/recovery/run'){result=await runRecovery(c,env);back='/app/agent/recovery'}
