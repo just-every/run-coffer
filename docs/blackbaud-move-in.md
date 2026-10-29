@@ -121,7 +121,7 @@ Source dates remain distinct from the import time; later native choices cannot
 be overwritten by another source import. Ended or future-dated codes require
 separate migration.
 
-## Review unfinished source actions
+## Review source actions
 
 Unfinished actions need a current native owner. Their source fundraiser ID maps
 through `owners`; use `unassigned` explicitly when the source has no fundraiser.
@@ -139,7 +139,17 @@ summary and description remain on its task and a labelled historical note;
 custom values on that note use reviewed note-field mappings. Task creation
 sends no mail or text and places no call. Later task edits prevent undo, and
 ordinary native merge, erasure and archive custody include the imported task.
-Completed actions with opportunity links still need separate history support.
+Completed opportunity-linked actions retain their native task and interaction
+links as completed history. Other completed actions remain labelled source
+notes unless explicitly reviewed as past asks. A reviewed historical ask needs
+`isAsk: true`, its actual `completed_date` (or an attested `completedOn`) and a
+known `channel` of `email`, `mail`, `phone` or `sms`. No completion date is
+inferred from the scheduled action date. A missing non-ask completion date stays
+explicitly unknown. Historical asks count against current solicitation limits
+on their actual source day; they neither grant current consent nor send a new
+message. Their source facts follow archive, merge and erasure custody, and undo
+removes them only with their unchanged import-owned task. Later native asks
+still prevent destructive undo.
 
 ## Supplemental source facts
 
@@ -255,7 +265,7 @@ custom-value or other dependent edit refuses undo without removing anything.
 Archives retain the imported history and mappings. Native merge and erasure
 rules apply, and an erased constituent cannot be recreated by replay.
 
-The following remain outside this slice: reference and partial-date custom definitions, dated or annotated values; completed opportunity-linked actions;
+The following remain outside this slice: reference and partial-date custom definitions, dated or annotated values; later source action updates;
 multiple funding links for one closure; split promises; future absolute
 address periods; pledge acknowledgment and tribute facts; recurring commitment custom values and acknowledgment facts;
 vault transfer and replacement schedules; other unsupported gift types and remaining source-object coverage;

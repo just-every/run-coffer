@@ -87,20 +87,24 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
   if(!ids.has(a.constituent_id)||typeof a.completed!=='boolean'||!['Phone Call','Meeting','Email','Mailing',['Task','Other'].join('/')].includes(a.category))error('An action has an unresolved identity or unsupported category or completion state.')
   const facts=review!.actions[a.id]??{}
   used.actions.add(a.id)
-  if(Object.keys(facts).some(k=>!['owner','kind','isAsk'].includes(k)))error('Review the source action owner, task kind and ask classification.')
-  if(a.completed&&a.opportunity_id)error('Completed opportunity-linked actions require separate history migration.')
+  if(Object.keys(facts).some(k=>!['owner','kind','isAsk','channel','completedOn'].includes(k)))error('Review the source action owner, task kind and ask classification.')
+  const completedOn=a.completed?(a.completed_date?day(a.completed_date):facts.completedOn?day(facts.completedOn):null):null
+  if(!a.completed&&(a.completed_date||facts.completedOn)||facts.completedOn&&completedOn!==day(facts.completedOn)||completedOn&&completedOn>importDay)error('Source completion facts must agree with the completed state and actual historical day.')
   const noteKind=a.completed?({'Phone Call':'call',Meeting:'meeting',Email:'email'} as Row)[a.category]??'note':'note'
-  const row={'Note ID':'action:'+a.id,'Constituent ID':a.constituent_id,'Note Date':day(a.completed_date||a.date),'Note Type':noteKind,'Note':[(a.completed?'':'Open source action: ')+(a.summary??''),a.description].filter(Boolean).join('\n')}
+  const row={'Note ID':'action:'+a.id,'Constituent ID':a.constituent_id,'Note Date':completedOn??day(a.date),'Note Type':noteKind,'Note':[(a.completed?'':'Open source action: ')+(a.summary??''),a.description].filter(Boolean).join('\n')}
   customValues(await list(`/constituent/v1/actions/${encodeURIComponent(a.id)}/customfields`),['call','meeting','email'].includes(noteKind)?'interaction':'note',row);notes.push(row)
-  if(!a.completed){
+  if(!a.completed||a.opportunity_id||facts.isAsk===true){
    const fundraiser=facts.owner??(a.fundraisers?.length===1?a.fundraisers[0]:a.fundraisers?.length?error('Choose one current native owner for the source action fundraisers.'):'unassigned'),owner=review!.owners[fundraiser]
    if(!owner||Object.keys(owner).some(k=>!['id','version'].includes(k))||facts.owner&&!['unassigned',...(a.fundraisers??[])].includes(facts.owner))error('Map each unfinished action to an explicitly reviewed current native owner.')
-   const kind=({'Phone Call':'call',Meeting:'meeting'} as Row)[a.category]??facts.kind
-   if(!['call','meeting','follow_up','thank_you','data_fix'].includes(kind)||['call','meeting'].includes(kind)&&typeof facts.isAsk!=='boolean'||!['call','meeting'].includes(kind)&&facts.isAsk===true)error('Review each unfinished action task kind and whether its call or meeting asks for money.')
+   const kind=({'Phone Call':'call',Meeting:'meeting'} as Row)[a.category]??facts.kind??(a.completed?'follow_up':undefined)
+   if(!['call','meeting','follow_up','thank_you','data_fix'].includes(kind)||typeof facts.isAsk!=='boolean'||!a.completed&&!['call','meeting'].includes(kind)&&facts.isAsk===true)error('Review each unfinished action task kind and whether its call or meeting asks for money.')
+   const channel=({Email:'email',Mailing:'mail','Phone Call':'phone',Meeting:'phone'} as Row)[a.category]??facts.channel
+   if(facts.channel&&facts.channel!==channel)error('The historical ask channel must agree with its source category.')
+   if(a.completed&&facts.isAsk&&(!completedOn||!['email','mail','sms','phone'].includes(channel)))error('A historical ask requires its actual source completion date and known channel; future or conflicting facts are refused.')
    const person=donors.find(p=>p['Constituent ID']===a.constituent_id)!
    const solicitation=input.solicitCodes?prefRules(person['Solicit Codes'],input.solicitCodes):[]
-   if(person['Constituent Status']!=='active'||facts.isAsk&&solicitation.some(r=>r.type==='stop'||r.type==='channels'&&r.channels?.includes('phone'))||person['Phone Preference']==='no')error('A source action on an inactive, deceased or restricted constituent must be resolved before creating an open task.')
-   tasks.push({externalId:a.id,donorExternalId:a.constituent_id,title:[a.summary,a.description].filter(Boolean).join('\n'),kind,ownerId:owner.id,ownerVersion:owner.version,dueOn:day(a.date),isAsk:facts.isAsk===true,opportunityExternalId:a.opportunity_id||undefined,location:{file:'sky-actions.json',sheet:'SKY',row:tasks.length+1}})
+   if(!a.completed&&(person['Constituent Status']!=='active'||facts.isAsk&&solicitation.some(r=>r.type==='stop'||r.type==='channels'&&r.channels?.includes('phone'))||person['Phone Preference']==='no'))error('A source action on an inactive, deceased or restricted constituent must be resolved before creating an open task.')
+   tasks.push({completed:a.completed,completedOn,channel,interactionExternalId:a.completed&&['call','meeting','email'].includes(noteKind)?'action:'+a.id:undefined,externalId:a.id,donorExternalId:a.constituent_id,title:[a.summary,a.description].filter(Boolean).join('\n'),kind,ownerId:owner.id,ownerVersion:owner.version,dueOn:day(a.date),isAsk:facts.isAsk===true,opportunityExternalId:a.opportunity_id||undefined,location:{file:'sky-actions.json',sheet:'SKY',row:tasks.length+1}})
   }
  }
  for(const n of await list('/constituent/v1/notes')){if(!ids.has(n.constituent_id))error('A note has an unresolved constituent.');notes.push({'Note ID':'note:'+n.id,'Constituent ID':n.constituent_id,'Note Date':day(n.date),'Note Type':'note','Note':[n.summary,n.text].filter(Boolean).join('\n')})}
@@ -206,10 +210,10 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
   }
  }
  parsed.solicitCodes=input.solicitCodes
- for(const task of tasks)if(task.opportunityExternalId&&!opportunities.some(o=>o.externalId===task.opportunityExternalId&&o.donorExternalId===task.donorExternalId&&!o.closedOn))error('An unfinished action must reference a reviewed opportunity for the same constituent.')
+ for(const task of tasks)if(task.opportunityExternalId&&!opportunities.some(o=>o.externalId===task.opportunityExternalId&&o.donorExternalId===task.donorExternalId&&(task.completed||!o.closedOn)))error('An unfinished action must reference a reviewed opportunity for the same constituent.')
  parsed.recurringReferences=recurringReferences
  parsed.tasks=tasks
  parsed.opportunities=opportunities
- parsed.sourceCoverage={provider:'Blackbaud SKY',currency:'USD',counts:{constituents:donors.length,gifts:gifts.length,designations:[...splits.values()].reduce((n,v)=>n+v.length,0),pledges:pledges.length,relationships:relationships.length,actionsAndNotes:notes.length,openTasks:tasks.length,recurringReferences:recurringReferences.length,opportunities:opportunities.length},unsupported:['Reference and partial-date custom fields, dated or annotated values','Recurring commitment custom values, vault transfer and replacement schedules','Multiple linked gifts for one closed opportunity','Completed opportunity-linked actions','Other gift classifications and remaining source objects','Live OAuth, account and provider qualification']}
+ parsed.sourceCoverage={provider:'Blackbaud SKY',currency:'USD',counts:{constituents:donors.length,gifts:gifts.length,designations:[...splits.values()].reduce((n,v)=>n+v.length,0),pledges:pledges.length,relationships:relationships.length,actionsAndNotes:notes.length,openTasks:tasks.filter(t=>!t.completed).length,completedTasks:tasks.filter(t=>t.completed).length,recurringReferences:recurringReferences.length,opportunities:opportunities.length},unsupported:['Reference and partial-date custom fields, dated or annotated values','Recurring commitment custom values, vault transfer and replacement schedules','Multiple linked gifts for one closed opportunity','Source action updates after an earlier import','Other gift classifications and remaining source objects','Live OAuth, account and provider qualification']}
  return parsed
 }

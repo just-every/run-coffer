@@ -143,12 +143,13 @@ export async function runTaskReminders(env:Bindings,at:Date){
 
 /** Import review prepares an ordinary task without submitting a message or
  * treating a source assignment as current native authority. */
-export async function importedCallTask(c:Context,t:import('./move-in/types').ParsedTask,donorId:string,prospectId:string|null) {
+export async function importedCallTask(c:Context,t:import('./move-in/types').ParsedTask,donorId:string,prospectId:string|null,interactionId:string|null=null) {
  const ownerId=id(t.ownerId,'Reviewed action owner'),version=integer(Number(t.ownerVersion),'Reviewed owner version',1)
  const person=await one(c,"SELECT id,version,display_name FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member')",ownerId)
  if(!person||person.version!==version)fail('OWNER_CHANGED','The reviewed source action owner changed. Read and review SKY again.',409)
  const kind=choice(t.kind,['call','meeting','thank_you','follow_up','data_fix'],'Source task kind')
- if(typeof t.isAsk!=='boolean'||t.isAsk&&!['call','meeting'].includes(kind))fail('INPUT','Review whether the source call or meeting is an ask; other task kinds cannot be asks.',400)
+ if(typeof t.isAsk!=='boolean'||t.isAsk&&!t.completed&&!['call','meeting'].includes(kind))fail('INPUT','Review whether the source call or meeting is an ask; other task kinds cannot be asks.',400)
+ if(t.isAsk&&t.completed&&(!t.completedOn||!['email','mail','phone','sms'].includes(t.channel??'')))fail('INPUT','A historical ask needs its actual source completion date and channel.',400)
  t.ownerName=person.display_name
- return {checks:[guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active' AND role IN ('owner','admin','member'))",'OWNER_CHANGED','The source action owner changed after review.',ownerId,version)],row:{donor_id:donorId,source_key:'re-nxt:action:'+t.externalId,source_kind:'sky-action',reason:longText(t.title,'Source action',1000),amount_cents:0,owner_id:ownerId,due_on:date(t.dueOn,'Source action date'),status:'open',version:1,created_at:c.now,completed_at:null,interaction_id:null,closed_reason:null,is_ask:t.isAsk?1:0,task_kind:kind,gift_id:null,prospect_id:prospectId,completion_notes:null}}
+ return {checks:[guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active' AND role IN ('owner','admin','member'))",'OWNER_CHANGED','The source action owner changed after review.',ownerId,version)],row:{donor_id:donorId,source_key:'re-nxt:action:'+t.externalId,source_kind:t.completed&&t.channel?'sky-action-'+t.channel:'sky-action',reason:longText(t.title,'Source action',1000),amount_cents:0,owner_id:ownerId,due_on:date(t.dueOn,'Source action date'),status:t.completed?'done':'open',version:1,created_at:c.now,completed_at:t.completedOn??null,interaction_id:interactionId,closed_reason:null,is_ask:t.isAsk?1:0,task_kind:kind,gift_id:null,prospect_id:prospectId,completion_notes:t.completed?'Completed source action: '+t.title:null}}
 }

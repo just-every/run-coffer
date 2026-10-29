@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "aec3b677d128bacd537ede69a94baf2b9a837362cfe5b51fef93b28c89a61539",
+      "sha256": "272e580996deafe1a3a431f5230f04b0d7302a286914a40977525ba9a1dcbdee",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4c786d3f7914484c60440b230a6a6a5689866454989a5c7bfac7502c032a6b44",
+      "sha256": "09e088cf417efcc77fe939bbaeba3cbf1dac4135c015e827d1f70caf55a5ac20",
       "executable": false
     },
     "deploy-demo.json": {
@@ -607,7 +607,7 @@
       "executable": false
     },
     "docs/blackbaud-move-in.md": {
-      "sha256": "0e4ed5a0c35a0746d7b0a0e4340489f5e9be8af60419510cecfd9945a324a19a",
+      "sha256": "bb37fde5307379298e8bfbd47e4b656e64284b8f77b2d56a5f971003b96fb8c4",
       "executable": false
     },
     "docs/CLAIMS.md": {
@@ -2615,7 +2615,7 @@
       "executable": false
     },
     "src/coffer/call-tasks.ts": {
-      "sha256": "2efd53b3ceddbd924bd19630bc32c16992bd9b4441084ee6e8c0a4d2e45d99ec",
+      "sha256": "e74190bfa04f08653048163bbbaa60c72b960a26e1c5610a9a04117b022ccf68",
       "executable": false
     },
     "src/coffer/campaign-progress.ts": {
@@ -3347,7 +3347,7 @@
       "executable": false
     },
     "src/coffer/move-in/blackbaud.ts": {
-      "sha256": "c7f9c5b6888fb3ba8f1111953f69b04468b06efef809574fd7fb100e50946eb7",
+      "sha256": "2fd57d0045de7129b5f94b224f5a21d0ef7f98f4057688cd390cc58f5c3b2674",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -3366,6 +3366,10 @@
       "sha256": "1e5f72997b974cddaea7d371f80d5af8ba65d888ce161fe9f5b937a67024261b",
       "executable": false
     },
+    "src/coffer/move-in/historical-actions.ts": {
+      "sha256": "8de1a5082bcb9691ae658d5a96818836d0215a47af3451bfed3a4f6ef88b2f3b",
+      "executable": false
+    },
     "src/coffer/move-in/household-writes.ts": {
       "sha256": "694fc45aad68990ce236457d517230e09603461cd0488fc9856f650823e8c39d",
       "executable": false
@@ -3375,7 +3379,7 @@
       "executable": false
     },
     "src/coffer/move-in/http.ts": {
-      "sha256": "0f72c100f0875c0ba255cd586f5e44f3c2c52bc2dcda4bdeda0c6ecda7760677",
+      "sha256": "7a32f78778604382e846dd6fb9a39cc26339ceef0ac715f0836c9795591fb53a",
       "executable": false
     },
     "src/coffer/move-in/neon-edge.ts": {
@@ -3395,7 +3399,7 @@
       "executable": false
     },
     "src/coffer/move-in/plan.ts": {
-      "sha256": "6c5afe9c9d032fa4e4056093e5a1d2455a4a376fa55b4676cb45ed9f13a0e29d",
+      "sha256": "80df8e3f60a5bac1e52df845f262a6fee6488ac5397defb2e251b842aab7a580",
       "executable": false
     },
     "src/coffer/move-in/platform-export.ts": {
@@ -3415,7 +3419,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "c8e83b05597336dcf1f0a091f793665ec1a274a50728ba110925892ebd815301",
+      "sha256": "18b722fe6a1bdfa8057b307881c893400eef944c491efed710b855c2a94d904e",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -3459,7 +3463,7 @@
       "executable": false
     },
     "src/coffer/move-in/stage.ts": {
-      "sha256": "b25c33792bcfc46d7511279ea01e61e62d7480725991911b77b93904734dcfe6",
+      "sha256": "60247df13cdf1b01e3dcb814598c7eb24f7b041fdedb53a98f34ea646383b384",
       "executable": false
     },
     "src/coffer/move-in/tables.ts": {
@@ -3471,7 +3475,7 @@
       "executable": false
     },
     "src/coffer/move-in/types.ts": {
-      "sha256": "f330a190873029cd5bd97d9a5632ae344086bf043b7c5f8704646d0b463c380e",
+      "sha256": "24912b13a2579ccd0fac5914698822d3cf098dc7e768f4dbffaf934b4320e064",
       "executable": false
     },
     "src/coffer/opportunity-close.ts": {
@@ -4007,7 +4011,7 @@
       "executable": false
     },
     "src/coffer/ui/call-tasks.ts": {
-      "sha256": "437479a01784af3e2b6f0dd48b86d90b9d1a0150d499adcf0e3d10ea419e5c6f",
+      "sha256": "9c24bb95f58c91a7aa5aafd2978e8706a318aa215b2659009e542f8fe5f9c3ce",
       "executable": false
     },
     "src/coffer/ui/campaign-progress.ts": {
@@ -4031,7 +4035,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "9b40f76c20cf18491426b15d88d8fe4bc9305ec39b5587332401da37dc306c54",
+      "sha256": "369c1ee52ac50de4fe7d9c722ffd86b949d6083dd1a4aa8631df70546e8cb06e",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
@@ -6359,11 +6363,11 @@
       "executable": false
     },
     "tests/blackbaud-fixture.mjs": {
-      "sha256": "ae82856eaff0de7f9df6348b8e7cc74d55b540216446a381193f551d4591a13c",
+      "sha256": "aeb5425bbfe2bf78c73e966c19e7ab096e4eb8d98a49d818dc30d64190498204",
       "executable": false
     },
     "tests/blackbaud-journey.mjs": {
-      "sha256": "eb1c95b388c2ffdbd17a6cc3be52b6e28387181c726970865b50bbfc03d54658",
+      "sha256": "7f85030c538fb254c8de759ece88e8f736c6f1e279ebe3567e18bd508a4fc91b",
       "executable": false
     },
     "tests/browser-journey.mjs": {

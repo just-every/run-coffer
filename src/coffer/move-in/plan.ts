@@ -250,13 +250,14 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  for(const t of parsed.tasks??[]){
   try {
    const priorTask=existing.get(`callTask:${await sourceKey(t.externalId)}`),donorId=plan.donorIds.get(t.donorExternalId)??'',donorRow=plan.effects.find(e=>e.kind==='donor'&&e.nativeId===donorId)?.row??donorRows.find(d=>d.id===donorId)
-   if(!priorTask&&(!donorRow||donorRow.constituent_status!=='active'))throw Error('Source tasks require a current active constituent.')
+   if(!priorTask&&!t.completed&&(!donorRow||donorRow.constituent_status!=='active'))throw Error('Source tasks require a current active constituent.')
    const restrictions=await phoneHolds(c,[donorId],t.isAsk)
-   if(!priorTask&&restrictions.get(donorId))throw Error('The source task is held: '+restrictions.get(donorId))
+   if(!priorTask&&!t.completed&&restrictions.get(donorId))throw Error('The source task is held: '+restrictions.get(donorId))
    const prospect=t.opportunityExternalId?await nativeId(source,'opportunity',t.opportunityExternalId):null
-   const prepared=await importedCallTask(c,t,donorId,prospect)
+   const interaction=t.interactionExternalId?await nativeId(source,'interaction',t.interactionExternalId):null
+   const prepared=await importedCallTask(c,t,donorId,prospect,interaction)
    plan.checks.push(...prepared.checks)
-   if(prospect)plan.checks.push(guard('EXISTS(SELECT 1 FROM cf_prospects WHERE id=? AND donor_id=? AND closed_on IS NULL)','MOVE_IN_CHANGED','The linked source opportunity changed.',prospect,donorId))
+   if(prospect)plan.checks.push(guard(`EXISTS(SELECT 1 FROM cf_prospects WHERE id=? AND donor_id=?${t.completed?'':' AND closed_on IS NULL'})`,'MOVE_IN_CHANGED','The linked source opportunity changed.',prospect,donorId))
    await add('callTask',t,prepared.row,undefined,donorId)
   }catch(error){diagnostic(error instanceof Error?error.message:'Review the source action owner and authority.',t.location,'error','SKY_ACTION')}
  }

@@ -31,7 +31,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
   if(action==='source-history'&&api) {
    const donorId=await canonicalDonor(c,url.searchParams.get('donorId')||'')
    const channels=await Promise.all(['email','mail'].map(channel=>audience(c,channel as 'email'|'mail',{givenSince:null,minTotalCents:0,donorIds:[donorId]})))
-   return json({inactiveContacts:await all(c,"SELECT * FROM cf_contact_points WHERE donor_id=? AND active=0 ORDER BY kind,id",donorId),outreach:{email:channels[0],mail:channels[1]},plans:await all(c,"SELECT * FROM cf_recurring_source_references WHERE donor_id=?",donorId),gifts:await all(c,"SELECT p.*,g.amount_cents,g.received_on FROM cf_platform_gifts p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?",donorId)})
+   return json({sourceAsks:await all(c,"SELECT channel,asked_on,submitted_at,run_id FROM cf_solicitation_asks WHERE COALESCE((SELECT into_id FROM cf_donor_merges WHERE donor_id=cf_solicitation_asks.donor_id),donor_id)=? AND kind='sky-action' ORDER BY asked_on,run_id",donorId),inactiveContacts:await all(c,"SELECT * FROM cf_contact_points WHERE donor_id=? AND active=0 ORDER BY kind,id",donorId),outreach:{email:channels[0],mail:channels[1]},plans:await all(c,"SELECT * FROM cf_recurring_source_references WHERE donor_id=?",donorId),gifts:await all(c,"SELECT p.*,g.amount_cents,g.received_on FROM cf_platform_gifts p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?",donorId)})
   }
   if(action==='spreadsheet-mappings'&&api)return json(await service.spreadsheetMappings(c))
   if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c)),c.actor,200,'/app/more')

@@ -1,3 +1,4 @@
+import { historicalAskWrites, historicalAskUndoGuards, historicalAskUndoWrites } from './historical-actions'
 import { importedCallTask } from '../call-tasks'
 import { importedOpportunity } from '../major-gifts'
 import { blackbaudImport } from './blackbaud'
@@ -128,6 +129,7 @@ export async function continueApply(c: Context,id:string) {
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
   writes.push(...addresses)
   writes.push(...importedAcknowledgmentEvents(c,plan,job.source,id))
+  writes.push(...historicalAskWrites(c,plan))
   writes.push(...importedCustomWrites(c,plan,job.source,id))
   writes.push(...solicitationImportHistory(c,plan.effects,job.source,id))
   writes.push(...importedHouseholdWrites(c,plan.householdChanges,job.source,id))
@@ -213,7 +215,7 @@ export async function undo(c: Context,id:string) {
   const t=tables[kind]
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>${custodySnapshot(kind)}))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
- writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id))
+ writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id),...historicalAskUndoGuards(id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source)||result.job.report.sourceCoverage?.provider==='Blackbaud SKY')writes.push(...spreadsheetDefinitionUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
  if(result.job.source==='spreadsheet')writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_address_checks a ON a.donor_id=r.native_id WHERE r.job_id=? AND r.kind='donor' AND r.owned=1 AND (a.version<>1 OR a.source<>'smarty' OR a.checked_at<>json_extract(r.snapshot,'$.created_at')))`,'MOVE_IN_USED','An imported address was checked again. Nothing was undone.',id))
@@ -234,7 +236,7 @@ export async function undo(c: Context,id:string) {
   ['cf_soft_credit_acknowledgments','note_id','note','softCreditAcknowledgment','soft_credit_id'],
   ['cf_soft_credit_acknowledgments','soft_credit_id','softCredit','softCreditAcknowledgment','soft_credit_id'],
   ['cf_donors','household_id','household','donor','id'],['cf_pledge_installments','pledge_id','pledge','installment','id'],['cf_pledge_allocations','installment_id','installment','allocation','id'],['cf_pledge_allocations','gift_id','gift','allocation','id'],
-  ['cf_consents','donor_id','donor','consent','id'],['cf_solicitation','donor_id','donor','solicitation','donor_id'],['cf_solicitation_asks','donor_id','donor',null,'donor_id'],['cf_solicitation_recipients','donor_id','donor',null,'donor_id'],['cf_solicitation_inclusions','donor_id','donor',null,'donor_id'],['cf_acks','gift_id','gift',null,'id'],['cf_appeal_recipients','donor_id','donor',null,'donor_id'],['cf_gift_tributes','gift_id','gift','tribute','gift_id'],['cf_tribute_notifications','gift_id','gift',null,'id'],['cf_employer_matches','gift_id','gift',null,'id'],['cf_gifts','reverses','gift',null,'id'],['cf_gift_allocations','gift_id','gift','giftDesignation','id'],
+  ['cf_consents','donor_id','donor','consent','id'],['cf_solicitation','donor_id','donor','solicitation','donor_id'],['cf_solicitation_recipients','donor_id','donor',null,'donor_id'],['cf_solicitation_inclusions','donor_id','donor',null,'donor_id'],['cf_acks','gift_id','gift',null,'id'],['cf_appeal_recipients','donor_id','donor',null,'donor_id'],['cf_gift_tributes','gift_id','gift','tribute','gift_id'],['cf_tribute_notifications','gift_id','gift',null,'id'],['cf_employer_matches','gift_id','gift',null,'id'],['cf_gifts','reverses','gift',null,'id'],['cf_gift_allocations','gift_id','gift','giftDesignation','id'],
   ['cf_planned_gifts','donor_id','donor',null,'id'],['cf_legacy_memberships','donor_id','donor',null,'id'],['cf_planned_distributions','gift_id','gift',null,'gift_id'],
   ['cf_donor_recognition','donor_id','donor','recognition','donor_id'],['cf_gift_recognition','gift_id','gift',null,'gift_id'],
   ['cf_research_results','donor_id','donor',null,'id'],
@@ -243,16 +245,17 @@ export async function undo(c: Context,id:string) {
   ['cf_pledge_adjustments','pledge_id','pledge',null,'id'],['cf_pledge_plans','pledge_id','pledge',null,'pledge_id'],
   ['cf_record_documents','donor_id','donor',null,'id'],['cf_record_documents','gift_id','gift',null,'id'],['cf_record_documents','pledge_id','pledge',null,'id'],
   ['cf_grants','donor_id','donor',null,'id'],['cf_grants','pledge_id','pledge',null,'id'],
-  ['cf_prospects','donor_id','donor','opportunity','id'],['cf_prospects','pledge_id','pledge','opportunity','id'],['cf_prospects','gift_id','gift','opportunity','id'],['cf_call_tasks','donor_id','donor','callTask','id'],['cf_call_tasks','prospect_id','opportunity','callTask','id'],['cf_call_tasks','interaction_id','interaction',null,'id'],
+  ['cf_prospects','donor_id','donor','opportunity','id'],['cf_prospects','pledge_id','pledge','opportunity','id'],['cf_prospects','gift_id','gift','opportunity','id'],['cf_call_tasks','donor_id','donor','callTask','id'],['cf_call_tasks','prospect_id','opportunity','callTask','id'],['cf_call_tasks','interaction_id','interaction','callTask','id'],
  ]
  for(const [table,fk,parent,child,key] of dependencies)writes.push(guard(`NOT EXISTS(SELECT 1 FROM ${table} WHERE ${fk} IN (${owned(parent)})${child?` AND ${key} NOT IN (${owned(child)})`:''})`,'MOVE_IN_USED','Someone has used these imported records. Nothing was undone.',id,...(child?[id]:[])))
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_solicitation_asks a WHERE a.donor_id IN (${owned('donor')}) AND NOT (a.kind='sky-action' AND EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_call_tasks t ON t.id=r.native_id WHERE r.job_id=? AND r.kind='callTask' AND r.owned=1 AND t.id=a.run_id AND t.donor_id=a.donor_id)))`,'MOVE_IN_USED','Later asks use these imported records. Nothing was undone.',id,id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_custom_values v WHERE (v.donor_id IN (${owned('donor')}) OR v.record_id IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND owned=1)) AND NOT EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.job_id=? AND r.kind='customValue' AND r.native_id=v.record_id AND json_extract(r.snapshot,'$.field_key')=v.field_key))`,'MOVE_IN_USED','Custom values were added after this move-in. Nothing was undone.',id,id,id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_job_gifts WHERE job_id<>? AND gift_id IN (${owned('gift')}))`,'MOVE_IN_USED','A later move-in counts gifts from this one. Undo that move-in first.',id,id))
  // This transaction-local marker authorizes only exact snapshot-owned consent
  // deletions in the migration's append-only exception. Failed guards roll it back.
  writes.push(sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.solicitationUndoInProgress',json('true')) WHERE id=?",id))
  writes.push(sql(`DELETE FROM cf_solicitation_history WHERE donor_id IN (${owned('solicitation')})`,id))
- writes.push(...customImportUndoWrites(id))
+ writes.push(...historicalAskUndoWrites(id),...customImportUndoWrites(id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source)||result.job.report.sourceCoverage?.provider==='Blackbaud SKY')writes.push(...spreadsheetDefinitionUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))

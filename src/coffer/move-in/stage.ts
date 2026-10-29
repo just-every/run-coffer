@@ -65,7 +65,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   part({ softCredits: chunk, gifts: [...credited.values()], pledges: used, installments: installmentsOf(ids) }, [...chunk.map(s => s.donorExternalId), ...[...credited.values()].map(g => g.donorExternalId), ...used.map(p => p.donorExternalId)])
  }
  for (const chunk of chunks(parsed.opportunities??[])) part({opportunities:chunk},chunk.map(o=>o.donorExternalId))
- for(const chunk of chunks(parsed.tasks??[])){const opportunities=(parsed.opportunities??[]).filter(o=>chunk.some(t=>t.opportunityExternalId===o.externalId));part({tasks:chunk,opportunities},[...chunk.map(t=>t.donorExternalId),...opportunities.map(o=>o.donorExternalId)])}
  for (const chunk of chunks(parsed.notes)) part({ notes: chunk }, chunk.map(n => n.donorExternalId))
+ for(const chunk of chunks(parsed.tasks??[])){const opportunities=(parsed.opportunities??[]).filter(o=>chunk.some(t=>t.opportunityExternalId===o.externalId)),notes=parsed.notes.filter(n=>chunk.some(t=>t.interactionExternalId===n.externalId));part({tasks:chunk,opportunities,notes},[...chunk.map(t=>t.donorExternalId),...opportunities.map(o=>o.donorExternalId)])}
  return parts
 }
