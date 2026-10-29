@@ -4,6 +4,7 @@
 import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { contractPageHtml } from '../base/contract-page'
+import { runPricing } from '../base/run-pricing'
 import { runPageHtml, siteNotFoundHtml, type RunData, type SiteBuild, type SiteContext } from '../base/run-site'
 import type { EditionIdentity } from '../base/identity'
 import { identity } from '../identity'
@@ -23,7 +24,7 @@ const THEME = '/site/theme.css'
 const siteIdentity: EditionIdentity = { ...identity, theme: THEME, fonts: undefined, band: '/site/run-band.webp' }
 
 export function sitePages({ styles, contract }: SiteContext): SiteBuild {
-  const data: RunData = run
+  const data: RunData = { ...run, pricing: runPricing }
   const document = (title: string, description: string, body: ReactElement, script = '') => '<!doctype html>' + renderToStaticMarkup(
     <html lang="en">
       <head>
