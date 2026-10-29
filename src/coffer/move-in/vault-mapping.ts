@@ -1,5 +1,5 @@
 import { digest, manager } from '../auth'
-import { all, commit, event, fail, guard, newId, object, one, sql, text, type Context, type Row } from '../db'
+import { all, commit, event, fail, guard, id as nativeId, newId, object, one, sql, text, type Context, type Row } from '../db'
 import { parseCsv } from './parse-input'
 import type { ExportFile, VaultMappingInput, VaultPlan, VaultRow } from './types'
 
@@ -125,7 +125,7 @@ export async function previewVault(c:Context,value:VaultMappingInput){
  if(Object.keys(donors).some(k=>!plans.some(p=>p.source_donor_id===k)))fail('VAULT_IDENTITY','Donor selections must correspond to the source plans.',400)
  const sourceIds=[...new Set(plans.map(p=>p.source_donor_id))],selections=new Map<string,{id:string;version:number;hash:string}>()
  for(const key of sourceIds){
-  const selection=fields(donors[key],['id','version'],'Reviewed donor identity'),id=ref(selection.id,'Donor'),version=Number(selection.version)
+  const selection=fields(donors[key],['id','version'],'Reviewed donor identity'),id=nativeId(selection.id,'Donor'),version=Number(selection.version)
   if(!Number.isSafeInteger(version)||version<1)fail('VAULT_IDENTITY','Choose an exact current donor version.',400)
   selections.set(key,{id,version,hash:await digest(JSON.stringify([source,sourceAccount,key]))})
  }
