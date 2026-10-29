@@ -1,3 +1,4 @@
+import { membershipResponse } from './memberships/http'
 import { reportExportsPage } from './ui/report-exports'
 import { builderDownload } from './report-builder/download'
 import { readBuilderReport } from './report-builder/read'
@@ -322,6 +323,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if (crmMoveIn) return crmMoveIn
   const formSettings = await givingFormResponse(request,c)
   if(formSettings)return formSettings
+  const membership=await membershipResponse(request,c,async()=>isApi?jsonBody(request):Object.fromEntries(await formBody(request)))
+  if(membership)return membership
   const staffPlans = await staffPlanResponse(request,c)
   if(staffPlans)return staffPlans
   const payments = await paymentsResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
@@ -479,6 +482,9 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const auctionErasure=await auctionErasureStatements(c,donorId,placeholder)
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)
  const givingErasure = [
+  {sql:'DELETE FROM cf_membership_reminders WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
+  {sql:'DELETE FROM cf_membership_payments WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
+  {sql:'DELETE FROM cf_memberships WHERE donor_id=?',params:[donorId]},
   {sql:'UPDATE cf_single_letters SET donor_id=? WHERE donor_id=?',params:[placeholder,donorId]},
   ...eventRegistrationErasureStatements(donorId,placeholder,[donor.email,...aliases.results.map(a=>a.email)].filter((value):value is string=>Boolean(value))),
   {sql:'DELETE FROM cf_saved_card_consents WHERE donor_id=?',params:[donorId]},

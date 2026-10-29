@@ -1,3 +1,4 @@
+import { holdMembershipPrice } from '../memberships/service'
 import { requireRole } from '../auth'
 import { all, choice, commit, date, event, fail, guard, one, sql, text, type Context, type Row } from '../db'
 import { amount } from '../money'
@@ -48,6 +49,7 @@ export async function changeStaffPlan(c:Context,id:string,input:Row){
  const reason=text(input.reason,'Reason for this change',1000)
  const evidenceParams=[sourceType==='interaction'?sourceId:'',own.donor_id,sourceType==='document'?sourceId:'',own.donor_id]
  if(!await one(c,`SELECT 1 WHERE ${sourceCondition}`,...evidenceParams))fail('EVIDENCE_CHANGED','Choose authorization evidence on this constituent.',409)
+ if(action==='amount')await holdMembershipPrice(c,id)
  const desired:Row=action==='amount'?{amountCents:amount(input,'amount','Plan amount')}:action==='date'?{nextBillingOn:date(input.nextBillingOn,'Next billing date')}:{},version=text(input.version,'Plan version',64)
  const payload=JSON.stringify({actorId:c.actor.id,action,sourceRef:reference,reason,version,...desired})
  const previous=await one(c,'SELECT * FROM cf_portal_changes WHERE id=?',requestId)
