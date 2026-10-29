@@ -144,6 +144,13 @@ async function largeCustomReviewJourney(){
   }
   const definitions=(await h.get('/api/coffer/custom-fields')).fields
   assert.deepEqual(JSON.parse(definitions.find(f=>f.key==='import_bloomerang_gift_209').choices),review.definitions.find(d=>d.id==='gift:209').choices,'Every unused source choice survives definition creation')
+  const beforeSkip=await readReview(h,id),waitingChoice=beforeSkip.values.find(v=>v.fieldId==='constituent:1'&&v.state==='waiting')
+  const skipped=await post(h,'custom-review',{id,version:beforeSkip.version,mappings:beforeSkip.mappings,resolutions:[{id:waitingChoice.id,action:'skip'}]})
+  assert.deepEqual(skipped.review.counts.find(c=>c.id==='constituent:1'),{id:'constituent:1',name:'Membership',defined:1,source:2,carried:1,waiting:0,skipped:1},'An explicit skip reconciles the invalid source choice without inventing a value')
+  assert.equal(skipped.review.values.find(v=>v.id===waitingChoice.id).original,'Unlisted','Skipped source values remain available in the review')
+  assert.equal((await post(h,'custom-apply',{id,version:skipped.review.version})).unchanged,true,'Skipping a waiting value never changes carried records')
+  const waitingPerson=people.find(p=>p.name==='Synthetic Waiting Values')
+  assert.ok(!(await h.get('/api/coffer/donors/'+waitingPerson.id)).customValues.some(v=>v.field_key==='import_bloomerang_constituent_1'),'The skipped source choice creates no native value')
   const applied=(await readReview(h,id)),saved=await archive(h,{maxParts:100})
   const savedReviewRows=saved.flatMap(part=>part.items??[]).filter(item=>item.table==='cf_move_in_custom_reviews')
   assert.ok(savedReviewRows.length>1,'The archive carries all bounded custom review rows')

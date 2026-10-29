@@ -92,7 +92,9 @@ API IDs. The deprecated v1 endpoints are not used.
 
 After the ordinary record import, **Review source custom fields** keeps the
 captured definitions, original values and explicit corrections together. Reviews
-up to 8 MB are stored in bounded rows rather than one database value. Reopening,
+up to 8 MB are stored in bounded rows rather than one database value. Definition
+and value writes also use bounded parameters; an individual serialized record
+above 1.8 MB is refused explicitly before any native value changes. Reopening,
 reusing a mapping and restoring an archive retain the exact capture; an incomplete
 or changed capture cannot be applied. Erasing any constituent involved in that
 capture removes all its durable review rows. Existing inline reviews remain
