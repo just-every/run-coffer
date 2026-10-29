@@ -93,7 +93,7 @@ export async function platformHistoryJourney(){
    assert.equal(av.subscriptions.length,0,'References never activate a replacement plan')
    await history(h,a.id,{as:member.cookie,status:403});await history(h,a.id,{as:admin.cookie,status:401})
    const journal=await h.get('/api/coffer/move-in/journal?id='+p.id);assert.equal(journal.job.check_report.matches,true,JSON.stringify(journal.job.check_report));assert.equal(JSON.stringify(journal).includes(key(7099)),false)
-   const saved=await archive(h)
+   const saved=await archive(h,{maxParts:100})
    await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await history(fresh,a.id)).plans,state.plans);assert.deepEqual((await history(fresh,a.id)).gifts,state.gifts);await post(fresh,'undo',{id:p.id});assert.equal((await h.get('/api/coffer/donors')).total,5);assert.equal((await fresh.get('/api/coffer/donors')).total,0);assert.equal((await history(fresh,a.id)).plans.length,0)})
    assert.equal((await apply(h,await post(h,'preview',f.input))).unchanged,true);assert.equal((await read(a.id)).gifts.length,1);assert.deepEqual((await history(h,a.id)).plans,state.plans)
    await post(h,'undo',{id:p.id});assert.equal((await h.get('/api/coffer/custom-fields')).fields.some(f=>f.key==='source_seating'),false,'Undo removes untouched source-created definitions');assert.equal((await h.get('/api/coffer/donors')).total,0);assert.equal((await history(h,a.id)).plans.length,0)
@@ -114,7 +114,7 @@ export async function platformHistoryJourney(){
    assert.equal((await history(h,target.id)).plans.length,state.plans.length);assert.equal((await history(h,a.id)).plans.length,state.plans.length,'Reviewed source aliases follow the merged person')
    await h.command('donor.erase',{donorId:target.id,confirm:'ERASE'})
    assert.equal((await history(h,target.id)).plans.length,0);assert.equal((await history(h,target.id)).gifts.length,0)
-   const erased=JSON.stringify(await archive(h));assert.ok(!erased.includes(key(7072))&&!erased.includes(key(7073)),'Erasure removes processor references from portable custody');
+   const erased=JSON.stringify(await archive(h,{maxParts:100}));assert.ok(!erased.includes(key(7072))&&!erased.includes(key(7073)),'Erasure removes processor references from portable custody');
    const replay=await post(h,'preview',f.input);assert.equal(replay.canApply,false);await post(h,'apply',{id:replay.id,fingerprint:replay.fingerprint},{status:409})
    assert.equal(JSON.stringify(f.plans),initialPlans,'Source plan remains unchanged')
   },source==='givebutter'?{outbound:f.outbound}:{})

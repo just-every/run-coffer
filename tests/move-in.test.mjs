@@ -268,7 +268,7 @@ test('DONOR-013: LGL and Bloomerang contact reports preserve three typed emails 
    const directory=process.env.COFFER_CONTACT_IMPORT_BROWSER;await mkdir(directory,{recursive:true})
    await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});for(const [name,path] of [['review','/app/move-in/crm/review?id='+preview.id],['journal','/app/move-in/crm/journal?id='+preview.id],['contacts','/app/donors/'+person.id]]){await page.goto(origin+path);if(name==='review'){await page.getByText('Donors · 1',{exact:true}).click();assert.match(await page.locator('body').innerText(),/email · work · primary/)}assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),name+' fits '+width);await page.screenshot({path:directory+'/DONOR-013-import-'+name+'-'+width+'.png',fullPage:true})}}await page.close()})
   }
-  const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).contactPoints,points)})
+  const saved=await archive(h,{maxParts:100});await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).contactPoints,points)})
   await post(h,'undo',{id:preview.id});assert.equal((await h.get('/api/coffer/donors')).total,0)
   const again=await post(h,'preview',input);await moveIn(h,again)
   const d=await h.get('/api/coffer/donors/'+person.id),point=d.contactPoints.find(p=>p.kind==='email'&&!p.is_primary)
@@ -324,7 +324,7 @@ test('DONOR-005: reviewed incumbent custom columns retain typed source values, r
    assert.deepEqual(values,{import_active:'false',import_conversation:'Books <and> music',import_gift_usd:'12345',import_interests:['Books','Music'],import_membership:'Board',import_note:'Preserve original',import_pledge_year:'2027',import_renewed:'2026-10-01',import_score:'12.5'})
    const giftValue=details.customValues.find(v=>v.field_key==='import_gift_usd');assert.equal(giftValue.record_id,details.gifts[0].id)
    const provenance=JSON.parse(giftValue.source);assert.equal(provenance.original,'123.45');assert.equal(provenance.sourceRecordId,'synthetic-coffer-1402');assert.equal(provenance.sourceDonorId,'synthetic-coffer-1401');assert.equal(provenance.source,source)
-   const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).customValues,details.customValues);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0)})
+   const saved=await archive(h,{maxParts:100});await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).customValues,details.customValues);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0)})
    await run(async h=>{
     await restore(h,saved)
    const definition=(await h.get('/api/coffer/custom-fields')).fields.find(f=>f.key==='import_note')

@@ -6911,7 +6911,7 @@
       "executable": false
     },
     "tests/move-in.test.mjs": {
-      "sha256": "2e0f6fe3fa2f25266825249122667f54de1abbbe717370d65200e902c64dccf3",
+      "sha256": "b2b4cc3bb58325191a4f10a3b22ef88f1e8a6e6c04c500292b851b1ddafe2ed0",
       "executable": false
     },
     "tests/names-browser.mjs": {
@@ -6971,7 +6971,7 @@
       "executable": false
     },
     "tests/platform-history-journey.mjs": {
-      "sha256": "2a017ea1240ad4d0420e699839eeebedd3630df4871c0c7a711fadd8ea4e9e94",
+      "sha256": "4d58949f039499606023078eede964422c78b95981330eb06e64f3df33905638",
       "executable": false
     },
     "tests/pledge-api-release-journey.mjs": {
@@ -7379,7 +7379,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "abb33cb24853389da530a43e87ac0e5550ccbb5e2ba75af8f887bd28e36f2408",
+      "sha256": "ba097c8412b230740e2f71605aeb89b5c21a6d1a0b9bf65717781d297f53ad6f",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

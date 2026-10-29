@@ -24,7 +24,8 @@
       "hosted": false,
       "commands": [
         "pnpm run typecheck",
-        "node --test --test-name-pattern=\"^MOVE-010: Little Green Light\" tests/move-in.test.mjs"
+        "node --test --test-name-pattern=\"^MOVE-010: Little Green Light\" tests/move-in.test.mjs",
+        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-005:' tests/move-in.test.mjs"
       ]
     },
     {
@@ -164,7 +165,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs",
+        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-013|MOVE-005):' tests/move-in.test.mjs",
         "node --test --test-name-pattern=\"^MOVE-010: Spreadsheet\" tests/move-in.test.mjs"
       ]
     },
