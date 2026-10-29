@@ -34,7 +34,11 @@ export function event(c: { now: string; actor: { id: string; name: string; role:
 
 /** One D1 transaction: the caller's current authority, then the writes and
  * their guards. A failed guard is re-read to report which promise broke. */
-export async function commit(c: { db: D1Database; authority: Authority; transactionPlan?: TransactionPlan }, statements: Stmt[]) {
+export async function commit(c: { db: D1Database; authority: Authority; actor?: {id:string;teamAccess?:Actor['teamAccess']}; transactionPlan?: TransactionPlan }, statements: Stmt[]) {
+ // Restricted reads may retain access audit and rate accounting only. This
+ // second boundary also protects services invoked without the HTTP dispatcher.
+ if(c.actor?.teamAccess?.readOnly&&statements.some(s=>!s.check&&!/^INSERT INTO cf_(access_events|api_rate_windows)\b/i.test(s.sql.trim())))
+  fail('READ_ONLY','Your Coffer access is read-only. Ask an owner or admin to change it.',403)
  if(c.transactionPlan){c.transactionPlan.statements.push(...statements);if(statements.length)c.transactionPlan.commits++;return}
  const batch = [guard(c.authority.sql, 'SESSION_CHANGED', 'Your access changed. Sign in again.', ...c.authority.params), ...statements, sql('DELETE FROM cf_assert')]
  try { await c.db.batch(batch.map(s => c.db.prepare(s.sql).bind(...s.params))) } catch (error) {

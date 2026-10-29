@@ -67,6 +67,7 @@ export async function calendarCallback(c:Context,url:URL) {
  await commit(c,[...checks,sql('DELETE FROM cf_calendar_oauth WHERE operator_id=?',c.actor.id)])
  if(url.searchParams.has('error'))fail('CALENDAR_DECLINED','Google Calendar access was not granted. You can connect again from Settings.',409)
  const app=await openGiving(env(c),pending.app_sealed),code=text(url.searchParams.get('code'),'Google authorization code',4000)
+ await commit(c,[])
  const result=await token({grant_type:'authorization_code',code,client_id:app.clientId,client_secret:app.clientSecret,redirect_uri:callback(c)})
  if(typeof result.refresh_token!=='string'||!result.refresh_token)fail('CALENDAR_REFRESH','Google did not grant ongoing read access. Reconnect and approve the calendar permission.',409)
  await commit(c,[guard("EXISTS(SELECT 1 FROM cf_giving_connections WHERE name='calendar-google-app' AND sealed=?)",'CALENDAR_CHANGED','The calendar application changed. Connect again.',pending.app_sealed),await put(c,connectionName(c),{refreshToken:result.refresh_token,appSealed:pending.app_sealed,operatorVersion:pending.operator_version}),event(c,'calendar.connected','operator',c.actor.id,null,{provider:'google',readOnly:true})])
@@ -90,6 +91,7 @@ export function calendarEvent(value:Row) {
 export async function calendarEvents(c:Context,pageToken?:string) {
  const auth=await access(c),url=new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events')
  url.search=new URLSearchParams({singleEvents:'true',orderBy:'startTime',maxResults:'50',timeMin:new Date(Date.parse(c.now)-30*86400000).toISOString(),timeMax:new Date(Date.parse(c.now)+90*86400000).toISOString(),fields:'items(id,summary,start,end,status),nextPageToken',...(pageToken?{pageToken:text(pageToken,'Calendar page',2000)}:{})}).toString()
+ await commit(c,auth.checks)
  const result=await provider(url.href,{headers:{authorization:'Bearer '+auth.token}})
  if(!Array.isArray(result.items))fail('CALENDAR_RESPONSE','Google did not return a calendar event list.',502)
  await commit(c,auth.checks)
@@ -98,6 +100,7 @@ export async function calendarEvents(c:Context,pageToken?:string) {
 async function logCalendarMeeting(c:Context,p:Row) {
  if(p.confirm!=='yes')fail('CONFIRMATION_REQUIRED','Confirm that this calendar meeting belongs on this donor record.',400)
  const donorId=id(p.donorId,'Donor'),eventId=text(p.eventId,'Calendar event',1000),auth=await access(c)
+ await commit(c,auth.checks)
  const raw=await provider('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+encodeURIComponent(eventId),{headers:{authorization:'Bearer '+auth.token}})
  const value=calendarEvent(raw)
  if(value.id!==eventId)fail('CALENDAR_EVENT','Google returned a different calendar event.',502)

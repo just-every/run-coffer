@@ -1,6 +1,7 @@
 import { requireRole } from './auth'
 import { all, commit, event, fail, guard, id, newId, one, sql, text, type Context, type Row } from './db'
 
+// Read-only restrictions also apply when another handler calls this service.
 const staff=(c:Context)=>requireRole(c.actor,['owner','admin','member'],'use record documents')
 const live=`d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)`
 const definitions={donor:{table:'cf_donors',column:'id'},gift:{table:'cf_gifts',column:'donor_id'},pledge:{table:'cf_pledges',column:'donor_id'},opportunity:{table:'cf_prospects',column:'donor_id'}} as const
@@ -45,6 +46,7 @@ export async function documentDownload(c:Context,documentId:string,preview=false
  staff(c)
  const d=await one(c,`SELECT f.* FROM cf_record_documents f JOIN cf_donors d ON d.id=f.donor_id WHERE f.id=? AND ${live}`,id(documentId,'Document'))
  if(!d)fail('NOT_FOUND','That document is unavailable.',404)
+ await commit(c,[])
  const object=await c.env!.FILES.get(d.object_key)
  if(!object)fail('DOCUMENT_MISSING','This document’s stored file is missing. Restore it from a complete backup.',409)
  const contentType=d.media_type==='text/plain'?'text/plain; charset=utf-8':d.media_type

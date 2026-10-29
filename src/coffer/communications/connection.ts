@@ -3,7 +3,7 @@ import { commit, event, fail, one, sql, type Context, type Row } from '../db'
 
 export type Provider = 'mango' | 'mailchimp'
 /** The saved connection. The credential stays server-side and is never rendered. */
-export type Connection = { provider: Provider; origin: string | null; credential: string; listId: string | null; listName: string | null; fromName: string | null; fromEmail: string | null; checkedAt: string | null; checkNote: string | null; mergeSelection?:ProfileField[]; mergeVersion?:number; checkFields?:()=>Promise<void> }
+export type Connection = { provider: Provider; origin: string | null; credential: string; listId: string | null; listName: string | null; fromName: string | null; fromEmail: string | null; checkedAt: string | null; checkNote: string | null; mergeSelection?:ProfileField[]; mergeVersion?:number; checkFields?:()=>Promise<void>; checkAuthority?:()=>Promise<void> }
 export const providerTitle = (p: Provider) => p === 'mango' ? 'Mango' : 'Mailchimp'
 
 const managed = (c: { env?: Row }) => Boolean(c.env?.RER_INSTALLATION_ID || c.env?.RER_MANAGEMENT_ORIGIN)

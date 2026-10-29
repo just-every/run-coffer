@@ -7,7 +7,7 @@ export type ApiScope = typeof API_SCOPES[number]
 const TOKEN = /^Bearer cfv1_[A-Za-z0-9_-]{43}$/
 const currentKey = `EXISTS(SELECT 1 FROM cf_api_keys k JOIN oa_operators o ON o.id=k.created_by
  WHERE k.id=? AND k.token_hash=? AND k.revoked_at IS NULL AND k.expires_at>MAX(?,unixepoch('now')*1000)
- AND o.status='active' AND o.version=k.creator_version AND o.role IN ('owner','admin'))`
+ AND o.status='active' AND o.version=k.creator_version AND o.role IN ('owner','admin') AND NOT EXISTS(SELECT 1 FROM cf_team_access t WHERE t.operator_id=o.id AND t.read_only=1))`
 
 /** No caller can mint another key with a key, including a full public key. */
 export async function apiKeyCommand(c:Context,command:string,p:Row):Promise<Row|undefined>{
@@ -34,7 +34,7 @@ export async function keyState(c:Context){
  requireRole(c.actor,['owner','admin'],'review public API keys')
  if(c.actor.apiKey)fail('SESSION_REQUIRED','Use your signed-in session to review public API keys.',403)
  const keys=await all(c,`SELECT k.id,k.label,k.scope,k.created_by,k.created_at,k.expires_at,k.revoked_at,
- CASE WHEN k.revoked_at IS NULL AND k.expires_at>MAX(?,unixepoch('now')*1000) AND o.version=k.creator_version AND o.status='active' AND o.role IN ('owner','admin') THEN 1 ELSE 0 END AS usable
+ CASE WHEN k.revoked_at IS NULL AND k.expires_at>MAX(?,unixepoch('now')*1000) AND o.version=k.creator_version AND o.status='active' AND o.role IN ('owner','admin') AND NOT EXISTS(SELECT 1 FROM cf_team_access t WHERE t.operator_id=o.id AND t.read_only=1) THEN 1 ELSE 0 END AS usable
  FROM cf_api_keys k JOIN oa_operators o ON o.id=k.created_by ORDER BY k.created_at DESC,k.id`,Date.now())
  await commit(c,[event(c,'api.keysRead','apiKey','keys',null,{},'cf_access_events')])
  return {keys}
@@ -45,7 +45,7 @@ export async function apiIdentity(request:Request,original:Bindings):Promise<{co
  if(header?.startsWith('Bearer cfv1_')){
   if(!TOKEN.test(header))fail('INVALID_API_KEY','Supply a valid public API key.',401)
   const hash=await digest(header.slice(7)),now=Date.now()
-  const key=await one<{id:string;label:string;scope:ApiScope;created_by:string;display_name:string;role:'owner'|'admin'}>({db:env.DB},`SELECT k.id,k.label,k.scope,k.created_by,o.display_name,o.role FROM cf_api_keys k JOIN oa_operators o ON o.id=k.created_by WHERE k.token_hash=? AND k.revoked_at IS NULL AND k.expires_at>MAX(?,unixepoch('now')*1000) AND o.status='active' AND o.version=k.creator_version AND o.role IN ('owner','admin')`,hash,now)
+  const key=await one<{id:string;label:string;scope:ApiScope;created_by:string;display_name:string;role:'owner'|'admin'}>({db:env.DB},`SELECT k.id,k.label,k.scope,k.created_by,o.display_name,o.role FROM cf_api_keys k JOIN oa_operators o ON o.id=k.created_by WHERE k.token_hash=? AND k.revoked_at IS NULL AND k.expires_at>MAX(?,unixepoch('now')*1000) AND o.status='active' AND o.version=k.creator_version AND o.role IN ('owner','admin') AND NOT EXISTS(SELECT 1 FROM cf_team_access t WHERE t.operator_id=o.id AND t.read_only=1)`,hash,now)
   if(!key)fail('INVALID_API_KEY','This public API key is unknown, expired or revoked.',401)
   const authority:Authority={sql:currentKey+' AND EXISTS(SELECT 1 FROM cf_api_keys WHERE id=? AND scope=?)',params:[key.id,hash,now,key.id,key.scope]}
   return {context:{db:env.DB,env,now:new Date().toISOString(),actor:{id:key.created_by,name:key.display_name+' (API: '+key.label+')',role:key.role,apiKey:{id:key.id,scope:key.scope}},authority},scope:key.scope,bearer:true,principal:'key:'+key.id}

@@ -145,6 +145,7 @@ async function remind(c:Context,p:Row):Promise<Row>{
    await c.db.prepare("UPDATE cf_pledge_installments SET reminder_status='skipped',recipient_email=NULL,recipient_contact_id=NULL,recipient_contact_version=NULL,reminder_note='The balance or recipient changed before submission. No email was sent.' WHERE id=? AND attempt_id=? AND reminder_status='sending'").bind(row.id,attempt).run();continue
   }
   let state='uncertain',messageId:string|null=null
+  await commit(c,[])
   try{const sent=await sendDonorMail(c.env!,{deliveryId:attempt,from:c.env!.MAIL_FROM!,to:[i.recipient_email],subject:i.reminder_subject,text:i.reminder_body,customArgs:{coffer_installment_id:i.id,coffer_attempt_id:attempt,coffer_template_version:String(i.reminder_template_version)}});messageId=sent.providerMessageId??null;state=messageId?'submitted':'uncertain'}
   catch(error){if(error instanceof DonorMailError&&['rejected','rate_limited'].includes(error.outcome))state='rejected'}
   const note=state==='submitted'?'Accepted by the mail provider; delivery is not confirmed.':state==='rejected'?'The mail provider did not accept this reminder. No automatic resend.':'Email submission could not be confirmed. Check the mail provider before contacting the donor. No automatic resend.'
