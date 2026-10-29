@@ -1,3 +1,4 @@
+import { planSourceTags } from './source-tags'
 import { volunteerActivity } from '../volunteering'
 import { settings } from '../settings'
 import { CofferError, today } from '../db'
@@ -30,13 +31,13 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {sourceHistory:'Source history',volunteering:'Volunteer activity',contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',recurringReference:'Source plan',platformGift:'Source transaction'}
+const label: Record<Kind,string> = {tagAssignment:'Source tag',sourceHistory:'Source history',volunteering:'Volunteer activity',contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',recurringReference:'Source plan',platformGift:'Source transaction'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
  const plan: Plan = {customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
- const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.volunteering??[]),...(parsed.sourceHistory??[])]
+ const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.volunteering??[]),...(parsed.sourceHistory??[]),...(parsed.sourceTags??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
  const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
@@ -67,7 +68,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const diagnostic = (message: string, location?: Located['location'], severity: 'error'|'warning' = 'error', code = 'MOVE_IN_MAPPING', column = 'Record ID') => plan.diagnostics.push({severity,code,message,column,...location})
  const add = async (kind: Kind, entity: Located & {externalId:string}, row: Row, match?: string, donorId: string | null = null, relatedId: string | null = null) => {
   // A donor's household is inferred from the whole file set, so it is not part of the donor's own details.
-  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,expectedNativeId:_expected,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string;expectedNativeId?:string}
+  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,expectedNativeId:_expected,expectedTagVersion:_tagVersion,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string;expectedNativeId?:string;expectedTagVersion?:number}
   const hash = await contentHash(payload), previous = existing.get(`${kind}:${key}`)
   if (previous) {
    // A later file (another year's gifts) finds the donors and households an earlier move-in brought, by the CRM's own ID.
@@ -129,6 +130,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   }
  }
  await planSolicitationImports(c,parsed,plan,existing,add,readSet)
+ await planSourceTags(c,parsed,plan,existing,add,readSet,preview)
  // Source headship is set only after all source identities have resolved. A
  // matched donor keeps their own membership; that never licenses moving them.
  for (const [key,householdId] of households) {

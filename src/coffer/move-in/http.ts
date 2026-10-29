@@ -31,7 +31,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
   if(action==='source-history'&&api) {
    const donorId=await canonicalDonor(c,url.searchParams.get('donorId')||'')
    const channels=await Promise.all(['email','mail'].map(channel=>audience(c,channel as 'email'|'mail',{givenSince:null,minTotalCents:0,donorIds:[donorId]})))
-   return json({history:await all(c,'SELECT * FROM cf_crm_source_history WHERE donor_id=? ORDER BY occurred_on,id',donorId),outreach:{email:channels[0],mail:channels[1]},plans:await all(c,"SELECT * FROM cf_recurring_source_references WHERE donor_id=?",donorId),gifts:await all(c,"SELECT p.*,g.amount_cents,g.received_on FROM cf_platform_gifts p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?",donorId)})
+   return json({tags:await all(c,'SELECT * FROM cf_move_in_tags WHERE donor_id=? ORDER BY tag,id',donorId),history:await all(c,'SELECT * FROM cf_crm_source_history WHERE donor_id=? ORDER BY occurred_on,id',donorId),outreach:{email:channels[0],mail:channels[1]},plans:await all(c,"SELECT * FROM cf_recurring_source_references WHERE donor_id=?",donorId),gifts:await all(c,"SELECT p.*,g.amount_cents,g.received_on FROM cf_platform_gifts p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?",donorId)})
   }
   if(action==='spreadsheet-mappings'&&api)return json(await service.spreadsheetMappings(c))
   if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c)),c.actor,200,'/app/more')
@@ -105,13 +105,14 @@ function solicitCodeLines(value:string):ParseInput['solicitCodes'] {
  if(!value.trim())return undefined
  const rules:NonNullable<ParseInput['solicitCodes']>={}
  for(const line of value.split(/\r?\n/).filter(s=>s.trim())) {
-  const split=line.indexOf('=');if(split<1)fail('SOLICITATION_MAPPING','Write each code as code = stop, ignore, no email/mail/phone/sms, or limit 1.',400)
-  const code=line.slice(0,split).trim(),answer=line.slice(split+1).trim().toLowerCase()
+  const split=line.indexOf('=');if(split<1)fail('SOLICITATION_MAPPING','Write each code as code = stop, ignore, tag Existing name, no followed by channel names, or limit 1.',400)
+  const code=line.slice(0,split).trim(),rawAnswer=line.slice(split+1).trim(),answer=rawAnswer.toLowerCase()
   if(Object.hasOwn(rules,code))fail('SOLICITATION_MAPPING','Each code must appear once.',400)
-  if(answer==='stop'||answer==='ignore')rules[code]={type:answer}
+  if(answer.startsWith('tag ')&&rawAnswer.slice(4).trim())rules[code]={type:'tag',tag:rawAnswer.slice(4).trim()}
+  else if(answer==='stop'||answer==='ignore')rules[code]={type:answer}
   else if(/^limit [1-9]\d*$/.test(answer))rules[code]={type:'limit',maxAsks:Number(answer.slice(6))}
   else if(/^no (email|mail|phone|sms)( (email|mail|phone|sms))*$/.test(answer))rules[code]={type:'channels',channels:answer.slice(3).split(' ') as ('email'|'mail'|'phone'|'sms')[]}
-  else fail('SOLICITATION_MAPPING','Use stop, ignore, no email/mail/phone/sms, or limit followed by the annual number.',400)
+  else fail('SOLICITATION_MAPPING','Use stop, ignore, tag followed by an existing tag name, no followed by channel names, or limit followed by the annual number.',400)
  }
  return rules
 }

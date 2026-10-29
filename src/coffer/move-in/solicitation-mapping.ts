@@ -31,6 +31,13 @@ export function sourceRestrictions(r:SourceRow,out:ParsedImport,input:ParseInput
   }
   if(typeof mapping!=='object'||mapping===null){r.error('SOLICITATION_MAPPING',`Invalid mapping for “${code}”.`);continue}
   if('withdraw' in mapping){withdrawals.add(mapping.withdraw);continue}
+  if(mapping.type==='tag'){
+   if(typeof mapping.tag!=='string'||!mapping.tag.trim()||mapping.tag.length>100){r.error('SOLICITATION_MAPPING',`Choose an existing target tag for “${code}”.`);continue}
+   const tag=mapping.tag.trim(),externalId=JSON.stringify(['tag',donorExternalId,tag]),prior=(out.sourceTags??=[]).find(t=>t.externalId===externalId)
+   if(prior){if(prior.sourceOn!==sourceOn)r.error('SOLICITATION_CONFLICT','Source tag dates disagree.');else if(!prior.codes.includes(code))prior.codes.push(code)}
+   else out.sourceTags.push({externalId,donorExternalId,tag,sourceOn,codes:[code],location:r.location})
+   continue
+  }
   if(!['stop','channels','limit','ignore'].includes(mapping.type)){r.error('SOLICITATION_MAPPING',`Invalid mapping for “${code}”.`);continue}
   if(mapping.type==='stop')stop=true
   if(mapping.type==='channels') {

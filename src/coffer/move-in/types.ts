@@ -39,12 +39,14 @@ export type ControlTotal = Located & {
  scope: 'all' | 'year' | 'fund' | 'donor'; key: string; giftCount: number | null; amountCents: number | null
  actual: Total; matches: boolean
 }
-export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; channels?: ('email'|'mail'|'phone'|'sms')[]; maxAsks?: number }
+export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore' | 'tag'; tag?:string; channels?: ('email'|'mail'|'phone'|'sms')[]; maxAsks?: number }
+export type ParsedSourceTag = Located & {expectedTagVersion?:number; externalId:string; donorExternalId:string; tag:string; sourceOn:string; codes:string[]}
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }
 export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:string; channel:'email'|'mail'|'phone'|'sms'; sourceOn:string; codes:string[]; status?:'granted'|'withdrawn'|'unknown' }
 export type ParsedRecurringReference = Located & {externalId:string;donorExternalId:string;amountCents:number;frequency:string;status:string;method:string;campaign:string;nextOn:string|null;customerReference:string|null;paymentMethodReference:string|null}
 export type SourceCoverage = { currency?:string; counts:Record<string,number>; unsupported:string[] }
 export type ParsedImport = { sourceCoverage?:SourceCoverage;
+ sourceTags?:ParsedSourceTag[];
  sourceHistory?:ParsedSourceHistory[];
  volunteering?:ParsedVolunteering[];
  recurringReferences?:ParsedRecurringReference[];

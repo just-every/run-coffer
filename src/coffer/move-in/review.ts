@@ -26,7 +26,7 @@ export function leftOut(parsed: ParsedImport) {
  return [...columns.values()].sort((a, b) => b.values - a.values || a.column.localeCompare(b.column))
 }
 
-const sample = (p: ParsedImport) => Object.fromEntries((['sourceHistory', 'recurringReferences', 'solicitations', 'channelWithdrawals', 'donors', 'households', 'gifts', 'relationships', 'softCredits', 'pledges', 'installments', 'notes'] as const).map(k => [k, ((p[k]??[]) as unknown[]).slice(0, 20)]))
+const sample = (p: ParsedImport) => Object.fromEntries((['sourceTags', 'sourceHistory', 'recurringReferences', 'solicitations', 'channelWithdrawals', 'donors', 'households', 'gifts', 'relationships', 'softCredits', 'pledges', 'installments', 'notes'] as const).map(k => [k, ((p[k]??[]) as unknown[]).slice(0, 20)]))
 
 /** Errors first, then warnings, each in file and row order. */
 export function ordered(diagnostics: Diagnostic[]) {
@@ -90,6 +90,7 @@ export async function reviewed(c: Context, id: string) {
 }
 
 export const reportOf = (parsed: ParsedImport, review: { rows: Difference[]; canApply: boolean; needsAcceptance: boolean; counts: Row; parts: number }) => ({
+ ...((parsed.sourceTags??[]).length?{sourceTagCounts:Object.fromEntries([...new Set(parsed.sourceTags!.map(t=>t.tag))].map(tag=>[tag,parsed.sourceTags!.filter(t=>t.tag===tag).length]))}:{}),
  ...((parsed.sourceHistory??[]).length?{sourceHistoryCounts:Object.fromEntries(['membership','mailing'].map(kind=>[kind,parsed.sourceHistory!.filter(h=>h.kind===kind).length]))}:{}),
  ...((parsed.volunteering??[]).length?{volunteerTotals:volunteerTotals(parsed.volunteering!)}:{}), sourceCoverage:parsed.sourceCoverage, solicitCodes: parsed.solicitCodes, restrictionSource: { donorIds:[...new Set([...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn')].map(r=>r.donorExternalId))], solicitationIds:(parsed.solicitations??[]).map(r=>r.donorExternalId), withdrawals:(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').map(r=>({donorExternalId:r.donorExternalId,channel:r.channel})) },
  counts: review.counts, reconciliation: compact(review.rows), files: parsed.files, unmapped: parsed.unmapped.filter(u => u.value).length, leftOut: leftOut(parsed),

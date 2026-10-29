@@ -26,7 +26,7 @@ function confirmedNeonCurrency(job:Row) {
 }
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
-const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...((p.sourceHistory??[]).length?{sourceHistory:p.sourceHistory!.length}:{}),...((p.volunteering??[]).length?{volunteering:p.volunteering!.length}:{}),...((['givebutter','zeffy'].includes(p.source)||p.source==='lgl'&&(p.recurringReferences??[]).length)?{recurringReferences:(p.recurringReferences??[]).length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...((['spreadsheet','givebutter','zeffy','neon'].includes(p.source)||p.source==='lgl'&&(p.channelWithdrawals??[]).length)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
+const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...((p.sourceTags??[]).length?{sourceTags:p.sourceTags!.length}:{}),...((p.sourceHistory??[]).length?{sourceHistory:p.sourceHistory!.length}:{}),...((p.volunteering??[]).length?{volunteering:p.volunteering!.length}:{}),...((['givebutter','zeffy'].includes(p.source)||p.source==='lgl'&&(p.recurringReferences??[]).length)?{recurringReferences:(p.recurringReferences??[]).length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...((['spreadsheet','givebutter','zeffy','neon'].includes(p.source)||p.source==='lgl'&&(p.channelWithdrawals??[]).length)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
 
 export async function spreadsheetMappings(c:Context) {
  authorize(c)
@@ -138,6 +138,7 @@ export async function continueApply(c: Context,id:string) {
    const histories=await Promise.all(part.sourceHistory!.map(h=>nativeId(job.source,'sourceHistory',h.externalId)))
    writes.push(sql('INSERT OR IGNORE INTO cf_move_in_job_history(job_id,history_id) SELECT ?,value FROM json_each(?)',id,JSON.stringify(histories)))
   }
+  if((part.sourceTags??[]).length){const tags=await Promise.all(part.sourceTags!.map(t=>nativeId(job.source,'tagAssignment',t.externalId)));writes.push(sql('INSERT OR IGNORE INTO cf_move_in_job_tags(job_id,tag_id) SELECT ?,value FROM json_each(?)',id,JSON.stringify(tags)))}
   writes.push(sql('UPDATE cf_move_in_parts SET applied_at=? WHERE job_id=? AND position=?',c.now,id,next.position),sql('UPDATE cf_move_in_jobs SET applied_parts=applied_parts+1 WHERE id=?',id))
   writes.push(sql('DELETE FROM cf_identity_ingest'))
   try {await commit(c,writes)} catch(error) {
@@ -166,6 +167,10 @@ async function totalsCheck(c: Context,job: Row) {
  const rows=compare({sourceTotals:report.sourceTotals,controlTotals:report.controlTotals??[]} as ParsedImport,destination)
  rows.push(...await restrictionReconciliation(c,job.source,report))
  rows.push(...await volunteerReconciliation(c,job,report))
+ if(report.sourceTagCounts){
+  const actual=await all(c,'SELECT t.tag,SUM(EXISTS(SELECT 1 FROM cf_donor_tags n WHERE n.donor_id=t.donor_id AND n.tag=t.tag)) AS n FROM cf_move_in_job_tags j JOIN cf_move_in_tags t ON t.id=j.tag_id WHERE j.job_id=? GROUP BY t.tag',job.id)
+  for(const [tag,count] of Object.entries(report.sourceTagCounts)){const n=actual.find(r=>r.tag===tag)?.n??0;rows.push({scope:'tags',key:tag,sourceCount:Number(count),cofferCount:n,sourceCents:null,cofferCents:0,matches:Number(count)===n})}
+ }
  if(report.sourceHistoryCounts){
   const actual=await all(c,'SELECT h.kind,count(*) AS n FROM cf_move_in_job_history r JOIN cf_crm_source_history h ON h.id=r.history_id WHERE r.job_id=? GROUP BY h.kind',job.id)
   for(const kind of ['membership','mailing']){const expected=report.sourceHistoryCounts[kind]??0,n=actual.find(r=>r.kind===kind)?.n??0;rows.push({scope:'source history',key:kind,sourceCount:expected,cofferCount:n,sourceCents:null,cofferCents:0,matches:expected===n})}
@@ -218,8 +223,10 @@ export async function undo(c: Context,id:string) {
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>${custodySnapshot(kind)}))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
  writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id))
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_tags t JOIN cf_move_in_records r ON r.native_id=t.id AND r.kind='tagAssignment' WHERE r.job_id=? AND t.owns_assignment=1 AND (t.native_changed=1 OR NOT EXISTS(SELECT 1 FROM cf_donor_tags n WHERE n.donor_id=t.donor_id AND n.tag=t.tag AND n.created_at=t.imported_at AND n.created_by=t.imported_by) OR EXISTS(SELECT 1 FROM cf_move_in_tags o WHERE o.id<>t.id AND o.donor_id=t.donor_id AND o.tag=t.tag)))`,'MOVE_IN_USED','A native tag changed or another source uses it. Nothing was undone.',id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_donor_tags t WHERE t.donor_id IN (${owned('donor')}) AND NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_move_in_tags m ON m.id=r.native_id WHERE r.job_id=? AND r.kind='tagAssignment' AND m.donor_id=t.donor_id AND m.tag=t.tag))`,'MOVE_IN_USED','A later native tag uses this donor. Nothing was undone.',id,id))
  if(result.job.source==='spreadsheet')writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r JOIN cf_address_checks a ON a.donor_id=r.native_id WHERE r.job_id=? AND r.kind='donor' AND r.owned=1 AND (a.version<>1 OR a.source<>'smarty' OR a.checked_at<>json_extract(r.snapshot,'$.created_at')))`,'MOVE_IN_USED','An imported address was checked again. Nothing was undone.',id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_contact_points p WHERE p.donor_id IN (${owned('donor')}) AND (p.version<>1 OR p.is_primary<>1) AND p.id NOT IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='contact' AND owned=1))`,'MOVE_IN_USED','A contact point was edited or added after this import. Nothing was undone.',id,id))
  const dependencies:[string,string,Kind,Kind|null,string][]=[
@@ -227,7 +234,7 @@ export async function undo(c: Context,id:string) {
   ['cf_auction_rows','donor_id','donor',null,'id'],['cf_auction_rows','gift_id','gift',null,'id'],
   ['cf_development_report_donors','donor_id','donor',null,'report_id'],
   ['cf_hygiene_evidence','donor_id','donor',null,'id'],['cf_hygiene_proposals','donor_id','donor',null,'id'],['cf_hygiene_proposals','related_donor_id','donor',null,'id'],
-  ['cf_donor_tags','donor_id','donor',null,'donor_id'],['cf_gift_tributes','notification_donor_id','donor',null,'gift_id'],
+  ['cf_move_in_tags','donor_id','donor','tagAssignment','id'],['cf_gift_tributes','notification_donor_id','donor',null,'gift_id'],
   ['cf_acks','household_id','household',null,'id'],
   ['cf_gifts','donor_id','donor','gift','id'],['cf_pledges','donor_id','donor','pledge','id'],['cf_relationships','donor_id','donor','relationship','id'],['cf_relationships','related_donor_id','donor','relationship','id'],
   ['cf_soft_credits','donor_id','donor','softCredit','id'],['cf_soft_credits','gift_id','gift','softCredit','id'],['cf_donor_notes','donor_id','donor','note','id'],['cf_interactions','donor_id','donor','interaction','id'],
@@ -260,6 +267,8 @@ export async function undo(c: Context,id:string) {
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_job_history WHERE job_id<>? AND history_id IN (${owned('sourceHistory')}))`,'MOVE_IN_USED','A later move-in uses this source history. Undo that move-in first.',id,id))
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_job_tags WHERE job_id<>? AND tag_id IN (${owned('tagAssignment')}))`,'MOVE_IN_USED','A later move-in uses these source tags. Undo that move-in first.',id,id))
+ writes.push(sql('DELETE FROM cf_move_in_job_tags WHERE job_id=?',id))
  writes.push(sql('DELETE FROM cf_move_in_job_history WHERE job_id=?',id))
  writes.push(sql('DELETE FROM cf_move_in_job_volunteering WHERE job_id=?',id))
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
@@ -281,7 +290,7 @@ function contents(part: ParsedImport) {
  const rows=part[main]!.map(x=>x.location), files=[...new Set(rows.map(l=>l.file))]
  return `${part[main]!.length} ${kindName[main]} from ${files.map(f=>{const r=rows.filter(l=>l.file===f).map(l=>l.row);return `${f} rows ${Math.min(...r)}–${Math.max(...r)}`}).join(', ')}`
 }
-const label=(kind: Kind)=>({sourceHistory:'source history',volunteering:'volunteer activity',contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',softCreditAcknowledgment:'soft-credit acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation',platformGift:'source transaction',recurringReference:'recurring source reference'} as Record<Kind,string>)[kind]
+const label=(kind: Kind)=>({tagAssignment:'source tag',sourceHistory:'source history',volunteering:'volunteer activity',contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',softCreditAcknowledgment:'soft-credit acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation',platformGift:'source transaction',recurringReference:'recurring source reference'} as Record<Kind,string>)[kind]
 /** Unique indexes that commit() reports by name. */
 const UNIQUE_CODES: Record<string,[string,string[]]> = {DUPLICATE_EMAIL:['cf_donors',['email']],DUPLICATE_REFERENCE:['cf_gifts',['source','reference']],DUPLICATE_HOUSEHOLD:['cf_households',['name']]}
 /** A database refusal names its part, the rows behind it and the reason, never only "the operation failed". */
