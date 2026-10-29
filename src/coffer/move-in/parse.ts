@@ -16,7 +16,7 @@ export type { ParsedImport, ParseInput } from './types'
 /** A bounded, pure preview: malformed rows remain visible as structured diagnostics. */
 export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  const out: ParsedImport = { source: input.source, solicitations: [], channelWithdrawals: [], solicitCodes: input.solicitCodes, donors: [], gifts: [], households: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [] }
- if (!['lgl', 'bloomerang', 're-nxt', 'spreadsheet', 'givebutter', 'zeffy'].includes(input.source)) {
+ if (!['lgl', 'bloomerang', 're-nxt', 'spreadsheet', 'givebutter', 'zeffy', 'neon'].includes(input.source)) {
   out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose an available CRM or spreadsheet.' }); return out
  }
  if(input.source==='spreadsheet')out.spreadsheet=reviewedSpreadsheet(input.spreadsheet,out)

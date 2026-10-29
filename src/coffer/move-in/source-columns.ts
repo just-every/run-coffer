@@ -41,6 +41,7 @@ const common: Record<string, string[]> = {
  controlYear: ['Year', 'Calendar Year'],
 }
 const vendor: Record<ImportSource, Record<string, string[]>> = {
+ neon: {donorId:['Constituent ID'],giftId:['Gift ID'],communicationRestrictions:['Communication Restrictions'],tributeHonoree:['Tribute Honoree'],tributeType:['Tribute Type'],tributeGroup:['Tribute Group'],tributeNotifiedName:['Tribute Recipient Name'],tributeNotifiedEmail:['Tribute Recipient Email'],tributeNotifiedAddress:['Tribute Recipient Address'],emailPreference:['Email Preference'],mailPreference:['Mail Preference'],smsPreference:['SMS Preference'],phonePreference:['Phone Preference'],preferenceDate:['Preference Date']},
  givebutter: {}, zeffy: {},
  spreadsheet: {donorId:['Constituent ID'],giftId:['Gift ID'],communicationRestrictions:['Communication Restrictions'],tributeHonoree:['Tribute Honoree'],tributeType:['Tribute Type'],tributeGroup:['Tribute Group'],tributeNotifiedName:['Tribute Recipient Name'],tributeNotifiedEmail:['Tribute Recipient Email'],tributeNotifiedAddress:['Tribute Recipient Address'],emailPreference:['Email Preference'],mailPreference:['Mail Preference'],smsPreference:['SMS Preference'],phonePreference:['Phone Preference'],preferenceDate:['Preference Date']},
  lgl: {

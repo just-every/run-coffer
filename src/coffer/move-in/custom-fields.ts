@@ -102,7 +102,7 @@ export function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:
  if (!plan.customWrites.length) return writes
  const fields = plan.customWrites.filter(w=>w.createField).map(w=>w.field)
  if (fields.length) writes.push(sql(`INSERT INTO cf_custom_fields(key,label,kind,type,entry,choices,version,created_at) SELECT json_extract(value,'$.key'),json_extract(value,'$.label'),json_extract(value,'$.kind'),json_extract(value,'$.type'),json_extract(value,'$.entry'),json_extract(value,'$.choices'),1,? FROM json_each(?)`,c.now,JSON.stringify(fields)))
- if(['spreadsheet','givebutter','zeffy'].includes(source))writes.push(...spreadsheetDefinitionWrites(fields,jobId))
+ if(['spreadsheet','givebutter','zeffy','neon'].includes(source))writes.push(...spreadsheetDefinitionWrites(fields,jobId))
  const values = plan.customWrites.map(w=>{
   const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDonorId:w.donorExternalId,original:w.imported.original}
   const row = {field_key:w.field.key,record_id:w.recordId,donor_id:w.donorId,value:w.imported.value,version:1,source:JSON.stringify(provenance),updated_at:c.now}
