@@ -25,7 +25,7 @@ function fixture(){
  const closedTasks=[{...task,Id:602,Status:'Complete',DueDate:'2024-09-04',CompletedDate:'2024-09-04T12:30:00',InteractionId:501,Subject:'Completed source acknowledgment',Note:'Keep the completed task note'},{...task,Id:603,AccountId:107,Status:'Archived',DueDate:'2026-09-01',CompletedDate:'2026-09-02T14:00:00',Subject:'Archived source follow-up'}]
  const recurringPlan={Id:801,AccountId:104,EntryType:'RecurringDonation',Amount:20,CampaignName:'Autumn books'}
  gifts.push(gift(207,104,{EntryType:'RecurringDonationPayment',Amount:20,AcknowledgementStatus:'DoNotAcknowledge'}))
- const history={recurringPlans:{801:{frequency:'monthly',status:'active',method:'card',campaign:'Autumn books',nextOn:'2026-11-03',customerReference:key(8861),paymentMethodReference:key(8862)}},transactions:{201:{tributeGroup:key(8840),notifiedName:'River Reed',notifiedEmail:email(8841),notifiedAddress:'1 Memorial Lane'}},constituents:{107:{statusReason:'Source pause'},108:{deceasedOn:'2026-08-01'},101:{preferences:{email:'yes',mail:'yes',phone:'yes',sms:'unknown'},preferenceOn:'2026-09-01',restrictions:'Do Not Solicit',restrictionOn:'2026-09-01'},102:{preferences:{email:'yes',mail:'no',phone:'yes',sms:'unknown'},preferenceOn:'2026-09-01',restrictions:'Do Not Mail',restrictionOn:'2026-09-01'},103:{preferences:{email:'yes',mail:'yes',phone:'no',sms:'unknown'},preferenceOn:'2026-09-01',restrictions:'Do Not Call',restrictionOn:'2026-09-01'}},households:[{id:key(8801),name:'Source Reed family',members:[101,102],headId:101,addressee:'The original Reed household',informal:'Ava and Bee',formal:'The Reed family'},{id:key(8802),name:'Source Chen family',members:[103,104]}],relationships:[{id:key(8803),accountId:101,relatedAccountId:102,type:'spouse'}],acknowledgments:{201:{'Acknowledgment Date':'2024-09-04','Acknowledgment Method':'email','Acknowledgment Interaction ID':'501'},204:{'Acknowledgment Date':'2026-09-04','Acknowledgment Method':'letter'}},softCredits:{701:{'Acknowledgment Date':'2024-09-05','Acknowledgment Method':'phone call','Acknowledgment Interaction ID':'502'}}}
+ const history={recurringPlans:{801:{frequency:'monthly',status:'active',method:'card',campaign:'Autumn books',nextOn:'2026-11-03',customerReference:key(8861),paymentMethodReference:key(8862)}},transactions:{201:{tributeGroup:key(8840),notifiedName:'River Reed',notifiedEmail:email(8841),notifiedAddress:'1 Memorial Lane'}},constituents:{107:{statusReason:'Source pause'},108:{deceasedOn:'2026-08-01'},101:{preferences:{email:'yes',mail:'yes',phone:'yes',sms:'unknown'},preferenceOn:'2026-09-01',restrictions:'Do Not Solicit',restrictionOn:'2026-09-01'},102:{preferenceOn:'2026-09-01',restrictions:'Do Not Mail',restrictionOn:'2026-09-01'},103:{preferences:{email:'yes',mail:'yes',sms:'unknown'},preferenceOn:'2026-09-01',restrictions:'Do Not Call',restrictionOn:'2026-09-01'}},households:[{id:key(8801),name:'Source Reed family',members:[101,102],headId:101,addressee:'The original Reed household',informal:'Ava and Bee',formal:'The Reed family'},{id:key(8802),name:'Source Chen family',members:[103,104]}],relationships:[{id:key(8803),accountId:101,relatedAccountId:102,type:'spouse'}],acknowledgments:{201:{'Acknowledgment Date':'2024-09-04','Acknowledgment Method':'email','Acknowledgment Interaction ID':'501'},204:{'Acknowledgment Date':'2026-09-04','Acknowledgment Method':'letter'}},softCredits:{701:{'Acknowledgment Date':'2024-09-05','Acknowledgment Method':'phone call','Acknowledgment Interaction ID':'502'}}}
  history.transactions[207]={recurringPlanId:801}
  const calls=[],state={reject:false,brokenPages:false,repeat:false,unknown:false}
  const outbound=async request=>{
@@ -67,6 +67,15 @@ export async function bloomerangJourney(){
   f.constituents[0].CustomFields={'Source choice':['Board']};await post(h,'preview',f.input,{status:400});f.constituents[0].CustomFields={}
   const bad=structuredClone(f.history);bad.softCredits[701]['Acknowledgment Interaction ID']='501'
   const refused=await post(h,'preview',{...f.input,files:[historyFile(bad)]});assert.equal(refused.canApply,false);assert.ok(refused.diagnostics.some(d=>d.code==='ACKNOWLEDGMENT_LINK'));await post(h,'apply',{id:refused.id,fingerprint:refused.fingerprint},{status:409})
+  for(const [id,channel] of [[102,'mail'],[103,'phone']]){
+   const conflicting=structuredClone(f.history)
+   conflicting.constituents[id].preferences={...conflicting.constituents[id].preferences,[channel]:'yes'}
+   const conflict=await post(h,'preview',{...f.input,files:[historyFile(conflicting)]})
+   assert.equal(conflict.canApply,false,'An explicit permission cannot override a source withdrawal')
+   assert.ok(conflict.diagnostics.some(d=>d.code==='CHANNEL_PREFERENCE'))
+   await post(h,'apply',{id:conflict.id,fingerprint:conflict.fingerprint},{status:409})
+   assert.equal((await h.get('/api/coffer/donors')).total,0)
+  }
   let preview=await post(h,'preview',f.input)
   assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped));assert.equal(preview.sourceTotals.amountCents,227000);assert.equal(preview.sourceTotals.giftCount,7)
   assert.equal(preview.counts.tasks,3);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,1);assert.equal(preview.counts.softCredits,1);assert.equal(preview.counts.pledges,1)
@@ -143,6 +152,11 @@ export async function bloomerangJourney(){
   assert.equal(ava.pledges[0].amount_cents,100000);assert.equal(ava.pledges[0].paid_cents,10000)
   assert.equal((await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed').totalCents,100000);assert.equal(ava.giftDepth.tributes[0].amount_permission,0)
   assert.equal(ava.solicitation.type,'stop');assert.equal(ava.solicitation.source,'import');assert.equal(ava.solicitation.source_ref,'bloomerang:10101');assert.equal(ava.solicitation.source_on,'2026-09-01');assert.ok(ava.solicitation.recorded_at);assert.equal(bee.consents.find(c=>c.channel==='email').status,'withdrawn');assert.equal(bee.consents.find(c=>c.channel==='mail').status,'withdrawn');assert.equal(cleo.consents.find(c=>c.channel==='phone').status,'withdrawn')
+  assert.equal(bee.consents.find(c=>c.channel==='phone').status,'unknown','An unrelated absent preference stays unknown')
+  for(const [donor,channel] of [[bee,'mail'],[cleo,'phone']]){
+   const withdrawal=donor.consents.find(c=>c.channel===channel)
+   assert.equal(withdrawal.method,'bloomerang export');assert.equal(withdrawal.captured_on,'2026-09-01');assert.ok(withdrawal.recorded_at)
+  }
   const check=(await h.get('/api/coffer/move-in/journal?id='+preview.id)).job.check_report;assert.equal(check.matches,true)
   assert.ok(allGifts.find(g=>g.reference==='bloomerang:207 / '+key(207)).note.includes('Bloomerang source plan 801'))
   const saved=await archive(h);assert.ok(!JSON.stringify(saved).includes(f.input.bloomerang.apiKey))

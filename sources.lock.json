@@ -3339,7 +3339,7 @@
       "executable": false
     },
     "src/coffer/move-in/bloomerang.ts": {
-      "sha256": "94361b7bef6e13dbd077d20242e60e930cbe81f123fb337236b6391c5c92e6e5",
+      "sha256": "a89967a2fe2b25d295f50309990a61cdc0eaa0f5ca6ad11697fcebd9666c7bf3",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -3415,7 +3415,7 @@
       "executable": false
     },
     "src/coffer/move-in/solicitation-mapping.ts": {
-      "sha256": "6a02034e536aa0d18a9953a0992ebd1fd35f378de734d8353c3f7442b3ad596a",
+      "sha256": "c532f9ecf489950bc09dd5c48d3068b8fd51fd260abfec8d38a577869f801e80",
       "executable": false
     },
     "src/coffer/move-in/source-columns.ts": {
@@ -6351,7 +6351,7 @@
       "executable": false
     },
     "tests/bloomerang-journey.mjs": {
-      "sha256": "a306883a067f8cfb294354eddfbeb7245e8f749596686617532d6527911853c9",
+      "sha256": "0014cea14d47640ade574c5c8f6141b61258e711f5fd627fe0ba3dbb08e4d336",
       "executable": false
     },
     "tests/browser-journey.mjs": {
@@ -7359,7 +7359,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "2c799a56b67b0c40eaf0f99b5917f8dbe9ea4410b3d6dff1a7c3fe0d890c3dce",
+      "sha256": "5840cdf985c06f2d8ee84f8099090c5cea8fcd32a7a2935d3064a21230ca4d66",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
