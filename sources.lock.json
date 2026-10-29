@@ -563,7 +563,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "452c28f403048d3575a80ad2789bbb007e768770793ec923c3341978416e350a",
+      "sha256": "0cadda01224c86d8c198b5acc07b79f2aa480edef72d86d9da75085d291cbcb2",
       "executable": false
     },
     "CHANGELOG.md": {
@@ -2031,7 +2031,7 @@
       "executable": false
     },
     "scripts/edition-authoring/adopt.mjs": {
-      "sha256": "afe8568e3c7e9cb307e4924a2cd815b2543b75e1af901b7ecb6c65a51c9512a0",
+      "sha256": "c9cf80207b5f14164ce18cce63e08e0fcbb254d93b66263911ba74cdd4079c8f",
       "executable": false
     },
     "scripts/edition-authoring/archive-source.mjs": {
