@@ -112,6 +112,47 @@ function rowChecks(rows:VaultRow[]){
   guard("NOT EXISTS(SELECT 1 FROM json_each(?) r JOIN cf_vault_erased_sources e ON e.identity_hash=json_extract(r.value,'$.hash'))",'VAULT_ERASED','An erased source identity cannot be imported again.',identities),
  ]
 }
+type ReferenceOwner={hash:string;id:string}
+type ReviewAccounts={source:string;source_account:string;destination_account:string}
+async function referenceOwners(review:ReviewAccounts,rows:VaultRow[]):Promise<ReferenceOwner[]>{
+ const claims=new Map<string,string>()
+ for(const row of rows){
+  const p=row.plan,keys=[
+   ['source',review.source,review.source_account,'plan',p.source_plan_id],
+   ['source',review.source,review.source_account,'customer',p.source_customer_id],
+   ['source',review.source,review.source_account,'payment',p.source_payment_id],
+  ]
+  // A conflicting file does not get to choose the first destination identity.
+  if(row.mapping&&row.category!=='conflicting')keys.push(
+   ['stripe',review.destination_account,'customer',row.mapping.new_customer_id],
+   ['stripe',review.destination_account,'payment',row.mapping.new_source_id],
+  )
+  for(const key of keys){
+   const hash=await digest(JSON.stringify(['vault-reference',...key])),prior=claims.get(hash)
+   if(prior&&prior!==row.donorId)fail('VAULT_IDENTITY','A plan, customer or payment reference identifies more than one reviewed donor.')
+   claims.set(hash,row.donorId)
+  }
+ }
+ return [...claims].map(([hash,id])=>({hash,id}))
+}
+async function referenceCustody(c:Context,review:ReviewAccounts,rows:VaultRow[]){
+ const claims=await referenceOwners(review,rows),byHash=new Map(claims.map(r=>[r.hash,r.id]))
+ // Include reviews created before reference-level custody was introduced.
+ // Their payloads are immutable; save and removal retain the same hashed claims.
+ const legacy=await all<Row & ReviewAccounts>(c,`SELECT r.payload,r.donor_id,r.category,v.source,v.source_account,v.destination_account
+  FROM cf_vault_rows r JOIN cf_vault_reviews v ON v.id=r.review_id
+  WHERE (v.source=? AND v.source_account=?) OR v.destination_account=?`,review.source,review.source_account,review.destination_account)
+ for(const prior of legacy){
+  const owners=await referenceOwners(prior,[{...JSON.parse(prior.payload),donorId:prior.donor_id,category:prior.category}])
+  if(owners.some(r=>byHash.has(r.hash)&&byHash.get(r.hash)!==r.id))fail('VAULT_IDENTITY','A plan, customer or payment reference belongs to another reviewed donor.')
+ }
+ const identities=JSON.stringify(claims)
+ return [
+  guard("NOT EXISTS(SELECT 1 FROM json_each(?) r JOIN cf_vault_identities i ON i.identity_hash=json_extract(r.value,'$.hash') WHERE i.donor_id<>json_extract(r.value,'$.id'))",'VAULT_IDENTITY','A plan, customer or payment reference belongs to another donor.',identities),
+  guard("NOT EXISTS(SELECT 1 FROM json_each(?) r JOIN cf_vault_erased_sources e ON e.identity_hash=json_extract(r.value,'$.hash'))",'VAULT_ERASED','Erased payment evidence cannot be assigned to another donor.',identities),
+  sql("INSERT OR IGNORE INTO cf_vault_identities SELECT json_extract(value,'$.hash'),json_extract(value,'$.id') FROM json_each(?)",identities),
+ ]
+}
 export async function previewVault(c:Context,value:VaultMappingInput){
  own(c)
  const input=object(value)
@@ -125,7 +166,9 @@ export async function previewVault(c:Context,value:VaultMappingInput){
  if(Object.keys(donors).some(k=>!plans.some(p=>p.source_donor_id===k)))fail('VAULT_IDENTITY','Donor selections must correspond to the source plans.',400)
  const sourceIds=[...new Set(plans.map(p=>p.source_donor_id))],selections=new Map<string,{id:string;version:number;hash:string}>()
  for(const key of sourceIds){
-  const selection=fields(donors[key],['id','version'],'Reviewed donor identity'),id=ref(selection.id,'Donor'),version=Number(selection.version)
+  // Native IDs are checked against current donor records below. A UUID's digit
+  // run is not payment account data and must not trip the upload-data filter.
+  const selection=fields(donors[key],['id','version'],'Reviewed donor identity'),id=text(selection.id,'Donor',100),version=Number(selection.version)
   if(!Number.isSafeInteger(version)||version<1)fail('VAULT_IDENTITY','Choose an exact current donor version.',400)
   selections.set(key,{id,version,hash:await digest(JSON.stringify([source,sourceAccount,key]))})
  }
@@ -155,11 +198,12 @@ export async function previewVault(c:Context,value:VaultMappingInput){
  // Extra file rows must be accounted for; never hide unrelated instruments.
  const unused=mappings.filter((m:Row)=>!plans.some(p=>p.source_customer_id===m.old_customer_id&&p.source_payment_id===m.old_source_id)).length
  if(unused)fail('VAULT_UNBOUND','Mapping files contain instruments with no reviewed source plan. Split the file or include their plans.',400)
+ const referenceChecks=await referenceCustody(c,{source,source_account:sourceAccount,destination_account:destinationAccount},rows)
  const fingerprint=await digest(JSON.stringify({source,sourceAccount,destinationAccount,rows})),prior=await one(c,'SELECT id,state FROM cf_vault_reviews WHERE fingerprint=?',fingerprint)
  if(prior){if(['erased','invalidated'].includes(prior.state))fail('VAULT_CHANGED','This review was invalidated. Review current source facts and identities.');return getVault(c,prior.id)}
  const id=newId()
  const stored=JSON.stringify(rows.map((r,position)=>({id:newId(),position,donorId:r.donorId,donorVersion:r.donorVersion,sourceIdentityHash:r.sourceIdentityHash,sourcePlanId:r.plan.source_plan_id,payload:JSON.stringify({plan:r.plan,mapping:r.mapping}),category:r.category,reason:r.reason})))
- await commit(c,[...rowChecks(rows),
+ await commit(c,[...rowChecks(rows),...referenceChecks,
   sql("INSERT INTO cf_vault_reviews(id,fingerprint,source,source_account,destination_account,state,created_at,created_by) VALUES(?,?,?,?,?,'reviewed',?,?)",id,fingerprint,source,sourceAccount,destinationAccount,c.now,c.actor.name),
   sql("INSERT OR IGNORE INTO cf_vault_identities SELECT json_extract(value,'$.sourceIdentityHash'),json_extract(value,'$.donorId') FROM json_each(?)",stored),
   sql("INSERT INTO cf_vault_rows SELECT json_extract(value,'$.id'),?,json_extract(value,'$.position'),json_extract(value,'$.donorId'),json_extract(value,'$.donorVersion'),json_extract(value,'$.sourceIdentityHash'),json_extract(value,'$.sourcePlanId'),json_extract(value,'$.payload'),json_extract(value,'$.category'),json_extract(value,'$.reason') FROM json_each(?)",id,stored),
@@ -167,9 +211,9 @@ export async function previewVault(c:Context,value:VaultMappingInput){
  ])
  return getVault(c,id)
 }
-export async function getVault(c:Context,id:string):Promise<Row & {rows:(VaultRow&{donorName:string})[]}>{
+export async function getVault(c:Context,id:string):Promise<Row & ReviewAccounts & {rows:(VaultRow&{donorName:string})[]}>{
  own(c)
- const review=await one(c,'SELECT * FROM cf_vault_reviews WHERE id=?',id)
+ const review=await one<Row & ReviewAccounts>(c,'SELECT * FROM cf_vault_reviews WHERE id=?',id)
  if(!review)fail('not_found','That mapping review does not exist.',404)
  const saved=await all(c,'SELECT r.*,d.name,d.version AS current_version,d.erased_at FROM cf_vault_rows r JOIN cf_donors d ON d.id=r.donor_id WHERE review_id=? ORDER BY position',id)
  const rows=saved.map(r=>({...JSON.parse(r.payload),donorId:r.donor_id,donorVersion:r.donor_version,donorName:r.name,category:r.category,reason:r.reason,sourceIdentityHash:r.source_identity_hash})) as (VaultRow&{donorName:string})[]
@@ -183,13 +227,15 @@ export async function saveVault(c:Context,input:Row){
  if(input.fingerprint!==review.fingerprint||Number(input.version)!==review.version||input.confirm!=='yes'||!review.current)fail('VAULT_CHANGED','Confirm the exact current review. Changed donor identities require a new upload.')
  if(review.state==='saved')return {...review,unchanged:true}
  if(review.state!=='reviewed')fail('VAULT_CHANGED','This review can no longer be saved.')
- await commit(c,[...rowChecks(rows),guard("EXISTS(SELECT 1 FROM cf_vault_reviews WHERE id=? AND state='reviewed' AND fingerprint=? AND version=?)",'VAULT_CHANGED','The review changed. Refresh it.',review.id,review.fingerprint,review.version),sql("UPDATE cf_vault_reviews SET state='saved',saved_at=?,version=version+1 WHERE id=?",c.now,review.id),event(c,'vault.save','vault-review',review.id,null,{matched:review.counts.matched})])
+ const referenceChecks=await referenceCustody(c,review,rows)
+ await commit(c,[...rowChecks(rows),...referenceChecks,guard("EXISTS(SELECT 1 FROM cf_vault_reviews WHERE id=? AND state='reviewed' AND fingerprint=? AND version=?)",'VAULT_CHANGED','The review changed. Refresh it.',review.id,review.fingerprint,review.version),sql("UPDATE cf_vault_reviews SET state='saved',saved_at=?,version=version+1 WHERE id=?",c.now,review.id),event(c,'vault.save','vault-review',review.id,null,{matched:review.counts.matched})])
  return getVault(c,review.id)
 }
 export async function removeVault(c:Context,input:Row){
  own(c)
  const review=await getVault(c,text(input.id,'Review'))
  if(!['reviewed','saved'].includes(review.state)||!review.current||input.fingerprint!==review.fingerprint||Number(input.version)!==review.version||input.confirm!=='yes')fail('VAULT_CHANGED','Only an unchanged current review can be removed. Confirm its version.')
- await commit(c,[...rowChecks(review.rows),guard("EXISTS(SELECT 1 FROM cf_vault_reviews WHERE id=? AND version=? AND state IN ('reviewed','saved'))",'VAULT_CHANGED','The review changed. Refresh it.',review.id,review.version),sql('DELETE FROM cf_vault_rows WHERE review_id=?',review.id),sql("UPDATE cf_vault_reviews SET state='removed',version=version+1 WHERE id=?",review.id),event(c,'vault.remove','vault-review',review.id,null)])
+ const referenceChecks=await referenceCustody(c,review,review.rows)
+ await commit(c,[...rowChecks(review.rows),...referenceChecks,guard("EXISTS(SELECT 1 FROM cf_vault_reviews WHERE id=? AND version=? AND state IN ('reviewed','saved'))",'VAULT_CHANGED','The review changed. Refresh it.',review.id,review.version),sql('DELETE FROM cf_vault_rows WHERE review_id=?',review.id),sql("UPDATE cf_vault_reviews SET state='removed',version=version+1 WHERE id=?",review.id),event(c,'vault.remove','vault-review',review.id,null)])
  return getVault(c,review.id)
 }

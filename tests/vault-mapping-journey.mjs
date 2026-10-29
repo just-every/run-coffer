@@ -65,11 +65,40 @@ export async function vaultMappingJourney(){
   const different=await post(h,'preview',{...input,destinationAccount:'acct_'+key(7220)},now);assert.notEqual(different.fingerprint,r.fingerprint);assert.equal((await get(h,r.id)).destination_account,input.destinationAccount)
   await post(h,'save',{...confirm(different),fingerprint:r.fingerprint},{status:409})
   const conflicting=await post(h,'preview',{...input,donors:{[key(7110)]:{id:other.id,version:other.version}}},{status:409});assert.equal(conflicting.error,'VAULT_IDENTITY')
+  // Relabelling the source donor cannot transfer private payment evidence.
+  const reassigned=(overrides={})=>{
+   const p={...plans[0],source_plan_id:key(7300),source_donor_id:key(7301),source_customer_id:key(7302),source_payment_id:key(7303),...overrides}
+   return {...input,sourceAccount:input.sourceAccount,destinationAccount:'acct_'+key(7304),plans:file('source',[p]),mappings:[file('card',[{...card(0),old_id:p.source_customer_id,source_old_id:p.source_payment_id,created_customer:'cus_'+key(7305),source_new_id:'pm_'+key(7306)}])],donors:{[p.source_donor_id]:{id:other.id,version:other.version}}}
+  }
+  const reviewsBefore=await h.get(root)
+  for(const identity of ['source_plan_id','source_customer_id','source_payment_id']){
+   const refused=await post(h,'preview',reassigned({[identity]:plans[0][identity]}),{status:409})
+   assert.equal(refused.error,'VAULT_IDENTITY','Existing '+identity+' remains bound to its reviewed donor')
+  }
+  for(const identity of ['created_customer','source_new_id']){
+   const attempt=reassigned();attempt.sourceAccount=key(7310);attempt.destinationAccount=input.destinationAccount
+   const mapping={...card(0),old_id:key(7302),source_old_id:key(7303),created_customer:'cus_'+key(7305),source_new_id:'pm_'+key(7306)}
+   mapping[identity]=card(0)[identity];attempt.mappings=[file('card',[mapping])]
+   assert.equal((await post(h,'preview',attempt,{status:409})).error,'VAULT_IDENTITY','Destination '+identity+' remains private across source labels')
+  }
+  const ambiguous=reassigned(),second={...plans[0],source_plan_id:key(7320),source_donor_id:key(7321),source_payment_id:key(7322)}
+  ambiguous.sourceAccount=key(7323);ambiguous.destinationAccount='acct_'+key(7324)
+  ambiguous.plans=file('source',[plans[0],second]);ambiguous.mappings=[file('card',[card(0),{...card(0),source_old_id:second.source_payment_id,source_new_id:'pm_'+key(7325)}])]
+  ambiguous.donors={...input.donors,[second.source_donor_id]:{id:other.id,version:other.version}}
+  assert.equal((await post(h,'preview',ambiguous,{status:409})).error,'VAULT_IDENTITY','One processor customer cannot ambiguously identify two donors')
+  assert.deepEqual(await h.get(root),reviewsBefore,'Identity refusals store no review')
+  const isolated={...reassigned(),sourceAccount:key(7330),destinationAccount:'acct_'+key(7331),plans:file('source',[{...plans[0],source_donor_id:key(7301)}]),mappings:[file('card',[card(0)])]}
+  const isolatedReview=await post(h,'preview',isolated,now)
+  assert.deepEqual(isolatedReview.counts,{matched:1,missing:0,conflicting:0,unsupported:0},'References in different source and destination accounts stay independent')
+  await post(h,'remove',confirm(isolatedReview))
+  const afterRemoval={...isolated,plans:file('source',[{...plans[0],source_donor_id:key(7340)}]),donors:{[key(7340)]:{id:d.id,version:d.version}}}
+  assert.equal((await post(h,'preview',afterRemoval,{status:409})).error,'VAULT_IDENTITY','Removing evidence does not let a new donor label steal the same references')
   await vaultMappingBrowser(h,input,r,process.env.COFFER_VAULT_BROWSER||'.cache/vault-mapping')
   assert.deepEqual(await noBilling(h,d),billing,'Preview and saving evidence change no gift, total or billing plan')
   const saved=await get(h,r.id),snapshot=await archive(h)
   await run(async fresh=>{
    await restore(fresh,snapshot);assert.deepEqual((await get(fresh,r.id)).rows,saved.rows)
+   assert.equal((await post(fresh,'preview',reassigned({source_plan_id:plans[0].source_plan_id}),{status:409})).error,'VAULT_IDENTITY','Restored reference custody rejects relabelled plan identities')
    await post(fresh,'remove',{...confirm(saved),version:1},{status:409})
    const removed=await post(fresh,'remove',confirm(saved));assert.equal(removed.state,'removed');assert.equal(removed.rows.length,0)
    assert.deepEqual(await noBilling(fresh,d),billing)
@@ -78,6 +107,8 @@ export async function vaultMappingJourney(){
    const replacement=await donor(fresh,'Synthetic Removed Replacement',{email:''})
    const refused=await post(fresh,'preview',{...input,donors:{[key(7110)]:{id:replacement.id,version:replacement.version}}},{status:409})
    assert.equal(refused.error,'VAULT_ERASED','Removing the file before erasure cannot remove source-identity custody')
+   const relabelled=reassigned({source_plan_id:plans[0].source_plan_id});relabelled.donors={[key(7301)]:{id:replacement.id,version:replacement.version}}
+   assert.equal((await post(fresh,'preview',relabelled,{status:409})).error,'VAULT_ERASED','Erasure also tombstones plan references after evidence removal')
   },{outbound:edge,entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:'2026-10-01T12:00:00Z'}})
   const current=(await h.get('/api/coffer/donors/'+d.id)).donor
   await h.command('donor.update',{...current,donorId:d.id,version:current.version,name:'Synthetic Changed Donor'})
@@ -87,11 +118,16 @@ export async function vaultMappingJourney(){
   await h.command('donor.merge',{sourceDonorId:d.id,donorId:target.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
   const merged=await get(h,r.id);assert.equal(merged.state,'invalidated');assert.ok(merged.rows.every(row=>row.donorId===target.id))
   await post(h,'remove',confirm(merged),{status:409})
+  assert.equal((await post(h,'preview',reassigned({source_plan_id:plans[0].source_plan_id}),{status:409})).error,'VAULT_IDENTITY','Merged reference custody still refuses reassignment')
   await h.command('donor.erase',{donorId:target.id,confirm:'ERASE'})
   const erased=await get(h,r.id);assert.equal(erased.state,'erased');assert.deepEqual(erased.rows,[])
   const archiveAfter=JSON.stringify(await archive(h));assert.ok(!archiveAfter.includes(key(7130))&&!archiveAfter.includes(key(7191)),'Erasure removes source references from live rows and merge custody')
   const replacement=await donor(h,'Synthetic Replacement',{email:''})
   await post(h,'preview',{...input,donors:{[key(7110)]:{id:replacement.id,version:replacement.version}}},{status:409})
+  for(const identity of ['source_plan_id','source_customer_id','source_payment_id']){
+   const attempt=reassigned({[identity]:plans[0][identity]});attempt.donors={[key(7301)]:{id:replacement.id,version:replacement.version}}
+   assert.equal((await post(h,'preview',attempt,{status:409})).error,'VAULT_ERASED','Erased '+identity+' cannot resurrect under another source donor label')
+  }
   assert.equal(JSON.stringify(plans),original,'Original source plans are never changed')
   assert.equal(providerWrites,0,'No provider call, subscription creation or charge is submitted')
   assert.deepEqual((await noBilling(h,other)).gifts,[])

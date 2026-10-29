@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b822aecd0ecf2fce0c57ce58c803a32bffe4502afcac8d39b91b4cc35ff14aaf",
+      "sha256": "11c50a5315775eb434a146619e509ca35f505cd9ae08f0b5e98ecc325199877b",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "bae8deb3f1ea66510cd672cd70a0c15e268b1f429a425bcd6a6708a4af06d255",
+      "sha256": "5855c7327afa4f4d7235bd7741a87527700b4f2bc0cca41bd292c7f678999743",
       "executable": false
     },
     "deploy-demo.json": {
@@ -711,7 +711,7 @@
       "executable": false
     },
     "docs/MOVE-IN.md": {
-      "sha256": "04f2b62be623ef64b4c5df0a93c3da7f4e1ef5ea4d930616ae265e061340110e",
+      "sha256": "5dc0d83e8f97753d63d064a4dcc613f78e562fcfcdda224a8fa2db33ca8f95ae",
       "executable": false
     },
     "docs/neon-move-in.md": {
@@ -3455,7 +3455,7 @@
       "executable": false
     },
     "src/coffer/move-in/vault-mapping.ts": {
-      "sha256": "18d9fd3b5f0041c557d1440e731eac0f4e5d7795b534b861a52e9824d5b89a86",
+      "sha256": "7f489232a4457888eae2b508ba0b2e0a36024c75de5f37902a937a59e948630d",
       "executable": false
     },
     "src/coffer/opportunity-close.ts": {
@@ -7287,7 +7287,7 @@
       "executable": false
     },
     "tests/vault-mapping-journey.mjs": {
-      "sha256": "81a2043fa012f4ba7eef78c2a6fbcc0157002ec98e44d044258488845470fdee",
+      "sha256": "11ea1ff9b3253fafc61fbeb12e4561e9381672b329b4a2f2eefe26e46d21494f",
       "executable": false
     },
     "tests/verified-mail-edge.mjs": {

@@ -104,6 +104,12 @@ Keep supplied source values unchanged. When an earlier supported CRM import
 retained the same plan, its donor, amount, schedule, campaign and payment
 references must agree. An identity already bound by retained source evidence
 cannot be selected as another donor. Names and shared contacts never choose one.
+Plan, customer and payment references also remain bound to their reviewed donor,
+so changing a source donor label cannot reassign private payment evidence. Source
+references are scoped to the named source system and processor account;
+destination customers and instruments are scoped to the named Stripe account.
+One customer shared by two selected donors is ambiguous and refused. Identical
+opaque references in distinct source and destination accounts remain separate.
 The native form supports eight distinct donor selections per upload; the HTTP
 door accepts the documented `donors` object keyed by source donor ID with
 `id` and `version` for each selection.
@@ -124,6 +130,11 @@ moves private custody and invalidates the review. Erasure removes the entire
 linked multi-person review's references and its merge snapshots, retaining only
 one-way source-identity tombstones to refuse resurrection. Removal requires the
 exact unchanged review version and confirmation and changes no billing record.
+Account-scoped reference custody uses one-way hashes as well. Removing a review
+retains those bindings; merge moves them to the survivor, restore preserves them,
+and erasure leaves tombstones that also reject a newly labelled source donor.
+Existing retained review rows participate in these checks before another review
+is stored, saved or removed. No hash establishes provider ownership or usability.
 
 Actual PCI transfer and tenant authority, provider instrument verification,
 complete source plans and installment history, source-stop confirmation,
