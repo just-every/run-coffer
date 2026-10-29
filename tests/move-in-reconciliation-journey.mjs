@@ -77,6 +77,9 @@ export async function reconciliationJourney(files){
   const agent=await h.get('/api/coffer/agent');assert.deepEqual(agent.missingReceipts.map(g=>g.id),[gifts[id(9112)].id],'DEV-003 serves the current gift and excludes the older not-acknowledged gift')
   const report=(await h.get(endpoint+'/journal?id='+p.id)).job
   assertControls(report.check_report.rows);assert.equal(report.check_report.matches,true)
+  await post(h,'check',{id:p.id},{as:member.cookie,status:403})
+  await post(h,'check',{id:p.id},{as:admin.cookie,status:401})
+  assert.deepEqual((await h.get(endpoint+'/journal?id='+p.id)).job.check_report,report.check_report,'Refused reconciliation cannot replace the recorded controls or current check')
   assert.deepEqual(report.report.controlTotals,p.controlTotals,'Supplied controls retain their independent values and original locations')
   assert.equal(row(report.check_report.rows,'restriction','Restricted constituents').cofferCount,2)
   assert.equal(row(report.check_report.rows,'restriction','mail withdrawals').cofferCount,source==='re-nxt'?0:1)
@@ -115,7 +118,8 @@ export async function reconciliationJourney(files){
   assert.equal((await post(h,'preview',uploaded)).canApply,false)
   await post(h,'apply',{id:again.id,fingerprint:again.fingerprint},{status:409})
   await post(h,'check',{id:again.id},{status:409})
-  assert.deepEqual((await h.get(endpoint+'/journal?id='+again.id)).job.report,{})
+  const erased=(await h.get(endpoint+'/journal?id='+again.id)).job
+  assert.deepEqual(erased.report,{});assert.equal(erased.check_report,null,'Erasure removes the recorded reconciliation as well as its source controls')
   assert.ok(!JSON.stringify(await archive(h)).includes('First Import Donor'),'Erasure removes retained source controls, samples and current checks')
  })
 }
