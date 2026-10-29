@@ -28,19 +28,21 @@ async function openDetails(form){
 export async function peerBrowser(h,edge,{campaign,first,second,firstCookie,secondCookie},directory){
  await mkdir(directory,{recursive:true})
  await withBrowserWorker(h,async(context,origin)=>{
-  let cookie=firstCookie
-  // The bridge is HTTP; the real donor session is Secure. Pass that confirmed
-  // cookie only to this local transport, never to Stripe or another origin.
-  await context.route(origin+'/**',async route=>route.continue({headers:{...route.request().headers(),cookie}}))
+  const useSession=async cookie=>{
+   await context.clearCookies()
+   if(cookie)await context.addCookies(cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',secure:true,httpOnly:true,sameSite:'Lax'}}))
+  }
   const page=await context.newPage();page.setDefaultTimeout(15000)
-  await page.route('https://checkout.stripe.com/**',route=>route.fulfill({status:200,contentType:'text/plain',body:'Stripe test boundary'}))
+  const provider=await context.newCDPSession(page)
+  await provider.send('Fetch.enable',{patterns:[{urlPattern:'https://checkout.stripe.com/*'}]})
+  provider.on('Fetch.requestPaused',async({requestId})=>provider.send('Fetch.fulfillRequest',{requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'text/plain'}],body:Buffer.from('Stripe test boundary').toString('base64')}))
   const state=as=>h.get('/giving/peer/state',{as})
   const publicState=id=>h.get(`/giving/peer/pages/${id}?format=json`,{as:''})
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    const teamTitle=`Reading circle ${width}`,pageTitles=[`First reading page ${width}`,`Second reading page ${width}`],pageIds=[],paid=[]
    for(const [index,as] of [firstCookie,secondCookie].entries()){
-    cookie=as
+    await useSession(as)
     await page.goto(origin+'/giving/peer')
     const recognition=page.locator('form[action="/giving/peer/recognition"]')
     await recognition.locator('[name=recognitionName]').fill(`Reading champion ${width} ${index+1}`)
@@ -76,7 +78,7 @@ export async function peerBrowser(h,edge,{campaign,first,second,firstCookie,seco
     const saved=(await state(as)).pages.find(p=>p.title===pageTitles[index]);assert.ok(saved);assert.equal(saved.published,1);assert.equal(saved.team_id,team.id)
     pageIds.push(saved.id)
    }
-   cookie=''
+   await useSession('')
    for(const [index,id] of pageIds.entries()){
     await page.goto(origin+'/giving/peer/pages/'+id)
     await page.getByRole('heading',{name:pageTitles[index],exact:true}).waitFor()

@@ -6879,11 +6879,11 @@
       "executable": false
     },
     "tests/peer-browser.mjs": {
-      "sha256": "c6a426030a41a34e95b3d521d3d220f095eb62f71f05d8b0c387c8582e5a240e",
+      "sha256": "1c4900a65f91b392375f9e760d47fba4dd6e2a6c46d094d689f41b534808ea7e",
       "executable": false
     },
     "tests/peer-journey.mjs": {
-      "sha256": "85f126d8be6314a3bd873e757a0848b79783ee6d938e9eb6fdbd4122de7b2d4d",
+      "sha256": "f37bcdadade0fb4beafbc409b820ea7ee3b5f5ddd77e758e9ce0f7e56e7a7952",
       "executable": false
     },
     "tests/pipeline.test.mjs": {
