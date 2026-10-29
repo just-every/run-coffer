@@ -150,15 +150,30 @@ function normalizeNeon(s:NeonSnapshot,h:History,input:ParseInput,importDay:strin
   const schedule=pledge._installments
   if(!schedule.length)fail('NEON_UNSUPPORTED','This pledge has no dated source installments. Review its full schedule before importing.',400)
   for(const i of schedule){if(i.pledgeId!==pledge.id||!i.id)fail('NEON_SCHEMA','A source installment belongs to another pledge.',502);gifts.push({'Installment ID':'installment:'+i.id,'Pledge ID':id,'Due Date':date(i.expectedDate),'Installment Amount':amount(i.amount)})}
+  // Neon can attest the same link from either the payment or its installment.
+  const listedInstallments=new Map<string,string>()
+  for(const installment of schedule){
+   const listed=installment.pledgePaymentIds??[]
+   if(!Array.isArray(listed))fail('NEON_UNSUPPORTED','Review the source installment payment list before importing.',400)
+   for(const paymentId of listed){
+    if(typeof paymentId!=='string'||!pledge._payments.some((p:any)=>p.id===paymentId)||listedInstallments.has(paymentId))fail('NEON_UNSUPPORTED','An installment payment link is missing, repeated or outside its source pledge. Review it before importing.',400)
+    listedInstallments.set(paymentId,installment.id)
+   }
+  }
+  const linkedPayments=pledge._payments.map((payment:any)=>{
+   const listed=listedInstallments.get(payment.id)
+   if(listed&&payment.installmentId&&listed!==payment.installmentId)fail('NEON_UNSUPPORTED','Source pledge payment and installment links disagree. Review them before importing.',400)
+   return {...payment,installmentId:payment.installmentId||listed}
+  })
   let paid=0
-  for(const payment of pledge._payments){
+  for(const payment of linkedPayments){
    if(payment.pledgeId!==pledge.id||!payment.id||payment.installmentId&&!schedule.some((i:any)=>i.id===payment.installmentId))fail('NEON_SCHEMA','A source pledge payment has mismatched evidence.',502)
    const row=cash({amount:payment.payment?.amount,payments:[payment.payment],taxDeductibleInfo:payment.taxDeductibleInfo,tribute:pledge.tribute,acknowledgee:pledge.acknowledgee,fund:pledge.fund,campaign:pledge.campaign},'pledge-payment:'+payment.id,pledge.accountId,payment.date,{tributeGroup:h.pledges?.[pledge.id]?.tributeGroup,...(h.pledgePayments?.[payment.id]??{})})
    row['Parent Gift ID']=id;row['Payment Installment ID']=payment.installmentId?'installment:'+payment.installmentId:'';paid+=payment.payment.amount
   }
   const writeOffs=h.pledges?.[pledge.id]?.adjustments??[]
   if(!Array.isArray(writeOffs))fail('NEON_HISTORY','Source pledge write-offs must be an explicit list.',400)
-  if(writeOffs.length&&pledge._payments.some((p:any)=>!p.installmentId))fail('NEON_UNSUPPORTED','Source write-offs require explicit installment links on received payments; no unpaid balance allocation is guessed.',400)
+  if(writeOffs.length&&linkedPayments.some((p:any)=>!p.installmentId))fail('NEON_UNSUPPORTED','Source write-offs require explicit installment links on received payments; no unpaid balance allocation is guessed.',400)
   let reduced=0
   for(const change of writeOffs){
    if(!change||Object.keys(change).some(k=>!['id','installmentId','amount','on','reason'].includes(k))||!change.id||!schedule.some((i:any)=>i.id===change.installmentId)||!sourceDay(change.on)||change.on>importDay||change.on<date(pledge.date)||typeof change.reason!=='string'||!change.reason.trim()||change.reason.length>1000)fail('NEON_HISTORY','A source write-off needs its own ID, matching installment, date, amount and reason.',400)

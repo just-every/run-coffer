@@ -38,11 +38,12 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     sql(`UPDATE cf_acks SET household_snapshot=NULL,statement_gifts=NULL,recipient_name=?,recipient_email=NULL,address=NULL,subject='[erased]',body='[erased]',delivery_note=NULL
       WHERE EXISTS(SELECT 1 FROM json_each(cf_acks.household_snapshot,'$.members') m WHERE json_extract(m.value,'$.id')=?)
        OR EXISTS(SELECT 1 FROM json_each(cf_acks.statement_gifts) g WHERE json_extract(g.value,'$.donor_id')=?)`, ERASED, donorId, donorId),
-    // Merge journals may hold this household even when the erased member was
-    // not one of the merged pair. No retained snapshot may revive their name.
+    // Merge journals may hold a household member or event guest outside the
+    // merged pair. Retire the whole journal so undo cannot revive their contact.
     sql(`UPDATE cf_donor_merge_journal SET status='erased',erased_at=? WHERE id IN
-      (SELECT merge_id FROM cf_donor_merge_rows WHERE table_name='cf_households' AND
-       (json_extract(value,'$.id')=(SELECT household_id FROM cf_donors WHERE id=?) OR json_extract(value,'$.head_donor_id')=?))`, now, donorId, donorId),
+      (SELECT merge_id FROM cf_donor_merge_rows WHERE (table_name='cf_households' AND
+       (json_extract(value,'$.id')=(SELECT household_id FROM cf_donors WHERE id=?) OR json_extract(value,'$.head_donor_id')=?))
+       OR (table_name='cf_source_event_guests' AND (json_extract(value,'$.donor_id')=? OR json_extract(value,'$.attendee_donor_id')=?)))`, now, donorId, donorId, donorId, donorId),
     sql("DELETE FROM cf_donor_merge_rows WHERE merge_id IN (SELECT id FROM cf_donor_merge_journal WHERE status='erased')"),
     sql(`DELETE FROM cf_move_in_issues WHERE job_id IN (SELECT job_id FROM cf_move_in_records WHERE kind='household' AND native_id IN (SELECT id FROM cf_households WHERE id=(SELECT household_id FROM cf_donors WHERE id=?) OR head_donor_id=?))`, donorId, donorId),
     sql(`DELETE FROM cf_move_in_parts WHERE job_id IN (SELECT job_id FROM cf_move_in_records WHERE donor_id=? OR related_id=? OR (kind='household' AND native_id=(SELECT household_id FROM cf_donors WHERE id=?)))`,donorId,donorId,donorId),

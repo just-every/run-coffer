@@ -196,10 +196,10 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(g.appeal??g.campaign)await add('campaign',g,{gift_id:id,appeal:g.appeal??g.campaign},undefined,donorId)
   if(g.channel)await add('channel',g,{gift_id:id,channel:g.channel},undefined,donorId)
  }
- // Source pledge-payment links pay the dated installments in date order.
+ // Reserve explicit installment links before applying unlinked payments in date order.
  for(const p of parsed.pledges) {
   const schedule=parsed.installments.filter(i=>i.pledgeExternalId===p.externalId).sort((a,b)=>a.dueOn.localeCompare(b.dueOn)),remaining=new Map(schedule.map(i=>[i.externalId,i.amountCents]))
-  const payments=parsed.gifts.filter(g=>g.pledgeExternalId===p.externalId).sort((a,b)=>a.receivedOn.localeCompare(b.receivedOn))
+  const payments=parsed.gifts.filter(g=>g.pledgeExternalId===p.externalId).sort((a,b)=>Number(!!b.installmentExternalId)-Number(!!a.installmentExternalId)||a.receivedOn.localeCompare(b.receivedOn))
   for(const g of payments) {
    let balance=g.amountCents
    for(const i of schedule.filter(i=>!g.installmentExternalId||i.externalId===g.installmentExternalId)) {

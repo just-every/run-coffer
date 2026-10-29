@@ -75,6 +75,7 @@ function fixture(){
 
 /** One migration sanity journey, with only documented Neon network requests faked. */
 export async function neonJourney(){
+ await neonGateRepairsJourney()
  const f=fixture()
  await run(async h=>{
   await reviewed(h)
@@ -222,4 +223,58 @@ export async function neonJourney(){
   await post(h,'apply',{id:another.id,fingerprint:another.fingerprint},{status:409})
   const afterErasure=await archive(h);assert.equal((await h.get('/api/coffer/events?eventId='+importedEvent.id)).length,1);assert.ok(!JSON.stringify(afterErasure).includes(key(7102)));assert.ok(!JSON.stringify(afterErasure).includes('"7123"'));assert.ok(!JSON.stringify(afterErasure).includes(email(7002)),'Erasure removes reused-account source history from every retained review and archive')
  },{outbound:f.outbound})
+}
+
+/** Gate regressions stay in the Neon public-door sanity journey. */
+export async function neonGateRepairsJourney(only){
+ for(const scenario of only?[only]:['guest erasure after buyer merge','mixed pledge payments','installment payment list']){
+  const f=fixture()
+  if(scenario==='mixed pledge payments'){
+   f.pledgePayments[0].installmentId=key(7112);f.pledgePayments[0].payment.amount=500;f.pledgePayments[0].date='2026-09-04';f.pledgePayments[0].payment.receivedDate='2026-09-04T12:00:00Z'
+   const unlinked=structuredClone(f.pledgePayments[0]);unlinked.id=key(7201);unlinked.payment.id=key(8201);unlinked.date='2026-09-03';unlinked.payment.receivedDate='2026-09-03T12:00:00Z';delete unlinked.installmentId
+   f.pledgePayments.push(unlinked)
+  }
+  if(scenario==='installment payment list'){
+   delete f.pledgePayments[0].installmentId
+   f.installments.find(i=>i.id===key(7113)).pledgePaymentIds=[key(7114)]
+  }
+  await run(async h=>{
+   await reviewed(h)
+   const preview=await post(h,'preview',f.input);assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));await apply(h,preview)
+   const people=(await h.get('/api/coffer/donors?status=all')).donors
+   const person=n=>people.find(d=>d.email===email(n))
+   if(scenario==='guest erasure after buyer merge'){
+    const buyer=person(7003),other=person(7005),guest=person(7002)
+    const comparison=await h.get('/api/coffer/duplicates/compare?source='+buyer.id+'&target='+other.id)
+    const merged=await h.command('donor.merge',{sourceDonorId:buyer.id,donorId:other.id,sourceVersion:comparison.source.version,version:comparison.target.version,fields:{},reason:'duplicate_record'})
+    const saved=await archive(h)
+    assert.ok(JSON.stringify(saved).includes(email(7002)),'The live guest is present before erasure')
+    await h.command('donor.erase',{donorId:guest.id,confirm:'ERASE'})
+    const after=await archive(h)
+    assert.ok(!JSON.stringify(after).includes(email(7002)),'Guest erasure removes contacts from buyer merge snapshots and archive records')
+    await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'},{status:409})
+    assert.equal((await post(h,'preview',f.input)).canApply,false,'An erased guest cannot return through import replay')
+    await run(async fresh=>{await restore(fresh,after);assert.ok(!JSON.stringify(await archive(fresh)).includes(email(7002)));await fresh.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'},{status:409})})
+   }else{
+    const details=await h.get('/api/coffer/donors/'+person(7003).id),pledge=details.pledges.find(p=>p.pledged_on==='2026-09-01')
+    if(scenario==='mixed pledge payments'){
+     assert.equal(pledge.paid_cents,100000,'All linked and unlinked payments settle the fully paid pledge')
+     assert.equal(pledge.remaining_cents,0,'A fully paid pledge has no unpaid balance')
+     assert.deepEqual(pledge.installments.map(i=>i.paid_cents),[50000,50000])
+     const linked=details.gifts.find(g=>g.reference==='neon:pledge-payment:'+key(7114))
+     assert.equal(pledge.allocations.find(a=>a.gift_id===linked.id).installment_id,pledge.installments.find(i=>i.due_on==='2026-09-03').id,'Explicit payment links retain priority over unlinked cash')
+    }else{
+     assert.equal(pledge.installments.find(i=>i.due_on==='2026-09-03').paid_cents,0,'An installment payment list prevents allocation to the wrong installment')
+     assert.equal(pledge.installments.find(i=>i.due_on==='2026-12-03').paid_cents,25000,'The listed source payment settles its explicit installment')
+     f.pledgePayments[0].installmentId=key(7112)
+     await post(h,'preview',f.input,{status:400})
+     assert.deepEqual((await h.get('/api/coffer/donors/'+person(7003).id)).pledges,details.pledges,'Conflicting source payment links are refused without changing money')
+     delete f.pledgePayments[0].installmentId
+     f.installments.find(i=>i.id===key(7112)).pledgePaymentIds=[key(7114)]
+     await post(h,'preview',f.input,{status:400})
+     assert.deepEqual((await h.get('/api/coffer/donors/'+person(7003).id)).pledges,details.pledges,'A payment listed by two installments is refused without changing money')
+    }
+   }
+  },{outbound:f.outbound})
+ }
 }

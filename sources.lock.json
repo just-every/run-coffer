@@ -3195,7 +3195,7 @@
       "executable": false
     },
     "src/coffer/imports/erasure.ts": {
-      "sha256": "c3ceb0192804ba7bee52051e95e35003a1327509c20a189569ae846092605931",
+      "sha256": "11b4d6e9940cdd0c0af6dad04a5c0628dabb16e611aa9a224fdf9a85ae5da0a5",
       "executable": false
     },
     "src/coffer/imports/index.ts": {
@@ -3395,7 +3395,7 @@
       "executable": false
     },
     "src/coffer/move-in/neon.ts": {
-      "sha256": "9eee27491512cace350f04f0be570e6d86c9bfe6e76327c6cfba7ee53255ace7",
+      "sha256": "84283abf24a3c54f20db71286479e268605f3750000bb37f56399cb6885a884d",
       "executable": false
     },
     "src/coffer/move-in/parse-input.ts": {
@@ -3407,7 +3407,7 @@
       "executable": false
     },
     "src/coffer/move-in/plan.ts": {
-      "sha256": "8f60447df1aaf80834cf4bbff1d68d2f153c706239dfd990de053f59bfe0c05c",
+      "sha256": "f15abf2b89ff5c5c3a622ef146dafff6d683abcb08b35510613b673f32280e3a",
       "executable": false
     },
     "src/coffer/move-in/platform-export.ts": {
@@ -6907,7 +6907,7 @@
       "executable": false
     },
     "tests/neon-journey.mjs": {
-      "sha256": "8e4666996396dbd09b706b4d9b1b3fca975284cbb4ce32f46313044b1beb5ddf",
+      "sha256": "f2ca15e223282361dc5fb65d16c274521b00a43fe0661014964185e9c56bff87",
       "executable": false
     },
     "tests/opportunity-journey.mjs": {
