@@ -74,12 +74,13 @@ export async function membershipsJourney(){
    if(directory)await mkdir(directory,{recursive:true})
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
-    const routes=phase==='joined'?['/app/settings/memberships','/giving/memberships/annual-reader','/app/giving/memberships']:['/app/giving/memberships']
+    const routes=phase==='review'?['/app/giving/memberships?reminder='+state.reminders[0].id]:phase==='joined'?['/app/settings/memberships','/giving/memberships/annual-reader','/app/giving/memberships']:['/app/giving/memberships']
     for(const path of routes){
      await page.goto(origin+path);await page.waitForLoadState('domcontentloaded')
      if(width===1440){
-      assert.ok(await page.getByRole('heading',{name:path.includes('settings')?'Membership settings':path.includes('annual-reader')?'Join Annual reader':'Memberships',exact:true}).count())
+      assert.ok(await page.getByRole('heading',{name:phase==='review'?'Review renewal request':path.includes('settings')?'Membership settings':path.includes('annual-reader')?'Join Annual reader':'Memberships',exact:true}).count())
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Membership screen fits the release width')
+      if(phase==='review')assert.equal(await page.getByRole('checkbox',{name:'I approve this exact recipient and renewal request.',exact:true}).count(),1)
       if(path.includes('annual-reader')){assert.equal(await page.getByRole('checkbox',{name:/I authorize/}).count(),1);assert.ok(await page.getByText('Contribution part:',{exact:false}).count())}
       if(path==='/app/giving/memberships'){assert.ok(await page.getByText(phase==='joined'?'2 active':'1 active', {exact:false}).count());if(phase==='lapsed')assert.ok(await page.getByText('Held · not sent',{exact:true}).count())}
      }
@@ -172,6 +173,7 @@ export async function membershipsJourney(){
   await command('solicitation.set',{donorId:second.donor_id,version:1,type:'none',startsOn:'2027-02-09'})
   exactReminder=await review()
   await api(endpoint,{...send(),contentHash:'stale'},{status:409})
+  await screens('review')
   const accepted=await api(endpoint,send());assert.equal(accepted.status,'accepted')
   await api(endpoint,send())
   assert.equal(h.messages.length,beforeReminder+1,'The exact reviewed reminder reaches its member once')
@@ -340,12 +342,13 @@ export async function membershipTermVariants(){
   assert.equal(fixedProgress.raisedCents,31000,'All hosted, staff and check membership payments reconcile to the full ledger')
   assert.equal(edge.state.plans.size,plansBeforeFixed)
   await withBrowserWorker(h,async(context,origin)=>{
+   await context.addCookies(fixedPortal.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),domain:'127.0.0.1',path:'/',secure:true,httpOnly:true,sameSite:'Lax'}}))
    const page=await context.newPage();await page.setExtraHTTPHeaders(headers())
    const directory=process.env.COFFER_MEMBERSHIP_BROWSER
    if(directory)await mkdir(directory,{recursive:true})
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
-    for(const [name,path] of [['fixed-form','/giving/memberships/six-month-reader'],['entry','/app/giving/memberships?entry=1'],['staff-charge','/app/giving/plans/new?donorId='+monthlyMember.donor_id],['fixed-terms','/app/giving/memberships']]){
+    for(const [name,path] of [['donor-terms','/giving/portal/memberships'],['renew-form','/giving/memberships/six-month-reader?renew='+fixedMember.id],['fixed-form','/giving/memberships/six-month-reader'],['entry','/app/giving/memberships?entry=1'],['staff-charge','/app/giving/plans/new?donorId='+monthlyMember.donor_id],['fixed-terms','/app/giving/memberships']]){
      await page.goto(origin+path)
      if(width===1440){
       assert.equal(await page.getByRole('alert').count(),0)

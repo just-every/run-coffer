@@ -6811,7 +6811,7 @@
       "executable": false
     },
     "tests/memberships-journey.mjs": {
-      "sha256": "97e5cce562bb1b66a4a597f42528afe13d063dc99ad32e9a4210eba2af173c80",
+      "sha256": "8a85fbf9169c1ad1cd2cce02b9ef9cb7498ccb90e86822e2112ca0b115d48df0",
       "executable": false
     },
     "tests/mobile-journey.mjs": {
