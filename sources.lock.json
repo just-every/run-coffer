@@ -715,7 +715,7 @@
       "executable": false
     },
     "docs/neon-move-in.md": {
-      "sha256": "18f055cc10a838761e3d0b8067cc705a0266a944b3e673267b47c493952706e0",
+      "sha256": "f02758b1dc5e035fe6a94877809e763ba225d4571ced23c50847413f4755b3d5",
       "executable": false
     },
     "docs/ONLINE-GIVING.md": {
@@ -3311,7 +3311,7 @@
       "executable": false
     },
     "src/coffer/move-in/custom-fields.ts": {
-      "sha256": "04e9af90d6145df223840544c8dd85cc06ba27b30801224bca4635fedd423ae9",
+      "sha256": "c3d0173d6f57563f860f7826167d700ff5e1b22a015c6e1c82d5001c42c0bc07",
       "executable": false
     },
     "src/coffer/move-in/givebutter.ts": {
@@ -3331,11 +3331,11 @@
       "executable": false
     },
     "src/coffer/move-in/neon-edge.ts": {
-      "sha256": "9d7d68668739409d4e832bbd0708aef8dad03376e62254b12669c1d59b38b4c0",
+      "sha256": "4123d97facae9e5fbe34c0d3281f5b8ecc68bf25990a4b9da2c876c6f914d434",
       "executable": false
     },
     "src/coffer/move-in/neon.ts": {
-      "sha256": "08ea07d6c220d7d67b76148503c7b6c2fd8e977e8857fbdbb8f3fe5b2b74fec4",
+      "sha256": "99615d840ee7682cca8b797b902b8833771245881f9789e19dfa2de50d01c442",
       "executable": false
     },
     "src/coffer/move-in/parse-input.ts": {
@@ -3347,7 +3347,7 @@
       "executable": false
     },
     "src/coffer/move-in/plan.ts": {
-      "sha256": "ebea2c644899fbd1ce5271912c6754f3ba1982c4df922d059023708e6cce477d",
+      "sha256": "cfb6a459a0171a2cf9966b25e9289150cbcc3fa46589c3b0124601d70df37abe",
       "executable": false
     },
     "src/coffer/move-in/platform-export.ts": {
@@ -3411,7 +3411,7 @@
       "executable": false
     },
     "src/coffer/move-in/stage.ts": {
-      "sha256": "1a25870562000b8a97c7e82db1f4014a67174b048460e8780449de4f592fed65",
+      "sha256": "19c1a91585c39dce52cd941101be350c7a41b7f653034d5bb92473da73dc9c27",
       "executable": false
     },
     "src/coffer/move-in/tables.ts": {
@@ -6807,7 +6807,7 @@
       "executable": false
     },
     "tests/neon-journey.mjs": {
-      "sha256": "a607204443ea04ba9054277949e38d9a571db763341f03ca2d1f38de0dc3eb38",
+      "sha256": "f1d87297a93ba62e059e6bc78ed56adc825aa25e56f38c1dd9336edf43968c47",
       "executable": false
     },
     "tests/opportunity-journey.mjs": {

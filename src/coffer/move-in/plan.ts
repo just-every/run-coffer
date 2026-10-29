@@ -11,7 +11,7 @@ import { accumulate, emptyTotals } from './source-totals'
 import { importedOverrides } from '../person-names'
 
 export type Effect = { kind: Kind; sourceKey: string; contentHash: string; nativeId: string; owned: boolean; row: Row; donorId: string | null; relatedId: string | null; location?: Located['location'] }
-export type Plan = { customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
+export type Plan = { customDefinitions: Row[]; customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
 const stable = (value: unknown): string => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))) : v)
 export const contentHash = (value: unknown) => sha256(stable(value))
 export const nativeId = async (source: string, kind: string, key: string) => `crm-${(await contentHash([source,kind,key])).slice(0,40)}`
@@ -31,7 +31,7 @@ const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solici
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
- const plan: Plan = {customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
+ const plan: Plan = {customDefinitions:[],customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
  const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))

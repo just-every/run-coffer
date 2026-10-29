@@ -54,7 +54,7 @@ export function mapCustomColumns(rows: SourceRow[], out: ParsedImport) {
    } catch (e) { r.error('CUSTOM_VALUE',`${mapping.label}: ${e instanceof Error ? e.message : String(e)} Correct this exported value or its reviewed mapping.`,mapping.column) }
   }
  }
- for (const m of out.customFields ?? []) if (!used.has(m)) out.diagnostics.push({severity:'error',code:'CUSTOM_MAPPING',column:m.column,message:`${m.label}: no ${m.kind} source rows contain this exact mapped column and worksheet.`})
+ for (const m of out.customFields ?? []) if (!used.has(m)&&out.source!=='neon') out.diagnostics.push({severity:'error',code:'CUSTOM_MAPPING',column:m.column,message:`${m.label}: no ${m.kind} source rows contain this exact mapped column and worksheet.`})
  out.sourceColumns = [...inventory.values()]
 }
 
@@ -68,6 +68,17 @@ export async function planCustomValues(c:Context, parsed:ParsedImport, plan:Plan
   ...parsed.donors.map(entity=>({kind:'donor',entity})),...parsed.gifts.map(entity=>({kind:'gift',entity})),...parsed.pledges.map(entity=>({kind:'pledge',entity})),...parsed.notes.map(entity=>({kind:['call','meeting','email'].includes(entity.type)?'interaction':'note',entity})),
  ]
  const candidates = await Promise.all(entities.flatMap(({kind,entity}) => (entity.customValues ?? []).map(async imported => ({kind,entity,imported,recordKey:await sha256(entity.externalId),sourceKey:await sha256(JSON.stringify([kind,entity.externalId,imported.mapping.key])),hash:await sha256(JSON.stringify([kind,entity.externalId,imported.mapping.key,imported.value]))}))))
+ if(parsed.source==='neon')for(const m of parsed.customFields??[]){
+  const held=definitions.get(m.key),earlier=staged.get(m.key)
+  if(held&&(!definitionMatches(held,m)||held.label!==m.label)||earlier&&!definitionMatches(earlier,m)){
+   plan.diagnostics.push({severity:'error',code:'CUSTOM_MAPPING',column:m.column,message:`Custom field ${m.key} differs from the reviewed source definition.`});continue
+  }
+  if(!held&&!earlier){
+   const field={...m,choices:JSON.stringify(m.choices),version:1,created_at:c.now}
+   plan.customDefinitions.push(field);staged.set(m.key,field)
+   plan.checks.push(guard('NOT EXISTS(SELECT 1 FROM cf_custom_fields WHERE key=?)','MOVE_IN_CHANGED','This custom definition was added. Review again.',m.key))
+  }
+ }
  if (!candidates.length) return
  const custodyByKey = new Map((await all(c,"SELECT * FROM cf_move_in_records WHERE source=? AND kind='customValue' AND source_key IN(SELECT value FROM json_each(?))",parsed.source,JSON.stringify(candidates.map(v=>v.sourceKey)))).map(r=>[r.source_key,r]))
  const current = new Set((await all(c,'SELECT field_key,record_id FROM cf_custom_values WHERE donor_id IN(SELECT value FROM json_each(?))',JSON.stringify([...plan.donorIds.values()]))).map(v=>JSON.stringify([v.field_key,v.record_id])))
@@ -99,8 +110,8 @@ export async function planCustomValues(c:Context, parsed:ParsedImport, plan:Plan
 
 export function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:string):Stmt[] {
  const writes:Stmt[] = []
- if (!plan.customWrites.length) return writes
- const fields = plan.customWrites.filter(w=>w.createField).map(w=>w.field)
+ if (!plan.customWrites.length&&!plan.customDefinitions.length) return writes
+ const fields = [...plan.customDefinitions,...plan.customWrites.filter(w=>w.createField).map(w=>w.field)]
  if (fields.length) writes.push(sql(`INSERT INTO cf_custom_fields(key,label,kind,type,entry,choices,version,created_at) SELECT json_extract(value,'$.key'),json_extract(value,'$.label'),json_extract(value,'$.kind'),json_extract(value,'$.type'),json_extract(value,'$.entry'),json_extract(value,'$.choices'),1,? FROM json_each(?)`,c.now,JSON.stringify(fields)))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(source))writes.push(...spreadsheetDefinitionWrites(fields,jobId))
  const values = plan.customWrites.map(w=>{

@@ -37,7 +37,8 @@ export async function readNeon(connection:{organizationId:string;apiKey:string})
   return result
  }
  const accountIds=ids(await paged('/accounts/search','searchResults','Account ID'),'Account ID')
- const snapshot:NeonSnapshot={accounts:[],tenders:await read('/payments/tenders'),definitions:await read('/customFields?category=Account'),donations:[],activities:[],registrations:[],households:await read('/households/listHouseholds')}
+ const snapshot:NeonSnapshot={accounts:[],tenders:await read('/payments/tenders'),definitions:[],donations:[],activities:[],registrations:[],households:await read('/households/listHouseholds')}
+ for(const category of ['Account','Donation','Activity']){const definitions=await read('/customFields?category='+category);if(!Array.isArray(definitions))fail('NEON_SCHEMA','Neon custom definitions were incomplete.',502);snapshot.definitions.push(...definitions.map(f=>({...f,component:category})))}
  if(!Array.isArray(snapshot.tenders)||!Array.isArray(snapshot.definitions)||!Array.isArray(snapshot.households))fail('NEON_SCHEMA','Neon definitions or households were incomplete.',502)
  const donationIds=new Set<string>(),registrationIds=new Set<string>()
  for(const id of accountIds){
