@@ -32,16 +32,23 @@ export function parsedOutcomes(parsed:ParsedImport): OutcomeTotals {
  return out
 }
 const nativeGift=(r:Row)=>({amountCents:r.amount_cents,goodsCents:r.goods==='unknown'?null:r.goods_cents,status:r.status??'not acknowledged',netCents:r.net_cents,tribute:r.tribute_kind?{kind:r.tribute_kind,honoree:r.honoree,sourceGroup:r.source_group}:undefined})
-const giftColumns=`g.*,a.status,t.kind AS tribute_kind,t.honoree,t.source_group`
+const giftColumns=`g.id,g.amount_cents,g.received_on,g.fund,g.goods,g.goods_cents,g.net_cents,a.status,t.kind AS tribute_kind,t.honoree,t.source_group`
 const giftJoins=`LEFT JOIN cf_gift_acknowledgments a ON a.gift_id=g.id LEFT JOIN cf_gift_tributes t ON t.gift_id=g.id JOIN cf_donors d ON d.id=g.donor_id AND d.erased_at IS NULL`
-async function credits(c:Context,source:string,keys:string[]) {
- return all(c,`SELECT r.source_key,s.amount_cents,a.status FROM cf_move_in_records r JOIN cf_soft_credits s ON s.id=r.native_id LEFT JOIN cf_soft_credit_acknowledgments a ON a.soft_credit_id=s.id JOIN cf_donors d ON d.id=s.donor_id AND d.erased_at IS NULL WHERE r.source=? AND r.kind='softCredit' AND r.source_key IN(SELECT value FROM json_each(?))`,source,JSON.stringify(keys))
+/** Source membership is read in bounded chunks during preview and from the
+ * durable journal after review, including identities owned by an earlier job. */
+async function sourceRows(c:Context,source:string,kind:'gift'|'softCredit',keys:string[],jobId?:string):Promise<Row[]> {
+ const rows:Row[]=[]
+ const batches=jobId?[null]:Array.from({length:Math.ceil(keys.length/1000)},(_,i)=>keys.slice(i*1000,(i+1)*1000))
+ for(const batch of batches) {
+  const scope=jobId?"r.source_key IN(SELECT source_key FROM cf_move_in_outcome_refs WHERE job_id=? AND kind=?)":"r.source_key IN(SELECT value FROM json_each(?))"
+  const params=jobId?[jobId,kind]:[JSON.stringify(batch)]
+  const query=kind==='gift'?`SELECT r.source_key,${giftColumns} FROM cf_move_in_records r JOIN cf_gift_balances g ON g.id=r.native_id ${giftJoins}`:`SELECT r.source_key,s.amount_cents,a.status FROM cf_move_in_records r JOIN cf_soft_credits s ON s.id=r.native_id LEFT JOIN cf_soft_credit_acknowledgments a ON a.soft_credit_id=s.id JOIN cf_donors d ON d.id=s.donor_id AND d.erased_at IS NULL`
+  rows.push(...await all(c,`${query} WHERE r.source=? AND r.kind=? AND ${scope}`,source,kind,...params))
+ }
+ return rows
 }
-export async function nativeOutcomeSnapshot(c:Context,source:string,giftKeys:string[],creditKeys:string[]) {
- const [heldGifts,heldCredits]=await Promise.all([
-  all(c,`SELECT r.source_key,${giftColumns} FROM cf_move_in_records r JOIN cf_gift_balances g ON g.id=r.native_id ${giftJoins} WHERE r.source=? AND r.kind='gift' AND r.source_key IN(SELECT value FROM json_each(?))`,source,JSON.stringify(giftKeys)),
-  credits(c,source,creditKeys),
- ])
+export async function nativeOutcomeSnapshot(c:Context,source:string,giftKeys:string[],creditKeys:string[],jobId?:string) {
+ const [heldGifts,heldCredits]=await Promise.all([sourceRows(c,source,'gift',giftKeys,jobId),sourceRows(c,source,'softCredit',creditKeys,jobId)])
  heldGifts.sort((a,b)=>a.source_key.localeCompare(b.source_key));heldCredits.sort((a,b)=>a.source_key.localeCompare(b.source_key))
  return {heldGifts,heldCredits,fingerprint:await sha256(JSON.stringify([heldGifts,heldCredits]))}
 }
@@ -58,10 +65,10 @@ export async function previewOutcomes(c:Context,parsed:ParsedImport) {
  return {totals,cash,creditKeys,giftKeys,fingerprint}
 }
 /** Rechecks read current native records, never the source controls' cached actual values. */
-export async function nativeOutcomes(c:Context,job:Row,creditKeys:string[]) {
+export async function nativeOutcomes(c:Context,job:Row) {
  const [gifts,soft]=await Promise.all([
   all(c,`SELECT ${giftColumns} FROM cf_move_in_job_gifts r JOIN cf_gift_balances g ON g.id=r.gift_id ${giftJoins} WHERE r.job_id=?`,job.id),
-  credits(c,job.source,creditKeys),
+  sourceRows(c,job.source,'softCredit',[],job.id),
  ])
  const out=emptyOutcomes()
  for(const r of gifts)gift(out,nativeGift(r))

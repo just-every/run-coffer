@@ -75,7 +75,7 @@ export async function preview(c: Context,input: ParseInput) {
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{nativeOutcomeFingerprint:projected.fingerprint,giftKeys:projected.giftKeys,softCreditKeys:projected.creditKeys,...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),previewNativeDonors:[...nativeDonors],spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{nativeOutcomeFingerprint:projected.fingerprint,...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),previewNativeDonors:[...nativeDonors],spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],outcomeKeys:{gift:projected.giftKeys,softCredit:projected.creditKeys},issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
  return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }
@@ -92,7 +92,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
  const report=JSON.parse(job.report)
  if(report.canApply===false || !job.parts)fail('MOVE_IN_ERRORS','This review has rows that must be fixed first. Fix them in your files and upload them again.',409)
- if(report.nativeOutcomeFingerprint&&(await nativeOutcomeSnapshot(c,job.source,report.giftKeys??[],report.softCreditKeys??[])).fingerprint!==report.nativeOutcomeFingerprint)fail('MOVE_IN_CHANGED','Native gift or soft-credit facts changed after review. Preview the files and compare the current totals again.',409)
+ if(report.nativeOutcomeFingerprint&&(await nativeOutcomeSnapshot(c,job.source,[],[],job.id)).fingerprint!==report.nativeOutcomeFingerprint)fail('MOVE_IN_CHANGED','Native gift or soft-credit facts changed after review. Preview the files and compare the current totals again.',409)
  const acceptedReason=optional(input.acceptedReason,'Reason for accepting differences',2000)
  if(report.needsAcceptance && !acceptedReason)fail('MOVE_IN_TOTALS','Say why the differences or unused columns are acceptable before moving in, or fix the files and upload again.')
  const acknowledgeFrom=input.acknowledgeFrom?date(input.acknowledgeFrom,'Acknowledge from'):null
@@ -143,7 +143,7 @@ export async function continueApply(c: Context,id:string) {
 
 async function finish(c: Context,job: Row) {
  const check=await totalsCheck(c,job)
- await commit(c,[sql("UPDATE cf_move_in_jobs SET state='completed',checked_at=?,check_report=? WHERE id=? AND state='applying'",c.now,JSON.stringify(check),job.id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',job.id),
+ await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='applying' AND redacted=0)",'MOVE_IN_CHANGED','This move-in changed or an imported donor was erased. Refresh its journal.',job.id),sql("UPDATE cf_move_in_jobs SET state='completed',checked_at=?,check_report=? WHERE id=? AND state='applying'",c.now,JSON.stringify(check),job.id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',job.id),
   event(c,'move-in.complete','move-in',job.id,null,{parts:job.parts,totalsMatch:check.matches})])
 }
 /** Source totals from the files against the gifts now in Coffer for this move-in. */
@@ -157,7 +157,7 @@ async function totalsCheck(c: Context,job: Row) {
  const destination=emptyTotals()
  for(const g of await all(c,"SELECT g.received_on,g.fund,g.donor_id,r.donor_source_key,b.net_cents FROM cf_move_in_job_gifts r JOIN cf_gifts g ON g.id=r.gift_id JOIN cf_gift_balances b ON b.id=g.id WHERE r.job_id=?",job.id))
   if(g.net_cents>0)accumulate(destination,g.net_cents,g.received_on,g.fund??'',external.get(g.donor_source_key??byNative.get(g.donor_id)??'')??g.donor_id)
- const outcomes=report.outcomeTotals?await nativeOutcomes(c,job,report.softCreditKeys??[]):undefined
+ const outcomes=report.outcomeTotals?await nativeOutcomes(c,job):undefined
  const rows=compare({sourceTotals:report.sourceTotals,controlTotals:report.controlTotals??[],outcomeTotals:report.outcomeTotals} as ParsedImport,destination,outcomes)
  rows.push(...await restrictionReconciliation(c,job.source,report))
  return {matches:rows.every(r=>r.matches),...compact(rows)}
@@ -168,7 +168,7 @@ export async function recheck(c: Context,id:string) {
  if(!job)fail('NOT_FOUND','Only a finished move-in can be checked.',404)
  if(job.redacted)fail('MOVE_IN_ERASED','An imported donor was erased. Source reconciliation is no longer available.',409)
  const check=await totalsCheck(c,job)
- await c.db.prepare('UPDATE cf_move_in_jobs SET checked_at=?,check_report=? WHERE id=?').bind(c.now,JSON.stringify(check),id).run()
+ await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='completed' AND redacted=0)",'MOVE_IN_CHANGED','This move-in changed or an imported donor was erased. Source reconciliation is no longer current.',id),sql('UPDATE cf_move_in_jobs SET checked_at=?,check_report=? WHERE id=?',c.now,JSON.stringify(check),id)])
  return {id,...check}
 }
 
@@ -249,7 +249,7 @@ export async function undo(c: Context,id:string) {
  writes.push(...customImportUndoWrites(id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoWrites(id))
  writes.push(...importHouseholdUndoWrites(c,id))
- writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
+ writes.push(sql('DELETE FROM cf_move_in_outcome_refs WHERE job_id=?',id),sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))
  if(result.job.source==='spreadsheet')writes.push(sql(`DELETE FROM cf_address_checks WHERE donor_id IN (${owned('donor')})`,id))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}
