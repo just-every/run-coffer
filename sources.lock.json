@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "bcc657485b9a1ba304cc2e95c6f292283135dbb636314b7257b228b8881bc4ee",
+      "sha256": "ca5d0863bdfa2fd3f39753177a12949b2d176a676d015bbf7fbe10abb96b0a7a",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7abe8b1081671f9d438b12702fa7e752a6f4558d6c0eed12339b5552f45630fd",
+      "sha256": "c7cf1b148f2500e4db5438d5fadf62b9b05cee4cf951f508c2d77dd2afc6d240",
       "executable": false
     },
     "deploy-demo.json": {
@@ -635,7 +635,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "6cac0db0eb8907cde98248c1e945a486c47cca6158e251679d20e7aac351fa3b",
+      "sha256": "63306b244706350e8e1b17aef5d246a770f39577c451178d10811a4673fc2f15",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -6295,7 +6295,7 @@
       "executable": false
     },
     "tests/agent-quickbooks-journey.mjs": {
-      "sha256": "b59defb8b3a88e70156042b406f7b453fe5741871343ad448c314de92f7c1036",
+      "sha256": "d1a32d9caea7703525e86d721d3a7889f4a23a85c69ba8788c1bb26b47916666",
       "executable": false
     },
     "tests/agent-receipts.test.mjs": {
