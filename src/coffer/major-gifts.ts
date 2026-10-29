@@ -4,7 +4,7 @@ import { all, commit, date, event, fail, guard, id, integer, newId, one, optiona
 import { amount } from './money'
 import { settings } from './settings'
 import { opportunityStages, saveOpportunityStages } from './opportunity-stages'
-import { closeOpportunity } from './opportunity-close'
+import { closeOpportunity, opportunityLinkGuard } from './opportunity-close'
 export { opportunityStages } from './opportunity-stages'
 
 const liveDonor = (donorId: string) => guard(`EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.erased_at IS NULL
@@ -99,9 +99,12 @@ export function majorGiftMergeStatements(sourceId: string, targetId: string): St
 
 /** The reviewed import uses the same open-stage and current-owner boundaries as
  * native entry. Source amounts remain promises, never ledger cash. */
-export async function importedOpportunity(c:Context,o:import('./move-in/types').ParsedOpportunity,donorId:string) {
+export async function importedOpportunity(c:Context,o:import('./move-in/types').ParsedOpportunity,donorId:string,links:{giftId?:string;pledgeId?:string;opportunityId?:string}={}) {
  const policy=await opportunityStages(c),stage=policy.stages.find(s=>s.id===o.stage)
- if(!stage||stage.outcome!=='open')fail('INPUT','Map the source opportunity to an existing open pipeline stage.',400)
+ if(!stage)fail('INPUT','Map the source opportunity to an existing pipeline stage.',400)
+ const closedOn=o.closedOn?date(o.closedOn,'Source close date'):null
+ if(stage.outcome==='open'&&(closedOn||o.linkedGiftExternalId||o.linkedPledgeExternalId)||stage.outcome!=='open'&&!closedOn||stage.outcome==='lost'&&(o.linkedGiftExternalId||o.linkedPledgeExternalId||o.sourceFundedAmountCents)||stage.outcome==='won'&&(!o.linkedGiftExternalId&&!o.linkedPledgeExternalId||o.linkedGiftExternalId&&o.linkedPledgeExternalId))fail('INPUT','The source close date, funding link and reviewed stage outcome must agree.',400)
+ if(closedOn&&closedOn>today((await settings(c)).timezone,new Date(c.now)))fail('INPUT','A source close date cannot be in the future.',400)
  if(o.stageVersion!==undefined&&o.stageVersion!==policy.version)fail('VERSION','Pipeline settings changed after source review. Preview SKY again.',409)
  o.stageVersion??=policy.version
  const ownerId=id(o.ownerId,'Reviewed opportunity owner'),version=integer(Number(o.ownerVersion),'Reviewed owner version',1)
@@ -110,7 +113,11 @@ export async function importedOpportunity(c:Context,o:import('./move-in/types').
  o.ownerName=owner.display_name;o.stageLabel=stage.label
  const ask=amount({amountCents:o.askAmountCents},'amount','Source ask amount',{allowZero:true}),expected=amount({amountCents:o.expectedAmountCents},'amount','Source expected amount',{allowZero:true})
  const probability=integer(Number(o.probability),'Reviewed probability (%)',0,100)
- return {checks:[guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND opportunity_stages_version=?)','VERSION','Pipeline stages changed. Preview SKY again.',policy.version),opportunityOwnerGuard(ownerId,version)],row:{donor_id:donorId,label:text(o.label,'Opportunity name',200),stage:stage.id,owner_id:ownerId,ask_amount_cents:ask,expected_amount_cents:expected,probability_percent:probability,fund:text(o.fund,'Source fund',100),campaign_id:null,expected_close_on:date(o.expectedCloseOn,'Source expected close date'),next_step:text(o.nextStep+(o.sourceCampaign?'\nSource campaign: '+o.sourceCampaign:''),'Source next step',2000),version:1,created_at:c.now,created_by:c.actor.id,updated_at:c.now,updated_by:c.actor.id,pledge_id:null,gift_id:null,closed_on:null}}
+ const checks=[guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND opportunity_stages_version=?)','VERSION','Pipeline stages changed. Preview SKY again.',policy.version),opportunityOwnerGuard(ownerId,version)]
+ if(links.giftId)checks.push(guard(`EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=? AND g.donor_id=? AND g.net_cents=? AND EXISTS(SELECT 1 FROM cf_fund_ledger l WHERE l.gift_id=g.id AND l.fund=? AND l.amount_cents=?))`,'GIFT_CHANGED','The received gift no longer reconciles to this source opportunity.',links.giftId,donorId,o.sourceFundedAmountCents,o.fund,o.sourceFundedAmountCents))
+ if(links.pledgeId)checks.push(guard('EXISTS(SELECT 1 FROM cf_pledges WHERE id=? AND donor_id=? AND fund=? AND amount_cents=?)','PLEDGE_CHANGED','The pledge no longer reconciles to this source opportunity.',links.pledgeId,donorId,o.fund,o.sourceFundedAmountCents))
+ if(links.giftId||links.pledgeId)checks.push(opportunityLinkGuard(links.pledgeId??null,links.giftId??null,links.opportunityId??null))
+ return {checks,row:{donor_id:donorId,label:text(o.label,'Opportunity name',200),stage:stage.id,owner_id:ownerId,ask_amount_cents:ask,expected_amount_cents:expected,probability_percent:probability,fund:text(o.fund,'Source fund',100),campaign_id:null,expected_close_on:date(o.expectedCloseOn,'Source expected close date'),next_step:text(o.nextStep+(o.sourceCampaign?'\nSource campaign: '+o.sourceCampaign:''),'Source next step',2000),version:1,created_at:c.now,created_by:c.actor.id,updated_at:c.now,updated_by:c.actor.id,pledge_id:links.pledgeId??null,gift_id:links.giftId??null,closed_on:closedOn}}
 }
 
 /** Native entry and source review enforce the same live owner boundary. */

@@ -67,10 +67,22 @@ Use immutable SKY record IDs as keys. For example:
 
 Use your current native person's ID and version from `./auth/session` or the
 installation's native people read. Map every source opportunity status to a
-current **open** pipeline stage. Map its single source fundraiser to an active
+current pipeline stage with its existing open, won or lost outcome. Map its single source fundraiser to an active
 native owner, admin or member; use `unassigned` explicitly for an opportunity
 with no source fundraiser. Names are never identity matches. The source ask and
 expected amounts remain opportunity amounts and never become received cash.
+The optional `opportunities` dictionary is keyed by source opportunity ID.
+Supply an explicitly reviewed `nextStep` for each opportunity: the documented
+SKY record supplies a purpose, not a native follow-up instruction. For a lost
+proposal without a source funding date, supply its source-attested `closedOn`.
+A supplied close date must agree with a returned funding date.
+
+A won opportunity must link to one source gift or pledge for that constituent
+and fund, with a source funded amount that reconciles exactly. A lost proposal
+has no funding link. Historical closures are excluded from open forecasts and
+create no additional gift or pledge. Duplicate funding claims, wrong native
+outcomes and inconsistent source amounts refuse review. The native funding
+guard also prevents reusing a pledge and one of its payments for two closures.
 Review the displayed donor, source status, mapped stage, owner and amounts.
 Changes to that owner or pipeline configuration invalidate the approval.
 
@@ -98,6 +110,26 @@ reused on the next NXT review. Empty or absent permission is never consent.
 Source dates remain distinct from the import time; later native choices cannot
 be overwritten by another source import. Ended or future-dated codes require
 separate migration.
+
+## Review unfinished source actions
+
+Unfinished actions need a current native owner. Their source fundraiser ID maps
+through `owners`; use `unassigned` explicitly when the source has no fundraiser.
+An `actions` entry, keyed by action ID, can select one source `owner` when
+several are present. A call or meeting requires explicit `isAsk: true` or
+`isAsk: false`; other actions require a reviewed `kind` of `follow_up`,
+`thank_you` or `data_fix` and cannot be classified as asks. Open actions on an
+inactive or deceased constituent, a withdrawn phone channel or a conflicting
+solicitation restriction refuse the review. Current native restrictions are
+checked again when the task is applied and used.
+
+The source date becomes the task due date. A source opportunity link must
+resolve to an open reviewed opportunity for the same constituent. The source
+summary and description remain on its task and a labelled historical note;
+custom values on that note use reviewed note-field mappings. Task creation
+sends no mail or text and places no call. Later task edits prevent undo, and
+ordinary native merge, erasure and archive custody include the imported task.
+Completed actions with opportunity links still need separate history support.
 
 ## Supplemental source facts
 
@@ -161,7 +193,8 @@ gift**, with source-linked designation allocations whose cents add exactly to
 its parent. This slice supports distinct funds with a common campaign and
 appeal. Fund reports expand allocations; cash, receipts and donor lifetime
 totals count the parent once. Unpaid unsplit pledges and open opportunities
-remain promises, outside received-cash totals. Repeating a completed source
+remain promises, outside received-cash totals. Historical closed proposals link
+to their existing imported gift or pledge and never duplicate it. Repeating a completed source
 review never duplicates records. The review identity includes all normalized
 SKY records; changing a source gift while reusing the same mapping file requires
 a new review, and conflicting previously imported facts block apply.
@@ -173,8 +206,8 @@ custom-value or other dependent edit refuses undo without removing anything.
 Archives retain the imported history and mappings. Native merge and erasure
 rules apply, and an erased constituent cannot be recreated by replay.
 
-The following remain outside this slice: reference and partial-date custom definitions, dated or annotated values; unfinished or opportunity-linked actions; funded or closed opportunities;
-multiple opportunity fundraisers; split promises; recurring gifts and vault
+The following remain outside this slice: reference and partial-date custom definitions, dated or annotated values; completed opportunity-linked actions;
+multiple funding links or opportunity fundraisers; split promises; recurring gifts and vault
 transfer; other unsupported gift types and remaining source-object coverage;
 production OAuth and live provider qualification. Unsupported objects returned
 by a fetched door are refused. Objects from other, unfetched doors remain

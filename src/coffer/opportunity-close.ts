@@ -38,14 +38,19 @@ export async function closeOpportunity(c: Context, p: Row) {
    giftId = id(p.giftId, 'Gift')
    statements.push(guard(`EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=? AND g.donor_id=? AND g.kind='gift' AND g.net_cents>0 AND EXISTS(SELECT 1 FROM cf_fund_ledger f WHERE f.gift_id=g.id AND f.fund=? AND f.amount_cents>0))`, 'GIFT_CHANGED', 'Choose a received gift with a positive balance for this prospect and fund.', giftId, row.donor_id, row.fund))
   } else fail('INPUT', 'A closed-won opportunity needs its pledge or received gift.', 400)
-  statements.push(guard(`NOT EXISTS(SELECT 1 FROM cf_prospects WHERE pledge_id=? OR gift_id=?
-   OR (? IS NOT NULL AND gift_id IN (SELECT gift_id FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id WHERE i.pledge_id=?))
-   OR (? IS NOT NULL AND pledge_id IN (SELECT i.pledge_id FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id WHERE a.gift_id=?))
-   OR (? IS NOT NULL AND gift_id IN (SELECT id FROM cf_gifts WHERE pledge_id=?))
-   OR (? IS NOT NULL AND pledge_id=(SELECT pledge_id FROM cf_gifts WHERE id=?)))`, 'LINK_USED', 'That pledge or gift already closes an opportunity, including a linked pledge payment.', pledgeId, giftId, pledgeId, pledgeId, giftId, giftId, pledgeId, pledgeId, giftId, giftId))
+  statements.push(opportunityLinkGuard(pledgeId,giftId))
  } else if (linkKind !== 'none' || optional(p.pledgeId, 'Pledge', 100) || optional(p.giftId, 'Gift', 100)) fail('INPUT', 'A closed-lost opportunity cannot link a pledge or gift.', 400)
  statements.push(sql('UPDATE cf_prospects SET stage=?,pledge_id=?,gift_id=?,closed_on=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=?', stage.id, pledgeId, giftId, closedOn, c.now, c.actor.id, prospectId, version),
   event(c, 'prospect.close', 'prospect', prospectId, row.donor_id, { stage: stage.id, outcome: stage.outcome, pledgeId, giftId, closedOn }))
  await commit(c, statements)
  return { id: prospectId, donorId: row.donor_id, stage: stage.id, pledgeId, giftId, closedOn, version: version + 1 }
+}
+
+/** A received pledge payment and its promise cannot close two opportunities. */
+export function opportunityLinkGuard(pledgeId:string|null,giftId:string|null,exceptId:string|null=null) {
+ return guard(`NOT EXISTS(SELECT 1 FROM cf_prospects WHERE (? IS NULL OR id<>?) AND (pledge_id=? OR gift_id=?
+   OR (? IS NOT NULL AND gift_id IN (SELECT gift_id FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id WHERE i.pledge_id=?))
+   OR (? IS NOT NULL AND pledge_id IN (SELECT i.pledge_id FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id WHERE a.gift_id=?))
+   OR (? IS NOT NULL AND gift_id IN (SELECT id FROM cf_gifts WHERE pledge_id=?))
+   OR (? IS NOT NULL AND pledge_id=(SELECT pledge_id FROM cf_gifts WHERE id=?))))`, 'LINK_USED', 'That pledge or gift already closes an opportunity, including a linked pledge payment.', exceptId,exceptId,pledgeId,giftId,pledgeId,pledgeId,giftId,giftId,pledgeId,pledgeId,giftId,giftId)
 }

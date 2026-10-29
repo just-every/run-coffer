@@ -31,8 +31,14 @@ export async function blackbaudJourney(){
   f.gifts[0].gift_splits[1].amount.value=199.99;await post(h,'preview',f.input(),{status:400});f.gifts[0].gift_splits[1].amount.value=200
   f.gifts[0].type='RecurringGift';await post(h,'preview',f.input(),{status:400});f.gifts[0].type='Donation'
   f.opportunities[0].status='Unmapped stage';await post(h,'preview',f.input(),{status:400});f.opportunities[0].status='Proposal'
+  f.opportunities[1].funded_amount.value=499.99;await post(h,'preview',f.input(),{status:400});f.opportunities[1].funded_amount.value=500
+  f.opportunities.push({...f.opportunities[1],id:key(9098)});await post(h,'preview',f.input(),{status:400});f.opportunities.pop()
+  const wonStage=f.review.stages.Funded;f.review.stages.Funded={stage:'ask',probability:100}
+  const wrongOutcome=await post(h,'preview',f.input());assert.equal(wrongOutcome.canApply,false);assert.ok(wrongOutcome.diagnostics.some(d=>d.code==='SKY_OPPORTUNITY'));await post(h,'apply',{id:wrongOutcome.id,fingerprint:wrongOutcome.fingerprint},{status:409});f.review.stages.Funded=wonStage
   const ownerMapping=f.review.owners[key(9001)];f.review.owners[key(9001)]={id:admin.id,version:1}
   const badOwner=await post(h,'preview',f.input());assert.equal(badOwner.canApply,false);assert.ok(badOwner.diagnostics.some(d=>d.code==='SKY_OPPORTUNITY'));await post(h,'apply',{id:badOwner.id,fingerprint:badOwner.fingerprint},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,empty);f.review.owners[key(9001)]=ownerMapping
+  const actionOwner=await post(h,'preview',{...f.input(),files:[sourceFile({...f.review,actions:{[key(9024)]:{owner:'unassigned',isAsk:false}},owners:{...f.review.owners,unassigned:{id:admin.id,version:1}}})]})
+  assert.equal(actionOwner.canApply,false);assert.ok(actionOwner.diagnostics.some(d=>d.code==='SKY_ACTION'));await post(h,'apply',{id:actionOwner.id,fingerprint:actionOwner.fingerprint},{status:409})
   const badAck=structuredClone(f.review);badAck.softCredits[key(9031)].interactionId=key(9021)
   const refused=await post(h,'preview',{...f.input(),files:[sourceFile(badAck)]});assert.equal(refused.canApply,false);assert.ok(refused.diagnostics.some(d=>d.code==='ACKNOWLEDGMENT_LINK'))
   await post(h,'apply',{id:refused.id,fingerprint:refused.fingerprint},{status:409})
@@ -45,10 +51,11 @@ export async function blackbaudJourney(){
   assert.equal(preview.sourceDefinitions.length,7);assert.deepEqual(preview.sourceDefinitions.find(d=>d.name==='Interests').choices,['Reading','Music','Drama'])
   assert.equal(preview.sourceTotals.giftCount,3);assert.equal(preview.sourceTotals.amountCents,125000)
   assert.deepEqual(preview.sourceTotals.byFund,{Reading:{giftCount:3,amountCents:105000},Library:{giftCount:1,amountCents:20000}})
-  assert.equal(preview.counts.opportunities,1);assert.equal(preview.counts.designations,2);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,2)
+  assert.equal(preview.counts.tasks,1);assert.equal(preview.counts.opportunities,4);assert.equal(preview.counts.designations,2);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,2)
   assert.equal((await h.get('/api/coffer/donors')).total,empty,'Preview has no native records')
   for(const secret of [key(9998),key(9999),key(9997)])assert.ok(!JSON.stringify(preview).includes(secret))
   await post(h,'apply',{id:preview.id,fingerprint:'stale'},{status:409});await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{as:member.cookie,status:403});await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{as:admin.cookie,status:401})
+  const mailBeforeApply=h.messages.length
   const directory=process.env.COFFER_SKY_SHOTS;if(directory)await mkdir(directory,{recursive:true})
   await withBrowserWorker(h,async(context,origin)=>{
    const page=await context.newPage();await page.goto(origin+'/app/move-in/crm')
@@ -59,7 +66,7 @@ export async function blackbaudJourney(){
    await form.getByRole('button',{name:'Preview NXT history',exact:true}).click();await page.waitForURL('**/app/move-in/crm/review?*')
    assert.match(await page.locator('body').innerText(),/Nothing blocks this move-in/)
    assert.match(await page.locator('body').innerText(),/Unused constituent date/);assert.match(await page.locator('body').innerText(),/Complete choices: Reading, Music, Drama/)
-   await page.getByText('Gifts · 3',{exact:true}).click();await page.getByText('Opportunities · 1',{exact:true}).click()
+   await page.getByText('Gifts · 3',{exact:true}).click();await page.getByText('Opportunities · 4',{exact:true}).click()
    assert.match(await page.locator('body').innerText(),/Library renewal/);assert.match(await page.locator('body').innerText(),/Proposal → Ask/);assert.match(await page.locator('body').innerText(),/\$300\.00/);assert.match(await page.locator('body').innerText(),/\$200\.00/)
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/sky-review-'+width+'.png',fullPage:true})}
    await page.setViewportSize({width:1440,height:1000})
@@ -69,6 +76,7 @@ export async function blackbaudJourney(){
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/sky-journal-'+width+'.png',fullPage:true})}
    await page.close()
   })
+  assert.equal(h.messages.length,mailBeforeApply,'Importing source actions and gifts sends no mail')
   const people=(await h.get('/api/coffer/donors?status=all')).donors,person=n=>people.find(p=>p.name===f.people.find(s=>s.id===key(n)).name)
   const ava=await h.get('/api/coffer/donors/'+person(9001).id),bee=await h.get('/api/coffer/donors/'+person(9002).id),cleo=await h.get('/api/coffer/donors/'+person(9003).id)
   const mailChoice=bee.consents.find(c=>c.channel==='mail');assert.equal(mailChoice.status,'withdrawn');assert.equal(mailChoice.captured_on,'2026-09-01');assert.match(mailChoice.evidence,/Do not mail/);assert.ok(!mailChoice.evidence.includes('source date unknown'))
@@ -90,15 +98,23 @@ export async function blackbaudJourney(){
   assert.deepEqual((await h.get('/api/coffer/letters')).due.map(g=>g.id),[cleo.gifts[0].id])
   assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000})
   assert.equal(cleo.pledges[0].amount_cents,100000)
-  const pipeline=await h.get('/api/coffer/pipeline'),opportunity=pipeline.opportunities[0]
+  const pipeline=await h.get('/api/coffer/pipeline'),opportunity=pipeline.opportunities.find(o=>o.label==='Library renewal')
   assert.equal(opportunity.stage,'ask');assert.equal(opportunity.donor_id,person(9003).id);assert.equal(opportunity.owner_id,owner.id);assert.equal(opportunity.ask_amount_cents,300000);assert.equal(opportunity.expected_amount_cents,240000);assert.equal(pipeline.totals.forecastCents,192000)
+  const won=pipeline.opportunities.find(o=>o.label==='Completed reading proposal'),lost=pipeline.opportunities.find(o=>o.label==='Declined reading proposal'),promised=pipeline.opportunities.find(o=>o.label==='Promised reading proposal')
+  assert.equal(pipeline.totals.open,1);assert.equal(pipeline.totals.askCents,300000)
+  assert.equal(won.outcome,'won');assert.equal(won.closed_on,'2026-09-04');assert.equal(won.gift_id,cleo.gifts[0].id);assert.equal(won.forecast_cents,0)
+  assert.equal(lost.outcome,'lost');assert.equal(lost.closed_on,'2026-09-05');assert.equal(lost.gift_id,null);assert.equal(lost.pledge_id,null);assert.equal(lost.forecast_cents,0)
+  assert.equal(promised.outcome,'won');assert.equal(promised.pledge_id,cleo.pledges[0].id);assert.equal(promised.forecast_cents,0);assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000})
+  const importedTasks=await h.get('/api/coffer/tasks'),sourceTask=importedTasks.tasks.find(t=>t.reason==='Review library proposal\nA human follow-up, with no automatic contact')
+  assert.ok(sourceTask);assert.equal(sourceTask.owner_id,owner.id);assert.equal(sourceTask.status,'open');assert.equal(sourceTask.is_ask,0);assert.equal(sourceTask.task_kind,'meeting');assert.equal(sourceTask.prospect_id,opportunity.id);assert.equal(sourceTask.due_on,'2026-11-10')
   assert.equal((await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed').totalCents,75000);assert.equal(ava.giftDepth.tributes[0].amount_permission,0)
   const hh=await h.get('/api/coffer/households/'+ava.donor.household_id)
   assert.equal(hh.household.head_donor_id,ava.donor.id);assert.equal(hh.household.head_source,'re-nxt');assert.ok(hh.household.head_imported_at);assert.equal(hh.household.addressee_override,'  The Reading Family  ');assert.equal(hh.household.formal_override,'Dear Reed Readers')
   assert.equal((await h.get('/api/coffer/households/'+cleo.donor.household_id)).household.head_donor_id,null);assert.equal((await h.get('/api/coffer/households/'+(await h.get('/api/coffer/donors/'+person(9005).id)).donor.household_id)).household.head_donor_id,null)
   await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const [name,path] of [['donor','/app/donors/'+ava.donor.id],['opportunity','/app/pipeline']]){await page.goto(origin+path);assert.ok((await page.locator('body').innerText()).includes(name==='donor'?'Ava':'Library renewal'));for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/sky-'+name+'-'+width+'.png',fullPage:true})}}await page.close()})
   const saved=await archive(h);for(const secret of [key(9998),key(9999),key(9997)])assert.ok(!JSON.stringify(saved).includes(secret))
-  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual(await fundAmounts(fresh),{Reading:105000,Library:20000});assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities[0].expected_amount_cents,240000);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities.length,0);assert.deepEqual(await fundAmounts(fresh),{});assert.ok(!(await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key.startsWith('sky_')))})
+  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual(await fundAmounts(fresh),{Reading:105000,Library:20000});assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities.find(o=>o.label==='Library renewal').expected_amount_cents,240000);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities.length,0);assert.equal((await fresh.get('/api/coffer/tasks')).tasks.length,0);assert.deepEqual(await fundAmounts(fresh),{});assert.ok(!(await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key.startsWith('sky_')))})
+  await run(async fresh=>{await restore(fresh,saved);await fresh.command('task.assign',{taskId:sourceTask.id,version:sourceTask.version,ownerId:(await fresh.get('/auth/session')).operator.id,dueOn:'2026-11-12'});await post(fresh,'undo',{id:preview.id},{status:409});assert.equal((await fresh.get('/api/coffer/tasks')).tasks.find(t=>t.id===sourceTask.id).due_on,'2026-11-12');assert.deepEqual(await fundAmounts(fresh),{Reading:105000,Library:20000})})
   const repeat=await post(h,'preview',{...f.input(),solicitCodes:undefined});assert.equal(repeat.prior.state,'completed');assert.equal((await apply(h,repeat)).unchanged,true);assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000})
   // A fresh read must compare changed source facts, even with the same review file.
   f.gifts[1].amount.value=251;f.gifts[1].gift_splits[0].amount.value=251;f.gifts[1].receipts[0].amount.value=251
@@ -118,8 +134,8 @@ export async function blackbaudJourney(){
   const second=await h.command('appeal.prepare',{name:'Second annual ask',channel:'email',donorIds:[cleo.donor.id]},{status:409});assert.equal(second.details['solicitation limit'],1)
   const target=await donor(h,'Native merged identity'),source=(await h.get('/api/coffer/donors/'+cleo.donor.id)).donor
   await h.command('donor.merge',{sourceDonorId:source.id,donorId:target.id,sourceVersion:source.version,version:target.version,reason:'duplicate_record'})
-  assert.equal((await h.get('/api/coffer/pipeline')).opportunities[0].donor_id,target.id);assert.equal((await h.get('/api/coffer/donors/'+target.id)).gifts[0].amount_cents,50000)
-  await h.command('donor.erase',{donorId:target.id,confirm:'ERASE'});assert.equal((await h.get('/api/coffer/pipeline')).opportunities.length,0)
+  assert.equal((await h.get('/api/coffer/pipeline')).opportunities.find(o=>o.label==='Library renewal').donor_id,target.id);assert.equal((await h.get('/api/coffer/tasks')).tasks.find(t=>t.id===sourceTask.id).donor_id,target.id);assert.equal((await h.get('/api/coffer/donors/'+target.id)).gifts[0].amount_cents,50000)
+  await h.command('donor.erase',{donorId:target.id,confirm:'ERASE'});assert.equal((await h.get('/api/coffer/pipeline')).opportunities.length,0);assert.ok(!(await h.get('/api/coffer/tasks')).tasks.some(t=>t.id===sourceTask.id))
   assert.equal((await post(h,'preview',f.input())).canApply,false,'An erased merged identity cannot return through replay')
   const erased=await h.get('/api/coffer/move-in/journal?id='+preview.id);assert.equal(erased.job.redacted,1);assert.deepEqual(erased.job.report,{})
   await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{status:409});assert.ok(!JSON.stringify(await archive(h)).includes(email(9003)))

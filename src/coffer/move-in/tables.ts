@@ -21,6 +21,7 @@ export const tables = {
  softCredit: { table: 'cf_soft_credits', key: 'id', columns: ['id','gift_id','donor_id','amount_cents','created_at','created_by'] },
  note: { table: 'cf_donor_notes', key: 'id', columns: ['id','donor_id','occurred_on','body','source','recorded_at','recorded_by'] },
  interaction: { table: 'cf_interactions', key: 'id', columns: ['id','donor_id','kind','occurred_on','who','notes','next_step','recorded_at','recorded_by'] },
+ callTask: {table:'cf_call_tasks',key:'id',columns:['id','donor_id','source_key','source_kind','reason','amount_cents','owner_id','due_on','status','version','created_at','completed_at','interaction_id','closed_reason','is_ask','task_kind','gift_id','prospect_id','completion_notes']},
  acknowledgment: { table: 'cf_gift_acknowledgments', key: 'gift_id', columns: ['gift_id','version','status','acknowledged_on','method','batch_id','letter_id','interaction_id','note_id','communication_id','outcome_unknown','reason','source_reference','source','updated_at','updated_by','updated_by_id','updated_by_role','change_source'] },
  softCreditAcknowledgment: { table: 'cf_soft_credit_acknowledgments', key: 'soft_credit_id', columns: ['soft_credit_id','version','status','acknowledged_on','method','interaction_id','note_id','reason','updated_at','updated_by','source','source_reference'] },
 } as const

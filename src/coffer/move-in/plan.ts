@@ -1,4 +1,6 @@
+import { phoneHolds } from '../solicitation-tasks'
 import { prepareGiftAllocations } from '../gift-splits'
+import { importedCallTask } from '../call-tasks'
 import { importedOpportunity } from '../major-gifts'
 import { planCustomValues, type CustomImportWrite } from './custom-fields'
 import { planSolicitationImports } from './solicitation-import'
@@ -29,15 +31,15 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {opportunity:'Opportunity',giftDesignation:'Gift designation',contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',recurringReference:'Source plan',platformGift:'Source transaction'}
+const label: Record<Kind,string> = {callTask:'Source action task',opportunity:'Opportunity',giftDesignation:'Gift designation',contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',recurringReference:'Source plan',platformGift:'Source transaction'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
  const plan: Plan = {sourceProvider:parsed.sourceCoverage?.provider,customDefinitions:[],customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
- const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.opportunities??[])]
+ const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.opportunities??[]),...(parsed.tasks??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
- const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...allocationKeys,...parsed.gifts.flatMap(g=>(g.designations??[]).map(d=>`${g.externalId}:${d.externalId}`)),...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
+ const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...(parsed.opportunities??[]).flatMap(o=>[o.linkedGiftExternalId,o.linkedPledgeExternalId].filter((id):id is string=>!!id)),...allocationKeys,...parsed.gifts.flatMap(g=>(g.designations??[]).map(d=>`${g.externalId}:${d.externalId}`)),...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
  const existing = new Map(mappings.map(m=>[`${m.kind}:${m.source_key}`,m]))
  const merges = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'into_id',into_id) AS snapshot FROM cf_donor_merges ORDER BY donor_id`)
@@ -238,12 +240,25 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  for(const r of parsed.recurringReferences??[])await add('recurringReference',r,{donor_id:plan.donorIds.get(r.donorExternalId),source,source_id:r.externalId,amount_cents:r.amountCents,frequency:r.frequency,status:r.status,method:r.method,campaign:r.campaign,next_on:r.nextOn,customer_reference:r.customerReference,payment_method_reference:r.paymentMethodReference,imported_at:c.now},undefined,plan.donorIds.get(r.donorExternalId))
  for(const o of parsed.opportunities??[]){
   try {
-   const prepared=await importedOpportunity(c,o,plan.donorIds.get(o.donorExternalId)??'')
+   const prepared=await importedOpportunity(c,o,plan.donorIds.get(o.donorExternalId)??'',{opportunityId:existing.get(`opportunity:${await sourceKey(o.externalId)}`)?.native_id,giftId:o.linkedGiftExternalId?existing.get(`gift:${await sourceKey(o.linkedGiftExternalId)}`)?.native_id??await nativeId(source,'gift',o.linkedGiftExternalId):undefined,pledgeId:o.linkedPledgeExternalId?existing.get(`pledge:${await sourceKey(o.linkedPledgeExternalId)}`)?.native_id??await nativeId(source,'pledge',o.linkedPledgeExternalId):undefined})
    plan.checks.push(...prepared.checks)
    await add('opportunity',o,prepared.row,undefined,plan.donorIds.get(o.donorExternalId))
   }catch(error){diagnostic(error instanceof Error?error.message:'Review opportunity identity, stage and owner.',o.location,'error','SKY_OPPORTUNITY')}
  }
  await planAcknowledgmentImports(c,parsed,plan,existing,add,readSet)
+ for(const t of parsed.tasks??[]){
+  try {
+   const donorId=plan.donorIds.get(t.donorExternalId)??'',donorRow=plan.effects.find(e=>e.kind==='donor'&&e.nativeId===donorId)?.row??donorRows.find(d=>d.id===donorId)
+   if(!donorRow||donorRow.constituent_status!=='active')throw Error('Source tasks require a current active constituent.')
+   const restrictions=await phoneHolds(c,[donorId],t.isAsk)
+   if(restrictions.get(donorId))throw Error('The source task is held: '+restrictions.get(donorId))
+   const prospect=t.opportunityExternalId?await nativeId(source,'opportunity',t.opportunityExternalId):null
+   const prepared=await importedCallTask(c,t,donorId,prospect)
+   plan.checks.push(...prepared.checks)
+   if(prospect)plan.checks.push(guard('EXISTS(SELECT 1 FROM cf_prospects WHERE id=? AND donor_id=? AND closed_on IS NULL)','MOVE_IN_CHANGED','The linked source opportunity changed.',prospect,donorId))
+   await add('callTask',t,prepared.row,undefined,donorId)
+  }catch(error){diagnostic(error instanceof Error?error.message:'Review the source action owner and authority.',t.location,'error','SKY_ACTION')}
+ }
  await planCustomValues(c,parsed,plan,existing)
  // Never expose a partial transaction as an option when inputs exceed D1's bound.
  if(!preview && plan.effects.length>3000)fail('MOVE_IN_LIMIT','Split this export into smaller reviews (at most 1,000 source rows).',400)

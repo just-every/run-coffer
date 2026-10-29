@@ -24,7 +24,7 @@ export async function blackbaudFields(reader:Reader,mappings:CustomImportMapping
    seen.add(category.name)
    const choices=category.type==='CodeTableEntry'?await catalog(reader,path.replace(/(?:\/details)?$/,'').replace(/\/categories$/,'/categories/values')+'?category_name='+encodeURIComponent(category.name)):[]
    if(choices.some(v=>typeof v!=='string'||!v.trim())||new Set(choices).size!==choices.length)error('The source code table has invalid or repeated choices.')
-   const kinds=scope==='action'?['interaction','note']:[scope==='gift'?'gift':'constituent'],selected=mappings.filter(m=>kinds.includes(m.kind)&&m.column===category.name)
+   const kinds=scope==='action'?['interaction','note']:scope==='gift'?['gift','pledge']:['constituent'],selected=mappings.filter(m=>kinds.includes(m.kind)&&m.column===category.name)
    if(!selected.length)error(`Map the complete ${scope} definition “${category.name}”, including unused fields.`)
    for(const mapping of selected) {
     if(mapping.type!==nativeTypes[category.type]||(category.type==='CodeTableEntry'?!['pick-one','pick-many'].includes(mapping.entry):mapping.entry!=='free-form'))error(`The mapping for “${category.name}” must retain its source type and entry method.`)
