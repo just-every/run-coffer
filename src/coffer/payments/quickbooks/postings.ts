@@ -43,12 +43,21 @@ export async function postDeposit(c: Context, env: PaymentsEnv, kind: string, id
  }
  return { postings: await qboPostings(c, kind, id) }
 }
+/** Independent read only; never recovers, confirms or submits a saved request. */
+export async function readPosting(c: Context, conn: QboConnection, row: Row) {
+ if (row.realm_id !== conn.realm || Boolean(row.sandbox) !== conn.sandbox || row.client_id !== conn.clientId) fail('QBO_COMPANY', 'Reconnect the QuickBooks company that owns these entries.', 409)
+ const current = () => commit(c, [guard('EXISTS(SELECT 1 FROM cf_qbo_connection WHERE id=1 AND realm_id=? AND sandbox=? AND client_id=?)', 'QBO_CONNECTION_CHANGED', 'The QuickBooks connection changed. Read again with current authority.', conn.realm, conn.sandbox ? 1 : 0, conn.clientId)])
+ await current()
+ const response = await qboRequest(conn, row.entity.toLowerCase() + '/' + encodeURIComponent(row.external_id))
+ await current()
+ return response
+}
 export async function readRemote(c: Context, env: PaymentsEnv, kind: string, id: string) {
  const conn = await qboConnection(c, env), rows = await qboPostings(c, kind, id), documents = []
  for (const row of rows) {
   if (row.realm_id !== conn.realm || Boolean(row.sandbox) !== conn.sandbox || row.client_id !== conn.clientId) fail('QBO_COMPANY', 'Reconnect the QuickBooks company that owns these entries.', 409)
   if (row.state !== 'posted') continue
-  const result = await qboRequest(conn, row.entity.toLowerCase() + '/' + encodeURIComponent(row.external_id))
+  const result = await readPosting(c, conn, row)
   const remote = verifyDocument(row.entity, JSON.parse(row.payload), result)
   if (String(remote.Id) !== row.external_id) fail('QBO_RESPONSE', 'QuickBooks returned another accounting entry.', 502)
   documents.push({ kind: row.kind, sourceId: row.source_id, entity: row.entity, record: remote })

@@ -76,16 +76,30 @@ export async function prepareDeposit(c: Context, conn: QboConnection, kind: stri
  return { documents, guards, amountCents: total }
 }
 
-/** Provider-generated fields are ignored; every financial and dimension value
- * must still match the immutable request before a posting is called posted. */
+/** Whitelist accounting facts, never arbitrary provider contact or memo fields. */
+export function compareDocument(entity: string, payload: Row, response: Row) {
+ const remote = response?.[entity]
+ const cents = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && Number.isSafeInteger(Math.round(value * 100)) && Math.abs(value * 100 - Math.round(value * 100)) < 0.000001 ? Math.round(value * 100) : null
+ const facts = (doc: Row, returned = false) => ({
+  date: doc.TxnDate ?? null, source: doc.DocNumber ?? null,
+  currency: doc.CurrencyRef?.value ?? 'USD', location: doc.DepartmentRef?.value ?? null,
+  bank: doc.DepositToAccountRef?.value ?? null,
+  totalCents: entity === 'Deposit' ? (returned ? cents(doc.TotalAmt) : doc.Line.reduce((n: number, l: Row) => n + (cents(l.Amount) ?? NaN), 0)) : null,
+  lines: doc.Line.map((l: Row) => {
+   const d = l?.[l.DetailType]
+   return { cents: cents(l?.Amount), type: l?.DetailType ?? null, account: d?.AccountRef?.value ?? null, fundClass: d?.ClassRef?.value ?? null, location: d?.DepartmentRef?.value ?? null, posting: d?.PostingType ?? null }
+  }).sort((a: Row, b: Row) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+ })
+ const expected = facts(payload), valid = remote && typeof remote.Id === 'string' && remote.Id && Array.isArray(remote.Line) && remote.Line.length && typeof remote.TxnDate === 'string' && typeof remote.DocNumber === 'string'
+ const actual = valid ? facts(remote, true) : null
+ const complete = Boolean(actual && actual.lines.every((l: Row) => l.cents !== null && l.account && l.type === (entity === 'Deposit' ? 'DepositLineDetail' : 'JournalEntryLineDetail') && (entity === 'Deposit' || ['Debit', 'Credit'].includes(l.posting))) && (entity !== 'Deposit' || actual.bank && actual.totalCents !== null))
+ const differences = actual ? Object.keys(expected).filter(key => JSON.stringify(expected[key as keyof typeof expected]) !== JSON.stringify(actual[key as keyof typeof actual])) : []
+ return { expected, remote: actual ? { id: remote.Id, ...actual } : null, complete, differences }
+}
+
+/** Every financial and dimension value must match the immutable request. */
 export function verifyDocument(entity: string, payload: Row, response: Row): Row {
- const remote = response[entity]
- const pick = (l: Row) => {
-  const d = l[l.DetailType]
-  return [Math.round(l.Amount * 100), l.DetailType, d?.AccountRef?.value, d?.ClassRef?.value ?? null, d?.DepartmentRef?.value ?? null, d?.PostingType ?? null]
- }
- const sorted = (lines: Row[]) => lines.map(pick).map(l => JSON.stringify(l)).sort()
- if (!remote?.Id || !Array.isArray(remote.Line) || remote.TxnDate !== payload.TxnDate || remote.DocNumber !== payload.DocNumber || (remote.CurrencyRef?.value ?? 'USD') !== 'USD' || (remote.DepartmentRef?.value ?? null) !== (payload.DepartmentRef?.value ?? null) || JSON.stringify(sorted(remote.Line)) !== JSON.stringify(sorted(payload.Line))) fail('QBO_RESPONSE', 'QuickBooks returned different dates, lines or dimensions. The saved request remains unresolved.', 502)
- if (entity === 'Deposit' && (remote.DepositToAccountRef?.value !== payload.DepositToAccountRef.value || Math.round(remote.TotalAmt * 100) !== payload.Line.reduce((n: number, l: Row) => n + Math.round(l.Amount * 100), 0))) fail('QBO_RESPONSE', 'QuickBooks returned a different bank deposit total. The saved request remains unresolved.', 502)
- return remote
+ const comparison = compareDocument(entity, payload, response)
+ if (!comparison.complete || comparison.differences.length) fail('QBO_RESPONSE', 'QuickBooks returned different dates, lines, dimensions or bank deposit totals. The saved request remains unresolved.', 502)
+ return response[entity]
 }

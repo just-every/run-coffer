@@ -11,10 +11,12 @@ export function quickbooksEdge(){
  const payout={id:'po_qbo_three_funds',status:'paid',arrival_date:at,amount:49170,currency:'usd',automatic:true,reconciliation_status:'completed'}
  const accounts=[['checking','Checking','Bank'],['stripe','Stripe clearing','Bank'],['fees','Processing fees','Expense'],['reading','Reading gifts','Income'],['meals','Meals gifts','Income'],['housing','Housing gifts','Income']].map(([Id,Name,AccountType])=>({Id,Name,AccountType,Active:true}))
  const classes=['reading','meals','housing'].map(id=>({Id:id+'-class',Name:id+' program',Active:true}))
- const state={payout,transactions,accounts,classes,realm:'1234567890',refuse:false,lose:false,corrupt:false,requests:[],records:new Map(),exchanges:0,refreshes:0,expiresIn:1}
+ const state={payout,charges,transactions,accounts,classes,realm:'1234567890',refuse:false,lose:false,corrupt:false,requests:[],records:new Map(),exchanges:0,refreshes:0,expiresIn:1}
  state.outbound=async request=>{
   const u=new URL(request.url)
   if(u.hostname==='api.stripe.com'){
+   if(u.pathname==='/v1/charges')return Response.json({data:charges,has_more:false})
+   if(u.pathname==='/v1/payouts')return Response.json({data:[payout],has_more:false})
    if(u.pathname==='/v1/balance_transactions')return Response.json({data:transactions,has_more:false})
    const object=[...charges,...transactions,refund,dispute,payout].find(x=>u.pathname.endsWith('/'+x.id))
    assert.ok(object,'Known Stripe source '+u.pathname);return Response.json(object)
