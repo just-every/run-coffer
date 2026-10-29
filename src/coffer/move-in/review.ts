@@ -25,7 +25,7 @@ export function leftOut(parsed: ParsedImport) {
  return [...columns.values()].sort((a, b) => b.values - a.values || a.column.localeCompare(b.column))
 }
 
-const sample = (p: ParsedImport) => Object.fromEntries((['opportunities', 'recurringReferences', 'solicitations', 'channelWithdrawals', 'donors', 'households', 'gifts', 'relationships', 'softCredits', 'pledges', 'installments', 'notes'] as const).map(k => [k, ((p[k]??[]) as unknown[]).slice(0, 20)]))
+const sample = (p: ParsedImport) => Object.fromEntries((['tasks','opportunities', 'recurringReferences', 'solicitations', 'channelWithdrawals', 'donors', 'households', 'gifts', 'relationships', 'softCredits', 'pledges', 'installments', 'notes'] as const).map(k => [k, ((p[k]??[]) as unknown[]).slice(0, 20)]))
 
 /** Errors first, then warnings, each in file and row order. */
 export function ordered(diagnostics: Diagnostic[]) {

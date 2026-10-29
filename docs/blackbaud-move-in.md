@@ -60,26 +60,56 @@ Use immutable SKY record IDs as keys. For example:
   "softCredits": {},
   "customFields": [],
   "definitions": [],
-  "recurring": {}
+  "recurring": {},
+  "actions": {},
+  "actionTypes": {},
+  "opportunities": {}
 }
 ```
 
 Use your current native person's ID and version from `./auth/session` or the
 installation's native people read. Map every source opportunity status to a
-current **open** pipeline stage. Map its single source fundraiser to an active
+current pipeline stage with its correct open, won or lost outcome. Map the source primary fundraiser to an active
 native owner, admin or member; use `unassigned` explicitly for an opportunity
 with no source fundraiser. Names are never identity matches. The source ask and
 expected amounts remain opportunity amounts and never become received cash.
 Review the displayed donor, source status, mapped stage, owner and amounts.
 Changes to that owner or pipeline configuration invalidate the approval.
 
+For multiple source fundraisers, `opportunities` supplies an explicit
+`primaryFundraiserId` for that source opportunity. All source fundraiser IDs
+remain in the reviewed provenance; the chosen current native owner is shown.
+A closed source opportunity also supplies its `closedOn` date. A won opportunity
+requires exactly one `giftId` or `pledgeId`, resolving to this import's actual
+received gift or pledge for the same constituent and fund. The source linked
+gift must agree; closed-lost opportunities have neither link. Existing native
+closure reuse and a duplicate source closing link are refused. Closing an
+imported opportunity creates no additional gift, pledge or cash.
+
+The optional `actionTypes` dictionary explicitly maps additional source
+categories to `call`, `meeting`, `email` or `note`. Unknown categories refuse
+preview until mapped; no action is silently omitted.
+
+Each unfinished source action requires an `actions` entry with an `owner`
+object containing the current native operator's `id` and `version`. It becomes
+an ordinary open native task with its original due date and optional source
+opportunity link, plus a clearly labelled source-history note. It does not
+become a completed interaction or carry ask permission. Completed actions retain
+their original interactions and custom values. The import sends no contact and
+changes no solicitation permission. Current owner status is rechecked before
+starting the import; edited tasks also prevent destructive undo.
+
 Map all source fund, campaign, appeal and contact-type IDs or labels actually
 encountered. Contacts retain their source values and explicit primary flags.
 All contacts in each bounded API collection are retained, with exactly one
 explicit source primary per present kind. The spreadsheet numbered-column
-limits do not truncate API contacts. Unsupported types, dated or inactive contacts require separate
-review. Available native types are personal, work and other for email; mobile,
-home and work for phone; home, work, vacation and other for undated addresses.
+limits do not truncate API contacts. Inactive contacts, future-start contacts and ended contacts stay in native
+contact history as inactive records; they never become current delivery
+addresses. Original primary flags, source IDs and dated bounds remain in their
+provenance. Current seasonal addresses require explicit annual bounds and a
+seasonal type mapping; overlapping seasons are refused. A current contact with
+a future expiry is refused until its native expiry can be scheduled safely. Available native types are personal, work and other for email; mobile,
+home and work for phone; home, work, vacation, seasonal and other for addresses.
 
 Use the existing **Code meanings** review for each solicit code, for example:
 
@@ -193,8 +223,8 @@ Archives retain the imported history and mappings. Native merge and erasure
 rules apply, and an erased constituent cannot be recreated by replay.
 
 The following remain outside this slice: vendor definition types and code-table
-semantics beyond the attested native-compatible inventory; unfinished or opportunity-linked actions; funded or closed opportunities;
-multiple opportunity fundraisers; split promises; complete recurring-payment history and vault
+semantics beyond the attested native-compatible inventory; opportunities closing
+with multiple gifts; split promises; complete recurring-payment history and vault
 transfer; other unsupported gift types and remaining source-object coverage;
 production OAuth and live provider qualification. Unsupported objects returned
 by a fetched door are refused. Objects from other, unfetched doors remain

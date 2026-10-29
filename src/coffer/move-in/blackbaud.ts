@@ -24,15 +24,16 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
  if(input.files.length!==1||input.files[0].name!=='sky-review.json')error('Supply the documented sky-review.json mappings and source-history supplement.')
  let review:Row={}
  try{review=JSON.parse(Buffer.from(input.files[0].base64,'base64').toString('utf8'))}catch{error('The SKY review file is not valid JSON.')}
- if(!review||typeof review!=='object'||Array.isArray(review)||Object.keys(review).some(k=>!['currency','funds','campaigns','appeals','stages','owners','contactTypes','households','gifts','softCredits','customFields','definitions','recurring'].includes(k)))error('The SKY review has unsupported sections.')
+ if(!review||typeof review!=='object'||Array.isArray(review)||Object.keys(review).some(k=>!['currency','funds','campaigns','appeals','stages','owners','contactTypes','households','gifts','softCredits','customFields','definitions','recurring','actions','opportunities','actionTypes'].includes(k)))error('The SKY review has unsupported sections.')
  if(review!.currency!=='USD')error('Confirm USD source currency; no currency conversion is performed.')
- for(const key of ['funds','campaigns','appeals','stages','owners','contactTypes','households','gifts','softCredits','recurring'])review![key]=dictionary(review![key],key)
+ for(const key of ['funds','campaigns','appeals','stages','owners','contactTypes','households','gifts','softCredits','recurring','actions','opportunities','actionTypes'])review![key]=dictionary(review![key],key)
  const {read,list}=blackbaudReader(input.blackbaud!),people=await list('/constituent/v1/constituents?include_inactive=true&include_deceased=true')
  const ids=new Set(people.map(p=>p.id)),donors:Row[]=[],notes:Row[]=[],relationships:Row[]=[],gifts:Row[]=[],pledges:Row[]=[],credits:Row[]=[],splits=new Map<string,any[]>(),opportunities:ParsedOpportunity[]=[]
  const contacts=new Map<string,import('./types').ParsedContact[]>()
  const withdrawals=new Map<string,{codes:string[];dates:string[]}>()
  const withdraw=(row:Row,donorId:string,channel:string,code:string,sourceOn='')=>{const label=channel==='sms'?'SMS':channel[0].toUpperCase()+channel.slice(1);row[label+' Preference']='no';const key=donorId+':'+channel,prior=withdrawals.get(key)??{codes:[],dates:[]};prior.codes.push(code);prior.dates.push(sourceOn);withdrawals.set(key,prior)}
- const used={gifts:new Set<string>(),softCredits:new Set<string>(),recurring:new Set<string>()}
+ const used={gifts:new Set<string>(),softCredits:new Set<string>(),recurring:new Set<string>(),actions:new Set<string>(),opportunities:new Set<string>()}
+ const tasks:import('./types').ParsedTask[]=[]
  const recurringReferences:import('./types').ParsedRecurringReference[]=[]
  const fields=blackbaudCustom(review!,input.customFields),custom=fields.mappings
  const customValues=fields.values
@@ -56,9 +57,9 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
   if(person.requests_no_email)withdraw(row,p.id,'email','SKY constituent requests no email')
   for(const [kind,path] of [['email','emailaddresses'],['phone','phones'],['address','addresses']] as const){
    const points=await list(`/constituent/v1/constituents/${encodeURIComponent(p.id)}/${path}`)
-   const all=blackbaudContacts(points,kind,p.id,review!.contactTypes)
+   const all=blackbaudContacts(points,kind,p.id,review!.contactTypes,importDay)
    contacts.set(p.id,[...(contacts.get(p.id)??[]),...all])
-   const primary=all.find(point=>point.primary)
+   const primary=all.find(point=>point.primary&&point.active!==false)
    if(primary) {
     if(kind==='address'){const a=JSON.parse(primary.value);Object.assign(row,{'Address Line 1':a.line1,'Address Line 2':a.line2,City:a.city,State:a.region,'Postal Code':a.postalCode,Country:a.country})}
     else row[kind==='email'?'Email':'Phone']=primary.value
@@ -78,9 +79,17 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
   relationships.push({'Relationship ID':r.id,'Constituent ID':r.constituent_id,'Related Constituent ID':r.relation_id,'Relationship Type':r.is_spouse?'spouse':r.type})
  }
  for(const a of await list('/constituent/v1/actions')){
-  if(!ids.has(a.constituent_id)||!a.completed||a.opportunity_id||!['Phone Call','Meeting','Email','Mailing',['Task','Other'].join('/')].includes(a.category))error('Unfinished actions, opportunity-linked actions or unresolved action identities need separate review.')
-  const row={'Note ID':'action:'+a.id,'Constituent ID':a.constituent_id,'Note Date':day(a.completed_date||a.date),'Note Type':({'Phone Call':'call',Meeting:'meeting',Email:'email'} as Row)[a.category]??'note','Note':[a.summary,a.description].filter(Boolean).join('\n')}
+  const nativeType=review!.actionTypes[a.category]??({'Phone Call':'call',Meeting:'meeting',Email:'email',Mailing:'note',[["Task","Other"].join('/') ]:'note'} as Row)[a.category]
+  if(!ids.has(a.constituent_id)||!['call','meeting','email','note'].includes(nativeType))error('Review unresolved source action identities and explicitly map every source category to call, meeting, email or note.')
+  const facts=review!.actions[a.id]??{}
+  if(Object.keys(facts).some(k=>!['owner','isAsk'].includes(k))||facts.isAsk===true)error('Source actions provide work history only; source ask authority is never imported.')
+  if(!a.completed){
+   if(!facts.owner||Object.keys(facts.owner).some(k=>!['id','version'].includes(k)))error('Explicitly review the current native owner for each open source action.')
+   tasks.push({externalId:a.id,donorExternalId:a.constituent_id,ownerId:facts.owner.id,ownerVersion:facts.owner.version,title:[a.summary,a.description].filter(Boolean).join('\n'),dueOn:day(a.date),kind:nativeType==='call'?'call':nativeType==='meeting'?'meeting':'follow_up',prospectExternalId:a.opportunity_id||undefined,sourceCategory:a.category,location:{file:'sky-actions.json',sheet:'SKY',row:tasks.length+1}})
+  }
+  const row={'Note ID':'action:'+a.id,'Constituent ID':a.constituent_id,'Note Date':day(a.completed_date||a.date),'Note Type':a.completed?nativeType:'note','Note':[...(!a.completed?['Imported open action; not completed.']:[]),a.summary,a.description].filter(Boolean).join('\n')}
   customValues(await list(`/constituent/v1/actions/${encodeURIComponent(a.id)}/customfields`),['call','meeting','email'].includes(row['Note Type'])?'interaction':'note',row,'action:'+a.id);notes.push(row)
+  used.actions.add(a.id)
  }
  for(const n of await list('/constituent/v1/notes')){if(!ids.has(n.constituent_id))error('A note has an unresolved constituent.');notes.push({'Note ID':'note:'+n.id,'Constituent ID':n.constituent_id,'Note Date':day(n.date),'Note Type':'note','Note':[n.summary,n.text].filter(Boolean).join('\n')})}
  const rawGifts=await list('/gift/v1/gifts')
@@ -113,11 +122,21 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
   for(const credit of g.soft_credits??[]){const f=review!.softCredits[credit.id]??{};if(!credit.id||!ids.has(credit.constituent_id)||credit.gift_id!==g.id||Object.keys(f).some(k=>!['status','date','method','reference','interactionId'].includes(k)))error('Review each soft credit identity and its independent acknowledgment facts.');used.softCredits.add(credit.id);credits.push({'Soft Credit ID':credit.id,'Constituent ID':credit.constituent_id,'Related Gift ID':g.id,'Amount':dollars(cents(credit.amount)),'Acknowledgment Status':f.status??'not acknowledged','Acknowledgment Date':f.date,'Acknowledgment Method':f.method,'Acknowledgment Reference':f.reference,'Acknowledgment Interaction ID':f.interactionId?'action:'+f.interactionId:''})}
  }
  for(const o of await list('/opportunity/v1/opportunities?include_inactive=true')){
-  const stage=review!.stages[o.status],fundraiser=o.fundraisers?.length===1?o.fundraisers[0].constituent_id:o.fundraisers?.length?error('Multiple source opportunity fundraisers need separate review.'):'unassigned',owner=review!.owners[fundraiser]
-  if(!ids.has(o.constituent_id)||o.inactive||o.linked_gifts?.length||o.funded_date||o.funded_amount&&cents(o.funded_amount)>0||!stage||!owner||!o.name||!o.summary||Object.keys(stage).some(k=>!['stage','probability'].includes(k))||Object.keys(owner).some(k=>!['id','version'].includes(k)))error('Review source stages and current owners. Funded, closed or linked opportunities need separate migration.')
-  opportunities.push({externalId:o.id,donorExternalId:o.constituent_id,label:o.name,stage:stage.stage,sourceStage:o.status,ownerId:owner.id,ownerVersion:owner.version,askAmountCents:cents(o.ask_amount),expectedAmountCents:cents(o.expected_amount),probability:stage.probability,fund:mapped(review!.funds,o.fund_id,'fund')||'Unrestricted',sourceCampaign:mapped(review!.campaigns,o.campaign_id,'campaign'),expectedCloseOn:day(o.expected_date||o.deadline),nextStep:o.summary,location:{file:'sky-opportunities.json',sheet:'SKY',row:opportunities.length+1}})
+  const stage=review!.stages[o.status],facts=review!.opportunities[o.id]??{},fundraisers=(o.fundraisers??[]).map((f:Row)=>f.constituent_id)
+  if(new Set(fundraisers).size!==fundraisers.length||fundraisers.some((id:any)=>typeof id!=='string'||!id))error('Review distinct source fundraiser identities.')
+  const fundraiser=fundraisers.length>1?facts.primaryFundraiserId:fundraisers[0]??'unassigned',owner=review!.owners[fundraiser]
+  if(fundraisers.length>1&&!fundraisers.includes(fundraiser)||!ids.has(o.constituent_id)||!stage||!owner||!o.name||!o.summary||Object.keys(stage).some(k=>!['stage','probability'].includes(k))||Object.keys(owner).some(k=>!['id','version'].includes(k))||Object.keys(facts).some(k=>!['closedOn','giftId','pledgeId','primaryFundraiserId'].includes(k)))error('Review source stages, explicit primary fundraiser and current native owners.')
+  const linked=(o.linked_gifts??[]).map((g:any)=>typeof g==='string'?g:g.gift_id)
+  if(linked.length>1||linked.length&&linked[0]!==facts.giftId&&linked[0]!==facts.pledgeId||o.inactive&&!facts.closedOn||o.funded_date&&!facts.closedOn||o.funded_amount&&cents(o.funded_amount)>0&&!facts.giftId&&!facts.pledgeId)error('Closed or funded opportunities require their source close date and exact imported gift or pledge link.')
+  const gift=facts.giftId?gifts.find(g=>g['Gift ID']===facts.giftId):undefined,pledge=facts.pledgeId?pledges.find(p=>p['Gift ID']===facts.pledgeId):undefined,fund=mapped(review!.funds,o.fund_id,'fund')||'Unrestricted'
+  if(facts.giftId&&!gift||facts.pledgeId&&!pledge||gift&&(gift['Constituent ID']!==o.constituent_id||!(splits.get(facts.giftId)?.some(p=>p.fund===fund)||gift.Fund===fund))||pledge&&(pledge['Constituent ID']!==o.constituent_id||pledge.Fund!==fund))error('A closed source opportunity must link its own imported constituent and fund.')
+  opportunities.push({externalId:o.id,donorExternalId:o.constituent_id,label:o.name,stage:stage.stage,sourceStage:o.status,ownerId:owner.id,ownerVersion:owner.version,askAmountCents:cents(o.ask_amount),expectedAmountCents:cents(o.expected_amount),probability:stage.probability,fund,sourceCampaign:mapped(review!.campaigns,o.campaign_id,'campaign'),expectedCloseOn:day(o.expected_date||o.deadline),nextStep:o.summary,closedOn:facts.closedOn?day(facts.closedOn):undefined,giftExternalId:facts.giftId,pledgeExternalId:facts.pledgeId,sourceInactive:!!o.inactive,sourceFundraisers:fundraisers,location:{file:'sky-opportunities.json',sheet:'SKY',row:opportunities.length+1}})
+  used.opportunities.add(o.id)
  }
- for(const section of ['gifts','softCredits','recurring'] as const)if(Object.keys(review![section]).some(id=>!used[section].has(id)))error('Source history names an object that was not read from SKY.')
+ const closingLinks=opportunities.flatMap(o=>[...(o.giftExternalId?['gift:'+o.giftExternalId]:[]),...(o.pledgeExternalId?['pledge:'+o.pledgeExternalId]:[])])
+ if(new Set(closingLinks).size!==closingLinks.length)error('Each imported gift or pledge can close only one source opportunity.')
+ for(const t of tasks)if(t.prospectExternalId&&!opportunities.some(o=>o.externalId===t.prospectExternalId&&o.donorExternalId===t.donorExternalId))error('A source action must link an opportunity on its own constituent.')
+ for(const section of ['gifts','softCredits','recurring','actions','opportunities'] as const)if(Object.keys(review![section]).some(id=>!used[section].has(id)))error('Source history names an object that was not read from SKY.')
  const parsed=await parseExports({source:'re-nxt',files:[...[["constituents.csv",donors],["gifts.csv",gifts],["pledges.csv",pledges],["relationships.csv",relationships],["interactions.csv",notes],["soft-credits.csv",credits]].filter(([,rows])=>(rows as Row[]).length).map(([name,rows])=>file(name as string,rows as Row[]))],solicitCodes:input.solicitCodes?Object.fromEntries(Object.entries(input.solicitCodes).map(([k,v])=>[k,v.type==='channels'?{type:'ignore' as const}:v])):undefined,customFields:custom.filter(m=>fields.used.has(m))})
  for(const preference of parsed.channelWithdrawals??[]){const source=withdrawals.get(preference.donorExternalId+':'+preference.channel);if(source){preference.codes=[...new Set(source.codes)].sort();preference.sourceOn=source.dates.every(d=>d&&d===source.dates[0])?source.dates[0]:''}}
  for(const gift of parsed.gifts)gift.designations=splits.get(gift.externalId)
@@ -134,8 +153,9 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
  parsed.definitionMappings=fields.definitions.length?fields.definitions:undefined
  parsed.customFields=custom
  parsed.solicitCodes=input.solicitCodes
+ parsed.tasks=tasks
  parsed.opportunities=opportunities
  parsed.recurringReferences=recurringReferences
- parsed.sourceCoverage={provider:'Blackbaud SKY',currency:'USD',counts:{constituents:donors.length,gifts:gifts.length,designations:[...splits.values()].reduce((n,v)=>n+v.length,0),pledges:pledges.length,relationships:relationships.length,actionsAndNotes:notes.length,opportunities:opportunities.length,recurringSourcePlans:recurringReferences.length,sourceCustomDefinitions:fields.definitions.length},unsupported:[...(review!.definitions===undefined?['Complete custom-definition inventory and code tables (MOVE-010)']:['Source field types outside the reviewed native types (MOVE-010)']),'Processor vault transfer, replacement schedules and remaining recurring-history coverage','Funded or closed opportunities and multiple fundraisers','Unfinished or opportunity-linked actions','Other gift classifications and remaining source objects','Live OAuth, account and provider qualification']}
+ parsed.sourceCoverage={provider:'Blackbaud SKY',currency:'USD',counts:{constituents:donors.length,gifts:gifts.length,designations:[...splits.values()].reduce((n,v)=>n+v.length,0),pledges:pledges.length,relationships:relationships.length,actionsAndNotes:notes.length,opportunities:opportunities.length,recurringSourcePlans:recurringReferences.length,sourceCustomDefinitions:fields.definitions.length},unsupported:[...(review!.definitions===undefined?['Complete custom-definition inventory and code tables (MOVE-010)']:['Source field types outside the reviewed native types (MOVE-010)']),'Processor vault transfer, replacement schedules and remaining recurring-history coverage','Multiple closing gifts, split promises and unsupported source link semantics','Other gift classifications and remaining source objects','Live OAuth, account and provider qualification']}
  return parsed
 }

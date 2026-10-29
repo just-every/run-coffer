@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
-import {run,reviewed,archive,restore,donor} from './harness.mjs'
+import {run as nativeRun,reviewed,archive,restore,donor} from './harness.mjs'
 import {withBrowserWorker} from './browser-worker.mjs'
 import {blackbaudFixture,key,email,sourceFile} from './blackbaud-fixture.mjs'
+const run=(journey,options={})=>nativeRun(journey,{entry:'tests/fixed-clock-worker.ts',...options})
 const post=(h,action,input,options)=>h.api('/api/coffer/move-in/'+action,input,options)
 const apply=async(h,p)=>{let job=await post(h,'apply',{id:p.id,fingerprint:p.fingerprint,acknowledged:'no'});while(job.state==='applying')job=await post(h,'continue',{id:p.id});assert.equal(job.state,'completed');return job}
 const fundAmounts=async h=>Object.fromEntries((await h.get('/api/coffer/reports/funds')).funds.map(r=>[r.fund,r.amount_cents]))
@@ -15,6 +16,11 @@ export async function blackbaudJourney(){
   await reviewed(h)
   const owner=(await h.get('/auth/session')).operator
   f.review.owners[key(9001)]={id:owner.id,version:owner.version}
+  f.review.actions[key(9024)].owner={id:owner.id,version:owner.version}
+  const nativeField={key:'native_source_review',label:'Native source review',kind:'constituent',type:'text',entry:'pick-one',choices:['Reviewed','Waiting']}
+  await h.command('custom.define',nativeField)
+  f.review.customFields.push({source:'re-nxt',column:'Native review',...nativeField,version:1})
+  f.review.definitions.push({id:key(9709),category:'Native review',kind:'constituent',type:'text',entry:'pick-one',choices:['Reviewed','Waiting']})
   const empty=(await h.get('/api/coffer/donors')).total
   const before=f.calls.length,member=await h.person(email(9091)),admin=await h.person(email(9092),'admin')
   await h.api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})
@@ -23,6 +29,9 @@ export async function blackbaudJourney(){
   f.gifts[0].gift_splits[1].amount.value=199.99;await post(h,'preview',f.input(),{status:400});f.gifts[0].gift_splits[1].amount.value=200
   f.gifts[0].type='RecurringGift';await post(h,'preview',f.input(),{status:400});f.gifts[0].type='Donation'
   f.opportunities[0].status='Unmapped stage';await post(h,'preview',f.input(),{status:400});f.opportunities[0].status='Proposal'
+  const taskOwner=f.review.actions[key(9024)].owner;f.review.actions[key(9024)].owner={id:admin.id,version:1}
+  const refusedTask=await post(h,'preview',f.input());assert.equal(refusedTask.canApply,false);assert.ok(refusedTask.diagnostics.some(d=>d.code==='SKY_TASK'));await post(h,'apply',{id:refusedTask.id,fingerprint:refusedTask.fingerprint},{status:409});f.review.actions[key(9024)].owner=taskOwner
+  const closingGift=f.review.opportunities[key(9052)].giftId;f.review.opportunities[key(9052)].giftId=key(9011);await post(h,'preview',f.input(),{status:400});f.review.opportunities[key(9052)].giftId=closingGift
   const fieldChoices=f.review.definitions[0].choices
   f.review.definitions[0].choices=['Volunteer'];await post(h,'preview',f.input(),{status:400});f.review.definitions[0].choices=fieldChoices
   const next=f.review.recurring[key(9015)].nextOn
@@ -35,6 +44,10 @@ export async function blackbaudJourney(){
   const badAck=structuredClone(f.review);badAck.softCredits[key(9031)].interactionId=key(9021)
   const refused=await post(h,'preview',{...f.input(),files:[sourceFile(badAck)]});assert.equal(refused.canApply,false);assert.ok(refused.diagnostics.some(d=>d.code==='ACKNOWLEDGMENT_LINK'))
   await post(h,'apply',{id:refused.id,fingerprint:refused.fingerprint},{status:409})
+  const staleDefinitions=await post(h,'preview',f.input())
+  await h.command('custom.define',{...nativeField,version:1,label:'A later native label'})
+  await post(h,'apply',{id:staleDefinitions.id,fingerprint:staleDefinitions.fingerprint},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,empty)
+  await h.command('custom.define',{...nativeField,version:2});f.review.customFields.find(m=>m.key===nativeField.key).version=3
   const staged=await post(h,'preview',f.input()),policy=await h.get('/api/coffer/pipeline')
   const changed=await h.command('prospect.stages',{version:policy.version,stages:policy.stages.map(s=>({...s,label:s.id==='ask'?'Source review changed':s.label}))})
   await post(h,'apply',{id:staged.id,fingerprint:staged.fingerprint},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,empty,'A changed native stage policy refuses before any source part is applied')
@@ -43,8 +56,8 @@ export async function blackbaudJourney(){
   assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped))
   assert.equal(preview.sourceTotals.giftCount,3);assert.equal(preview.sourceTotals.amountCents,125000)
   assert.deepEqual(preview.sourceTotals.byFund,{Reading:{giftCount:3,amountCents:105000},Library:{giftCount:1,amountCents:20000}})
-  assert.equal(preview.counts.recurringReferences,1);assert.equal(preview.sourceCoverage.counts.sourceCustomDefinitions,6);assert.equal(preview.definitionMappings.length,6);
-  assert.equal(preview.counts.opportunities,1);assert.equal(preview.counts.designations,2);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,2)
+  assert.equal(preview.counts.recurringReferences,1);assert.equal(preview.sourceCoverage.counts.sourceCustomDefinitions,7);assert.equal(preview.definitionMappings.length,7);
+  assert.equal(preview.counts.opportunities,3);assert.equal(preview.counts.tasks,1);assert.equal(preview.counts.designations,2);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,2)
   assert.equal((await h.get('/api/coffer/donors')).total,empty,'Preview has no native records')
   for(const secret of [key(9998),key(9999),key(9997)])assert.ok(!JSON.stringify(preview).includes(secret))
   await post(h,'apply',{id:preview.id,fingerprint:'stale'},{status:409});await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{as:member.cookie,status:403});await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{as:admin.cookie,status:401})
@@ -57,8 +70,8 @@ export async function blackbaudJourney(){
    await form.locator('details').first().locator('summary').click();await form.getByLabel('Code meanings',{exact:true}).fill('Do not solicit = stop\nDo not mail = no mail\nSolicit once annually = limit 1')
    await form.getByRole('button',{name:'Preview NXT history',exact:true}).click();await page.waitForURL('**/app/move-in/crm/review?*')
    assert.match(await page.locator('body').innerText(),/Nothing blocks this move-in/)
-   await page.getByText('Gifts · 3',{exact:true}).click();await page.getByText('Opportunities · 1',{exact:true}).click()
-   assert.match(await page.locator('body').innerText(),/Library renewal/);assert.match(await page.locator('body').innerText(),/Proposal → Ask/);assert.match(await page.locator('body').innerText(),/\$300\.00/);assert.match(await page.locator('body').innerText(),/\$200\.00/)
+   await page.getByText('Gifts · 3',{exact:true}).click();await page.getByText('Opportunities · 3',{exact:true}).click();await page.getByText('Open actions · 1',{exact:true}).click()
+   assert.match(await page.locator('body').innerText(),/Library renewal/);assert.match(await page.locator('body').innerText(),/Call about next reading season/);assert.match(await page.locator('body').innerText(),/Proposal → Ask/);assert.match(await page.locator('body').innerText(),/\$300\.00/);assert.match(await page.locator('body').innerText(),/\$200\.00/)
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/sky-review-'+width+'.png',fullPage:true})}
    await page.setViewportSize({width:1440,height:1000})
    await page.locator('input[name=acknowledged][value=no]').check();await page.locator('input[name=confirm]').check();await page.getByRole('button',{name:'Move these records in',exact:true}).click();await page.waitForURL('**/app/move-in/crm/journal?*')
@@ -73,10 +86,13 @@ export async function blackbaudJourney(){
   const noAddress=await h.get('/api/coffer/donors/'+person(9004).id);assert.equal(noAddress.donor.email,null);assert.equal(noAddress.consents.find(c=>c.channel==='email').status,'withdrawn');assert.match(noAddress.consents.find(c=>c.channel==='email').evidence,/SKY constituent requests no email/)
   assert.equal(ava.donor.name,'Dr. Ava Reed');assert.equal(ava.donor.informal_salutation,'  Dearest Ava  ');assert.equal(ava.donor.envelope_name,'  The original Ava addressee  ')
   assert.deepEqual(ava.contactPoints.filter(p=>p.kind==='email').map(p=>p.type).sort(),['other','other','personal','work']);assert.equal(ava.contactPoints.filter(p=>p.kind==='email'&&p.is_primary).length,1);assert.equal(ava.contactPoints.filter(p=>p.kind==='address').length,3);assert.equal(ava.contactPoints.filter(p=>p.kind==='address'&&p.is_primary).length,1)
+  assert.ok(!ava.contactPoints.some(p=>p.value===email(9194)),'Inactive source contacts are never current delivery addresses')
+  const oldContact=ava.contactHistory.map(h=>JSON.parse(h.snapshot)).find(p=>p.value===email(9194))
+  assert.equal(oldContact.active,0);assert.equal(oldContact.is_primary,1);assert.equal(oldContact.type,'other');assert.match(oldContact.source,/2024-01-01/);assert.match(oldContact.source,/2025-01-01/)
   assert.equal(ava.customValues.find(v=>v.field_key==='sky_membership').value,'"Board"');assert.equal(ava.customValues.find(v=>v.field_key==='sky_detail').value,'"Books <and> music"')
   assert.equal(ava.customValues.find(v=>v.field_key==='sky_interests').value,'["Books","Music"]');assert.equal(ava.customValues.find(v=>v.field_key==='sky_value').value,'"1234"');assert.equal(ava.customValues.find(v=>v.field_key==='sky_outcome').value,'"Thanked"')
   const sourceMembership=JSON.parse(ava.customValues.find(v=>v.field_key==='sky_membership').source)
-  assert.equal(sourceMembership.sourceMetadata[0].start,'2026-01-01');assert.equal(sourceMembership.sourceMetadata[0].comment,'Original source membership evidence')
+  assert.equal(sourceMembership.sourceDefinitionId,key(9700));assert.equal(sourceMembership.sourceMetadata[0].start,'2026-01-01');assert.equal(sourceMembership.sourceMetadata[0].comment,'Original source membership evidence')
   const nativeFields=(await h.get('/api/coffer/custom-fields')).fields
   assert.equal(nativeFields.find(f=>f.key==='sky_unused').type,'year');assert.equal(nativeFields.find(f=>f.key==='sky_outcome').choices,'["Thanked","Follow-up"]')
   assert.ok(!ava.customValues.some(v=>v.field_key==='sky_unused'),'An empty source definition creates no invented record value')
@@ -91,15 +107,19 @@ export async function blackbaudJourney(){
   assert.deepEqual((await h.get('/api/coffer/letters')).due.map(g=>g.id),[cleo.gifts[0].id])
   assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000})
   assert.equal(cleo.pledges[0].amount_cents,100000)
-  const pipeline=await h.get('/api/coffer/pipeline'),opportunity=pipeline.opportunities[0]
+  const pipeline=await h.get('/api/coffer/pipeline'),opportunity=pipeline.opportunities.find(p=>p.label==='Library renewal')
+  const closed=pipeline.opportunities.find(p=>p.label==='Source funded reading gift'),lost=pipeline.opportunities.find(p=>p.label==='Source declined reading request')
+  assert.equal(closed.stage,'closed_won');assert.equal(closed.gift_id,cleo.gifts[0].id);assert.equal(closed.closed_on,'2026-09-06');assert.equal(closed.forecast_cents,0);assert.equal(lost.stage,'closed_lost');assert.equal(lost.gift_id,null);assert.equal(lost.pledge_id,null);assert.equal(pipeline.totals.open,1)
+  const sourceTask=(await h.get('/api/coffer/tasks')).tasks.find(t=>t.reason.includes('Original open source action'))
+  assert.equal(sourceTask.owner_id,owner.id);assert.equal(sourceTask.status,'open');assert.equal(sourceTask.task_kind,'follow_up');assert.equal(sourceTask.is_ask,0);assert.equal(sourceTask.due_on,'2026-11-05');assert.equal(sourceTask.prospect_id,opportunity.id);assert.equal(h.messages.length,2,'Import submits no donor communication beyond the two explicit test invitations')
   assert.equal(opportunity.stage,'ask');assert.equal(opportunity.donor_id,person(9003).id);assert.equal(opportunity.owner_id,owner.id);assert.equal(opportunity.ask_amount_cents,300000);assert.equal(opportunity.expected_amount_cents,240000);assert.equal(pipeline.totals.forecastCents,192000)
   assert.equal((await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed').totalCents,75000);assert.equal(ava.giftDepth.tributes[0].amount_permission,0)
   const hh=await h.get('/api/coffer/households/'+ava.donor.household_id)
   assert.equal(hh.household.head_donor_id,ava.donor.id);assert.equal(hh.household.head_source,'re-nxt');assert.ok(hh.household.head_imported_at);assert.equal(hh.household.addressee_override,'  The Reading Family  ');assert.equal(hh.household.formal_override,'Dear Reed Readers')
   assert.equal((await h.get('/api/coffer/households/'+cleo.donor.household_id)).household.head_donor_id,null);assert.equal((await h.get('/api/coffer/households/'+(await h.get('/api/coffer/donors/'+person(9005).id)).donor.household_id)).household.head_donor_id,null)
-  await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const [name,path] of [['donor','/app/donors/'+ava.donor.id],['opportunity','/app/pipeline']]){await page.goto(origin+path);assert.ok((await page.locator('body').innerText()).includes(name==='donor'?'Ava':'Library renewal'));for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/sky-'+name+'-'+width+'.png',fullPage:true})}}await page.close()})
+  await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const [name,path] of [['donor','/app/donors/'+ava.donor.id],['opportunity','/app/pipeline'],['tasks','/app/calls']]){await page.goto(origin+path);assert.ok((await page.locator('body').innerText()).includes(name==='donor'?'Ava':name==='tasks'?'Call about next reading season':'Library renewal'));for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/sky-'+name+'-'+width+'.png',fullPage:true})}}await page.close()})
   const saved=await archive(h);for(const secret of [key(9998),key(9999),key(9997)])assert.ok(!JSON.stringify(saved).includes(secret))
-  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual(await fundAmounts(fresh),{Reading:105000,Library:20000});assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities[0].expected_amount_cents,240000);assert.equal((await fresh.get('/api/coffer/move-in/source-history?donorId='+cleo.donor.id)).plans[0].next_on,'2026-11-01');assert.ok((await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key==='sky_unused'));await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities.length,0);assert.deepEqual(await fundAmounts(fresh),{});assert.ok(!(await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key.startsWith('sky_')))})
+  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual(await fundAmounts(fresh),{Reading:105000,Library:20000});assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities.find(p=>p.label==='Library renewal').expected_amount_cents,240000);assert.equal((await fresh.get('/api/coffer/move-in/source-history?donorId='+cleo.donor.id)).plans[0].next_on,'2026-11-01');assert.ok((await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key==='sky_unused'));await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/pipeline')).opportunities.length,0);assert.deepEqual(await fundAmounts(fresh),{});assert.ok(!(await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key.startsWith('sky_')));assert.equal((await fresh.get('/api/coffer/custom-fields')).fields.find(f=>f.key===nativeField.key).version,3)})
   const repeat=await post(h,'preview',{...f.input(),solicitCodes:undefined});assert.equal(repeat.prior.state,'completed');assert.equal((await apply(h,repeat)).unchanged,true);assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000})
   f.gifts[0].reference='A changed source reference after the first import'
   const sourceChanged=await post(h,'preview',f.input());assert.notEqual(sourceChanged.id,preview.id);assert.equal(sourceChanged.canApply,false);await post(h,'apply',{id:sourceChanged.id,fingerprint:sourceChanged.fingerprint},{status:409});assert.deepEqual(await fundAmounts(h),{Reading:105000,Library:20000});delete f.gifts[0].reference
@@ -116,8 +136,8 @@ export async function blackbaudJourney(){
   const second=await h.command('appeal.prepare',{name:'Second annual ask',channel:'email',donorIds:[cleo.donor.id]},{status:409});assert.equal(second.details['solicitation limit'],1)
   const target=await donor(h,'Native merged identity'),source=(await h.get('/api/coffer/donors/'+cleo.donor.id)).donor
   await h.command('donor.merge',{sourceDonorId:source.id,donorId:target.id,sourceVersion:source.version,version:target.version,reason:'duplicate_record'})
-  assert.equal((await h.get('/api/coffer/pipeline')).opportunities[0].donor_id,target.id);assert.equal((await h.get('/api/coffer/move-in/source-history?donorId='+target.id)).plans[0].source_id,key(9015));assert.equal((await h.get('/api/coffer/donors/'+target.id)).gifts[0].amount_cents,50000)
-  await h.command('donor.erase',{donorId:target.id,confirm:'ERASE'});assert.equal((await h.get('/api/coffer/pipeline')).opportunities.length,0);assert.equal((await h.get('/api/coffer/move-in/source-history?donorId='+target.id)).plans.length,0)
+  assert.equal((await h.get('/api/coffer/pipeline')).opportunities.find(p=>p.label==='Library renewal').donor_id,target.id);assert.equal((await h.get('/api/coffer/move-in/source-history?donorId='+target.id)).plans[0].source_id,key(9015));assert.equal((await h.get('/api/coffer/donors/'+target.id)).gifts[0].amount_cents,50000)
+  await h.command('donor.erase',{donorId:target.id,confirm:'ERASE'});assert.equal((await h.get('/api/coffer/pipeline')).opportunities.length,0);assert.equal((await h.get('/api/coffer/tasks')).tasks.length,0);assert.equal((await h.get('/api/coffer/move-in/source-history?donorId='+target.id)).plans.length,0)
   assert.equal((await post(h,'preview',f.input())).canApply,false,'An erased merged identity cannot return through replay')
   const erased=await h.get('/api/coffer/move-in/journal?id='+preview.id);assert.equal(erased.job.redacted,1);assert.deepEqual(erased.job.report,{})
   await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{status:409});assert.ok(!JSON.stringify(await archive(h)).includes(email(9003)))
