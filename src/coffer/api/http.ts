@@ -1,3 +1,4 @@
+import { readOnlyRecords, readOnlyRefusal } from '../team-access'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { originGuard } from '../auth'
 import { CofferError, commit, event, fail, object, type Context, type Row } from '../db'
@@ -8,6 +9,7 @@ import { idempotentWrite, rateLimit, RATE_LIMIT } from './transaction'
 import { openApiDocument } from './openapi'
 import { apiAuditPath } from './custody'
 import { completeNativeEffects } from './effects'
+import { verifyWebhookReceipt } from './webhook-receipt'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','x-coffer-api-version':'1','x-ratelimit-limit':String(RATE_LIMIT)}
 const json=(value:unknown,status=200,extra:Record<string,string>={})=>Response.json(value,{status,headers:{...headers,...extra}})
@@ -32,8 +34,14 @@ export async function restApiResponse(request:Request,original:Bindings):Promise
   if(request.headers.has('origin')&&request.headers.get('origin')!==env.AUTH_ORIGIN)fail('INVALID_ORIGIN','This API request came from another origin.',403)
   const auth=await apiIdentity(request,env);c=auth.context
   originGuard(request,env,auth.bearer)
+  if(c.actor.teamAccess?.readOnly&&request.method!=='GET')return readOnlyRefusal()
   await rateLimit(c,auth.principal)
   const path=url.pathname.slice(PREFIX.length)||'/'
+  if(c.actor.teamAccess?.readOnly){
+   const match=path.match(/^\/(donors|gifts|pledges|tasks|opportunities|interactions)(?:\/([^/]+))?$/)
+   if(!match)return readOnlyRefusal()
+   return {response:json(await readOnlyRecords(c,match[1],url,match[2]?decodeURIComponent(match[2]):undefined)),context:c}
+  }
   if(path==='/keys'||/^\/keys\/[^/]+\/revoke$/.test(path)){
    if(auth.bearer)fail('SESSION_REQUIRED','Use your signed-in owner or admin session to manage API keys.',403)
    if(path==='/keys'&&request.method==='GET')return {response:json(await keyState(c)),context:c}
@@ -41,6 +49,7 @@ export async function restApiResponse(request:Request,original:Bindings):Promise
    if(request.method==='POST'&&path.endsWith('/revoke'))return {response:json(await apiKeyCommand(c,'apiKey.revoke',{id:decodeURIComponent(path.split('/')[2])})),context:c}
    fail('METHOD_NOT_ALLOWED','Use a documented API key method.',405)
   }
+  if(path==='/webhook-receipts/verify'&&request.method==='POST')return {response:json(await verifyWebhookReceipt(c,auth.scope,await input(request))),context:c}
   if(request.method==='GET'){
    const result=path==='/openapi.json'?openApiDocument(url.origin):await readResource(c,auth.scope,path,url)
    if(!result)fail('NOT_FOUND','That API resource does not exist.',404)

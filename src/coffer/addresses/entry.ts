@@ -17,7 +17,7 @@ export async function enteredAddress(c:Context,donor:Row) {
  }
  // Staging must retain the native pre-provider authority check as well as the
  // final transaction check; revoked credentials cannot submit entered data.
- if(c.transactionPlan)await commit({...c,transactionPlan:undefined},[])
+ await commit({...c,transactionPlan:undefined},[])
  const result=await verifySmartyAddress({address:postalAddress(donor),identity:{id:donor.id,name:donor.name,kind:donor.constituent_kind??'person'},authId:c.env?.SMARTY_AUTH_ID??'',authToken:c.env?.SMARTY_AUTH_TOKEN??''})
  if(result.status==='error')fail('ADDRESS_PROVIDER','Smarty could not verify this address. Nothing was saved; retry after checking the connection.',502)
  const replacement=result.address

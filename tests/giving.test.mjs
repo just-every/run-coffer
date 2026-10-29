@@ -8,6 +8,11 @@ const webhookSecret='synthetic-coffer-3001'
 const form=(values,as='')=>({method:'POST',as,headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(values).toString()})
 const cookie=response=>response.headers.getSetCookie().map(value=>value.split(';')[0]).join('; ')
 
+test('GIVE-001: branded campaign forms embed at desktop and phone widths, retain typed paid answers and refuse changed or erased replay', async () => {
+ const {givingFormJourney} = await import('./giving-form-journey.mjs')
+ await givingFormJourney()
+})
+
 // Only Stripe and mail are faked. Payment state, donor matching, ledger entries,
 // campaign totals and portal authorization all run through the real HTTP handlers.
 function stripeEdge() {
@@ -276,4 +281,18 @@ test('CAMP-005: reviewed auction results retain gross payments, benefits, purcha
 
 test('CAMP-002: table and sponsorship packages keep reviewed guest answers private and account for benefits',{timeout:300000},async()=>{
  const {eventPackagesJourney}=await import('./event-packages-journey.mjs');await eventPackagesJourney()
+})
+
+test('CAMP-003: verified supporters fundraise as teams and personal pages with separate credits, ledger totals and private custody',async t=>{
+ t.mock.timers.enable({apis:['Date'],now:Date.parse(fixedNow)})
+ const {peerJourney}=await import('./peer-journey.mjs')
+ await peerJourney()
+})
+
+test('CAMP-004: paid memberships renew once, disclose benefits, reconcile campaigns and retain held reminder custody', {timeout:300000}, async()=>{
+ const {membershipsJourney}=await import('./memberships-journey.mjs');await membershipsJourney()
+})
+
+test('GIVE-004: hosted ACH stays pending, settles once with actual fees, and returns with owned non-ask follow-up', {timeout:600000}, async()=>{
+ const {achCheckoutJourney}=await import('./ach-checkout-journey.mjs');await achCheckoutJourney()
 })

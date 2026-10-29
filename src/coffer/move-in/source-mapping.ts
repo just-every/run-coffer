@@ -1,4 +1,6 @@
+import { platformGift } from './platform-export'
 import { sourceContacts } from './contacts'
+import { spreadsheetPreferences } from './spreadsheet-mapping'
 import { sourceRestrictions } from './solicitation-mapping'
 import { normalizeLabel } from './source-columns'
 import { SourceRow } from './source-rows'
@@ -21,7 +23,7 @@ function addDonor(r: SourceRow, out: ParsedImport) {
  const externalId = r.required('donorId'); if (!externalId) return
  // An organization keeps no household: LGL's Is Org, a Bloomerang Organization type, or an organization name alone.
  const organization = /^(yes|true|y|1)$/i.test(r.get('isOrg')) || normalizeLabel(r.peek('type')) === 'organization' || (!!names[1] && !names[2] && !names[4])
- const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], middleName: names[3], lastName: names[4], prefix, suffix, nickname:r.get('nickname'), recognitionName:r.get('recognitionName'), constituentStatus:sourceStatus(r), deceasedOn:r.peek('deceasedOn')?r.date('deceasedOn'):'', statusReason:r.get('statusReason'), informalName:r.get('informalName'), formalName:r.get('formalName'), envelopeName:r.get('envelopeName'), organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
+ const donor: ParsedDonor = { location: r.location, externalId, name, firstName: names[2], middleName: names[3], lastName: names[4], prefix, suffix, nickname:r.get('nickname'), recognitionName:r.get('recognitionName'), constituentStatus:sourceStatus(r), deceasedOn:r.peek('deceasedOn')?r.date('deceasedOn'):'', statusReason:r.get('statusReason'), informalName:out.source==='neon'?r.verbatim('informalName'):r.get('informalName'), formalName:out.source==='neon'?r.verbatim('formalName'):r.get('formalName'), envelopeName:out.source==='neon'?r.verbatim('envelopeName'):r.get('envelopeName'), organization, ...Object.fromEntries(donorFields.map(key => [key, r.get(key)])) } as ParsedDonor
  sourceContacts(r,donor)
  donor.email = donor.email.toLowerCase()
  if (donor.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donor.email)) r.error('EMAIL', 'Export a single valid primary email address.', 'email')
@@ -61,8 +63,9 @@ function note(r: SourceRow, out: ParsedImport, standalone = false) {
  const externalId = r.get('noteId') || provenanceId(r, 'note'), type = r.get('noteType').toLowerCase()
  if (donorExternalId) out.notes.push({ location: r.location, externalId, donorExternalId, text, date, type })
 }
+const RELATIONSHIP_TYPES: Record<string, string> = { spouse: 'spouse', employer: 'employer', boardmember: 'board_member', foundationofficer: 'foundation_officer', introducedby: 'introduced_by' }
 function relationship(r: SourceRow, out: ParsedImport) {
- const donorExternalId = r.required('donorId'), relatedDonorExternalId = r.required('relatedDonor'), rawType = r.required('relationshipType'), type = ({ spouse: 'spouse', employer: 'employer', boardmember: 'board_member', foundationofficer: 'foundation_officer', introducedby: 'introduced_by' } as Record<string, string>)[normalizeLabel(rawType)] || rawType.toLowerCase()
+ const donorExternalId = r.required('donorId'), relatedDonorExternalId = r.required('relatedDonor'), rawType = r.required('relationshipType'), key = normalizeLabel(rawType), type = (Object.hasOwn(RELATIONSHIP_TYPES,key) ? RELATIONSHIP_TYPES[key] : undefined) || rawType.toLowerCase()
  const externalId = r.get('relationshipId') || provenanceId(r, 'relationship')
  if (donorExternalId && relatedDonorExternalId && type) out.relationships.push({ location: r.location, externalId, donorExternalId, relatedDonorExternalId, type })
 }
@@ -83,15 +86,16 @@ function softCredit(r: SourceRow, out: ParsedImport, inline = false) {
 function method(r: SourceRow) {
  const raw = r.get('method'), key = normalizeLabel(raw)
  const methods: Record<string, string> = { check: 'check', cheque: 'check', creditcard: 'card', debitcard: 'card', card: 'card', online: 'online', paypal: 'online', cash: 'cash', banktransfer: 'bank transfer', directdebit: 'bank transfer', ach: 'bank transfer', eft: 'bank transfer', other: 'other' }
- if (!methods[key]) r.result.diagnostics.push({ ...r.location, severity: 'warning', code: 'PAYMENT_METHOD', message: raw ? `Source payment method preserved as ${raw}.` : 'No source payment method; marked imported.' })
- return methods[key] || raw || 'imported'
+ const mapped = Object.hasOwn(methods,key) ? methods[key] : undefined
+ if (!mapped) r.result.diagnostics.push({ ...r.location, severity: 'warning', code: 'PAYMENT_METHOD', message: raw ? `Source payment method preserved as ${raw}.` : 'No source payment method; marked imported.' })
+ return mapped || raw || 'imported'
 }
 // GIFT-003: a mapped channel column names one of Coffer's five channels; anything else stops the row.
 const CHANNEL_VALUES: Record<string, string> = { form: 'form', onlineform: 'form', givingform: 'form', donationform: 'form', website: 'form', event: 'event', mail: 'mail', directmail: 'mail', mailpiece: 'mail', letter: 'mail', email: 'email', text: 'text', sms: 'text', texttogive: 'text' }
 function channel(r: SourceRow) {
  const raw = r.has('channel') ? r.get('channel') : ''
  if (!raw) return undefined
- const value = CHANNEL_VALUES[normalizeLabel(raw)]
+ const key = normalizeLabel(raw), value = Object.hasOwn(CHANNEL_VALUES,key) ? CHANNEL_VALUES[key] : undefined
  if (!value) r.error('CHANNEL', `Channel ${raw} is not one of Form, Event, Mail, Email or Text; correct it in the export or leave it blank.`, 'channel')
  return value
 }
@@ -112,9 +116,10 @@ function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
  }
  if (goodsCents !== null && amountCents !== null && goodsCents >= amountCents && goodsCents !== 0) r.error('GOODS_VALUE', r.peek('deductible') ? `Deductible Amount ${r.peek('deductible')} means the donor received goods or services worth the whole ${r.peek('amount')}, so no part of it was a gift. Coffer records gifts worth more than what the donor received: set Deductible Amount to the part that was a gift, or delete the row if it was a purchase.` : 'Benefit amount must be less than the received gift amount.', r.peek('deductible') ? 'Deductible Amount' : 'goodsAmount')
  if (goodsCents === null && input.noGoodsOrServices === true) goodsCents = 0
+ const platform=platformGift(r,out)
  const giftChannel = channel(r), giftAcknowledgment = acknowledgment(r), giftTribute = tribute(r)
  if (fund.includes(';') || campaign.includes(';')) r.error('SPLIT_GIFT', 'Export one designation per row with a unique gift/designation ID and amount; grouped split funds or campaigns cannot be allocated safely.')
- if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, appeal, channel: giftChannel, checkReference, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription, ...(giftTribute ? { tribute: giftTribute } : {}), ...(giftAcknowledgment ? { acknowledgment: giftAcknowledgment } : {}) })
+ if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ platform, location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, appeal, channel: giftChannel, checkReference, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription, ...(giftTribute ? { tribute: giftTribute } : {}), ...(giftAcknowledgment ? { acknowledgment: giftAcknowledgment } : {}) })
  if (r.peek('softDonor')) softCredit(r, out, true)
 }
 function pledge(r: SourceRow, out: ParsedImport) {
@@ -134,6 +139,7 @@ function installment(r: SourceRow, out: ParsedImport) {
 export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {
  const kind = r.kind(); r.get('type')
  if(r.peek('communicationRestrictions'))sourceRestrictions(r,out,input)
+ if(['spreadsheet','givebutter','zeffy','neon'].includes(out.source))spreadsheetPreferences(r,out)
  // LGL repeats display names in gift and relationship reports. Only constituent
  // records define donors: labels on referenced records cannot create or rename one.
  if (out.source === 'lgl') {

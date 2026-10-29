@@ -4,6 +4,8 @@
 import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { contractPageHtml } from '../base/contract-page'
+import { hostingPageHtml } from '../base/hosting-page'
+import { runPricing } from '../base/run-pricing'
 import { runPageHtml, siteNotFoundHtml, type RunData, type SiteBuild, type SiteContext } from '../base/run-site'
 import type { EditionIdentity } from '../base/identity'
 import { identity } from '../identity'
@@ -22,8 +24,8 @@ const THEME = '/site/theme.css'
 // the app's look in /fonts/fonts.css), and the town's lights as their floor art.
 const siteIdentity: EditionIdentity = { ...identity, theme: THEME, fonts: undefined, band: '/site/run-band.webp' }
 
-export function sitePages({ styles, contract }: SiteContext): SiteBuild {
-  const data: RunData = run
+export function sitePages({ styles, contract, hosting }: SiteContext): SiteBuild {
+  const data: RunData = { ...run, pricing: runPricing }
   const document = (title: string, description: string, body: ReactElement, script = '') => '<!doctype html>' + renderToStaticMarkup(
     <html lang="en">
       <head>
@@ -57,7 +59,8 @@ export function sitePages({ styles, contract }: SiteContext): SiteBuild {
       { path: '/run', html: runPageHtml(siteIdentity, data, contract) },
       ...(contract ? [{ path: '/contract', html: contractPageHtml(siteIdentity, data, contract) }] : []),
       { path: '/docs', html: document(...head(), <DocsIndex />) },
-      ...docsPages.map(page => ({ path: `/docs/${page.slug}`, html: document(...head(page.slug), <DocsArticle slug={page.slug} />, COPY) })),
+      ...(hosting !== undefined ? [{ path: '/docs/hosting', html: hostingPageHtml(siteIdentity, data, hosting, contract) }] : []),
+      ...docsPages.filter(page => page.slug !== 'hosting').map(page => ({ path: `/docs/${page.slug}`, html: document(...head(page.slug), <DocsArticle slug={page.slug} />, COPY) })),
       { path: '/404', html: siteNotFoundHtml(siteIdentity, data, contract) },
     ],
     assets: ['rer-theme.css', 'fonts', 'brand', 'site', 'favicon.ico', 'apple-touch-icon.png'],

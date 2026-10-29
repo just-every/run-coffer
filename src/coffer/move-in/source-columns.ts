@@ -2,6 +2,8 @@ import type { ImportSource } from './types'
 
 /** Exact report labels plus documented, user-configurable export label variants. */
 const common: Record<string, string[]> = {
+ planId:['Plan ID'],frequency:['Frequency'],planStatus:['Plan Status'],nextOn:['Next Charge Date'],customerReference:['Processor Customer Reference'],paymentMethodReference:['Processor Payment Method Reference'],
+ campaignId:['Campaign ID'],fee:['Fees','Fee'],paymentStatus:['Payment Status'],refunded:['Refunded Amount'],currency:['Currency'],
  restrictionDate: ['Communication Restriction Date', 'Communication Tag Date', 'Solicit Code Date', 'Restriction Date'],
  name: ['Name', 'Full Name', 'Constituent Name', 'Donor Name'], prefix: ['Prefix', 'Name Title'], firstName: ['First Name'], middleName: ['Middle Name'], lastName: ['Last Name'], suffix: ['Suffix', 'Name Suffix'],
  organization: ['Organization Name', 'Organisation Name', 'Org Name'], isOrg: ['Is Org', 'Is Organization', 'Is Organisation'], email: ['Email', 'Email Address', 'Primary Email', 'Primary Email Address', 'Preferred Email'],
@@ -39,6 +41,9 @@ const common: Record<string, string[]> = {
  controlYear: ['Year', 'Calendar Year'],
 }
 const vendor: Record<ImportSource, Record<string, string[]>> = {
+ neon: {donorId:['Constituent ID'],giftId:['Gift ID'],communicationRestrictions:['Communication Restrictions'],tributeHonoree:['Tribute Honoree'],tributeType:['Tribute Type'],tributeGroup:['Tribute Group'],tributeNotifiedName:['Tribute Recipient Name'],tributeNotifiedEmail:['Tribute Recipient Email'],tributeNotifiedAddress:['Tribute Recipient Address'],emailPreference:['Email Preference'],mailPreference:['Mail Preference'],smsPreference:['SMS Preference'],phonePreference:['Phone Preference'],preferenceDate:['Preference Date']},
+ givebutter: {}, zeffy: {},
+ spreadsheet: {donorId:['Constituent ID'],giftId:['Gift ID'],communicationRestrictions:['Communication Restrictions'],tributeHonoree:['Tribute Honoree'],tributeType:['Tribute Type'],tributeGroup:['Tribute Group'],tributeNotifiedName:['Tribute Recipient Name'],tributeNotifiedEmail:['Tribute Recipient Email'],tributeNotifiedAddress:['Tribute Recipient Address'],emailPreference:['Email Preference'],mailPreference:['Mail Preference'],smsPreference:['SMS Preference'],phonePreference:['Phone Preference'],preferenceDate:['Preference Date']},
  lgl: {
   communicationRestrictions: ['Communication Tags', 'Communication Tag', 'Communication Preferences'],
   tributeHonoree: ['Tribute Hon./Mem. Name'], tributeGroup: ['Tribute Name'], tributeType: ['Tribute Dedication'],
@@ -58,7 +63,7 @@ export function normalizeLabel(value: string) { return value.toLowerCase().repla
 export function columnFields(source: ImportSource): Map<string, string> {
  const fields = new Map<string, string>()
  for(const kind of ['email','phone','address'])for(let n=1;n<=(kind==='address'?2:3);n++){const key=kind+(n===1?'':n);for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+n+' '+suffix),key+suffix);if(n===1)for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+suffix),key+suffix);if(n>1&&kind!=='address')for(const label of [kind+' '+n,kind+' Address '+n])fields.set(normalizeLabel(label),key);if(n>1&&kind==='address')for(const [suffix,label] of [['Line1','Street'],['Line2','Street 2'],['City','City'],['Region','State'],['PostalCode','Postal Code'],['Country','Country']])fields.set(normalizeLabel('Address '+n+' '+label),key+suffix)}
- for (const [key, labels] of Object.entries({ ...common, ...vendor[source] })) for (const label of labels) {
+ for (const [key, labels] of Object.entries({ ...common, ...(['givebutter','zeffy'].includes(source)?vendor.spreadsheet:{}), ...vendor[source] })) for (const label of labels) {
   fields.set(normalizeLabel(label), key)
   if (key.startsWith('acknowledgment')) fields.set(normalizeLabel(`Soft Credit ${label}`), `soft${key[0].toUpperCase()}${key.slice(1)}`)
  }

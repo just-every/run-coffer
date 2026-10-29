@@ -1,5 +1,9 @@
-import { retentionRecordSelection } from './retention'
-import { choice } from './db'
+import { retentionExportSelection } from './exports-report-retention'
+import { taxExportSelection } from './exports-report-tax'
+import { restrictionExportSelection } from './exports-report-restrictions'
+import { recurringExportSelection } from './exports-report-recurring'
+import { dashboardExportSelection } from './exports-report-dashboard'
+import { savedBuilderRecordSelection } from './report-builder-selection'
 import { dashboardMoneySelection } from './dashboard-ledger'
 import { honorRollRecordSelection } from './recognition'
 import { attributionRecordSelection } from './attribution'
@@ -12,21 +16,12 @@ import { exportRecords } from './exports-records'
 
 export async function reportSelection(c:Context,url:URL):Promise<ExportSelection> {
  const report=url.searchParams.get('report')
- if(report==='retention'){
-  const selected=await retentionRecordSelection(c,url),scope=selected.scope
-  const cohort=choice(url.searchParams.get('cohort')||'all',['all','retained','new','lapsed','recaptured','upgraded','downgraded','unchanged','adjustments'] as const,'cohort')
-  const kind=`CASE WHEN currentCents>0 THEN CASE WHEN priorCents>0 THEN 'retained' WHEN earlierCents>0 THEN 'recaptured' ELSE 'new' END WHEN priorCents>0 THEN 'lapsed' ELSE 'adjustments' END`
-  const predicate=cohort==='all'?'1':cohort==='upgraded'||cohort==='downgraded'||cohort==='unchanged'?`kind='retained' AND currentCents${cohort==='upgraded'?'>':cohort==='downgraded'?'<':'='}priorCents`:`kind='${cohort}'`
-  return {source:'report',savedId:null,timezone:scope.timezone,year:scope.year,through:scope.end,scoreCurrentSql:scope.scoreCurrentSql,reportType:'constituents',
-   ctes:`config AS (SELECT timezone,name_defaults,(${scope.scoreCurrentSql})${scope.basis==='fiscal'?" AND fiscal_year_start='"+scope.monthDay+"'":''} AS selection_current FROM cf_settings WHERE id=1),
-    selected_list AS (SELECT NULL AS version,NULL AS name),filters AS (SELECT '{}' AS definition),
-    source_records AS MATERIALIZED (${selected.query}),
-    classified AS MATERIALIZED (SELECT r.*,donorId AS donor_id,${kind} AS kind FROM source_records r),
-    report_entries AS MATERIALIZED (SELECT * FROM classified WHERE ${predicate}),
-    members AS MATERIALIZED (SELECT donor_id AS id FROM report_entries)`,
-   params:selected.params,reportTotalsSql:"(SELECT json_object('count',count(*),'priorCents',COALESCE(SUM(priorCents),0),'currentCents',COALESCE(SUM(currentCents),0)) FROM report_entries)",
-   selection:{source:'report',report,parameters:{year:scope.year,basis:scope.basis,cohort,fund:scope.fund,campaignId:scope.campaignId,list:scope.savedId?'saved:'+scope.savedId:scope.list,q:scope.q,relationship:scope.relationship,relatedTo:scope.relatedTo,volunteer:scope.volunteer}}}
- }
+ if(report==='builder')return savedBuilderRecordSelection(c,url)
+ if(report==='retention')return retentionExportSelection(c,url)
+ if(report==='tax')return taxExportSelection(c,url)
+ if(report==='restrictions')return restrictionExportSelection(c,url)
+ if(report==='recurring')return recurringExportSelection(c,url)
+ if(report==='dashboard')return dashboardExportSelection(c,url)
  if(report==='funds'||report==='states'||report==='attribution'||report==='custom-fields'||report==='honor-roll'||report==='dashboard-money'){
   const state=report==='states'?await stateRecordSelection(c,url):null
   const other=report==='dashboard-money'?await dashboardMoneySelection(c,url):report==='honor-roll'?await honorRollRecordSelection(c,url):report==='attribution'?await attributionRecordSelection(c,url):report==='custom-fields'?await customRecordSelection(c,url):null

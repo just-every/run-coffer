@@ -3,6 +3,10 @@ import { wireDatabase } from '../../../d1-transport/index.mjs';
 import { guard, guardPredicate } from './guards.ts';
 import type { D1Database, D1ImportContext, D1Sql } from './types.ts';
 const budgets = new WeakMap<D1Database, { used: number; limit: number }>();
+/** Coffer budgets individual executed statements, including every batch member. */
+export function batchExecutions(_context: { storage?: Pick<D1ImportContext['storage'], 'database'> }, statements: number): number {
+  return statements;
+}
 const reservedTail = Symbol('import request return queries');
 type ReservedContext = D1ImportContext & { [reservedTail]?: number };
 /** Distinguish this request's measured exhaustion from adapter or provider errors. */

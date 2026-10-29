@@ -37,7 +37,7 @@ function sourceEdges(){
  return {recurring,sessions,objects,received,outbound}
 }
 
-export async function webhookSourcesJourney(){
+export async function webhookSourcesJourney(inspectCaptures){
  const edge=sourceEdges()
  await run(async h=>{
   await reviewed(h)
@@ -110,10 +110,12 @@ export async function webhookSourcesJourney(){
    assert.equal(message.eventId,delivery.event_id)
    assert.deepEqual(message.event,{id:delivery.event_id,type:delivery.event_type,occurredAt:delivery.occurred_at,data:{id:delivery.subject_id}})
   }
+  if(inspectCaptures)await inspectCaptures({phase:'captured',h,signed,messages:edge.received})
   const hostedDonor=(await h.get('/api/coffer/donors')).donors.find(d=>d.email===giving.email)
   await command('donor.erase',{donorId:hostedDonor.id,confirm:'ERASE'})
   const privateIds=[hostedDonor.id,session.metadata.coffer_intent,'giving-'+session.payment_intent,'txn_syntheticcoffer1884','txn_syntheticcoffer1887']
   assert.ok((await log()).every(d=>!privateIds.includes(d.subject_id)),'Erasure removes hosted gifts and processor adjustment webhook identifiers')
+  if(inspectCaptures)await inspectCaptures({phase:'erased',h,signed,messages:edge.received,erasedIds:privateIds})
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,bindings:{COFFER_TEST_NOW:now,STRIPE_SECRET_KEY:'synthetic-coffer-1839',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
 }
 

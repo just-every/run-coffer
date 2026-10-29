@@ -12,4 +12,4 @@ The donor direction comes from the 16 October 2026 FOURTH-TEN decision, section 
 | Mango | [`consent-metadata.ts`, `a2b40f5`](https://github.com/just-every/run-mango/blob/a2b40f5344ca99950fdf9ca4678a2e2ce40477ad/src/core/features/audience/consent-metadata.ts) | Consent capture facts kept with each answer. |
 | Mallet | [`049aa5f`](https://github.com/just-every/run-mallet/tree/049aa5f5c8eaa8f6dba475d5364278d06e5b8525) | Package-mode layout, session-authority fences, agent keys and the import-kit adapter shape. |
 
-The Stripe fixture shapes follow Stripe's published API reference (see [MOVE-IN.md](MOVE-IN.md)). Market notes and build evidence stay outside this repository.
+The Stripe fixture shapes follow Stripe's published API reference (see [MOVE-IN.md](/docs/move-in)). Market notes and build evidence stay outside this repository.

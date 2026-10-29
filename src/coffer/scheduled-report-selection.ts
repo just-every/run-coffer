@@ -1,3 +1,4 @@
+import { readBuilderReport } from './report-builder/read'
 import { fail, type Context } from './db'
 import { dashboardReport, dashboardEntries } from './dashboard'
 import { retention } from './retention'
@@ -12,6 +13,7 @@ import { restrictionReport } from './restricted-funds'
 import { taxReport } from './tax-reports'
 
 const reports = [
+ {path:'/app/reports/builder',label:'Saved report',read:readBuilderReport},
  {path:'/app',label:'Home fundraising dashboard',read:dashboardReport},
  {path:'/app/reports/dashboard',label:'Fundraising dashboard',read:(c:Context,u:URL)=>u.searchParams.get('view')==='entries'?dashboardEntries(c,u):dashboardReport(c,u)},
  {path:'/app/retention',label:'Donor retention',read:retention},
@@ -30,6 +32,8 @@ export function reportSelection(path: string, origin: string) {
  if(!/^\/app(?:[/?]|$)/.test(path)||path.startsWith('//')||path.includes('\\'))fail('REPORT_SELECTION','Choose a report link from this installation.',400)
  const u=new URL(path,origin),definition=reports.find(r=>r.path===u.pathname)
  if(u.origin!==origin||u.hash||!definition||(u.pathname==='/app/lapses'&&!u.searchParams.has('annual')))fail('REPORT_SELECTION','Choose an existing report or dashboard link.',400)
+ if(u.pathname==='/app/reports/builder'&&(!u.searchParams.get('id')||[...u.searchParams.keys()].some(k=>k!=='id')))fail('REPORT_SELECTION','Choose a saved report without download parameters.',400)
+ if(u.pathname==='/app/reports/builder')u.search=new URLSearchParams({id:u.searchParams.get('id')!}).toString()
  return {url:u,definition,path:u.pathname+u.search}
 }
 export async function readScheduledReport(c:Context,path:string) {

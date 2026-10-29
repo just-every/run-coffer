@@ -3,7 +3,7 @@
     {
       "title": "Start here",
       "pages": [
-        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Start Coffer on your own computer in two lines, sign in as the owner and finish setup." },
+        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Start Coffer on your own computer with one line, sign in as the owner and finish setup." },
         { "slug": "first-week", "title": "Your first week", "file": "first-week.md", "summary": "The four steps on Today: your letter wording, your donors, their consent and your first letters." }
       ]
     },
@@ -17,6 +17,7 @@
         { "slug": "receipts", "title": "Sending and printing receipts", "file": "RECEIPTS.md", "summary": "Email approved receipts and year-end statements, track delivery, and print letters for donors without email." },
         { "slug": "appeals", "title": "Appeals", "file": "appeals.md", "summary": "Build an audience of donors who said yes, approve it, export it for your own tool and record the send." },
         { "slug": "online-giving", "title": "Online and monthly giving", "file": "ONLINE-GIVING.md", "summary": "Connect Stripe from Coffer, publish campaign pages and run monthly gifts with a donor card portal." },
+        { "slug": "peer-fundraising", "title": "Supporter fundraising", "file": "peer-fundraising.md", "summary": "Create personal pages and teams, reconcile their credits and review fundraiser email submissions." },
         { "slug": "payments", "title": "Payouts and accounting", "file": "PAYMENTS.md", "summary": "Match each Stripe payout to its gifts and fees, then post it to Pantry or export it for QuickBooks." }
       ]
     },
@@ -27,9 +28,11 @@
         { "slug": "agent-commands", "title": "Agent keys and commands", "file": "AGENT-COMMANDS.md", "summary": "Every endpoint and command an agent or script can call, and who may call it." },
         { "slug": "move-in", "title": "Move in from Stripe", "file": "MOVE-IN.md", "summary": "Read donors, gifts and monthly plans from Stripe, preview and check the totals, then approve or undo." },
         { "slug": "move-in-crm", "title": "Move in from a CRM", "file": "MOVE-IN-SOURCES.md", "summary": "Export from Little Green Light, Bloomerang or Raiser's Edge NXT, check totals and switch in one reviewed step." },
+        { "slug": "neon-move-in", "title": "Move in from Neon CRM", "file": "neon-move-in.md", "summary": "Review supported Neon history, source facts, preferences and totals while keeping unsupported coverage visible." },
+        { "slug": "platform-history", "title": "Givebutter and Zeffy history", "file": "platform-history.md", "summary": "Review historical payments, source receipts, campaign totals and recurring migration evidence." },
         { "slug": "backup", "title": "Back up, restore and erase", "file": "backup.md", "summary": "Download a backup, restore it into an empty installation, and erase a donor without losing the ledger." },
         { "slug": "deployment", "title": "Coffer deployment details", "file": "deployment.md", "summary": "Coffer mail settings, hosted backups and deployment maintenance." },
-        { "slug": "hosting", "title": "Host it on Cloudflare", "file": "hosting.md", "summary": "Deploy Coffer to your own Cloudflare account with SendGrid mail, back it up, and take it down." }
+        { "slug": "hosting", "title": "Host it on Cloudflare", "file": "hosting.md", "summary": "Run Coffer locally, ask Run Edit Run for help, or put it online in your own Cloudflare account." }
       ]
     }
   ]

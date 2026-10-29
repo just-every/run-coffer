@@ -27,13 +27,13 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note'}
+const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',recurringReference:'Source plan',platformGift:'Source transaction'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
  const plan: Plan = {customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
- const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[])]
+ const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
  const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
@@ -41,7 +41,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const merges = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'into_id',into_id) AS snapshot FROM cf_donor_merges ORDER BY donor_id`)
  const merged = new Map(merges.map(m=>[m.donor_id as string,m.into_id as string]))
  const canonical = (id: string): string => merged.get(id)??id
- const donorRows = await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) OR n.source_ref IN (SELECT value FROM json_each(?)) ORDER BY n.id`, [JSON.stringify(mappings.filter(m=>m.kind==='donor').map(m=>m.native_id)),JSON.stringify(parsed.donors.map(d=>`${source}:${d.externalId}`))])
+ const donorRows = await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) OR n.source_ref IN (SELECT value FROM json_each(?)) ORDER BY n.id`, [JSON.stringify([...mappings.filter(m=>m.kind==='donor').map(m=>m.native_id),...parsed.donors.flatMap(d=>d.match?[d.match.id]:[])]),JSON.stringify(parsed.donors.map(d=>`${source}:${d.externalId}`))])
  const survivors = [...new Set([...donorRows.map(d=>canonical(d.id))])].filter(id=>!donorRows.some(d=>d.id===id))
  if(survivors.length)donorRows.push(...await readSet(c,plan,`SELECT ${snapshot('donor')} AS snapshot FROM cf_donors n WHERE n.id IN (SELECT value FROM json_each(?)) ORDER BY n.id`,[JSON.stringify(survivors)]))
  // Household names are unique in Coffer. An imported household never joins an existing one by name: it takes the next free name.
@@ -64,7 +64,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const diagnostic = (message: string, location?: Located['location'], severity: 'error'|'warning' = 'error', code = 'MOVE_IN_MAPPING', column = 'Record ID') => plan.diagnostics.push({severity,code,message,column,...location})
  const add = async (kind: Kind, entity: Located & {externalId:string}, row: Row, match?: string, donorId: string | null = null, relatedId: string | null = null) => {
   // A donor's household is inferred from the whole file set, so it is not part of the donor's own details.
-  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string}
+  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,expectedNativeId:_expected,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string;expectedNativeId?:string}
   const hash = await contentHash(payload), previous = existing.get(`${kind}:${key}`)
   if (previous) {
    // A later file (another year's gifts) finds the donors and households an earlier move-in brought, by the CRM's own ID.
@@ -90,11 +90,15 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  }
  for (const d of parsed.donors) {
   const prior = existing.get(`donor:${await sourceKey(d.externalId)}`)
-  if (prior) { plan.donorIds.set(d.externalId,await add('donor',d,{})); continue }
+  if(d.match) {
+   const selected=donorRows.find(r=>r.id===d.match!.id)
+   if(!selected||selected.erased_at||merged.has(d.match.id)||(!prior&&selected.version!==d.match.version)||prior&&canonical(prior.native_id)!==d.match.id)diagnostic(`Constituent ${d.externalId}: the selected donor changed, was erased or merged, or differs from the previous source match. Review the current donor again.`,d.location,'error','DONOR_MATCH')
+  }
+  if (prior) { const id=await add('donor',d,{});if(d.expectedNativeId&&d.expectedNativeId!==id)diagnostic(`Constituent ${d.externalId} now resolves to a different donor. Preview and approve the current match again.`,d.location,'error','DONOR_MATCH');plan.donorIds.set(d.externalId,id); continue }
   if ((d.contacts??[]).some(p=>p.kind==='email'&&suppressed.has(erasureHash(p.value))) || suppressed.has(erasureHash(d.email)) || suppressed.has(erasureHash(`${source}:${d.externalId}`)) || suppressed.has(erasureHash(await nativeId(source,'donor',d.externalId)))) diagnostic(`Donor ${d.externalId} was erased from Coffer. Remove this constituent and its linked rows from the exports; erased records cannot be restored.`,d.location)
   // The incumbent's constituent ID wins. A distinct source ID never joins
   // another source constituent merely because their contacts coincide.
-  const matching = donorRows.filter(r=>r.source_ref===`${source}:${d.externalId}`)
+  const matching = donorRows.filter(r=>d.match?r.id===d.match.id:r.source_ref===`${source}:${d.externalId}`)
   const sourceHouseholdId=d.householdKey?(households.get(d.householdKey)||existing.get(`household:${await sourceKey(d.householdKey)}`)?.native_id):null
   const eligibleMatches=matching.filter(r=>!sourceHouseholdId||r.household_id!==sourceHouseholdId||r.source_ref===`${source}:${d.externalId}`)
   const matches = [...new Map(eligibleMatches.map(r=>{const id=canonical(r.id);return [id,donorRows.find(d=>d.id===id)??r]})).values()]
@@ -106,6 +110,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   const id=await add('donor',d,{version:1,name:d.name,prefix:d.prefix||null,first_name:d.firstName||null,middle_name:d.middleName||null,last_name:d.lastName||null,suffix:d.suffix||null,nickname:d.nickname||null,constituent_kind:d.organization?'organization':'person',constituent_status:d.constituentStatus||'active',...overrides,status_reason:d.constituentStatus==='inactive'?d.statusReason||`Imported as inactive from ${source}`:null,deceased_on:d.constituentStatus==='deceased'?d.deceasedOn||null:null,status_changed_at:d.constituentStatus&&d.constituentStatus!=='active'?c.now:null,status_changed_by:d.constituentStatus&&d.constituentStatus!=='active'?`${source} move-in`:null,email:d.email||null,phone:d.phone||null,address_line1:d.addressLine1||null,address_line2:d.addressLine2||null,city:d.city||null,region:d.region||null,postal_code:d.postalCode||null,country:d.country||null,household_id:match||d.organization?null:await householdOf(d.householdKey)||null,source:'manual',source_ref:`${source}:${d.externalId}`,created_at:c.now,erased_at:null},match?.id)
   if(d.recognitionName&&!match)await add('recognition',{...d,externalId:d.externalId},{donor_id:id,anonymous:0,recognition_name:d.recognitionName,honor_roll_opt_in:0,version:1},undefined,id)
   plan.donorIds.set(d.externalId,id)
+  if(d.expectedNativeId&&d.expectedNativeId!==id)diagnostic(`Constituent ${d.externalId} now resolves to a different donor. Preview and approve the current match again.`,d.location,'error','DONOR_MATCH')
  }
  const contactEmails=parsed.donors.flatMap(d=>(d.contacts??[]).filter(p=>p.kind==='email').map(p=>p.value))
  const contactOwners=contactEmails.length?await readSet(c,plan,`SELECT json_object('id',p.id,'donor_id',p.donor_id,'value',p.value,'version',p.version,'household_id',d.household_id) AS snapshot FROM cf_contact_points p JOIN cf_donors d ON d.id=p.donor_id WHERE p.kind='email' AND p.active=1 AND d.erased_at IS NULL AND p.value IN(SELECT value FROM json_each(?)) AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY p.id`,[JSON.stringify(contactEmails)]):[]
@@ -172,6 +177,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(held && held!==existing.get(`gift:${await sourceKey(g.externalId)}`)?.native_id)diagnostic(`Gift ${g.externalId}: Coffer already holds a gift with the reference ${reference(g)} that did not come from a move-in. Delete this exported row if it is the same gift. If it is a different gift, correct its source Gift ID to a distinct ID and upload again.`,g.location,'error','MOVE_IN_MAPPING','Gift ID')
   const id=await add('gift',g,{version:1,donor_id:donorId,kind:'gift',reverses:null,received_on:g.receivedOn,amount_cents:g.amountCents,method:g.method||'imported',reference:reference(g),fund:g.fund,pledge_id:pledges.get(g.pledgeExternalId)||null,goods:g.goodsCents===null?'unknown':g.goodsCents>0?'provided':'none',goods_cents:g.goodsCents||0,goods_description:g.goodsCents?g.goodsDescription||'Goods or services recorded in source export':null,note:g.note||null,source:'manual',created_at:c.now,created_by:c.actor.name},undefined,donorId)
   plan.giftIds.set(g.externalId,id)
+  if(g.platform)await add('platformGift',g,{gift_id:id,source,source_id:g.externalId,campaign_id:g.platform.campaignId,campaign_name:g.platform.campaignName,fee_cents:g.platform.feeCents},undefined,donorId)
   if(g.tribute) {
    const t=g.tribute
    if(tributeRows.some(t=>t.gift_id===id) && !existing.has(`tribute:${await sourceKey(g.externalId)}`))diagnostic(`Gift ${g.externalId} already has a tribute in Coffer that did not come from this source move-in. Resolve that tribute before importing; it will not be overwritten.`,g.location,'error','TRIBUTE_CONFLICT','Tribute')
@@ -223,6 +229,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(['call','meeting','email'].includes(n.type))await add('interaction',n,{donor_id:donorId,kind:n.type,occurred_on:n.date,who:`${source} export`,notes:n.text,next_step:null,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
   else await add('note',n,{donor_id:donorId,occurred_on:n.date,body:n.text,source,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
+ for(const r of parsed.recurringReferences??[])await add('recurringReference',r,{donor_id:plan.donorIds.get(r.donorExternalId),source,source_id:r.externalId,amount_cents:r.amountCents,frequency:r.frequency,status:r.status,method:r.method,campaign:r.campaign,next_on:r.nextOn,customer_reference:r.customerReference,payment_method_reference:r.paymentMethodReference,imported_at:c.now},undefined,plan.donorIds.get(r.donorExternalId))
  await planAcknowledgmentImports(c,parsed,plan,existing,add,readSet)
  await planCustomValues(c,parsed,plan,existing)
  // Never expose a partial transaction as an option when inputs exceed D1's bound.

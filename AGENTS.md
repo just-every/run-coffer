@@ -134,3 +134,14 @@ their maintenance.
 
 Pinned reference: https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/TANSTACK-START-MIGRATION.md
 Native-session/runtime evidence: https://github.com/runeditrun/base/tree/ada9f574d8a7247edc3a1180b593ad182b1fbb37/default-seed
+
+## Contract views for this edition
+
+The edition keeps its current contract format while the ct cleanup is separate.
+Regenerate the touched clauses and summary counts together; homepage claims that
+do not refer to those clauses retain their approved source mapping.
+
+Lander-Regenerate: node scripts/contract-docs.mjs write REPORT-004 DATA-004 MOVE-004
+Lander-Regenerate: node scripts/edition-authoring/cli.mjs lock
+
+Check with `node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004`.

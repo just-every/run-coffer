@@ -1,4 +1,6 @@
+import { bankCheckoutState } from '../giving/bank-checkout'
 import { pledgeSessionForCharge } from '../pledge-checkout'
+import { identify, recordGift } from '../giving/recording'
 import { runGiftRules } from '../gift-rules'
 import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
 import { email, fail, one, sql, type Context } from '../db'
@@ -35,7 +37,27 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
    const payment = await stripe(env, '/payment_intents/' + encodeURIComponent(pi))
    if (payment.metadata?.coffer_intent) intent = await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', payment.metadata.coffer_intent)
   }
+  if(intent?.payment_method==='us_bank_account'){
+   const capture=await one(c,'SELECT fund FROM cf_giving_form_intents WHERE intent_id=?',intent.id)
+   intent={...intent,fund:capture?.fund??intent.fund}
+   const bank=await bankCheckoutState(env,intent,undefined,charge)
+   if(bank.status!=='succeeded'&&bank.status!=='returned')return null
+   if(intent.donor_id&&!(await one(c,'SELECT id FROM cf_donors WHERE id=? AND erased_at IS NULL',intent.donor_id)))return null
+  }
   if (intent?.frequency === 'once' && (intent.customer_id !== customerId || intent.amount_cents !== gross)) fail('payment_mismatch', 'The charge differs from the agreed checkout total.', 409)
+  // A verified paid charge can arrive before the browser return. Use the
+  // giving recorder so designation, private answers, consent and receipts have
+  // the same frozen source whichever transport observes payment first.
+  if(intent){
+   const giving = await identify(env,intent.id,customerId,true,authority)
+   if(!giving&&intent.payment_method==='us_bank_account')return null
+   if(giving){
+    const reference=refs.find(ref=>ref.startsWith('in_'))??(pi||charge.id)
+    await recordGift(env,giving,reference,gross,charge.created,undefined,authority)
+    gift=await one(c,"SELECT * FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'",reference)
+   }
+  }
+  if(!gift){
   let donor = intent?.donor_id ? await one(c, 'SELECT * FROM cf_donors WHERE id=?', intent.donor_id) : null
   const erased = customerId && await one(c, 'SELECT d.* FROM cf_erased_stripe_customers e JOIN cf_donors d ON d.id=e.donor_id WHERE e.customer_id=?', customerId)
   if (erased) donor = erased
@@ -69,6 +91,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
   ], authority)
   gift = await one(c, "SELECT * FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'", reference)
   if(gift)await runGiftRules(env,gift.id)
+  }
  }
  if (!gift || gift.amount_cents > gross) fail('payment_mismatch', 'The saved gift differs from this Stripe charge.', 409)
  // Saved-page move-in already netted refunds. Preserve those originals, and

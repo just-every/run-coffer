@@ -39,6 +39,29 @@ test('sign-in, origin checks and every role boundary hold in the server handlers
  await h.get('/api/coffer/donors',{...m,status:401})
 }))
 
+test('inherited dispatch names stay unknown without exposing Worker bindings',()=>run(async h=>{
+ const reports='/api/coffer/agent/reports',member=await h.person('dispatch-member@example.test'),admin=await h.person('dispatch-admin@example.test','admin')
+ const schedule=(await h.get(reports,{as:admin.cookie})).schedule
+ const registered=await h.request(reports+'/schedule',{method:'POST',as:admin.cookie,body:{version:schedule.version,dayOfMonth:26,enabled:false}})
+ assert.equal(registered.status,200,'A registered report action still works')
+ assert.equal((await registered.json()).scheduled,true)
+ for(const name of ['unknown-action','constructor','__proto__','hasOwnProperty']){
+  const denied=await h.request(reports+'/'+name,{method:'POST',as:member.cookie,body:{}})
+  assert.equal(denied.status,403,'Members retain the report role boundary')
+  for(const prefix of [reports,'/app/agent/reports']){
+   const payload=prefix===reports?{body:{}}:{headers:{'content-type':'application/x-www-form-urlencoded'},raw:''}
+   const response=await h.request(prefix+'/'+name,{method:'POST',as:admin.cookie,...payload}),body=await response.text()
+   // Only booleans and status codes enter assertion output, never response bodies.
+   assert.equal(response.status,404,'Inherited and unknown report actions return 404')
+   assert.equal(/SESSION_SECRET|SETUP_TOKEN|MAIL_API_KEY|synthetic-dispatch|"env"|"authority"|"db"/.test(body),false,'Report refusals contain no Worker context or bindings')
+   if(prefix===reports)assert.equal(JSON.parse(body).error==='NOT_FOUND',true,'The API returns its unknown-action error')
+  }
+  const command=await h.request('/api/coffer/commands',{method:'POST',as:member.cookie,body:{command:name,input:{}}})
+  assert.equal(command.status,400,'Inherited and unknown Coffer commands return 400')
+  assert.equal((await command.json()).error==='COMMAND',true,'The command door returns its unknown-command error')
+ }
+},{bindings:{SESSION_SECRET:'synthetic-dispatch-session'.padEnd(32,'-'),MAIL_API_KEY:'synthetic-dispatch-mail'}}))
+
 test('GIFT-001: gifts are exact integer-cent ledger lines; corrections are reversals',()=>run(async h=>{
  const ana=await donor(h,'Ana Diaz')
  const big=await h.command('gift.record',{donorId:ana.id,amount:'$1,250.50',receivedOn:'2026-09-01',method:'check',reference:'4471',goods:'none'})
@@ -371,3 +394,10 @@ test('DEV-012: named and preparation grants enforce scope, template approval, at
 test('API-002: signed native events retain failed delivery attempts, backoff and explicit replay',async()=>{const {webhooksJourney}=await import('./webhooks-journey.mjs');await webhooksJourney()})
 
 test('API-001: scoped versioned records enforce acknowledgment authority and atomic idempotency', async () => { const {restApiJourney}=await import('./rest-api-journey.mjs'); await restApiJourney() })
+
+test('API-003: packaged Zapier action creates one owned non-ask task and preserves native authority and custody', async () => { const {zapierJourney}=await import('./zapier-journey.mjs'); await zapierJourney() })
+
+test('TEAM-001: native read-only restrictions preserve ordinary views and refuse mutations, disclosure and stale authority', async () => {
+ const {teamAccessJourney}=await import('./team-access-journey.mjs')
+ await teamAccessJourney()
+})

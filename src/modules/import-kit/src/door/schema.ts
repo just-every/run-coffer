@@ -63,6 +63,11 @@ export const importDoorArchiveMigration = [
     sha256 TEXT NOT NULL, size INTEGER NOT NULL, base64 TEXT NOT NULL,
     PRIMARY KEY(archive_id,ordinal))`,
 ];
+/** Optional for existing doors: required only before declaring an intake list.
+ * Upload headers already participate in the door's erasure/retirement inventory. */
+export const importDoorIntakeMigration = [
+  'ALTER TABLE ik_door_uploads ADD COLUMN intake_json TEXT',
+];
 /** Add these statements as a new seed migration, after the D1 import-kit schema.
  * Installing the schema never enables the door. No seed is bound automatically.
  * The first statement refuses the migration on a door installed before
