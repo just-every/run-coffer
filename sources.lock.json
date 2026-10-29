@@ -3987,7 +3987,7 @@
       "executable": false
     },
     "src/coffer/move-in/source-rows.ts": {
-      "sha256": "31369d8cb279e22b939365a2c742626193cd0c6fbda0a3663dde188ecd9424e0",
+      "sha256": "1e75be391dfd61ba9d2ac836e9dd7fd06738cf927442ff07f286f6e1cdf18b8b",
       "executable": false
     },
     "src/coffer/move-in/source-totals.ts": {
@@ -7927,7 +7927,7 @@
       "executable": false
     },
     "tests/volunteering-journey.mjs": {
-      "sha256": "f5dd1459ba23cabd1ecc75686ebacfe408f68934d2d625eee640ffb3b1e6e51e",
+      "sha256": "aaba567fe764df22cfe0b420985edf97bc7ec4ac81a66a088edb8035a8819dd7",
       "executable": false
     },
     "tests/webhook-continuity-journey.mjs": {

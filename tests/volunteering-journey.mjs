@@ -84,6 +84,23 @@ export async function lglVolunteeringJourney(reportFiles){
  const header=['LGL Volunteer ID','LGL Constituent ID','Volunteer Date','Volunteer Category','Volunteer Hours','Volunteer Minutes','Type','Volunteer Record Type','Hours Type','Volunteer Commitment ID']
  const activities=[['synthetic-coffer-1611',ids[0],'2026-09-01','Reading tutor','1.5','','Volunteer'],['synthetic-coffer-1612',ids[0],'2026-09-02','Library setup','','30','Volunteer'],['synthetic-coffer-1613',ids[0],'2025-09-01','Book sorting','2.25','','Volunteer'],['synthetic-coffer-1614',ids[1],'2026-09-01','Food pantry','3','','Volunteer'],...Array.from({length:801},(_,i)=>['synthetic-coffer-'+(1700+i),ids[2],'2024-09-01','Community service','','1','Volunteer'])]
  for(const format of ['csv','xlsx'])await run(async h=>{
+  // LGL also offers constituent roll-ups; totals cannot identify service entries.
+  for(const [column,total] of [['Volunteer Hours','125.5'],['Volunteer Minutes','7530']]){
+   const rollup=await post(h,'preview',{source:'lgl',files:await reportFiles([['constituents',[['LGL Constituent ID','Name',column],[ids[0],'Synthetic Volunteer Reader',total]]]],format)})
+   assert.equal(rollup.canApply,true,JSON.stringify(rollup.diagnostics))
+   assert.equal(rollup.counts.donors,1,'A duration roll-up remains a constituent report')
+   assert.equal(rollup.counts.volunteering??0,0,'A constituent total never creates service activities')
+   assert.deepEqual(rollup.volunteerTotals??[],[])
+   assert.equal(rollup.needsAcceptance,true,'Aggregate time stays in the explicit left-out-column review')
+   assert.deepEqual(rollup.unmapped.map(v=>[v.column,v.value]),[[column,total]])
+   await post(h,'apply',{id:rollup.id,fingerprint:rollup.fingerprint},{status:409})
+  }
+  assert.equal((await h.get('/api/coffer/donors')).total,0,'Preview and unreviewed apply create no donor')
+  assert.equal((await h.get('/api/coffer/volunteering')).rows.length,0)
+  const missingId=await post(h,'preview',{source:'lgl',files:await reportFiles([['constituents',constituents],['volunteer-time',[header.slice(1),activities[0].slice(1)]]],format)})
+  assert.equal(missingId.canApply,false,'An activity report still requires its stable source entry ID')
+  assert.ok(missingId.diagnostics.some(d=>d.code==='REQUIRED'&&d.column==='volunteerId'&&d.row===2))
+  await post(h,'apply',{id:missingId.id,fingerprint:missingId.fingerprint,acceptedReason:'Missing IDs cannot be waived'},{status:409})
   const initial={source:'lgl',files:await reportFiles([['constituents',constituents.slice(0,3)]],format)}
   await apply(h,await post(h,'preview',initial))
   const people=(await h.get('/api/coffer/donors')).donors,reader=people.find(d=>d.name==='Synthetic Volunteer Reader'),giver=people.find(d=>d.name==='Synthetic Volunteer Giver')
