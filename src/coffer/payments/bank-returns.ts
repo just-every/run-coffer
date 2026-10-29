@@ -3,7 +3,8 @@ import { routingOwner } from '../relationship-owner'
 import { settings } from '../settings'
 import { stripeId } from './stripe-data'
 import { paymentWrite } from './write'
-import type { GivingEnv } from '../giving/stripe'
+import { stripe, type GivingEnv } from '../giving/stripe'
+import { syncEntry } from './entries'
 
 /** Stripe represents a late ACH failure as a dispute. Insufficient funds is
  * NACHA R01; its balance debit is the existing append-only contribution reversal. */
@@ -25,6 +26,11 @@ export async function bankReturn(env: GivingEnv, dispute: Row) {
  }
  const entry=await one(c,"SELECT * FROM cf_payment_entries WHERE source_id=? AND charge_id=? AND kind='dispute'",dispute.id,chargeId)
  if(!entry||entry.amount_cents!==-gift.amount_cents||entry.contribution_cents!==-gift.amount_cents||dispute.currency!=='usd'||dispute.amount!==gift.amount_cents)fail('bank_return_uncertain','The bank return has not reconciled. Review Stripe before any correction.',409)
+ // The return can be the first settlement notification we receive. Record the
+ // original processor entry too, so fees and net are complete before late success.
+ const charge=await stripe(env,'/charges/'+encodeURIComponent(chargeId))
+ if(charge.id!==chargeId||charge.payment_method_details?.type!=='us_bank_account'||!stripeId(charge.balance_transaction))fail('bank_return_uncertain','The original bank settlement has not reconciled.',409)
+ await syncEntry(env,stripeId(charge.balance_transaction))
  const owner=gift.erased_at?null:await routingOwner(env.DB,gift.donor_id),now=new Date().toISOString(),taskId='bank-return-'+chargeId
  if(!gift.erased_at&&!owner)fail('bank_return_owner','Assign an active installation owner to review the bank return.',409)
  await paymentWrite(env,[

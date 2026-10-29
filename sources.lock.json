@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "44e3d65f75e40415b6c0a2e217282f3494651d497c79b421d97a66bae285c583",
+      "sha256": "0934d96e6acd491eebfba8e0d047daec5e7f80fc01e160b25210d9524eaeff17",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "413b11c14f36c6623a899e6c57215fe88a1805e8a52fea43bcc2f08f71231225",
+      "sha256": "ed4d37ea7bbce9ee55402508305bb973e05509e9a1ec4c3d7de8aa95da80eed1",
       "executable": false
     },
     "deploy-demo.json": {
@@ -719,7 +719,7 @@
       "executable": false
     },
     "docs/ONLINE-GIVING.md": {
-      "sha256": "fbf6713335c7e0035d1ef157e55988225f7054b8ab2c64c141a48fbd46d42293",
+      "sha256": "25c70a432571d2d1286d8746a3eb19e08404e949a775a70f7b0554e57ecc4549",
       "executable": false
     },
     "docs/PAYMENTS.md": {
@@ -3531,7 +3531,7 @@
       "executable": false
     },
     "src/coffer/giving/bank-checkout.ts": {
-      "sha256": "d35552f83d6bfe028fd61fbddf322e8f372ab209ced07eddec832215dc377900",
+      "sha256": "5b236d101ccc7a1781ba49658c10556df0540af409352c38405dfa57974e406b",
       "executable": false
     },
     "src/coffer/giving/campaign-publication.ts": {
@@ -4051,7 +4051,7 @@
       "executable": false
     },
     "src/coffer/payments/bank-returns.ts": {
-      "sha256": "1531b9a9849ba4551ac2a0dc6ebec927ca7d3de2589855176aa522b80a73a658",
+      "sha256": "cd19d895270da4b494be1aa4c07fa18e30bb154ea9b3633835e30166bf68af7a",
       "executable": false
     },
     "src/coffer/payments/batch-deposits.ts": {
@@ -6907,15 +6907,15 @@
       "executable": false
     },
     "tests/ach-checkout-browser.mjs": {
-      "sha256": "62dcdd98a727bab873ecb1b6ffdbf3b822cce26c0db66d2be848f9b6d38aee5d",
+      "sha256": "1ee6a79f57bacfa0694aefbf3e38e9b8aede7c92301b0f5592c9131c6463ade2",
       "executable": false
     },
     "tests/ach-checkout-edge.mjs": {
-      "sha256": "ca3bbd1db705ca2ac7a0c359c6f0add7e4c66ff6693156cc2557c2746629fe8d",
+      "sha256": "92a566754f0da7708079c86d3c94c5b466c247da5a83a980bd7a71107f77e732",
       "executable": false
     },
     "tests/ach-checkout-journey.mjs": {
-      "sha256": "70ab5094b25fd695e25b6374f33021c93da02883edf263cda4d8b8d4e0c3f421",
+      "sha256": "08d66e0ccc561d9e95173c818e09564cf9ecb8602c7957f35203858daae0c65c",
       "executable": false
     },
     "tests/ack-browser.mjs": {

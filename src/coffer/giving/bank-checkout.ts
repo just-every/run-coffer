@@ -26,7 +26,8 @@ export async function bankCheckoutState(env: GivingEnv, saved: Row, suppliedSess
  if(!opaque(piId,'pi_'))fail('bank_pending','Stripe has not confirmed this bank payment yet.',409)
  const payment=await stripe(env,'/payment_intents/'+encodeURIComponent(piId))
  if(payment.id!==piId||payment.metadata?.coffer_intent!==saved.id||stripeId(payment.customer)!==saved.customer_id||payment.currency!=='usd'||payment.amount!==saved.amount_cents||payment.payment_method_types?.length!==1||payment.payment_method_types[0]!=='us_bank_account')fail('bank_mismatch','The bank payment differs from the agreed gift.',409)
- const retained=await one({db:env.DB},'SELECT status FROM cf_bank_checkouts WHERE intent_id=?',saved.id)
+ const prior=await one({db:env.DB},'SELECT * FROM cf_bank_checkouts WHERE intent_id=?',saved.id)
+ const retained=prior
  if(retained?.status==='returned')return {status:'returned',payment,charge:null}
  if(retained?.status==='succeeded'&&payment.status!=='succeeded')fail('bank_uncertain','Stripe no longer confirms this settled payment. Review the original gift; no new gift was recorded.',409)
  if(['requires_payment_method','canceled'].includes(payment.status)) {
@@ -39,15 +40,18 @@ export async function bankCheckoutState(env: GivingEnv, saved: Row, suppliedSess
  const charge: Row=suppliedCharge??await stripe<Row>(env,'/charges/'+encodeURIComponent(chargeId))
  const mandate=stripeId(charge.payment_method_details?.us_bank_account?.mandate)
  if(charge.id!==chargeId||stripeId(charge.payment_intent)!==piId||stripeId(charge.customer)!==saved.customer_id||charge.currency!=='usd'||charge.amount!==saved.amount_cents||charge.payment_method_details?.type!=='us_bank_account'||stripeId(charge.payment_method)!==method||!opaque(mandate,'mandate_'))fail('bank_mismatch','Stripe returned a different bank authorization.',409)
+ if(prior&&(prior.payment_intent_id!==piId||prior.payment_method_id!==method||prior.mandate_id!==mandate))fail('bank_changed','This bank checkout authorization changed. No gift was recorded.',409)
  const authorization=await stripe(env,'/mandates/'+encodeURIComponent(mandate))
- if(authorization.id!==mandate||stripeId(authorization.payment_method)!==method||authorization.status!=='active'||authorization.payment_method_details?.type!=='us_bank_account'||authorization.customer_acceptance?.type!=='online'||(!Number.isSafeInteger(authorization.customer_acceptance?.accepted_at)||authorization.customer_acceptance.accepted_at<=0))fail('bank_mandate','Stripe has not confirmed the bank mandate.',409)
+ // A late return can deactivate an already captured mandate before its success
+ // notification arrives. Reconcile that same independently settled payment;
+ // an inactive mandate grants no new collection or pending-payment authority.
+ const historicalMandate=prior&&payment.status==='succeeded'&&authorization.status==='inactive'
+ if(authorization.id!==mandate||stripeId(authorization.payment_method)!==method||(authorization.status!=='active'&&!historicalMandate)||authorization.payment_method_details?.type!=='us_bank_account'||authorization.customer_acceptance?.type!=='online'||(!Number.isSafeInteger(authorization.customer_acceptance?.accepted_at)||authorization.customer_acceptance.accepted_at<=0))fail('bank_mandate','Stripe has not confirmed the bank mandate.',409)
  if(payment.status==='succeeded'&&(session.payment_status!=='paid'||charge.status!=='succeeded'||!charge.paid||!charge.balance_transaction||payment.amount_received!==saved.amount_cents))fail('bank_uncertain','Stripe has not confirmed settled funds.',409)
  if(payment.status==='succeeded'){
   const transaction=await stripe(env,'/balance_transactions/'+encodeURIComponent(stripeId(charge.balance_transaction)))
   if(transaction.id!==stripeId(charge.balance_transaction)||stripeId(transaction.source)!==charge.id||transaction.currency!=='usd'||transaction.type!=='charge'||transaction.amount!==saved.amount_cents||!Number.isSafeInteger(transaction.fee)||transaction.net!==transaction.amount-transaction.fee)fail('bank_uncertain','The settled bank funds have not reconciled.',409)
  }
- const prior=await one({db:env.DB},'SELECT * FROM cf_bank_checkouts WHERE intent_id=?',saved.id)
- if(prior&&(prior.payment_intent_id!==piId||prior.payment_method_id!==method||prior.mandate_id!==mandate))fail('bank_changed','This bank checkout authorization changed. No gift was recorded.',409)
  const now=new Date().toISOString()
  await env.DB.batch([
   env.DB.prepare(`INSERT INTO cf_bank_checkouts VALUES(?,?,?,?,?,?) ON CONFLICT(intent_id) DO UPDATE SET status=CASE WHEN cf_bank_checkouts.status='returned' THEN 'returned' WHEN cf_bank_checkouts.status='succeeded' AND excluded.status='processing' THEN 'succeeded' ELSE excluded.status END,observed_at=excluded.observed_at`).bind(saved.id,piId,method,mandate,payment.status,now),
