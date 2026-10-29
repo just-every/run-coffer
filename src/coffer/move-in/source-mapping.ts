@@ -139,6 +139,7 @@ function installment(r: SourceRow, out: ParsedImport) {
  if (externalId && pledgeExternalId && dueOn && amountCents !== null) out.installments.push({ location: r.location, externalId, pledgeExternalId, dueOn, amountCents })
 }
 export function mapRow(r: SourceRow, out: ParsedImport, input: ParseInput) {
+ if(r.mixedLglRecord()){r.error('AMBIGUOUS_RECORD','This row combines a gift ID with a membership, mailing, volunteer or recurring-plan ID. Export financial records and source history as separate reports; no gift or history is imported from an ambiguous row.');r.finish();return}
  const kind = r.kind(); r.get('type')
  if(r.peek('communicationRestrictions'))sourceRestrictions(r,out,input)
  if(['lgl','spreadsheet','givebutter','zeffy','neon'].includes(out.source))spreadsheetPreferences(r,out)

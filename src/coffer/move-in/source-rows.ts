@@ -52,14 +52,16 @@ export class SourceRow {
   for (let i = 0; i < this.cells.length; i++) if (valueText(this.cells[i]) && !this.used.has(i)) this.unmap(this.headers[i] || `Column ${i + 1}`, valueText(this.cells[i]), `Coffer has no place for “${this.headers[i] || `column ${i + 1}`}” on a ${this.kindLabel()} row, so it would be left out. Delete that column from the file and upload again, or keep it and say below that it can be left out.`)
  }
  kindLabel() { return ({ donor: 'constituent', gift: 'gift', pledge: 'pledge', softCredit: 'soft credit', installment: 'pledge installment', relationship: 'relationship', note: 'note', control: 'totals', volunteering:'volunteer activity', membership:'membership history', mailing:'mailing history', unsupported: 'unrecognized' } as Record<RowKind, string>)[this.kind()] }
+ mixedLglRecord(){return this.result.source==='lgl'&&!!this.peek('giftId')&&['membershipId','mailingId','volunteerId','planId'].some(field=>!!this.peek(field))}
  kind(): RowKind {
+  if(this.mixedLglRecord())return 'unsupported'
   if (['lgl','givebutter','zeffy'].includes(this.result.source)&&this.peek('planId')) return 'unsupported'
-  if(this.result.source==='lgl'){
-   if(this.has('membershipId')||this.has('membershipDate'))return 'membership'
-   if(this.has('mailingId')||this.has('mailingDate'))return 'mailing'
+  if(this.result.source==='lgl'&&!this.peek('giftId')){
+   if(this.peek('membershipId')||this.peek('membershipDate')||this.peek('membershipName'))return 'membership'
+   if(this.peek('mailingId')||this.peek('mailingDate')||this.peek('mailingName'))return 'mailing'
   }
   // Duration columns also occur in constituent roll-ups; require activity fields.
-  if (this.result.source==='lgl' && (this.has('volunteerId')||this.has('volunteerDate')||this.has('volunteerRole'))) return 'volunteering'
+  if (this.result.source==='lgl' && !this.peek('giftId') && (this.has('volunteerId')||this.has('volunteerDate')||this.has('volunteerRole'))) return 'volunteering'
   if (this.peek('controlCount') || this.peek('controlAmount')) return 'control'
   if (this.peek('relationshipType') && this.peek('relatedDonor') && !this.peek('giftId')) return 'relationship'
   if ((this.peek('installmentId') || this.peek('dueOn')) && !this.peek('giftId')) return 'installment'

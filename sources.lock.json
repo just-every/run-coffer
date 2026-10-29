@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "2a3c192b25689c4e4b851cc3036dc5f8579a1892fa45afcf662d55a21b2713fd",
+      "sha256": "4a8fc43f3674cd4071d7649e7a22f2c9b709a119fa70985912975876dd44c3b8",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8f20a6b29cffabc4298a2c516cca79e069b03c035de054205b06d221e6f64d4d",
+      "sha256": "186133dfe60baa76b60a5b4a57bbf02c8cd7e75b58071844ba21aee0542d1212",
       "executable": false
     },
     "deploy-demo.json": {
@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
-      "sha256": "67931861ca5efecce44c6fe7639304995f40c5574ee0f0337da35aca7a371628",
+      "sha256": "f059bcc5f14845c017f01e9a32cce17e901d5e3fc069b077aa9de642b01292d7",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3967,7 +3967,7 @@
       "executable": false
     },
     "src/coffer/move-in/platform-export.ts": {
-      "sha256": "33ae8d2cf999bad3a0a6de3a798da278ff08783edf166bce1ed2817b1b597981",
+      "sha256": "c1155f4086d4098755a62036607e9af2378a2778fc0bfe234f5d22fcdccae0a7",
       "executable": false
     },
     "src/coffer/move-in/pledge-checks.ts": {
@@ -3999,11 +3999,11 @@
       "executable": false
     },
     "src/coffer/move-in/source-mapping.ts": {
-      "sha256": "07b577809eac4090bd805e9ce3cf36451522318656b6267495f401e6113524b6",
+      "sha256": "bd8806238ca5d11ebd737339b130679e5d4c9ca285a09c3dda6a978f9c0b2896",
       "executable": false
     },
     "src/coffer/move-in/source-rows.ts": {
-      "sha256": "108457c592767dc24d425fe1fcd17cf05c6806842adfecdee59d4631ded18c8c",
+      "sha256": "498f1047fed24215deaf63999a7d0005212d2ec8abf581319d7ac14e553f9eca",
       "executable": false
     },
     "src/coffer/move-in/source-tags.ts": {
@@ -7491,7 +7491,7 @@
       "executable": false
     },
     "tests/lgl-history-journey.mjs": {
-      "sha256": "742b6aa22cfd71bfc1bbc45376653823e25cfa20eb6d4f3bf38da2e4265a43b3",
+      "sha256": "867b7468b0646fc8990e5cafbb67f54eb05e504e229c5ed031a4158a083ea3de",
       "executable": false
     },
     "tests/lgl-volunteering-browser.mjs": {

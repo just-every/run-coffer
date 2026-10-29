@@ -26,6 +26,8 @@ export async function lglHistoryJourney(reportFiles){
   // LGL records a split donation as distinct gifts, with a shared check number.
   gifts[0].push('Check No.');gifts[1][4]='300';gifts[1][7]='300';gifts[1].push('synthetic-coffer-2740')
   const otherPart=[...gifts[1]];otherPart[0]=key(2724);otherPart[4]='200';otherPart[5]='Lessons';otherPart[7]='200';gifts.push(otherPart)
+  const giftWidth=gifts[0].length,historyIds=['LGL Membership ID','LGL Mailing ID','LGL Volunteer ID','LGL Recurring Gift ID']
+  for(const row of gifts.slice(1)){while(row.length<giftWidth)row.push('');row.push(...historyIds.map(()=>''))}gifts[0].push(...historyIds)
   const credits=[['Soft Credit ID','LGL Constituent ID','Related Gift ID','Soft Credit Amount','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Interaction ID'],[key(2731),key(2702),key(2721),'100','acknowledged','2026-09-06','phone call',key(2732)]]
   const notes=[['Contact Report ID','LGL Constituent ID','Contact Report Date','Contact Report Type','Note'],[key(2732),key(2702),'2026-09-06','call','Independent source credit thank-you']]
   const memberships=[['LGL Membership ID','LGL Constituent ID','Membership Level','Membership Start Date','Membership End Date','Membership Status','Membership Notes'],[key(2801),key(2701),'Library friend','2025-09-01','2026-09-01','expired','Historical membership record'],[key(2802),key(2702),'Volunteer supporter','2026-09-01','','','Source end date unknown'],[key(2803),key(2703),'Library friend','2026-11-01','2027-11-01','future','Reviewed future membership'],[key(2804),key(2701),'Library friend','2026-10-01','2026-10-17','active','Source period ends today']]
@@ -33,6 +35,14 @@ export async function lglHistoryJourney(reportFiles){
   const controls=[['Year','Fund','Gift Count','Total Gift Amount'],['2026','','4','1500'],['','Library','2','800'],['','Lessons','2','700']]
   const tables=[['controls',controls],['memberships',memberships],['mailings',mailings],['constituents',constituents],['recurring',plans],['gifts',gifts],['soft-credits',credits],['contacts',notes]]
   const input={source:'lgl',solicitCodes:{'Reading supporter':{type:'tag',tag:'Reading circle'}},files:await reportFiles(tables,format)}
+  for(const [index,column] of historyIds.entries()){
+   const mixed=structuredClone(gifts);mixed[1][mixed[0].indexOf(column)]=key(2850+index)
+   const rejected=await post(h,'preview',{...input,files:await reportFiles(tables.filter(([name])=>name!=='controls').map(([name,rows])=>[name,name==='gifts'?mixed:rows]),format)})
+   assert.equal(rejected.canApply,false,'A gift carrying another record identity cannot become history instead of cash')
+   assert.ok(rejected.diagnostics.some(d=>d.code==='AMBIGUOUS_RECORD'&&d.row===2),JSON.stringify(rejected.diagnostics))
+   await post(h,'apply',{id:rejected.id,fingerprint:rejected.fingerprint,acceptedReason:'Cannot waive mixed financial identity'},{status:409})
+   assert.equal((await h.get('/api/coffer/donors')).total,0)
+  }
   for(const [index,value,code] of [[7,'sometime','DATE'],[8,'1234567890123456','PLAN_REFERENCE']]){
    const broken=structuredClone(plans);broken[1][index]=value
    const bad=await post(h,'preview',{...input,files:await reportFiles(tables.map(([name,rows])=>[name,name==='recurring'?broken:rows]),format)})
