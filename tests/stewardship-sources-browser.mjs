@@ -20,6 +20,7 @@ export async function stewardshipSourcesBrowser(h,{person,draft,directory,calls}
   await card.getByRole('heading',{name:'Received replies',exact:true}).waitFor()
   assert.match(await card.locator('aside').innerText(),/Community reading gala/)
   assert.match(await card.locator('aside').innerText(),/I enjoyed reading circle 1/)
+  assert.ok((await card.locator('aside').innerText()).includes(person.note),'Native source review includes the recorded ordinary note')
   assert.doesNotMatch(await card.locator('aside').innerText(),/PRIVATE TAIL|Automatic private message|reading circle 2|reading circle 3/)
   assert.match(await card.locator('.cf-source-facts').innerText(),/1,000 characters/)
   assert.match(await card.getByRole('list').first().innerText(),/Event attendance/)

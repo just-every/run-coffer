@@ -30,14 +30,14 @@ export async function stewardshipSourcesJourney(){
   assert.equal(u.hostname,'api.anthropic.com')
   assert.equal(request.headers.get('x-api-key'),'synthetic-coffer-9002')
   const call=await request.json(),input=JSON.parse(call.messages[0].content);calls.push(input)
-  const attendance=input.sources?.find(s=>s.kind==='attendance'),reply=input.sources?.find(s=>s.kind==='reply'),gift=input.sources?.find(s=>s.kind==='gift')
+  const attendance=input.sources?.find(s=>s.kind==='attendance'),reply=input.sources?.find(s=>s.kind==='reply'),gift=input.sources?.find(s=>s.kind==='gift'),note=input.sources?.find(s=>s.kind==='conversation'&&s.facts.kind==='note')
   let output
   if(input.subject){
    const invented=/500 children|millionaire|private intent|sister Mira/.test(input.body),isAsk=/Please give/.test(input.body)
-   output={assessment:invented?'The claim has no recorded source.':'Only the recorded attendance and reply are stated.',supported:!invented,isAsk,sourceIds:[gift?.id,attendance?.id,reply?.id].filter(Boolean)}
+   output={assessment:invented?'The claim has no recorded source.':'Only the recorded attendance, reply and staff note are stated.',supported:!invented,isAsk,sourceIds:[gift?.id,attendance?.id,reply?.id,note?.id].filter(Boolean)}
   }else{
-   const body=mode==='invented'?'Your gift taught 500 children to read.':mode==='family'?'Your sister Mira will join next year.':mode==='ask'?'Please give another $500.':`${input.format==='call'?'Call notes: ':input.format==='card'?'Handwritten card: ':''}Thank you for joining ${attendance.facts.event_name} on ${attendance.facts.starts_on}. You wrote: ${reply.facts.excerpt.slice(0,80)}`
-   output={subject:'Thank you for joining us',body,citations:[{sourceId:mode==='foreign'?foreignCitation:mode==='missing'?'attendance:synthetic-coffer-missing':attendance.id},{sourceId:reply.id}]}
+   const body=mode==='invented'?'Your gift taught 500 children to read.':mode==='family'?'Your sister Mira will join next year.':mode==='ask'?'Please give another $500.':`${input.format==='call'?'Call notes: ':input.format==='card'?'Handwritten card: ':''}Thank you for joining ${attendance.facts.event_name} on ${attendance.facts.starts_on}. You wrote: ${reply.facts.excerpt.slice(0,80)} Our recorded note says: ${note.facts.notes}`
+   output={subject:'Thank you for joining us',body,citations:[{sourceId:mode==='foreign'?foreignCitation:mode==='missing'?'attendance:synthetic-coffer-missing':attendance.id},{sourceId:reply.id},{sourceId:note.id}]}
   }
   return Response.json({stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify(output)}]})
  }
@@ -90,12 +90,19 @@ export async function stewardshipSourcesJourney(){
   const confidential='Private estate discussion must never enter a task or model request.'
   await h.command('interaction.record',{donorId:people[0].id,kind:'note',confidential:true,notes:confidential})
   for(const [i,p] of people.entries()){
+   p.note='Requested reading-room update '+(i+1)+'.'
+   p.noteRecord=await h.command('interaction.record',{donorId:p.id,kind:'note',notes:p.note})
+   p.visit=await h.command('interaction.record',{donorId:p.id,kind:'visit',notes:'Visited the library with staff.'})
+  }
+  for(const [i,p] of people.entries()){
    const sources=(await state(p)).sources,a=sources.filter(s=>s.kind==='attendance'),r=sources.filter(s=>s.kind==='reply')
    assert.equal(a.length,1);assert.equal(a[0].id,'attendance:'+registrations[i].id)
    assert.equal(a[0].facts.event_name,'Community reading gala');assert.equal(a[0].facts.starts_on,'2026-10-17');assert.equal(a[0].facts.checked_in_at,fixedNow)
    const received=replies.find(r=>r.donor_id===p.id&&!r.automatic)
    assert.equal(r.length,1);assert.equal(r[0].id,'reply:'+received.id);assert.equal(r[0].facts.excerpt,p.reply.slice(0,1000))
    assert.equal(sources.some(s=>s.kind==='conversation'&&s.facts.notes.includes('PRIVATE TAIL')),false,'Reply timeline copies cannot bypass the excerpt bound')
+   assert.ok(sources.some(s=>s.id==='conversation:'+p.noteRecord.id&&s.facts.notes===p.note))
+   assert.ok(sources.some(s=>s.id==='conversation:'+p.visit.id&&s.facts.kind==='visit'&&s.facts.notes==='Visited the library with staff.'))
    const draft=await draftFor(p,['email','call','card'][i])
    assert.equal(draft.row.format,['email','call','card'][i])
    if(i===1)assert.match(draft.row.body,/^Call notes:/)
@@ -114,6 +121,8 @@ export async function stewardshipSourcesJourney(){
    const citations=JSON.parse(draft.row.citations)
    assert.ok(citations.some(c=>c.sourceId===a[0].id&&c.quote===JSON.stringify(a[0].facts)))
    assert.ok(citations.some(c=>c.sourceId===r[0].id&&c.quote===JSON.stringify(r[0].facts)))
+   assert.ok(citations.some(c=>c.sourceId==='conversation:'+p.noteRecord.id&&JSON.parse(c.quote).notes===p.note))
+   assert.ok(draft.row.body.includes(p.note))
    assert.ok(citations.every(c=>sources.some(s=>s.id===c.sourceId)))
    assert.ok(!JSON.stringify(calls).includes('PRIVATE TAIL MUST NOT BE SHARED'))
    for(const person of people)assert.ok(!JSON.stringify(calls).includes(person.email))

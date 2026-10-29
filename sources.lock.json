@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "672ff991002a656c965e02a0c439d75e4259c9b8171c9d3868e2b1294fd9f100",
+      "sha256": "d8e3ec47de3631322820422354973d7e0ffdf55ab6337ac02e68425936da9221",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c1ecf79cd8884b57f4e162bf4e08f3dfe53f416b35b442fe163513cba33e7b5d",
+      "sha256": "5468a996dd67062f837e9a2f810de70388b79faa0bf7decbb6adfb45a951c6cd",
       "executable": false
     },
     "deploy-demo.json": {
@@ -635,7 +635,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "b8dfc765c78ab12b78c59930101724d57ec560c8e3522217e80e8a2f5c71bd48",
+      "sha256": "e9356d462d4313b398ee14ca6aaa7e3c88f33ca61a7275367fb0ef9512287874",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -1492,6 +1492,10 @@
     },
     "migrations/core/0175_coffer_reply_ingress.sql": {
       "sha256": "874cc2f77109be38538c293e68de5f79551912a64dc6a870615081a6b45a2201",
+      "executable": false
+    },
+    "migrations/core/0176_coffer_stewardship_touches.sql": {
+      "sha256": "fa73759114978370fa750ac3aadd0a18f37d61dfa0dac33155ac04259bb64a15",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2479,11 +2483,11 @@
       "executable": false
     },
     "src/coffer/agent/stewardship-ui.ts": {
-      "sha256": "1fdedf6e128b7663f14c28032f1db4a59176a2646b7117d5a115e437fcd56729",
+      "sha256": "070b5e6c2717569fce3a813c1dd9df7769ad15ae087012ff76c70a5e1db47878",
       "executable": false
     },
     "src/coffer/agent/stewardship.ts": {
-      "sha256": "fd94e51a5ca2033388ee81a01a77bbd5ff437571a379044724aca79945031cbc",
+      "sha256": "09b28a301cf021e614fdb4c6d7812182df8706b6d14f4b2a64f3c1cc57c9c667",
       "executable": false
     },
     "src/coffer/annual-lapses.ts": {
@@ -7235,11 +7239,11 @@
       "executable": false
     },
     "tests/stewardship-sources-browser.mjs": {
-      "sha256": "8e80c46e7d74ca455cf4cdb609762eb04105b7d4ff987308ebab85114740522d",
+      "sha256": "e739c58fc6cba91725a2f63fe53d478e19e551874254b133ba91e4f99ae4be41",
       "executable": false
     },
     "tests/stewardship-sources-journey.mjs": {
-      "sha256": "7abb8adc7cd38e0b2afb16df078c408be53a543d70f8d687bb9a63b6468d4bfd",
+      "sha256": "d67c666b6354ed0603872bb6d5c7635d21da27415b365d410acb2899f0dde45b",
       "executable": false
     },
     "tests/stewardship.test.mjs": {

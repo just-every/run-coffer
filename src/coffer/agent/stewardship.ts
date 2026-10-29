@@ -42,8 +42,12 @@ const SOURCE_SQL = `SELECT json_object(
   FROM cf_fund_ledger l WHERE l.donor_id=d.id GROUP BY l.fund ORDER BY l.fund))),
  'conversations',json((SELECT json_group_array(json(j)) FROM (
   SELECT json_object('id',i.id,'kind',i.kind,'occurred_on',i.occurred_on,'notes',i.notes,'next_step',i.next_step) AS j
-  FROM cf_interactions i WHERE i.donor_id=d.id
-   AND NOT EXISTS(SELECT 1 FROM cf_reply_tasks r WHERE r.id=i.id)
+  FROM (
+   SELECT i.id,i.kind,i.occurred_on,i.notes,i.next_step FROM cf_interactions i WHERE i.donor_id=d.id
+    AND NOT EXISTS(SELECT 1 FROM cf_reply_tasks r WHERE r.id=i.id)
+   UNION ALL
+   SELECT n.id,n.kind,n.occurred_on,n.body AS notes,n.next_step FROM cf_donor_notes n WHERE n.donor_id=d.id AND n.confidential=0
+  ) i
   ORDER BY i.occurred_on DESC,i.id LIMIT 10))),
  'attendance',json((${stewardshipAttendanceSql})),
  'replies',json((${stewardshipRepliesSql})),
