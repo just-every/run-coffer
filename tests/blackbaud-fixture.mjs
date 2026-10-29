@@ -15,6 +15,27 @@ export function blackbaudFixture(){
  const notes=[{id:key(9023),constituent_id:key(9003),date:{y:2026,m:9,d:2},summary:'Source note',text:'Prefers reading programs'}]
  const opportunities=[{id:key(9051),constituent_id:key(9003),name:'Library renewal',status:'Proposal',ask_amount:{value:3000},expected_amount:{value:2400},expected_date:'2026-12-01T00:00:00',summary:'Discuss the source proposal',fund_id:'f2',campaign_id:'c1',fundraisers:[{constituent_id:key(9001)}],inactive:false}]
  const review={currency:'USD',funds:{f1:'Reading',f2:'Library'},campaigns:{c1:'Autumn books'},appeals:{a1:'Annual reading'},stages:{Proposal:{stage:'ask',probability:80}},owners:{},contactTypes:{'email:Email':'personal','email:Work':'work','phone:Mobile':'mobile','address:Home':'home'},households:{[key(9061)]:{name:'Source Reed family',members:[key(9001),key(9002)],headId:key(9001),addressee:'  The Reading Family  ',formal:'Dear Reed Readers',informal:'Dear Ava and Bee'},[key(9062)]:{name:'Source Chen family',members:[key(9003),key(9004)]}},gifts:{[key(9011)]:{acknowledgmentMethod:'email',acknowledgmentInteractionId:key(9021),tribute:{kind:'memory',honoree:'Jordan Reed',sourceGroup:key(9081),recipientName:'River Reed',recipientAddress:'12 River Road'}},[key(9012)]:{tribute:{kind:'memory',honoree:'Jordan Reed',sourceGroup:key(9081)}}},softCredits:{[key(9031)]:{status:'acknowledged',date:'2026-09-05',method:'phone call',reference:'Source phone thanks',interactionId:key(9022)}},customFields:[{source:'re-nxt',column:'Membership',key:'sky_membership',label:'Membership interest',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer'],version:0},{source:'re-nxt',column:'Gift detail',key:'sky_detail',label:'Gift detail',kind:'gift',type:'text',entry:'free-form',choices:[],version:0}]}
+ const definitions={constituent:[{name:'Membership',type:'CodeTableEntry',one_per_record:true},{name:'Interests',type:'CodeTableEntry',one_per_record:false},{name:'Unused constituent date',type:'Date',one_per_record:true}],gift:[{name:'Gift detail',type:'Text',one_per_record:true},{name:'Source value',type:'Currency',one_per_record:true}],action:[{name:'Confirmed',type:'Boolean',one_per_record:true},{name:'Participants',type:'Number',one_per_record:true}]}
+ const choices={'Membership':['Board','Volunteer'],'Interests':['Reading','Music','Drama']}
+ const customValues={constituent:{[key(9001)]:[{id:key(9071),category:'Membership',type:'CodeTableEntry',value:'Board'},{id:key(9073),category:'Interests',type:'CodeTableEntry',value:'Reading'},{id:key(9074),category:'Interests',type:'CodeTableEntry',value:'Music'}]},gift:{[key(9011)]:[{id:key(9072),category:'Gift detail',type:'Text',value:'Books <and> music'},{id:key(9075),category:'Source value',type:'Currency',value:45.25}]},action:{[key(9021)]:[{id:key(9076),category:'Confirmed',type:'Boolean',value:true},{id:key(9077),category:'Participants',type:'Number',value:3}]}}
+ review.customFields.push(...[
+  {column:'Interests',key:'sky_interests',label:'Source interests',kind:'constituent',type:'text',entry:'pick-many',choices:choices.Interests},
+  {column:'Unused constituent date',key:'sky_unused_date',label:'Unused source date',kind:'constituent',type:'date',entry:'free-form',choices:[]},
+  {column:'Source value',key:'sky_source_value',label:'Source value',kind:'gift',type:'currency',entry:'free-form',choices:[]},
+  {column:'Confirmed',key:'sky_confirmed',label:'Confirmed',kind:'interaction',type:'checkbox',entry:'free-form',choices:[]},
+  {column:'Participants',key:'sky_participants',label:'Participants',kind:'interaction',type:'number',entry:'free-form',choices:[]}
+ ].map(m=>({source:'re-nxt',version:0,...m})))
+ const contacts=Object.fromEntries(people.map(p=>[p.id,{
+  emailaddresses:p.id===key(9004)?[]:[{id:'email:'+p.id,constituent_id:p.id,address:email(Number(p.id.split('-').at(-1))),primary:true,type:'Email',inactive:false}],
+  phones:[{id:'phone:'+p.id,constituent_id:p.id,number:'+12025550180',primary:true,type:'Mobile',inactive:false}],
+  addresses:[{id:'address:'+p.id,constituent_id:p.id,address_lines:(p.id===key(9005)||p.id===key(9006)?'5':p.id)+' Reading Street',city:'Madison',state:'WI',postal_code:'53703',country:'United States',type:'Home',preferred:true,inactive:false}]
+ }]))
+ contacts[key(9001)].emailaddresses[0].primary=false
+ contacts[key(9001)].emailaddresses.push(...[1,2,3].map(i=>({id:'extra-email:'+i,constituent_id:key(9001),address:email(9190+i),primary:i===3,type:i===1?'Work':i===2?'Other':'Email',inactive:false})))
+ contacts[key(9001)].phones[0].primary=false
+ contacts[key(9001)].phones.push(...[1,2,3].map(i=>({id:'extra-phone:'+i,constituent_id:key(9001),number:'+1202555018'+i,primary:i===3,type:i===1?'Home':i===2?'Work':'Mobile',inactive:false})))
+ contacts[key(9001)].addresses.push(...[1,2].map(i=>({id:'extra-address:'+i,constituent_id:key(9001),address_lines:(20+i)+' Other Street',city:'Madison',state:'WI',postal_code:'53703',country:'United States',type:i===1?'Work':'Vacation',preferred:false,inactive:false})))
+ Object.assign(review.contactTypes,{'email:Other':'other','phone:Home':'home','phone:Work':'work','address:Work':'work','address:Vacation':'vacation'})
  const calls=[],state={badPages:false,crossHost:false,denied:false}
  const blackbaud={accessToken:key(9998),subscriptionKey:key(9999)},solicitCodes={'Do not solicit':{type:'stop'},'Do not mail':{type:'channels',channels:['mail']},'Solicit once annually':{type:'limit',maxAsks:1}}
  const input=()=>({source:'re-nxt',blackbaud,files:[sourceFile(review)],solicitCodes})
@@ -27,26 +48,28 @@ export function blackbaudFixture(){
    if(offset+value.length<rows.length){const next=new URL(u);next.searchParams.set('offset',String(offset+value.length));result.next_link=next.toString();if(state.badPages)delete result.next_link;if(state.crossHost)result.next_link='https://example.test/next'}
    return Response.json(result)
   }
+  for(const [scope,base] of [['constituent','/constituent/v1/constituents'],['gift','/gift/v1/gifts'],['action','/constituent/v1/actions']]){
+   if(path===base+'/customfields/categories'+(scope==='gift'?'':'/details'))return Response.json({count:definitions[scope].length,value:definitions[scope]})
+   if(path===base+'/customfields/categories/values'){const rows=choices[u.searchParams.get('category_name')];assert.ok(rows);return Response.json({count:rows.length,value:rows})}
+  }
   if(path==='/constituent/v1/constituents')return collection(people,2)
   const person=/^\/constituent\/v1\/constituents\/([^/]+)(.*)$/.exec(path)
   if(person){const id=decodeURIComponent(person[1]),tail=person[2],p=people.find(p=>p.id===id);assert.ok(p)
    if(!tail)return Response.json(p)
    if(tail==='/nameformats/summary')return Response.json({primary_addressee:{id:'add:'+id,constituent_id:id,formatted_name:'  The original '+p.first+' addressee  ',primary_type:'Addressee'},primary_salutation:{id:'sal:'+id,constituent_id:id,formatted_name:'  Dearest '+p.first+'  ',primary_type:'Salutation'}})
-   if(tail==='/emailaddresses')return collection(id===key(9004)?[]:[{id:'email:'+id,constituent_id:id,address:email(Number(id.split('-').at(-1))),primary:true,type:'Email',inactive:false},...(id===key(9001)?[{id:'work:'+id,constituent_id:id,address:email(9191),primary:false,type:'Work',inactive:false}]:[])])
-   if(tail==='/phones')return collection([{id:'phone:'+id,constituent_id:id,number:'+12025550180',primary:true,type:'Mobile',inactive:false}])
-   if(tail==='/addresses')return collection([{id:'address:'+id,constituent_id:id,address_lines:(id===key(9005)||id===key(9006)?'5':id)+' Reading Street',city:'Madison',state:'WI',postal_code:'53703',country:'United States',type:'Home',preferred:true,inactive:false}])
+   if(['emailaddresses','phones','addresses'].includes(tail.slice(1))){assert.equal(u.searchParams.get('include_inactive'),'true');return collection(contacts[id][tail.slice(1)])}
    if(tail==='/communicationpreferences'){const code=id===key(9001)?'Do not solicit':id===key(9002)?'Do not mail':id===key(9003)?'Solicit once annually':null;return collection(code?[{id:'pref:'+id,constituent_id:id,solicit_code:code,start:'2026-09-01T00:00:00'}]:[])}
-   if(tail==='/customfields')return collection(id===key(9001)?[{id:key(9071),category:'Membership',value:'Board'}]:[])
+   if(tail==='/customfields')return collection(customValues.constituent[id]??[])
   }
   if(path==='/constituent/v1/relationships')return collection(relationships)
   if(path==='/constituent/v1/actions')return collection(actions)
   if(path==='/constituent/v1/notes')return collection(notes)
-  if(/^\/constituent\/v1\/actions\/[^/]+\/customfields$/.test(path))return collection([])
+  if(/^\/constituent\/v1\/actions\/[^/]+\/customfields$/.test(path))return collection(customValues.action[decodeURIComponent(path.split('/').at(-2))]??[])
   if(path==='/gift/v1/gifts')return collection(gifts,2)
   const giftPath=/^\/gift\/v1\/gifts\/([^/]+)(.*)$/.exec(path)
-  if(giftPath){const id=decodeURIComponent(giftPath[1]);if(!giftPath[2])return Response.json(gifts.find(g=>g.id===id));if(giftPath[2]==='/customfields')return collection(id===key(9011)?[{id:key(9072),category:'Gift detail',value:'Books <and> music'}]:[])}
+  if(giftPath){const id=decodeURIComponent(giftPath[1]);if(!giftPath[2])return Response.json(gifts.find(g=>g.id===id));if(giftPath[2]==='/customfields')return collection(customValues.gift[id]??[])}
   if(path==='/opportunity/v1/opportunities')return collection(opportunities)
   throw Error('Unexpected Blackbaud request: '+path)
  }
- return {input,review,people,gifts,actions,relationships,notes,opportunities,state,calls,outbound}
+ return {input,review,people,gifts,actions,relationships,notes,opportunities,definitions,choices,customValues,contacts,state,calls,outbound}
 }

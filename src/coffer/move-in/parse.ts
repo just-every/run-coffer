@@ -10,12 +10,12 @@ import { columnFields, normalizeLabel } from './source-columns'
 import { mapRow } from './source-mapping'
 import { SourceRow, valueText } from './source-rows'
 import { controlRow, emptyTotals, sourceTotals, validateImport } from './source-totals'
-import type { ParsedImport, ParseInput } from './types'
+import type { ParsedImport, ParseInput, SourceDefinition } from './types'
 export type { ParsedImport, ParseInput } from './types'
 
 /** A bounded, pure preview: malformed rows remain visible as structured diagnostics. */
-export async function parseExports(input: ParseInput): Promise<ParsedImport> {
- const out: ParsedImport = { source: input.source, solicitations: [], channelWithdrawals: [], solicitCodes: input.solicitCodes, donors: [], gifts: [], households: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [] }
+export async function parseExports(input: ParseInput, sourceDefinitions?:SourceDefinition[]): Promise<ParsedImport> {
+ const out: ParsedImport = { source: input.source, sourceDefinitions, solicitations: [], channelWithdrawals: [], solicitCodes: input.solicitCodes, donors: [], gifts: [], households: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [] }
  if (!['lgl', 'bloomerang', 're-nxt', 'spreadsheet', 'givebutter', 'zeffy', 'neon'].includes(input.source)) {
   out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose an available CRM or spreadsheet.' }); return out
  }

@@ -20,6 +20,14 @@ export async function blackbaudJourney(){
   await h.api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})
   await post(h,'preview',f.input(),{as:member.cookie,status:403});await post(h,'preview',f.input(),{as:admin.cookie,status:401});assert.equal(f.calls.length,before)
   for(const flag of ['denied','badPages','crossHost']){f.state[flag]=true;await post(h,'preview',f.input(),{status:502});f.state[flag]=false;assert.equal((await h.get('/api/coffer/donors')).total,empty)}
+  const sourceChoices=f.review.customFields[0].choices
+  f.review.customFields[0].choices=['Board'];await post(h,'preview',f.input(),{status:400});f.review.customFields[0].choices=sourceChoices
+  const sourceType=f.review.customFields[1].type
+  f.review.customFields[1].type='number';await post(h,'preview',f.input(),{status:400});f.review.customFields[1].type=sourceType
+  f.customValues.action[key(9021)][0].value='true';await post(h,'preview',f.input(),{status:400});f.customValues.action[key(9021)][0].value=true
+  const unused=f.definitions.constituent[2];f.definitions.constituent[2]={...unused,type:'ConstituentId'};await post(h,'preview',f.input(),{status:400});f.definitions.constituent[2]=unused
+  assert.equal((await h.get('/api/coffer/donors')).total,empty,'A conflicting definition or value imports nothing')
+  f.contacts[key(9001)].emailaddresses[0].inactive=true;await post(h,'preview',f.input(),{status:400});f.contacts[key(9001)].emailaddresses[0].inactive=false
   f.gifts[0].gift_splits[1].amount.value=199.99;await post(h,'preview',f.input(),{status:400});f.gifts[0].gift_splits[1].amount.value=200
   f.gifts[0].type='RecurringGift';await post(h,'preview',f.input(),{status:400});f.gifts[0].type='Donation'
   f.opportunities[0].status='Unmapped stage';await post(h,'preview',f.input(),{status:400});f.opportunities[0].status='Proposal'
@@ -34,6 +42,7 @@ export async function blackbaudJourney(){
   await h.command('prospect.stages',{version:changed.version,stages:policy.stages})
   let preview=await post(h,'preview',f.input())
   assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped))
+  assert.equal(preview.sourceDefinitions.length,7);assert.deepEqual(preview.sourceDefinitions.find(d=>d.name==='Interests').choices,['Reading','Music','Drama'])
   assert.equal(preview.sourceTotals.giftCount,3);assert.equal(preview.sourceTotals.amountCents,125000)
   assert.deepEqual(preview.sourceTotals.byFund,{Reading:{giftCount:3,amountCents:105000},Library:{giftCount:1,amountCents:20000}})
   assert.equal(preview.counts.opportunities,1);assert.equal(preview.counts.designations,2);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,2)
@@ -49,6 +58,7 @@ export async function blackbaudJourney(){
    await form.locator('details').first().locator('summary').click();await form.getByLabel('Code meanings',{exact:true}).fill('Do not solicit = stop\nDo not mail = no mail\nSolicit once annually = limit 1')
    await form.getByRole('button',{name:'Preview NXT history',exact:true}).click();await page.waitForURL('**/app/move-in/crm/review?*')
    assert.match(await page.locator('body').innerText(),/Nothing blocks this move-in/)
+   assert.match(await page.locator('body').innerText(),/Unused constituent date/);assert.match(await page.locator('body').innerText(),/Complete choices: Reading, Music, Drama/)
    await page.getByText('Gifts · 3',{exact:true}).click();await page.getByText('Opportunities · 1',{exact:true}).click()
    assert.match(await page.locator('body').innerText(),/Library renewal/);assert.match(await page.locator('body').innerText(),/Proposal → Ask/);assert.match(await page.locator('body').innerText(),/\$300\.00/);assert.match(await page.locator('body').innerText(),/\$200\.00/)
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(directory)await page.screenshot({path:directory+'/sky-review-'+width+'.png',fullPage:true})}
@@ -64,8 +74,14 @@ export async function blackbaudJourney(){
   const mailChoice=bee.consents.find(c=>c.channel==='mail');assert.equal(mailChoice.status,'withdrawn');assert.equal(mailChoice.captured_on,'2026-09-01');assert.match(mailChoice.evidence,/Do not mail/);assert.ok(!mailChoice.evidence.includes('source date unknown'))
   const noAddress=await h.get('/api/coffer/donors/'+person(9004).id);assert.equal(noAddress.donor.email,null);assert.equal(noAddress.consents.find(c=>c.channel==='email').status,'withdrawn');assert.match(noAddress.consents.find(c=>c.channel==='email').evidence,/SKY constituent requests no email/)
   assert.equal(ava.donor.name,'Dr. Ava Reed');assert.equal(ava.donor.informal_salutation,'  Dearest Ava  ');assert.equal(ava.donor.envelope_name,'  The original Ava addressee  ')
-  assert.deepEqual(ava.contactPoints.filter(p=>p.kind==='email').map(p=>p.type).sort(),['personal','work']);assert.equal(ava.contactPoints.filter(p=>p.kind==='email'&&p.is_primary).length,1)
+  assert.deepEqual(ava.contactPoints.filter(p=>p.kind==='email').map(p=>p.type).sort(),['other','personal','personal','work']);assert.equal(ava.contactPoints.filter(p=>p.kind==='email'&&p.is_primary).length,1)
+  assert.equal(ava.donor.email,email(9193));assert.equal(ava.donor.phone,'+12025550183');assert.equal(ava.contactPoints.filter(p=>p.kind==='phone').length,4);assert.equal(ava.contactPoints.filter(p=>p.kind==='address').length,3);assert.deepEqual(ava.contactPoints.filter(p=>p.kind==='address').map(p=>p.type).sort(),['home','vacation','work'])
   assert.equal(ava.customValues.find(v=>v.field_key==='sky_membership').value,'"Board"');assert.equal(ava.customValues.find(v=>v.field_key==='sky_detail').value,'"Books <and> music"')
+  assert.deepEqual(JSON.parse(ava.customValues.find(v=>v.field_key==='sky_interests').value),['Reading','Music'])
+  assert.equal(ava.customValues.find(v=>v.field_key==='sky_source_value').value,'"4525"')
+  assert.equal(ava.customValues.find(v=>v.field_key==='sky_confirmed').value,'"true"');assert.equal(ava.customValues.find(v=>v.field_key==='sky_participants').value,'"3"')
+  const sourceDefinitions=(await h.get('/api/coffer/custom-fields')).fields
+  assert.equal(sourceDefinitions.find(d=>d.key==='sky_unused_date').type,'date');assert.deepEqual(JSON.parse(sourceDefinitions.find(d=>d.key==='sky_interests').choices),['Reading','Music','Drama'])
   assert.equal(ava.gifts.length,1);const gift=ava.gifts[0]
   assert.equal(gift.amount_cents,50000);assert.equal(gift.goods,'provided');assert.equal(gift.goods_cents,5000);assert.equal(ava.totals.lifetimeCents,50000)
   assert.equal(gift.acknowledgment.status,'acknowledged');assert.equal(gift.acknowledgment.acknowledged_on,'2026-09-04');assert.equal(gift.acknowledgment.link.id,ava.depth.interactions[0].id);assert.match(gift.acknowledgment.source_reference,/Source letter 14/)

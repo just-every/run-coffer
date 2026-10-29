@@ -20,6 +20,9 @@ These are the read doors, relative to `https://api.sky.blackbaud.com`:
 - `./constituent/v1/relationships`, `./constituent/v1/actions` and
   `./constituent/v1/notes`, plus each action's `./customfields` subresource.
 - `./gift/v1/gifts`, each gift detail and its `./customfields` subresource.
+- Complete constituent and action `./customfields/categories/details` catalogs,
+  the gift `./customfields/categories` catalog and each code table's
+  `./customfields/categories/values?category_name=...` collection.
 - `./opportunity/v1/opportunities`, including inactive opportunities so that an
   unsupported state is refused rather than silently omitted.
 
@@ -73,9 +76,11 @@ Changes to that owner or pipeline configuration invalidate the approval.
 
 Map all source fund, campaign, appeal and contact-type IDs or labels actually
 encountered. Contacts retain their source values and explicit primary flags.
-This slice accepts at most three active emails, three active phones and two
-active undated addresses per constituent, with exactly one explicit primary
-per present kind. Unsupported types, dated or inactive contacts require separate
+Every returned active email, phone and undated address is retained, with its
+source identity, mapped type and exactly one explicit primary per present kind.
+There is no three-email or two-address truncation. Contact reads explicitly
+include inactive records so an unsupported historical record blocks preview
+instead of disappearing. Unsupported types, dated or inactive contacts require separate
 review. Available native types are personal, work and other for email; mobile,
 home and work for phone; home, work, vacation and other for undated addresses.
 
@@ -126,11 +131,28 @@ a credited person. Linked actions must belong to the credited constituent.
 `customFields` uses the existing reviewed column mapping shape: `source`
 (`re-nxt`), exact source `column` (SKY category), native `key`, `label`, `kind`,
 `type`, `entry`, `choices` and current definition `version` (zero for new).
-The supported kinds are constituent, gift, pledge, interaction and note. Every
-encountered source value requires an explicit mapping and native validation;
-unknown categories, repeated values, structured values and dated or annotated
-fields are refused. This is selected-value support, not complete vendor field
-definition or code-table parity under MOVE-010.
+Map every category in the three fetched catalogs, including categories with no
+values. The native types must match: SKY Text, Number, Currency, Date and Boolean
+map to text, number, currency, date and checkbox, respectively, with free-form
+entry. A CodeTableEntry maps to text with pick-one or pick-many entry and the
+complete source choice list. A source one-per-record category cannot become
+pick-many. Action values map to interaction fields for calls, meetings and
+emails, or note fields for other completed actions. If a category occurs on
+both record kinds, supply both mappings with distinct native keys.
+
+The review shows source category, declared type, entry method, source-value
+count and complete choices separately from the native mapping. Supported
+pick-many values retain their source selections. Boolean, numeric and currency
+values must have their declared JSON type, not a text approximation. Dates must
+be complete calendar dates. Every value is checked before native apply;
+conflicting mappings, missing choices, unknown categories, duplicate values and
+incomplete catalogs refuse the preview. Definitions with zero values are still
+created and included in guarded undo. Pre-existing definitions survive undo;
+later edits or use of an import-created definition prevent destructive removal.
+
+ConstituentId and FuzzyDate categories, dated or annotated values and other
+unsupported source types still require a separate migration. This adapter does
+not establish full MOVE-010 parity for those categories or for other importers.
 
 ## Apply, reconcile and undo
 
@@ -140,7 +162,9 @@ its parent. This slice supports distinct funds with a common campaign and
 appeal. Fund reports expand allocations; cash, receipts and donor lifetime
 totals count the parent once. Unpaid unsplit pledges and open opportunities
 remain promises, outside received-cash totals. Repeating a completed source
-review never duplicates records.
+review never duplicates records. The review identity includes all normalized
+SKY records; changing a source gift while reusing the same mapping file requires
+a new review, and conflicting previously imported facts block apply.
 
 The journal compares source parent counts and cents by year, donor and fund
 with the native ledger. Undo removes untouched import-owned records together,
@@ -149,8 +173,7 @@ custom-value or other dependent edit refuses undo without removing anything.
 Archives retain the imported history and mappings. Native merge and erasure
 rules apply, and an erased constituent cannot be recreated by replay.
 
-The following remain outside this slice: full custom definitions and code
-tables; unfinished or opportunity-linked actions; funded or closed opportunities;
+The following remain outside this slice: reference and partial-date custom definitions, dated or annotated values; unfinished or opportunity-linked actions; funded or closed opportunities;
 multiple opportunity fundraisers; split promises; recurring gifts and vault
 transfer; other unsupported gift types and remaining source-object coverage;
 production OAuth and live provider qualification. Unsupported objects returned

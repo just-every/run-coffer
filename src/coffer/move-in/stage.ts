@@ -34,6 +34,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   if (chunk.length) out.push(chunk)
   return out
  }
+ if(parsed.sourceDefinitions?.length)part({sourceDefinitions:parsed.sourceDefinitions},[])
  for (const chunk of chunks(parsed.donors)) part({}, chunk.map(d => d.externalId))
  for (const chunk of chunks(parsed.recurringReferences??[])) part({recurringReferences:chunk},chunk.map(r=>r.donorExternalId))
  for (const chunk of chunks(parsed.relationships)) part({ relationships: chunk }, chunk.flatMap(r => [r.donorExternalId, r.relatedDonorExternalId]))
