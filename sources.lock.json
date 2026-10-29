@@ -3295,7 +3295,7 @@
       "executable": false
     },
     "src/coffer/memberships/service.ts": {
-      "sha256": "44c27476899fff139685fb95a6a3add19237dd0a9b054ecdd1a01aa08276ccc6",
+      "sha256": "ba0f7498377eddffec3699210739e2015de463bc785da3048c52a517b8be51af",
       "executable": false
     },
     "src/coffer/memberships/ui.ts": {
@@ -6846,8 +6846,12 @@
       "sha256": "02a47807e1347ed7a69bfeb56c733ab6ebd43ee0be3d76646f60e23ba869a678",
       "executable": false
     },
+    "tests/membership-calendar-payments.mjs": {
+      "sha256": "0c9b5e7f4e6996427ad29e5a2abac98062fd932441c0a8116bbaae194b5c0677",
+      "executable": false
+    },
     "tests/memberships-journey.mjs": {
-      "sha256": "c135b834ff976d77a25e26326d5f85c3dc88e1ecf38a646669f5f5959244aee4",
+      "sha256": "e04525c31cdaf796a350f970fc6e73fa2c451224ebd531aeca0d0fa4a7d5feff",
       "executable": false
     },
     "tests/mobile-journey.mjs": {

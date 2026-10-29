@@ -4,6 +4,7 @@ import {mkdir} from 'node:fs/promises'
 import {run,installation,reviewed,archive,restore,donor} from './harness.mjs'
 import {recurringStripeEdge} from './recurring-stripe-edge.mjs'
 import {withBrowserWorker} from './browser-worker.mjs'
+import {membershipCalendarPayments} from './membership-calendar-payments.mjs'
 
 const secret='synthetic-coffer-7400'
 export async function membershipsJourney(){
@@ -194,6 +195,7 @@ export async function membershipsJourney(){
   try{await restore(protectedCopy,saved,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}})}finally{await protectedCopy.close()}
  },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-7404',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
  await membershipTermVariants()
+ await membershipCalendarPayments()
 }
 
 // The same native doors also preserve non-annual quotes and new-plan notice authority.
