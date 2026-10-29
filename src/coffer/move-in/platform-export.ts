@@ -27,7 +27,7 @@ export function platformTables(tables:Table[],out:ParsedImport):Table[] {
  })
 }
 export function platformRow(r:SourceRow,out:ParsedImport):boolean {
- if(!['givebutter','zeffy'].includes(out.source)||!r.peek('planId'))return false
+ if(!['givebutter','zeffy','neon'].includes(out.source)||!r.peek('planId'))return false
  const externalId=r.required('planId'),donorExternalId=r.required('donorId'),amountCents=r.cents('amount')
  const frequency=r.required('frequency'),status=r.required('planStatus'),method=r.get('method'),campaign=r.get('campaign')
  const next=r.get('nextOn'),nextOn=next?day(next):null

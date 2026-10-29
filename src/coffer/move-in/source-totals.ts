@@ -12,7 +12,7 @@ export function accumulate(totals: ImportTotals, cents: number, date: string, fu
 /** Independent pass over source cash rows, before normalizing or resolving entities. */
 export function sourceTotals(rows: SourceRow[], totals: ImportTotals) {
  for (const r of rows) {
-  if(['givebutter','zeffy'].includes(r.result.source)&&r.peek('planId'))continue
+  if(r.result.source==='neon'&&r.peek('membershipId')||['givebutter','zeffy','neon'].includes(r.result.source)&&r.peek('planId'))continue
   if (r.kind() === 'unsupported') { totals.complete = false; continue }
   if (r.kind() !== 'gift') continue
   const cents = money(r.raw('amount')), date = day(r.raw('date'))
@@ -48,7 +48,7 @@ export function validateImport(out: ParsedImport) {
  }
  const donors = new Set(out.donors.map(d => d.externalId)), gifts = new Map(out.gifts.map(g => [g.externalId, g])), pledges = new Map(out.pledges.map(p => [p.externalId, p]))
  const missing = (row: { location: object }, kind: string, id: string) => out.diagnostics.push({ ...row.location, severity: 'error', code: 'MISSING_REFERENCE', column: `${kind} ID`, message: `${kind} ${id || '(empty)'} is missing from the supplied exports. Include the ${kind.toLowerCase()} row with this ID in its export, or correct this row's linked ID.${out.source === 'lgl' && /constituent/i.test(kind) ? ' The constituents report must include its name; names in other reports are only labels.' : ''}` })
- for (const collection of [out.gifts, out.relationships, out.softCredits, out.pledges, out.installments, out.notes, out.solicitations??[], out.channelWithdrawals??[]]) {
+ for (const collection of [out.gifts, out.relationships, out.softCredits, out.pledges, out.installments, out.notes, out.solicitations??[], out.channelWithdrawals??[],out.memberships??[]]) {
   const ids = new Set<string>()
   for (const row of collection) {
    if (ids.has(row.externalId)) out.diagnostics.push({ ...row.location, severity: 'error', code: 'DUPLICATE_ID', column: 'Record ID', message: `Duplicate source record ID ${row.externalId}. Delete the repeated row if it is the same record. For separate joined or split records, export a distinct source record ID for each.` })
@@ -59,6 +59,7 @@ export function validateImport(out: ParsedImport) {
    if ('pledgeExternalId' in row && row.pledgeExternalId && !pledges.has(row.pledgeExternalId) && collection !== out.gifts) missing(row, 'Pledge', row.pledgeExternalId)
   }
  }
+ for(const membership of out.memberships??[])if(membership.giftExternalId&&!gifts.has(membership.giftExternalId))missing(membership,'Received gift',membership.giftExternalId)
  for (const credit of out.softCredits) {
   const gift = gifts.get(credit.giftExternalId)
   if (!gift) missing(credit, 'Received gift', credit.giftExternalId)

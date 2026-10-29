@@ -16,16 +16,26 @@ function fixture(){
  accounts[5].primaryContact.addresses[0].addressLine1=accounts[4].primaryContact.addresses[0].addressLine1
  accounts[0].primaryContact.salutation='  Dearest Ava  '
  accounts[0].primaryContact.addresses[0].zipCodeSuffix='4567'
+ accounts[0].primaryContact.email2=email(7191);accounts[0].primaryContact.email3=email(7192)
+ accounts[0].primaryContact.addresses.push({addressId:key(7193),isPrimaryAddress:false,type:{name:'Work'},addressLine1:'10 Work Lane',addressLine2:'Room 2',addressLine3:'Reading wing',city:'Madison',stateProvince:{code:'WI'},zipCode:'53703',country:{name:'United States'},phone1:'+12025550181',phone1Type:'Work',phone2:'+12025550182',phone2Type:'Home'},{addressId:key(7194),isPrimaryAddress:false,type:{name:'Other'},addressLine1:'12 Other Lane',city:'Madison',stateProvince:{code:'WI'},zipCode:'53703',country:{name:'United States'},phone1:'+12025550183',phone1Type:'Other'})
  accounts[5].primaryContact.deceased=true
  const payment=(amount,id)=>({id:key(id),amount,paymentStatus:'Succeeded',receivedDate:'2026-09-03T12:00:00Z',tenderType:1})
  const donation=(n,person,extra={})=>({id:key(n),accountId:key(person),date:'2026-09-03T12:00:00Z',amount:500,status:'Succeeded',sendAcknowledgeEmail:true,payments:[payment(500,n+1000)],fund:{id:'1',name:'Reading'},taxDeductibleInfo:{nonDeductibleAmount:0},...extra})
  const donations=[donation(7011,7001,{tribute:{type:'Memory',name:'Jordan Reed'},acknowledgee:{name:'River Reed',address:{addressLine1:'12 River Road',addressLine2:'Unit 4',city:'Madison',stateProvince:{code:'WI'},zipCode:'53703',zipCodeSuffix:'1234',country:{name:'United States'}}}}),donation(7012,7002,{tribute:{type:'Memory',name:'Jordan Reed'}}),donation(7013,7003)]
  const registrations=[{id:key(7021),eventId:'20',registrantAccountId:key(7003),registrationDateTime:'2026-09-03T12:00:00Z',registrationAmount:150,totalCharge:150,payments:[payment(150,8021)],taxDeductibleInfo:{nonDeductibleAmount:60,nonDeductibleDescription:'Gala meal'}}]
+ const memberships=[{id:key(7101),accountId:key(7003),membershipLevel:{id:'31',name:'Reading circle'},membershipTerm:{id:'32',name:'Annual'},termUnit:'YEAR',termDuration:1,termStartDate:'2026-09-03',termEndDate:'2027-09-02',transactionDate:'2026-09-03',fee:120,totalCharge:120,status:'SUCCEEDED',autoRenewal:true,isActive:true,payments:[payment(120,8101)],taxDeductibleInfo:{nonDeductibleAmount:20,nonDeductibleDescription:'Member book'}},{id:key(7102),accountId:key(7002),membershipLevel:{id:'33',name:'Former reader'},membershipTerm:{name:'Complimentary'},termStartDate:'2024-01-01',termEndDate:'2024-12-31',fee:0,status:'SUCCEEDED',autoRenewal:false,isActive:false,payments:[]}]
+ const pledges=[{id:key(7111),accountId:key(7003),date:'2026-09-01',amount:1000,fund:{id:'1',name:'Reading'},pledgeStatus:'Open',donationCustomFields:[{id:'16',value:'25.50'}]}]
+ const installments=[{id:key(7112),pledgeId:key(7111),expectedDate:'2026-09-03',amount:500},{id:key(7113),pledgeId:key(7111),expectedDate:'2026-12-03',amount:500}]
+ const pledgePayments=[{id:key(7114),pledgeId:key(7111),installmentId:key(7113),date:'2026-09-03',payment:payment(250,8114),taxDeductibleInfo:{nonDeductibleAmount:0}}]
+ const recurring=[{id:'7121',accountId:key(7003),amount:35,recurringPeriod:1,recurringPeriodType:'MONTH',nextDate:'2026-11-03',creditCardOnline:{token:key(7122),cardNumberLastFour:'1234'}},{id:'7123',accountId:key(7002),amount:200,recurringPeriod:1,recurringPeriodType:'YEAR',nextDate:'2026-12-03',ach:{token:key(7124),accountNumber:'Do not retain source bank detail'}}]
  const activities=[{id:key(7031),subject:'Source gift thank-you',activityType:{name:'Email'},activityDates:{startDate:'2026-09-04T12:00:00Z'},clientAccount:[{accountId:key(7001)}]},{id:key(7032),subject:'Independent credit thank-you',activityType:{name:'Phone call'},activityDates:{startDate:'2026-09-05T12:00:00Z'},clientAccount:[{accountId:key(7002)}]}]
  donations[0].donationCustomFields=[{id:'16',value:'123.45'}]
  activities[0].activityCustomFields=[{id:'17',value:'Discussed the reading room'}]
  const households=[{id:key(7041),name:'Reed readers',salutation:'The Reed Readers',contacts:[{accountId:key(7001),isPrimaryHouseHoldContact:true},{accountId:key(7002),isPrimaryHouseHoldContact:false}]},{id:key(7042),name:'Chen readers',contacts:[{accountId:key(7003),isPrimaryHouseHoldContact:false}]}]
  const history={accounts:Object.fromEntries(accounts.map(a=>[a.accountId,{preferenceOn:'2026-09-01',...(a.noSolicitation?{restrictionOn:'2026-09-01',codes:['No fundraising']}:{}),...(a.accountId===key(7004)?{status:'inactive',statusReason:'Source pause'}:{})}])),households:{[key(7041)]:{addressee:'The Reed Reading Family',informal:'Ava and Bee'}},donations:{[key(7011)]:{'Acknowledgment Status':'acknowledged','Acknowledgment Date':'2026-09-04','Acknowledgment Method':'email','Acknowledgment Interaction ID':key(7031),tributeGroup:key(7045)},[key(7012)]:{'Acknowledgment Status':'not acknowledged',tributeGroup:key(7045)},[key(7013)]:{'Acknowledgment Status':'do not acknowledge'}},softCredits:[{id:key(7051),accountId:key(7002),donationId:key(7011),amount:100,'Acknowledgment Status':'acknowledged','Acknowledgment Date':'2026-09-05','Acknowledgment Method':'phone call','Acknowledgment Interaction ID':key(7032)}]}
+ history.memberships={[key(7101)]:{'Acknowledgment Status':'do not acknowledge'}}
+ history.pledgePayments={[key(7114)]:{'Acknowledgment Status':'do not acknowledge'}}
+ history.recurring={'7121':{customerReference:key(7125),paymentMethodReference:key(7122)}}
  delete history.accounts[key(7005)].preferenceOn
  history.accounts[key(7006)]={status:'deceased',deceasedOn:'2026-08-01'}
  const calls=[],state={reject:false,brokenPages:false}
@@ -39,13 +49,17 @@ function fixture(){
   if(path==='/customFields')return Response.json(url.searchParams.get('category')==='Donation'?[{id:'16',name:'Reviewed gift value',displayType:'OneLineText',dataType:'Currency'}]:[{id:'17',name:'Source conversation',displayType:'MultiLineText',dataType:'Text'}])
   if(path==='/households/listHouseholds')return Response.json(households)
   if(path==='/activities/search')return Response.json({searchResults:activities.map(a=>({'Activity ID':a.id})),pagination:{currentPage:0,totalPages:1,totalResults:activities.length}})
-  const a=/^\/accounts\/([^/]+)(?:\/(donations|eventRegistrations))?$/.exec(path)
-  if(a){if(!a[2])return Response.json({individualAccount:accounts.find(r=>r.accountId===a[1])});const rows=a[2]==='donations'?donations.filter(d=>d.accountId===a[1]):registrations.filter(d=>d.registrantAccountId===a[1]);return Response.json({[a[2]]:rows,pagination:{currentPage:0,totalPages:1,totalResults:rows.length}})}
+  const a=/^\/accounts\/([^/]+)(?:\/(donations|eventRegistrations|memberships|pledges))?$/.exec(path)
+  if(a){if(!a[2])return Response.json({individualAccount:accounts.find(r=>r.accountId===a[1])});const rows=a[2]==='donations'?donations.filter(d=>d.accountId===a[1]):a[2]==='memberships'?memberships.filter(d=>d.accountId===a[1]):a[2]==='pledges'?pledges.filter(d=>d.accountId===a[1]):registrations.filter(d=>d.registrantAccountId===a[1]);return Response.json({[a[2]]:rows,pagination:{currentPage:0,totalPages:1,totalResults:rows.length}})}
+  if(path==='/pledges/'+key(7111)+'/installments')return Response.json(installments)
+  if(path==='/pledges/'+key(7111)+'/pledgePayments')return Response.json(pledgePayments)
+  if(path==='/recurring'){const rows=recurring.filter(r=>url.searchParams.get('status')===(r.id==='7121'?'Active':'Inactive')).map(r=>({id:Number(r.id),accountId:r.accountId,amount:r.amount,nextDate:r.nextDate,frequency:'Source frequency'}));return Response.json({recurringDonations:rows,pagination:{currentPage:0,totalPages:1,totalResults:rows.length}})}
+  if(path.startsWith('/recurring/'))return Response.json(recurring.find(r=>r.id===path.slice(11)))
   const activity=activities.find(a=>path==='/activities/'+a.id);if(activity)return Response.json(activity)
   assert.fail('Unexpected Neon request '+request.method+' '+path)
  }
  const input={source:'neon',neon:{organizationId:key(7000),apiKey:key(7099),currency:'USD'},files:[historyFile(history)],solicitCodes:{'No fundraising':{type:'stop'}}}
- return {input,history,accounts,donations,calls,state,outbound}
+ return {input,history,accounts,donations,memberships,pledges,installments,pledgePayments,recurring,calls,state,outbound}
 }
 
 /** One migration sanity journey, with only documented Neon network requests faked. */
@@ -61,8 +75,13 @@ export async function neonJourney(){
   f.donations[0].payments[0].paymentStatus='Refunded';await post(h,'preview',f.input,{status:400});f.donations[0].payments[0].paymentStatus='Succeeded'
   const distinctPayment=f.donations[1].payments[0].id;f.donations[1].payments[0].id=f.donations[0].payments[0].id
   await post(h,'preview',f.input,{status:400});f.donations[1].payments[0].id=distinctPayment
+  f.donations[0].donationCustomFields[0].value='123.456'
+  const invalidField=await post(h,'preview',f.input);assert.equal(invalidField.canApply,false);assert.ok(invalidField.diagnostics.some(d=>d.code==='CUSTOM_VALUE'));await post(h,'apply',{id:invalidField.id,fingerprint:invalidField.fingerprint},{status:409});f.donations[0].donationCustomFields[0].value='123.45'
+  const sourceLevel=f.memberships[0].membershipLevel;f.memberships[0].membershipLevel={id:'31'};await post(h,'preview',f.input,{status:400});f.memberships[0].membershipLevel=sourceLevel
+  const sourceInstallment=f.pledgePayments[0].installmentId;f.pledgePayments[0].installmentId=key(7999);await post(h,'preview',f.input,{status:502});f.pledgePayments[0].installmentId=sourceInstallment
+  assert.equal((await h.get('/api/coffer/donors')).total,before,'Unsafe historical rows change no native records')
   const heldDonations=f.donations.splice(0)
-  const accountsOnly=await post(h,'preview',{...f.input,files:[historyFile({accounts:f.history.accounts,households:f.history.households})]});assert.equal(accountsOnly.canApply,true,JSON.stringify(accountsOnly.diagnostics));assert.equal(accountsOnly.sourceTotals.giftCount,1,'The paid event is still the only monetary record');assert.equal(accountsOnly.sourceTotals.amountCents,15000)
+  const accountsOnly=await post(h,'preview',{...f.input,files:[historyFile({accounts:f.history.accounts,households:f.history.households})]});assert.equal(accountsOnly.canApply,true,JSON.stringify(accountsOnly.diagnostics));assert.equal(accountsOnly.sourceTotals.giftCount,3,'Event, paid membership and received pledge payment are cash; promises and schedules are not');assert.equal(accountsOnly.sourceTotals.amountCents,52000)
   f.donations.push(...heldDonations)
   const contradictory=structuredClone(f.history);contradictory.accounts[key(7006)].status='active';await post(h,'preview',{...f.input,files:[historyFile(contradictory)]},{status:400})
   const futureDeath=structuredClone(f.history);futureDeath.accounts[key(7006)].deceasedOn='2999-01-01';await post(h,'preview',{...f.input,files:[historyFile(futureDeath)]},{status:400})
@@ -71,8 +90,8 @@ export async function neonJourney(){
   await post(h,'apply',{id:refused.id,fingerprint:refused.fingerprint},{status:409})
   let preview=await post(h,'preview',f.input)
   assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.needsAcceptance,false,JSON.stringify(preview.unmapped))
-  assert.equal(preview.sourceTotals.amountCents,165000);assert.equal(preview.sourceTotals.giftCount,4);assert.equal(preview.counts.donors,6);assert.equal(preview.counts.notes,2);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,2)
-  assert.deepEqual(preview.sourceCoverage.counts,{accounts:6,donations:3,activities:2,eventRegistrations:1,households:2});assert.ok(preview.sourceCoverage.unsupported.includes('Memberships'))
+  assert.equal(preview.sourceTotals.amountCents,202000);assert.equal(preview.sourceTotals.giftCount,6);assert.equal(preview.counts.donors,6);assert.equal(preview.counts.notes,2);assert.equal(preview.counts.householdsWithHead,1);assert.equal(preview.counts.householdsWithoutHead,2)
+  assert.deepEqual(preview.sourceCoverage.counts,{accounts:6,donations:3,activities:2,eventRegistrations:1,households:2,memberships:2,pledges:1,recurringDonations:2});assert.ok(preview.sourceCoverage.unsupported.includes('Replacement recurring schedules and vault transfer'))
   assert.ok(!JSON.stringify(preview).includes(key(7099)),'The key never enters review data')
   const member=await h.person(email(7081)),admin=await h.person(email(7082),'admin')
   await h.api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})
@@ -81,6 +100,7 @@ export async function neonJourney(){
   await post(h,'preview',f.input,{as:member.cookie,status:403});await post(h,'preview',f.input,{as:admin.cookie,status:401})
   await post(h,'apply',{id:preview.id,fingerprint:preview.fingerprint},{as:admin.cookie,status:401});assert.equal(f.calls.length,reads,'Revoked authority cannot contact Neon')
   await post(h,'apply',{id:preview.id,fingerprint:'stale'},{status:409})
+  assert.equal(preview.counts.memberships,2);assert.equal(preview.counts.pledges,1);assert.equal(preview.counts.recurringReferences,2);assert.ok(preview.reconciliation.some(r=>r.scope==='membership'&&r.sourceCount===2&&r.sourceCents===12000))
   const directory=process.env.COFFER_NEON_SHOTS
   if(directory)await mkdir(directory,{recursive:true})
   await withBrowserWorker(h,async(context,origin)=>{
@@ -91,7 +111,7 @@ export async function neonJourney(){
    await form.locator('summary').click();await form.getByLabel('Code meanings').fill('No fundraising = stop')
    await form.getByRole('button',{name:'Preview Neon history',exact:true}).click();await page.waitForURL('**/app/move-in/crm/review?id=*')
    assert.equal(new URL(page.url()).searchParams.get('id'),preview.id)
-   assert.ok((await page.textContent('body')).includes('Neon CRM'));assert.ok(!(await page.content()).includes(f.input.neon.apiKey))
+   assert.ok((await page.textContent('body')).includes('Neon CRM'));assert.ok((await page.textContent('body')).includes('Reading circle'));assert.ok((await page.textContent('body')).includes('No Coffer renewal or charge is authorized'));assert.ok(!(await page.content()).includes(f.input.neon.apiKey))
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(width===1440)assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(directory)await page.screenshot({path:directory+'/neon-review-'+width+'.png',fullPage:true})}
    await page.setViewportSize({width:1440,height:1000});await page.locator('input[name=acknowledged][value=no]').check();await page.locator('input[name=confirm]').check();await page.getByRole('button',{name:'Move these records in',exact:true}).click();try{await page.waitForURL('**/app/move-in/crm/journal?id=*',{timeout:5000})}catch{throw Error('Native Neon apply: '+await page.textContent('body'))}
    assert.ok((await page.textContent('body')).includes('All totals match'))
@@ -111,7 +131,7 @@ export async function neonJourney(){
   assert.equal(deceased.donor.constituent_status,'deceased');assert.equal(deceased.donor.deceased_on,'2026-08-01');assert.equal(unknown.donor.household_id,deceased.donor.household_id);assert.equal((await h.get('/api/coffer/households/'+unknown.donor.household_id)).household.head_donor_id,null,'Shared source address never infers a head')
   assert.ok(unknown.consents.every(p=>p.status==='unknown'&&p.evidence.includes('source date unknown')&&p.recorded_at),'Unknown choices retain explicit unknown provenance')
   assert.equal(ava.donor.informal_salutation,'  Dearest Ava  ');assert.equal(ava.donor.first_name,'Ava');assert.equal(ava.donor.postal_code,'53703-4567')
-  assert.equal(ava.contactPoints.filter(p=>p.kind==='phone')[0].type,'mobile');assert.equal(ava.contactPoints.filter(p=>p.kind==='address')[0].is_primary,1)
+  assert.equal(ava.contactPoints.filter(p=>p.kind==='phone'&&p.is_primary)[0].type,'mobile');assert.equal(ava.contactPoints.filter(p=>p.kind==='phone').length,4);assert.equal(ava.contactPoints.find(p=>p.value==='+12025550183').type,'other');assert.equal(ava.contactPoints.filter(p=>p.kind==='email').length,3);assert.equal(ava.contactPoints.filter(p=>p.kind==='address').length,3);assert.ok(ava.contactPoints.some(p=>p.kind==='address'&&p.type==='work'&&JSON.parse(p.value).line2==='Room 2, Reading wing'));assert.equal(ava.contactPoints.filter(p=>p.kind==='address')[0].is_primary,1)
   const fields=(await h.get('/api/coffer/custom-fields')).fields,field=fields.find(d=>d.key==='neon_15');assert.equal(field.entry,'pick-one');assert.deepEqual(JSON.parse(field.choices),['Board','Volunteer']);assert.equal(ava.customValues.find(v=>v.field_key==='neon_15').value,'"Board"');assert.equal(ava.customValues.find(v=>v.field_key==='neon_donation_16').value,'"12345"');assert.equal(ava.customValues.find(v=>v.field_key==='neon_activity_17').value,'"Discussed the reading room"')
   const gift=ava.gifts.find(g=>g.reference==='neon:'+key(7011)),waiting=bee.gifts[0],event=cleo.gifts.find(g=>g.reference==='neon:event:'+key(7021))
   assert.equal(gift.method,'card','Tender catalog names determine the payment method, not an assumed numeric ID');assert.equal(gift.acknowledgment.status,'acknowledged');assert.equal(gift.acknowledgment.acknowledged_on,'2026-09-04');assert.equal(gift.acknowledgment.source,'Neon CRM');assert.equal(gift.acknowledgment.link.id,ava.depth.interactions[0].id)
@@ -126,8 +146,14 @@ export async function neonJourney(){
   assert.equal((await h.get('/api/coffer/households/'+cleo.donor.household_id)).household.head_donor_id,null)
   assert.equal((await h.get('/api/coffer/tributes')).groups.find(g=>g.honoree==='Jordan Reed').totalCents,100000);assert.equal(ava.giftDepth.tributes[0].source_group,key(7045));assert.equal(ava.giftDepth.tributes[0].amount_permission,0);assert.equal(ava.giftDepth.tributes[0].notified_address,'12 River Road, Unit 4, Madison, WI, 53703-1234, United States')
   assert.equal((await h.get('/api/coffer/move-in/journal?id='+preview.id)).job.check_report.matches,true)
-  const saved=await archive(h);assert.ok(!JSON.stringify(saved).includes(f.input.neon.apiKey),'The archive never retains the Neon key')
-  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person(7002).id)).consents,bee.consents);assert.equal((await fresh.get('/api/coffer/donors/'+person(7001).id)).gifts[0].acknowledgment.link.id,gift.acknowledgment.link.id);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key==='neon_15'),false)})
+  const source=await h.get('/api/coffer/move-in/source-history?donorId='+person(7003).id)
+  assert.equal(source.memberships.length,1);assert.equal(source.memberships[0].level_name,'Reading circle');assert.equal(source.memberships[0].ends_on,'2027-09-02');assert.equal(source.memberships[0].source_auto_renewal,1);assert.equal(source.memberships[0].fee_cents,12000)
+  const membershipGift=cleo.gifts.find(g=>g.id===source.memberships[0].gift_id);assert.equal(membershipGift.amount_cents,12000);assert.equal(membershipGift.goods_cents,2000)
+  assert.equal(cleo.customValues.find(v=>v.field_key==='neon_donation_16_pledge').value,'"2550"');assert.equal(cleo.pledges[0].amount_cents,100000);assert.equal(cleo.pledges[0].paid_cents,25000);assert.equal(cleo.pledges[0].remaining_cents,75000);assert.equal(cleo.pledges[0].api_review_required,1);assert.equal(cleo.pledges[0].installments.find(i=>i.due_on==='2026-09-03').paid_cents,0);assert.equal(cleo.pledges[0].installments.find(i=>i.due_on==='2026-12-03').paid_cents,25000)
+  assert.equal(source.plans.length,1);assert.equal(source.plans[0].amount_cents,3500);assert.equal(source.plans[0].frequency,'1 month');assert.equal(source.plans[0].payment_method_reference,key(7122));assert.equal(source.plans[0].customer_reference,key(7125))
+  const former=await h.get('/api/coffer/move-in/source-history?donorId='+person(7002).id);assert.equal(former.memberships[0].source_active,0);assert.equal(former.memberships[0].gift_id,null);assert.equal(former.plans[0].payment_method_reference,null,'Absent processor facts remain missing')
+  const saved=await archive(h);assert.ok(!JSON.stringify(saved).includes('Do not retain source bank detail'));assert.ok(!JSON.stringify(saved).includes('cardNumberLastFour'));assert.ok(!JSON.stringify(saved).includes(f.input.neon.apiKey),'The archive never retains the Neon key')
+  await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person(7002).id)).consents,bee.consents);assert.equal((await fresh.get('/api/coffer/donors/'+person(7001).id)).gifts.find(g=>g.id===gift.id).acknowledgment.link.id,gift.acknowledgment.link.id);assert.equal((await fresh.get('/api/coffer/move-in/source-history?donorId='+person(7003).id)).memberships[0].gift_id,membershipGift.id);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors?status=all')).total,0);assert.equal((await fresh.get('/api/coffer/custom-fields')).fields.some(f=>f.key==='neon_15'),false)})
   const repeat=await post(h,'preview',{...f.input,solicitCodes:undefined});assert.equal(repeat.prior.state,'completed');assert.equal((await apply(h,repeat)).unchanged,true,'Saved code meanings are reused without duplicate gifts or consent')
   await post(h,'undo',{id:preview.id});assert.equal((await h.get('/api/coffer/donors?status=all')).total,0)
   preview=await post(h,'preview',f.input);await apply(h,preview)
@@ -140,7 +166,7 @@ export async function neonJourney(){
   await h.command('donor.update',{donorId:native.id,version:native.version,name:'Ava Native Revised',email:native.email,phone:native.phone,addressLine1:native.address_line1,addressLine2:native.address_line2,city:native.city,region:native.region,postalCode:native.postal_code,country:native.country,household:hh.household.name})
   const added=structuredClone(f.donations[0]);added.id=key(7061);added.amount=75;added.payments[0].id=key(7062);added.payments[0].amount=75;delete added.tribute;delete added.acknowledgee;f.donations.push(added)
   f.accounts[0].primaryContact.salutation='An older source greeting'
-  const another=await post(h,'preview',f.input);assert.equal(another.canApply,true,JSON.stringify(another.diagnostics));assert.equal(another.sourceTotals.amountCents,172500);assert.ok(another.diagnostics.some(d=>d.code==='ALREADY_MOVED_IN'))
+  const another=await post(h,'preview',f.input);assert.equal(another.canApply,true,JSON.stringify(another.diagnostics));assert.equal(another.sourceTotals.amountCents,209500);assert.ok(another.diagnostics.some(d=>d.code==='ALREADY_MOVED_IN'))
   await apply(h,another)
   const matched=await h.get('/api/coffer/donors/'+native.id);assert.equal(matched.donor.name,'Ava Native Revised');assert.equal(matched.donor.informal_salutation,'  Dearest Ava  ');assert.equal(matched.totals.lifetimeCents,57500);assert.equal((await h.get('/api/coffer/donors?status=all')).total,6,'Source IDs match the existing donor without copying profiles')
   assert.equal((await apply(h,await post(h,'preview',f.input))).unchanged,true)
@@ -148,9 +174,14 @@ export async function neonJourney(){
   await h.command('consent.record',{donorIds:[person(7002).id],channel:'email',status:'withdrawn',method:'paper form',evidence:key(7089),capturedOn:'2026-09-02'})
   const changed=structuredClone(f.history);changed.accounts[key(7002)].preferenceOn='2026-08-01'
   const later=await post(h,'preview',{...f.input,files:[historyFile(changed)]});assert.equal(later.canApply,false);assert.ok(later.diagnostics.some(d=>d.code==='SOLICITATION_CHANGED'))
+  const comparison=await h.get('/api/coffer/duplicates/compare?source='+person(7002).id+'&target='+person(7003).id)
+  const merged=await h.command('donor.merge',{sourceDonorId:person(7002).id,donorId:person(7003).id,sourceVersion:comparison.source.version,version:comparison.target.version,fields:{},reason:'duplicate_record'})
+  const joined=await h.get('/api/coffer/move-in/source-history?donorId='+person(7003).id);assert.equal(joined.memberships.length,2);assert.equal(joined.plans.length,2)
+  await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'})
+  assert.equal((await h.get('/api/coffer/move-in/source-history?donorId='+person(7002).id)).memberships[0].source_id,key(7102));assert.equal((await h.get('/api/coffer/move-in/source-history?donorId='+person(7003).id)).memberships[0].source_id,key(7101))
   await h.command('donor.erase',{donorId:person(7002).id,confirm:'ERASE'});assert.equal((await post(h,'preview',f.input)).canApply,false,'An erased account cannot return through Neon replay')
   const erasedJob=await h.get('/api/coffer/move-in/journal?id='+another.id);assert.equal(erasedJob.job.redacted,1);assert.deepEqual(erasedJob.job.report,{})
   await post(h,'apply',{id:another.id,fingerprint:another.fingerprint},{status:409})
-  assert.ok(!JSON.stringify(await archive(h)).includes(email(7002)),'Erasure removes reused-account source history from every retained review and archive')
+  const afterErasure=await archive(h);assert.ok(!JSON.stringify(afterErasure).includes(key(7102)));assert.ok(!JSON.stringify(afterErasure).includes('"7123"'));assert.ok(!JSON.stringify(afterErasure).includes(email(7002)),'Erasure removes reused-account source history from every retained review and archive')
  },{outbound:f.outbound})
 }

@@ -101,7 +101,7 @@ function channel(r: SourceRow) {
 }
 function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
  const externalId = r.required('giftId'), donorExternalId = r.required('donorId'), amountCents = r.cents('amount'), receivedOn = r.date('date')
- const fund = r.get('fund'), campaign = r.get('campaign'), appeal = r.has('appeal') ? r.get('appeal') : undefined, checkReference = r.get('checkReference') || undefined, payment = method(r), pledgeExternalId = r.get('parentId') || r.get('pledgeId')
+ const fund = r.get('fund'), campaign = r.get('campaign'), appeal = r.has('appeal') ? r.get('appeal') : undefined, checkReference = r.get('checkReference') || undefined, payment = method(r), pledgeExternalId = r.get('parentId') || r.get('pledgeId'),installmentExternalId=r.get('paymentInstallment')||undefined
  const note = [r.get('giftNote') || r.get('note'), r.has('appeal') && campaign ? `Campaign: ${campaign}` : ''].filter(Boolean).join('\n')
  let goodsCents: number | null = null
  const goodsDescription = r.get('goodsDescription')
@@ -114,12 +114,12 @@ function gift(r: SourceRow, out: ParsedImport, input: ParseInput) {
    else goodsCents = difference
   }
  }
- if (goodsCents !== null && amountCents !== null && goodsCents >= amountCents && goodsCents !== 0) r.error('GOODS_VALUE', r.peek('deductible') ? `Deductible Amount ${r.peek('deductible')} means the donor received goods or services worth the whole ${r.peek('amount')}, so no part of it was a gift. Coffer records gifts worth more than what the donor received: set Deductible Amount to the part that was a gift, or delete the row if it was a purchase.` : 'Benefit amount must be less than the received gift amount.', r.peek('deductible') ? 'Deductible Amount' : 'goodsAmount')
+ if (goodsCents !== null && amountCents !== null && (goodsCents > amountCents || goodsCents === amountCents && out.source!=='neon') && goodsCents !== 0) r.error('GOODS_VALUE', r.peek('deductible') ? `Deductible Amount ${r.peek('deductible')} means the donor received goods or services worth the whole ${r.peek('amount')}, so no part of it was a gift. Coffer records gifts worth more than what the donor received: set Deductible Amount to the part that was a gift, or delete the row if it was a purchase.` : 'Benefit amount must be less than the received gift amount.', r.peek('deductible') ? 'Deductible Amount' : 'goodsAmount')
  if (goodsCents === null && input.noGoodsOrServices === true) goodsCents = 0
  const platform=platformGift(r,out)
  const giftChannel = channel(r), giftAcknowledgment = acknowledgment(r), giftTribute = tribute(r)
  if (fund.includes(';') || campaign.includes(';')) r.error('SPLIT_GIFT', 'Export one designation per row with a unique gift/designation ID and amount; grouped split funds or campaigns cannot be allocated safely.')
- if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ platform, location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, appeal, channel: giftChannel, checkReference, method: payment, note, pledgeExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription, ...(giftTribute ? { tribute: giftTribute } : {}), ...(giftAcknowledgment ? { acknowledgment: giftAcknowledgment } : {}) })
+ if (externalId && donorExternalId && amountCents !== null && receivedOn) out.gifts.push({ platform, location: r.location, externalId, donorExternalId, amountCents, receivedOn, fund, campaign, appeal, channel: giftChannel, checkReference, method: payment, note, pledgeExternalId, installmentExternalId, noGoodsOrServices: goodsCents === 0, goodsCents, goodsDescription, ...(giftTribute ? { tribute: giftTribute } : {}), ...(giftAcknowledgment ? { acknowledgment: giftAcknowledgment } : {}) })
  if (r.peek('softDonor')) softCredit(r, out, true)
 }
 function pledge(r: SourceRow, out: ParsedImport) {

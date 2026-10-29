@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 import { fail } from '../db'
 
 type RecordValue = Record<string,any>
-export type NeonSnapshot = { accounts:RecordValue[]; tenders:RecordValue[]; definitions:RecordValue[]; donations:RecordValue[]; activities:RecordValue[]; registrations:RecordValue[]; households:RecordValue[] }
+export type NeonSnapshot = { accounts:RecordValue[]; tenders:RecordValue[]; definitions:RecordValue[]; donations:RecordValue[]; activities:RecordValue[]; registrations:RecordValue[]; households:RecordValue[]; memberships:RecordValue[]; pledges:RecordValue[]; recurring:RecordValue[] }
 /** Neon v2.12 public schema: https://developer.neoncrm.com/api-v2/
  * Read-only endpoints, fixed provider origin, no stored connection or raw payment data. */
 export async function readNeon(connection:{organizationId:string;apiKey:string}):Promise<NeonSnapshot> {
@@ -23,7 +23,7 @@ export async function readNeon(connection:{organizationId:string;apiKey:string})
  const paged=async(path:string,key:string,searchField?:string):Promise<RecordValue[]>=>{
   const rows:RecordValue[]=[];let pages:number|undefined,total:number|undefined
   for(let currentPage=0;currentPage<100;currentPage++){
-   const data=await read(searchField?path:path+'?currentPage='+currentPage,searchField?{searchFields:[],outputFields:[searchField],pagination:{currentPage,pageSize:100}}:undefined)
+   const data=await read(searchField?path:path+(path.includes('?')?'&':'?')+'currentPage='+currentPage,searchField?{searchFields:[],outputFields:[searchField],pagination:{currentPage,pageSize:100}}:undefined)
    const p=data?.pagination,list=data?.[key]
    if(!Array.isArray(list)||!p||p.currentPage!==currentPage||!Number.isSafeInteger(p.totalPages)||p.totalPages<0||p.totalPages>100||!Number.isSafeInteger(p.totalResults)||p.totalResults<0||p.totalResults>10000||pages!==undefined&&p.totalPages!==pages||total!==undefined&&p.totalResults!==total)fail('NEON_SCHEMA','Neon pagination changed or is incomplete. Preview again; nothing was applied.',502)
    pages=p.totalPages;total=p.totalResults;rows.push(...list)
@@ -37,10 +37,10 @@ export async function readNeon(connection:{organizationId:string;apiKey:string})
   return result
  }
  const accountIds=ids(await paged('/accounts/search','searchResults','Account ID'),'Account ID')
- const snapshot:NeonSnapshot={accounts:[],tenders:await read('/payments/tenders'),definitions:[],donations:[],activities:[],registrations:[],households:await read('/households/listHouseholds')}
+ const snapshot:NeonSnapshot={accounts:[],tenders:await read('/payments/tenders'),definitions:[],donations:[],activities:[],registrations:[],memberships:[],pledges:[],recurring:[],households:await read('/households/listHouseholds')}
  for(const category of ['Account','Donation','Activity']){const definitions=await read('/customFields?category='+category);if(!Array.isArray(definitions))fail('NEON_SCHEMA','Neon custom definitions were incomplete.',502);snapshot.definitions.push(...definitions.map(f=>({...f,component:category})))}
  if(!Array.isArray(snapshot.tenders)||!Array.isArray(snapshot.definitions)||!Array.isArray(snapshot.households))fail('NEON_SCHEMA','Neon definitions or households were incomplete.',502)
- const donationIds=new Set<string>(),registrationIds=new Set<string>()
+ const donationIds=new Set<string>(),registrationIds=new Set<string>(),membershipIds=new Set<string>(),pledgeIds=new Set<string>()
  for(const id of accountIds){
   const wrapper=await read('/accounts/'+encodeURIComponent(id)),account=wrapper.individualAccount??wrapper.companyAccount
   if(!account||account.accountId!==id)fail('NEON_SCHEMA','Neon account detail does not match its source ID.',502)
@@ -49,10 +49,31 @@ export async function readNeon(connection:{organizationId:string;apiKey:string})
    if(donation.accountId!==id||!donation.id||donationIds.has(donation.id))fail('NEON_SCHEMA','Neon donation identity is missing, repeated or mismatched.',502)
    donationIds.add(donation.id);snapshot.donations.push(donation)
   }
+  for(const membership of await paged('/accounts/'+id+'/memberships','memberships')){
+   if(membership.accountId!==id||!membership.id||membershipIds.has(membership.id))fail('NEON_SCHEMA','Neon membership identity is missing, repeated or mismatched.',502)
+   membershipIds.add(membership.id);snapshot.memberships.push(membership)
+  }
+  for(const pledge of await paged('/accounts/'+id+'/pledges','pledges')){
+   if(pledge.accountId!==id||!pledge.id||pledgeIds.has(pledge.id))fail('NEON_SCHEMA','Neon pledge identity is missing, repeated or mismatched.',502)
+   pledgeIds.add(pledge.id)
+   const installments=await read('/pledges/'+encodeURIComponent(pledge.id)+'/installments'),payments=await read('/pledges/'+encodeURIComponent(pledge.id)+'/pledgePayments')
+   if(!Array.isArray(installments)||!Array.isArray(payments))fail('NEON_SCHEMA','Neon pledge schedules or payments were incomplete.',502)
+   snapshot.pledges.push({...pledge,_installments:installments,_payments:payments})
+  }
   for(const registration of await paged('/accounts/'+id+'/eventRegistrations','eventRegistrations')){
    if(registration.registrantAccountId!==id||!registration.id||registrationIds.has(registration.id))fail('NEON_SCHEMA','Neon registration identity is missing, repeated or mismatched.',502)
    registrationIds.add(registration.id);snapshot.registrations.push(registration)
   }
+ }
+ const recurringIds=new Set<string>()
+ for(const status of ['Active','Inactive'])for(const summary of await paged('/recurring?status='+status,'recurringDonations')){
+  const id=String(summary.id??'')
+  if(!/^[A-Za-z0-9_-]{1,100}$/.test(id)||recurringIds.has(id)||!accountIds.includes(summary.accountId))fail('NEON_SCHEMA','A recurring source identity is repeated, missing or outside this organization.',502)
+  recurringIds.add(id)
+  const detail=await read('/recurring/'+encodeURIComponent(id))
+  if(String(detail?.id)!==id||detail.accountId!==summary.accountId||detail.amount!==summary.amount)fail('NEON_SCHEMA','The recurring summary does not match its source details.',502)
+  // Never retain raw card or bank objects in the normalized snapshot.
+  snapshot.recurring.push({id,accountId:detail.accountId,amount:detail.amount,period:detail.recurringPeriod,periodType:detail.recurringPeriodType,nextDate:detail.nextDate,campaign:detail.campaign?.name,status,method:detail.creditCardOnline?'card':detail.ach?'bank transfer':'unknown'})
  }
  for(const id of ids(await paged('/activities/search','searchResults','Activity ID'),'Activity ID')){
   const activity=await read('/activities/'+id)

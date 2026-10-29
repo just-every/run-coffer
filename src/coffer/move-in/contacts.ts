@@ -10,7 +10,7 @@ export function sourceContacts(r:SourceRow,donor:ParsedDonor) {
  const contacts:ParsedContact[]=[]
  for(const kind of ['email','phone','address'] as const){
   const points:ParsedContact[]=[]
-  for(let index=1;index<=(kind==='address'?2:3);index++){
+  for(let index=1;index<=(r.result.source==='neon'?32:kind==='address'?2:3);index++){
    const key=index===1?kind:kind+index
    let value=''
    if(kind==='address'){

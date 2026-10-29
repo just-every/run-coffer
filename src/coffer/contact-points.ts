@@ -3,7 +3,7 @@ import { settings } from './settings'
 import { enteredAddress } from './addresses/entry'
 import { addressMove, stageAddressMove } from './address-history'
 
-export const CONTACT_TYPES={email:['personal','work','other'],phone:['mobile','home','work'],address:['home','work','vacation','seasonal','other']} as const
+export const CONTACT_TYPES={email:['personal','work','other'],phone:['mobile','home','work','other'],address:['home','work','vacation','seasonal','other']} as const
 const current=(donorId:string,version:number)=>guard('EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND version=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=?)','VERSION','This donor changed. Refresh before editing contacts.',donorId,version,donorId)
 export const contactPoints=(c:{db:D1Database},donorId:string)=>all(c,'SELECT * FROM cf_contact_points WHERE donor_id=? AND active=1 ORDER BY kind,is_primary DESC,id',donorId)
 const annualDay=(v:unknown,label:string)=>{const value=text(v,label,5);date('2000-'+value,label);return value}

@@ -56,6 +56,7 @@ export function stageParts(parsed: ParsedImport): ParsedImport[] {
   batch.push(...group); batchBytes += bytes
  }
  flushGifts()
+ for(const chunk of chunks(parsed.memberships??[]))part({memberships:chunk,gifts:chunk.flatMap(m=>m.giftExternalId&&gifts.has(m.giftExternalId)?[gifts.get(m.giftExternalId)!]:[])},chunk.map(m=>m.donorExternalId))
  for (const chunk of chunks(parsed.softCredits)) {
   // A credited pledge payment brings its whole pledge, so the payment split matches the earlier part.
   const credited = new Map<string, (typeof parsed.gifts)[number]>()

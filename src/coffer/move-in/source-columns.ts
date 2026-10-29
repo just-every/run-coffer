@@ -2,6 +2,7 @@ import type { ImportSource } from './types'
 
 /** Exact report labels plus documented, user-configurable export label variants. */
 const common: Record<string, string[]> = {
+ membershipId:['Source Membership ID'],membershipLevelId:['Membership Level ID'],membershipLevel:['Membership Level'],membershipTerm:['Membership Term'],membershipStarts:['Membership Starts'],membershipEnds:['Membership Ends'],membershipStatus:['Membership Status'],membershipFee:['Membership Fee'],membershipGift:['Membership Gift ID'],membershipAuto:['Source Auto Renewal'],membershipActive:['Source Active'],
  planId:['Plan ID'],frequency:['Frequency'],planStatus:['Plan Status'],nextOn:['Next Charge Date'],customerReference:['Processor Customer Reference'],paymentMethodReference:['Processor Payment Method Reference'],
  campaignId:['Campaign ID'],fee:['Fees','Fee'],paymentStatus:['Payment Status'],refunded:['Refunded Amount'],currency:['Currency'],
  restrictionDate: ['Communication Restriction Date', 'Communication Tag Date', 'Solicit Code Date', 'Restriction Date'],
@@ -34,7 +35,7 @@ const common: Record<string, string[]> = {
  softId: ['Soft Credit ID', 'Soft Credit Number'], softDonor: ['Soft Credit Constituent ID', 'Soft Credit Account Number', 'Soft Credit Recipient ID'],
  softAmount: ['Soft Credit Amount', 'Soft Credited Amount'], softGift: ['Original Gift ID', 'Original Transaction Number', 'Soft Credit Gift ID', 'Related Gift ID'],
  pledgeId: ['Pledge ID', 'Pledge Number', 'Pledge Transaction Number'], parentId: ['Parent Gift ID', 'LGL Parent Gift ID', 'Parent Transaction Number', 'Linked Pledge ID'],
- installmentId: ['Installment ID', 'Installment Number'], dueOn: ['Due Date', 'Installment Date', 'Installment Due Date'], installmentAmount: ['Installment Amount'],
+ paymentInstallment:['Payment Installment ID'],installmentId: ['Installment ID', 'Installment Number'], dueOn: ['Due Date', 'Installment Date', 'Installment Due Date'], installmentAmount: ['Installment Amount'],
  goodsDescription: ['Goods Description', 'Goods and Services Description', 'Benefit Description'],
  goodsAmount: ['Non-Deductible Amount', 'Nondeductible Amount', 'Goods and Services Amount', 'Benefit Amount'], deductible: ['Deductible', 'Deductible Amount', 'Receipt Amount'],
  controlCount: ['Gift Count', 'Total Number of Gifts', 'Total Gift Count', 'Transaction Count', 'TG Count', 'Total Giving Count'], controlAmount: ['Total Gift Amount', 'Total Amount of Gifts', 'Revenue Total', 'Total Revenue', 'TG Amount', 'Total Giving Amount', 'Lifetime Revenue'],
@@ -62,7 +63,7 @@ const vendor: Record<ImportSource, Record<string, string[]>> = {
 export function normalizeLabel(value: string) { return value.toLowerCase().replace(/\uFEFF/g, '').replace(/[^a-z0-9]/g, '') }
 export function columnFields(source: ImportSource): Map<string, string> {
  const fields = new Map<string, string>()
- for(const kind of ['email','phone','address'])for(let n=1;n<=(kind==='address'?2:3);n++){const key=kind+(n===1?'':n);for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+n+' '+suffix),key+suffix);if(n===1)for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+suffix),key+suffix);if(n>1&&kind!=='address')for(const label of [kind+' '+n,kind+' Address '+n])fields.set(normalizeLabel(label),key);if(n>1&&kind==='address')for(const [suffix,label] of [['Line1','Street'],['Line2','Street 2'],['City','City'],['Region','State'],['PostalCode','Postal Code'],['Country','Country']])fields.set(normalizeLabel('Address '+n+' '+label),key+suffix)}
+ for(const kind of ['email','phone','address'])for(let n=1;n<=(source==='neon'?32:kind==='address'?2:3);n++){const key=kind+(n===1?'':n);for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+n+' '+suffix),key+suffix);if(n===1)for(const suffix of ['Type','Primary','From','Through'])fields.set(normalizeLabel(kind+' '+suffix),key+suffix);if(n>1&&kind!=='address')for(const label of [kind+' '+n,kind+' Address '+n])fields.set(normalizeLabel(label),key);if(n>1&&kind==='address')for(const [suffix,label] of [['Line1','Street'],['Line2','Street 2'],['City','City'],['Region','State'],['PostalCode','Postal Code'],['Country','Country']])fields.set(normalizeLabel('Address '+n+' '+label),key+suffix)}
  for (const [key, labels] of Object.entries({ ...common, ...(['givebutter','zeffy'].includes(source)?vendor.spreadsheet:{}), ...vendor[source] })) for (const label of labels) {
   fields.set(normalizeLabel(label), key)
   if (key.startsWith('acknowledgment')) fields.set(normalizeLabel(`Soft Credit ${label}`), `soft${key[0].toUpperCase()}${key.slice(1)}`)

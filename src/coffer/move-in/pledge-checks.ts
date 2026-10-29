@@ -7,6 +7,8 @@ export function pledgeChecks(out: ParsedImport) {
  for (const pledge of out.pledges) {
   const schedule = out.installments.filter(i => i.pledgeExternalId === pledge.externalId)
   const payments = out.gifts.filter(g => g.pledgeExternalId === pledge.externalId)
+  for(const payment of payments)if(payment.installmentExternalId&&!schedule.some(i=>i.externalId===payment.installmentExternalId))out.diagnostics.push({...payment.location,severity:'error',code:'PLEDGE_PAYMENT',message:'The payment names an installment outside its source pledge.'})
+  for(const installment of schedule){const allocated=payments.filter(g=>g.installmentExternalId===installment.externalId).reduce((sum,g)=>sum+g.amountCents,0);if(allocated>installment.amountCents)out.diagnostics.push({...installment.location,severity:'error',code:'PLEDGE_PAYMENT',message:'Source payments exceed their explicitly linked installment; review the allocation before importing.'})}
   const scheduled = schedule.reduce((sum, i) => sum + i.amountCents, 0)
   const paid = payments.reduce((sum, g) => sum + g.amountCents, 0)
   if (schedule.length && Math.abs(scheduled - pledge.amountCents) > schedule.length)
