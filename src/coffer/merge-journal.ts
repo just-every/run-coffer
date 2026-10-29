@@ -54,6 +54,7 @@ const descriptions = [
  owned('cf_gift_tributes',`n.donor_id IN ${pair} OR n.notification_donor_id IN ${pair} OR n.gift_id IN (${gifts})`,['gift_id']),
  owned('cf_giving_customers',undefined,['customer_id']), owned('cf_giving_intents'),
  owned('cf_memberships'),
+ owned('cf_membership_notices',`n.reminder_id IN (SELECT r.id FROM cf_membership_reminders r JOIN cf_memberships m ON m.id=r.membership_id WHERE m.donor_id IN ${pair})`,['reminder_id'],false),
  owned('cf_membership_reminders',`n.membership_id IN (SELECT id FROM cf_memberships WHERE donor_id IN ${pair})`,['id'],false),
  owned('cf_recurring_task_series'),
  owned('cf_recurring_tasks',`n.series_id IN (SELECT id FROM cf_recurring_task_series WHERE donor_id IN ${pair})`),

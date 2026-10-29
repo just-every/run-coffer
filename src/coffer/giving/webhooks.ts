@@ -1,4 +1,4 @@
-import { recordMembershipPayment } from '../memberships/service'
+import { recordFixedMembership, recordMembershipPayment } from '../memberships/service'
 import { completePledgeCheckout } from '../pledge-checkout'
 import { checkoutFailure, invoiceProtection, radarFailure } from './protection'
 import { fail, one } from '../db'
@@ -43,7 +43,8 @@ export async function completed(env: GivingEnv, sessionId: string) {
   const synced = await syncSubscription(env, stripeId(session.subscription))
   if (synced?.sub.latest_invoice) await invoice(env, stripeId(synced.sub.latest_invoice))
  } else {
-  await recordGift(env, intent, payment!.id, payment!.amount_received, payment!.created)
+  const giftId=await recordGift(env, intent, payment!.id, payment!.amount_received, payment!.created)
+  await recordFixedMembership(env,intent,giftId,payment!.created)
  }
  return { paid: true, recurring: saved.frequency === 'monthly' }
 }

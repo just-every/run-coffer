@@ -20,7 +20,7 @@ export async function limit(env: GivingEnv, key: string, max = 10) {
 }
 
 export async function checkout(env: GivingEnv, request: Request, slug: string, p: Record<string, any>, ticket?: Record<string, any>, membership?: Record<string, any>) {
- if(membership)p={...p,amountCents:membership.price_cents,amount:(membership.price_cents/100).toFixed(2),frequency:membership.term_months===12?'annually':membership.term_months===3?'quarterly':'monthly',feeCover:'no',wallOptIn:'no',textLink:null}
+ if(membership)p={...p,amountCents:membership.price_cents,amount:(membership.price_cents/100).toFixed(2),frequency:membership.auto_renew===0?'once':membership.term_months===12?'annually':membership.term_months===3?'quarterly':'monthly',feeCover:'no',wallOptIn:'no',textLink:null}
  if(ticket)p={...p,amount:(ticket.price_cents/100).toFixed(2),frequency:'once',appeal:ticket.appeal_id,feeCover:'no',wallOptIn:'no',emailConsent:'no',textLink:null}
  const c = await campaign({ db: env.DB }, slug)
  if (c.closes_on && today((await settings({ db: env.DB })).timezone) > c.closes_on) fail('campaign_closed', 'This campaign has closed and is no longer accepting new gifts. Thank you for your support.', 409)
@@ -89,7 +89,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  }
  if (frequency !== 'once') {
   params['line_items[0][price_data][recurring][interval]'] = frequency === 'annually' ? 'year' : 'month'
-  params['line_items[0][price_data][recurring][interval_count]'] = frequency === 'quarterly' ? '3' : '1'
+  params['line_items[0][price_data][recurring][interval_count]'] = membership&&frequency!=='annually'?String(membership.term_months):frequency === 'quarterly' ? '3' : '1'
   params['subscription_data[metadata][coffer_intent]'] = id
  } else {
   params['payment_intent_data[metadata][coffer_intent]'] = id

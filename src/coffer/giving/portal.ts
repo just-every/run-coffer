@@ -16,7 +16,7 @@ import { cancellationPage, confirmationPage, invalidLinkPage, requestedPage, req
 
 const LINK_LIFETIME = 30 * 60_000, SESSION_LIFETIME = 60 * 60_000
 const TOKEN = /^[a-f0-9]{64}$/
-const routes = new Set(['/giving/portal/saved-card','/giving/portal', '/giving/portal/request', '/giving/portal/confirm', '/giving/portal/card', '/giving/portal/cancel', '/giving/portal/preferences','/giving/portal/history','/giving/portal/document','/giving/portal/copy','/giving/portal/communications','/giving/portal/plan','/giving/portal/card-return','/giving/portal/property'])
+const routes = new Set(['/giving/portal/memberships','/giving/portal/saved-card','/giving/portal', '/giving/portal/request', '/giving/portal/confirm', '/giving/portal/card', '/giving/portal/cancel', '/giving/portal/preferences','/giving/portal/history','/giving/portal/document','/giving/portal/copy','/giving/portal/communications','/giving/portal/plan','/giving/portal/card-return','/giving/portal/property'])
 type Donor = { id: string; name: string; email: string | null }
 type Subscription = PortalSubscription & { customer_id: string; donor_id: string }
 const context = (env: GivingEnv) => ({ db: env.DB })
@@ -116,7 +116,7 @@ export async function emailPortalLink(original: GivingEnv, donorId: string, subj
  }
 }
 
-async function session(request: Request, env: GivingEnv) {
+export async function portalSession(request: Request, env: GivingEnv) {
  const cookies = (request.headers.get('cookie') ?? '').split(';').map(part => part.trim()).filter(part => part.startsWith(`${cookieName(env)}=`))
  if (cookies.length !== 1) return null
  const token = cookies[0].slice(cookieName(env).length + 1)
@@ -175,7 +175,7 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
   return requestedPage()
  }
  if (path === '/giving/portal/confirm') return confirm(request, env, read ? url.searchParams.get('token') ?? '' : (await form(request)).get('token') ?? '')
- const donor = await session(request, env)
+ const donor = await portalSession(request, env)
  if (!donor) return read && path === '/giving/portal' ? requestPage() : redirect('/giving/portal')
  if(path==='/giving/portal/saved-card'){
   if(read)return savedCardConsentPage(env,donor,url.searchParams.get('saved')==='1')
@@ -185,6 +185,10 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
   if(read)return donorRequestPage(env,donor,url.searchParams.get('saved')==='1')
   await saveDonorRequest(env,donor,await form(request))
   return redirect('/giving/portal/preferences?saved=1')
+ }
+ if(path==='/giving/portal/memberships'){
+  if(!read)fail('method_not_allowed','Use the membership renewal form.',405)
+  const {portalMemberships}=await import('../memberships/portal');return portalMemberships(env,donor)
  }
  if (path === '/giving/portal') {
   if (!read) fail('method_not_allowed', 'Use the portal buttons.', 405)

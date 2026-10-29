@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 
 // Stripe test clock, billing and ledger observations are faked only here.
 export function recurringStripeEdge({initialPayment=false}={}) {
- const state={now:'2026-01-10T12:00:00.000Z',plans:new Map(),sessions:new Map(),invoices:new Map(),charges:new Map(),entries:[],sequence:0,staffSequence:0,mutations:[],uncertain:false,methodType:'card',customerDiscount:false,savedMethods:new Map(),expiryMonth:12,expiryYear:2028}
+ const state={now:'2026-01-10T12:00:00.000Z',plans:new Map(),sessions:new Map(),invoices:new Map(),charges:new Map(),entries:[],sequence:0,staffSequence:0,mutations:[],uncertain:false,methodType:'card',customerDiscount:false,savedMethods:new Map(),payments:new Map(),expiryMonth:12,expiryYear:2028}
  const outbound=async request=>{
   const u=new URL(request.url),p=new URLSearchParams(await request.text()),path=u.pathname
   assert.equal(u.hostname,'api.stripe.com')
@@ -40,6 +40,13 @@ export function recurringStripeEdge({initialPayment=false}={}) {
   }
   if(path.startsWith('/v1/checkout/sessions/'))return Response.json(state.sessions.get(path.split('/').at(-1)))
   if(path==='/v1/checkout/sessions') {
+   if(p.get('mode')==='payment'){
+    const n=state.sequence,paidAt=Date.parse(state.now)/1000,id='synthetic-coffer-payment-'+n
+    const payment={id,status:'succeeded',currency:'usd',amount_received:Number(p.get('line_items[0][price_data][unit_amount]')),created:paidAt}
+    state.payments.set(id,payment)
+    const session={id:'synthetic-coffer-session-'+n,url:'https://checkout.stripe.com/c/pay/synthetic-coffer-'+n,metadata:{coffer_intent:p.get('metadata[coffer_intent]')},customer:p.get('customer'),currency:'usd',amount_total:payment.amount_received,status:'complete',payment_status:'paid',payment_intent:id}
+    state.sessions.set(session.id,session);return Response.json(session)
+   }
    assert.equal(p.get('mode'),'subscription')
    const n=state.sequence,interval=p.get('line_items[0][price_data][recurring][interval]'),count=Number(p.get('line_items[0][price_data][recurring][interval_count]'))
    const next=new Date(state.now);next.setUTCMonth(next.getUTCMonth()+(interval==='year'?12:count))
@@ -72,6 +79,7 @@ export function recurringStripeEdge({initialPayment=false}={}) {
    }
    return Response.json(sub)
   }
+  if(path.startsWith('/v1/payment_intents/'))return Response.json(state.payments.get(path.split('/').at(-1)))
   if(path.startsWith('/v1/invoices/'))return Response.json(state.invoices.get(path.split('/').at(-1)))
   if(path.startsWith('/v1/customers/')){const id=path.split('/').at(-1);return Response.json({id,balance:0,discount:state.customerDiscount?{id:'synthetic-coffer-7300'}:null,invoice_settings:{default_payment_method:state.savedMethods.get(id)??'synthetic-coffer-'+(7200+Number(id.split('_').at(-1)))}})}
   if(path.startsWith('/v1/payment_methods/')){const id=path.split('/').at(-1),customer=[...state.savedMethods].find(([,methodId])=>methodId===id)?.[0]??'cus_recurring_'+(Number(id.split('-').at(-1))-7200);return Response.json({id,customer,type:state.methodType,card:{exp_month:state.expiryMonth,exp_year:state.expiryYear,brand:'synthetic-coffer-card-metadata',last4:'synthetic-coffer-card-metadata'}})}

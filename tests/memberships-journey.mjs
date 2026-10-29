@@ -157,6 +157,32 @@ export async function membershipsJourney(){
   assert.equal(state.reminders.length,1);assert.equal(state.reminders[0].status,'held');assert.equal(state.reminders[0].membership_id,second.id)
   assert.equal(h.messages.length,mails,'Preparing and replaying reminders never submits mail')
   await screens('lapsed')
+  const reminderId=state.reminders[0].id
+  const review=()=>get(endpoint+'?reminder='+reminderId)
+  let exactReminder=await review()
+  const send=()=>({action:'sendReminder',id:reminderId,contentHash:exactReminder.contentHash,confirm:'yes'})
+  const reminderMember=await renewSession({...h,get:p=>h.get(p,{as:member.cookie})}),beforeReminder=h.messages.length
+  await api(endpoint,send(),{as:reminderMember,status:403})
+  await api(endpoint,send(),{status:409})
+  await command('consent.record',{donorIds:[second.donor_id],channel:'email',status:'granted',method:'paper form',evidence:'Member permits email renewal requests.',capturedOn:'2027-02-09'})
+  await command('solicitation.set',{donorId:second.donor_id,version:0,type:'stop',startsOn:'2027-02-09'})
+  exactReminder=await review()
+  await api(endpoint,send(),{status:409})
+  assert.equal(h.messages.length,beforeReminder,'Denied renewal requests change no mail edge')
+  await command('solicitation.set',{donorId:second.donor_id,version:1,type:'none',startsOn:'2027-02-09'})
+  exactReminder=await review()
+  await api(endpoint,{...send(),contentHash:'stale'},{status:409})
+  const accepted=await api(endpoint,send());assert.equal(accepted.status,'accepted')
+  await api(endpoint,send())
+  assert.equal(h.messages.length,beforeReminder+1,'The exact reviewed reminder reaches its member once')
+  const received=h.messages.at(-1)
+  assert.ok(received.to.includes(b.input.email));assert.equal(received.subject,'Renew your Annual reader membership')
+  assert.match(received.text,/120\.00/);assert.match(received.text,/20\.00/);assert.match(received.text,/100\.00/)
+  assert.match(received.text,/2027-01-10/)
+  assert.equal((await get(endpoint)).reminders[0].status,'accepted')
+  await screens('sent')
+  state=await get(endpoint)
+
   // A changed membership quote cannot alter a previously authorized plan.
   await api(endpoint,{action:'retire',id:level.id,version:2},{status:409})
   await api(endpoint,{action:'retire',id:level.id,version:1})
@@ -197,11 +223,27 @@ export async function membershipsJourney(){
 }
 
 // The same native doors also preserve non-annual quotes and new-plan notice authority.
-async function membershipTermVariants(){
+export async function membershipTermVariants(){
  const edge=recurringStripeEdge({initialPayment:true})
+ let currentHarness,mailUncertain=false
+ const outboundService=async request=>{
+  const url=new URL(request.url)
+  if(url.hostname==='api.resend.com'){
+   const message=await request.json();currentHarness.messages.push(message)
+   if(mailUncertain&&message.subject.startsWith('Renew your '))throw Error('Synthetic lost mail acceptance')
+   return Response.json({id:randomUUID()})
+  }
+  if(url.hostname==='challenges.cloudflare.com'){
+   const p=new URLSearchParams(await request.text())
+   return Response.json({success:p.get('secret')==='synthetic-coffer-security-token'&&p.get('response')==='synthetic-coffer-security-token',hostname:new URL(currentHarness.origin).hostname,action:'giving'})
+  }
+  return edge.outbound(request)
+ }
  await run(async h=>{
+  currentHarness=h
+  let staffCookie=h.owner
   const headers=()=>({'x-test-now':edge.state.now}),endpoint='/api/coffer/memberships'
-  const get=p=>h.get(p,{headers:headers()}),api=(p,b)=>h.api(p,b,{headers:headers()})
+  const get=p=>h.get(p,{as:staffCookie,headers:headers()}),api=(p,b)=>h.api(p,b,{as:staffCookie,headers:headers()})
   const deliver=async(type,id)=>{
    const raw=JSON.stringify({id:randomUUID(),type,data:{object:{id}}}),timestamp=Date.parse(edge.state.now)/1000,signature=createHmac('sha256',secret).update(`${timestamp}.${raw}`).digest('hex')
    const r=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw,headers:{...headers(),'stripe-signature':`t=${timestamp},v1=${signature}`}});assert.equal(r.status,200,await r.text())
@@ -209,7 +251,7 @@ async function membershipTermVariants(){
   await reviewed(h)
   const campaign=await api('/api/coffer/giving/campaigns',{name:'Term variants',slug:'term-variants',description:'Monthly and quarterly reading support.',fund:'Reading',goal:'1000'})
   const plans=[]
-  for(const [term,price,benefit,expiry] of [[1,'10','0','2026-02-10'],[3,'30','5','2026-04-10']]){
+  for(const [term,price,benefit,expiry] of [[1,'10','0','2026-02-10'],[3,'30','5','2026-04-10'],[6,'60','10','2026-07-10']]){
    const slug='member-term-'+term
    await api(endpoint,{action:'create',name:'Reading term '+term,slug,campaignId:campaign.id,price,termMonths:term,benefit,benefitDescription:'Reading membership benefit',graceDays:0})
    const response=await h.request('/giving/memberships/'+slug+'/checkout',{method:'POST',as:'',headers:{...headers(),'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({requestId:randomUUID(),levelVersion:'1',name:'Synthetic Term '+term,email:['synthetic-coffer-'+(7500+term),'example.test'].join('@'),authorizeRenewal:'yes','cf-turnstile-response':'synthetic-coffer-security-token'}).toString()})
@@ -221,8 +263,138 @@ async function membershipTermVariants(){
    const detail=await get('/api/coffer/donors/'+m.donor_id)
    assert.deepEqual(detail.gifts.map(g=>[g.amount_cents,g.goods_cents]),[[Number(price)*100,Number(benefit)*100]])
   }
-  assert.deepEqual((await get(endpoint)).counts.map(c=>c.active),[1,1])
-  const before=h.messages.length,tick=await edge.advance('2026-02-10T12:00:00Z');assert.equal(tick.bills.length,1)
+  assert.deepEqual((await get(endpoint)).counts.map(c=>c.active),[1,1,1])
+  // Staff entry uses the donor's own saved-card permission and the existing
+  // phone or signed-document authorization door, never an operator's consent.
+  const monthlyMember=(await get(endpoint)).memberships.find(m=>m.subscription_id===plans[0].id)
+  const source=await h.command('interaction.record',{donorId:monthlyMember.donor_id,kind:'call',occurredOn:'2026-01-10',notes:'Member authorizes the published quarterly level and immediate first payment.'},{headers:headers()})
+  const {signInPortal}=await import('./portal-journey.mjs')
+  const portal=await signInPortal(h,['synthetic-coffer-7501','example.test'].join('@'))
+  const permission=await h.request('/giving/portal/saved-card',{as:portal.cookie,headers:headers()}),html=await permission.text(),consent={confirm:'yes'}
+  for(const name of ['customerId','paymentMethodId','version','status'])consent[name]=html.match(new RegExp(`name="${name}" value="([^"]*)"`))?.[1]
+  const newPlan='/api/coffer/giving/plans/new?donorId='+monthlyMember.donor_id
+  let saved=await get(newPlan)
+  const staffLevel=(await get(endpoint)).levels.find(l=>l.term_months===3)
+  let charge={donorId:monthlyMember.donor_id,customerId:saved.customerId,paymentMethodId:saved.paymentMethodId,version:saved.version,requestId:randomUUID(),membershipLevelId:staffLevel.id,membershipLevelVersion:1,campaignId:'forged',amount:'1',frequency:'monthly',sourceRef:'interaction:'+source.id,givingChannel:'phone',confirm:'yes'}
+  await h.api('/api/coffer/giving/plans',charge,{headers:headers(),status:409})
+  assert.equal(edge.state.staffSequence,0,'Staff cannot grant the donor’s per-card permission')
+  const permissionSaved=await h.request('/giving/portal/saved-card',{method:'POST',as:portal.cookie,headers:{...headers(),'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(consent).toString()});assert.equal(permissionSaved.status,303)
+  saved=await get(newPlan);charge={...charge,version:saved.version}
+  await h.api('/api/coffer/giving/plans',{...charge,membershipLevelVersion:9},{headers:headers(),status:409})
+  const charged=await api('/api/coffer/giving/plans',charge)
+  assert.equal((await api('/api/coffer/giving/plans',charge)).id,charged.id)
+  assert.equal(edge.state.staffSequence,1)
+  const staffMember=(await get(endpoint)).memberships.find(m=>m.subscription_id===charged.id)
+  assert.ok(staffMember);assert.equal(staffMember.price_cents,3000);assert.equal(staffMember.term_months,3);assert.equal(staffMember.expires_on,'2026-04-10')
+  const staffHistory=await get('/api/coffer/donors/'+monthlyMember.donor_id)
+  const staffGift=staffHistory.gifts.find(g=>g.id.includes('in_staff_'))
+  assert.equal(staffGift.amount_cents,3000);assert.equal(staffGift.goods_cents,500)
+  assert.ok(staffHistory.letters.some(l=>l.gift_id===staffGift.id&&l.amount_cents===3000))
+  // A six-month level works through one-time hosted payment and native entry.
+  // No local membership row or charge is fabricated before the payment clears.
+  const fixedLevel=await api(endpoint,{action:'create',name:'Six month reader',slug:'six-month-reader',campaignId:campaign.id,price:'60',termMonths:6,benefit:'10',benefitDescription:'Six month reading journal',graceDays:7})
+  const fixedForm={requestId:randomUUID(),levelVersion:'1',name:'Synthetic Fixed Member',email:['synthetic-coffer-7601','example.test'].join('@'),paymentMode:'once',confirmTerm:'yes','cf-turnstile-response':'synthetic-coffer-security-token'}
+  const checkoutFixed=async(input,as='',status=303)=>{
+   const r=await h.request('/giving/memberships/six-month-reader/checkout',{method:'POST',as,headers:{...headers(),'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(input).toString()});assert.equal(r.status,status,await r.text());return r
+  }
+  const plansBeforeFixed=edge.state.plans.size
+  await checkoutFixed({...fixedForm,confirmTerm:'no'},'',400)
+  await checkoutFixed(fixedForm)
+  const fixedSession=[...edge.state.sessions.values()].at(-1)
+  assert.equal(edge.state.plans.size,plansBeforeFixed,'A single term creates no recurring plan')
+  assert.equal((await get(endpoint)).memberships.filter(m=>m.level_id===fixedLevel.id).length,0)
+  await deliver('checkout.session.completed',fixedSession.id)
+  let fixedMember=(await get(endpoint)).memberships.find(m=>m.level_id===fixedLevel.id)
+  assert.equal(fixedMember.expires_on,'2026-07-10');assert.equal(fixedMember.auto_renew,false)
+  let fixedHistory=await get('/api/coffer/donors/'+fixedMember.donor_id)
+  assert.deepEqual(fixedHistory.gifts.map(g=>[g.amount_cents,g.goods_cents]),[[6000,1000]])
+  assert.equal(fixedHistory.letters.length,1)
+  await checkoutFixed({...fixedForm,paymentMode:'renewing',authorizeRenewal:'yes'},'',409)
+  await deliver('checkout.session.completed',fixedSession.id)
+  assert.equal((await get('/api/coffer/donors/'+fixedMember.donor_id)).gifts.length,1)
+  const fixedPortal=await signInPortal(h,fixedForm.email)
+  const ownMemberships=await h.request('/giving/portal/memberships',{as:fixedPortal.cookie,headers:headers()})
+  assert.equal(ownMemberships.status,200);assert.match(await ownMemberships.text(),/Renew this membership once/)
+  const renewalForm={...fixedForm,requestId:randomUUID(),renewMembershipId:fixedMember.id}
+  await checkoutFixed(renewalForm,'',401)
+  await checkoutFixed(renewalForm,portal.cookie,409)
+  await checkoutFixed(renewalForm,fixedPortal.cookie)
+  await deliver('checkout.session.completed',[...edge.state.sessions.values()].at(-1).id)
+  fixedMember=(await get(endpoint)).memberships.find(m=>m.id===fixedMember.id)
+  assert.equal(fixedMember.expires_on,'2027-01-10','An early fixed-term renewal preserves all earned time')
+  assert.equal((await get(endpoint)).counts.find(c=>c.levelId===fixedLevel.id).active,1)
+  const received=await h.command('gift.record',{donorId:fixedMember.donor_id,receivedOn:'2026-01-10',amount:'60',method:'check',reference:'synthetic-coffer-7602',fund:'Reading',campaignId:campaign.id,goods:'provided',goodsValue:'10',goodsDescription:'Six month reading journal'},{headers:headers()})
+  const entry={action:'entry',requestId:randomUUID(),membershipLevelId:fixedLevel.id,membershipLevelVersion:1,giftId:received.id,renewMembershipId:fixedMember.id,confirm:'yes'}
+  await h.api(endpoint,{...entry,confirm:'no'},{headers:headers(),status:400})
+  await h.api(endpoint,{...entry,membershipLevelId:staffLevel.id},{headers:headers(),status:409})
+  assert.equal((await api(endpoint,entry)).id,fixedMember.id)
+  await api(endpoint,entry)
+  await h.api(endpoint,{...entry,requestId:randomUUID()},{headers:headers(),status:409})
+  const fixedState=await get(endpoint)
+  assert.equal(fixedState.memberships.find(m=>m.id===fixedMember.id).expires_on,'2027-07-10')
+  assert.equal(fixedState.counts.find(c=>c.levelId===fixedLevel.id).active,1)
+  const fixedProgress=await get('/api/coffer/giving/campaigns/'+campaign.id)
+  assert.equal(fixedProgress.raisedCents,31000,'All hosted, staff and check membership payments reconcile to the full ledger')
+  assert.equal(edge.state.plans.size,plansBeforeFixed)
+  await withBrowserWorker(h,async(context,origin)=>{
+   const page=await context.newPage();await page.setExtraHTTPHeaders(headers())
+   const directory=process.env.COFFER_MEMBERSHIP_BROWSER
+   if(directory)await mkdir(directory,{recursive:true})
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000})
+    for(const [name,path] of [['fixed-form','/giving/memberships/six-month-reader'],['entry','/app/giving/memberships?entry=1'],['staff-charge','/app/giving/plans/new?donorId='+monthlyMember.donor_id],['fixed-terms','/app/giving/memberships']]){
+     await page.goto(origin+path)
+     if(width===1440){
+      assert.equal(await page.getByRole('alert').count(),0)
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Membership entry fits the release width')
+      if(name==='fixed-form'){await page.getByLabel('Payment schedule',{exact:true}).selectOption('once');assert.equal(await page.getByRole('checkbox',{name:/I approve the quoted/}).count(),1)}
+      if(name==='staff-charge')assert.equal(await page.getByLabel('Membership level (optional)',{exact:true}).count(),1)
+      if(name==='entry')assert.equal(await page.getByRole('button',{name:'Record membership term',exact:true}).count(),1)
+     }
+     if(directory)await page.screenshot({path:`${directory}/${name}-${width}.png`,fullPage:true})
+    }
+   }
+   await page.close()
+  })
+  edge.state.now='2026-01-12T12:00:00Z'
+  await h.command('consent.record',{donorIds:[monthlyMember.donor_id],channel:'email',status:'granted',method:'paper form',evidence:'Member permits renewal requests.',capturedOn:'2026-01-12'},{headers:headers()})
+  await api(endpoint,{action:'reminders'})
+  const uncertainReminder=(await get(endpoint)).reminders.find(r=>r.membership_id===monthlyMember.id)
+  const approved=await get(endpoint+'?reminder='+uncertainReminder.id)
+  const uncertainSend={action:'sendReminder',id:uncertainReminder.id,contentHash:approved.contentHash,confirm:'yes'}
+  const mailCount=h.messages.length
+  mailUncertain=true
+  assert.equal((await api(endpoint,uncertainSend)).status,'uncertain')
+  mailUncertain=false
+  await h.api(endpoint,uncertainSend,{headers:headers(),status:409})
+  assert.equal(h.messages.length,mailCount+1,'Unknown mail acceptance cannot cause another submission')
+  const savedFixed=await archive(h),savedState=await get(endpoint)
+  const fresh=await installation({entry:'tests/advancing-clock-worker.ts',givingProtection:false,bindings:{COFFER_TEST_NOW:edge.state.now,STRIPE_SECRET_KEY:'synthetic-coffer-7500',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
+  try{
+   await restore(fresh,savedFixed)
+   const copy=await fresh.get(endpoint,{headers:headers()})
+   assert.deepEqual(copy.memberships,savedState.memberships);assert.deepEqual(copy.reminders,savedState.reminders)
+   const before=fresh.messages.length,current=await fresh.get(endpoint+'?reminder='+uncertainReminder.id,{headers:headers()})
+   await fresh.api(endpoint,{...uncertainSend,contentHash:current.contentHash},{headers:headers(),status:409})
+   assert.equal(fresh.messages.length,before,'Restoring an uncertain notice never revives its send authority')
+  }finally{await fresh.close()}
+  await h.command('donor.erase',{donorId:fixedMember.donor_id,confirm:'ERASE'},{headers:headers()})
+  const erasedState=await get(endpoint)
+  assert.equal(erasedState.memberships.filter(m=>m.donor_id===fixedMember.donor_id).length,0)
+  const erasedSession=[...edge.state.sessions.values()].at(-1)
+  const erasedRaw=JSON.stringify({id:randomUUID(),type:'checkout.session.completed',data:{object:{id:erasedSession.id}}}),erasedAt=Date.parse(edge.state.now)/1000,erasedSignature=createHmac('sha256',secret).update(`${erasedAt}.${erasedRaw}`).digest('hex')
+  const erasedReplay=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',raw:erasedRaw,headers:{...headers(),'stripe-signature':`t=${erasedAt},v1=${erasedSignature}`}})
+  assert.equal(erasedReplay.status,409,'Replayed captured checkout cannot recreate an erased fixed-term member')
+  assert.equal((await erasedReplay.json()).error,'invalid_payment')
+  assert.ok(!(await get(endpoint)).memberships.some(m=>m.id===fixedMember.id))
+  assert.equal((await get('/api/coffer/giving/campaigns/'+campaign.id)).raisedCents,31000)
+  const tick=await edge.advance('2026-02-10T12:00:00Z');assert.equal(tick.bills.length,1)
+  const owner=(await h.get('/auth/session')).operator
+  const login=await h.request('/auth/magic-link',{method:'POST',as:'',body:{email:owner.email},headers:headers()});assert.equal(login.status,202)
+  const loginLink=h.messages.at(-1).text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]
+  const signed=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:new URL(loginLink).searchParams.get('token')},headers:headers()});assert.equal(signed.status,303)
+  staffCookie=signed.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ')
+  const before=h.messages.length
   const monthly=plans[0],bill=edge.state.invoices.get(tick.bills[0])
   Object.assign(bill,{status:'open',amount_paid:0,next_payment_attempt:null,attempt_count:3});monthly.status='unpaid'
   await deliver('invoice.payment_failed',bill.id);await deliver('invoice.updated',bill.id)
@@ -232,6 +404,6 @@ async function membershipTermVariants(){
   const tasks=(await get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='recovery:'+bill.id)
   assert.equal(tasks.length,1);assert.equal(tasks[0].donor_id,m.donor_id);assert.equal(tasks[0].is_ask,0)
   assert.equal(tasks[0].owner_id,(await get('/auth/session')).operator.id,'Exhausted membership recovery creates one ordinary owner task')
-  assert.equal((await get('/api/coffer/donors/'+m.donor_id)).gifts.length,1)
- },{entry:'tests/advancing-clock-worker.ts',bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-7500',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound})
+  assert.equal((await get('/api/coffer/donors/'+m.donor_id)).gifts.length,2,'Failed monthly renewal adds no gift beyond the original and the paid staff membership')
+ },{entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:'2026-01-10T12:00:00Z',STRIPE_SECRET_KEY:'synthetic-coffer-7500',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound,outboundService})
 }

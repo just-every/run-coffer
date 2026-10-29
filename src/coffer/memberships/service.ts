@@ -15,10 +15,15 @@ export async function createMembershipLevel(c:Context,p:Row){
  membershipStaff(c)
  const id=newId(),name=text(p.name,'Level name',120),slug=text(p.slug,'Membership page address',80),campaignId=text(p.campaignId,'Campaign',100)
  if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))fail('INPUT','Use lowercase words and single hyphens for the page address.',400)
- const price=amount(p,'price','Membership price'),benefit=amount(p,'benefit','Benefit value',{allowZero:true}),term=integer(Number(p.termMonths),'Term in months',1,12),grace=integer(Number(p.graceDays),'Grace days',0,90),description=text(p.benefitDescription,'Benefits and disclosure',1000)
- if(price<100||price>10000000||benefit>price||![1,3,12].includes(term))fail('INPUT','Choose a monthly, quarterly or annual term and benefits no greater than the price.',400)
+ const price=amount(p,'price','Membership price'),benefit=amount(p,'benefit','Benefit value',{allowZero:true}),term=integer(Number(p.termMonths),'Term in months',1,36),grace=integer(Number(p.graceDays),'Grace days',0,90),description=text(p.benefitDescription,'Benefits and disclosure',1000)
+ if(price<100||price>10000000||benefit>price)fail('INPUT','Choose a term from one to 36 months and benefits no greater than the price.',400)
  await commit(c,[guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=? AND active=1)','CAMPAIGN','Choose a published campaign.',campaignId),guard('NOT EXISTS(SELECT 1 FROM cf_membership_levels WHERE slug=?)','LEVEL_EXISTS','Choose another membership page address.',slug),sql('INSERT INTO cf_membership_levels(id,name,slug,campaign_id,price_cents,term_months,benefit_cents,benefit_description,grace_days,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',id,name,slug,campaignId,price,term,benefit,description,grace,c.now),event(c,'membership.levelCreated','membershipLevel',id,null,{campaignId,priceCents:price,termMonths:term,benefitCents:benefit,graceDays:grace})])
  return {id,slug}
+}
+export async function selectedMembership(c:{db:D1Database},p:Row){
+ const level=await one(c,'SELECT * FROM cf_membership_levels WHERE id=? AND active=1',text(p.membershipLevelId,'Membership level',100))
+ if(!level||String(level.version)!==String(p.membershipLevelVersion))fail('LEVEL_CHANGED','Reload and review the current membership level.',409)
+ return level
 }
 export async function retireMembershipLevel(c:Context,p:Row){
  membershipStaff(c)
@@ -28,13 +33,14 @@ export async function retireMembershipLevel(c:Context,p:Row){
 }
 export async function membershipCapture(db:D1Database,intentId:string,level:Row){
  const prior=await one({db},'SELECT * FROM cf_membership_intents WHERE intent_id=?',intentId)
- if(prior&&(prior.level_id!==level.id||prior.level_version!==level.version))fail('CHECKOUT_CHANGED','Reload before changing a membership level.',409)
- return [sql('INSERT OR IGNORE INTO cf_membership_intents(intent_id,level_id,level_version,price_cents,term_months,benefit_cents,benefit_description,grace_days) VALUES(?,?,?,?,?,?,?,?)',intentId,level.id,level.version,level.price_cents,level.term_months,level.benefit_cents,level.benefit_description,level.grace_days)]
+ const autoRenew=level.auto_renew??1,renewal=level.renewal_membership_id??null
+ if(prior&&(prior.level_id!==level.id||prior.level_version!==level.version||prior.auto_renew!==autoRenew||prior.renewal_membership_id!==renewal))fail('CHECKOUT_CHANGED','Reload before changing a membership level.',409)
+ return [sql('INSERT OR IGNORE INTO cf_membership_intents(intent_id,level_id,level_version,price_cents,term_months,benefit_cents,benefit_description,grace_days,auto_renew,renewal_membership_id) VALUES(?,?,?,?,?,?,?,?,?,?)',intentId,level.id,level.version,level.price_cents,level.term_months,level.benefit_cents,level.benefit_description,level.grace_days,autoRenew,renewal),...(level.renewal_donor_id?[sql('UPDATE cf_giving_intents SET donor_id=? WHERE id=? AND donor_id IS NULL',level.renewal_donor_id,intentId)]:[])]
 }
 export async function holdMembershipPrice(c:{db:D1Database},subscription:string){
- if(await one(c,'SELECT 1 FROM cf_memberships WHERE subscription_id=? UNION ALL SELECT 1 FROM cf_membership_intents i JOIN cf_giving_intents g ON g.id=i.intent_id JOIN cf_subscriptions s ON s.customer_id=g.customer_id WHERE s.id=?',subscription,subscription))fail('MEMBERSHIP_TERMS','Membership price and term are fixed to the donor’s authorization. Cancel this plan and join the new level to change them.',409)
+ if(await one(c,'SELECT 1 FROM cf_memberships WHERE subscription_id=? UNION ALL SELECT 1 FROM cf_membership_intents i JOIN cf_giving_intents g ON g.id=i.intent_id JOIN cf_subscriptions s ON s.customer_id=g.customer_id WHERE s.id=? AND i.auto_renew=1 AND (g.staff_channel IS NULL OR EXISTS(SELECT 1 FROM cf_portal_changes p WHERE p.id=i.intent_id AND p.subscription_id=s.id))',subscription,subscription))fail('MEMBERSHIP_TERMS','Membership price and term are fixed to the donor’s authorization. Cancel this plan and join the new level to change them.',409)
 }
-function endOfTerm(start:string,months:number){
+export function endOfTerm(start:string,months:number){
  const d=new Date(start+'T00:00:00Z'),day=d.getUTCDate()
  d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+months)
  const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate()
@@ -44,7 +50,7 @@ function endOfTerm(start:string,months:number){
  * Provider periods make late and out-of-order invoice delivery deterministic. */
 export async function recordMembershipPayment(env:GivingEnv,intent:Row,sub:Row,invoice:Row,giftId:string){
  const c={db:env.DB},quote=await one(c,'SELECT * FROM cf_membership_intents WHERE intent_id=?',intent.id)
- if(!quote)return
+ if(!quote||!quote.auto_renew)return
  const r=sub.items?.data?.[0]?.price?.recurring,months=r?.interval==='year'?r.interval_count*12:r?.interval==='month'?r.interval_count:0
  if(invoice.amount_paid!==quote.price_cents||sub.items?.data?.length!==1||months!==quote.term_months||sub.items.data[0].price.unit_amount!==quote.price_cents)return
  const zone=(await settings(c)).timezone,period=invoice.lines?.data?.find((l:Row)=>l.period&&(!l.subscription||l.subscription===sub.id))?.period
@@ -66,9 +72,9 @@ export async function membershipState(c:Context){
  s.status AS subscription_status,s.cancel_at_period_end,COALESCE(p.collection_paused,0) AS collection_paused,
  (s.amount_cents<>q.price_cents OR (p.interval IS NOT NULL AND CASE p.interval WHEN 'year' THEN p.interval_count*12 WHEN 'month' THEN p.interval_count ELSE 0 END<>q.term_months)) AS terms_changed,
  EXISTS(SELECT 1 FROM cf_portal_changes ch WHERE ch.subscription_id=m.subscription_id AND ch.state IN ('pending','uncertain')) AS uncertain,
- (SELECT MAX(mp.expires_on) FROM cf_membership_payments mp JOIN cf_gift_balances b ON b.id=mp.gift_id WHERE mp.membership_id=m.id AND b.net_cents>=q.price_cents AND mp.starts_on<=?) AS expires_on
+ (SELECT MAX(mp.expires_on) FROM cf_membership_payments mp JOIN cf_gift_balances b ON b.id=mp.gift_id JOIN cf_gifts g ON g.id=mp.gift_id WHERE mp.membership_id=m.id AND b.net_cents>=q.price_cents AND g.received_on<=?) AS expires_on
  FROM cf_memberships m JOIN cf_membership_intents q ON q.intent_id=m.intent_id JOIN cf_membership_levels l ON l.id=q.level_id
- JOIN cf_donors d ON d.id=m.donor_id JOIN cf_subscriptions s ON s.id=m.subscription_id LEFT JOIN cf_portal_subscription_settings p ON p.subscription_id=s.id
+ JOIN cf_donors d ON d.id=m.donor_id LEFT JOIN cf_subscriptions s ON s.id=m.subscription_id LEFT JOIN cf_portal_subscription_settings p ON p.subscription_id=s.id
  WHERE d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY lower(d.name),m.id`,day)
  for(const row of rows){
   row.grace_ends_on=row.expires_on?addDays(row.expires_on,row.grace_days):null
@@ -83,7 +89,7 @@ export async function membershipState(c:Context){
   }
   return {levelId:l.id,name:l.name,...Object.fromEntries(['active','grace','lapsed','review'].map(s=>[s,[...people.values()].filter(r=>r.state===s).length]))}
  })
- const reminders=await all(c,`SELECT r.* FROM cf_membership_reminders r JOIN cf_memberships m ON m.id=r.membership_id JOIN cf_donors d ON d.id=m.donor_id WHERE d.erased_at IS NULL ORDER BY prepared_at,id`)
+ const reminders=await all(c,`SELECT r.id,r.membership_id,r.expires_on,r.prepared_at,COALESCE(n.status,r.status) AS status,n.message_id FROM cf_membership_reminders r LEFT JOIN cf_membership_notices n ON n.reminder_id=r.id JOIN cf_memberships m ON m.id=r.membership_id JOIN cf_donors d ON d.id=m.donor_id WHERE d.erased_at IS NULL ORDER BY r.prepared_at,r.id`)
  await commit(c,[])
  return {asOf:day,levels,memberships:rows,counts,reminders}
 }
@@ -95,4 +101,20 @@ export async function prepareMembershipReminders(c:Context){
  }
  await commit(c,[...statements,event(c,'membership.remindersPrepared','membership', 'review',null,{prepared:statements.length,submitted:0})])
  return membershipState(c)
+}
+/** A one-time checkout grants a fixed term only after its exact payment clears.
+ * Renewals append earned time to the donor's authenticated existing membership. */
+export async function recordFixedMembership(env:GivingEnv,intent:Row,giftId:string,paidAt:number){
+ const c={db:env.DB},quote=await one(c,'SELECT * FROM cf_membership_intents WHERE intent_id=? AND auto_renew=0',intent.id)
+ if(!quote)return
+ const gift=await one(c,'SELECT g.*,b.net_cents FROM cf_gifts g JOIN cf_gift_balances b ON b.id=g.id WHERE g.id=? AND g.donor_id=?',giftId,intent.donor_id)
+ if(!gift||gift.net_cents!==quote.price_cents||gift.amount_cents!==quote.price_cents)return
+ const id=quote.renewal_membership_id??'membership-'+intent.id,zone=(await settings(c)).timezone,paidOn=today(zone,new Date(paidAt*1000))
+ const prior=quote.renewal_membership_id?await one(c,`SELECT m.id,(SELECT MAX(p.expires_on) FROM cf_membership_payments p JOIN cf_gift_balances b ON b.id=p.gift_id WHERE p.membership_id=m.id AND b.net_cents>=q.price_cents) AS expires_on FROM cf_memberships m JOIN cf_membership_intents q ON q.intent_id=m.intent_id WHERE m.id=? AND m.donor_id=? AND m.subscription_id IS NULL AND q.level_id=?`,id,intent.donor_id,quote.level_id):null
+ if(quote.renewal_membership_id&&!prior)return
+ const starts=prior?.expires_on&&prior.expires_on>paidOn?prior.expires_on:paidOn
+ await paymentWrite(env,[
+  ...(!prior?[sql('INSERT OR IGNORE INTO cf_memberships(id,donor_id,intent_id,subscription_id,created_at) SELECT ?,?,?,NULL,? WHERE EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL)',id,intent.donor_id,intent.id,new Date().toISOString(),intent.donor_id)]:[]),
+  sql('INSERT OR IGNORE INTO cf_membership_payments SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM cf_memberships WHERE id=? AND donor_id=? AND subscription_id IS NULL)',giftId,id,starts,endOfTerm(starts,quote.term_months),id,intent.donor_id),
+ ])
 }

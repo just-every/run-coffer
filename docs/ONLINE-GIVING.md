@@ -93,3 +93,17 @@ notification; an owner/admin reviews and approves its exact version before
 email-text download or printing. Coffer does not contact the family, send the
 notification or claim delivery. The approved copy retains its original wording;
 changed gifts or tribute facts need a fresh notification.
+
+## Memberships
+
+An owner or admin publishes membership levels under **Settings → Memberships**. Each level fixes its campaign, price, benefit value and description, term from one to 36 months, and grace period. Publish another level to change those terms. Retiring a level closes new joins without removing already earned time.
+
+On the membership form, a donor chooses automatic renewal or one term only and reviews the full price, benefits and contribution part. Automatic renewal requires separate express authorization. Only a confirmed full-price payment earns a term; failed payments earn no time. Cancellation stops future billing and retains the paid term. **Giving → Memberships** shows expiry, grace, lapsed state and distinct member counts for each level.
+
+A donor opens **Membership terms** in their verified giving account to renew their own single-term membership. Early renewal keeps unexpired time and appends the new term. It starts no recurring plan.
+
+For a received check or other already recorded payment, record the gift with its campaign and exact membership benefits through ordinary gift entry. Then choose **Enter a received membership payment** from Memberships and confirm the level, gift and optional existing membership. A payment can earn a term only once. This step moves no money and uses the ordinary gift receipt workflow.
+
+For a new recurring membership charged to a saved card, choose **Charge an authorized membership**, review the donor’s saved payment, and select the exact published level. The level supplies its campaign, price, schedule and benefits. The donor must personally grant permission for that current card in their giving account, and staff must separately select the donor’s recorded phone or signed-document authorization and confirm the immediate first installment. Staff cannot grant that card permission.
+
+**Prepare due reminders** creates held drafts and sends nothing. Review the exact recipient and renewal request, then explicitly confirm its submission. Renewal requests are asks: current email permission, communication topics and solicitation limits still apply. Changed membership or recipient facts invalidate review. Provider acceptance is shown separately from delivery. An uncertain result remains held and cannot be resent automatically, including after archive restore.

@@ -283,6 +283,6 @@ test('CAMP-002: table and sponsorship packages keep reviewed guest answers priva
  const {eventPackagesJourney}=await import('./event-packages-journey.mjs');await eventPackagesJourney()
 })
 
-test('CAMP-004: paid memberships renew once, disclose benefits, reconcile campaigns and retain held reminder custody', {timeout:300000}, async()=>{
+test('CAMP-004: memberships reconcile recurring and fixed terms, authorized entry, renewal requests and custody', {timeout:600000}, async()=>{
  const {membershipsJourney}=await import('./memberships-journey.mjs');await membershipsJourney()
 })
