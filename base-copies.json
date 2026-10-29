@@ -604,6 +604,20 @@
       ]
     },
     {
+      "path": "scripts/edition-authoring/adopt.mjs",
+      "originPath": "edition-authoring/adopt.mjs",
+      "revision": "114ef7a61f080da053af783c5fbe06f625d692cc",
+      "files": {
+        "scripts/edition-authoring/adopt.mjs": "c9cf80207b5f14164ce18cce63e08e0fcbb254d93b66263911ba74cdd4079c8f"
+      },
+      "modes": {
+        "scripts/edition-authoring/adopt.mjs": "100644"
+      },
+      "originFiles": [
+        "edition-authoring/adopt.mjs"
+      ]
+    },
+    {
       "path": "scripts/edition-authoring/archive-source.mjs",
       "originPath": "edition-authoring/archive-source.mjs",
       "revision": "114ef7a61f080da053af783c5fbe06f625d692cc",
@@ -2785,6 +2799,48 @@
       },
       "originFiles": [
         "export/verify-ci.mjs"
+      ]
+    },
+    {
+      "path": "scripts/verify-evidence.mjs",
+      "originPath": "export/verify-evidence.mjs",
+      "revision": "114ef7a61f080da053af783c5fbe06f625d692cc",
+      "files": {
+        "scripts/verify-evidence.mjs": "9224f772d6a17f043448694eca3c149df83070417b995a2840497e36a9ad0100"
+      },
+      "modes": {
+        "scripts/verify-evidence.mjs": "100644"
+      },
+      "originFiles": [
+        "export/verify-evidence.mjs"
+      ]
+    },
+    {
+      "path": "scripts/verify-light.mjs",
+      "originPath": "export/verify-light.mjs",
+      "revision": "114ef7a61f080da053af783c5fbe06f625d692cc",
+      "files": {
+        "scripts/verify-light.mjs": "f9b126130837144e43a65d10d370d602b63daad2be7ff66c93178d461a7521d9"
+      },
+      "modes": {
+        "scripts/verify-light.mjs": "100644"
+      },
+      "originFiles": [
+        "export/verify-light.mjs"
+      ]
+    },
+    {
+      "path": "scripts/verify-plan.mjs",
+      "originPath": "export/verify-plan.mjs",
+      "revision": "114ef7a61f080da053af783c5fbe06f625d692cc",
+      "files": {
+        "scripts/verify-plan.mjs": "45fe2ab9c5cbc72d0186bf77fab32c985605caae6ecee50676dd618612c3e78f"
+      },
+      "modes": {
+        "scripts/verify-plan.mjs": "100644"
+      },
+      "originFiles": [
+        "export/verify-plan.mjs"
       ]
     },
     {
@@ -8284,48 +8340,6 @@
       },
       "originFiles": [
         "foundation/template/src/router.tsx"
-      ]
-    },
-    {
-      "path": "scripts/verify-plan.mjs",
-      "originPath": "export/verify-plan.mjs",
-      "revision": "114ef7a61f080da053af783c5fbe06f625d692cc",
-      "files": {
-        "scripts/verify-plan.mjs": "45fe2ab9c5cbc72d0186bf77fab32c985605caae6ecee50676dd618612c3e78f"
-      },
-      "modes": {
-        "scripts/verify-plan.mjs": "100644"
-      },
-      "originFiles": [
-        "export/verify-plan.mjs"
-      ]
-    },
-    {
-      "path": "scripts/verify-light.mjs",
-      "originPath": "export/verify-light.mjs",
-      "revision": "114ef7a61f080da053af783c5fbe06f625d692cc",
-      "files": {
-        "scripts/verify-light.mjs": "f9b126130837144e43a65d10d370d602b63daad2be7ff66c93178d461a7521d9"
-      },
-      "modes": {
-        "scripts/verify-light.mjs": "100644"
-      },
-      "originFiles": [
-        "export/verify-light.mjs"
-      ]
-    },
-    {
-      "path": "scripts/verify-evidence.mjs",
-      "originPath": "export/verify-evidence.mjs",
-      "revision": "114ef7a61f080da053af783c5fbe06f625d692cc",
-      "files": {
-        "scripts/verify-evidence.mjs": "9224f772d6a17f043448694eca3c149df83070417b995a2840497e36a9ad0100"
-      },
-      "modes": {
-        "scripts/verify-evidence.mjs": "100644"
-      },
-      "originFiles": [
-        "export/verify-evidence.mjs"
       ]
     }
   ]
