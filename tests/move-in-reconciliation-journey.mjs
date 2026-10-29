@@ -110,6 +110,20 @@ export async function reconciliationJourney(files){
   await run(async fresh=>{await restore(fresh,saved);assert.ok((await fresh.get(endpoint+'/journal?id='+p.id)).job.cutover.record,'Backup retains the historical owner approval');assertControls((await post(fresh,'check',{id:p.id})).rows,source);await post(fresh,'undo',{id:p.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0)})
   const repeat=await post(h,'preview',uploaded);assert.equal((await apply(h,repeat)).unchanged,true);assert.equal((await h.get('/api/coffer/donors')).total,3)
   await post(h,'undo',{id:p.id});assert.equal((await h.get(endpoint+'/journal?id='+p.id)).job.report.cutover,undefined,'Undo clears owner sign-off');assert.equal((await h.get('/api/coffer/donors')).total,0)
+  if(source==='bloomerang'&&format==='csv'){
+   const incompleteTables=tables(source).map(([name,rows])=>[name,name==='controls'?rows.filter(r=>r[0]!=='consent'||r[1]!=='email unknown'):rows])
+   const incomplete=await post(h,'preview',{...uploaded,files:await files(incompleteTables,format)})
+   assert.equal(incomplete.needsAcceptance,false,'Supplied totals may match while required independent controls are absent')
+   await apply(h,incomplete)
+   const incompleteJob=(await h.get(endpoint+'/journal?id='+incomplete.id)).job
+   assert.equal(incompleteJob.check_report.matches,true)
+   assert.deepEqual(incompleteJob.cutover.missing,['consent · email unknown'])
+   const beforeRefusal=await h.get('/api/coffer/donors')
+   await post(h,'sign-off',{...sign,id:incomplete.id,fingerprint:incompleteJob.cutover.fingerprint},{status:409})
+   assert.equal((await h.get(endpoint+'/journal?id='+incomplete.id)).job.cutover.record,null,'A matching but incomplete inventory cannot record owner approval')
+   assert.deepEqual(await h.get('/api/coffer/donors'),beforeRefusal,'Refused sign-off leaves the imported donors and their totals unchanged')
+   await post(h,'undo',{id:incomplete.id});assert.equal((await h.get('/api/coffer/donors')).total,0)
+  }
   const again=await post(h,'preview',uploaded);await apply(h,again)
   // A second move-in also reconciles soft credits owned by the first one.
   const later=await post(h,'preview',await input({extra:true}));await apply(h,later,{acceptedReason:'The additional gift is outside the earlier control report.'})
