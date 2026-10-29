@@ -85,7 +85,7 @@ export async function readExports(files: ExportFile[], result: Pick<ParsedImport
     // STORE entries make the universal reader stay synchronous inside fflate,
     // including large sheets: Cloudflare Workers cannot spawn Web Workers.
     const stored = zipSync(unzipSync(bytes), { level: 0 })
-    const sheets = await readWorkbook(stored.buffer as ArrayBuffer)
+    const sheets = await readWorkbook(stored.buffer as ArrayBuffer,{trim:false})
     loaded = sheets.map(s => ({ file: file.name, sheet: s.sheet, rows: s.data.map(row => row.map(value => {
      if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || (value as unknown) instanceof Date) return value as unknown as Cell
      throw new Error('Unsupported spreadsheet cell type.')

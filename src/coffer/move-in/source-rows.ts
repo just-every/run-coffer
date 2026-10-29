@@ -52,7 +52,7 @@ export class SourceRow {
  }
  kindLabel() { return ({ donor: 'constituent', gift: 'gift', pledge: 'pledge', softCredit: 'soft credit', installment: 'pledge installment', relationship: 'relationship', note: 'note', control: 'totals', volunteering:'volunteer activity', unsupported: 'unrecognized' } as Record<RowKind, string>)[this.kind()] }
  kind(): RowKind {
-  if (['givebutter','zeffy'].includes(this.result.source)&&this.peek('planId')) return 'unsupported'
+  if (['lgl','givebutter','zeffy'].includes(this.result.source)&&this.peek('planId')) return 'unsupported'
   // Duration columns also occur in constituent roll-ups; require activity fields.
   if (this.result.source==='lgl' && (this.has('volunteerId')||this.has('volunteerDate')||this.has('volunteerRole'))) return 'volunteering'
   if (this.peek('controlCount') || this.peek('controlAmount')) return 'control'

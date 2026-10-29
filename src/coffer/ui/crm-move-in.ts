@@ -112,7 +112,7 @@ export function crmReviewPage(job:Row,list:Row,today:string) {
  ${box('Columns left out',leftOutColumns(r.leftOut),'left-out')}
  ${reviewedCustom(r)}
  ${r.solicitCodes?box('Reviewed communication codes',`<ul>${Object.entries(r.solicitCodes).map(([code,rule])=>`<li>${e(code)}: ${e(codeMeaning(rule))}</li>`).join('')}</ul>`):''}
- ${['spreadsheet','givebutter','zeffy','neon'].includes(job.source)?records('Channel preferences',r.counts.channelPreferences,s.channelWithdrawals,p=>`Donor ${e(p.donorExternalId)} · ${e(p.channel)}: ${e(p.status??'withdrawn')} · source date ${e(p.sourceOn||'unknown')}`):''}
+ ${['lgl','spreadsheet','givebutter','zeffy','neon'].includes(job.source)?records('Channel preferences',r.counts.channelPreferences,s.channelWithdrawals,p=>`Donor ${e(p.donorExternalId)} · ${e(p.channel)}: ${e(p.status??'withdrawn')} · source date ${e(p.sourceOn||'unknown')}`):''}
  ${records('Donors',r.counts.donors,s.donors,d=>`<strong>${e(d.name)}</strong> · ${e(d.externalId)}${d.householdName?` · ${e(d.householdName)}`:''}${d.contacts?.length?`<ul>${d.contacts.map((p:ParsedContact)=>`<li>${e(p.kind)} · ${e(p.type)}${p.primary?' · primary':''}: ${e(p.kind==='address'?Object.values(JSON.parse(p.value)).filter(Boolean).join(', '):p.value)}${p.startsOn?` · ${e(p.startsOn)} through ${e(p.endsOn)}`:''}</li>`).join('')}</ul>`:''}`)}
  ${records('Households',r.counts.households,s.households,h=>`${e(h.name)} · ${e(h.externalId.startsWith('members:')?`linked as spouses or at one address`:h.externalId)}`)}
  ${volunteerReview(job)}

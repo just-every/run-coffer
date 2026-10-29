@@ -69,6 +69,25 @@ Preview lists every accepted activity, 50 per page, its source file and row, and
 
 Volunteer minutes never enter gift, deductible or cash totals. Undo deletes only unchanged activities owned by that review, preserves earlier native activities and refuses later dependencies or a later review using those activities. Archive restoration retains the activities and journal; donor merge retains custody and erasure removes the private activity and review payloads, preventing replay from restoring them. This slice does not complete LGL memberships, mailing history, full contact and name parity, split handling, acknowledgment, preferences and restrictions, tributes, recurring references or vault migration. Existing address verification, before-mail checks, solicitation and custody duties remain in force.
 
+### LGL channel choices and recurring source evidence
+
+An accompanying constituent report may contain `Email Preference`, `Mail Preference`, `SMS Preference`, `Phone Preference` and `Preference Date`. These are configured report labels for separately exported channel choices, not inferred permissions. Use yes, no or unknown; an empty choice remains unknown. The date is the source choice date, while the importing person and import date are recorded separately. Existing Communication Tags still use the reviewed code mapping. A conflicting tag and explicit channel answer blocks review. A later native choice cannot be replaced by an older source report. The first appeal still applies the current solicitation rules and address-processing requirements. LGL Short Salutation, Long Salutation and Addressee are retained verbatim, including spacing.
+
+A recurring-source report may contain the following configured columns. Export opaque source references only; never upload card numbers, routing numbers or bank account numbers. This report retains migration evidence and does not validate an instrument with a processor, activate a subscription, charge, cancel or change an LGL plan.
+
+| Field | Configured report label | Meaning |
+| --- | --- | --- |
+| Stable source plan | `LGL Recurring Gift ID` | Unique source recurring-gift ID; `Recurring Gift ID` and `Plan ID` are also accepted |
+| Constituent | `LGL Constituent ID` | ID from the authoritative constituent report |
+| Source amount and schedule | `Amount`, `Frequency`, `Plan Status`, `Payment Method`, `Campaign` | Source-attested values, preserved as evidence |
+| Next charge | `Next Charge Date` | Source date or empty when unknown; no date is invented |
+| Customer reference | `Processor Customer Reference` | Opaque source customer reference; `LGL Forms Customer Reference` is also accepted |
+| Instrument reference | `Processor Payment Method Reference` | Opaque source instrument reference; `LGL Forms Payment Method Reference` is also accepted |
+
+For example, source plan `synthetic-coffer-2711` for constituent `synthetic-coffer-2701`, with amount 12.00, frequency monthly, status active, method card, campaign Library and next date 2026-11-01 retains those facts and the two supplied opaque references. It contributes zero received gifts and zero cash. Missing references remain visibly incomplete evidence. Repeated plan IDs, unresolved constituents, malformed dates and payment-account data block apply. Preview, journal, native source-history read, guarded undo, archive restoration, merge and erasure use the existing importer custody. The combined CSV and XLSX journey is `lglHistoryJourney` in `tests/lgl-history-journey.mjs`.
+
+This report does not establish a completed MOVE-009 transfer, provider usability, source-stop confirmation or replacement billing. Memberships, mailing history, split designation history, complete custom definitions and source classifications remain separate missing work.
+
 ### LGL source confirmations and limits
 
 Checked against official LGL documentation on 18 October 2026:

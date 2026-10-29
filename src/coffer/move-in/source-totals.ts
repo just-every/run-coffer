@@ -12,7 +12,7 @@ export function accumulate(totals: ImportTotals, cents: number, date: string, fu
 /** Independent pass over source cash rows, before normalizing or resolving entities. */
 export function sourceTotals(rows: SourceRow[], totals: ImportTotals) {
  for (const r of rows) {
-  if(['givebutter','zeffy'].includes(r.result.source)&&r.peek('planId'))continue
+  if(['lgl','givebutter','zeffy'].includes(r.result.source)&&r.peek('planId'))continue
   if (r.kind() === 'unsupported') { totals.complete = false; continue }
   if (r.kind() !== 'gift') continue
   const cents = money(r.raw('amount')), date = day(r.raw('date'))
