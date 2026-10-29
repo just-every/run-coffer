@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "240636c2a9dffa2562ad1fafa27c93fbce6c0aa8b2579b9e32814c7c1054080d",
+      "sha256": "ef870eb278002167bf4f1f402ab272d050706477c5eafb485533e0023857b940",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "bcc7de1dfd9f7f0308bac1f8338ec67d6242564a18f81558718d6e469f3664dd",
+      "sha256": "6583a6dd84e8a4c7d84404730a55c438a2bb6ed3be7cbe1c0833f35c65108843",
       "executable": false
     },
     "deploy-demo.json": {
@@ -778,8 +778,12 @@
       "sha256": "e2141159bae9099db5dd90393d366a2e46390d4b718f71ddee23949ecefad3d9",
       "executable": false
     },
+    "integrations/zapier/actions/local-records.js": {
+      "sha256": "5abe0128d1b1746395f43e2d24072987ed2c66987de762cce3c793a365bc2284",
+      "executable": false
+    },
     "integrations/zapier/api.js": {
-      "sha256": "1f9f92accc7345ffb2ee9df9ad42a0857e6bca17eea6e6fba71f3a54eb5de8ed",
+      "sha256": "0bb2de215430d440e31e438abd7d95e51474a29628abdb6aa3a6bf48f55265db",
       "executable": false
     },
     "integrations/zapier/authentication.js": {
@@ -787,19 +791,27 @@
       "executable": false
     },
     "integrations/zapier/index.js": {
-      "sha256": "6df7b87539aefe6dd720d6efce3bc60096aa6579439d4598282187236f23be19",
+      "sha256": "c9e43ff230d2fd1eaf920b2a985f192a841b131b5b0e20164d7bab845c8d6d80",
       "executable": false
     },
     "integrations/zapier/package-lock.json": {
-      "sha256": "e8d060ff9b818039737dc9dc8a9aac9ccd5c2cdb69c7a08c6b04e08675e51d73",
+      "sha256": "24d8e0e6d3b37b80b50cd7ed805806c1939401e2f0fa157959ae0be1c69abb24",
       "executable": false
     },
     "integrations/zapier/package.json": {
-      "sha256": "40337e9ace729674deeef57cd7f8d39d9849b09ea04686406ee497195a68e8a4",
+      "sha256": "679963d22ba7ef817bed96ea571b71e09ccd8094116f76fa688c077ef004784e",
       "executable": false
     },
     "integrations/zapier/README.md": {
-      "sha256": "e9c8f4b53e63ce0bca2b3becb406a8608b629993f264940f6e7ce7a5beac184b",
+      "sha256": "1d5e4c3df8ed0f0477bfd5d65980c33dc98acd101afa01512bfc37e05638d13f",
+      "executable": false
+    },
+    "integrations/zapier/searches/records.js": {
+      "sha256": "d5c3cfb45ae7e3dc0747c8d774e8d2c4b91b00cc763efdcf018eb8a51a969b26",
+      "executable": false
+    },
+    "integrations/zapier/triggers/events.js": {
+      "sha256": "c011e703ee6fb3065ce1fe9b670dd41897b0043a68590594aa5b20eaaeb1c7af",
       "executable": false
     },
     "LICENSE": {
@@ -3095,7 +3107,7 @@
       "executable": false
     },
     "src/coffer/api/http.ts": {
-      "sha256": "1000f6c7411b0f5e8108c58001c2303b003fea902744ed645810ce17f1920915",
+      "sha256": "7d0c73386049f8a92ebea218529f3a7051dd5688fa459b0b69777cb85a515e53",
       "executable": false
     },
     "src/coffer/api/keys.ts": {
@@ -3103,7 +3115,7 @@
       "executable": false
     },
     "src/coffer/api/openapi.ts": {
-      "sha256": "d0ed4833c3e4b2cc34edb1c0bfea069493fd72304a665c25fb4ba00b4ab8f308",
+      "sha256": "4fbe23d2e767119cdf412c283b15037fcb12e2733356adf2afcaff4c9e10c0ec",
       "executable": false
     },
     "src/coffer/api/reads.ts": {
@@ -3112,6 +3124,10 @@
     },
     "src/coffer/api/transaction.ts": {
       "sha256": "70758e6f0339140deec9413afc0c6638a5917204a235b8064f4ba209b2550b05",
+      "executable": false
+    },
+    "src/coffer/api/webhook-receipt.ts": {
+      "sha256": "a0be2c3092a18872865d6215d0262c19271a003b59f28813103bdd4b21cb9f5e",
       "executable": false
     },
     "src/coffer/api/writes.ts": {
@@ -4920,6 +4936,10 @@
     },
     "src/coffer/webhooks/delivery.ts": {
       "sha256": "98f0c6527c951d26c94be6db99c7e64af65bbb831459609022ac3b735f04585a",
+      "executable": false
+    },
+    "src/coffer/webhooks/receiver.d.mts": {
+      "sha256": "bd4c65fea188f1bf0d2bb4c8ee0913fe2e9c9a2b4fa22441eeb3855f39eb4e86",
       "executable": false
     },
     "src/coffer/webhooks/receiver.mjs": {
@@ -7955,7 +7975,7 @@
       "executable": false
     },
     "tests/webhook-sources-journey.mjs": {
-      "sha256": "d5c2345912fd53f31a523ac7cfb88c4b58cc17225b7163f3ac994d83fbb15196",
+      "sha256": "96ff22e6fac82ef44f6261c13eebd48751cec2e3c29db1bc79ca708deaa63a9e",
       "executable": false
     },
     "tests/webhooks-browser.mjs": {
@@ -8003,7 +8023,7 @@
       "executable": false
     },
     "tests/zapier-journey.mjs": {
-      "sha256": "de0f2301a6ab4a9bf09dd11fe9fe8878630288fb9b9d04e9b85a63118989af5c",
+      "sha256": "cf68344c3bdfd44681dea49d9f3d8057ed25dd1fca6d14488e20c6388dc0ba4c",
       "executable": false
     },
     "tsconfig.json": {

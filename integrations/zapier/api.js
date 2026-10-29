@@ -34,4 +34,12 @@ const request = async (z, bundle, path, options = {}) => {
   return response.data;
 };
 
-module.exports = { origin, request };
+const invocation = (z, input, step) => {
+  if (typeof input.invocationId !== 'string' || !/^[\x21-\x7e]{1,160}$/.test(input.invocationId)) {
+    throw new z.errors.Error('Map a stable opaque invocation ID of 1 to 160 visible ASCII characters and reuse all inputs on retries.', 'INVOCATION_REQUIRED', 400);
+  }
+  return 'zapier:' + step + ':' + input.invocationId;
+};
+const invocationField = { key: 'invocationId', label: 'Stable Invocation ID', type: 'string', required: true,
+  helpText: 'An opaque source event identity unique to this step. Reuse the exact ID and inputs on retries. Replacement keys and restored installations have different replay boundaries.' };
+module.exports = { origin, request, invocation, invocationField };

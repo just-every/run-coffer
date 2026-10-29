@@ -1,7 +1,7 @@
 {
   "name": "coffer-zapier",
-  "version": "0.1.0",
-  "description": "Unpublished Coffer connection and owned non-ask task action",
+  "version": "0.2.0",
+  "description": "Unpublished Coffer signed event triggers and named native API actions",
   "private": true,
   "main": "index.js",
   "engines": {

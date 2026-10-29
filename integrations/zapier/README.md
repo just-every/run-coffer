@@ -1,12 +1,15 @@
 # Coffer Zapier package
 
-This is an **unpublished** Coffer-only integration. It connects an existing
-installation key and provides **Create Non-Ask Task**. It has no webhook trigger,
-credential administration, arbitrary command, export or provider-send action.
-It does not establish Zapier publication, hosted qualification or a working
-Crank connector.
+This **unpublished** Coffer-only integration connects an existing installation
+key. It supplies the eight native signed webhook triggers, named local record
+actions and exact-ID searches. It supplies no credential administration,
+arbitrary command, export, merge, erasure, plan mutation, campaign publication
+or direct provider-send action. Local validation does not establish publication,
+hosted qualification or a working Crank connector.
 
-Use Node 22.20.0. The Zapier runtime and CLI are both pinned to 18.4.0; the
+## Validate locally
+
+Use Node 22.20.0. The Zapier runtime and CLI remain pinned to 18.4.0; the
 package lock fixes their dependency graph. From this directory:
 
 ```sh
@@ -14,78 +17,133 @@ npm ci --no-audit --no-fund
 npm run validate
 ```
 
-The validation script runs the actual `zapier validate --without-style` command.
-It validates the loaded package locally without signing in, registering an app
-or contacting Zapier for publication checks. A successful result means the
-package is structurally sound; it does not mean the app has been published or
-that Zapier has accepted a production installation. Push Verify installs and
-validates this same package before executing its task journey.
+The script executes the actual `zapier validate --without-style` against the
+loaded package without signing in or registering an app. Push Verify performs
+the same validation and executes the package against native Coffer handlers.
+Manual webhook setup produces style warnings that are deliberately excluded
+from structural validation. Publishing and hosted installation qualification
+require separate Zapier review and are not claimed here.
 
 ## Connect an existing key
 
-In your installation, a current native owner or admin explicitly creates a
-**full local API key** using Coffer's existing native API-key door. Supply that
-key and the installation's HTTPS origin in the connection fields. Do not put
-keys in source files, input examples or source-event fields. The connection
-checks the authenticated OpenAPI endpoint; it does not issue a new key, upgrade
-its scope or change its expiry. A read-only or gift-entry key cannot create a
-task. A full key retains only API-001's documented local allowlist and the
-creator's current authority, expiration and revocation checks.
+In Coffer Settings, a current native owner or admin explicitly creates an
+expiring public API key. Supply it and the installation HTTPS origin in the
+connection fields. The connection checks the authenticated OpenAPI endpoint;
+it cannot issue, upgrade, extend or administer keys. Read only permits the
+native resource reads. Gift entry permits its existing resource reads and gift
+recording. Full permits only API-001's documented local allowlist under the
+creator's current authority. Revocation, expiry and changed creator authority
+apply to every action and trigger, including retries.
+
+## Receive a signed event
+
+The static hooks are gift created, gift reversed, donor created, donor updated,
+plan failed, plan canceled, task assigned and form submitted. They expose only
+`id`, `type`, `occurredAt` and `data.id`. They neither fetch donor details nor
+expand the approved disclosure. Use an exact-ID search as a separately scoped
+step when a workflow needs native record context.
+
+1. Select the trigger and copy its Zapier hook URL.
+2. In native Coffer Settings, explicitly review and approve that exact public
+   HTTPS URL and event. Use the same owner or admin who created the connection
+   key. Supply the resulting endpoint ID in the trigger input.
+3. Use a full key for this connection. Coffer retains its sealed signing key;
+   the connector does not copy it into Zapier. To test the trigger, perform the
+   actual native operation, then allow Coffer's scheduled delivery to run.
+4. Map the stable event `id` to each downstream action's Stable Invocation ID,
+   with a distinct step suffix when one event intentionally creates multiple
+   records. Map `data.id` only to the resource it identifies: for gift events,
+   first find that gift and take its `donor_id` for a constituent input.
+5. Before removing or turning off the Zap, pause its endpoint in native Coffer
+   Settings. Zapier cannot pause, create, resume or replay subscriptions.
+
+The trigger forwards the exact raw capture, combined timestamped signature,
+delivery ID and its own target URL to `/api/coffer/v1/webhook-receipts/verify`.
+This read-only verification door checks the current full key and approver,
+exact active approved endpoint, signed raw bytes within five minutes, current
+signing authority and any explicitly approved overlap, actual event and delivery,
+and retained identifier-only canonical content. It returns no signing key.
+Paused endpoints, held or erased deliveries, wrong receivers, another approver's
+key, changed signatures and stale captures are refused. Recovery stays paused;
+resume releases no held history. Native replay retains the same event identity
+and lineage, and donor erasure removes captures' backing events. Rotation and
+recovery continue through the existing reviewed native API-002 doors, under
+RL-101; this connector grants no new custody authority.
+
+Zapier uses the stable event ID for trigger deduplication. Deliveries can still
+be repeated. Downstream native writes must use that same stable invocation ID
+and the same principal; no exactly-once claim crosses replacement keys or an
+archive restore. A capture accepted before authority changes cannot retract a
+Zap already executing; every later Coffer write independently checks its own
+current key, scope, record identity and native authority.
 
 ## Create an owned non-ask task
 
-Map all six inputs explicitly:
+Map the constituent ID, active native owner ID, exact `YYYY-MM-DD` due date,
+task kind, title and Stable Invocation ID explicitly. Task kind is call,
+meeting, thank_you, follow_up or data_fix. No identity or date is inferred.
+The action posts to `/api/coffer/v1/tasks` with `isAsk: false` and the stable
+`zapier:task:` idempotency prefix. It returns only the task ID. A solicitation
+restriction is never cleared and does not block this non-ask task. Creating it
+submits no payment or message. Merged and erased constituent IDs are refused.
 
-- **Stable Invocation ID:** an opaque source event identity unique to this task
-  step, for example `synthetic-coffer-7106`. Reuse it and the exact same inputs
-  on retries. Do not generate the value from the current time or a new random
-  value on each execution. Use a distinct step suffix if one event intentionally
-  creates more than one task. Do not place personal data or credentials here.
-- **Constituent ID:** the exact current native record; merged or erased IDs are
-  refused. There is no automatic name or email match.
-- **Task Owner ID:** an explicitly selected active native team member ID.
-- **Due Date:** an exact `YYYY-MM-DD` calendar date.
-- **Task Kind:** call, meeting, thank_you, follow_up or data_fix.
-- **Task Title:** the instruction the owner will see in the native task list.
+## Named native record actions
 
-The action posts only those task facts plus `isAsk: false` to
-`/api/coffer/v1/tasks`, with `Idempotency-Key` equal to `zapier:task:` followed by
-the invocation ID. It returns only the native task ID. The native task rules
-validate the donor, owner, date, kind, title and current authority. A solicitation
-restriction does not block this non-ask task and is never cleared by it. No
-message is sent and no payment is requested.
+The package also exposes these fixed operations:
 
-Concurrent executions, a retry after a lost response and unchanged retries
-under the same key and installation return the same task. Reusing an invocation
-ID with different task inputs is a conflict: review the original task before
-choosing a new identity for an intentional new operation. Do not switch keys to
-work around an uncertain result. Replay is principal-bound: replacing a key or
-restoring an archive does **not** transfer the old key's replay guarantee. Keys
-and receipts are not restored. Revoked, expired or changed creator authority is
-refused even for a previously successful invocation. Donor erasure removes its
-receipts and prevents replay from returning its old identifier.
+- Create constituent, record gift, create held pledge, record interaction,
+  create opportunity, define fund, create draft campaign and record soft credit.
+- Replace constituent contact, update opportunity, set solicitation restriction,
+  set constituent status and record consent evidence.
+- Set gift or soft-credit acknowledgment, assign task, snooze task and complete
+  task.
 
-Requests refuse redirects; a redirect never forwards the installation key to a
-new location. Reconnect with the correct HTTPS origin instead. Rate limits and
-native refusals remain in effect. Transient retries must preserve all inputs.
+Fields come from the connected installation's authenticated OpenAPI schema.
+Money is whole cents, dates are `YYYY-MM-DD`, and complex allocations or pledge
+installments are JSON values matching that schema. Supply exact current record
+versions for updates. Replacing constituent contact has native replacement
+semantics: omitted optional contact fields are cleared. Pledges retain their
+native review hold; campaign creation leaves an inactive draft. Gift rules,
+address processing and consent synchronization retain their existing native
+behavior and holds; no connector operation bypasses them or grants direct
+provider sending or charging authority.
+
+Every action requires an opaque Stable Invocation ID, unique to that workflow
+step. Named record actions accept 1 to 160 visible ASCII characters; the original
+task action accepts up to 180. Reuse the exact ID and inputs on every retry;
+never generate a timestamp or random value per execution. Concurrent calls and
+lost-response retries with unchanged input return one native identifier.
+Changed inputs conflict. Do not replace a key to work around an uncertain
+outcome. Keys and idempotency receipts are installation-bound, principal-bound
+and excluded from archives. Erasure removes associated receipts.
+
+Exact-ID searches cover constituents, gifts, pledges, plans, interactions,
+tasks, opportunities, funds, campaigns and soft credits. They retain the native
+scope, confidentiality and erased-record rules. An absent record refuses;
+searches perform no identity matching or export.
+
+All requests remain on the explicitly connected HTTPS origin and refuse
+redirects. Rate limits and native validation remain in effect. Errors disclose
+neither private response bodies nor credentials.
 
 ## Proof and remaining scope
 
-`tests/zapier-journey.mjs` runs the packaged action using the pinned Zapier
-runtime over a local HTTPS transport into actual Coffer HTTP handlers. Its only
-transport adaptation is trust for an ephemeral test certificate. It reads the
-owned task and audit, checks concurrent and lost-response retries, conflicts,
-limited scopes, expiry, revocation, changed creator authority, native validation,
-restricted-donor non-asks, merged and erased identities, redirect refusal and
-archive custody. It mocks no Coffer service. It is registered in
-`tests/coffer.test.mjs` under API-003 and runs in push Verify's donors shard.
+`tests/zapier-journey.mjs` executes the packaged actions, searches and all eight
+triggers using the pinned Zapier runtime over HTTPS into actual Coffer HTTP
+handlers. It reads exact records and audit facts; exercises concurrent and
+lost-response task creation, gift idempotency, changed-input conflicts, scope
+refusals, native holds and version checks, expiry, revocation, changed creator
+authority, restricted non-asks, merge and erasure, redirect refusal and archive
+custody. The trigger checks reuse actual signed captures from
+`tests/webhook-sources-journey.mjs`, whose existing native source assertions are
+retained. Only provider network edges and ephemeral local TLS trust are adapted;
+no Coffer service or authority is mocked. The single API-003 registration in
+`tests/coffer.test.mjs` is part of push Verify's donors shard.
 
-API-003 remains partial. The gift-triggered Crank flow depends on Crank
-CONN-010 and TRIG-001 admitting Coffer's timestamped signature and named task
-creation action. No sibling repository is changed here. Zapier webhook triggers,
-the remaining API actions, publication, hosted qualification and full clause
-acceptance remain owed. Any future webhook door must inherit API-002's native
-endpoint approval, current authority, identifier-only disclosure, signing,
-replay lineage and custody rules, including the unchanged RL-101 ruling. This
-package introduces no webhook door or new policy grant. Wider TEAM-001 roles
-and existing account, ct, Base and device holds remain unchanged.
+API-003 remains partial. Crank CONN-010 and TRIG-001 must admit Coffer's
+combined timestamped signature and named task action before the actual
+Coffer-gift-triggered Crank flow can pass. Publication and hosted qualification
+remain unproved; no missing Zapier account is established. API-002 production
+public-network and hosted-delivery proof gaps, wider TEAM-001 authority and all
+existing account, ct, Base and device holds remain unchanged. No sibling
+repository is changed here.

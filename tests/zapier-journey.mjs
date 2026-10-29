@@ -6,6 +6,7 @@ import {mkdtemp,readFile,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {run,donor,archive,restore} from './harness.mjs'
+import {webhookSourcesJourney} from './webhook-sources-journey.mjs'
 
 const require=createRequire(new URL('../integrations/zapier/index.js',import.meta.url))
 const App=require('./index.js')
@@ -14,23 +15,24 @@ const prefix='/api/coffer/v1',instant='2030-06-10T12:00:00.000Z'
 
 // Only TLS trust and the loopback transport are adapted. Every request executes
 // the actual Coffer Worker, native authorization, migrations and transactions.
-async function connector(h,journey){
+async function connector(h,journey,initialNow=instant){
  const directory=await mkdtemp(join(tmpdir(),'coffer-zapier-'))
  let server,agent
  try{
   execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',join(directory,'key.pem'),'-out',join(directory,'cert.pem'),'-days','1','-subj','/CN=127.0.0.1','-addext','subjectAltName=IP:127.0.0.1'],{stdio:'ignore'})
   const cert=await readFile(join(directory,'cert.pem')),requests=[]
-  let now=instant,dropNext=false,redirectNext=false
+  let now=initialNow,dropNext=false,redirectNext=false
   server=createServer({key:await readFile(join(directory,'key.pem')),cert},async(req,res)=>{
    try{
     const headers=new Headers(Object.entries(req.headers).filter(([,v])=>typeof v==='string'))
     headers.set('host',new URL(h.origin).host);headers.set('x-test-now',now)
     const chunks=[];for await(const chunk of req)chunks.push(chunk)
     const raw=Buffer.concat(chunks)
-    requests.push({method:req.method,path:req.url,key:headers.get('idempotency-key'),body:raw.length?JSON.parse(raw):null})
+    const recorded={method:req.method,path:req.url,key:headers.get('idempotency-key'),body:raw.length?JSON.parse(raw):null};requests.push(recorded)
     if(redirectNext){redirectNext=false;res.writeHead(302,{location:'https://127.0.0.1:'+server.address().port+'/unapproved'});res.end();return}
     const response=await h.mf.dispatchFetch(h.origin+req.url,{method:req.method,headers,redirect:'manual',...(raw.length?{body:raw}:{})})
     const bytes=Buffer.from(await response.arrayBuffer())
+    if(response.status>=400)recorded.error=JSON.parse(bytes)
     if(dropNext){dropNext=false;res.destroy();return}
     res.writeHead(response.status,Object.fromEntries(response.headers));res.end(bytes)
    }catch{res.writeHead(500);res.end()}
@@ -38,7 +40,8 @@ async function connector(h,journey){
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
   const baseUrl='https://127.0.0.1:'+server.address().port
   agent=new Agent({ca:cert})
-  const test=createAppTester({...App,beforeRequest:[request=>({...request,agent})]})
+  const runtimeTest=createAppTester({...App,beforeRequest:[request=>({...request,agent})]})
+  const test=async(...args)=>{try{return await runtimeTest(...args)}catch(error){error.cofferRequest=requests.filter(row=>row.error).at(-1);throw error}}
   await journey({baseUrl,requests,test,setNow(value){now=value},drop(){dropNext=true},redirect(){redirectNext=true}})
  }finally{
   agent?.destroy()
@@ -139,4 +142,156 @@ export async function zapierJourney(){
   },{entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:instant}})
   assert.equal(h.messages.filter(message=>!String(message.subject).includes('invit')).length,0,'Creating tasks submits no provider messages')
  }),{entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:instant}})
+ await zapierRecordsJourney()
+ await zapierHooksJourney()
+}
+
+const denied=(operation,status)=>assert.rejects(operation,error=>{
+ assert.equal(JSON.parse(error.message.split(' action=')[0]).status,status,String(error));return true
+})
+
+export async function zapierRecordsJourney(){
+ await run(async h=>connector(h,async({test,baseUrl,requests})=>{
+  const full=await h.api(prefix+'/keys',{label:'synthetic-coffer-7520',scope:'full'},{status:201})
+  const readOnly=await h.api(prefix+'/keys',{label:'synthetic-coffer-7521',scope:'read-only'},{status:201})
+  const entry=await h.api(prefix+'/keys',{label:'synthetic-coffer-7522',scope:'gift-entry'},{status:201})
+  const bundle=(inputData,key=full)=>({authData:{baseUrl,apiKey:key.token},inputData})
+  const perform=async(name,input,key=full)=>{console.log('Zapier journey action:',name);try{return await test(App.creates[name].operation.perform,bundle({invocationId:'synthetic-coffer-7523-'+name,...input},key))}catch(error){error.message+=' action='+name+' native='+JSON.stringify(requests.filter(row=>row.error).at(-1)?.error);throw error}}
+  const find=async(resource,id,key=full)=>(await test(App.searches['find_'+resource.replace('-','_')].operation.perform,bundle({recordId:id},key)))[0]
+  const owner=(await h.get('/auth/session')).operator.id
+  const member=await h.person(['synthetic-coffer-7524','example.test'].join('@'))
+  const d=await perform('create_donor',{name:'synthetic-coffer-7525'})
+  assert.equal((await find('donors',d.id,readOnly)).name,'synthetic-coffer-7525')
+  assert.deepEqual(await perform('create_donor',{name:'synthetic-coffer-7525'}),d)
+  await denied(()=>perform('create_donor',{name:'synthetic-coffer-7526'}),409)
+  await denied(()=>perform('create_donor',{name:'synthetic-coffer-7526'},entry),403)
+  const second=await donor(h,'synthetic-coffer-7527',{email:null})
+  const fields=await test(App.creates.create_gift.operation.inputFields.at(-1),bundle({}))
+  assert.ok(fields.some(f=>f.key==='amountCents'&&f.type==='integer'&&f.required),'Installation schema produces explicit typed native fields')
+  await perform('create_fund',{name:'synthetic-coffer-7528',restriction:'purpose',detail:'synthetic-coffer-7529'})
+  assert.equal((await find('funds','synthetic-coffer-7528')).restriction,'purpose')
+  const campaign=await perform('create_campaign',{name:'synthetic-coffer-7530',slug:'synthetic-coffer-7530',description:'synthetic-coffer-7531',fund:'Unrestricted',goalCents:500000})
+  const draft=await find('campaigns',campaign.id)
+  assert.equal(draft.active,0);assert.equal(draft.goal_cents,500000)
+  assert.equal((await h.request('/give/synthetic-coffer-7530',{as:''})).status,404,'API draft creation does not publish a giving form')
+  const giftInput={donorId:d.id,amountCents:12500,receivedOn:'2030-06-10',method:'check',goods:'none',allocations:JSON.stringify([{fund:'Unrestricted',amountCents:7500},{fund:'synthetic-coffer-7528',amountCents:5000}])}
+  const gifts=await Promise.all([perform('create_gift',giftInput,entry),perform('create_gift',giftInput,entry)])
+  assert.equal(gifts[0].id,gifts[1].id)
+  const gift=await find('gifts',gifts[0].id,readOnly)
+  assert.equal(gift.amount_cents,12500);assert.deepEqual(gift.allocations.map(a=>[a.fund,a.amount_cents]),[['Unrestricted',7500],['synthetic-coffer-7528',5000]])
+  await denied(()=>perform('create_gift',{...giftInput,amountCents:13000},entry),409)
+  await denied(()=>perform('create_gift',giftInput,readOnly),403)
+  const pledge=await perform('create_pledge',{donorId:d.id,amountCents:10000,pledgedOn:'2030-06-10',fund:'Unrestricted',installments:JSON.stringify([{dueOn:'2030-07-10',amountCents:10000}])})
+  const held=await find('pledges',pledge.id);assert.equal(held.api_review_required,1);assert.equal(held.amount_cents,10000);assert.equal(held.installments[0].amount_cents,10000)
+  const interaction=await perform('create_interaction',{donorId:d.id,kind:'call',occurredOn:'2030-06-10',notes:'synthetic-coffer-7532'})
+  assert.equal((await find('interactions',interaction.id)).notes,'synthetic-coffer-7532')
+  await perform('gift_acknowledgment',{recordId:gift.id,status:'acknowledged',version:0,acknowledgedOn:'2030-06-10',method:'phone call',interactionId:interaction.id})
+  assert.equal((await find('gifts',gift.id)).acknowledgment.link.id,interaction.id)
+  const credit=await perform('create_soft_credit',{giftId:gift.id,donorId:second.id,amountCents:5000})
+  assert.equal((await find('soft-credits',credit.id)).amount_cents,5000)
+  await perform('soft_credit_acknowledgment',{recordId:credit.id,status:'do not acknowledge',version:0,reason:'synthetic-coffer-7533'})
+  assert.equal((await find('soft-credits',credit.id)).acknowledgment.status,'do not acknowledge')
+  const stage=(await h.get('/api/coffer/pipeline')).stages.find(s=>s.outcome==='open').id
+  const opportunityInput={donorId:d.id,ownerId:owner,stage,askAmountCents:100000,expectedCloseOn:'2030-08-01',nextStep:'synthetic-coffer-7534'}
+  const opportunity=await perform('create_opportunity',opportunityInput)
+  const prospect=await find('opportunities',opportunity.id);assert.equal(prospect.ask_amount_cents,100000)
+  await perform('update_opportunity',{...opportunityInput,recordId:opportunity.id,version:prospect.version,nextStep:'synthetic-coffer-7535'})
+  assert.equal((await find('opportunities',opportunity.id)).next_step,'synthetic-coffer-7535')
+  await perform('set_solicitation',{recordId:d.id,version:0,type:'stop',startsOn:'2030-06-10'})
+  assert.equal((await find('donors',d.id)).solicitation.active,true)
+  await perform('record_consent',{recordId:d.id,channel:'phone',status:'withdrawn',method:'verbal',evidence:'synthetic-coffer-7536',capturedOn:'2030-06-10'})
+  assert.ok((await find('donors',d.id)).consents.some(c=>c.channel==='phone'&&c.status==='withdrawn'))
+  let task=await perform('create_task',{donorId:d.id,ownerId:owner,dueOn:'2030-06-11',kind:'data_fix',title:'synthetic-coffer-7537'})
+  await perform('assign_task',{recordId:task.id,version:1,ownerId:member.id,dueOn:'2030-06-12'})
+  assert.equal((await find('tasks',task.id)).owner_id,member.id)
+  await denied(()=>perform('snooze_task',{recordId:task.id,version:1,dueOn:'2030-06-13'}),409)
+  await perform('snooze_task',{recordId:task.id,version:2,dueOn:'2030-06-13'})
+  assert.equal((await find('tasks',task.id)).status,'snoozed')
+  await perform('complete_task',{recordId:task.id,version:3,notes:'synthetic-coffer-7538'})
+  assert.equal((await find('tasks',task.id)).status,'done')
+  const current=await find('donors',d.id)
+  await perform('update_donor',{recordId:d.id,version:current.version,name:'synthetic-coffer-7539'})
+  const updated=await find('donors',d.id);assert.equal(updated.name,'synthetic-coffer-7539')
+  await perform('set_status',{recordId:d.id,version:updated.version,constituentStatus:'inactive',statusReason:'synthetic-coffer-7540'})
+  assert.equal((await find('donors',d.id)).constituent_status,'inactive')
+  await denied(()=>perform('create_interaction',{donorId:d.id,kind:'call',notes:'synthetic-coffer-7541'},readOnly),403)
+  assert.equal(h.messages.filter(m=>!String(m.subject).includes('invit')).length,0,'Local record actions perform no direct provider sending')
+ }),{entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:instant}})
+}
+
+export async function zapierHooksJourney(){
+ await webhookSourcesJourney(async({phase,h,signed,messages,erasedIds})=>connector(h,async transport=>{
+  const {test,baseUrl}=transport
+  const keyOptions={status:201}
+  const full=await h.api(prefix+'/keys',{label:'synthetic-coffer-7550',scope:'full'},keyOptions)
+  const targetUrl='https://receiver.example.test/events'
+  const capture=message=>({authData:{baseUrl,apiKey:full.token},inputData:{subscriptionId:signed.id},targetUrl,
+   rawRequest:{content:message.body,headers:{'Coffer-Signature':message.signature,'Coffer-Delivery-Id':message.deliveryId}}})
+  const trigger=(message,changes={})=>test(App.triggers[message.event.type.replace('.','_')].operation.perform,{...capture(message),...changes})
+  const first=messages.find(m=>m.event.type==='gift.created')
+  if(phase==='erased'){
+   const erased=messages.find(m=>erasedIds.includes(m.event.data.id));assert.ok(erased)
+   transport.setNow(new Date(Number(erased.signature.match(/^t=(\d+)/)[1])*1000).toISOString())
+   await denied(()=>trigger(erased),403)
+   return
+  }
+  const kinds=new Set()
+  for(const message of messages){
+   if(kinds.has(message.event.type))continue
+   kinds.add(message.event.type)
+   transport.setNow(new Date(Number(message.signature.match(/^t=(\d+)/)[1])*1000).toISOString())
+   const accepted=await trigger(message)
+   assert.deepEqual(accepted,[message.event],'The packaged trigger exposes exactly the actual signed identifier-only native event')
+   assert.deepEqual(Object.keys(accepted[0].data),['id'])
+  }
+  assert.equal(kinds.size,8,'All eight current native webhook event kinds execute the packaged triggers')
+  const stamp=Number(first.signature.match(/^t=(\d+)/)[1])*1000
+  transport.setNow(new Date(stamp).toISOString())
+  assert.deepEqual(await trigger(first),[first.event],'Repeated delivery retains the event identity used by downstream idempotency')
+  const donorId=(await h.get(prefix+'/gifts/'+first.event.data.id)).data.donor_id
+  const owner=(await h.get('/auth/session')).operator.id
+  const taskInput={invocationId:first.event.id,donorId,ownerId:owner,dueOn:'2026-11-01',kind:'follow_up',title:'synthetic-coffer-7551'}
+  const action=()=>test(App.creates.create_task.operation.perform,{authData:{baseUrl,apiKey:full.token},inputData:taskInput})
+  const tasks=await Promise.all([action(),action()]);assert.equal(tasks[0].id,tasks[1].id)
+  assert.equal((await h.get(prefix+'/tasks/'+tasks[0].id)).data.is_ask,0,'Gift trigger to packaged action creates the exact owned non-ask native task')
+  const forged=capture(first);forged.rawRequest.content=first.body+' '
+  await denied(()=>trigger(first,forged),403)
+  await denied(()=>trigger(first,{targetUrl:targetUrl+'/unapproved'}),403)
+  const mismatched=capture(first);mismatched.rawRequest.headers['Coffer-Delivery-Id']='synthetic-coffer-7552'
+  await denied(()=>trigger(first,mismatched),403)
+  await denied(()=>test(App.triggers.donor_created.operation.perform,capture(first)),400)
+  transport.setNow(new Date(stamp+301000).toISOString())
+  await denied(()=>trigger(first),403)
+  transport.setNow(new Date(stamp).toISOString())
+  const limited=await h.api(prefix+'/keys',{label:'synthetic-coffer-7553',scope:'read-only'},keyOptions)
+  await denied(()=>trigger(first,{authData:{baseUrl,apiKey:limited.token}}),403)
+  const admin=await h.person(['synthetic-coffer-7554','example.test'].join('@'),'admin')
+  const foreignKey=await h.api(prefix+'/keys',{label:'synthetic-coffer-7555',scope:'full'},{...keyOptions,as:admin.cookie})
+  await denied(()=>trigger(first,{authData:{baseUrl,apiKey:foreignKey.token}}),403)
+  const replay=await h.command('webhook.replay',{deliveryId:first.deliveryId,reviewed:'yes'})
+  const replayTick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+String(stamp+1000));assert.equal(replayTick.status,200)
+  const repeated=messages.find(message=>message.deliveryId===replay.id);assert.ok(repeated)
+  assert.equal(repeated.event.id,first.event.id)
+  assert.deepEqual(await trigger(repeated),[first.event],'Reviewed replay keeps stable identity while retaining a distinct native delivery')
+  assert.deepEqual(await action(),tasks[0],'Trigger replay cannot duplicate the downstream task under the same principal')
+  const state=(await h.get('/api/coffer/webhooks')).subscriptions.find(s=>s.id===signed.id)
+  await h.command('webhook.pause',{subscriptionId:signed.id,version:state.version})
+  await denied(()=>trigger(first),403)
+  await h.command('webhook.resume',{subscriptionId:signed.id,version:state.version+1,reviewed:'yes'})
+  // Resume never releases held history. A new event has a fresh delivery.
+  const current=(await h.get('/api/coffer/webhooks')).subscriptions.find(s=>s.id===signed.id)
+  await h.command('webhook.rotate',{subscriptionId:signed.id,version:current.version,overlapMinutes:0,reviewed:'yes'})
+  await denied(()=>trigger(first),403)
+  const freshDonor=await donor(h,'synthetic-coffer-7556',{email:null})
+  const freshTick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+String(stamp+2000));assert.equal(freshTick.status,200)
+  const fresh=messages.find(message=>message.event.data.id===freshDonor.id);assert.ok(fresh)
+  assert.deepEqual(await trigger(fresh),[fresh.event],'Current signing authority accepts a fresh post-rotation event')
+  const expired=await h.api(prefix+'/keys',{label:'synthetic-coffer-7557',scope:'full',expiresOn:'2026-11-01'},keyOptions)
+  assert.deepEqual(await trigger(fresh,{authData:{baseUrl,apiKey:expired.token}}),[fresh.event])
+  transport.setNow('2026-11-02T00:00:00.000Z')
+  await denied(()=>trigger(fresh,{authData:{baseUrl,apiKey:expired.token}}),401)
+  transport.setNow(new Date(stamp+2000).toISOString())
+  await h.api(prefix+'/keys/'+full.id+'/revoke',{})
+  await denied(()=>trigger(first),401)
+ }, '2026-10-27T12:00:00.000Z'))
 }
