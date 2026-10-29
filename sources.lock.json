@@ -2459,7 +2459,7 @@
       "executable": false
     },
     "src/coffer/agent/reconciliation-ui.ts": {
-      "sha256": "7c5e667935314a3664250474eeda35165a36e82462805d4e1df8befb105b4bad",
+      "sha256": "ff610f813a0fc315e1cf3ac86aa4bf9af7029d8be4864b318ece1225281427de",
       "executable": false
     },
     "src/coffer/agent/reconciliation.ts": {
@@ -6303,7 +6303,7 @@
       "executable": false
     },
     "tests/agent-quickbooks-journey.mjs": {
-      "sha256": "0bb5932bd9333ab8336aa307253345e48baf433176982c8bfc4296305c410a8e",
+      "sha256": "aaf4700dacf6a3629c1dda100b6685bdf0ba2f3d26e015add7aced1bd410aea8",
       "executable": false
     },
     "tests/agent-receipts.test.mjs": {
@@ -6311,7 +6311,7 @@
       "executable": false
     },
     "tests/agent-reconciliation.test.mjs": {
-      "sha256": "de485ca94654e6c08f0313019d8265c5b007bb27b4842b1ad30e9c14bbb17174",
+      "sha256": "99e5c41c66616ba9b84ffbea527022d20d43ebafb2c35856d1884d46e4d8abae",
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
@@ -7067,7 +7067,7 @@
       "executable": false
     },
     "tests/reconciliation-approval-browser.mjs": {
-      "sha256": "8596671381b589c1edcf632521338fd08cc31774b3ffb17cbc7795c100a1426b",
+      "sha256": "2789f3069aee403dc66c3ca9ebc07f8d6eae497817dceff51e6fdda363f436a6",
       "executable": false
     },
     "tests/recovery-browser.mjs": {

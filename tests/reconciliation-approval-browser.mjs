@@ -15,6 +15,7 @@ export async function reconciliationApprovalBrowser(h,{issueId,phase,approve=fal
    assert.equal(await approval.count(),1)
    assert.equal(await card.getByRole('button',{name:undo?'Undo correction':'Apply correction',exact:true}).count(),0,'Unapproved money changes have no apply control')
    assert.match(await card.innerText(),undo?/compensating undo/:/finance lead/)
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Native approval review fits the desktop viewport')
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
     await page.screenshot({path:`${directory}/${phase}-${width}.png`,fullPage:true})

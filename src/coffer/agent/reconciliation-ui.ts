@@ -12,7 +12,7 @@ function controls(row:Row) {
  const action=row.state==='applied'?'undo':'apply'
  if(!['open','applied'].includes(row.state) || !['contribution','missing_gift'].includes(row.proposed.action)) return ''
  const undo=action==='undo',label=undo?'Undo correction':'Apply correction'
- const explanation=undo?(row.proposed.action==='contribution'?`<ul>${row.proposed.changes.map((change:Row)=>`<li>${e(change.fund)}: ${money(-change.cents)}</li>`).join('')}</ul>`:'<p>Undo records a full reversal of the synced gift. It never refunds the processor charge.</p>'):''
+ const explanation=undo?(row.proposed.action==='contribution'?`<p>Proposed compensating entries:</p><ul>${row.proposed.changes.map((change:Row)=>`<li>${e(change.fund)}: ${money(-change.cents)}</li>`).join('')}</ul>`:'<p>Undo records a full reversal of the synced gift. It never refunds the processor charge.</p>'):''
  return `${explanation}${row.financeApproval?`<p role="status">Finance approval recorded. Current approver authority is checked again before this exact ${undo?'undo':'correction'} runs.</p><form method="post" action="/app/agent/reconcile/${action}">${hidden('id',row.id)}<button${undo?' class="secondary"':''}>${label}</button></form>`:
  `<form method="post" action="/app/agent/reconcile/approve">${hidden('id',row.id)}${hidden('action',action)}${hidden('fingerprint',row.approvalFingerprint)}<label><input type="checkbox" name="financeLead" value="yes" required> I am acting as finance lead and approve this exact ${undo?'compensating undo':'correction'}.</label><button>${undo?'Approve undo':'Approve correction'}</button></form>`}`
 }

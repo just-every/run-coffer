@@ -54,6 +54,7 @@ export async function agentQuickbooksJourney(){
   assert.equal(open(result).filter(i=>i.kind==='quickbooks_missing').length,4,'Absent payout, batch, refund and dispute claims are review-only')
   const absent=open(result)[0]
   await h.api('/api/coffer/agent/reconcile/apply',{id:absent.id},{status:409})
+  await h.api('/api/coffer/agent/reconcile/approve',{id:absent.id,action:'apply',fingerprint:absent.fingerprint,financeLead:'yes'},{status:409})
   assert.equal(edge.requests.length,0)
   readonly=false;edge.refuse=true
   let attempt=await h.api(payoutPath+'/post',{confirm:'yes'})
@@ -96,6 +97,7 @@ export async function agentQuickbooksJourney(){
    const source=await h.get(issue.evidence.source.url);assert.ok(source)
    assert.equal((await h.request(issue.evidence.source.reviewUrl)).status,200)
    await h.api('/api/coffer/agent/reconcile/apply',{id:issue.id},{status:409})
+   await h.api('/api/coffer/agent/reconcile/approve',{id:issue.id,action:'apply',fingerprint:issue.fingerprint,financeLead:'yes'},{status:409})
   }
   const ids=changed.map(i=>i.id).sort()
   assert.deepEqual(open(await h.api(check,{})).filter(i=>i.kind==='quickbooks_changed').map(i=>i.id).sort(),ids,'Replay updates the same open findings')
