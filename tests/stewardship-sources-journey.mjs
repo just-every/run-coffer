@@ -138,6 +138,19 @@ export async function stewardshipSourcesJourney(){
   const stale=await h.api(route('send'),{...pendingReview,confirm:'SEND'},{status:409});assert.equal(stale.error,'SOURCES_CHANGED')
   await h.api(route('save'),{...pendingReview,subject:pending.row.subject,body:pending.row.body},{status:409})
   assert.equal(calls.length,callsBefore,'Stale evidence is refused before another model disclosure')
+  // Change attendance after review, independently of payment or reply changes.
+  const extraGuest=await h.request('/giving/events/source-gala/checkout',{method:'POST',as:'',headers:{'content-type':['application','x-www-form-urlencoded'].join('/')},raw:new URLSearchParams({requestId:randomUUID(),ticketId:ticket.id,name:people[1].name,email:people[1].email,'cf-turnstile-response':'synthetic-coffer-security-token'}).toString()})
+  assert.equal(extraGuest.status,303)
+  assert.equal((await h.request('/giving/thanks?session_id='+[...sessions.keys()].at(-1),{as:''})).status,200)
+  const nextRegistration=(await h.get('/api/coffer/events?eventId='+event.id)).find(r=>r.donor_id===people[1].id&&r.id!==registrations[1].id)
+  assert.ok(nextRegistration)
+  assert.equal((await state(people[1])).sources.filter(s=>s.kind==='attendance').length,1)
+  const attendanceDraft=await draftFor(people[1]),attendanceReview=await save(attendanceDraft),attendanceMail=h.messages.length
+  await h.command('event.checkIn',{registrationId:nextRegistration.id})
+  assert.equal((await h.api(route('send'),{...attendanceReview,confirm:'SEND'},{status:409})).error,'SOURCES_CHANGED')
+  const discardedAttendance=await h.api(route('discard'),attendanceReview)
+  assert.equal((await h.api(route('restore'),discardedAttendance,{status:409})).error,'SOURCES_CHANGED')
+  assert.equal(h.messages.length,attendanceMail,'New attendance invalidates review and sends nothing')
   const identityDraft=await draftFor(people[2]),identityReview=await save(identityDraft)
   const original=(await h.get('/api/coffer/donors/'+people[2].id)).donor
   await h.command('donor.update',{donorId:original.id,version:original.version,name:'Cora Corrected',email:address('corrected')})
@@ -161,7 +174,7 @@ export async function stewardshipSourcesJourney(){
   const merged=await h.command('donor.merge',{sourceDonorId:people[0].id,donorId:people[1].id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
   await h.get('/api/coffer/agent/stewardship?donorId='+people[0].id,{status:404})
   const combined=(await state(people[1])).sources
-  assert.equal(combined.filter(s=>s.kind==='attendance').length,2);assert.equal(combined.filter(s=>s.kind==='reply').length,3)
+  assert.equal(combined.filter(s=>s.kind==='attendance').length,3);assert.equal(combined.filter(s=>s.kind==='reply').length,3)
   await h.api(route('send'),{...restoredDraft,confirm:'SEND'},{status:409})
   await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'})
   assert.equal((await state()).sources.filter(s=>s.kind==='attendance').length,1)
