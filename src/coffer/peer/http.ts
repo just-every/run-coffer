@@ -7,17 +7,22 @@ import type { GivingEnv } from '../giving/stripe'
 import { ownState, saveTeam, savePage, publicPage, leaderboard } from './service'
 import { savePeerRecognition } from './recognition'
 import { peerDashboard, peerPublicPage, peerLeaderboard } from './ui'
+import { publicTeam, peerTeamPage } from './team'
 
 const headers = {'cache-control': 'no-store', 'referrer-policy': 'no-referrer'}
 export async function peerResponse(request: Request, env: GivingEnv): Promise<Response | null> {
  const url = new URL(request.url), path = url.pathname
  if (!path.startsWith('/giving/peer')) return null
- const publicMatch = path.match(/^\/giving\/peer\/(pages|leaderboard)\/([a-z0-9-]+)$/)
+ const publicMatch = path.match(/^\/giving\/peer\/(pages|teams|leaderboard)\/([a-z0-9-]+)$/)
  if (publicMatch) {
   if (request.method !== 'GET') fail('method_not_allowed', 'Use the fundraising page.', 405)
   if (publicMatch[1] === 'pages') {
    const value = await publicPage({db:env.DB}, publicMatch[2])
    return url.searchParams.get('format') === 'json' ? Response.json(value, {headers}) : peerPublicPage(value)
+  }
+  if (publicMatch[1] === 'teams') {
+   const value = await publicTeam({db:env.DB}, publicMatch[2])
+   return url.searchParams.get('format') === 'json' ? Response.json(value, {headers}) : peerTeamPage(value)
   }
   const record = await one({db:env.DB}, 'SELECT slug FROM cf_campaigns WHERE id=? AND active=1', publicMatch[2])
   if (!record) fail('not_found', 'That campaign is unavailable.', 404)

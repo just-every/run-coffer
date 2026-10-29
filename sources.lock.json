@@ -3571,7 +3571,7 @@
       "executable": false
     },
     "src/coffer/peer/http.ts": {
-      "sha256": "6e3c7b01a948b26c225de7157f79935c76adcef84968d90895bd9703074f6e84",
+      "sha256": "8dd565b6c3754593478d8c6c990a4e5e7079e0ce0b994a982380d5f08e8a4066",
       "executable": false
     },
     "src/coffer/peer/recognition.ts": {
@@ -3582,8 +3582,12 @@
       "sha256": "0bb855b95a5d8b672fd244994edad032b45c3790fbbed27b43f0e644eba18048",
       "executable": false
     },
+    "src/coffer/peer/team.ts": {
+      "sha256": "1aa31b1623afa987421eab1c46ed5da7d9448cbbd5afa921110cbd40fc255c33",
+      "executable": false
+    },
     "src/coffer/peer/ui.ts": {
-      "sha256": "317e173a73512ac3273c90099aacb7f496db40376b9fef07054c36934d0adf6a",
+      "sha256": "3f855465a19913c14172a8918d17cf5e9df02f2b150dbb2d9ab51ebf6bfbd0c8",
       "executable": false
     },
     "src/coffer/people.ts": {
@@ -6875,11 +6879,11 @@
       "executable": false
     },
     "tests/peer-browser.mjs": {
-      "sha256": "b978fdf9f29508d6b8eb1a904fa2c3126b0185288b830f4eb170effe0c2838bb",
+      "sha256": "c6a426030a41a34e95b3d521d3d220f095eb62f71f05d8b0c387c8582e5a240e",
       "executable": false
     },
     "tests/peer-journey.mjs": {
-      "sha256": "346b0ea412eeb9023b4874f46533c2b64d00cdbcbbddd201650c5b8f10a6bc63",
+      "sha256": "85f126d8be6314a3bd873e757a0848b79783ee6d938e9eb6fdbd4122de7b2d4d",
       "executable": false
     },
     "tests/pipeline.test.mjs": {

@@ -53,7 +53,7 @@ function ownPage(state: PeerDashboardState, fundraiser: Fundraiser) {
 }
 
 function ownTeam(state: PeerDashboardState, team: Team) {
- return box(team.title, `<p>${e(state.campaigns.find(c => c.id === team.campaign_id)?.name)} · ${team.published ? 'Published team' : 'Private team draft'}</p><details class="edit"><summary>Edit this team</summary><form method="post" action="/giving/peer/teams">${hidden('id', team.id)}${hidden('version', team.version)}${hidden('campaignId', team.campaign_id)}${title(team.title)}${goal(team.goal_cents)}${publication(!!team.published)}<p>Clear “Publish this fundraiser” to unpublish this team.</p><button>Save team</button></form></details>`)
+ return box(team.title, `<p>${e(state.campaigns.find(c => c.id === team.campaign_id)?.name)} · ${team.published ? 'Published team' : 'Private team draft'}</p><details class="edit"><summary>Edit this team</summary><form method="post" action="/giving/peer/teams">${hidden('id', team.id)}${hidden('version', team.version)}${hidden('campaignId', team.campaign_id)}${title(team.title)}${goal(team.goal_cents)}${publication(!!team.published)}<p><a href="/giving/peer/teams/${e(team.id)}">View and share this team</a></p><p>Clear “Publish this fundraiser” to unpublish this team.</p><button>Save team</button></form></details>`)
 }
 
 export async function peerDashboard(state: PeerDashboardState, saved = false): Promise<Response> {
@@ -71,7 +71,7 @@ function progress(raised: number, target: number, count: number) {
 
 export async function peerPublicPage(value: PeerPublicValue): Promise<Response> {
  const { page: fundraiser, campaign, team } = value
- const intro = box(campaign.name, `${fundraiser.recognition_name ? `<p>Fundraising by ${e(fundraiser.recognition_name)}</p>` : ''}${team ? `<p>Team: ${e(team.title)}</p>` : ''}${progress(value.raisedCents, fundraiser.goal_cents, value.giftCount)}<p><a class="button" href="/give/${encodeURIComponent(campaign.slug)}?peer=${encodeURIComponent(fundraiser.id)}">Give through this page</a></p><p><a href="/giving/peer/leaderboard/${encodeURIComponent(campaign.id)}">View campaign leaderboard</a></p>`)
+ const intro = box(campaign.name, `${fundraiser.recognition_name ? `<p>Fundraising by ${e(fundraiser.recognition_name)}</p>` : ''}${team ? `<p>Team: <a href="/giving/peer/teams/${e(team.id)}">${e(team.title)}</a></p>` : ''}${progress(value.raisedCents, fundraiser.goal_cents, value.giftCount)}<p><a class="button" href="/give/${encodeURIComponent(campaign.slug)}?peer=${encodeURIComponent(fundraiser.id)}">Give through this page</a></p><p><a href="/giving/peer/leaderboard/${encodeURIComponent(campaign.id)}">View campaign leaderboard</a></p>`)
  const wall = box('Supporters', value.wall.length ? `<ul class="list">${value.wall.map(gift => `<li><strong>${e(gift.name)}</strong> · ${money(gift.amountCents)}</li>`).join('')}</ul>` : '<p>No gifts have been shared on this donor wall yet.</p>')
  return page(fundraiser.title, `${intro}${wall}`)
 }
@@ -79,7 +79,7 @@ export async function peerPublicPage(value: PeerPublicValue): Promise<Response> 
 function leaderboardRows(rows: PeerLeaderboardRow[], teams: PeerLeaderboardRow[], personal: boolean) {
  return rows.length ? `<ol class="list">${rows.map(row => {
   const team = row.teamId ? teams.find(t => t.id === row.teamId) : undefined
-  return `<li><strong>${personal ? `<a href="${publicPath(row.id)}">${e(row.title)}</a>` : e(row.title)}</strong>${personal && row.name ? `<p>${e(row.name)}${team ? ` · ${e(team.title)}` : ''}</p>` : team ? `<p>${e(team.title)}</p>` : ''}<p>${money(row.raisedCents)} raised of ${money(row.goalCents)} · ${e(row.giftCount)} ${row.giftCount === 1 ? 'gift' : 'gifts'}</p></li>`
+  return `<li><strong>${personal ? `<a href="${publicPath(row.id)}">${e(row.title)}</a>` : `<a href="/giving/peer/teams/${encodeURIComponent(row.id)}">${e(row.title)}</a>`}</strong>${personal && row.name ? `<p>${e(row.name)}${team ? ` · ${e(team.title)}` : ''}</p>` : team ? `<p>${e(team.title)}</p>` : ''}<p>${money(row.raisedCents)} raised of ${money(row.goalCents)} · ${e(row.giftCount)} ${row.giftCount === 1 ? 'gift' : 'gifts'}</p></li>`
  }).join('')}</ol>` : `<p>No public ${personal ? 'fundraisers' : 'teams'} yet.</p>`
 }
 

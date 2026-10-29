@@ -137,7 +137,9 @@ export async function peerJourney(){
   for(const text of ['First Reading Champion','First reading page','Private preparation','Readers together'])assert.ok(!erased.includes(text),text+' erased from retained private state')
   assert.equal((await h.get('/api/coffer/giving/campaigns/'+parent.id)).raisedCents,5500)
   await h.command('donor.erase',{donorId:secondGift.donorId,confirm:'ERASE'})
-  assert.equal((await h.request('/giving/thanks?session_id='+secondGift.sessionId,{as:''})).status,404,'Erased payment identity is not recreated by capture replay')
+  assert.equal((await h.request('/giving/thanks?session_id='+secondGift.sessionId,{as:''})).status,409,'Erased payment identity is not recreated by capture replay')
+  assert.ok(!(await h.get('/api/coffer/donors')).donors.some(d=>d.name==='Second Actual Giver'))
+  assert.equal((await h.get('/api/coffer/giving/campaigns/'+parent.id)).raisedCents,5500)
   await h.command('donor.unmerge',{mergeId:merged.mergeId,reason:'incorrect_match'},{status:409})
  },options(edge))
  if(process.env.COFFER_PEER_BROWSER){
