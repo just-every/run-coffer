@@ -40,7 +40,7 @@ export async function callTasks(c: Context, ownerId?: string | null, status?: st
  return ownerId?rows.filter(t=>t.owner_id===ownerId||t.escalated_to===ownerId):rows
 }
 const live = (donorId: string) => guard('EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND erased_at IS NULL) AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=?)', 'DONOR_CHANGED', 'That donor changed. Refresh the call list.', donorId, donorId)
-const owner = (ownerId: string) => guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))", 'OWNER_CHANGED', 'Choose a current team member.', ownerId)
+export const taskOwnerGuard = (ownerId: string) => guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))", 'OWNER_CHANGED', 'Choose a current team member.', ownerId)
 export async function callTaskCommand(c: Context, command: string, p: Row): Promise<Row | undefined> {
  if (!['task.create','task.policy','task.reminders','task.generate','task.assign','task.snooze','task.complete'].includes(command)) return undefined
  requireRole(c.actor, ['owner','admin','member'], 'manage call tasks')
@@ -61,7 +61,7 @@ export async function callTaskCommand(c: Context, command: string, p: Row): Prom
   const classification=await prepareSolicitationRun(c,{kind:'call-task',id:taskId,channel:'phone',isAsk,donorIds:[donorId]})
   if(classification.excluded.length)fail('SOLICITATION_RESTRICTED',classification.excluded[0].reason)
   const giftId=optional(p.giftId,'Gift'),prospectId=optional(p.prospectId,'Opportunity')
-  await commit(c,[live(donorId),owner(ownerId),guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND constituent_status='active')",'DONOR_STATUS','Choose an active constituent.',donorId),...classification.statements,...await solicitationRunGuards(c,'call-task',taskId,[donorId],classification),
+  await commit(c,[live(donorId),taskOwnerGuard(ownerId),guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND constituent_status='active')",'DONOR_STATUS','Choose an active constituent.',donorId),...classification.statements,...await solicitationRunGuards(c,'call-task',taskId,[donorId],classification),
    ...(giftId?[guard('EXISTS(SELECT 1 FROM cf_gifts WHERE id=? AND donor_id=?)','LINK_CHANGED','Choose a gift belonging to this constituent.',giftId,donorId)]:[]),...(prospectId?[guard('EXISTS(SELECT 1 FROM cf_prospects WHERE id=? AND donor_id=?)','LINK_CHANGED','Choose an opportunity belonging to this constituent.',prospectId,donorId)]:[]),
    sql("INSERT INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at,is_ask,task_kind,gift_id,prospect_id) VALUES(?,?,?,'manual',?,0,?,?,?,?,?,?,?)",taskId,donorId,'manual:'+taskId,reason,ownerId,due,c.now,isAsk?1:0,kind,giftId,prospectId),event(c,command,'task',taskId,donorId,{kind,ownerId,dueOn:due})])
   return (await one(c,'SELECT * FROM cf_call_tasks WHERE id=?',taskId))!
@@ -73,7 +73,7 @@ export async function callTaskCommand(c: Context, command: string, p: Row): Prom
   const ownerId = id(p.ownerId, 'Owner'), due = date(p.dueOn, 'Due date'), taskId = newId()
   const classification=await prepareSolicitationRun(c,{kind:'call-task',id:taskId,channel:'phone',isAsk:source.kind!=='pledge'&&isAsk,donorIds:[source.donorId]})
   if(classification.excluded.length)fail('SOLICITATION_RESTRICTED',classification.excluded[0].reason)
-  await commit(c, [...classification.statements,...await solicitationRunGuards(c,'call-task',taskId,[source.donorId],classification),live(source.donorId), guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND constituent_status='active')", 'DONOR_STATUS', 'This constituent is no longer active, so no new call task is created.', source.donorId), owner(ownerId),
+  await commit(c, [...classification.statements,...await solicitationRunGuards(c,'call-task',taskId,[source.donorId],classification),live(source.donorId), guard("EXISTS(SELECT 1 FROM cf_donors WHERE id=? AND constituent_status='active')", 'DONOR_STATUS', 'This constituent is no longer active, so no new call task is created.', source.donorId), taskOwnerGuard(ownerId),
    sql(`INSERT OR IGNORE INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at,is_ask) VALUES(?,?,?,?,?,?,?,?,?,?)`, taskId, source.donorId, key, source.kind, source.reason, source.amountCents, ownerId, due, c.now,source.kind==='pledge'?0:isAsk?1:0),
    // Only the creator records the event; repeated submissions keep the existing owner and progress.
    sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) SELECT ?,?,?,?,'task.generate','task',id,donor_id,'{}' FROM cf_call_tasks WHERE id=?`, c.now,c.actor.id,c.actor.name,c.actor.role,taskId)])
@@ -85,7 +85,7 @@ export async function callTaskCommand(c: Context, command: string, p: Row): Prom
  const checks = [live(task.donor_id), guard("EXISTS(SELECT 1 FROM cf_call_tasks WHERE id=? AND version=? AND status<>'done')", 'TASK_CHANGED', 'This task changed or is already done. Refresh before saving.', taskId,version)]
  if (command === 'task.assign') {
   const ownerId = id(p.ownerId,'Owner'), due = date(p.dueOn,'Due date')
-  await commit(c,[...checks,owner(ownerId),sql('UPDATE cf_call_tasks SET owner_id=?,due_on=?,version=version+1 WHERE id=?',ownerId,due,taskId),event(c,command,'task',taskId,task.donor_id,{ownerId,dueOn:due})])
+  await commit(c,[...checks,taskOwnerGuard(ownerId),sql('UPDATE cf_call_tasks SET owner_id=?,due_on=?,version=version+1 WHERE id=?',ownerId,due,taskId),event(c,command,'task',taskId,task.donor_id,{ownerId,dueOn:due})])
  } else if (command === 'task.snooze') {
   const due = date(p.dueOn,'Snooze until'), day = today((await settings(c)).timezone,new Date(c.now))
   if (due<=day) fail('INPUT','Snooze until a future date.',400)

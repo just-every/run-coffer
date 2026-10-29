@@ -43,7 +43,7 @@ export async function readBloomerang(apiKey:string):Promise<BloomerangSnapshot> 
   if(sourceId(detail?.Id)!==id)fail('BLOOMERANG_SCHEMA','Constituent detail does not match the requested source ID.',502)
   snapshot.constituents.push(detail)
   const timeline=await read('/Timeline/'+id)
-  if(!timeline||sourceId(timeline.Id)!==id||sections.some(section=>!Array.isArray(timeline[section]))||Object.entries(timeline).some(([key,value])=>!['Id',...sections].includes(key as any)&&Array.isArray(value)&&value.length))fail('BLOOMERANG_SCHEMA','A Bloomerang timeline is incomplete or contains an unsupported record classification. Nothing was omitted.',502)
+  if(!timeline||sourceId(timeline.Id)!==id||sections.some(section=>!Array.isArray(timeline[section]))||Object.keys(timeline).some(key=>!['Id',...sections].includes(key as any)))fail('BLOOMERANG_SCHEMA','A Bloomerang timeline is incomplete or contains an unsupported record classification. Nothing was omitted.',502)
   const entries:Record<string,RecordValue[]>={}
   for(const section of sections){
    entries[section]=[]

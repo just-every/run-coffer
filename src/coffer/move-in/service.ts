@@ -1,5 +1,6 @@
 import { bloomerangInput } from './bloomerang'
-import { taskOwners } from '../call-tasks'
+import { taskOwners, taskOwnerGuard } from '../call-tasks'
+import { erasureHash } from '../imports/snapshots'
 import { neonInput } from './neon'
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
 import { spreadsheetAddresses } from './spreadsheet-addresses'
@@ -12,7 +13,7 @@ import { manager } from '../auth'
 import { all, commit, CofferError, date, event, fail, guard, one, optional, sha256, sql, today, type Context, type Row, type Stmt } from '../db'
 import { settings } from '../settings'
 import { parseExports } from './parse'
-import { contentHash, planImport, type Plan } from './plan'
+import { contentHash, nativeId, planImport, type Plan } from './plan'
 import { compare } from './reconcile'
 import { importedHouseholdWrites, importHouseholdUndoFence, importHouseholdUndoWrites } from './household-writes'
 import { stageParts } from './stage'
@@ -27,7 +28,7 @@ function confirmedNeonCurrency(job:Row) {
 }
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
-const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes','tasks'].map(k=>[k,((p as any)[k]??[]).length])),...(['givebutter','zeffy'].includes(p.source)?{recurringReferences:(p.recurringReferences??[]).length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...(['spreadsheet','givebutter','zeffy','neon','bloomerang'].includes(p.source)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
+const summary=(p:ParsedImport)=>({...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...(p.tasks!==undefined?{tasks:p.tasks.length}:{}),...(['givebutter','zeffy'].includes(p.source)?{recurringReferences:(p.recurringReferences??[]).length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...((['spreadsheet','givebutter','zeffy','neon'].includes(p.source)||p.source==='bloomerang'&&p.sourceCoverage!==undefined)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
 
 export async function spreadsheetMappings(c:Context) {
  authorize(c)
@@ -57,6 +58,12 @@ export async function preview(c: Context,input: ParseInput) {
  const fileFingerprint=await contentHash({source:input.source,files:input.files.map(f=>f.base64).sort(),noGoodsOrServices:input.noGoodsOrServices===true,solicitCodes:input.solicitCodes??null,customFields:parsed.customFields,tasks:parsed.tasks,sourceCoverage:parsed.sourceCoverage,...(input.source==='spreadsheet'?{spreadsheet:parsed.spreadsheet}: {})})
  const id=fileFingerprint.slice(0,40)
  const prior=await one(c,'SELECT id,state,fingerprint,parts,applied_parts,redacted FROM cf_move_in_jobs WHERE file_fingerprint=?',fileFingerprint)
+ // A new REST capture must not retain source PII for an erased constituent,
+ // even when the provider returns a changed file set after the original erasure.
+ if(sourceCoverage&&parsed.source==='bloomerang'&&!prior?.redacted){
+  const hashes=await Promise.all(parsed.donors.map(async d=>[erasureHash(await nativeId(parsed.source,'donor',d.externalId)),erasureHash(`${parsed.source}:${d.externalId}`),...([d.email,...(d.contacts??[]).filter(p=>p.kind==='email').map(p=>p.value)].filter(Boolean).map(erasureHash))]))
+  if(await one(c,'SELECT 1 FROM cf_erasures WHERE hash IN(SELECT value FROM json_each(?)) LIMIT 1',JSON.stringify(hashes.flat())))fail('MOVE_IN_ERASED','This source capture includes an erased constituent. Remove that person and their linked source records before previewing; no review was retained.',409)
+ }
  if(prior?.redacted)parsed.diagnostics.push({severity:'error',code:'MOVE_IN_ERASED',message:'An imported constituent was erased. This move-in cannot restore their contact or history.'})
  const parts=stageParts(parsed),nativeDonors=new Set<string>()
  // A bad source row must not hide independent conflicts elsewhere in the files.
@@ -101,7 +108,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  if(acknowledgeFrom&&c.actor.role!=='owner')fail('FORBIDDEN','Only the owner sets the installation acknowledge-from date during move-in.',403)
  const acknowledgedBefore=input.acknowledged==='no'?null:date(input.acknowledgedBefore||today((await settings(c)).timezone,new Date(c.now)),'Thanked before')
  await commit(c,[guard("EXISTS(SELECT 1 FROM cf_move_in_jobs WHERE id=? AND state='reviewed' AND fingerprint=?)",'MOVE_IN_CHANGED','This move-in changed. Review it again.',job.id,job.fingerprint),
-  ...(report.taskOwners??[]).map((ownerId:string)=>guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))",'BLOOMERANG_OWNER','A reviewed task owner is no longer active. Review the mapping again.',ownerId)),
+  ...(report.taskOwners??[]).map((ownerId:string)=>taskOwnerGuard(ownerId)),
   ...(acknowledgeFrom?[sql('UPDATE cf_receipt_autonomy SET version=version+1,acknowledge_from=?,updated_at=?,updated_by=? WHERE id=1',acknowledgeFrom,c.now,c.actor.id),event(c,'agent.receipts.cutoff','receipt_autonomy','1',null,{acknowledgeFrom,moveInId:job.id})]:[]),
   sql("UPDATE cf_move_in_jobs SET state='applying',accepted_reason=?,acknowledged_before=?,created_at=?,created_by=? WHERE id=?",acceptedReason,acknowledgedBefore,c.now,c.actor.name,job.id),
   event(c,'move-in.apply','move-in',job.id,null,{source:job.source,counts:report.counts,parts:job.parts,acceptedDifferences:!!acceptedReason,acknowledgedBefore})])

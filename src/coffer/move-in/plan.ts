@@ -64,7 +64,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
  const diagnostic = (message: string, location?: Located['location'], severity: 'error'|'warning' = 'error', code = 'MOVE_IN_MAPPING', column = 'Record ID') => plan.diagnostics.push({severity,code,message,column,...location})
  const add = async (kind: Kind, entity: Located & {externalId:string}, row: Row, match?: string, donorId: string | null = null, relatedId: string | null = null) => {
   // A donor's household is inferred from the whole file set, so it is not part of the donor's own details.
-  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,expectedNativeId:_expected,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string;expectedNativeId?:string}
+  const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,householdKey:_h,householdName:_n,expectedNativeId:_expected,ownerName:_ownerName,...payload} = entity as typeof entity & {householdKey?:string;householdName?:string;expectedNativeId?:string;ownerName?:string}
   const hash = await contentHash(payload), previous = existing.get(`${kind}:${key}`)
   if (previous) {
    // A later file (another year's gifts) finds the donors and households an earlier move-in brought, by the CRM's own ID.

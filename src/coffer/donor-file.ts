@@ -150,6 +150,13 @@ export async function donorFile(c: Context, donorId: string, input: Row) {
    for (const k of t.donors) if (out[k] !== null && !ids.includes(out[k])) out[k] = opaque(out[k])
    for (const k of t.parents) if (!ownsRef(k, out[k])) out[k] = opaque(out[k])
    for (const k of THIRD_PARTY[t.name] ?? []) if (out[k] !== null) out[k] = '[third party withheld]'
+   // Import undo custody is a second copy of the same private tribute contact.
+   // Apply the native row's disclosure rule to that nested snapshot as well.
+   if(t.name==='cf_move_in_records'&&out.kind==='tribute'&&out.snapshot){
+    const snapshot=JSON.parse(out.snapshot)
+    for(const key of THIRD_PARTY.cf_gift_tributes)if(snapshot[key]!==null&&snapshot[key]!==undefined)snapshot[key]='[third party withheld]'
+    out.snapshot=JSON.stringify(snapshot)
+   }
    if (t.name.endsWith('events') && out.subject_kind !== 'route' && foreign(out.subject_id)) out.subject_id = opaque(out.subject_id)
    if (t.name.endsWith('events') && typeof out.detail === 'string') { try { out.detail = cleanDetail(JSON.parse(out.detail)) } catch { /* keep text */ } }
    return out

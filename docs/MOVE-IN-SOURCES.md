@@ -178,6 +178,7 @@ names or email-interest categories. The report has these optional sections:
 
 ```json
 {
+  "transactions": {"201": {"tributeGroup": "synthetic-coffer-3", "notifiedName": "Source family contact", "notifiedAddress": "1 Memorial Lane"}},
   "constituents": {
     "101": {
       "preferences": {"email": "yes", "mail": "yes", "phone": "unknown", "sms": "unknown"},
@@ -193,7 +194,9 @@ names or email-interest categories. The report has these optional sections:
 }
 ```
 
-Section keys and member references use API IDs, never display names. Constituent
+Section keys and member references use API IDs, never display names. Optional
+transaction tribute facts also accept `notifiedEmail`; recipient details stay
+private and never invent donor permission to publish an amount. Constituent
 facts may also contain `deceasedOn` and `statusReason`; death dates must agree
 with the API deceased status. Relationships accept spouse, employer,
 board_member, foundation_officer and introduced_by. Acknowledgment facts may
@@ -210,13 +213,17 @@ meaning, source and import date. Newer native preferences, address processing,
 solicitation restrictions and private tribute custody remain enforced.
 
 For every open source task, explicitly map its `AssignedToUserId` to a current
-Coffer team member in **Reviewed task owners**, for example
-`{"501":"current-member-id"}`. The source task must have `Status: Open`, a
+Coffer team member under **Review task owners**. Enter comma-separated source
+user IDs beside the member who will own that work. The HTTP preview accepts
+the same reviewed mapping as `bloomerang.taskOwners`, keyed by source user ID. The source task must have `Status: Open`, a
 `Subject` and a real `DueDate`; its `CompletedDate` is absent or the documented
 uncompleted sentinel. The review names the chosen member, source user, due date
 and task. A revoked or changed owner prevents application. Tasks import as
 non-ask follow-up work without sending a message or making a call. Completed,
 archived and linked-interaction task semantics remain unsupported. The same
 journal fences, replay protection, archive custody, merge and erasure rules
-apply; edits or new dependencies prevent destructive undo. A network fixture
+apply; edits or new dependencies prevent destructive undo. Private family
+contacts are withheld from donor files in both native tribute records and import
+undo snapshots. A changed source capture containing an erased constituent is
+refused before a new review can retain their personal data. A network fixture
 qualifies this supported mapping, never a live Bloomerang installation.

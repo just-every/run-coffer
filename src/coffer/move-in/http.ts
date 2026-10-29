@@ -97,8 +97,11 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
   }
   let bloomerang:ParseInput['bloomerang']
   if(get('bloomerangApi')==='yes'){
-   let taskOwners:Record<string,string>={}
-   try{taskOwners=JSON.parse(String(get('bloomerangOwners')||'{}'))}catch{fail('BLOOMERANG_OWNER','Write the source user IDs and selected Coffer member IDs as a JSON object.',400)}
+   const taskOwners:Record<string,string>={},targets=parts('bloomerangTargetOwner')
+   parts('bloomerangSourceUsers').forEach((value,index)=>{for(const source of value.split(',').map(v=>v.trim()).filter(Boolean)){
+    if(!/^[1-9][0-9]*$/.test(source)||!targets[index]||Object.hasOwn(taskOwners,source))fail('BLOOMERANG_OWNER','Assign each numeric Bloomerang user ID once to a current team member.',400)
+    taskOwners[source]=targets[index]
+   }})
    bloomerang={apiKey:String(get('bloomerangKey')||''),currency:get('bloomerangUsd')==='USD'?'USD':undefined,taskOwners}
   }
   input={source:get('source'),bloomerang,...(get('source')==='neon'?{neon:{organizationId:String(get('organizationId')||''),apiKey:String(get('apiKey')||''),currency:get('neonUsd')==='USD'?'USD':undefined}}:{}),files,spreadsheet,givebutterKey:get('givebutterKey')||undefined,givebutterAmountUnit:get('givebutterAmountUnit')||undefined,noGoodsOrServices:get('noGoodsOrServices')==='yes',solicitCodes:solicitCodeLines(String(get('solicitCodes')||'')),customFields:mappings as ParseInput['customFields']}
