@@ -2,14 +2,14 @@ import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
 import { CofferError } from './db'
 export type Role = 'owner' | 'admin' | 'member' | 'agent'
 /** `org` is display-only: the organization name the app shell shows in its top bar. */
-export type Actor = { id: string; name: string; role: Role; org?: string; grant?: { id: string; version: number }; preparationGrant?: {id:string;version:number}; apiKey?: {id:string;scope:string} }
+export type Actor = { id: string; name: string; role: Role; org?: string; grant?: { id: string; version: number }; preparationGrant?: {id:string;version:number}; apiKey?: {id:string;scope:string}; teamAccess?: {version:number;readOnly:boolean} }
 export type Authority = { sql: string; params: any[] }
 export const digest = async (value: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), x => x.toString(16).padStart(2, '0')).join('')
 /** Owners and admins manage; members do data entry; agents only prepare. */
 export const manager = (actor: Actor) => actor.role === 'owner' || actor.role === 'admin'
 export const person = (actor: Actor) => actor.role !== 'agent'
 export function requireRole(actor: Actor, allowed: Role[], what: string) {
- if (!allowed.includes(actor.role)) throw new CofferError('FORBIDDEN', `Your role cannot ${what}.`, 403)
+ if (actor.teamAccess?.readOnly || !allowed.includes(actor.role)) throw new CofferError('FORBIDDEN', `Your role cannot ${what}.`, 403)
 }
 
 /** A bearer agent key or a native Base session. The returned authority is a SQL
@@ -29,10 +29,12 @@ export async function identity(request: Request, original: Bindings): Promise<{ 
  const session = await operatorAuth(env).getSession(request)
  if (!session) throw new CofferError('sign_in_required', 'Sign in to continue.', 401)
  const { operator: o } = session
+ const restriction=await env.DB.prepare('SELECT version,read_only FROM cf_team_access WHERE operator_id=?').bind(o.id).first<{version:number;read_only:number}>()
+ const access={version:restriction?.version??0,readOnly:restriction?.read_only===1}
  return {
-  actor: { id: o.id, name: o.displayName, role: o.role },
+  actor: { id: o.id, name: o.displayName, role: o.role, teamAccess:access },
   bearer: false,
-  authority: { sql: "EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND s.revoked_at IS NULL AND s.expires_at>? AND s.operator_version=o.version AND o.version=? AND o.status='active' AND o.role=?)", params: [session.id, Date.now(), o.version, o.role] },
+  authority: { sql: "EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND s.revoked_at IS NULL AND s.expires_at>? AND s.operator_version=o.version AND o.version=? AND o.status='active' AND o.role=?) AND COALESCE((SELECT version FROM cf_team_access WHERE operator_id=?),0)=? AND COALESCE((SELECT read_only FROM cf_team_access WHERE operator_id=?),0)=?", params: [session.id, Date.now(), o.version, o.role, o.id, access.version, o.id, access.readOnly?1:0] },
  }
 }
 

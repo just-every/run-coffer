@@ -396,3 +396,8 @@ test('API-002: signed native events retain failed delivery attempts, backoff and
 test('API-001: scoped versioned records enforce acknowledgment authority and atomic idempotency', async () => { const {restApiJourney}=await import('./rest-api-journey.mjs'); await restApiJourney() })
 
 test('API-003: packaged Zapier action creates one owned non-ask task and preserves native authority and custody', async () => { const {zapierJourney}=await import('./zapier-journey.mjs'); await zapierJourney() })
+
+test('TEAM-001: native read-only restrictions preserve ordinary views and refuse mutations, disclosure and stale authority', async () => {
+ const {teamAccessJourney}=await import('./team-access-journey.mjs')
+ await teamAccessJourney()
+})

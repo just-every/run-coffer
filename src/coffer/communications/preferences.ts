@@ -14,15 +14,17 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
  if (!donor) return { state:'no-address', allowed:false }
  Object.assign(donor,await profileRecipient(c,donor,options))
  if(!donor.email)return {state:'no-address',allowed:false,note:'The chosen email contact is missing.'}
+ await commit(c,[])
  await syncConstantContactDonor(c,donorId,donor.email)
  const latest=await one(c,"SELECT id AS consent_id,status AS consent,evidence,captured_on FROM cf_consents WHERE donor_id=? AND channel='email' ORDER BY id DESC LIMIT 1",donorId)
  if(latest)Object.assign(donor,latest)
  const conn = await requireConnection(c), label = providerTitle(conn.provider)
+ await commit(c,[])
  let contact = await providerContact(conn, donor.email)
  // Validate before profile or signup writes, but preserve a known opt-out even
  // when its mapped metadata is malformed. The final import still holds sending.
  if(!contact||!restricted(contact))await importProviderPreferences(c,donorId,conn.provider,contact,true)
- if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) contact = await syncMailchimpNames(conn, donor)
+ if (conn.provider === 'mailchimp' && donor.consent === 'granted' && subscribed(contact)) {await commit(c,[]);contact = await syncMailchimpNames(conn, donor)}
  let state = 'pending', note = 'Confirm the donor’s subscription with the email provider before sending.'
  if (contact && restricted(contact) && donor.consent === 'granted') {
   // Never turn a provider opt-out into a grant, or overwrite a newer answer.
@@ -32,7 +34,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
    event(c, 'marketing.unsubscribe', 'donor', donor.id, donor.id, { provider:label.toLowerCase() })])
   state = 'suppressed'; note = `${label}’s opt-out is recorded in Coffer.`
  } else if (donor.consent === 'withdrawn') {
-  if (!contact || !restricted(contact)) await suppressProvider(conn, donor.email, `${donor.id}:${donor.consent_id}`)
+  if (!contact || !restricted(contact)) {await commit(c,[]);await suppressProvider(conn, donor.email, `${donor.id}:${donor.consent_id}`)}
   state = 'suppressed'; note = `${label} confirmed this email opt-out.`
  } else if (donor.consent !== 'granted') {
   state = 'no-consent'; note = 'No email consent is recorded in Coffer.'
@@ -40,6 +42,7 @@ export async function reconcileDonor(c: Context, donorId: string, capture = fals
   state = 'subscribed'; note = `Coffer consent and ${label} subscription agree.`
  } else if (!contact && capture) {
   const s = await settings(c)
+  await commit(c,[])
   contact = await captureProviderConsent(conn,donor,s.organisation)
   note = `${label} requires the donor’s confirmation. No appeal was sent.`
  }

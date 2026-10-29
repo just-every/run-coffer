@@ -1,3 +1,4 @@
+import { teamAccessCommand, readOnlyRefusal } from './team-access'
 import { peerNoticeCommand } from './peer/notices'
 import { builderCommand } from './report-builder/store'
 import { journeyCommand } from './communications/journeys'
@@ -86,6 +87,7 @@ const STAFF: Role[] = ['owner', 'admin', 'member'], MANAGERS: Role[] = ['owner',
 // Who may run each command. Agents prepare letters and appeal audiences; a
 // person approves, exports and records them. Members do data entry only.
 export const ACCESS: Record<string, Role[]> = {
+ 'team.access':MANAGERS,
  'peer.noticePreview': MANAGERS, 'peer.sendNotice': MANAGERS,
  'report.save':MANAGERS,'report.import':MANAGERS,'report.share':MANAGERS,'report.revoke':MANAGERS,
  ...Object.fromEntries(AUCTION_COMMANDS.map(command=>[command,MANAGERS])),
@@ -139,12 +141,14 @@ export const ACCESS: Record<string, Role[]> = {
 }
 
 export async function execute(c: Context, command: string, input: unknown): Promise<Row> {
+ if(c.actor.teamAccess?.readOnly)return readOnlyRefusal()
  if(c.actor.role==='agent' && c.actor.grant) return executeGranted(c,command,object(input))
  if(c.actor.preparationGrant&&['ack.prepare','appeal.prepare'].includes(command))await reservePreparationGrant(c,'prepare')
  const allowed = Object.hasOwn(ACCESS, command) ? ACCESS[command] : undefined
  if (!allowed) fail('COMMAND', 'Unknown Coffer command.', 400)
  requireRole(c.actor, allowed, `run ${command}`)
  const p = object(input)
+ const teamResult=await teamAccessCommand(c,command,p);if(teamResult)return teamResult
  for (const key of ['donorId','employerDonorId','relatedDonorId']) if (typeof p[key] === 'string' && p[key] && await canonicalDonor(c,p[key]) !== p[key]) fail('MERGED_DONOR', 'This record was merged. Open the surviving donor record before saving.')
  if (['gift.acknowledge','gift.resetAcknowledgment','gift.doNotAcknowledge'].includes(command)) { const write=await giftAcknowledgmentWrite(c,command,p); await commit(c,write.statements); return write.result }
  if (command === 'ack.correct') return correctReceipt(c, p)
