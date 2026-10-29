@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f1bb95f130be4f1277f25e353e5d963c3150793f4e47d800d817f5bbf6e23abd",
+      "sha256": "9a461126398345ec6931ec8f342458d2e74e66849735975868e5c03973c610c9",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c6808b3596a8c35ea4c56df801c9533fa8df7005d436cc5b8292708b194e9b27",
+      "sha256": "4a73f4847a361e6091a88284ba5fd42a324b75614131a0bc9d716b65fc84d3d6",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1476,6 +1476,10 @@
     },
     "migrations/core/0173_coffer_neon_acknowledgments.sql": {
       "sha256": "027a7a88321ce776c000449e36915d79756fb827ff30045e43b71a0dc2f2939c",
+      "executable": false
+    },
+    "migrations/core/0174_coffer_peer_fundraising.sql": {
+      "sha256": "fd5869469101cd210c8bf1695ff22401969249e1e15cb8ae045619e280825b1a",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2815,7 +2819,7 @@
       "executable": false
     },
     "src/coffer/donor-file.ts": {
-      "sha256": "24c6e32c8c4f3281c1877e3e5da56fc36979eff001348af1788908481ac89472",
+      "sha256": "8a3a3586b248bab3c4b0da7d64cc62c6303c8ac324793b77524501a6e9524829",
       "executable": false
     },
     "src/coffer/donor-households.ts": {
@@ -2823,7 +2827,7 @@
       "executable": false
     },
     "src/coffer/donor-merge.ts": {
-      "sha256": "4c78cea292607a3893da7d5ae0c1a623865c29ca2370b7f0c491cd0540e88a43",
+      "sha256": "961a710d0c81df4186144bc98b3bc8083e300f8b6db5ef3de81e858a2ed93250",
       "executable": false
     },
     "src/coffer/donors.ts": {
@@ -2955,7 +2959,7 @@
       "executable": false
     },
     "src/coffer/giving/checkout.ts": {
-      "sha256": "40bf6cd20c962598753ac564c11db66695d36a1d27835460714238382db15b41",
+      "sha256": "47a8a9a3c545ded26d32613c5def676eeeefc3537130f66362d796a293a03831",
       "executable": false
     },
     "src/coffer/giving/connections-ui.ts": {
@@ -3003,7 +3007,7 @@
       "executable": false
     },
     "src/coffer/giving/http.ts": {
-      "sha256": "a23c83fa344d0c3d6815e9163d72b5c63b9d31d257683ebaf3c9b098fe206985",
+      "sha256": "393186c5c630188f516f02d6bd396517edb469a8041b318eedfc5b545e000ee2",
       "executable": false
     },
     "src/coffer/giving/image-metadata.ts": {
@@ -3075,11 +3079,11 @@
       "executable": false
     },
     "src/coffer/giving/portal-ui.ts": {
-      "sha256": "8f31a68494100545a8cc5b31eaf88681105bd21d014df2090a2ce7302651c755",
+      "sha256": "74bbf09bebf95e8624059ae71c56a36fe675369130eebcfacd0c3edfe3d44f93",
       "executable": false
     },
     "src/coffer/giving/portal.ts": {
-      "sha256": "a2d6b77e5efd5953b339f1f9b965def796ab43877225dadcc449af5113d80847",
+      "sha256": "75444ee063f36633ecd6720b97085a6fc36917548e41d8a6b7c7ce30349da0e0",
       "executable": false
     },
     "src/coffer/giving/protection.ts": {
@@ -3087,7 +3091,7 @@
       "executable": false
     },
     "src/coffer/giving/recording.ts": {
-      "sha256": "a0c2c996acab46eb09a2ee5241208e96eb8a375d8469d2f31d56b00e6e5f0d45",
+      "sha256": "2b3cd312ee2b9e8493fa9ce8c8755bfa923ccb53cc0fdc173e25c4fad215dba4",
       "executable": false
     },
     "src/coffer/giving/saved-card-consent.ts": {
@@ -3127,7 +3131,7 @@
       "executable": false
     },
     "src/coffer/giving/ui.ts": {
-      "sha256": "d0d3606bc4ec7f3525dd6b18076f9a4d7b7c71c0d0e91b0a046ca98888aaa767",
+      "sha256": "3c366b2e501abfddbb98c8d6d2f1e11f05190391235d4c491a15872dea1f8bd8",
       "executable": false
     },
     "src/coffer/giving/video.ts": {
@@ -3171,7 +3175,7 @@
       "executable": false
     },
     "src/coffer/imports/erasure.ts": {
-      "sha256": "87cac9c487067368a902828c71591320223014f2fc45393ea5fc03fc0170451d",
+      "sha256": "3208862d807dfe138e5392bcb3394e85151f5db62cbda755215b2640c0294afb",
       "executable": false
     },
     "src/coffer/imports/index.ts": {
@@ -3287,7 +3291,7 @@
       "executable": false
     },
     "src/coffer/merge-journal.ts": {
-      "sha256": "40865b6ee5908d930006f008b6efd9ee990bc66e3f08d697d2fe0d682b343282",
+      "sha256": "9f9b87c80c6426e17fe66742678e1057ca14ef23caf803f842cec5cd4120acb2",
       "executable": false
     },
     "src/coffer/money.ts": {
@@ -3556,6 +3560,30 @@
     },
     "src/coffer/payments/write.ts": {
       "sha256": "2b8ff173c8fc609b292dbfcab2eb7e14ff72e377afa682759724821d0a8e1512",
+      "executable": false
+    },
+    "src/coffer/peer/accounting.ts": {
+      "sha256": "45d5c05ca14b1700844e221f7d919728a73d6fa683ce95b2375a474861453f01",
+      "executable": false
+    },
+    "src/coffer/peer/custody.ts": {
+      "sha256": "4455a5f28b7dd4f47f63651e19caf3fccd1eb2ff542a69097933c4510e3b7fad",
+      "executable": false
+    },
+    "src/coffer/peer/http.ts": {
+      "sha256": "6e3c7b01a948b26c225de7157f79935c76adcef84968d90895bd9703074f6e84",
+      "executable": false
+    },
+    "src/coffer/peer/recognition.ts": {
+      "sha256": "da7e4fc510d05d6b5ca161c6a19bdce777965726f025f125b8add49fa1437aca",
+      "executable": false
+    },
+    "src/coffer/peer/service.ts": {
+      "sha256": "0bb855b95a5d8b672fd244994edad032b45c3790fbbed27b43f0e644eba18048",
+      "executable": false
+    },
+    "src/coffer/peer/ui.ts": {
+      "sha256": "317e173a73512ac3273c90099aacb7f496db40376b9fef07054c36934d0adf6a",
       "executable": false
     },
     "src/coffer/people.ts": {
@@ -6683,7 +6711,7 @@
       "executable": false
     },
     "tests/giving.test.mjs": {
-      "sha256": "cf573fc82b12f6f911af9dd11ad2f052c47f2480fd41ef811c2e14808d662adf",
+      "sha256": "c5a063ec987b0d4386729b96a8ea44c3c82f22fb84694e6dfab337fd6e2531d4",
       "executable": false
     },
     "tests/grants-journey.mjs": {
@@ -6844,6 +6872,14 @@
     },
     "tests/payments.test.mjs": {
       "sha256": "25ad4b3af20229dae8052b17e6fadde28adbf9e50f229b492513610c360892fb",
+      "executable": false
+    },
+    "tests/peer-browser.mjs": {
+      "sha256": "b978fdf9f29508d6b8eb1a904fa2c3126b0185288b830f4eb170effe0c2838bb",
+      "executable": false
+    },
+    "tests/peer-journey.mjs": {
+      "sha256": "346b0ea412eeb9023b4874f46533c2b64d00cdbcbbddd201650c5b8f10a6bc63",
       "executable": false
     },
     "tests/pipeline.test.mjs": {
@@ -7263,7 +7299,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "60fbff418fd0de10c799dd15876f9819e560cafed6433e6b112bf7d9856358d9",
+      "sha256": "6a7ff76cf1673be233eed5fe48b6170b0b3fa5ffb29f74d5292d2355495da70b",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
