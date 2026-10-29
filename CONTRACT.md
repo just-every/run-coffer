@@ -1118,6 +1118,15 @@ For each named incumbent (Little Green Light, Bloomerang, Raiser's Edge NXT, Neo
 
 *Acceptance:* A browser journey at 1440 and 390 pixels opens the move-in screen for Bloomerang, reads its ordered steps each linked to a built guide page that names the export or API key, the PCI transfer request, the mapping files and the cutover stop, and sees steps marked done as a fixture import, a mapping-file upload and the owner's sign-off complete.
 
+#### MOVE-012 — Importing a payment linked to an installment after an unlinked payment of the same amount replaces the earlier allocation: the pledge reads fully paid with no phantom balance.
+
+*Acceptance:*
+1. Importing an unlinked $500 payment and then a $500 payment linked to installment one yields ONE allocation of $500 on that installment, not two.
+2. A fully paid $1,000 pledge never reports $500 unpaid after that sequence.
+3. The reverse order (linked first, then an unlinked payment of the same amount) also leaves no phantom balance.
+4. The replaced allocation is kept as history on the payment (nothing deleted, both import sources named).
+5. One public-door journey runs the unlinked-then-linked probe end to end.
+
 ### Team and access
 
 Roles a small development shop and its volunteers need.
@@ -1474,8 +1483,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 86 | 35 | 9 | 130 |
-| All | 95 | 35 | 9 | 139 |
+| Target and push further | 86 | 35 | 10 | 131 |
+| All | 95 | 35 | 10 | 140 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1591,6 +1600,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MOVE-008` | Consent and preferences moved with provenance | target | missing |  | No importer carries consent. |
 | `MOVE-010` | Custom fields carried across | target | missing |  | No custom fields, and no importer other than Stripe's, which reads no custom data. |
 | `MOVE-011` | Switching guide for each incumbent | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | The CRM export guide gives vendor report/menu guidance, official source links, required IDs, supported fields and source control interpretation for LGL, Bloomerang and NXT, alongside the Stripe guide. PCI transfer and an installation cutover checklist remain unbuilt. |
+| `MOVE-012` | Importing a payment linked to an installment after an unlinked payment of the same amount replaces the earlier allocation: the pledge reads fully paid with no phantom balance | target | missing |  | Both import orders, single active allocation, fully paid balance and retained replacement history with both import sources remain unproved. |
 | `TEAM-001` | Roles and record-level access | target | partial | `src/coffer/commands.ts`, `src/coffer/auth.ts`, `src/coffer/task-team.ts`, `src/coffer/ui/task-team.ts`, `tests/task-reminders-journey.mjs` — "taskRemindersJourney", `tests/task-reminders-browser.mjs` — "taskRemindersBrowser" | Owner, admin, member and agent roles guard every command. Owner or admin manager assignment, clearing, version guards and cycle refusal now ship under STEW-001. Versioned weekly call capacity ships under DEV-005, proved by "callPrioritiesJourney" in `tests/call-priorities-journey.mjs` and "callPrioritiesBrowser" in `tests/call-priorities-browser.mjs`. Fundraiser, finance, volunteer and read-only roles, portfolio scoping and confidential fields remain. |
 | `TEAM-002` | Single sign-on and two-step sign-in | target | partial | `src/modules/operator-auth/identity/oidc` | Base sign-in supports an OIDC provider; requiring SSO and a second factor are not offered in Coffer. |
 | `TEAM-003` | Audit log | target | done | `src/coffer/audit.ts`, `src/coffer/ui/audit.ts`, `migrations/core/0041_coffer_audit.sql`, `migrations/core/0043_coffer_access_audit.sql`, `tests/audit.test.mjs` |  |
