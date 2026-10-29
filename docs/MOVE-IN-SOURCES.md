@@ -172,6 +172,12 @@ remain MOVE-010 work; the existing export and reviewed enrichment doors remain
 available. Recurring vault migration remains MOVE-009 work. No schedule is
 created, charged, canceled or authorized by this read.
 
+Contacts retain the documented `TypeName` and explicit `IsPrimary` value.
+A missing type stops the preview rather than guessing from column position.
+Home email maps to the native personal type; work email and home, work and
+mobile phones retain their types. Unrecognized types remain blocked by the
+ordinary contact validator.
+
 REST v1 does not document complete household, relationship, channel-preference
 or acknowledgment-history fields. Supply those separately as one optional
 `bloomerang-history.json` source report. Do not infer these facts from source

@@ -49,7 +49,9 @@ export async function bloomerangInput(input:ParseInput,importDay:string):Promise
    if(!Array.isArray(list)||list.length>(kind==='Address'?2:3)||list.length&&list.filter((v:Facts)=>v.IsPrimary===true).length!==1)fail('BLOOMERANG_UNSUPPORTED','Review contacts: this slice supports three emails, three phones and two addresses, each kind with one explicit primary.',400)
    for(const [i,p] of list.entries()){
     if(sourceId(p.AccountId)!==String(a.Id)||p.IsBad||typeof p.IsPrimary!=='boolean'||!p[key]||p.Extension)fail('BLOOMERANG_UNSUPPORTED','A contact is incomplete, bad, extended or belongs to another constituent; review it before importing.',400)
-    let type=String(p.TypeName??'').toLowerCase();if(kind==='Email'&&type==='home')type='personal'
+    let type=String(p.TypeName??'').trim().toLowerCase()
+    if(!type)fail('BLOOMERANG_UNSUPPORTED','A source contact has no type. Review its TypeName before importing; no contact type is guessed.',400)
+    if(kind==='Email'&&type==='home')type='personal'
     r[kind+' '+(i+1)+' Type']=type;r[kind+' '+(i+1)+' Primary']=p.IsPrimary?'yes':'no'
     if(kind==='Address'){const prefix=i?'Address 2 ':'';Object.assign(r,{[prefix+(i?'Street':'Address Line 1')]:p.Street,[prefix+'City']:p.City,[prefix+'State']:p.State,[prefix+'Postal Code']:p.PostalCode,[prefix+'Country']:p.Country})}
     else r[i?kind+' '+(i+1):kind]=p[key]

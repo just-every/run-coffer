@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
-      "sha256": "6e86ec9644a7dcdc9d4b342abb547292a7093ca9aa55ac67f6b8abb5fccf44f4",
+      "sha256": "91707e2f665ae130722e9b3133fc6ce27aad340a9276b692884b22fe55a98ebd",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3339,7 +3339,7 @@
       "executable": false
     },
     "src/coffer/move-in/bloomerang.ts": {
-      "sha256": "ade3e7b52d32438d654103eedf092310ee683b51f0e6eea3616068b510d19823",
+      "sha256": "94361b7bef6e13dbd077d20242e60e930cbe81f123fb337236b6391c5c92e6e5",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -6351,7 +6351,7 @@
       "executable": false
     },
     "tests/bloomerang-journey.mjs": {
-      "sha256": "df7358e20b5c24ab84def6f35e797312543e9ffcc0d4bf27ea9b359a14a0222e",
+      "sha256": "a306883a067f8cfb294354eddfbeb7245e8f749596686617532d6527911853c9",
       "executable": false
     },
     "tests/browser-journey.mjs": {
