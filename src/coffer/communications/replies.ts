@@ -3,6 +3,7 @@ import type { Bindings } from '../../auth.server'
 import { manager, requireRole } from '../auth'
 import { all, commit, event, fail, guard, id, longText, one, sha256, sql, type Context, type Row } from '../db'
 import { automaticStopIsCurrent, automaticStopStatements, currentConsent, replyStopCommand, stopEvidence, stopIsCurrent, syncAutomaticStop } from './reply-stop'
+import { erasureHash } from '../imports/snapshots'
 
 const sourceNames: Record<string, string> = { welcome: 'Welcome', appeal: 'Appeal', receipt: 'Receipt', acknowledgment: 'Acknowledgment', acknowledgement: 'Acknowledgment', statement: 'Statement' }
 export const replySource = (kind: string) => sourceNames[kind] ?? 'Email'
@@ -169,6 +170,11 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
  if (env.RER_INSTALLATION_ID || env.RER_MANAGEMENT_ORIGIN) { message.setReject('Reply routing is not available yet on RER Managed.'); return }
  const raw = await readRaw(message)
  if (!raw) { message.setReject('Reply exceeds the 1 MB limit.'); return }
+ const erasedSenders = [...new Set([address(message.from),authenticatedFrom(raw)].filter((sender):sender is string=>!!sender))].map(erasureHash)
+ if(await one({db:env.DB},'SELECT 1 FROM cf_erasures WHERE hash IN(SELECT value FROM json_each(?))',JSON.stringify(erasedSenders))){
+  message.setReject('This reply belongs to an erased identity and cannot be restored.')
+  return
+ }
  const headerId = message.headers.get('message-id')?.trim()
  const contentHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', raw)), x => x.toString(16).padStart(2, '0')).join('')
  const replayId = await sha256(`coffer:reply:v1\0${address(message.from)}\0${address(message.to)}\0${headerId && headerId.length <= 998 ? headerId : contentHash}`)
@@ -197,10 +203,11 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
    stop_status,stop_version,stop_evidence,stop_consent_id,stop_email,stop_donor_id,stop_proposed_at,stop_proposed_by)
    SELECT ?,?,?,d.id,?,?,?,?,?,?,?,?,?, ?,?,${currentConsent},d.email,d.id,?,? FROM cf_donors d
    WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
-    AND NOT EXISTS(SELECT 1 FROM cf_reply_ingress WHERE id=?)`)
+    AND NOT EXISTS(SELECT 1 FROM cf_reply_ingress WHERE id=?)
+    AND NOT EXISTS(SELECT 1 FROM cf_erasures WHERE hash IN(SELECT value FROM json_each(?)))`)
    .bind(taskId, communication.source_type === 'communication' ? communication.id : null, communication.source_type === 'letter' ? communication.id : null,
     owner?.id ?? null, title, body, now, messageId, state, note, automatic ? 1 : 0,
-    evidence ? 'automatic' : null, evidence ? 1 : 0, evidence, evidence ? now : null, evidence ? 'Email routing' : null, communication.donor_id, replayId),
+    evidence ? 'automatic' : null, evidence ? 1 : 0, evidence, evidence ? now : null, evidence ? 'Email routing' : null, communication.donor_id, replayId,JSON.stringify(erasedSenders)),
   ...await automaticStopStatements(env.DB, taskId, now),
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'email-routing','Email routing','system','reply.received','reply',id,donor_id,? FROM cf_reply_tasks WHERE id=? AND NOT EXISTS(SELECT 1 FROM cf_interactions WHERE id=?)`)

@@ -635,7 +635,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "3b044d3ca15317c4056f48ad3440cb53b2f7e9b08ec34ebb67cee83d8f282c1a",
+      "sha256": "416949d6e81b599d6f7c563c01419fad82fd1eb39ae04d26e2f62118e6ce16fa",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -2711,7 +2711,7 @@
       "executable": false
     },
     "src/coffer/communications/replies.ts": {
-      "sha256": "78d60d5913c976b55d37423ecdf0fc14389c00c284cdeb10585519e4aa3cb929",
+      "sha256": "78ff7eee9f6c8932c04e8402c8210419b9b14f2a1ad5fa03e2876e58552714ed",
       "executable": false
     },
     "src/coffer/communications/reply-stop.ts": {
@@ -7215,7 +7215,7 @@
       "executable": false
     },
     "tests/stewardship-sources-journey.mjs": {
-      "sha256": "2ee27518493526a8bd01e301700e3248efa6e1b294e0462d31cd1578ed28c570",
+      "sha256": "6afe8fd968ce7f3b978202cbca2223f00b2fbf0efa403d20f9f988ba69fae904",
       "executable": false
     },
     "tests/stewardship.test.mjs": {

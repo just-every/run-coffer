@@ -101,13 +101,16 @@ export async function stewardshipSourcesJourney(){
    p.draft=draft
   }
   const member=await h.person(address('member')),admin=await h.person(address('admin'),'admin')
-  const agent=await h.command('agent.create',{label:'Synthetic source authority'})
+  const agent=await h.command('agent.create',{label:'Synthetic source authority'}),authorityCalls=calls.length,authorityMail=h.messages.length,authorityDrafts=(await state()).drafts.length
   for(const options of [{as:member.cookie,status:403},{as:'',headers:{authorization:'Bearer '+agent.token},status:403},{as:'',status:401}]){
    await h.get('/api/coffer/agent/stewardship?donorId='+people[0].id,options)
    await h.api(route('draft'),{donorId:people[0].id,kind:'impact'},options)
    await h.api(route('save'),{...people[0].draft,subject:'Refused',body:'Refused'},options)
    await h.api(route('send'),{...people[0].draft,confirm:'SEND'},options)
   }
+  assert.equal(calls.length,authorityCalls,'Refused roles cannot disclose sources to the model')
+  assert.equal(h.messages.length,authorityMail,'Refused roles submit no email')
+  assert.equal((await state()).drafts.length,authorityDrafts,'Refused roles create no draft')
   await h.command('agent.revoke',{id:agent.id})
   await h.get('/api/coffer/agent/stewardship',{as:'',headers:{authorization:'Bearer '+agent.token},status:401})
   assert.equal((await h.get('/api/coffer/agent/stewardship?donorId='+people[0].id,{as:admin.cookie})).sources.filter(s=>s.kind==='reply').length,1)
@@ -191,6 +194,8 @@ export async function stewardshipSourcesJourney(){
   assert.ok(!serialized.includes(people[0].reply.slice(0,80)),'Erasure removes private source copies, citations and versions')
   assert.ok(!serialized.includes(safe.row.body))
   assert.ok((await receive(people[0],people[0].reply)).rejected,'A replay after erasure cannot recreate a reply')
+  assert.ok((await receive(people[0],people[0].reply,{key:'synthetic-coffer-legacy-capture'})).rejected,'An unseen legacy capture from an erased identity cannot attach to a remaining shared-address donor')
+  assert.ok(!(await h.get('/api/coffer/replies')).some(r=>r.body.includes('reading circle 1')),'Erased private words cannot return under another donor')
   const fresh=await installation({entry:'tests/engagement-worker.ts',bindings,outbound,givingProtection:false})
   try{await restore(fresh,snapshot,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}});assert.equal((await fresh.get('/api/coffer/agent/stewardship')).drafts.length,0)}finally{await fresh.close()}
  },{entry:'tests/engagement-worker.ts',bindings,outbound})
