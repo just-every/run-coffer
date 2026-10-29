@@ -22,6 +22,7 @@ export async function agentQuickbooksJourney(){
     if(readOverride)return Response.json(readOverride)
     const response=await edge.outbound(request),body=await response.json(),entity=u.pathname.includes('journalentry')?'JournalEntry':'Deposit'
     const mutation=mutations.get(body[entity].Id)
+    body[entity].PrivateNote='Synthetic private supporter note'
     if(mutation)mutation(body[entity])
     return Response.json(body)
    }
@@ -41,6 +42,8 @@ export async function agentQuickbooksJourney(){
   const admin=await h.person(['synthetic-coffer-admin','example.test'].join('@'),'admin')
   const key=await h.command('agent.create',{label:'Synthetic accounting preparation'})
   for(const options of [{as:'',status:401},{as:member.cookie,status:403},{as:admin.cookie,status:403},{as:'',headers:{authorization:'Bearer '+key.token},status:403}])await h.api(check,{},options)
+  const foreign=await h.request(check,{method:'POST',body:{},headers:{origin:'https://synthetic-coffer-foreign.test'}})
+  assert.equal(foreign.status,403)
   assert.equal(reads.length,0);assert.equal(edge.requests.length,0)
   assert.equal((await connectQuickbooks(h,edge)).response.status,303)
   await h.api(root+'/mapping',mapping)
@@ -82,6 +85,7 @@ export async function agentQuickbooksJourney(){
   const changed=open(result).filter(i=>i.kind==='quickbooks_changed')
   assert.equal(result.complete,true,'A completed comparison can contain discrepancies')
   assert.equal(changed.length,4)
+  assert.equal(JSON.stringify(changed).includes('Synthetic private supporter note'),false,'Unrelated private remote content is not retained')
   assert.deepEqual(changed.map(i=>i.evidence.document.sourceId).sort(),[edge.payout.id,batch.id,'txn_qbo_refund','txn_qbo_dispute'].sort())
   assert.deepEqual(changed.find(i=>i.evidence.document.kind==='payout').evidence.differences,['bank'])
   assert.equal(changed.find(i=>i.evidence.document.kind==='payout').evidence.expected.totalCents,49170)
@@ -111,6 +115,11 @@ export async function agentQuickbooksJourney(){
   readOverride=null
   result=await h.api(check,{})
   assert.equal(result.complete,true);assert.equal(open(result).length,0,'Only corrected complete independent reads resolve earlier findings')
+  mutations.set(find('payout').external_id,record=>{record.DocNumber='synthetic-coffer-other-source'})
+  const wrongSource=open(await h.api(check,{})).find(i=>i.kind==='quickbooks_changed')
+  assert.deepEqual(wrongSource.evidence.differences,['source'],'Remote source identity must match the approved request')
+  mutations.clear()
+  assert.equal(open(await h.api(check,{})).length,0)
   assert.equal(edge.requests.length,writes)
   assert.deepEqual([...(await h.get(payoutPath)).postings,...(await h.get(batchPath)).postings],claims,'The agent never rewrites posting claims')
   assert.deepEqual(await h.get('/api/coffer/payments/reconciliation?from=2026-10-01&to=2026-10-31'),moneyBefore,'The agent never changes ledger or accounting totals')
@@ -127,11 +136,20 @@ export async function agentQuickbooksJourney(){
    assert.equal((await fresh.api(check,{})).complete,true)
    assert.equal(edge.requests.length,writes,'Restore reads never resubmit accounting entries')
   }finally{await fresh.close()}
+  await h.command('donor.erase',{donorId:d.id,confirm:'ERASE'})
+  assert.equal((await h.api(check,{})).complete,true)
+  assert.equal(JSON.stringify((await h.get('/api/coffer/agent/reconcile')).issues).includes('Synthetic Coffer Accounting'),false,'Replayed accounting observations cannot resurrect erased donor identity')
+  assert.equal(edge.requests.length,writes)
   await h.api(root+'/disconnect',{})
   const beforeRevoked=reads.length
   result=await h.api(check,{})
   assert.equal(result.complete,false);assert.equal(reads.length,beforeRevoked,'Revoked connection makes no provider read')
   await h.api(payoutPath+'/post',{confirm:'yes'},{status:409})
   assert.equal(edge.requests.length,writes)
+  assert.equal((await connectQuickbooks(h,edge)).response.status,303)
+  const beforeSignout=reads.length
+  assert.equal((await h.request('/auth/signout',{method:'POST',body:{}})).status,204)
+  await h.api(check,{}, {status:401})
+  assert.equal(reads.length,beforeSignout,'A revoked owner session has no QuickBooks read authority')
  },{entry:'tests/fixed-clock-worker.ts',bindings,outbound})
 }
