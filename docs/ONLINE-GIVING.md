@@ -93,3 +93,9 @@ notification; an owner/admin reviews and approves its exact version before
 email-text download or printing. Coffer does not contact the family, send the
 notification or claim delivery. The approved copy retains its original wording;
 changed gifts or tribute facts need a fresh notification.
+
+## Supporter fundraising
+
+Verified supporters can create personal pages and teams from their giving portal.
+See [Supporter fundraising](peer-fundraising.md) for publication, credit, leaderboard
+and reviewed notice behavior.

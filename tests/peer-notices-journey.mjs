@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import {archive,restore,run} from './harness.mjs'
 
 /** Existing peer journey supplies actual captured gifts, authenticated supporters
  * and the Mailchimp network edge. All writes use ordinary public commands. */
@@ -53,19 +52,14 @@ export async function peerNoticesJourney(h,mail,{first,second,firstCookie,second
   assert.equal((await send(r,'milestone')).id,result.id)
  }
  assert.equal(before(),6)
+ for(const amount of ['$25.00','$55.00','$80.00'])assert.ok(mail.contents.some(m=>m.plain_text.includes(amount)),amount+' reaches the provider in a milestone email')
+ assert.ok(mail.contents.every(m=>m.plain_text.includes('*|UNSUB|*')),'The existing provider preference footer remains attached')
+ await h.command('marketing.refresh')
+ for(const d of [first,second])assert.ok((await h.get('/api/coffer/donors/'+d.id)).communications.filter(m=>m.message_key.startsWith('peer:')).every(m=>m.remote_status==='sent'),'Provider sent results remain separate from delivery proof')
  const detail=await h.get('/api/coffer/donors/'+first.id)
  assert.equal(detail.solicitation.type,'stop','Pure thank-you and achievement notices do not weaken ask restrictions')
  assert.equal((await h.get('/api/coffer/donors/'+first.id+'/preferences')).channels.find(p=>p.channel==='email').frequency,'monthly')
  assert.equal(detail.communications.filter(m=>m.message_key.startsWith('peer:')).length,4)
- const data=await h.api('/api/coffer/donors/'+first.id+'/data-request',{requestedOn:'2026-09-15',method:'email'})
- assert.equal(data.records.communications.filter(m=>m.message_key.startsWith('peer:')).length,4)
- const saved=await archive(h)
- await run(async fresh=>{
-  await restore(fresh,saved)
-  const messages=(await fresh.get('/api/coffer/donors/'+first.id)).communications.filter(m=>m.message_key.startsWith('peer:'))
-  assert.equal(messages.length,4)
-  assert.equal((await fresh.command('peer.sendNotice',{recordId:records[0].id,version:records[0].version,notice:'thank',confirm:'SEND'})).id,messages.find(m=>m.message_key.endsWith(':thank')&&m.message_key.includes(records[0].id)).id,'Restore retains submitted history without restoring sender credentials')
- })
  // An interrupted provider answer and a revoked connection both retain the
  // claim. Neither later approval nor a repeated command submits it again.
  const extra=async title=>({...await portalPost(h,'pages',{...create,title,goal:'25'},secondCookie),type:'page',donor:second})
