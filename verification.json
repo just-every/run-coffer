@@ -39,6 +39,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
+        "npm ci --prefix integrations/zapier --no-audit --no-fund",
+        "npm run validate --prefix integrations/zapier",
         "COFFER_ORGANIZATION_BROWSER=.cache/organizations COFFER_REST_API_BROWSER=.cache/rest-api node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-015|DONOR-009|DONOR-004|DONOR-005|DONOR-007|DONOR-013|DATA-002|GIFT-002|GIFT-010|STEW-005|MOBILE-001|API-002):' tests/coffer.test.mjs"
       ]
     },
@@ -90,7 +92,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_STAFF_PAYMENT_BROWSER=.cache/staff-payments COFFER_PEER_BROWSER=.cache/peer COFFER_AUCTION_BROWSER=.cache/auction-results COFFER_EVENTS_BROWSER=.cache/events node --test --test-skip-pattern='^(CAMP-001|CAMP-004|GIFT-011|GIVE-003)' tests/giving.test.mjs"
+        "COFFER_STAFF_PAYMENT_BROWSER=.cache/staff-payments COFFER_PEER_BROWSER=.cache/peer COFFER_AUCTION_BROWSER=.cache/auction-results node --test --test-skip-pattern='^(CAMP-001|CAMP-004|GIFT-011|GIVE-003|CAMP-002)' tests/giving.test.mjs"
       ]
     },
     {
@@ -184,7 +186,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_TIMELINE_BROWSER=.cache/timeline COFFER_WEBHOOK_BROWSER=.cache/webhooks node --test --test-name-pattern='DONOR-004|API-002' tests/coffer.test.mjs"
+        "COFFER_TIMELINE_BROWSER=.cache/timeline COFFER_WEBHOOK_BROWSER=.cache/webhooks node --test --test-name-pattern='DONOR-004|API-002' tests/coffer.test.mjs",
+        "COFFER_EVENTS_BROWSER=.cache/events node --test --test-name-pattern='^CAMP-002: table and sponsorship packages' tests/giving.test.mjs"
       ]
     },
     {
@@ -193,7 +196,8 @@
       "hosted": false,
       "commands": [
         "COFFER_RECOGNITION_BROWSER=.cache/recognition node --test --test-name-pattern='GIFT-011' tests/giving.test.mjs",
-        "COFFER_MEETING_BROWSER=.cache/meeting-briefs COFFER_CALENDARS_BROWSER=.cache/calendars node --test --test-name-pattern='^(DEV-006|STEW-006):' tests/stewardship.test.mjs"
+        "COFFER_MEETING_BROWSER=.cache/meeting-briefs COFFER_CALENDARS_BROWSER=.cache/calendars node --test --test-name-pattern='^(DEV-006|STEW-006):' tests/stewardship.test.mjs",
+        "COFFER_EVENTS_BROWSER=.cache/events node --test --test-name-pattern='^CAMP-002: hosted gala tickets' tests/giving.test.mjs"
       ]
     },
     {

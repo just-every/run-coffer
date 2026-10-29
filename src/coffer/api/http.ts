@@ -8,6 +8,7 @@ import { idempotentWrite, rateLimit, RATE_LIMIT } from './transaction'
 import { openApiDocument } from './openapi'
 import { apiAuditPath } from './custody'
 import { completeNativeEffects } from './effects'
+import { verifyWebhookReceipt } from './webhook-receipt'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','x-coffer-api-version':'1','x-ratelimit-limit':String(RATE_LIMIT)}
 const json=(value:unknown,status=200,extra:Record<string,string>={})=>Response.json(value,{status,headers:{...headers,...extra}})
@@ -41,6 +42,7 @@ export async function restApiResponse(request:Request,original:Bindings):Promise
    if(request.method==='POST'&&path.endsWith('/revoke'))return {response:json(await apiKeyCommand(c,'apiKey.revoke',{id:decodeURIComponent(path.split('/')[2])})),context:c}
    fail('METHOD_NOT_ALLOWED','Use a documented API key method.',405)
   }
+  if(path==='/webhook-receipts/verify'&&request.method==='POST')return {response:json(await verifyWebhookReceipt(c,auth.scope,await input(request))),context:c}
   if(request.method==='GET'){
    const result=path==='/openapi.json'?openApiDocument(url.origin):await readResource(c,auth.scope,path,url)
    if(!result)fail('NOT_FOUND','That API resource does not exist.',404)
