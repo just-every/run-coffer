@@ -91,5 +91,5 @@ export async function reviewed(c: Context, id: string) {
 export const reportOf = (parsed: ParsedImport, review: { rows: Difference[]; canApply: boolean; needsAcceptance: boolean; counts: Row; parts: number }) => ({
  sourceCoverage:parsed.sourceCoverage, solicitCodes: parsed.solicitCodes, restrictionSource: { donorIds:[...new Set([...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn')].map(r=>r.donorExternalId))], solicitationIds:(parsed.solicitations??[]).map(r=>r.donorExternalId), withdrawals:(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').map(r=>({donorExternalId:r.donorExternalId,channel:r.channel})) },
  counts: review.counts, reconciliation: compact(review.rows), files: parsed.files, unmapped: parsed.unmapped.filter(u => u.value).length, leftOut: leftOut(parsed),
- needsAcceptance: review.needsAcceptance, canApply: review.canApply, parts: review.parts, sourceTotals: parsed.sourceTotals, controlTotals: parsed.controlTotals, sample: sample(parsed),
+ needsAcceptance: review.needsAcceptance, canApply: review.canApply, parts: review.parts, outcomeTotals:parsed.outcomeTotals, sourceTotals: parsed.sourceTotals, controlTotals: parsed.controlTotals, sample: sample(parsed),
 })

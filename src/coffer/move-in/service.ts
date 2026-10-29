@@ -1,3 +1,4 @@
+import { nativeOutcomes, nativeOutcomeSnapshot, previewOutcomes } from './outcome-totals'
 import { neonInput } from './neon'
 import { importedAcknowledgmentEvents } from './acknowledgment-import'
 import { spreadsheetAddresses } from './spreadsheet-addresses'
@@ -66,14 +67,15 @@ export async function preview(c: Context,input: ParseInput) {
    }
   }
  }
- const rows=compare(parsed)
+ const projected=await previewOutcomes(c,parsed)
+ const rows=compare(parsed,projected.cash,projected.totals)
  const restrictionIds=[...new Set([...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn')].map(r=>r.donorExternalId))]
  for(const [key,count] of [['Restricted constituents',restrictionIds.length],['Solicitation restrictions',(parsed.solicitations??[]).length],...['email','mail','phone','sms'].map(channel=>[`${channel} withdrawals`,(parsed.channelWithdrawals??[]).filter(r=>r.channel===channel&&(!r.status||r.status==='withdrawn')).length])] as [string,number][])rows.push({scope:'restriction',key,sourceCount:count,cofferCount:count,sourceCents:null,cofferCents:0,matches:true})
  const diagnostics=ordered(parsed.diagnostics)
  const fingerprint=await contentHash({fileFingerprint,rows,diagnostics})
  const canApply=!diagnostics.some(d=>d.severity==='error'), needsAcceptance=rows.some(r=>!r.matches)||parsed.unmapped.length>0, counts=summary(parsed)
  if(!prior || ['reviewed','undone'].includes(prior.state))
-  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),previewNativeDonors:[...nativeDonors],spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
+  await store(c,{id,fileFingerprint,fingerprint,source:input.source,prior,report:{nativeOutcomeFingerprint:projected.fingerprint,giftKeys:projected.giftKeys,softCreditKeys:projected.creditKeys,...reportOf(parsed,{rows,canApply,needsAcceptance,counts,parts:canApply?parts.length:0}),...(input.source==='spreadsheet'?{spreadsheetNativeDonors:[...nativeDonors]}:{}),previewNativeDonors:[...nativeDonors],spreadsheet:parsed.spreadsheet,customFields:parsed.customFields,sourceColumns:parsed.sourceColumns,customDefinitions:await customFields(c)},parts:canApply?parts:[],issues:diagnostics.filter(d=>d.code!=='UNMAPPED')})
  return { ...parsed, id, fingerprint, fileFingerprint, reconciliation:rows, diagnostics, counts, parts:canApply?parts.length:0,
   prior:prior?.state==='completed'||prior?.state==='applying'?prior:null, canApply, needsAcceptance }
 }
@@ -90,6 +92,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
  const report=JSON.parse(job.report)
  if(report.canApply===false || !job.parts)fail('MOVE_IN_ERRORS','This review has rows that must be fixed first. Fix them in your files and upload them again.',409)
+ if(report.nativeOutcomeFingerprint&&(await nativeOutcomeSnapshot(c,job.source,report.giftKeys??[],report.softCreditKeys??[])).fingerprint!==report.nativeOutcomeFingerprint)fail('MOVE_IN_CHANGED','Native gift or soft-credit facts changed after review. Preview the files and compare the current totals again.',409)
  const acceptedReason=optional(input.acceptedReason,'Reason for accepting differences',2000)
  if(report.needsAcceptance && !acceptedReason)fail('MOVE_IN_TOTALS','Say why the differences or unused columns are acceptable before moving in, or fix the files and upload again.')
  const acknowledgeFrom=input.acknowledgeFrom?date(input.acknowledgeFrom,'Acknowledge from'):null
@@ -154,7 +157,8 @@ async function totalsCheck(c: Context,job: Row) {
  const destination=emptyTotals()
  for(const g of await all(c,"SELECT g.received_on,g.fund,g.donor_id,r.donor_source_key,b.net_cents FROM cf_move_in_job_gifts r JOIN cf_gifts g ON g.id=r.gift_id JOIN cf_gift_balances b ON b.id=g.id WHERE r.job_id=?",job.id))
   if(g.net_cents>0)accumulate(destination,g.net_cents,g.received_on,g.fund??'',external.get(g.donor_source_key??byNative.get(g.donor_id)??'')??g.donor_id)
- const rows=compare({sourceTotals:report.sourceTotals,controlTotals:report.controlTotals??[]} as ParsedImport,destination)
+ const outcomes=report.outcomeTotals?await nativeOutcomes(c,job,report.softCreditKeys??[]):undefined
+ const rows=compare({sourceTotals:report.sourceTotals,controlTotals:report.controlTotals??[],outcomeTotals:report.outcomeTotals} as ParsedImport,destination,outcomes)
  rows.push(...await restrictionReconciliation(c,job.source,report))
  return {matches:rows.every(r=>r.matches),...compact(rows)}
 }
@@ -162,6 +166,7 @@ export async function recheck(c: Context,id:string) {
  authorize(c)
  const job=await one(c,"SELECT * FROM cf_move_in_jobs WHERE id=? AND state='completed'",id)
  if(!job)fail('NOT_FOUND','Only a finished move-in can be checked.',404)
+ if(job.redacted)fail('MOVE_IN_ERASED','An imported donor was erased. Source reconciliation is no longer available.',409)
  const check=await totalsCheck(c,job)
  await c.db.prepare('UPDATE cf_move_in_jobs SET checked_at=?,check_report=? WHERE id=?').bind(c.now,JSON.stringify(check),id).run()
  return {id,...check}

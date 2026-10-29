@@ -1,5 +1,6 @@
+import { outcomeScopes } from './types'
 import { SourceRow, day, money } from './source-rows'
-import type { ImportTotals, ParsedImport, Total } from './types'
+import type { ControlTotal, ImportTotals, OutcomeScope, ParsedImport, Total } from './types'
 
 export function emptyTotals(): ImportTotals { return { giftCount: 0, amountCents: 0, byYear: Object.create(null), byFund: Object.create(null), byDonor: Object.create(null), complete: true } }
 function add(group: Record<string, Total>, key: string, cents: number) {
@@ -23,16 +24,28 @@ export function sourceTotals(rows: SourceRow[], totals: ImportTotals) {
 export function controlRow(r: SourceRow, out: ParsedImport) {
  const giftCountText = r.get('controlCount'), amountText = r.get('controlAmount')
  const giftCount = giftCountText && /^\d+$/.test(giftCountText) && Number.isSafeInteger(Number(giftCountText)) ? Number(giftCountText) : null
- const amountCents = amountText ? r.cents('controlAmount', true) : null
+ const requested=r.get('controlScope').toLowerCase()
+ const signed=['tribute','tribute source group'].includes(requested), unsigned=amountText.replace(/^-/,''), absolute=signed&&amountText?money(unsigned):null
+ const amountCents = signed ? absolute===null?null:absolute*(amountText.startsWith('-')?-1:1) : amountText ? r.cents('controlAmount', true) : null
+ if(signed&&amountText&&absolute===null)r.error('AMOUNT','Supply a signed control amount with at most two decimal places.','controlAmount')
  if (giftCountText && giftCount === null) r.error('CONTROL_COUNT', 'Exported gift count must be a whole non-negative integer.')
  const year = r.get('controlYear'), fund = r.get('fund'), donor = r.get('donorId')
  if ([year, fund, donor].filter(Boolean).length > 1) r.error('CONTROL_SCOPE', 'Export one control grouping (year, fund, or constituent) per row.')
- const scope = year ? 'year' : fund ? 'fund' : donor ? 'donor' : 'all', key = year || fund || donor || ''
+ const suppliedKey=r.get('controlKey')
+ const scope:ControlTotal['scope'] = requested ? (outcomeScopes.includes(requested as OutcomeScope)?requested as OutcomeScope:'all') : year ? 'year' : fund ? 'fund' : donor ? 'donor' : 'all'
+ let key = requested ? suppliedKey : year || fund || donor || ''
+ if(requested&&!outcomeScopes.includes(requested as OutcomeScope))r.error('CONTROL_SCOPE','Choose gift acknowledgment, soft-credit acknowledgment, goods, tribute or tribute source group.','controlScope')
+ if(requested&&[year,fund,donor].some(Boolean))r.error('CONTROL_SCOPE','Outcome controls use Control Key, without a year, fund or constituent grouping.')
+ if(scope==='gift acknowledgment'||scope==='soft-credit acknowledgment'){key=key.toLowerCase();if(!['acknowledged','not acknowledged','do not acknowledge'].includes(key))r.error('CONTROL_KEY','Supply one of the three acknowledgment statuses.','controlKey')}
+ if(scope==='goods'){key=key.toLowerCase()||'all';if(!['all','none','provided','unknown'].includes(key))r.error('CONTROL_KEY','Goods controls use all, none, provided or unknown.','controlKey')}
+ if(scope==='tribute'&&key)key=key.trim().replace(/\s+/g,' ').toLowerCase()
+ if(scope==='tribute source group'&&!key)r.error('CONTROL_KEY','Supply the exact source tribute group.','controlKey')
+ if(giftCount===null&&amountCents===null)r.error('CONTROL_EMPTY','Supply at least a count or an amount for this source control.')
  const groups = { year: out.sourceTotals.byYear, fund: out.sourceTotals.byFund, donor: out.sourceTotals.byDonor }
- const actual = scope === 'all' ? { giftCount: out.sourceTotals.giftCount, amountCents: out.sourceTotals.amountCents } : groups[scope][key] || { giftCount: 0, amountCents: 0 }
+ const actual = scope === 'all' ? { giftCount: out.sourceTotals.giftCount, amountCents: out.sourceTotals.amountCents } : outcomeScopes.includes(scope as OutcomeScope) ? out.outcomeTotals?.[scope as OutcomeScope][key] || {giftCount:0,amountCents:0} : groups[scope as keyof typeof groups][key] || { giftCount: 0, amountCents: 0 }
  const matches = out.sourceTotals.complete && (giftCount !== null || amountCents !== null) && (giftCount === null || giftCount === actual.giftCount) && (amountCents === null || amountCents === actual.amountCents)
  out.controlTotals.push({ location: r.location, scope, key, giftCount, amountCents, actual, matches })
- if (!matches) out.diagnostics.push({ ...r.location, severity: 'warning', code: 'CONTROL_MISMATCH', message: 'Exported report control total does not match the supplied received gift rows. Check date/type filters and export completeness.' })
+ if (!matches) out.diagnostics.push({ ...r.location, severity: 'warning', code: 'CONTROL_MISMATCH', message: 'Exported report control total does not match the supplied source records. Check source filters and export completeness.' })
  r.finish()
 }
 function sameGroup(a: Record<string, Total>, b: Record<string, Total>) {
