@@ -5,19 +5,19 @@ import {achEdge} from './ach-checkout-edge.mjs'
 import {achBrowser} from './ach-checkout-browser.mjs'
 
 const address=name=>name+String.fromCharCode(64)+'example.test'
-const secret='synthetic-coffer-9401'
+const signingValue='synthetic-coffer-9401'
 export const achForm=values=>({method:'POST',as:'',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(values).toString()})
 export async function achEvent(h,item,type,id=randomUUID(),{invalid=false}={}){
  const object=type.startsWith('checkout.')?item.session.id:type.startsWith('charge.dispute.')?'dp_ach_'+item.n:type.startsWith('charge.')?'ch_ach_'+item.n:'pi_ach_'+item.n
  const raw=JSON.stringify({id,type,data:{object:{id:object,metadata:{coffer_intent:item.intent}}}}),timestamp=Math.floor(Date.now()/1000)
- const signature=createHmac('sha256',invalid?'synthetic-coffer-9402':secret).update(`${timestamp}.${raw}`).digest('hex')
+ const signature=createHmac('sha256',invalid?'synthetic-coffer-9402':signingValue).update(`${timestamp}.${raw}`).digest('hex')
  return h.request('/api/coffer/giving/webhook',{method:'POST',as:'',headers:{'stripe-signature':`t=${timestamp},v1=${signature}`},raw})
 }
 const okay=async response=>{assert.equal(response.status,200,await response.clone().text());return response}
 const values=(name,extra={})=>({requestId:randomUUID(),name,email:address(name.toLowerCase().replaceAll(' ','.')),amount:'100.00',frequency:'once',paymentMethod:'us_bank_account','cf-turnstile-response':'synthetic-coffer-security-token',...extra})
 
 export async function achCheckoutJourney(){
- const edge=achEdge(),options={bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-9400',STRIPE_WEBHOOK_SECRET:secret},outbound:edge.outbound}
+ const edge=achEdge(),options={bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-9400',STRIPE_WEBHOOK_SECRET:signingValue},outbound:edge.outbound}
  await run(async h=>{
   await reviewed(h)
   const known=await donor(h,'Bank Giver',{email:address('bank.giver')})
@@ -116,24 +116,38 @@ export async function achCheckoutJourney(){
   await okay(await achEvent(h,item,'payment_intent.succeeded'));assert.match(await (await thanks()).text(),/Bank payment returned/)
   assert.equal((await history()).gifts.filter(g=>g.kind==='reversal').length,1)
   await achBrowser(h,edge,item,{campaign,known,stage:'returned'})
-  // A return may arrive before any success notification. The already captured
-  // mandate can be inactive by then; reconcile history without authorizing a debit.
-  const reorderedDonor=await donor(h,'Reordered Bank',{email:address('reordered.bank')})
-  assert.equal((await start(values('Reordered Bank'))).status,303)
-  const reordered=[...edge.state.sessions.values()].at(-1)
-  await okay(await achEvent(h,reordered,'payment_intent.processing'))
-  reordered.status='succeeded';reordered.returned=true
-  await okay(await achEvent(h,reordered,'charge.dispute.created'))
-  assert.deepEqual((await h.get('/api/coffer/payments/fees')).totals,{gross_cents:0,fee_cents:966,net_cents:-966},'Return-first reconciliation includes both original fees and bank return fees')
-  for(const type of ['charge.succeeded','checkout.session.async_payment_succeeded','payment_intent.succeeded'])await okay(await achEvent(h,reordered,type))
-  const reorderedHistory=await h.get('/api/coffer/donors/'+reorderedDonor.id)
-  assert.deepEqual(reorderedHistory.gifts.map(g=>g.amount_cents).sort((a,b)=>a-b),[-10000,10000])
-  assert.equal(reorderedHistory.gifts.find(g=>g.kind==='gift').method,'bank transfer')
-  assert.equal(reorderedHistory.totals.lifetimeCents,0)
-  assert.equal((await progress()).raisedCents,0)
-  assert.match(await (await h.request('/giving/thanks?session_id='+reordered.session.id,{as:''})).text(),/Bank payment returned/)
-  const reorderedTasks=(await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='bank-return:ch_ach_'+reordered.n)
-  assert.equal(reorderedTasks.length,1);assert.equal(reorderedTasks[0].is_ask,0)
+  // A return may arrive before processing or success notifications. Stripe can
+  // already have deactivated its mandate; reconcile the historical funds only.
+  for(const observedProcessing of [true,false]){
+   const name=observedProcessing?'Reordered Bank':'Return First Bank'
+   const reorderedDonor=await donor(h,name,{email:address(name.toLowerCase().replaceAll(' ','.'))})
+   assert.equal((await start(values(name))).status,303)
+   const reordered=[...edge.state.sessions.values()].at(-1)
+   if(observedProcessing)await okay(await achEvent(h,reordered,'payment_intent.processing'))
+   const beforeReturn=await h.get('/api/coffer/donors/'+reorderedDonor.id)
+   assert.deepEqual([beforeReturn.gifts.length,beforeReturn.letters.length,beforeReturn.totals.lifetimeCents],[0,0,0])
+   reordered.status='succeeded';reordered.returned=true
+   const reorderedId=randomUUID()
+   for(const id of [reorderedId,reorderedId,randomUUID()])await okay(await achEvent(h,reordered,'charge.dispute.created',id))
+   const fees=observedProcessing?966:1449
+   assert.deepEqual((await h.get('/api/coffer/payments/fees')).totals,{gross_cents:0,fee_cents:fees,net_cents:-fees},'Return-first reconciliation includes both original fees and bank return fees exactly once')
+   const history=()=>h.get('/api/coffer/donors/'+reorderedDonor.id)
+   const returned=await history()
+   assert.deepEqual(returned.gifts.map(g=>g.amount_cents).sort((a,b)=>a-b),[-10000,10000],'The return itself records the original gift and reversal')
+   const tasks=async()=>(await h.get('/api/coffer/tasks')).tasks.filter(t=>t.source_key==='bank-return:ch_ach_'+reordered.n)
+   const followUp=(await tasks())[0]
+   assert.equal((await tasks()).length,1);assert.equal(followUp.is_ask,0);assert.ok(followUp.owner_id);assert.equal(followUp.task_kind,'follow_up');assert.equal(followUp.gift_id,returned.gifts.find(g=>g.kind==='gift').id)
+   for(const type of ['charge.succeeded','checkout.session.async_payment_succeeded','payment_intent.succeeded'])await okay(await achEvent(h,reordered,type))
+   const reorderedHistory=await history()
+   assert.deepEqual(reorderedHistory.gifts.map(g=>g.amount_cents).sort((a,b)=>a-b),[-10000,10000])
+   assert.equal(reorderedHistory.gifts.find(g=>g.kind==='gift').method,'bank transfer')
+   assert.equal(reorderedHistory.totals.lifetimeCents,0)
+   assert.equal((await progress()).raisedCents,0)
+   assert.match(await (await h.request('/giving/thanks?session_id='+reordered.session.id,{as:''})).text(),/Bank payment returned/)
+   const reorderedTasks=await tasks()
+   assert.equal(reorderedTasks.length,1);assert.equal(reorderedTasks[0].is_ask,0)
+   assert.deepEqual((await h.get('/api/coffer/payments/fees')).totals,{gross_cents:0,fee_cents:fees,net_cents:-fees},'Delayed success cannot duplicate fees or restore returned money')
+  }
   // Restore preserves the returned authorization, reversal, one task and frozen receipt.
   const saved=await archive(h)
   await run(async fresh=>{

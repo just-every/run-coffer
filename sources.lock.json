@@ -3531,7 +3531,7 @@
       "executable": false
     },
     "src/coffer/giving/bank-checkout.ts": {
-      "sha256": "5b236d101ccc7a1781ba49658c10556df0540af409352c38405dfa57974e406b",
+      "sha256": "c210f5106d23141b03d25f4f8b60a3677702109f8d9f52150f1a3299f1d8d737",
       "executable": false
     },
     "src/coffer/giving/campaign-publication.ts": {
@@ -6915,7 +6915,7 @@
       "executable": false
     },
     "tests/ach-checkout-journey.mjs": {
-      "sha256": "08d66e0ccc561d9e95173c818e09564cf9ecb8602c7957f35203858daae0c65c",
+      "sha256": "ab5e3a71ffee0c7e784d4e3cadb8e1fb0acfc7ac26ab5eec6efb0ab89f87d8f3",
       "executable": false
     },
     "tests/ack-browser.mjs": {
