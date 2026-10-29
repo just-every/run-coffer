@@ -19,10 +19,11 @@
     },
     {
       "name": "typecheck",
-      "browser": false,
+      "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run typecheck"
+        "pnpm run typecheck",
+        "COFFER_AUCTION_BROWSER=.cache/auction-results node --test --test-name-pattern='^CAMP-005:' tests/giving.test.mjs"
       ]
     },
     {
@@ -63,7 +64,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-009:' tests/coffer.test.mjs"
+        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-009:' tests/coffer.test.mjs",
+        "node --test --test-name-pattern='^GIVE-001:' tests/giving.test.mjs"
       ]
     },
     {
@@ -90,7 +92,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_PEER_BROWSER=.cache/peer COFFER_AUCTION_BROWSER=.cache/auction-results node --test --test-skip-pattern='^(CAMP-001|CAMP-004|GIFT-011|GIVE-003|CAMP-002)' tests/giving.test.mjs"
+        "COFFER_PEER_BROWSER=.cache/peer node --test --test-skip-pattern='^(CAMP-001|CAMP-004|GIFT-011|GIVE-003|CAMP-002|GIVE-001|CAMP-005)' tests/giving.test.mjs"
       ]
     },
     {

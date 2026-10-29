@@ -131,6 +131,10 @@ export async function approveDonorMatch(c: Context, env: GivingEnv, chargeId: st
  if(input.confirm!=='yes')fail('confirmation_required','Confirm this exact donor assignment.',400)
  const row=await one(c,'SELECT * FROM cf_payment_donor_matches WHERE charge_id=?',chargeId)
  if(!row||row.state==='erased')fail('MATCH_CHANGED','This payment cannot be assigned.')
+ // A failed adjustment read can leave an approved gift awaiting completion.
+ // Refreshing its candidates must never authorize moving that recorded money.
+ const recorded=await one(c,`SELECT g.donor_id FROM cf_stripe_charges s JOIN cf_gifts g ON g.id=s.gift_id WHERE s.id=?`,chargeId)
+ if(recorded&&recorded.donor_id!==donorId)fail('MATCH_CHANGED','This payment is already recorded for another donor. Continue with its recorded donor.')
  if(row.state==='resolved'){
   if(row.donor_id!==donorId||row.approved_version!==version)fail('MATCH_CHANGED','This payment already has a different decision.')
   return donorMatchView(c,chargeId)
@@ -143,6 +147,7 @@ export async function approveDonorMatch(c: Context, env: GivingEnv, chargeId: st
  if(row.state==='approved'&&(row.donor_id!==donorId||row.approved_version!==version))fail('MATCH_CHANGED','This payment already has a different decision.')
  if(row.state!=='approved')await commit(c,[
   guard("EXISTS(SELECT 1 FROM cf_payment_donor_matches WHERE charge_id=? AND version=? AND state='held')",'MATCH_CHANGED','This review already changed.',chargeId,version),
+  guard(`NOT EXISTS(SELECT 1 FROM cf_stripe_charges s JOIN cf_gifts g ON g.id=s.gift_id WHERE s.id=? AND g.donor_id<>?)`,'MATCH_CHANGED','This payment is already recorded for another donor.',chargeId,donorId),
   guard(`(SELECT json_group_array(json_object('id',id,'version',version)) FROM (${currentDonors}))=?`,'MATCH_CHANGED','Matching donors changed during review.',current.mail??'',JSON.stringify(candidates)),
   sql("UPDATE cf_payment_donor_matches SET state='approved',donor_id=?,donor_version=?,approved_version=?,approved_by=?,approved_actor_version=?,approved_at=?,version=version+1,updated_at=? WHERE charge_id=?",donorId,donorVersion,version,c.actor.id,approver?.version,c.now,c.now,chargeId),
   event(c,'payments.donorMatchApproved','payment',chargeId,donorId,{accountId:current.account,reviewVersion:version}),
@@ -150,7 +155,12 @@ export async function approveDonorMatch(c: Context, env: GivingEnv, chargeId: st
  const saved=await syncCharge(env,chargeId,c)
  if(!saved)fail('MATCH_CHANGED','The payment changed before recording. Refresh its review.')
  for(const entry of current.entries)await syncEntry(env,entry,c)
- await commit(c,[sql("UPDATE cf_payment_donor_matches SET state='resolved',version=version+1 WHERE charge_id=? AND state='approved'",chargeId)])
+ await commit(c,[
+  guard(`EXISTS(SELECT 1 FROM cf_payment_donor_matches r JOIN cf_stripe_charges s ON s.id=r.charge_id JOIN cf_gifts g ON g.id=s.gift_id
+   WHERE r.charge_id=? AND r.state='approved' AND r.donor_id=? AND r.approved_version=? AND g.donor_id=r.donor_id)`,
+   'MATCH_CHANGED','The decision or recorded donor changed before completion. Refresh this review.',chargeId,donorId,version),
+  sql("UPDATE cf_payment_donor_matches SET state='resolved',version=version+1 WHERE charge_id=? AND state='approved'",chargeId),
+ ])
  for(const payout of await all(c,'SELECT payout_id FROM cf_payment_match_payouts WHERE charge_id=?',chargeId))await syncPayout(env,payout.payout_id,c)
  return donorMatchView(c,chargeId)
 }

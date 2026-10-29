@@ -4067,7 +4067,7 @@
       "executable": false
     },
     "src/coffer/payments/donor-match.ts": {
-      "sha256": "87d4127e6a76e3e2978163f876587138b1356c3a085dbaee2ef6dc4927e375c2",
+      "sha256": "bab7801519439ac23929e4e037712c95e8bc906c0522a6bf844a66ce8efa6bdc",
       "executable": false
     },
     "src/coffer/payments/entries.ts": {
@@ -7559,7 +7559,7 @@
       "executable": false
     },
     "tests/payment-donor-match-journey.mjs": {
-      "sha256": "188488dddfc3c402ab3a1d4fa162586ddbab94d471a9a3ecbece49d724f47a55",
+      "sha256": "bdf43c87a6a2299f9b398d74b8166246c65e1d8550b377045d12724d2fb6b60b",
       "executable": false
     },
     "tests/payments-browser.mjs": {
@@ -7999,7 +7999,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "df0e0ed3a6c76b692521e4118177fff6a2e8f64344c34125b79d94ce6cff3141",
+      "sha256": "6e39af1faca701cb44dadca5d2a400ae198193824cce86add053303684d586a0",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
