@@ -3303,7 +3303,7 @@
       "executable": false
     },
     "src/coffer/memberships/ui.ts": {
-      "sha256": "60c827307d80d529f18a80ca6e673d689e0836b0cebced63b28c73bf72759542",
+      "sha256": "3dbcdba7dcc9ff83b772e1a8997551dd6cc15543936b0fafc760223c2606f81d",
       "executable": false
     },
     "src/coffer/merge-facts.ts": {
@@ -6811,7 +6811,7 @@
       "executable": false
     },
     "tests/memberships-journey.mjs": {
-      "sha256": "8a85fbf9169c1ad1cd2cce02b9ef9cb7498ccb90e86822e2112ca0b115d48df0",
+      "sha256": "2229ced3bff65ba0b734e7cb4448f7d41052933eae3ce69bc4401e1a75903fc2",
       "executable": false
     },
     "tests/mobile-journey.mjs": {

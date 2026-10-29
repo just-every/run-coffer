@@ -13,7 +13,7 @@ export function membershipJoinPage(l:Row,siteKey:string){
 
 export function reminderPage(current:Row){
  const {reminder,donor,subject,body,contentHash}=current
- return `<p><a href="/app/giving/memberships">Memberships</a></p>`+box('Exact renewal request',`<p>To ${e(donor.name)} · ${e(donor.email)}</p><p><strong>${e(subject)}</strong></p><p style="white-space:pre-wrap">${e(body)}</p>${reminder.status==='held'?`<form method="post" action="/app/giving/memberships">${hidden('action','sendReminder')}${hidden('id',reminder.id)}${hidden('contentHash',contentHash)}<label><input type="checkbox" name="confirm" value="yes" required> I approve this exact recipient and renewal request.</label><button>Send approved renewal request</button></form>`:chip(reminder.status)}<p>Submission happens once. Uncertain results require investigation and cannot be retried here.</p>`)
+ return `<p><a href="/app/giving/memberships">Memberships</a></p>`+box('Exact renewal request',`<p>To ${e(donor.name)} · ${e(donor.email)}</p><p><strong>${e(subject)}</strong></p><p class="stewardship-text">${e(body)}</p>${reminder.status==='held'?`<form method="post" action="/app/giving/memberships">${hidden('action','sendReminder')}${hidden('id',reminder.id)}${hidden('contentHash',contentHash)}<label><input type="checkbox" name="confirm" value="yes" required> I approve this exact recipient and renewal request.</label><button>Send approved renewal request</button></form>`:chip(reminder.status)}<p>Submission happens once. Uncertain results require investigation and cannot be retried here.</p>`)
 }
 
 export function membershipEntryPage(state:Row,gifts:Row[]){
