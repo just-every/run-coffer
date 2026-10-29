@@ -1,3 +1,4 @@
+import { bankReturn } from './bank-returns'
 import { observeBankPayment } from './pending-bank'
 import { reconcileRefund } from './refunds'
 import { recordDispute } from './disputes'
@@ -26,6 +27,7 @@ export async function paymentEvent(env: GivingEnv, event: any) {
   const dispute = await stripe(env, '/disputes/' + encodeURIComponent(id))
   for (const txn of dispute.balance_transactions ?? []) await syncEntry(env, txn)
   await recordDispute(env,dispute)
+  await bankReturn(env,dispute)
  } else if (type === 'charge.failed' || type === 'payment_intent.payment_failed') {
   // Store no card details, error text or donor data. Failures never become gifts.
   await env.DB.prepare('INSERT OR IGNORE INTO cf_payment_failures(id,charge_id,status,created_at) VALUES(?,?,?,?)')

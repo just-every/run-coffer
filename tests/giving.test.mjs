@@ -292,3 +292,7 @@ test('CAMP-003: verified supporters fundraise as teams and personal pages with s
 test('CAMP-004: paid memberships renew once, disclose benefits, reconcile campaigns and retain held reminder custody', {timeout:300000}, async()=>{
  const {membershipsJourney}=await import('./memberships-journey.mjs');await membershipsJourney()
 })
+
+test('GIVE-004: hosted ACH stays pending, settles once with actual fees, and returns with owned non-ask follow-up', {timeout:600000}, async()=>{
+ const {achCheckoutJourney}=await import('./ach-checkout-journey.mjs');await achCheckoutJourney()
+})

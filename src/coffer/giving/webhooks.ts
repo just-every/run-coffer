@@ -1,3 +1,5 @@
+import { bankCheckoutState, recoverBankSession } from './bank-checkout'
+import { syncEntry } from '../payments/entries'
 import { recordMembershipPayment } from '../memberships/service'
 import { completePledgeCheckout } from '../pledge-checkout'
 import { checkoutFailure, invoiceProtection, radarFailure } from './protection'
@@ -34,6 +36,16 @@ export async function completed(env: GivingEnv, sessionId: string) {
  if (!saved) fail('not_found', 'That checkout is not available.', 404)
  const session = await stripe(env, '/checkout/sessions/' + encodeURIComponent(sessionId))
  if (session.metadata?.coffer_intent !== saved.id || stripeId(session.customer) !== saved.customer_id || session.currency !== 'usd' || session.amount_total !== saved.amount_cents) fail('invalid_payment', 'Stripe returned a different checkout.', 409)
+ if(saved.payment_method==='us_bank_account'){
+  const capture=await one({db:env.DB},'SELECT fund FROM cf_giving_form_intents WHERE intent_id=?',saved.id)
+  const bank=await bankCheckoutState(env,{...saved,fund:capture?.fund},session)
+  if(bank.status!=='succeeded')return {paid:false,recurring:false,bankStatus:bank.status}
+  const intent=await identify(env,saved.id,saved.customer_id)
+  if(!intent)fail('not_found','That donor is not available.',404)
+  await recordGift(env,intent,bank.payment.id,bank.payment.amount_received,bank.charge!.created)
+  await syncEntry(env,stripeId(bank.charge!.balance_transaction))
+  return {paid:true,recurring:false,bankStatus:'succeeded'}
+ }
  if (session.status !== 'complete' || session.payment_status !== 'paid') return { paid: false, recurring: saved.frequency === 'monthly' }
  const payment=saved.frequency!=='monthly'?await stripe(env,'/payment_intents/'+encodeURIComponent(stripeId(session.payment_intent))):null
  if(payment&&(payment.status!=='succeeded'||payment.currency!=='usd'||payment.amount_received!==saved.amount_cents))fail('invalid_payment','Payment has not completed.',409)
@@ -57,11 +69,17 @@ export async function webhook(env: GivingEnv, request: Request, raw: string) {
  if (await one({ db: env.DB }, 'SELECT id FROM cf_giving_events WHERE id=?', event.id)) return
  const object = event.data.object
  if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+  if(!await one({db:env.DB},'SELECT id FROM cf_giving_intents WHERE session_id=?',object.id)&&await one({db:env.DB},"SELECT id FROM cf_giving_intents WHERE payment_method='us_bank_account' AND bank_submission_state='uncertain' AND session_id IS NULL LIMIT 1"))await recoverBankSession(env,object.id)
   const saved = await one({ db: env.DB }, 'SELECT id FROM cf_giving_intents WHERE session_id=?', object.id)
   if (saved) await completed(env, object.id)
   else await completePledgeCheckout(env,object.id)
  } else if(event.type==='checkout.session.async_payment_failed') {
+  const bank=await one({db:env.DB},"SELECT session_id FROM cf_giving_intents WHERE session_id=? AND payment_method='us_bank_account'",object.id)
+  if(bank)await completed(env,object.id)
   await checkoutFailure(env,object.id)
+ } else if (['payment_intent.processing','payment_intent.succeeded','payment_intent.payment_failed','payment_intent.canceled'].includes(event.type)) {
+  const bank=await one({db:env.DB},"SELECT session_id FROM cf_giving_intents WHERE payment_method='us_bank_account' AND (id=? OR id IN (SELECT intent_id FROM cf_bank_checkouts WHERE payment_intent_id=?))",object.metadata?.coffer_intent??'',object.id)
+  if(bank?.session_id)await completed(env,bank.session_id)
  } else if (['invoice.paid', 'invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.updated'].includes(event.type)) {
   await invoice(env, object.id, event.type === 'invoice.payment_failed' ? event.id : undefined)
  } else if (['customer.subscription.updated', 'customer.subscription.deleted', 'customer.subscription.created'].includes(event.type)) {
