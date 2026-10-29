@@ -32,8 +32,8 @@ export type ParsedInstallment = Located & { externalId: string; pledgeExternalId
 export type ParsedNote = Located & { externalId: string; donorExternalId: string; text: string; date: string; type: string }
 export type Total = { giftCount: number; amountCents: number }
 export type ImportTotals = Total & { byYear: Record<string, Total>; byFund: Record<string, Total>; byDonor: Record<string, Total>; complete: boolean }
-export type OutcomeScope = 'gift acknowledgment' | 'soft-credit acknowledgment' | 'goods' | 'tribute' | 'tribute source group'
-export const outcomeScopes: OutcomeScope[] = ['gift acknowledgment','soft-credit acknowledgment','goods','tribute','tribute source group']
+export type OutcomeScope = 'gift acknowledgment' | 'soft-credit acknowledgment' | 'goods' | 'tribute' | 'tribute source group' | 'constituents' | 'open pledge' | 'consent' | 'active plan' | 'historical receipt'
+export const outcomeScopes: OutcomeScope[] = ['gift acknowledgment','soft-credit acknowledgment','goods','tribute','tribute source group','constituents','open pledge','consent','active plan','historical receipt']
 export type OutcomeTotals = Record<OutcomeScope, Record<string, Total>>
 export type ControlTotal = Located & {
  scope: 'all' | 'year' | 'fund' | 'donor' | OutcomeScope; key: string; giftCount: number | null; amountCents: number | null

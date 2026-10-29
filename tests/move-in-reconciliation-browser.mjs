@@ -29,6 +29,7 @@ export async function reconciliationBrowser(h,{preview,input,phase='apply'}) {
    const tables=page.locator('.crm-totals')
    assert.equal(await tables.count(),2)
    const source=await tables.nth(1).innerText()
+   assert.match(source,/constituents · all/);assert.match(source,/open pledge · all/);assert.match(source,/historical receipt · email/);assert.match(source,/consent · mail unknown/)
    assert.match(source,/soft-credit acknowledgment · acknowledged/)
    assert.match(source,/goods · all/);assert.match(source,/\$60\.00/)
    assert.match(source,/tribute source group · Memorial source/)
@@ -42,6 +43,15 @@ export async function reconciliationBrowser(h,{preview,input,phase='apply'}) {
    await page.waitForURL('**/app/move-in/crm/journal?id=*')
    assert.match(await page.innerText('body'),/All totals match/)
    await proof('reconciliation-imported')
+  }else if(phase==='sign-off'){
+   await page.goto(origin+'/app/move-in/crm/journal?id='+preview.id)
+   await page.getByLabel('I stopped each source plan, or there are no source plans to stop.').check()
+   await page.getByLabel('No cross-account card or bank-account transfer is required for this cutover.').check()
+   await page.getByLabel('Cutover note',{exact:true}).fill('Reviewed independent source controls and no transferred plans.')
+   await page.getByRole('button',{name:'Record owner sign-off',exact:true}).click()
+   await page.waitForURL('**/app/move-in/crm/journal?id=*')
+   assert.match(await page.innerText('body'),/Owner signed off these current records/)
+   await proof('reconciliation-owner-sign-off')
   }else{
    await page.goto(origin+'/app/move-in/crm/journal?id='+preview.id)
    await page.getByRole('button',{name:'Check totals again',exact:true}).click()

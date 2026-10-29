@@ -1078,6 +1078,12 @@
       "name": "core-0176_coffer_move_in_outcome_refs.sql",
       "sha256": "89e4a37f382d58ae92f5e567416649232a162a056404fde80591eb366ff73d5d",
       "sql": "-- Reviewed outcome membership is row-based, like the existing gift journal.\n-- Keeping every source key in one report would exceed D1's per-value limit.\nCREATE TABLE cf_move_in_outcome_refs (\n job_id TEXT NOT NULL REFERENCES cf_move_in_jobs(id) ON DELETE CASCADE,\n kind TEXT NOT NULL CHECK(kind IN ('gift','softCredit')),\n source_key TEXT NOT NULL,\n PRIMARY KEY(job_id,kind,source_key)\n);\nCREATE TRIGGER cf_move_in_outcome_refs_erased AFTER UPDATE OF redacted ON cf_move_in_jobs\nWHEN NEW.redacted=1\nBEGIN\n DELETE FROM cf_move_in_outcome_refs WHERE job_id=NEW.id;\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0177_coffer_move_in_inventory_refs.sql",
+      "sha256": "347d39a22503febebdd03b36ca5cfa1622db6ee27321029d5b1520992c605333",
+      "sql": "-- Inventory membership also includes source records reused from earlier imports.\nCREATE TABLE cf_move_in_inventory_refs (\n job_id TEXT NOT NULL REFERENCES cf_move_in_jobs(id) ON DELETE CASCADE,\n kind TEXT NOT NULL CHECK(kind IN ('donor','pledge')),\n source_key TEXT NOT NULL,\n native_id TEXT,\n PRIMARY KEY(job_id,kind,source_key)\n);\nCREATE TRIGGER cf_move_in_inventory_refs_erased AFTER UPDATE OF redacted ON cf_move_in_jobs\nWHEN NEW.redacted=1\nBEGIN\n DELETE FROM cf_move_in_inventory_refs WHERE job_id=NEW.id;\nEND;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

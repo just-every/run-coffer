@@ -153,6 +153,12 @@ Upload a separate CSV report, or an XLSX worksheet, alongside the source records
 
 | Control Scope | Control Key | Count and amount meaning |
 | --- | --- | --- |
+| all | empty | Received gifts and cash cents |
+| constituents | all, active, inactive, or deceased | Distinct native constituents matched to the supplied source identities; amount is zero |
+| open pledge | all | Open promises and remaining balances after payments, reductions and reversals |
+| consent | Channel then granted, withdrawn, or unknown, such as mail unknown | Current choices for email, mail, phone and SMS; missing evidence stays unknown; amount is zero |
+| active plan | all | Active native schedules for matched constituents and per-installment amounts; neither received cash nor proof of a vault transfer |
+| historical receipt | email, letter, other, or unknown | Acknowledged gifts grouped by recorded method; unknown establishes no method or delivery |
 | gift acknowledgment | acknowledged, not acknowledged, or do not acknowledge | Original gift records and their original amounts, independently of soft credits |
 | soft-credit acknowledgment | acknowledged, not acknowledged, or do not acknowledge | Source-linked credit records and credited amounts, independently of the giver's status |
 | goods | all, none, provided, or unknown | Gift records in that goods category and the recorded non-deductible amount; unknown answers stay unknown and contribute no known goods value |
@@ -166,3 +172,11 @@ The preview lists each difference against the records Coffer would retain, using
 The owner may explicitly set **Acknowledge from** in the reviewed apply form. This installation policy is separate from historical acknowledgment facts and the existing **Thanked before** choice. An older not-acknowledged gift retains its source status while remaining absent from the acknowledgment queue and the missing-receipt agent.
 
 The review also lists not-acknowledged source gifts at the configured letter threshold by year. The owner’s acknowledge-from field starts with the saved installation date, or 30 days before the organization’s current date on the first review. Selecting that date excludes older gifts from due letters and recovery without changing their historical acknowledgment status.
+
+Current constituent, pledge, consent and active-plan controls include records reused from an earlier import and explicitly selected spreadsheet matches. Native changes appear on the next check. Where an export has no source-plan records, its calculated plan count is **Not supplied**; an independent active-plan control can still be compared with native schedules. Stored source-plan evidence creates no native plan. Historical receipt methods establish no provider delivery beyond the source facts.
+
+### Owner cutover review
+
+The completed journal offers owner sign-off after every control matches, an acknowledge-from date is saved, and the source report includes counts for all gifts, constituents, open pledges, active plans, goods and all tributes; every gift and soft-credit acknowledgment status; every channel consent status; and every historical acknowledgment method. Include cash, pledge, plan, goods and tribute amounts too, even when zero. The owner confirms that source plans are stopped or absent and that no cross-account card or bank-account transfer is required, then records a note. Admins can inspect reconciliation but cannot sign off.
+
+The approval is bound to the reviewed records. A later native correction, changed import state, changed receipt cutoff or loss of owner authority makes it historical and requires a new review. Replay creates no second approval, undo clears it and donor erasure removes the private report. This door submits no charge, stops no source plan and activates no replacement schedule. Vault-transferred plans, provider usability and missing-instrument reauthorization remain unavailable until MOVE-009 supplies its separately verified transfer and charging boundaries.

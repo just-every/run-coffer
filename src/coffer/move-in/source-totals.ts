@@ -32,12 +32,17 @@ export function controlRow(r: SourceRow, out: ParsedImport) {
  const year = r.get('controlYear'), fund = r.get('fund'), donor = r.get('donorId')
  if ([year, fund, donor].filter(Boolean).length > 1) r.error('CONTROL_SCOPE', 'Export one control grouping (year, fund, or constituent) per row.')
  const suppliedKey=r.get('controlKey')
- const scope:ControlTotal['scope'] = requested ? (outcomeScopes.includes(requested as OutcomeScope)?requested as OutcomeScope:'all') : year ? 'year' : fund ? 'fund' : donor ? 'donor' : 'all'
+ const scope:ControlTotal['scope'] = requested ? (['all','year','fund','donor',...outcomeScopes].includes(requested)?requested as ControlTotal['scope']:'all') : year ? 'year' : fund ? 'fund' : donor ? 'donor' : 'all'
  let key = requested ? suppliedKey : year || fund || donor || ''
- if(requested&&!outcomeScopes.includes(requested as OutcomeScope))r.error('CONTROL_SCOPE','Choose gift acknowledgment, soft-credit acknowledgment, goods, tribute or tribute source group.','controlScope')
- if(requested&&[year,fund,donor].some(Boolean))r.error('CONTROL_SCOPE','Outcome controls use Control Key, without a year, fund or constituent grouping.')
+ if(requested&&!['all','year','fund','donor',...outcomeScopes].includes(requested))r.error('CONTROL_SCOPE','Choose a documented reconciliation control scope.','controlScope')
+ if(outcomeScopes.includes(scope as OutcomeScope)&&[year,fund,donor].some(Boolean))r.error('CONTROL_SCOPE','Outcome controls use Control Key, without a year, fund or constituent grouping.')
  if(scope==='gift acknowledgment'||scope==='soft-credit acknowledgment'){key=key.toLowerCase();if(!['acknowledged','not acknowledged','do not acknowledge'].includes(key))r.error('CONTROL_KEY','Supply one of the three acknowledgment statuses.','controlKey')}
  if(scope==='goods'){key=key.toLowerCase()||'all';if(!['all','none','provided','unknown'].includes(key))r.error('CONTROL_KEY','Goods controls use all, none, provided or unknown.','controlKey')}
+ if(['constituents','open pledge','active plan'].includes(scope))key=key.toLowerCase()||'all'
+ if(['open pledge','active plan'].includes(scope)&&key!=='all')r.error('CONTROL_KEY','This control uses all as its key.','controlKey')
+ if(scope==='constituents'&&!['all','active','inactive','deceased'].includes(key))r.error('CONTROL_KEY','Constituent controls use all, active, inactive or deceased.','controlKey')
+ if(scope==='consent'&&!/^(email|mail|phone|sms) (granted|withdrawn|unknown)$/.test(key))r.error('CONTROL_KEY','Consent controls name a channel and granted, withdrawn or unknown.','controlKey')
+ if(scope==='historical receipt'&&!['email','letter','other','unknown'].includes(key))r.error('CONTROL_KEY','Historical receipts use email, letter, other or unknown.','controlKey')
  if(scope==='tribute'&&key)key=key.trim().replace(/\s+/g,' ').toLowerCase()
  if(scope==='tribute source group'&&!key)r.error('CONTROL_KEY','Supply the exact source tribute group.','controlKey')
  if(giftCount===null&&amountCents===null)r.error('CONTROL_EMPTY','Supply at least a count or an amount for this source control.')

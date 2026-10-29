@@ -45,13 +45,14 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
    const job=await reviewed(c,url.searchParams.get('id')||''), rows=await allIssues(c,job.id,q)
    return new Response(csv(['File','Sheet','Row','Column','Must fix or check','Reason','What to do'],rows.map(d=>[d.file,d.sheet==='CSV'?'':d.sheet,d.row,d.column,d.severity==='error'?'Must fix':'Check',reasonName(d.code),d.message])),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="move-in-${q.severity==='error'?'rows-to-fix':'rows'}-${job.id.slice(0,8)}.csv"`}})
   }
-  if(action==='journal') {const result=await service.journal(c,url.searchParams.get('id')||'');return api?json(result):page('CRM import journal',crmJournalPage(result,(await settings(c)).timezone),c.actor,200,'/app/more')}
+  if(action==='journal') {const result=await service.journal(c,url.searchParams.get('id')||'');return api?json(result):page('CRM import journal',crmJournalPage(result,(await settings(c)).timezone,c.actor.role==='owner'),c.actor,200,'/app/more')}
  }
  if(request.method!=='POST')fail('post_required','Use the move-in forms.',405)
  const data=api?await readers.jsonBody(request,24*1024*1024):await readers.formBody(request,24*1024*1024)
  const get=(key:string)=>api?data[key]:data.get(key), id=String(get('id')||'')
  if(action==='undo') {const result=await service.undo(c,id);return api?json(result):redirect(result.id)}
  if(action==='continue') {const result=await service.continueApply(c,id);return api?json(result):redirect(result.id)}
+ if(action==='sign-off') {const result=await service.signOff(c,{id,fingerprint:String(get('fingerprint')||''),sourcePlansStopped:get('sourcePlansStopped'),noVaultTransfer:get('noVaultTransfer'),note:get('note')});return api?json(result):redirect(result.id)}
  if(action==='check') {const result=await service.recheck(c,id);return api?json(result):redirect(result.id)}
  if(action==='apply') {
   if(!api && get('confirm')!=='yes')fail('confirmation_required','Tick the box to approve the reviewed move-in first.',400)
