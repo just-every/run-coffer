@@ -43,7 +43,9 @@ export async function installationChecklist(c:Context,source:unknown,jobId?:stri
   // Identifiers come only from the server-owned table catalog.
   for(const kind of kinds) {
    const t=tables[kind]
-   records[kind]=await evidenceRows(c,`SELECT r.kind,r.source_key,r.snapshot AS original,CASE WHEN n.${t.key} IS NULL THEN NULL ELSE ${snapshot(kind)} END AS current FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=?`,[job.id,kind],rows=>{
+   const alias=kind==='donor'?'LEFT JOIN cf_donor_merges m ON m.donor_id=r.native_id':''
+   const nativeId=kind==='donor'?'COALESCE(m.into_id,r.native_id)':'r.native_id'
+   records[kind]=await evidenceRows(c,`SELECT r.kind,r.source_key,r.snapshot AS original,CASE WHEN n.${t.key} IS NULL THEN NULL ELSE ${snapshot(kind)} END AS current FROM cf_move_in_records r ${alias} LEFT JOIN ${t.table} n ON n.${t.key}=${nativeId} WHERE r.job_id=? AND r.kind=?`,[job.id,kind],rows=>{
     if(kind!=='donor')return
     nameCount+=rows.length
     for(const row of rows){
