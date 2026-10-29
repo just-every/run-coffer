@@ -48,7 +48,7 @@
       "hosted": false,
       "commands": [
         "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-007|DONOR-013):' tests/coffer.test.mjs",
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-005|DONOR-013):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-013:' tests/move-in.test.mjs"
       ]
     },
     {
@@ -129,7 +129,8 @@
       "commands": [
         "node --test tests/status.test.mjs",
         "COFFER_NAMES_BROWSER=.cache/names node --test tests/names.test.mjs",
-        "node --test tests/split-gifts.test.mjs"
+        "node --test tests/split-gifts.test.mjs",
+        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-005:' tests/move-in.test.mjs"
       ]
     },
     {

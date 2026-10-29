@@ -1,3 +1,4 @@
+import { sourceMembershipHistory } from './source-history'
 import { requireRole } from '../auth'
 import { addDays, all, commit, event, fail, guard, integer, newId, one, sql, text, today, type Context, type Row, type Stmt } from '../db'
 import { amount } from '../money'
@@ -85,8 +86,9 @@ export async function membershipState(c:Context){
   return {levelId:l.id,name:l.name,...Object.fromEntries(['active','grace','lapsed','review'].map(s=>[s,[...people.values()].filter(r=>r.state===s).length]))}
  })
  const reminders=await all(c,`SELECT r.* FROM cf_membership_reminders r JOIN cf_memberships m ON m.id=r.membership_id JOIN cf_donors d ON d.id=m.donor_id WHERE d.erased_at IS NULL ORDER BY prepared_at,id`)
+ const imported=await sourceMembershipHistory(c,day)
  await commit(c,[])
- return {asOf:day,levels,memberships:rows,counts,reminders}
+ return {asOf:day,levels,memberships:rows,counts,reminders,...(imported.rows.length?{sourceMemberships:imported.rows,sourceCounts:imported.counts}:{})}
 }
 export async function prepareMembershipReminders(c:Context){
  const state=await membershipState(c),statements:Stmt[]=[]
