@@ -1,3 +1,4 @@
+import { installationChecklist, reviewChecklist } from './checklist'
 import { sourceOptions, switchingGuide } from '../ui/crm-export-steps'
 import { canonicalDonor } from '../donor-merge'
 import { audience } from '../appeals'
@@ -40,7 +41,8 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
    return json({outreach:{email:channels[0],mail:channels[1]},plans:await all(c,"SELECT * FROM cf_recurring_source_references WHERE donor_id=?",donorId),gifts:await all(c,"SELECT p.*,g.amount_cents,g.received_on FROM cf_platform_gifts p JOIN cf_gifts g ON g.id=p.gift_id WHERE g.donor_id=?",donorId)})
   }
   if(action==='spreadsheet-mappings'&&api)return json(await service.spreadsheetMappings(c))
-  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c)),c.actor,200,'/app/more')
+  if(action==='checklist'&&api)return json(await installationChecklist(c,url.searchParams.get('source')||'bloomerang',url.searchParams.get('id')||undefined))
+  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c),await installationChecklist(c,url.searchParams.get('source')||'bloomerang',url.searchParams.get('id')||undefined)),c.actor,200,'/app/more')
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
   if(action==='review' && !api) {
    const job=await reviewed(c,url.searchParams.get('id')||''), list=await issues(c,job.id,{...q,severity:q.severity??(job.report.canApply?undefined:'error')})
@@ -56,6 +58,10 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
  if(request.method!=='POST')fail('post_required','Use the move-in forms.',405)
  const data=api?await readers.jsonBody(request,24*1024*1024):await readers.formBody(request,24*1024*1024)
  const get=(key:string)=>api?data[key]:data.get(key), id=String(get('id')||'')
+ if(url.pathname===base+'/checklist/review') {
+  const result=await reviewChecklist(c,api?data:{source:get('source'),id,step:get('step'),version:Number(get('version')),fingerprint:get('fingerprint')})
+  return api?json(result):new Response(null,{status:303,headers:{...headers,location:`/app/move-in/crm?${new URLSearchParams({source:result.source,id:result.jobId!})}#installation-checklist`}})
+ }
  if(action==='undo') {const result=await service.undo(c,id);return api?json(result):redirect(result.id)}
  if(action==='continue') {const result=await service.continueApply(c,id);return api?json(result):redirect(result.id)}
  if(action==='check') {const result=await service.recheck(c,id);return api?json(result):redirect(result.id)}

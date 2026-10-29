@@ -14,7 +14,7 @@
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004"
+        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-011"
       ]
     },
     {
@@ -152,7 +152,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
+        "COFFER_MOVE_IN_GUIDE_BROWSER=.cache/move-in-guide node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
       ]
     },
     {

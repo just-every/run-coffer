@@ -8,7 +8,7 @@ These are the report layouts Coffer reads. Your account may label a column a lit
 
 | Moving from | File 1: people | File 2: gifts | Optional |
 | --- | --- | --- | --- |
-| Little Green Light | **Constituents → All constituents → Export results → Customize**; select fields, then **Save Export** as CSV | **Home → Reports → Gift/Pledge Reports → Full Export -- CSV**; edit a copy for all years, then **Save Export** | Constituent search → **Export results → Customize → Relationships (csv only)** |
+| Little Green Light | **Constituents → All constituents → Export results → Customize**; select fields, then **Save Export** as CSV | **Home → Reports → Gift&#47;Pledge Reports → Full Export -- CSV**; edit a copy for all years, then **Save Export** | Constituent search → **Export results → Customize → Relationships (csv only)** |
 | Bloomerang | **Reports** → new **Constituent** report → **Export** | **Reports** → new **Transactions** report, all dates → **Export** | **Reports** → **Notes** report |
 | Raiser's Edge NXT | Database view → **Export** → **New export** → **Constituent** type, one row per record, **Include header** → **Export now** as CSV | Same with the **Gift** export type | Relationships export |
 
@@ -156,7 +156,7 @@ unavailable work without treating documentation as completed work.
 
 ### Little Green Light switching order
 
-1. **Export and import history:** Constituents → All constituents → Export results → Customize, then Save Export. For gifts: Home → Reports → Gift/Pledge Reports → Full Export -- CSV; include all years. Export relationships using Relationships (csv only). Follow the detailed column reference above, preview, resolve blocking rows and approve the supported import.
+1. **Export and import history:** Constituents → All constituents → Export results → Customize, then Save Export. For gifts: Home → Reports → Gift&#47;Pledge Reports → Full Export -- CSV; include all years. Export relationships using Relationships (csv only). Follow the detailed column reference above, preview, resolve blocking rows and approve the supported import.
 2. **Request the PCI transfer:** identify the processor behind LGL Forms and use the direct-transfer request below. An LGL export does not transfer a vault.
 3. **Upload Stripe mapping files:** preserve every card and ACH mapping in the shapes below. Upload and validation remain unavailable.
 4. **Review name mapping:** compare constituent name parts, salutations and addressee unchanged; gift-report labels link by ID.
@@ -192,7 +192,7 @@ unavailable work without treating documentation as completed work.
 
 ### Neon CRM switching order
 
-1. **Read and import history:** an administrator opens Settings → Global Settings → User Management, selects or creates the API user and enables API access. Supply the organization ID and that user's API key in Read Neon history. Confirm USD only after checking the account. Review the supported accounts, pick-one account fields, fully paid donations, activities and paid event registrations; see the [Neon reference](./neon-move-in.md). Memberships, pledges, recurring migration and remaining source objects are unsupported. The [Neon API reference](https://developer.neoncrm.com/api-v2/) describes the network boundary.
+1. **Read and import history:** an administrator opens Settings → Global Settings → User Management, selects or creates the API user and enables API access. Supply the organization ID and that user's API key in Read Neon history. Confirm USD only after checking the account. Review the supported accounts, pick-one account fields, fully paid donations, activities and paid event registrations; see the [Neon reference](/docs/neon-move-in). Memberships, pledges, recurring migration and remaining source objects are unsupported. The [Neon API reference](https://developer.neoncrm.com/api-v2/) describes the network boundary.
 2. **Request the PCI transfer:** identify the processor behind Neon Pay, then arrange its direct transfer to Stripe below.
 3. **Upload Stripe mapping files:** keep every card and ACH mapping below. This upload and validation door is unavailable.
 4. **Review name mapping:** inspect account name parts and unchanged salutations beside the imported donor records.
@@ -204,7 +204,7 @@ unavailable work without treating documentation as completed work.
 
 ### Givebutter switching order
 
-1. **Read and import history:** Settings → Integrations → API → create an API key, then paste it into Read Givebutter history. Check a known source amount before choosing cents or USD dollars. Review contacts, transactions, campaigns and recurring references; attach source evidence for facts absent from the API. See the [history reference](./platform-history.md) and [Givebutter API documentation](https://docs.givebutter.com/). The read changes no source plan.
+1. **Read and import history:** Settings → Integrations → API → create an API key, then paste it into Read Givebutter history. Check a known source amount before choosing cents or USD dollars. Review contacts, transactions, campaigns and recurring references; attach source evidence for facts absent from the API. See the [history reference](/docs/platform-history) and [Givebutter API documentation](https://docs.givebutter.com/). The read changes no source plan.
 2. **Request the PCI transfer:** ask Givebutter which processor holds each payment method, then use the direct request below.
 3. **Upload Stripe mapping files:** preserve each card and ACH mapping below. Stored processor references never substitute for this unavailable upload and validation.
 4. **Review name mapping:** compare contact first and last names with native donor names and source IDs.
@@ -216,7 +216,7 @@ unavailable work without treating documentation as completed work.
 
 ### Zeffy switching order
 
-1. **Export and import history:** Contacts → export; Payments → select the complete date range → Export. Choose Zeffy in Coffer and upload both reports with stable contact and payment IDs. Use one row per payment, USD currency and completed payment states; use the configured [history columns](./platform-history.md) when headings differ. The [Zeffy export instructions](https://support.zeffy.com/export-or-download-all-payments-or-tickets-associated-with-a-specific-form-u0tyj) describe payment exports. Unsupported states and missing source IDs block review.
+1. **Export and import history:** Contacts → export; Payments → select the complete date range → Export. Choose Zeffy in Coffer and upload both reports with stable contact and payment IDs. Use one row per payment, USD currency and completed payment states; use the configured [history columns](/docs/platform-history) when headings differ. The [Zeffy export instructions](https://support.zeffy.com/export-or-download-all-payments-or-tickets-associated-with-a-specific-form-u0tyj) describe payment exports. Unsupported states and missing source IDs block review.
 2. **Request the PCI transfer:** ask Zeffy to identify the processor and coordinate the direct Stripe transfer below. Do not assume portability or a completed transfer.
 3. **Upload Stripe mapping files:** preserve every applicable card and ACH mapping. The upload and validation door is unavailable.
 4. **Review name mapping:** inspect source first and last names and their native donor records, linked by Contact ID.
