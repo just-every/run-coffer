@@ -1,11 +1,16 @@
 import { box, e, field, hidden, money, select } from '../ui/common'
 import { staffPaymentResult, staffPaymentState, type reviewStaffPayment } from './staff-payment'
-import type { Context, Row } from '../db'
+import { CofferError, commit, type Context, type Row } from '../db'
 
 const back=(id:string)=>`<p><a href="/app/donors/${encodeURIComponent(id)}">Constituent record</a></p>`
 const values=(input:Row)=>['donorId','customerId','paymentMethodId','version','requestId','campaignId','amount','appeal','sourceRef','givingChannel'].map(key=>hidden(key,input[key])).join('')
 export async function staffPaymentPage(c:Context,donorId:string){
- const s=await staffPaymentState(c,donorId)
+ let s:Awaited<ReturnType<typeof staffPaymentState>>
+ try{s=await staffPaymentState(c,donorId)}catch(error){
+  if(!(error instanceof CofferError)||!['CUSTOMER_UNAVAILABLE','CUSTOMER_AMBIGUOUS','CUSTOMER_BILLING_REVIEW','PAYMENT_METHOD_REQUIRED','PAYMENT_METHOD_UNVERIFIED','PAYMENT_METHOD_UNAVAILABLE','PAYMENT_METHOD_EXPIRED','not_available'].includes(error.code))throw error
+  await commit(c,[])
+  return back(donorId)+box('Saved card not ready','<p>One-time staff payment entry needs one verified Stripe customer and a current saved card for this constituent. The donor must also grant one-time permission for that card in their giving account. Opening this page does not submit a payment.</p><p>New-card and bank entry are not available here. Review the constituent’s saved giving account before returning to this payment entry.</p>')
+ }
  if(s.pending)return back(donorId)+box('Payment needs a provider check','<p>A previous staff charge is awaiting confirmation. Check its Stripe result before submitting another charge. Coffer will not retry automatically.</p>')
  if(s.cardConsent?.status!=='granted')return back(donorId)+box('Donor one-time permission required','<p>The donor must grant one-time gift permission for their current saved card in their giving account. A recurring gift permission does not authorize one-time payments.</p>')
  if(!s.sources.length)return back(donorId)+box('Record the authorization','<p>Log the donor’s authorization as a phone call or attach their mailed authorization on this constituent before entering the payment.</p>')
