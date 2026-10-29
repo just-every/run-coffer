@@ -288,3 +288,7 @@ test('CAMP-003: verified supporters fundraise as teams and personal pages with s
  const {peerJourney}=await import('./peer-journey.mjs')
  await peerJourney()
 })
+
+test('CAMP-004: paid memberships renew once, disclose benefits, reconcile campaigns and retain held reminder custody', {timeout:300000}, async()=>{
+ const {membershipsJourney}=await import('./memberships-journey.mjs');await membershipsJourney()
+})
