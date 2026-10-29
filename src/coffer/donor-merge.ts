@@ -1,3 +1,4 @@
+import { peerMergeStatements, peerUnmergeStatements } from './peer/custody'
 import { auctionMergeStatements } from './auction-custody'
 import { developmentReportMergeStatements } from './agent/development-report-custody'
 import { mergeStatements as recognitionMergeStatements } from './recognition'
@@ -131,6 +132,7 @@ export async function mergeDonor(c: Context, p: Row, tail: Stmt[] = []): Promise
   sql('UPDATE cf_grants SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_in_kind_gifts SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_employer_matches SET employer_donor_id=? WHERE employer_donor_id=?',target,source),
+  ...peerMergeStatements(source,target),
   ...recognitionMergeStatements(source,target),...donorDepthMergeStatements(source,target),...majorGiftMergeStatements(source,target),
   sql('DELETE FROM cf_donor_tokens WHERE donor_id IN (?,?)',source,target),
   ...solicitationMergeCustody(c,source,target,mergeId,mergedOn),
@@ -178,6 +180,7 @@ export async function undoMerge(c:Context,p:Row):Promise<Row> {
   sql('INSERT INTO cf_identity_ingest VALUES(1)'),
   sql('INSERT INTO cf_contact_edit VALUES(1)'),
   ...restoreMerge(tables,mergeId),
+  ...peerUnmergeStatements(merge.source_id,merge.target_id),
   sql('DELETE FROM cf_contact_edit'),
   sql('DELETE FROM cf_identity_ingest'),
   sql("DELETE FROM cf_donor_address_history WHERE donor_id IN (?,?) AND source='undo'",merge.source_id,merge.target_id),

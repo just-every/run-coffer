@@ -1,3 +1,5 @@
+import { peerResponse } from '../peer/http'
+import { publicPage } from '../peer/service'
 import { fundraisingEvent } from '../fundraising-events'
 import { registrationPage } from '../ui/fundraising-events'
 import { givingEmbedScript } from './form-embed'
@@ -87,6 +89,7 @@ export async function givingResponse(request: Request, original: Bindings): Prom
    }
    fail('method_not_allowed','Use the registration form.',405)
   }
+  const peer = await peerResponse(request, env); if (peer) return peer
   const portal = await portalResponse(request, env); if (portal) return portal
   const media = path.match(/^\/give\/([a-z0-9-]+)\/media\/(image|video)$/)
   if (media && ['GET', 'HEAD'].includes(request.method)) return await campaignMediaResponse(request, { db: env.DB, env }, media[1], media[2])
@@ -98,7 +101,7 @@ export async function givingResponse(request: Request, original: Bindings): Prom
   const embed = path.match(/^\/give\/([a-z0-9-]+)\/embed\.js$/)
   if(embed && request.method==='GET') return givingEmbedScript(await campaign({db:env.DB},embed[1]))
   const m = path.match(/^\/give\/([a-z0-9-]+)(\/checkout)?$/)
-  if (m && !m[2] && ['GET', 'HEAD'].includes(request.method)) { const linkedText=await textLink(env,m[1],url.searchParams.get('text')); return campaignPage(await campaign({ db: env.DB }, m[1]), env, (await settings({ db: env.DB })).organisation, url.searchParams.has('cancelled'), await trackedAppeal({ db: env.DB }, linkedText ? linkedText.appeal : url.searchParams.get('appeal')), linkedText ? { phone: linkedText.phone, token: url.searchParams.get('text')! } : null, url.searchParams.get('embed')==='1') }
+  if (m && !m[2] && ['GET', 'HEAD'].includes(request.method)) { const peerPage=url.searchParams.get('peer')?await publicPage({db:env.DB},url.searchParams.get('peer')!):null; if(peerPage&&peerPage.campaign.slug!==m[1])fail('peer_campaign','Choose a page in this campaign.',409); const linkedText=await textLink(env,m[1],url.searchParams.get('text')); return campaignPage(await campaign({ db: env.DB }, m[1]), env, (await settings({ db: env.DB })).organisation, url.searchParams.has('cancelled'), await trackedAppeal({ db: env.DB }, linkedText ? linkedText.appeal : url.searchParams.get('appeal')), linkedText ? { phone: linkedText.phone, token: url.searchParams.get('text')! } : null, url.searchParams.get('embed')==='1', peerPage?.page ?? null) }
   if (m?.[2] && request.method === 'POST') {
    if (!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) fail('form_required', 'Send the donation form.', 415)
    const values = new URLSearchParams(await givingBody(request)), input: Record<string, any> = Object.fromEntries(values)
