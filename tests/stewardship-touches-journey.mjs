@@ -9,12 +9,13 @@ const address=n=>['synthetic-coffer-'+n,'example.test'].join(String.fromCharCode
 
 export async function stewardshipTouchesJourney(){
  const calls=[],bindings={COFFER_TEST_NOW:fixedNow}
- let beforeReviewResponse
+ let beforeReviewResponse,beforeWritingResponse
  const outbound=async request=>{
   assert.equal(new URL(request.url).hostname,'api.anthropic.com')
   const input=JSON.parse((await request.json()).messages[0].content);calls.push(input)
   assert.ok(!JSON.stringify(input).includes('CONFIDENTIAL PRIVATE SOURCE'))
   if(input.subject&&beforeReviewResponse){const change=beforeReviewResponse;beforeReviewResponse=null;await change()}
+  if(!input.subject&&beforeWritingResponse){const change=beforeWritingResponse;beforeWritingResponse=null;await change()}
   const gift=input.sources.find(s=>s.kind==='gift')
   const output=input.subject?{assessment:'The recorded gift supports this touch.',supported:true,isAsk:false,sourceIds:[gift.id]}:
    {subject:'A personal thank-you',body:`${input.format}: Thank you for your $${gift.facts.current_amount_usd} gift to ${gift.facts.original_fund}.`,citations:[{sourceId:gift.id}]}
@@ -166,9 +167,17 @@ export async function stewardshipTouchesJourney(){
   await h.get('/api/coffer/agent/stewardship',{as:admin.cookie,status:401})
   await h.api('/auth/operator/role',{operatorId:admin.id,role:'admin'})
   assert.equal((await h.api(route('save'),{...revoked,subject:revoked.row.subject,body:revoked.row.body},{status:409})).error,'SOURCES_CHANGED','Restoring a role cannot revive review from its earlier authority version')
+  const writer=await h.person(address('touch-writer'),'admin'),beforeDisclosure=calls.length,beforeDrafts=(await state(people[0])).drafts.length
+  beforeWritingResponse=()=>h.api('/auth/operator/role',{operatorId:writer.id,role:'member'})
+  await h.api(route('draft'),{donorId:people[0].id,kind:'thank_you',format:'card'},{as:writer.cookie,status:401})
+  assert.equal(calls.length,beforeDisclosure+1,'Revoking the writer during drafting prevents the second model disclosure')
+  assert.equal((await state(people[0])).drafts.length,beforeDrafts)
   const erasedTask=await getDraft(people[0],'card'),erasedReview=await h.api(route('save'),{...erasedTask,subject:erasedTask.row.subject,body:erasedTask.row.body})
   const queued=await h.api(route('schedule'),{...erasedReview,dueOn:'2026-10-30',confirm:'SCHEDULE'})
-  await h.command('donor.erase',{donorId:people[0].id,confirm:'ERASE'})
+  const beforeErasureDisclosure=calls.length
+  beforeWritingResponse=()=>h.command('donor.erase',{donorId:people[0].id,confirm:'ERASE'})
+  await h.api(route('draft'),{donorId:people[0].id,kind:'thank_you',format:'card'},{status:409})
+  assert.equal(calls.length,beforeErasureDisclosure+1,'Erasure during drafting prevents a second model disclosure of the erased records')
   assert.ok(!(await taskList()).tasks.some(t=>t.id===queued.taskId))
   await h.command('task.complete',{taskId:queued.taskId,version:1,notes:'Refused'},{status:404})
   assert.ok(!(await h.get('/api/coffer/agent/stewardship')).drafts.some(d=>d.donor_id===people[0].id))

@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c36794e797f80fcaae807785538fbbbd36a09ab0b632f32ee18d4fdeb6b7a8d3",
+      "sha256": "e7c58dd412f65aeb053e8af2ed2349e8df1e70a528010f473ad6b0fab2d03613",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0706aa0f959a39894941f8247f5846c7c908b762cad4f7d7db6e6197a262de11",
+      "sha256": "e7cc36b3511db3a3f4704823d42d9ef80e5831c6dfef3bc8ac034433f7b7ce5d",
       "executable": false
     },
     "deploy-demo.json": {
@@ -635,7 +635,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "2cf847e0b5d5a8e99c8f468b576629245f4c347256af740b1b16bcdb4b471973",
+      "sha256": "61ece51798f9006d02a236a2392cc40a1446da64a32d9d94d31151ed410f6074",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -2487,7 +2487,7 @@
       "executable": false
     },
     "src/coffer/agent/stewardship.ts": {
-      "sha256": "d4db23786d2f2c7cad9ac440a74ef9bc055e4d9614929a5cdd13cc839262b111",
+      "sha256": "560e6a691456ca5f8861a0bedf6eb52f50ef5c1ed758d1798338f54f3e84f034",
       "executable": false
     },
     "src/coffer/annual-lapses.ts": {
@@ -7247,7 +7247,7 @@
       "executable": false
     },
     "tests/stewardship-touches-journey.mjs": {
-      "sha256": "02d808601d138ff63c49f57ffefb59748d32e4a371a346bdf4c66b4e0f5fbcf5",
+      "sha256": "a81ba7b57d648446f2906d7d8f27bbc52060033051f9530c32832be63c6b94eb",
       "executable": false
     },
     "tests/stewardship.test.mjs": {
