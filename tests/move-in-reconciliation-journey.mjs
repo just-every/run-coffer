@@ -21,7 +21,12 @@ const expectedControls=source=>[...controls,['all','',5,'1700'],['constituents',
 function tables(source,{mismatch=false,extra=false}={}){
  const [donor,gift,type,honoree,kind,group,restriction]=({lgl:['LGL Constituent ID','LGL Gift ID','Gift','Tribute Hon./Mem. Name','Tribute Dedication','Tribute Name','Communication Tags'],bloomerang:['Account Number','Transaction Number','Donation','Tribute','Tribute Type','Tribute Group','Communication Restrictions'],'re-nxt':['Constituent ID','Gift ID','Cash','Tribute Honoree','Tribute Type','Tribute Group','Solicit Codes']})[source]
  return [
-  ['constituents',[[donor,'Name',restriction], [id(9101),'First Import Donor','Do Not Solicit'],[id(9102),'Second Import Donor','Do Not Mail'],[id(9103),'Credit Import Donor','']]],
+  ['constituents',source==='lgl'?[
+   [donor,'Name',restriction,'TG Count','TG Amount'],
+   [id(9101),'First Import Donor','Do Not Solicit',mismatch?9:extra?4:3,mismatch?'9999':extra?'1075':'1050'],
+   [id(9102),'Second Import Donor','Do Not Mail',mismatch?9:2,mismatch?'9999':'650'],
+   [id(9103),'Credit Import Donor','',mismatch?9:0,mismatch?'9999':'0'],
+  ]:[[donor,'Name',restriction], [id(9101),'First Import Donor','Do Not Solicit'],[id(9102),'Second Import Donor','Do Not Mail'],[id(9103),'Credit Import Donor','']]],
   ['gifts',[[gift,donor,'Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount','Acknowledgment Status','Acknowledgment Date','Acknowledgment Method','Acknowledgment Interaction ID','Acknowledgment Reference',honoree,kind,group,'Tribute Recipient Name','Tribute Recipient Address'],
    [id(9111),id(9101),type,'2026-09-01','500','Check','0','acknowledged','2026-09-02','email',id(9131),'','River Reed','memory','Memorial source','Family Reed','1 Reading Road'],
    [id(9112),id(9102),type,'2026-09-03','250','Check','60','not acknowledged','','','','','River Reed','memory','Memorial source','',''],
@@ -68,7 +73,7 @@ export async function reconciliationJourney(files){
   const admin=await h.person([id(9192),'example.test'].join('@'),'admin')
   await h.api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})
   await post(h,'apply',{id:p.id,fingerprint:p.fingerprint},{as:admin.cookie,status:401})
-  if(source==='bloomerang'&&format==='csv')await reconciliationBrowser(h,{preview:p,input:uploaded})
+  if(['lgl','bloomerang'].includes(source)&&format==='csv')await reconciliationBrowser(h,{preview:p,input:uploaded})
   else await apply(h,p)
   const people=(await h.get('/api/coffer/donors')).donors,first=people.find(d=>d.name==='First Import Donor'),second=people.find(d=>d.name==='Second Import Donor'),credited=people.find(d=>d.name==='Credit Import Donor')
   const detail=await h.get('/api/coffer/donors/'+first.id),other=await h.get('/api/coffer/donors/'+second.id)
@@ -98,7 +103,7 @@ export async function reconciliationJourney(files){
   await post(h,'sign-off',{...sign,sourcePlansStopped:false},{status:409})
   await post(h,'sign-off',{...sign,noVaultTransfer:false},{status:409})
   assert.equal((await h.get(endpoint+'/journal?id='+p.id)).job.cutover.record,null,'Refused cutovers record no approval')
-  if(source==='bloomerang'&&format==='csv')await reconciliationBrowser(h,{preview:p,phase:'sign-off'})
+  if(['lgl','bloomerang'].includes(source)&&format==='csv')await reconciliationBrowser(h,{preview:p,phase:'sign-off'})
   else assert.equal((await post(h,'sign-off',sign)).unchanged,false)
   assert.equal((await post(h,'sign-off',sign)).unchanged,true,'Repeated owner approval records no second cutover')
   assert.equal((await h.get(endpoint+'/journal?id='+p.id)).job.cutover.current,true)
@@ -157,7 +162,7 @@ export async function reconciliationJourney(files){
   assert.equal(row(check.rows,'source report consent','email unknown').cofferCount,2,'Current consent counts follow the later native choice')
   assert.equal(row(check.rows,'historical receipt','email').cofferCount,0,'Reset acknowledgment facts clear the historical email count')
   assert.equal((await h.get('/api/coffer/tributes')).groups.find(g=>g.key==='memory:river reed').totalCents,25000)
-  if(source==='bloomerang'&&format==='csv')await reconciliationBrowser(h,{preview:again,phase:'check'})
+  if(['lgl','bloomerang'].includes(source)&&format==='csv')await reconciliationBrowser(h,{preview:again,phase:'check'})
   await post(h,'undo',{id:again.id},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,3,'Later native work is never removed by undo')
   const changedPreview=await post(h,'preview',await input({extra:true}));assert.equal(row(changedPreview.reconciliation,'source report goods','all').cofferCents,7000,'Preview reads newer native goods facts, not cached source calculations')
   assert.equal(row(changedPreview.reconciliation,'source report gift acknowledgment','acknowledged').cofferCount,1,'A missing native status uses the native default, never the old source status')

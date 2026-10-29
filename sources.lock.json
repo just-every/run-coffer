@@ -3383,7 +3383,7 @@
       "executable": false
     },
     "src/coffer/move-in/parse.ts": {
-      "sha256": "385ec17ce5bb6d62261883cf73bd527c2ceb31f03299c2ba7dad9b5bf0386885",
+      "sha256": "461c151ee288a1d7fa4409f991a7e8f8b5a33d8002154621a8dea70cb68db3cf",
       "executable": false
     },
     "src/coffer/move-in/plan.ts": {
@@ -6879,7 +6879,7 @@
       "executable": false
     },
     "tests/move-in-reconciliation-journey.mjs": {
-      "sha256": "516bd3d046bc890e4e7085e079131326b7e26ca8824e5e826f73ee28f1a8a9a5",
+      "sha256": "56a071d450e2259ea7a0b2f2dea089097cad65e3f7af6e1e1f061822bb8aaabe",
       "executable": false
     },
     "tests/move-in.test.mjs": {

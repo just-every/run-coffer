@@ -35,11 +35,13 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
   for (let i = 1; i < table.rows.length; i++) if (table.rows[i].some(v => valueText(v))) rows.push(new SourceRow(table, table.rows[i], i + 1, out))
  }
  sourceTotals(rows, out.sourceTotals)
- for (const row of rows) if (row.kind() !== 'control' && !platformRow(row,out)) mapRow(row, out, input)
+ // A constituent report can carry both identity and giving controls (LGL TG columns).
+ // Map its records before deriving outcomes, then check its controls against them.
+ for (const row of rows) if (row.kind() === 'control' || !platformRow(row,out)) mapRow(row, out, input)
  if(out.source==='spreadsheet')includeMatchedDonors(input,out)
  if(out.spreadsheet?.donorMatches)for(const donor of out.donors)if(Object.hasOwn(out.spreadsheet.donorMatches,donor.externalId))donor.match=out.spreadsheet.donorMatches[donor.externalId]
  out.outcomeTotals=parsedOutcomes(out)
- for (const row of rows) if (row.kind() === 'control') { mapRow(row,out,input); controlRow(row,out) }
+ for (const row of rows) if (row.kind() === 'control') controlRow(row,out)
  if(out.spreadsheet?.donorMatches)for(const id of Object.keys(out.spreadsheet.donorMatches))if(!out.donors.some(d=>d.externalId===id))out.diagnostics.push({severity:'error',code:'DONOR_MATCH',message:`Source constituent ${id} has no mapped constituent row. Include its identity before choosing a match.`})
  mapCustomColumns(rows,out)
  for(const r of out.recurringReferences??[])if(!out.donors.some(d=>d.externalId===r.donorExternalId))out.diagnostics.push({...r.location,severity:'error',code:'MISSING_REFERENCE',message:'Source plan needs its contact row.'})
