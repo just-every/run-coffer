@@ -3283,7 +3283,7 @@
       "executable": false
     },
     "src/coffer/communications/mailchimp.ts": {
-      "sha256": "23088b7264d62a3fe345988e591bad75f7db1f107c75b73dd211be4a5923c305",
+      "sha256": "30c858402a4cc2f92267c67c717b2a3f3f33326c3b20cfb7182ac3c18dde667c",
       "executable": false
     },
     "src/coffer/communications/mango-message.ts": {
@@ -3311,7 +3311,7 @@
       "executable": false
     },
     "src/coffer/communications/preferences.ts": {
-      "sha256": "b42234414c58ee45ae1b49d51634dc525f5b8566c9184eb7cf47a76e637c078a",
+      "sha256": "3824624bfc2db5da4baa93f9dc3fbd44a369836f0c863add5428343ca949c82e",
       "executable": false
     },
     "src/coffer/communications/profile-fields.ts": {
@@ -7975,7 +7975,7 @@
       "executable": false
     },
     "tests/team-access-journey.mjs": {
-      "sha256": "a7eb3f6c6bfc5757e1fdf5a1485aa916dcce467b5b77e5e0859c9ce803923b3c",
+      "sha256": "fac292431bbfaee1d735d41157bdf59fbba9d2d23a26f2308e83335d89dfd3cb",
       "executable": false
     },
     "tests/text-giving-journey.mjs": {

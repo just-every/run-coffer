@@ -33,9 +33,10 @@ export async function mailchimpLists(key: string): Promise<{ id: string; name: s
  if (!Array.isArray(data?.lists)) fail('MAILCHIMP_RESPONSE', 'Mailchimp did not list your audiences.', 502)
  return data!.lists.map((l: Row) => ({ id: String(l.id), name: String(l.name), members: Number(l.stats?.member_count ?? 0) }))
 }
-async function request(conn: Connection, path: string, method = 'GET', body?: unknown, missing = false): Promise<Row | null> {
+async function request(conn: Connection, path: string, method = 'GET', body?: unknown, missing = false, beforeSubmit?: () => Promise<void>): Promise<Row | null> {
  const target = { origin: mailchimpOrigin(conn.credential), key: conn.credential }
  let response: Response
+ await beforeSubmit?.()
  try {
   response = await fetch(target.origin + path, {method,redirect:'manual',signal:AbortSignal.timeout(20_000),
    headers:{authorization:`Bearer ${target.key}`,accept:'application/json',...(body === undefined ? {} : {'content-type':'application/json'})},
@@ -74,12 +75,12 @@ const NAME_FIELDS = [
  ['CF_ENVELOP', 'Coffer envelope name', 'envelope'],
  ['CF_PREFIX','Coffer prefix','prefix'], ['CF_FIRST','Coffer first name','first_name'], ['CF_MIDDLE','Coffer middle name','middle_name'], ['CF_LAST','Coffer last name','last_name'], ['CF_SUFFIX','Coffer suffix','suffix'], ['CF_NICK','Coffer nickname','nickname'],
 ] as const
-async function nameMergeFields(conn: Connection, donor: Row) {
+async function nameMergeFields(conn: Connection, donor: Row, beforeSubmit?: () => Promise<void>) {
  const selected=selectedProfileFields(conn,donor),extra=Object.keys(selected).filter(key=>!['prefix','first_name','middle_name','last_name','suffix','nickname','informal_salutation','formal_salutation','envelope_name'].includes(key)).map(key=>({key,tag:'CX'+createHash('sha256').update(key).digest('hex').slice(0,8).toUpperCase(),name:('Coffer '+key).slice(0,50)}))
  if(new Set(extra.map(f=>f.tag)).size!==extra.length)fail('MAILCHIMP_FIELDS','Selected field tags conflict.',409)
  if(conn.mergeSelection?.length)await conn.checkFields?.()
  const path = `${listPath(conn)}/merge-fields`
- const data = await request(conn, `${path}?count=1000`)
+ const data = await request(conn, `${path}?count=1000`, 'GET', undefined, false, beforeSubmit)
  if (!Array.isArray(data?.merge_fields) || !Number.isSafeInteger(data.total_items) || data.total_items !== data.merge_fields.length) fail('MAILCHIMP_RESPONSE', 'Mailchimp did not return the complete audience field definitions.', 502)
  // Refuse incompatible fields before creating any missing ones; never replace
  // an existing definition that another integration could be using.
@@ -90,18 +91,20 @@ async function nameMergeFields(conn: Connection, donor: Row) {
  }
  for (const [tag, name] of NAME_FIELDS) {
   if (data.merge_fields.some((f: Row) => f.tag === tag)) continue
-  const field = await request(conn, path, 'POST', { tag, name, type:'text', required:false, public:false })
+  const field = await request(conn, path, 'POST', { tag, name, type:'text', required:false, public:false }, false, beforeSubmit)
   if (field?.tag !== tag || field.type !== 'text') fail('MAILCHIMP_RESPONSE', 'Mailchimp did not confirm the audience name field.', 502)
  }
- for(const field of extra){if(data.merge_fields.some((f:Row)=>f.tag===field.tag))continue;const saved=await request(conn,path,'POST',{tag:field.tag,name:field.name,type:'text',required:false,public:false});if(saved?.tag!==field.tag||saved.type!=='text')fail('MAILCHIMP_RESPONSE','Mailchimp did not confirm a private field definition.',502)}
+ for(const field of extra){if(data.merge_fields.some((f:Row)=>f.tag===field.tag))continue;const saved=await request(conn,path,'POST',{tag:field.tag,name:field.name,type:'text',required:false,public:false},false,beforeSubmit);if(saved?.tag!==field.tag||saved.type!=='text')fail('MAILCHIMP_RESPONSE','Mailchimp did not confirm a private field definition.',502)}
  const names=recipientNameFields(donor),aliases:Record<string,string>={informal:'informal_salutation',formal:'formal_salutation',envelope:'envelope_name'}
  return {...Object.fromEntries(NAME_FIELDS.map(([tag, , key]) => [tag,names[aliases[key]??key]])),...Object.fromEntries(extra.map(field=>[field.tag,selected[field.key]]))}
 }
 /** A merge-only PATCH preserves a concurrent unsubscribe and never creates a member. */
-export async function syncMailchimpNames(conn: Connection, donor: Row): Promise<Row> {
- const merge_fields = await nameMergeFields(conn, donor)
+export async function syncMailchimpNames(conn: Connection, donor: Row, beforeSubmit: () => Promise<void>): Promise<Row> {
+ // A field read or creation can outlive the caller's captured authority.
+ // Recheck before every subsequent request, including the member PATCH.
+ const merge_fields = await nameMergeFields(conn, donor, beforeSubmit)
  if(conn.mergeSelection?.length)await conn.checkFields?.()
- const data = await request(conn, `${listPath(conn)}/members/${hash(donor.email)}`, 'PATCH', { merge_fields })
+ const data = await request(conn, `${listPath(conn)}/members/${hash(donor.email)}`, 'PATCH', { merge_fields }, false, beforeSubmit)
  return contact(data!, donor.email)
 }
 export async function captureMailchimpConsent(conn: Connection, donor: Row, _organisation: string): Promise<Row | null> {

@@ -193,4 +193,70 @@ export async function teamAccessJourney(){
   assert.equal(url.hostname,'www.googleapis.com')
   return Response.json({items:[{id:'synthetic-coffer-event',summary:'Synthetic calendar meeting',start:{dateTime:'2026-10-28T13:00:00Z'},end:{dateTime:'2026-10-28T14:00:00Z'}}]})
  }})
+ await mailchimpRestrictionJourney()
+}
+
+async function mailchimpRestrictionJourney(){
+ const email=mailbox(83),definitions=new Map(),writes=[]
+ let remote={id:'synthetic-coffer-83',email_address:email,status:'subscribed'}
+ let pauseMethod=null,entered=deferred(),release=deferred()
+ await run(async h=>{
+  const member=await h.person(mailbox(84)),target=await donor(h,'Synthetic Coffer Mailchimp',{email})
+  const consent={donorIds:[target.id],channel:'email',status:'granted',method:'paper form',evidence:'Synthetic explicit permission',capturedOn:'2026-09-01'}
+  const set=async readOnly=>{
+   const access=(await h.get('/api/coffer/team-access')).people.find(p=>p.id===member.id)
+   await h.command('team.access',{operatorId:member.id,operatorVersion:access.operator_version,version:access.version,readOnly:readOnly?'1':'0'})
+  }
+  await h.command('consent.record',consent)
+  await h.command('marketing.connectMailchimp',{apiKey:'synthetic-us21'})
+  await h.command('marketing.chooseAudience',{listId:'synthetic-coffer-83',fromName:'Synthetic Coffer',fromEmail:email})
+  // Native member consent entry performs the real provider sync as a side effect.
+  await h.command('consent.record',consent,{as:member.cookie})
+  assert.equal(remote.merge_fields.CF_INFORM,'Synthetic Coffer Mailchimp','An unrestricted member can sync the donor name')
+  assert.equal(definitions.size,9,'The supported sync creates its missing audience fields')
+  for(const [index,scenario] of [
+   {method:'GET',missing:false,removeAgain:false},
+   {method:'GET',missing:true,removeAgain:true},
+   {method:'POST',missing:true,removeAgain:false},
+  ].entries()){
+   const nickname='Synthetic updated '+index
+   await h.command('donor.profile',{donorId:target.id,version:(await h.get('/api/coffer/donors/'+target.id)).donor.version,nickname})
+   if(scenario.missing)definitions.clear()
+   entered=deferred();release=deferred();pauseMethod=scenario.method
+   const pending=h.command('consent.record',consent,{as:member.cookie,status:401})
+   await entered.promise
+   // A submitted field creation may complete, but restriction must stop every
+   // subsequent field creation and donor-name write, even after removal.
+   const before=writes.length,priorRemote=structuredClone(remote),priorFields=[...definitions.values()]
+   await set(true)
+   if(scenario.removeAgain)await set(false)
+   pauseMethod=null;release.resolve()
+   assert.equal((await pending).error,'SESSION_CHANGED')
+   assert.equal(writes.length,before,'Restriction changes prevent subsequent Mailchimp writes after '+scenario.method)
+   assert.deepEqual(remote,priorRemote,'No donor name is disclosed after restriction assignment')
+   assert.deepEqual([...definitions.values()],priorFields,'No additional audience field is created after restriction assignment')
+   await set(false)
+   await h.command('consent.record',consent,{as:member.cookie})
+   assert.equal(remote.merge_fields.CF_NICK,nickname,'Explicit removal permits a fresh authorized sync')
+  }
+ },{outbound:async request=>{
+  const url=new URL(request.url)
+  assert.equal(url.hostname,'us21.api.mailchimp.com')
+  if(url.pathname==='/3.0/lists')return Response.json({lists:[{id:'synthetic-coffer-83',name:'Synthetic Coffer Audience',stats:{member_count:1}}]})
+  if(url.pathname==='/3.0/lists/synthetic-coffer-83/merge-fields'){
+   let result
+   if(request.method==='GET')result={merge_fields:[...definitions.values()],total_items:definitions.size}
+   else{
+    assert.equal(request.method,'POST')
+    const body=await request.json();definitions.set(body.tag,body);writes.push({method:'POST',body});result=body
+   }
+   if(request.method===pauseMethod){entered.resolve();await release.promise}
+   return Response.json(result)
+  }
+  assert.match(url.pathname,/^\/3\.0\/lists\/synthetic-coffer-83\/members\/[a-f0-9]{32}$/)
+  if(request.method==='PATCH'){
+   const body=await request.json();writes.push({method:'PATCH',body});remote={...remote,...body}
+  }else assert.equal(request.method,'GET')
+  return Response.json(remote)
+ }})
 }
