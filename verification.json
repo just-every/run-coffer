@@ -14,7 +14,7 @@
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004"
+        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-012"
       ]
     },
     {

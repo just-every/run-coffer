@@ -91,6 +91,8 @@ const descriptions = [
  owned('cf_pledge_adjustments',`n.pledge_id IN (${pledges})`,['id'],false),
  owned('cf_pledge_plans',`n.pledge_id IN (${pledges})`,['pledge_id'],false),
  owned('cf_pledge_installments',`n.pledge_id IN (${pledges})`,['id'],false),
+ owned('cf_move_in_allocation_sources',`n.allocation_id IN (SELECT id FROM cf_pledge_allocations WHERE gift_id IN (${gifts}))`,['allocation_id'],false),
+ owned('cf_pledge_allocation_replacements',`n.allocation_id IN (SELECT id FROM cf_pledge_allocations WHERE gift_id IN (${gifts}))`,['allocation_id'],false),
  owned('cf_pledge_allocations',`n.gift_id IN (${gifts}) OR n.installment_id IN (SELECT id FROM cf_pledge_installments WHERE pledge_id IN (${pledges}))`,['id'],false),
  owned('cf_gift_allocations',`n.gift_id IN (${gifts})`,['id'],false),
  owned('cf_refund_requests',`n.gift_id IN (${gifts})`,['id'],false),

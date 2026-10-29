@@ -40,3 +40,16 @@ The journal’s **Undo** removes exactly the donors, gifts and monthly plans thi
 ## Advanced: saved JSON
 
 JSON files are copies of Stripe API responses. Use the collapsed **Advanced: upload saved Stripe JSON** option only if someone has already saved those files for you. It accepts unchanged Customers and Charges list responses, such as `{"object":"list","data":[...],"has_more":false}`. Multiple files or pasted pages are supported. A saved page whose `has_more` is true is explicitly warned as incomplete. The normal connected path reads the remaining pages for you.
+
+### Imported pledge payment links
+
+An optional `Installment ID` on a pledge-payment row reserves that installment
+within the row's pledge. Payments without that link fill the remaining dated
+installments. Repeated imports keep earlier payments and their exact cents;
+equal amounts alone never identify the same payment.
+
+When a later explicit link displaces an earlier general allocation, the payment
+history retains the original match, its source file and import, and the replacing
+source file and import. Only current allocations affect balances. Both import
+orders use the same rule. An import involved in a replacement cannot be undone
+while its retained allocation history is in use; refusal changes no money.

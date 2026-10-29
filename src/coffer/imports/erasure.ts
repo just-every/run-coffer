@@ -60,6 +60,8 @@ export function donorErasureStatements(donor: { id: string; email: string | null
     sql('UPDATE cf_gifts SET version=version+1,note=NULL,donor_id=? WHERE donor_id=?', placeholderId, donorId),
     sql('UPDATE cf_pledge_adjustments SET reason=NULL WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', donorId),
     sql('DELETE FROM cf_pledge_plans WHERE pledge_id IN (SELECT id FROM cf_pledges WHERE donor_id=?)', donorId),
+    sql("UPDATE cf_move_in_allocation_sources SET source_file='[erased]',source_gift_id='[erased]' WHERE allocation_id IN(SELECT a.id FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=?)",donorId),
+    sql("UPDATE cf_pledge_allocation_replacements SET source_file='[erased]' WHERE allocation_id IN(SELECT a.id FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=?)",donorId),
     sql('UPDATE cf_pledges SET donor_id=? WHERE donor_id=?', placeholderId, donorId),
     sql("UPDATE cf_acks SET donor_id=?,recipient_name=?,recipient_email=NULL,address=NULL,statement_gifts=NULL,delivery_note=NULL,subject='[erased]',body='[erased]' WHERE donor_id=?", placeholderId, ERASED, donorId),
     sql('UPDATE cf_appeal_recipients SET donor_id=?,name=?,email=NULL,address=NULL,name_fields=NULL,email_contact_id=NULL,email_contact_version=NULL,merge_fields=NULL,merge_blanks=NULL,rendered_subject=NULL,rendered_body=NULL WHERE donor_id=?', placeholderId, ERASED, donorId),

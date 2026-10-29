@@ -73,7 +73,7 @@ export async function giftInstallmentStatements(c: Context, p: Row, giftId: stri
  }
  const installment = await one(c, 'SELECT * FROM cf_pledge_balances WHERE id=?', installmentId)
  if (!installment) fail('NOT_FOUND', 'That installment does not exist.', 404)
- const allocated = await one(c, 'SELECT COALESCE(SUM(amount_cents),0) AS cents FROM cf_pledge_allocations WHERE gift_id=?', giftId)
+ const allocated = await one(c, 'SELECT COALESCE(SUM(amount_cents),0) AS cents FROM cf_pledge_active_allocations WHERE gift_id=?', giftId)
  const requested = (p.allocationAmount !== undefined && p.allocationAmount !== '') || (p.allocationAmountCents !== undefined && p.allocationAmountCents !== '')
   ? amount(p, 'allocationAmount', 'Amount to match') : Math.min(cents - allocated!.cents, installment.amount_cents - installment.paid_cents)
  if (requested < 1) fail('PLEDGE_PAID', 'This gift or installment has no unmatched balance.')
@@ -82,8 +82,8 @@ export async function giftInstallmentStatements(c: Context, p: Row, giftId: stri
    WHERE i.id=? AND p.donor_id=? AND g.donor_id=p.donor_id AND g.fund=p.fund AND g.kind='gift'
    AND (g.pledge_id IS NULL OR g.pledge_id=p.id) AND (? IS NULL OR p.id=?)
    AND NOT EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id)
-   AND i.amount_cents-i.paid_cents>=? AND g.net_cents-(SELECT COALESCE(SUM(a.amount_cents),0) FROM cf_pledge_allocations a WHERE a.gift_id=g.id)>=?
-   AND NOT EXISTS(SELECT 1 FROM cf_pledge_allocations a WHERE a.gift_id=g.id AND a.installment_id=i.id))`,
+   AND i.amount_cents-i.paid_cents>=? AND g.net_cents-(SELECT COALESCE(SUM(a.amount_cents),0) FROM cf_pledge_active_allocations a WHERE a.gift_id=g.id)>=?
+   AND NOT EXISTS(SELECT 1 FROM cf_pledge_active_allocations a WHERE a.gift_id=g.id AND a.installment_id=i.id))`,
   'PLEDGE_MATCH', 'Use an unreversed gift from this donor and fund, without exceeding either unmatched balance.', giftId, installmentId, donorId, pledgeId ?? null, pledgeId ?? null, requested, requested),
   sql('INSERT INTO cf_pledge_allocations(id,installment_id,gift_id,amount_cents,created_at,created_by) VALUES(?,?,?,?,?,?)', newId(), installmentId, giftId, requested, c.now, c.actor.name),
   event(c, 'pledge.match', 'pledge', installment.pledge_id, donorId, { giftId, installmentId, amountCents: requested })]
@@ -93,12 +93,12 @@ export async function pledgeHistory(c: { db: D1Database }, donorId: string): Pro
  const day=today((await settings(c)).timezone)
  const [pledges, installments, adjustments, plans, allocations] = await Promise.all([
   all(c, `SELECT p.*,COALESCE((SELECT SUM(g.amount_cents - CASE WHEN g.kind='reversal' THEN -1 ELSE 1 END *
-   COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0))
+   COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_active_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0))
    FROM cf_monetary_contributions g WHERE g.pledge_id=p.id),0) AS legacy_paid_cents FROM cf_pledge_totals p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
   all(c, 'SELECT i.*,f.status AS followup_status FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id LEFT JOIN cf_pledge_followups f ON f.installment_id=i.id WHERE p.donor_id=? ORDER BY i.position', donorId),
   all(c,'SELECT a.* FROM cf_pledge_adjustments a JOIN cf_pledges p ON p.id=a.pledge_id WHERE p.donor_id=? ORDER BY a.created_at,a.id',donorId),
   all(c,'SELECT l.* FROM cf_pledge_plans l JOIN cf_pledges p ON p.id=l.pledge_id WHERE p.donor_id=?',donorId),
-  all(c,'SELECT a.*,i.pledge_id FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id JOIN cf_pledges p ON p.id=i.pledge_id WHERE p.donor_id=? ORDER BY a.created_at,a.id',donorId),
+  all(c,`SELECT a.*,i.pledge_id,s.source,s.job_id AS import_id,s.source_file,s.source_gift_id,r.job_id AS replaced_by_import,r.source AS replacement_source,r.source_file AS replacement_file,r.recorded_at AS replaced_at FROM cf_pledge_allocations a JOIN cf_pledge_installments i ON i.id=a.installment_id JOIN cf_pledges p ON p.id=i.pledge_id LEFT JOIN cf_move_in_allocation_sources s ON s.allocation_id=a.id LEFT JOIN cf_pledge_allocation_replacements r ON r.allocation_id=a.id WHERE p.donor_id=? ORDER BY a.created_at,a.id`,donorId),
  ])
  return pledges.map(p => {
   const rows: Row[] = installments.filter(i => i.pledge_id === p.id).map(i => ({ ...i, remaining_cents: Math.max(0,i.amount_cents-i.paid_cents), due_cents: i.due_on<=day?Math.max(0,i.amount_cents-i.paid_cents):0, overdue_cents:i.due_on<day?Math.max(0,i.amount_cents-i.paid_cents):0 }))
