@@ -32,7 +32,8 @@
       "hosted": true,
       "commands": [
         "pnpm run build",
-        "pnpm run test:runtime"
+        "pnpm run test:runtime",
+        "node --test --test-concurrency=1 --test-name-pattern='^DONOR-001 ' tests/move-in.test.mjs"
       ]
     },
     {
@@ -154,7 +155,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005):|^ACK-001 |^DONOR-001 ' tests/move-in.test.mjs"
       ]
     },
     {
@@ -213,7 +214,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_PLEDGE_BROWSER=.cache/pledge-balances node --test --test-name-pattern='GIFT-005' tests/pledges.test.mjs"
+        "COFFER_PLEDGE_BROWSER=.cache/pledge-balances node --test --test-name-pattern='GIFT-005' tests/pledges.test.mjs",
+        "node --test --test-concurrency=1 --test-name-pattern='^ACK-001 ' tests/move-in.test.mjs"
       ]
     },
     {
