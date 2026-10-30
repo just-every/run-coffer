@@ -164,7 +164,7 @@ async function finish(c: Context,job: Row) {
   event(c,'move-in.complete','move-in',job.id,null,{parts:job.parts,totalsMatch:check.matches})])
 }
 /** Source totals from the files against the gifts now in Coffer for this move-in. */
-async function totalsCheck(c: Context,job: Row) {
+export async function totalsCheck(c: Context,job: Row) {
  const report=JSON.parse(job.report)
  if(!report.sourceTotals)return {matches:false,rows:[]}
  // Donors from any earlier move-in from the same CRM count under their CRM ID, as in the files.
