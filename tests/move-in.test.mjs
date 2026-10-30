@@ -416,3 +416,8 @@ test('MOVE-004: reviewed Neon history preserves money, source acknowledgment, pr
  const {neonJourney}=await import('./neon-journey.mjs')
  await neonJourney()
 })
+
+test('DEV-007: migration comparisons cite reviewed imports, preserve choices and invalidate stale evidence',async()=>{
+ const {migrationAgentJourney}=await import('./migration-agent-journey.mjs')
+ await migrationAgentJourney()
+})
