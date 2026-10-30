@@ -1,3 +1,4 @@
+import {publicWebhookDns} from './webhook-dns-edge.mjs'
 import assert from 'node:assert/strict'
 import {run,donor} from './harness.mjs'
 import {verifyWebhook} from '../src/coffer/webhooks/receiver.mjs'
@@ -128,6 +129,7 @@ export async function webhookContinuityJourney(){
   await command('donor.erase',{donorId:heldDonor.id,confirm:'ERASE'})
   assert.equal((await state()).deliveries.some(row=>row.event_id===held.event_id),false,'Donor erasure removes source and migrated history together')
  },{entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:initial},triggerHandlers:true,outbound:async request=>{
+  const dns=publicWebhookDns(request);if(dns)return dns
   assert.equal(new URL(request.url).hostname,'receiver.example.test')
   requests.push({body:await request.text(),signature:request.headers.get('coffer-signature'),deliveryId:request.headers.get('coffer-delivery-id')})
   if(request.headers.get('coffer-delivery-id')===blockedDelivery){notifyStarted();await waitingRequest}

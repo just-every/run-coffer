@@ -236,3 +236,36 @@ export async function webhooksContinuityBrowser(h,directory,{targetId,deliveryId
   await page.close()
  })
 }
+
+export async function webhooksNetworkBrowser(h,directory,refusals){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  try {
+   await page.goto(origin+'/app/webhooks')
+   const outcomes=[
+    ['dns_nonpublic','DNS preflight refused a nonpublic address.'],
+    ['dns_alias_unsafe','DNS preflight refused an unsafe or inconsistent alias chain.'],
+    ['dns_incomplete','DNS preflight could not establish complete public address resolution.'],
+    ['dns_malformed','DNS preflight received an invalid resolution response.'],
+    ['dns_unavailable','DNS preflight was unavailable.'],
+   ]
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000})
+    for(const [code,meaning] of outcomes){
+     const id=refusals.find(item=>item.code===code).id,delivery=row(page,'delivery',id)
+     if(width===1440){
+      assert.ok((await delivery.innerText()).includes(meaning+' No target request was sent.'),'The refusal log explains '+code)
+      assert.equal(await delivery.getByText('HTTP',{exact:false}).count(),0,'DNS refusal does not invent an HTTP status')
+      await delivery.getByText('Attempt history (1)',{exact:true}).click()
+      assert.ok((await delivery.locator('ol').innerText()).includes(meaning+' No target request was sent.'),'Attempt history retains the same honest outcome')
+     }
+    }
+    await fits(page,width)
+    const sample=row(page,'delivery',refusals.find(item=>item.code==='dns_nonpublic').id)
+    await sample.scrollIntoViewIfNeeded()
+    await sample.screenshot({path:`${directory}/API-002-network-refusal-${width}.png`})
+   }
+  }finally{await page.close()}
+ })
+}
