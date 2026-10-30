@@ -11,7 +11,7 @@ import { accumulate, emptyTotals } from './source-totals'
 import { importedOverrides } from '../person-names'
 
 export type Effect = { kind: Kind; sourceKey: string; contentHash: string; nativeId: string; owned: boolean; row: Row; donorId: string | null; relatedId: string | null; location?: Located['location'] }
-export type Plan = { customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
+export type Plan = { customWrites: CustomImportWrite[]; effects: Effect[]; reviewedEffects: {kind:Kind;sourceKey:string;nativeId:string;donorId:string|null;fact:Row}[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
 const stable = (value: unknown): string => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))) : v)
 export const contentHash = (value: unknown) => sha256(stable(value))
 export const nativeId = async (source: string, kind: string, key: string) => `crm-${(await contentHash([source,kind,key])).slice(0,40)}`
@@ -31,7 +31,7 @@ const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solici
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
- const plan: Plan = {customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
+ const plan: Plan = {customWrites:[],effects:[],reviewedEffects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
  const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
@@ -66,7 +66,15 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   // A donor's household is inferred from the whole file set, so it is not part of the donor's own details.
   const key = await sourceKey(entity.externalId), {location:_,customValues:_custom,sourceObject:_sourceObject,householdKey:_h,householdName:_n,expectedNativeId:_expected,...payload} = entity as typeof entity & {sourceObject?:string;householdKey?:string;householdName?:string;expectedNativeId?:string}
   const hash = await contentHash(payload), previous = existing.get(`${kind}:${key}`)
+  const reviewed = (nativeId:string, fact:Row) => {
+   if(!['donor','gift','softCredit','consent','acknowledgment','softCreditAcknowledgment'].includes(kind))return
+   // A matched native profile is never the source's constituent profile.
+   const {location,match,expectedNativeId,sourceNameUnknown,...sourceDonor}=entity as ParsedImport['donors'][number]
+   plan.reviewedEffects.push({kind,sourceKey:key,nativeId,donorId:kind==='donor'?canonical(nativeId):donorId,
+    fact:kind==='donor'?{...sourceDonor,...(sourceNameUnknown?{name:null}:{})}:fact})
+  }
   if (previous) {
+   if(previous.snapshot!==null)reviewed(previous.native_id,JSON.parse(previous.snapshot))
    // A later file (another year's gifts) finds the donors and households an earlier move-in brought, by the CRM's own ID.
    if (previous.snapshot === null) diagnostic(`${label[kind]} ${entity.externalId} was erased from Coffer after an earlier move-in. Remove this row and rows linked to it from the exports; erased records cannot be restored.`,entity.location)
    else if (previous.content_hash !== hash && (kind==='donor'||kind==='household')) diagnostic(`${label[kind]} ${entity.externalId} is already in Coffer from an earlier move-in. Coffer keeps that record as it is; this file’s details for it differ and are not applied.`,entity.location,'warning','ALREADY_MOVED_IN')
@@ -75,6 +83,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   }
   const id = match || row[tables[kind].key] || await nativeId(source,kind,entity.externalId)
   row[tables[kind].key] = id
+  reviewed(id,row)
   plan.effects.push({kind,sourceKey:key,contentHash:hash,nativeId:id,owned:!match,row,donorId:kind==='donor'?id:donorId,relatedId,location:entity.location})
   return id
  }

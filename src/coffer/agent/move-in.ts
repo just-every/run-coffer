@@ -29,7 +29,26 @@ export async function migrationSource(c:Context,p:Row) {
   if(held.redacted)fail('MIGRATION_ERASED','Source evidence was erased. It cannot be analyzed.',409)
   if(held.state!=='completed'||held.parts!==held.applied_parts)fail('MIGRATION_INCOMPLETE','Finish the import before comparing it.',409)
   job=held
-  records=(await all(c,'SELECT kind,native_id,donor_id,snapshot FROM cf_move_in_records WHERE job_id=? ORDER BY kind,native_id',jobId)).map(r=>({kind:r.kind,nativeId:r.native_id,donorId:r.donor_id,fact:r.snapshot?JSON.parse(r.snapshot):null}))
+  const reviewed=await all(c,'SELECT kind,native_id,donor_id,fact FROM cf_migration_source_records WHERE job_id=? ORDER BY kind,native_id',jobId)
+  if(reviewed.length)records=reviewed.map(r=>({kind:r.kind,nativeId:r.native_id,donorId:r.donor_id,fact:JSON.parse(r.fact)}))
+  else {
+   // Legacy journals retain native custody snapshots. Include prior mappings
+   // referenced by this review, rather than treating reuse as absent evidence.
+   const legacy=await all(c,`WITH selected AS (
+    SELECT r.kind,r.native_id FROM cf_move_in_source_records i JOIN cf_move_in_records r
+     ON r.source=? AND r.source_key=i.source_key AND r.kind=CASE i.kind WHEN 'constituent' THEN 'donor' ELSE i.kind END
+    WHERE i.job_id=?
+   ), credits AS (SELECT native_id FROM cf_move_in_records WHERE source=? AND kind='softCredit'
+    AND json_extract(snapshot,'$.gift_id') IN(SELECT native_id FROM selected WHERE kind='gift'))
+   SELECT r.kind,r.native_id,r.donor_id,r.snapshot,r.owned FROM cf_move_in_records r WHERE r.source=? AND (
+    r.job_id=? OR r.kind='donor' AND r.native_id IN(SELECT native_id FROM selected WHERE kind='donor')
+    OR r.kind='consent' AND r.donor_id IN(SELECT native_id FROM selected WHERE kind='donor')
+    OR r.kind IN('gift','acknowledgment') AND r.native_id IN(SELECT native_id FROM selected WHERE kind='gift')
+    OR r.kind IN('softCredit','softCreditAcknowledgment') AND r.native_id IN(SELECT native_id FROM credits)
+   ) ORDER BY r.kind,r.native_id`,held.source,jobId,held.source,held.source,jobId)
+   records=legacy.map(r=>({kind:r.kind,nativeId:r.native_id,donorId:r.donor_id,
+    fact:!r.snapshot?null:r.kind==='donor'&&!r.owned?{name:null,sourceProfile:'unknown; original exports must be reviewed again'}:JSON.parse(r.snapshot)}))
+  }
   if(records.some(r=>!r.fact))fail('MIGRATION_ERASED','Source evidence was erased. It cannot be analyzed.',409)
   money=await totalsCheck(c,held)
  } else {

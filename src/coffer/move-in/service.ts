@@ -138,6 +138,10 @@ export async function continueApply(c: Context,id:string) {
   const writes:Stmt[]=[...plan.checks,guard('EXISTS(SELECT 1 FROM cf_move_in_parts WHERE job_id=? AND position=? AND applied_at IS NULL)','MOVE_IN_CHANGED','This part was applied in another window. Refresh the journal.',id,next.position)]
   writes.push(sql('INSERT INTO cf_identity_ingest VALUES(1)'))
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
+  // Capture every reviewed reference, including records reused from earlier
+  // imports. Native undo snapshots keep their separate ownership semantics.
+  writes.push(sql(`INSERT OR REPLACE INTO cf_migration_source_records(job_id,kind,source_key,native_id,donor_id,fact)
+   SELECT ?,json_extract(value,'$.kind'),json_extract(value,'$.sourceKey'),json_extract(value,'$.nativeId'),json_extract(value,'$.donorId'),json_extract(value,'$.fact') FROM json_each(?)`,id,JSON.stringify(plan.reviewedEffects)))
   writes.push(...addresses)
   writes.push(...importedAcknowledgmentEvents(c,plan,job.source,id))
   writes.push(...await importedCustomWrites(c,plan,job.source,id))

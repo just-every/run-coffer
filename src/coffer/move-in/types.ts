@@ -14,7 +14,7 @@ export type ImportedCustomValue = { mapping: CustomImportMapping; value: string;
 export type Located = { location: SourceLocation; customValues?: ImportedCustomValue[] }
 export type ParsedContact={externalId:string;kind:'email'|'phone'|'address';type:string;value:string;primary:boolean;startsOn:string|null;endsOn:string|null}
 export type ParsedDonor = Located & {
- expectedNativeId?:string; match?:{id:string;version:number}; contacts?:ParsedContact[]; externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
+ sourceNameUnknown?:boolean; expectedNativeId?:string; match?:{id:string;version:number}; contacts?:ParsedContact[]; externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
  city: string; region: string; postalCode: string; country: string; householdKey: string; householdName: string
  firstName: string; lastName: string; prefix?: string; middleName?: string; suffix?: string; nickname?: string; constituentStatus?: string; deceasedOn?: string; statusReason?: string; informalName?: string; formalName?: string; envelopeName?: string; recognitionName?: string; organization: boolean
 }
