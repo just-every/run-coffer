@@ -543,7 +543,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "dbd42820324249c3d16da4dd23e8ab717fb08b9223a00fd54eb90074329e057b",
+      "sha256": "18b8c8483a724f7d2f1599feeb7966b97568ca14ccb38cc2f84529f696f12fda",
       "executable": false
     },
     ".gitignore": {
@@ -2003,7 +2003,7 @@
       "executable": false
     },
     "scripts/ci/shards.mjs": {
-      "sha256": "9062ef2612fbde47ae567350368bfdd485e8104d684a043ba456f6eb0353cad8",
+      "sha256": "69c794ea9a035681ed0481cb26b2ab21aa2a08cb7b9a207bf032054e04035a6e",
       "executable": false
     },
     "scripts/contract-docs.mjs": {

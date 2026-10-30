@@ -24,11 +24,13 @@ const option = /--test-name-pattern(?:=|\s+)('(?:[^']*)'|"(?:[^"]*)"|[^\s]+)/;
 const skipOption = /--test-skip-pattern(?:=|\s+)('(?:[^']*)'|"(?:[^"]*)"|[^\s]+)/;
 const unquote = value => /^['"]/.test(value) ? value.slice(1, -1) : value;
 
+const expand = command => command.replace(/\bpnpm run ([\w:-]+)/g, (match, name) =>
+ /\bnode --test\b/.test(scripts[name] ?? '') ? scripts[name] : match);
+
 function split(command, shard) {
  // Expand only the existing Node test scripts. Other commands, including rer's
  // hosted production-output/hydration checks, retain their original entry point.
- command = command.replace(/\bpnpm run ([\w:-]+)/g, (match, name) =>
-  /\bnode --test\b/.test(scripts[name] ?? '') ? scripts[name] : match);
+ command = expand(command);
  if (!/\bnode --test\b/.test(command)) return [{ command, label: shard.name, seconds: weight(estimates[command] ?? 100) }];
  const patterns = [...command.matchAll(/\btests\/[\w.*-]+\.mjs\b/g)].map(match => match[0]);
  if (!patterns.length) return [{ command, label: shard.name, seconds: 100 }];
@@ -101,13 +103,23 @@ function split(command, shard) {
  return units;
 }
 
+function shardUnits(shard) {
+ // A shard's leading setup/validation commands are ordered prerequisites, not
+ // independent work that can move to another machine. Run them once on each
+ // runner receiving that shard's tests, before starting any parallel lanes.
+ const firstTest = shard.commands.findIndex(command => /\bnode --test\b/.test(expand(command)));
+ const prepare = firstTest > 0 ? shard.commands.slice(0, firstTest) : [];
+ return shard.commands.slice(prepare.length).flatMap(command => split(command, shard))
+  .map(unit => ({ ...unit, prepare }));
+}
+
 export async function schedule(tier) {
  if (!['push', 'all'].includes(tier)) throw Error('Expected push or all');
  const plan = await verificationPlan();
  const shards = tier === 'all' ? [...plan.push, ...plan.nightly] : plan.push;
  const units = shards.flatMap(shard => shard.hosted
   ? [{ command: 'node scripts/verify-ci.mjs ' + quote(shard.name), label: shard.name + ': hosted checks', seconds: weight(estimates['hosted checks'] ?? 100) }]
-  : shard.commands.flatMap(command => split(command, shard)));
+  : shardUnits(shard));
  // CAMP-004 takes 215.4s / 219.9s in successful Verify runs 40838043933 /
  // 40875935524; it exceeded 300s in 40920377253 while sharing its runner
  // with two other migration-heavy journeys. Keep its full custody/calendar journey on a runner of
@@ -144,7 +156,7 @@ export async function schedule(tier) {
  throw Error(`Verification cannot fit ${MAX_JOBS} shards within ${JOB_TARGET}s including setup; split the longest registration group`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+async function main() {
 const [mode, value = 'push'] = process.argv.slice(2);
 if (mode === '--matrix') {
  console.log(JSON.stringify({ include: (await schedule(value)).map(({ name, browser }) => ({ name, browser })) }));
@@ -168,8 +180,7 @@ if (mode === '--matrix') {
   process.exit(signal === 'SIGINT' ? 130 : 143);
  });
  let failures = 0;
- await Promise.all(job.lanes.map(async (lane, laneIndex) => {
-  for (const [index, unit] of lane.units.entries()) {
+ async function runUnit(unit, laneIndex, index) {
    const log = `${directory}/${laneIndex}-${index}.log`;
    const fd = openSync(log, 'w');
    const start = Date.now();
@@ -189,7 +200,23 @@ if (mode === '--matrix') {
    if (failure) console.error(failure);
    console.log(`END lane=${laneIndex} exit=${code} seconds=${((Date.now() - start) / 1000).toFixed(1)} ${unit.label}`);
    if (code !== 0) failures++;
+   return code;
+ }
+ const preparations = new Map();
+ for (const unit of job.lanes.flatMap(lane => lane.units)) {
+  if (unit.prepare?.length) preparations.set(JSON.stringify(unit.prepare), unit.prepare);
+ }
+ let preparationIndex = 0;
+ for (const commands of preparations.values()) {
+  for (const command of commands) {
+   if (await runUnit({ command, label: 'runner prerequisite' }, 'prepare', preparationIndex++)) {
+    process.exitCode = 1;
+    return;
+   }
   }
+ }
+ await Promise.all(job.lanes.map(async (lane, laneIndex) => {
+  for (const [index, unit] of lane.units.entries()) await runUnit(unit, laneIndex, index);
  }));
  if (failures) {
   console.error(`${failures} verification commands failed`);
@@ -198,3 +225,5 @@ if (mode === '--matrix') {
 }
 
 }
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

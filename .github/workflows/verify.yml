@@ -40,6 +40,8 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
+      - name: Check shard prerequisite ordering
+        run: node --test scripts/ci/shards.test.mjs
       - name: Check reusable workflow permissions
         run: node scripts/verify-ci.mjs --check-workflows
       - name: Look up complete nightly marker
