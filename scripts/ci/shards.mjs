@@ -1,6 +1,6 @@
 // CI-only scheduling: verification.json remains the authority for commands,
 // browser opt-ins, test selections and the one hosted verification invocation.
-import { readFileSync, readdirSync, mkdirSync, openSync, closeSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdirSync, openSync, closeSync, realpathSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { verificationPlan } from '../verify-app.mjs';
 
@@ -113,7 +113,7 @@ function split(command, shard) {
  return units;
 }
 
-async function schedule(tier) {
+export async function schedule(tier) {
  if (!['push', 'all'].includes(tier)) throw Error('Expected push or all');
  const plan = await verificationPlan();
  const shards = tier === 'all' ? [...plan.push, ...plan.nightly] : plan.push;
@@ -158,6 +158,7 @@ async function schedule(tier) {
  throw Error(`Verification cannot fit ${MAX_JOBS} shards within ${JOB_TARGET}s including setup; split the longest registration group`);
 }
 
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(import.meta.filename)) {
 const [mode, value = 'push'] = process.argv.slice(2);
 if (mode === '--matrix') {
  console.log(JSON.stringify({ include: (await schedule(value)).map(({ name, browser }) => ({ name, browser })) }));
@@ -208,4 +209,6 @@ if (mode === '--matrix') {
   console.error(`${failures} verification commands failed`);
   process.exitCode = 1;
  }
+}
+
 }

@@ -138,8 +138,13 @@ jobs:
       - name: Run this shard
         env:
           SHARD: ${{ matrix.name }}
-          TIER: ${{ inputs.tier || 'push' }}
-        run: node scripts/ci/shards.mjs "$SHARD" "$TIER"
+          TIER: ${{ needs.plan.outputs.tier }}
+        run: |
+          if [[ "$SHARD" == balanced-* ]]; then
+            node scripts/ci/shards.mjs "$SHARD" "$TIER"
+          else
+            node scripts/verify-ci.mjs "$SHARD"
+          fi
 
   light:
     needs: plan

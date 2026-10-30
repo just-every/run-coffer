@@ -543,7 +543,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "9764e8196fc0ab7ad78ba7cd8f0954c779f543f189e894eec5564b128c586ce0",
+      "sha256": "768289a443275961d0c11c93c45cbcac008c2c02171903db95bbda166354fece",
       "executable": false
     },
     ".gitignore": {
@@ -1975,7 +1975,7 @@
       "executable": false
     },
     "scripts/ci/shards.mjs": {
-      "sha256": "b27b4bf838716ed5ea910adc4792e2494b1b0651e66d05c75751f3b5aa8ca117",
+      "sha256": "93302d98f5b95d4fefeb8a7ef1ef8bc8cbcd81003b11b9768dec741755e60577",
       "executable": false
     },
     "scripts/contract-docs.mjs": {
@@ -2739,7 +2739,7 @@
       "executable": false
     },
     "scripts/verify-ci.mjs": {
-      "sha256": "cf1ceb8773ed276f82245fb8fb4c4bdc95bff40ecc0e8ca8ac9e776978b17340",
+      "sha256": "01060dc8b31e3ab58bd65069d06869c9301eab9115cc566a938dac9f38d3d201",
       "executable": false
     },
     "scripts/verify-evidence.mjs": {
@@ -2751,7 +2751,7 @@
       "executable": false
     },
     "scripts/verify-plan.mjs": {
-      "sha256": "45fe2ab9c5cbc72d0186bf77fab32c985605caae6ecee50676dd618612c3e78f",
+      "sha256": "0dc9ad2078e548be4a2dbdc4e5f41b38d859e89a9e6ed660f8e50c3c5136d538",
       "executable": false
     },
     "SEED-COMMAND-CONTRACT.md": {
@@ -7110,6 +7110,10 @@
       "sha256": "a84170300c99392b8b35000836720c02f950c079e33ec5f2a0d6642b57b4bcdf",
       "executable": false
     },
+    "tests/ci-shards.test.mjs": {
+      "sha256": "5d6e8d894cc0d563898d54d3535be0ffe7a7f9dbfcaeb93b8c4f68f69eb1926e",
+      "executable": false
+    },
     "tests/clone-journey.mjs": {
       "sha256": "b7cdeefe7b1a4f287f044b50ddd27fcfbf42c890abbe2fe384133c9b6df672b4",
       "executable": false
@@ -8087,7 +8091,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "820ebb801cb6abd757d538ad8de104c27378c4d46b10ffe76774de0a27b0943e",
+      "sha256": "203b38a166292317876c5ef5f2387dc6f1db7e19b69fa884dff613b83fa250b5",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
