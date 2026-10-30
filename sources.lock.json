@@ -3991,7 +3991,7 @@
       "executable": false
     },
     "src/coffer/move-in/checklist.ts": {
-      "sha256": "6ded16d6f0af6a94493c4573ffa8508613294e2c8a91c43cdfc18f9c7499046f",
+      "sha256": "bc114314f6972774909104b7f715da55801556135bdbc8ca875a0201f09db359",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -7279,7 +7279,7 @@
       "executable": false
     },
     "tests/custom-import-browser.mjs": {
-      "sha256": "34b762e193e4355f4a566544faa4318d267637c350831a85e8c51df91f7e0c49",
+      "sha256": "41dc5aa66d9f0aaa334e5b2195b3e9413cd5e5765889cff6de6c36a0d798ef01",
       "executable": false
     },
     "tests/custom-source-journey.mjs": {
@@ -7731,11 +7731,11 @@
       "executable": false
     },
     "tests/move-in-guide-browser.mjs": {
-      "sha256": "cd9c1c9edac8d60d729aa0477f7b6efb1f7fbb3bab0347b552d7a80271dd6219",
+      "sha256": "b1c561fe41cf8d8ca7fd2d23ded5f9f3756d7c86b865c82f52d9466853e213a1",
       "executable": false
     },
     "tests/move-in-guide-journey.mjs": {
-      "sha256": "2d988ddff67c04b3080bffe2d69a09f0f07f1cab5d6c843a0eba71c6be890ab8",
+      "sha256": "ad37ba706dc1b4230bc62b23a452b044484ef759cb22901b0e3b0c6dd656ebeb",
       "executable": false
     },
     "tests/move-in.test.mjs": {

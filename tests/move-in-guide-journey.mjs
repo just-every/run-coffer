@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {archive,restore,run} from './harness.mjs'
-import {moveInGuideBrowser} from './move-in-guide-browser.mjs'
+import {moveInGuideBrowser,moveInGuideRenamedBrowser} from './move-in-guide-browser.mjs'
 
 const base='/api/coffer/move-in'
 const source='bloomerang'
@@ -58,6 +58,30 @@ export async function moveInGuideJourney(){
    assert.deepEqual(done(restored),done(complete),'Restored records are checked against the archived evidence digests')
    await fresh.api(base+'/undo',{id:preview.id})
    assert.deepEqual(done(await get(fresh)),[],'Undo invalidates every supported completion after restore')
+  })
+  // The import alias survives a merge; reviews must follow the current donor.
+  await run(async fresh=>{
+   await restore(fresh,saved)
+   const survivor=await fresh.command('donor.create',{name:'Ava Survivor'})
+   const comparison=await fresh.get(`/api/coffer/duplicates/compare?source=${people[0].id}&target=${survivor.id}`)
+   await fresh.command('donor.merge',{sourceDonorId:people[0].id,donorId:survivor.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
+   const merged=await get(fresh)
+   assert.equal(merged.steps.find(s=>s.id==='names').done,false,'Merging an imported donor invalidates the earlier name review')
+   assert.equal(merged.names[0].original.name,'Ava Lee Reed')
+   assert.equal(merged.names[0].current.id,survivor.id)
+   assert.equal(merged.names[0].current.name,'Ava Survivor','The comparison shows the survivor rather than the retired import alias')
+   const reviewed=await approve(fresh,merged,'names')
+   assert.equal(reviewed.steps.find(s=>s.id==='names').done,true)
+   const current=(await fresh.get('/api/coffer/donors/'+survivor.id)).donor
+   await fresh.command('donor.update',{donorId:survivor.id,version:current.version,name:'Ava Survivor Updated'})
+   const renamed=await get(fresh)
+   assert.notEqual(renamed.fingerprint,reviewed.fingerprint,'The survivor name is part of the current installation evidence')
+   assert.equal(renamed.steps.find(s=>s.id==='names').done,false,'Renaming the survivor invalidates the approved names')
+   assert.equal(renamed.names[0].current.name,'Ava Survivor Updated')
+   await approve(fresh,reviewed,'names',{status:409})
+   await moveInGuideRenamedBrowser(fresh)
+   const refreshed=await approve(fresh,renamed,'names')
+   assert.equal(refreshed.steps.find(s=>s.id==='names').done,true,'The owner can review the changed survivor again')
   })
   // A definition edit clears the earlier review and refuses its stale approval.
   const definition=(await h.get('/api/coffer/custom-fields')).fields.find(f=>f.key==='guide_membership')
