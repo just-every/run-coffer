@@ -1096,6 +1096,12 @@
       "name": "core-0179_coffer_undone_custom_custody.sql",
       "sha256": "51a823109730b0ea5160a5aabf4f5038fb9b6f447ab3ae457e88444f450c174e",
       "sql": "-- Earlier undos discarded the source index, leaving captured private values\n-- without donor erasure custody. Keep historical totals and reusable mappings.\nUPDATE cf_move_in_jobs SET report=json_remove(report,'$.customReview')\nWHERE state='undone' AND json_type(report,'$.customReview') IS NOT NULL\n AND NOT EXISTS(SELECT 1 FROM cf_move_in_source_records WHERE job_id=cf_move_in_jobs.id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0180_coffer_reply_ingress.sql",
+      "sha256": "874cc2f77109be38538c293e68de5f79551912a64dc6a870615081a6b45a2201",
+      "sql": "-- Opaque replay receipts survive erasure without retaining a donor identity,\n-- sender address, subject or excerpt. Deleting the private task leaves only\n-- its one-way ingress hash, so an old capture cannot move to a new identity.\nCREATE TABLE cf_reply_ingress (\n id TEXT PRIMARY KEY CHECK(length(id)=64),\n task_id TEXT REFERENCES cf_reply_tasks(id) ON DELETE SET NULL\n);\nCREATE INDEX cf_reply_ingress_task ON cf_reply_ingress(task_id);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

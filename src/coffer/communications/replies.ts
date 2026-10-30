@@ -7,6 +7,23 @@ import { automaticStopIsCurrent, automaticStopStatements, currentConsent, replyS
 const sourceNames: Record<string, string> = { welcome: 'Welcome', appeal: 'Appeal', receipt: 'Receipt', acknowledgment: 'Acknowledgment', acknowledgement: 'Acknowledgment', statement: 'Statement' }
 export const replySource = (kind: string) => sourceNames[kind] ?? 'Email'
 
+// Correlated to the canonical donor snapshot. Keep the original private message
+// bounded, omit automatic responses, addresses, forwarding details and attachments.
+export const stewardshipRepliesSql = `SELECT json_group_array(json(j)) FROM (
+ SELECT json_object('id',r.id,'received_at',r.received_at,'subject',r.subject,
+  'excerpt',substr(r.body,1,1000)) AS j
+ FROM cf_reply_tasks r
+ LEFT JOIN cf_communications c ON c.id=r.communication_id
+ LEFT JOIN cf_acks a ON a.id=r.letter_id
+ WHERE r.donor_id=d.id AND r.automatic=0 AND length(trim(r.body))>0
+  AND COALESCE(c.donor_id,a.donor_id)=d.id
+  AND NOT EXISTS(SELECT 1 FROM cf_donors other WHERE other.id<>d.id AND other.erased_at IS NULL
+   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=other.id)
+   AND (lower(trim(other.email))=lower(trim(COALESCE(c.recipient_email,a.recipient_email)))
+    OR EXISTS(SELECT 1 FROM cf_contact_points cp WHERE cp.donor_id=other.id AND cp.kind='email' AND cp.active=1
+     AND lower(trim(cp.value))=lower(trim(COALESCE(c.recipient_email,a.recipient_email))))))
+ ORDER BY r.received_at DESC,r.id LIMIT 10)`
+
 const MAX_RAW = 1024 * 1024
 const clean = (value: string, limit: number) => value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, limit)
 const address = (value: string) => value.trim().toLowerCase()
@@ -110,6 +127,13 @@ const threadSubject = (value: string) => subject(value).replace(/^(?:(?:re|fw|fw
 async function findCommunication(message: ForwardableEmailMessage, env: Bindings, raw: Uint8Array): Promise<Row | null> {
  const config = env as Bindings & { COFFER_REPLY_DOMAIN?: string; COFFER_REPLY_ADDRESS?: string }
  const destination = address(message.to), fixed = address(config.COFFER_REPLY_ADDRESS ?? '')
+ const senders = [...new Set([address(message.from), authenticatedFrom(raw)].filter(Boolean))]
+ const identities = await all({db:env.DB}, `SELECT d.id FROM cf_donors d WHERE d.erased_at IS NULL
+  AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
+  AND (lower(trim(d.email)) IN(SELECT value FROM json_each(?)) OR EXISTS(
+   SELECT 1 FROM cf_contact_points cp WHERE cp.donor_id=d.id AND cp.kind='email' AND cp.active=1
+    AND lower(trim(cp.value)) IN(SELECT value FROM json_each(?))))`, JSON.stringify(senders),JSON.stringify(senders))
+ if(identities.length!==1)return null
  const point=`SELECT cp.value FROM cf_contact_points cp WHERE cp.id=c.email_contact_id AND cp.donor_id=d.id AND cp.kind='email' AND cp.active=1 AND cp.version=c.email_contact_version AND cp.value=c.recipient_email`
  const live = `SELECT c.*,d.email AS donor_email,(${point}) AS contact_email FROM (
   SELECT id,donor_id,subject,reply_to,source_kind,source_id,created_at,'communication' AS source_type,recipient_email,COALESCE(recipient_contact_id,json_extract(name_fields,'$._emailContact')) AS email_contact_id,COALESCE(recipient_contact_version,json_extract(name_fields,'$._emailContactVersion')) AS email_contact_version
@@ -122,14 +146,13 @@ async function findCommunication(message: ForwardableEmailMessage, env: Bindings
  ) c JOIN cf_donors d ON d.id=c.donor_id WHERE d.erased_at IS NULL
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`
  if (fixed && destination === fixed) {
-  const senders = [...new Set([address(message.from), authenticatedFrom(raw)].filter(Boolean))]
   const candidates = await all({ db: env.DB }, `${live} AND (lower(trim(d.email)) IN (SELECT value FROM json_each(?)) OR lower(trim((${point}))) IN(SELECT value FROM json_each(?))) AND lower(trim(c.reply_to))=? ORDER BY c.created_at DESC,c.id DESC`, JSON.stringify(senders),JSON.stringify(senders), destination)
-  return candidates.find(c => threadSubject(c.subject) === threadSubject(message.headers.get('subject') ?? '')) ?? null
+  return candidates.find(c => c.donor_id===identities[0].id && threadSubject(c.subject) === threadSubject(message.headers.get('subject') ?? '')) ?? null
  }
  const match = /^coffer\+((?:receipt-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@([^@\s]+)$/.exec(destination)
  if (!config.COFFER_REPLY_DOMAIN || !match || match[2] !== address(config.COFFER_REPLY_DOMAIN)) return null
  const communication = await one({ db: env.DB }, `${live} AND lower(trim(c.reply_to))=?`, destination)
- return communication && address(communication.reply_to ?? '') === destination && [address(message.from),authenticatedFrom(raw)].some(sender=>sender&&[address(communication.donor_email??''),address(communication.contact_email??'')].includes(sender)) ? communication : null
+ return communication && communication.donor_id===identities[0].id && address(communication.reply_to ?? '') === destination && senders.some(sender=>sender&&[address(communication.donor_email??''),address(communication.contact_email??'')].includes(sender)) ? communication : null
 }
 
 async function recordState(db: D1Database, taskId: string, attempt: string, state: string, note: string, at: string) {
@@ -146,13 +169,20 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
  if (env.RER_INSTALLATION_ID || env.RER_MANAGEMENT_ORIGIN) { message.setReject('Reply routing is not available yet on RER Managed.'); return }
  const raw = await readRaw(message)
  if (!raw) { message.setReject('Reply exceeds the 1 MB limit.'); return }
+ const headerId = message.headers.get('message-id')?.trim()
+ const contentHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', raw)), x => x.toString(16).padStart(2, '0')).join('')
+ const replayId = await sha256(`coffer:reply:v1\0${address(message.from)}\0${address(message.to)}\0${headerId && headerId.length <= 998 ? headerId : contentHash}`)
+ const receipt = await one({db:env.DB}, 'SELECT task_id FROM cf_reply_ingress WHERE id=?', replayId)
+ if(receipt){
+  if(!receipt.task_id)message.setReject('This previously processed reply cannot be restored after erasure.')
+  return
+ }
  const communication = await findCommunication(message, env, raw)
  if (!communication) {
   message.setReject('Unknown reply sender or address.'); return
  }
  const now = new Date().toISOString(), title = subject(message.headers.get('subject') ?? '')
- const body = plainExcerpt(raw), headerId = message.headers.get('message-id')?.trim()
- const contentHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', raw)), x => x.toString(16).padStart(2, '0')).join('')
+ const body = plainExcerpt(raw)
  // Donor-scoped identity stays stable when a newer same-subject appeal is sent before redelivery.
  const messageId = await sha256(`${communication.donor_id}\0${headerId && headerId.length <= 998 ? headerId : contentHash}`), taskId = `reply:${messageId}`
  const automatic = /^(?!no(?:\s*;|\s*$))\S/i.test(message.headers.get('auto-submitted')?.trim() ?? '') ||
@@ -166,10 +196,11 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
   env.DB.prepare(`INSERT OR IGNORE INTO cf_reply_tasks(id,communication_id,letter_id,donor_id,owner_id,subject,body,received_at,message_id,status,note,automatic,
    stop_status,stop_version,stop_evidence,stop_consent_id,stop_email,stop_donor_id,stop_proposed_at,stop_proposed_by)
    SELECT ?,?,?,d.id,?,?,?,?,?,?,?,?,?, ?,?,${currentConsent},d.email,d.id,?,? FROM cf_donors d
-   WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`)
+   WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
+    AND NOT EXISTS(SELECT 1 FROM cf_reply_ingress WHERE id=?)`)
    .bind(taskId, communication.source_type === 'communication' ? communication.id : null, communication.source_type === 'letter' ? communication.id : null,
     owner?.id ?? null, title, body, now, messageId, state, note, automatic ? 1 : 0,
-    evidence ? 'automatic' : null, evidence ? 1 : 0, evidence, evidence ? now : null, evidence ? 'Email routing' : null, communication.donor_id),
+    evidence ? 'automatic' : null, evidence ? 1 : 0, evidence, evidence ? now : null, evidence ? 'Email routing' : null, communication.donor_id, replayId),
   ...await automaticStopStatements(env.DB, taskId, now),
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'email-routing','Email routing','system','reply.received','reply',id,donor_id,? FROM cf_reply_tasks WHERE id=? AND NOT EXISTS(SELECT 1 FROM cf_interactions WHERE id=?)`)
@@ -177,6 +208,7 @@ export async function receiveReply(message: ForwardableEmailMessage, env: Bindin
   env.DB.prepare(`INSERT OR IGNORE INTO cf_interactions(id,donor_id,kind,occurred_on,who,notes,next_step,recorded_at,recorded_by)
    SELECT id,donor_id,'email',?,'Donor',?,?,?,'Email routing' FROM cf_reply_tasks WHERE id=?`)
    .bind(now.slice(0, 10), `${replySource(communication.source_kind)} reply · ${title}\n${body || 'No plain-text excerpt is available.'}${evidence ? '\nEmail consent withdrawn automatically from this explicit request.' : ''}`, note, now, taskId),
+  env.DB.prepare('INSERT OR IGNORE INTO cf_reply_ingress(id,task_id) SELECT ?,id FROM cf_reply_tasks WHERE id=?').bind(replayId,taskId),
  ])
  if (received[1].meta.changes) await syncAutomaticStop(env, taskId, now)
  const task = await one({ db: env.DB }, 'SELECT * FROM cf_reply_tasks WHERE id=?', taskId)
