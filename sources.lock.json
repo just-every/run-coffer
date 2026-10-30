@@ -543,7 +543,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "f06c57404efe9d94afe0d6d1f1e84d2aecaf1d656b59368a51f2fb5643b095c9",
+      "sha256": "36f2ba3a2cc628da7b4ee61844c02c0bcf7acd87fdf6e628b4f0651c5f4d2713",
       "executable": false
     },
     ".gitignore": {
@@ -1994,6 +1994,18 @@
       "sha256": "a5a6931a772d466f66882f0c97e680208bbd892fa5efc9d9417747cfad9578b0",
       "executable": false
     },
+    "scripts/ci/chromium-probe.mjs": {
+      "sha256": "1322ea72e6bebf673393bdbe1443fad8dfd35052088c46bbdebc37c5ed60bfef",
+      "executable": false
+    },
+    "scripts/ci/durations.json": {
+      "sha256": "83314539567ce659275930719f013a2e2ab78e328c23ad06ec80646526a5f36d",
+      "executable": false
+    },
+    "scripts/ci/shards.mjs": {
+      "sha256": "d62ce491e13d209f5dbad13d6fe982b46bfd63f109f758f893871f8a8e8690f2",
+      "executable": false
+    },
     "scripts/contract-docs.mjs": {
       "sha256": "3e77d02bb726eb5f08d448b4dca5aa271af7cf570b9def0d11e4082b02f75175",
       "executable": false
@@ -2755,7 +2767,7 @@
       "executable": false
     },
     "scripts/verify-ci.mjs": {
-      "sha256": "cf1ceb8773ed276f82245fb8fb4c4bdc95bff40ecc0e8ca8ac9e776978b17340",
+      "sha256": "04dcc494c9adc7053f784b71d917856e73a0b851f02f4d7ecc4f259820f8b601",
       "executable": false
     },
     "scripts/verify-evidence.mjs": {

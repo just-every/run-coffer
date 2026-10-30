@@ -179,6 +179,10 @@ if (invokedDirectly()) {
   const { verificationPlan } = await import('./verify-app.mjs');
   const { planVerification } = await import('./verify-plan.mjs');
   const decision = await planVerification({ plan: await verificationPlan() });
+  if (decision.coverage === 'full' && decision.tier !== 'nightly') {
+   const { schedule } = await import('./ci/shards.mjs');
+   decision.matrix = { include: (await schedule(decision.tier)).map(({ name, browser }) => ({ name, browser })) };
+  }
   const output = Object.entries({ ...decision, matrix: JSON.stringify(decision.matrix), readers: JSON.stringify(decision.readers), has_shards: decision.matrix.include.length > 0 })
    .map(([key, value]) => `${key}=${value}\n`).join('');
   if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, output);
