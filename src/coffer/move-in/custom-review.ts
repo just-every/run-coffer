@@ -8,7 +8,6 @@ import { importedCustomWrites, type CustomImportWrite } from './custom-fields'
 import { createImportDefinitionWrites } from './custom-definition-undo'
 import { buildCustomReview, defaultMappings } from './custom-review-plan'
 import type { CustomReview, FieldMapping, ValueResolution } from './custom-review-types'
-import type { Plan } from './plan'
 import { customTagWrites } from './custom-review-tags'
 
 export async function customReview(c:Context,id:string) {
@@ -71,7 +70,7 @@ export async function applyCustom(c:Context,input:{id:string;version:number}) {
  }
  // Definitions with all values waiting still appear, while their values remain in review.
  const emptyFields=review.mappings.filter(m=>m.action==='field'&&!staged.has(m.field!.key)&&!fields.some(f=>f.key===m.field!.key)).map(m=>({...m.field,choices:JSON.stringify(m.field!.choices),version:1,created_at:c.now}))
- writes.push(...await createImportDefinitionWrites(c,emptyFields,job.source,job.id),...await importedCustomWrites(c,{customWrites} as Plan,job.source,job.id))
+ writes.push(...await createImportDefinitionWrites(c,emptyFields,job.source,job.id),...await importedCustomWrites(c,{customWrites,customDefinitionWrites:[]},job.source,job.id))
  writes.push(sql("UPDATE cf_move_in_jobs SET report=json_set(report,'$.customReview.applied',1,'$.customReview.appliedValues',json(?)) WHERE id=?",JSON.stringify([...new Set([...(review.appliedValues??[]),...review.values.filter(v=>v.state==='ready').map(v=>v.id)])]),job.id),event(c,'move-in.custom.apply','move-in',job.id,null,{carried:customWrites.length,waiting:review.values.filter(v=>v.state==='waiting').length}))
  await commit(c,writes)
  return {id:job.id,review,carried:customWrites.length,tagAssignments,waiting:review.values.filter(v=>v.state==='waiting').length,unchanged:customWrites.length===0&&tagAssignments===0&&emptyFields.length===0}

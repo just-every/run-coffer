@@ -420,3 +420,8 @@ test('MOVE-004: reviewed Neon history preserves money, source acknowledgment, pr
  const {neonJourney}=await import('./neon-journey.mjs')
  await neonJourney()
 })
+
+test('MOVE-003: reviewed SKY history preserves parent cash, designation splits, opportunities and source custody',async()=>{
+ const {blackbaudJourney}=await import('./blackbaud-journey.mjs')
+ await blackbaudJourney()
+})

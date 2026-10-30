@@ -140,3 +140,14 @@ export async function runTaskReminders(env:Bindings,at:Date){
   await commit(c,[sql("UPDATE cf_task_notices SET status=?,message_id=? WHERE id=? AND status='sending'",status,messageId,notice.id),event(c,'task.reminder','task',notice.task_id,current.donor_id,{recipientId:notice.recipient_id,kind:notice.kind,state:status})])
  }
 }
+
+/** Imported work remains an ordinary assigned task with no contact submission.
+ * Current owner authority and the native task field validators are rechecked
+ * both at preview and before starting any reviewed source import. */
+export async function importedSourceTask(c:Context,t:import('./move-in/types').ParsedTask,donorId:string,prospectId:string|null=null) {
+ const ownerId=id(t.ownerId,'Reviewed task owner'),version=integer(Number(t.ownerVersion),'Reviewed task owner version',1)
+ const current=await one(c,"SELECT id,display_name FROM oa_operators WHERE id=? AND version=? AND status='active' AND role IN ('owner','admin','member')",ownerId,version)
+ if(!current)fail('OWNER_CHANGED','The reviewed source task owner changed. Preview the source again.',409)
+ t.ownerName=current.display_name
+ return {checks:[live(donorId),guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active' AND role IN ('owner','admin','member'))",'OWNER_CHANGED','The reviewed source task owner changed.',ownerId,version)],row:{donor_id:donorId,source_key:'re-nxt:action:'+t.externalId,source_kind:'re-nxt',reason:longText(t.title,'Source action',1000),amount_cents:0,owner_id:ownerId,due_on:date(t.dueOn,'Source action due date'),status:'open',version:1,created_at:c.now,completed_at:null,interaction_id:null,is_ask:0,task_kind:choice(t.kind,['call','meeting','follow_up'],'source task kind'),gift_id:null,prospect_id:prospectId,completion_notes:null,closed_reason:null}}
+}

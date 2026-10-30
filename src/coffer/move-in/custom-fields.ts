@@ -24,7 +24,7 @@ export function reviewedCustomMappings(input: ParseInput, out: ParsedImport) {
    const identity = JSON.stringify([m.sheet ?? '',m.column,m.kind])
    if (seen.has(identity)) throw Error('Map each source column and record kind once.')
    seen.add(identity)
-   return {source:m.source,column:m.column,sheet:m.sheet||undefined,key:m.key,label:m.label,kind:m.kind,type:m.type,entry:m.entry,choices,version:m.version??0}
+   return {source:m.source,column:m.column,sourceDefinitionId:m.sourceDefinitionId,sheet:m.sheet||undefined,key:m.key,label:m.label,kind:m.kind,type:m.type,entry:m.entry,choices,version:m.version??0}
   })
  } catch (e) { out.customFields = []; out.diagnostics.push({severity:'error',code:'CUSTOM_MAPPING',message:String(e instanceof Error ? e.message : e)}) }
 }
@@ -72,10 +72,24 @@ const definitionMatches = (a:Row,b:Row) => a.kind === b.kind && a.type === b.typ
 /** Resolve source IDs only through this plan and its established importer custody. */
 export async function planCustomValues(c:Context, parsed:ParsedImport, plan:Plan, existing:Map<string,Row>) {
  const definitions = new Map((await all(c,'SELECT * FROM cf_custom_fields')).map(f => [f.key,f])), staged = new Map<string,Row>()
+ // A source definition with no values is still part of the reviewed inventory.
+ // The same definition and current-version guards govern empty and used fields.
+ for(const m of parsed.definitionMappings??[]) {
+  const held=definitions.get(m.key),earlier=staged.get(m.key)
+  if(held&&(!definitionMatches(held,m)||held.label!==m.label||m.version&&held.version!==m.version)||earlier&&!definitionMatches(earlier,m)) {
+   plan.diagnostics.push({severity:'error',code:'CUSTOM_MAPPING',column:m.column,message:`Custom definition ${m.key} changed or conflicts with its reviewed source definition.`});continue
+  }
+  if(held)plan.checks.push(guard('EXISTS(SELECT 1 FROM cf_custom_fields WHERE key=? AND version=?)','MOVE_IN_CHANGED','This custom definition changed. Review again.',m.key,held.version))
+  else if(!earlier) {
+   plan.checks.push(guard('NOT EXISTS(SELECT 1 FROM cf_custom_fields WHERE key=?)','MOVE_IN_CHANGED','This custom definition was added. Review again.',m.key))
+   const field={...m,choices:JSON.stringify(m.choices),version:1,created_at:c.now}
+   plan.customDefinitionWrites.push(field);staged.set(m.key,field)
+  }
+ }
  const entities: {kind:string;entity:Located & {externalId:string;donorExternalId?:string}}[] = [
   ...parsed.donors.map(entity=>({kind:'donor',entity})),...parsed.gifts.map(entity=>({kind:'gift',entity})),...parsed.pledges.map(entity=>({kind:'pledge',entity})),...parsed.notes.map(entity=>({kind:['call','meeting','email'].includes(entity.type)?'interaction':'note',entity})),
  ]
- const candidates = await Promise.all(entities.flatMap(({kind,entity}) => (entity.customValues ?? []).map(async imported => ({kind,entity,imported,recordKey:await sha256(entity.externalId),sourceKey:await sha256(JSON.stringify([kind,entity.externalId,imported.mapping.key])),hash:await sha256(JSON.stringify([kind,entity.externalId,imported.mapping.key,imported.value]))}))))
+ const candidates = await Promise.all(entities.flatMap(({kind,entity}) => (entity.customValues ?? []).map(async imported => ({kind,entity,imported,recordKey:await sha256(entity.externalId),sourceKey:await sha256(JSON.stringify([kind,entity.externalId,imported.mapping.key])),hash:await sha256(JSON.stringify([kind,entity.externalId,imported.mapping.key,imported.value,...(imported.sourceMetadata?[imported.sourceMetadata]:[])]))}))))
  if (!candidates.length) return
  const custodyByKey = new Map((await all(c,"SELECT * FROM cf_move_in_records WHERE source=? AND kind='customValue' AND source_key IN(SELECT value FROM json_each(?))",parsed.source,JSON.stringify(candidates.map(v=>v.sourceKey)))).map(r=>[r.source_key,r]))
  const current = new Set((await all(c,'SELECT field_key,record_id FROM cf_custom_values WHERE donor_id IN(SELECT value FROM json_each(?))',JSON.stringify([...plan.donorIds.values()]))).map(v=>JSON.stringify([v.field_key,v.record_id])))
@@ -105,14 +119,14 @@ export async function planCustomValues(c:Context, parsed:ParsedImport, plan:Plan
  if (plan.customWrites.length) plan.checks.push(guard(`NOT EXISTS(SELECT 1 FROM cf_custom_values v JOIN json_each(?) j ON v.field_key=json_extract(j.value,'$.key') AND v.record_id=json_extract(j.value,'$.recordId'))`,'MOVE_IN_CHANGED','A custom value changed. Review the files again.',JSON.stringify(plan.customWrites.map(w=>({key:w.field.key,recordId:w.recordId})))))
 }
 
-export async function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:string):Promise<Stmt[]> {
+export async function importedCustomWrites(c:Context, plan:Pick<Plan,'customWrites'|'customDefinitionWrites'|'sourceProvider'>, source:string, jobId:string):Promise<Stmt[]> {
  const writes:Stmt[] = []
- if (!plan.customWrites.length) return writes
- const fields = plan.customWrites.filter(w=>w.createField).map(w=>w.field)
+ if (!plan.customWrites.length&&!plan.customDefinitionWrites.length) return writes
+ const fields = [...plan.customDefinitionWrites,...plan.customWrites.filter(w=>w.createField).map(w=>w.field)]
  writes.push(...await createImportDefinitionWrites(c,fields,source,jobId))
- if(['spreadsheet','givebutter','zeffy','neon'].includes(source))writes.push(...spreadsheetDefinitionWrites(fields,jobId))
+ if(['spreadsheet','givebutter','zeffy','neon'].includes(source)||plan.sourceProvider==='Blackbaud SKY')writes.push(...spreadsheetDefinitionWrites(fields,jobId))
  const values = plan.customWrites.map(w=>{
-  const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDonorId:w.donorExternalId,original:w.imported.original}
+  const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDefinitionId:w.imported.mapping.sourceDefinitionId,sourceDonorId:w.donorExternalId,original:w.imported.original,...(w.imported.sourceMetadata?{sourceMetadata:w.imported.sourceMetadata}:{})}
   const row = {field_key:w.field.key,record_id:w.recordId,donor_id:w.donorId,value:w.imported.value,version:1,source:JSON.stringify(provenance),updated_at:c.now}
   return {...row,sourceKey:w.sourceKey,hash:w.hash,snapshot:JSON.stringify(row)}
  })

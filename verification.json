@@ -142,7 +142,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test --test-skip-pattern='^MAJOR-' tests/pipeline.test.mjs"
+        "COFFER_DASHBOARD_BROWSER=.cache/dashboard node --test --test-skip-pattern='^MAJOR-' tests/pipeline.test.mjs",
+        "node --test --test-name-pattern='^MOVE-003:' tests/move-in.test.mjs"
       ]
     },
     {
@@ -159,7 +160,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005|MOVE-010):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005|MOVE-010|MOVE-003):' tests/move-in.test.mjs"
       ]
     },
     {
