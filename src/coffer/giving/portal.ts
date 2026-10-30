@@ -178,8 +178,8 @@ export async function portalResponse(request: Request, original: GivingEnv): Pro
  const donor = await portalSession(request, env)
  if (!donor) return read && path === '/giving/portal' ? requestPage() : redirect('/giving/portal')
  if(path==='/giving/portal/saved-card'){
-  if(read)return savedCardConsentPage(env,donor,url.searchParams.get('saved')==='1')
-  await saveSavedCardConsent(env,donor,await form(request));return redirect('/giving/portal/saved-card?saved=1')
+  if(read)return savedCardConsentPage(env,donor,url.searchParams.get('saved')==='1',url.searchParams.get('scope')==='once'?'once':'recurring')
+  const data=await form(request);await saveSavedCardConsent(env,donor,data);return redirect('/giving/portal/saved-card?saved=1&scope='+(data.get('scope')==='once'?'once':'recurring'))
  }
  if (path === '/giving/portal/preferences') {
   if(read)return donorRequestPage(env,donor,url.searchParams.get('saved')==='1')

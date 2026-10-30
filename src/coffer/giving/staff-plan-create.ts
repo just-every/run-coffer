@@ -9,9 +9,10 @@ import { invoice } from './webhooks'
 import { stripe, type GivingEnv } from './stripe'
 import { requireSavedCardConsent, savedCardConsent } from './saved-card-consent'
 
+export const staffChargingPending="SELECT p.id,p.created_at FROM cf_portal_changes p LEFT JOIN cf_donor_merges m ON m.donor_id=p.donor_id WHERE COALESCE(m.into_id,p.donor_id)=? AND p.action IN ('staff.create','staff.payment') AND p.state IN ('pending','uncertain')"
 const staff=(c:Context)=>requireRole(c.actor,['owner','admin'],'create recurring plans')
 const live=`d.erased_at IS NULL AND d.constituent_status='active' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)`
-async function donorAccount(c:Context,donorId:string){
+export async function donorAccount(c:Context,donorId:string){
  staff(c)
  const donor=await one(c,`SELECT d.id,d.version,d.name,d.email FROM cf_donors d WHERE d.id=? AND ${live}`,donorId)
  if(!donor)fail('DONOR_UNAVAILABLE','Choose a current constituent record.',404)
@@ -21,7 +22,7 @@ async function donorAccount(c:Context,donorId:string){
  if(await one(c,'SELECT 1 FROM cf_subscriptions WHERE customer_id=? AND donor_id<>?',customerId,donor.id))fail('CUSTOMER_AMBIGUOUS','Separate the shared Stripe customer before starting a plan.',409)
  return {donor,customerId}
 }
-async function savedMethod(c:Context,customerId:string){
+export async function savedMethod(c:Context,customerId:string){
  const customer=await stripe(c.env as GivingEnv,'customers/'+encodeURIComponent(customerId))
  if(customer.id!==customerId||customer.deleted)fail('CUSTOMER_UNAVAILABLE','The saved Stripe customer is no longer available.',409)
  if(customer.discount||(Array.isArray(customer.discounts)&&customer.discounts.length)||customer.balance||Object.values(customer.invoice_credit_balance??{}).some(value=>value!==0)||customer.currency&&customer.currency!=='usd')fail('CUSTOMER_BILLING_REVIEW','Review customer discounts, balances and currency at Stripe before starting a plan.',409)
@@ -44,11 +45,11 @@ export async function staffPlanCreateState(c:Context,donorId:string){
   all(c,'SELECT id,name,fund,closes_on FROM cf_campaigns WHERE active=1 ORDER BY name,id'),
   all(c,`SELECT 'interaction:'||id AS reference,'Phone call · '||occurred_on AS label FROM cf_interactions WHERE donor_id=? AND kind='call' UNION ALL SELECT 'document:'||id,title FROM cf_record_documents WHERE donor_id=?`,donor.id,donor.id),
  ])
- const pending=await one(c,"SELECT id,created_at FROM cf_portal_changes WHERE donor_id=? AND action='staff.create' AND state IN ('pending','uncertain') LIMIT 1",donor.id)
+ const pending=await one(c,staffChargingPending+' LIMIT 1',donor.id)
  await commit(c,[])
  return {donor,customerId,...method,cardConsent,version:await versionOf(donor,customerId,{...method,consentId:cardConsent?.status==='granted'?cardConsent.id:null}),campaigns,sources,pending}
 }
-async function authorization(c:Context,donorId:string,reference:string,channel:string):Promise<{snapshot:string;guard:Stmt}>{
+export async function authorization(c:Context,donorId:string,reference:string,channel:string):Promise<{snapshot:string;guard:Stmt}>{
  const [kind,id,...rest]=reference.split(':')
  if(rest.length||!id||!['interaction','document'].includes(kind))fail('INPUT','Choose a recorded phone call or attached authorization document.',400)
  if(channel==='mail'&&kind!=='document')fail('AUTHORIZATION_REQUIRED','A mailed authorization requires an attached document.',400)
@@ -82,7 +83,7 @@ export async function createStaffPlan(c:Context,input:Row){
  const cardConsent=await requireSavedCardConsent(c,donorId,customerId,method.paymentMethodId)
  if(method.paymentMethodId!==paymentMethodId||version!==await versionOf(donor,customerId,{...method,consentId:cardConsent.id}))fail('PAYMENT_METHOD_CHANGED','The saved payment method or constituent changed. Reload before confirming.',409)
  const custody=()=>guard(`EXISTS(SELECT 1 FROM cf_donors d JOIN cf_giving_customers gc ON gc.donor_id=d.id WHERE d.id=? AND d.version=? AND gc.customer_id=? AND ${live}) AND (SELECT count(*) FROM cf_giving_customers WHERE donor_id=?)=1 AND NOT EXISTS(SELECT 1 FROM cf_subscriptions WHERE customer_id=? AND donor_id<>?)`,'CUSTOMER_CHANGED','The constituent or saved Stripe customer changed. Review the pending request.',donorId,donor.version,customerId,donorId,customerId,donorId)
- await commit(c,[custody(),evidence.guard,cardConsent.guard,guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=? AND active=1 AND name=? AND fund=? AND closes_on IS ?)','CAMPAIGN_CHANGED','The campaign changed. Review it before charging.',campaignId,campaign.name,campaign.fund,campaign.closes_on),guard("NOT EXISTS(SELECT 1 FROM cf_portal_changes WHERE donor_id=? AND action='staff.create' AND state IN ('pending','uncertain'))",'CREATE_PENDING','A previous creation request needs a Stripe result check.',donorId),guard('NOT EXISTS(SELECT 1 FROM cf_giving_intents WHERE id=?)','REQUEST_CHANGED','This request ID is already in use.',requestId),sql("INSERT INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,customer_id,donor_id,created_at,email_consent,requested_amount_cents,fee_cover_cents,giving_channel,billing_frequency,staff_actor_id,staff_actor_name,staff_channel) VALUES(?,?,?,?,?,'monthly',?,?,?,0,?,0,'form',?,?,?,?)",requestId,campaignId,donor.name,donor.email??'',cents,customerId,donorId,c.now,cents,frequency,c.actor.id,c.actor.name,channel),sql("INSERT INTO cf_portal_changes(id,donor_id,subscription_id,action,state,request,created_at) VALUES(?,?,NULL,'staff.create','pending',?,?)",requestId,donorId,JSON.stringify({input:payload,authorizationSnapshot:evidence.snapshot,paymentMethodType:method.paymentMethodType,savedCardConsentId:cardConsent.id}),c.now),event(c,'staffPlan.creationRequested','givingIntent',requestId,donorId,{requestId,campaignId,frequency,amountCents:cents,sourceRef,channel,authorizationSnapshot:evidence.snapshot,savedCardConsentId:cardConsent.id})])
+ await commit(c,[custody(),evidence.guard,cardConsent.guard,guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=? AND active=1 AND name=? AND fund=? AND closes_on IS ?)','CAMPAIGN_CHANGED','The campaign changed. Review it before charging.',campaignId,campaign.name,campaign.fund,campaign.closes_on),guard('NOT EXISTS('+staffChargingPending+')','CREATE_PENDING','A previous creation request needs a Stripe result check.',donorId),guard('NOT EXISTS(SELECT 1 FROM cf_giving_intents WHERE id=?)','REQUEST_CHANGED','This request ID is already in use.',requestId),sql("INSERT INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,customer_id,donor_id,created_at,email_consent,requested_amount_cents,fee_cover_cents,giving_channel,billing_frequency,staff_actor_id,staff_actor_name,staff_channel) VALUES(?,?,?,?,?,'monthly',?,?,?,0,?,0,'form',?,?,?,?)",requestId,campaignId,donor.name,donor.email??'',cents,customerId,donorId,c.now,cents,frequency,c.actor.id,c.actor.name,channel),sql("INSERT INTO cf_portal_changes(id,donor_id,subscription_id,action,state,request,created_at) VALUES(?,?,NULL,'staff.create','pending',?,?)",requestId,donorId,JSON.stringify({input:payload,authorizationSnapshot:evidence.snapshot,paymentMethodType:method.paymentMethodType,savedCardConsentId:cardConsent.id}),c.now),event(c,'staffPlan.creationRequested','givingIntent',requestId,donorId,{requestId,campaignId,frequency,amountCents:cents,sourceRef,channel,authorizationSnapshot:evidence.snapshot,savedCardConsentId:cardConsent.id})])
  const env=c.env as GivingEnv,product=await stripe(env,'products',{name:campaign.name,'metadata[coffer_intent]':requestId},'coffer-staff-product-'+requestId)
  if(typeof product.id!=='string'||!product.id)fail('STRIPE_UNCONFIRMED','Stripe did not confirm the billing product. The creation request needs review.',502)
  const chargingMethod=await savedMethod(c,customerId)
