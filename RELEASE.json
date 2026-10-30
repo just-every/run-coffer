@@ -100,7 +100,8 @@
     "migrations/core/0178_coffer_source_custom_index.sql",
     "migrations/core/0179_coffer_undone_custom_custody.sql",
     "migrations/core/0180_coffer_allocation_replacement.sql",
-    "migrations/core/0181_coffer_source_plan_schedule.sql"
+    "migrations/core/0181_coffer_source_plan_schedule.sql",
+    "migrations/core/0182_coffer_staff_payment_permission.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Back up through the existing local or hosted recovery workflow before adopting. This source prepares the next release; no release tag has been created.",
