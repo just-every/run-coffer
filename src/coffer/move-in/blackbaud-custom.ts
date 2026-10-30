@@ -21,8 +21,8 @@ export function blackbaudCustom(review:Row,fallback:unknown) {
   for(const d of inventory as Row[]) {
    if(!d||!['constituent','gift','action'].includes(d.kind)||typeof d.id!=='string'||!d.id||typeof d.category!=='string'||!d.category||!Array.isArray(d.choices)||Object.keys(d).some(k=>!['id','kind','category','type','entry','choices'].includes(k)))error('Review each source definition identity, kind, category, type, entry method and complete code table.')
    const identity=JSON.stringify([d.kind,d.category])
-   if(seen.has(identity))error('Source definition categories must be unambiguous within their record kind.')
-   seen.add(identity)
+   if(seen.has(identity)||seen.has(JSON.stringify([d.kind,d.id])))error('Source definition categories must be unambiguous within their record kind.')
+   seen.add(identity);seen.add(JSON.stringify([d.kind,d.id]))
    const matches=mappings.filter(m=>m.column===d.category&&(d.kind==='action'?['interaction','note'].includes(m.kind):m.kind===d.kind))
    if(!matches.length)error('Map every source definition, including empty categories, before applying.')
    const check={customFields:[],diagnostics:[]} as unknown as ParsedImport
@@ -32,7 +32,7 @@ export function blackbaudCustom(review:Row,fallback:unknown) {
     const source=check.customFields!.find(f=>f.kind===m.kind)!
     if(m.type!==source.type||m.entry!==source.entry||JSON.stringify(m.choices)!==JSON.stringify(source.choices))error('A native mapping must retain the source type, entry method and complete code table.')
     if(definitions.some(f=>f.key===m.key))error('Use a distinct native field key for each source definition and action record kind.')
-    definitions.push(m)
+    m.sourceDefinitionId=d.id;definitions.push(m)
    }
   }
   if(mappings.some(m=>!definitions.includes(m)))error('Every mapped category must occur in the attested definition inventory.')

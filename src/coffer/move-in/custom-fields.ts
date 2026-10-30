@@ -24,7 +24,7 @@ export function reviewedCustomMappings(input: ParseInput, out: ParsedImport) {
    const identity = JSON.stringify([m.sheet ?? '',m.column,m.kind])
    if (seen.has(identity)) throw Error('Map each source column and record kind once.')
    seen.add(identity)
-   return {source:m.source,column:m.column,sheet:m.sheet||undefined,key:m.key,label:m.label,kind:m.kind,type:m.type,entry:m.entry,choices,version:m.version??0}
+   return {source:m.source,column:m.column,sourceDefinitionId:m.sourceDefinitionId,sheet:m.sheet||undefined,key:m.key,label:m.label,kind:m.kind,type:m.type,entry:m.entry,choices,version:m.version??0}
   })
  } catch (e) { out.customFields = []; out.diagnostics.push({severity:'error',code:'CUSTOM_MAPPING',message:String(e instanceof Error ? e.message : e)}) }
 }
@@ -126,7 +126,7 @@ export async function importedCustomWrites(c:Context, plan:Plan, source:string, 
  writes.push(...await createImportDefinitionWrites(c,fields,source,jobId))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(source)||plan.sourceProvider==='Blackbaud SKY')writes.push(...spreadsheetDefinitionWrites(fields,jobId))
  const values = plan.customWrites.map(w=>{
-  const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDonorId:w.donorExternalId,original:w.imported.original,...(w.imported.sourceMetadata?{sourceMetadata:w.imported.sourceMetadata}:{})}
+  const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDefinitionId:w.imported.mapping.sourceDefinitionId,sourceDonorId:w.donorExternalId,original:w.imported.original,...(w.imported.sourceMetadata?{sourceMetadata:w.imported.sourceMetadata}:{})}
   const row = {field_key:w.field.key,record_id:w.recordId,donor_id:w.donorId,value:w.imported.value,version:1,source:JSON.stringify(provenance),updated_at:c.now}
   return {...row,sourceKey:w.sourceKey,hash:w.hash,snapshot:JSON.stringify(row)}
  })

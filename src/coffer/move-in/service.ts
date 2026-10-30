@@ -1,3 +1,4 @@
+import { importedSourceTask } from '../call-tasks'
 import { importedOpportunity } from '../major-gifts'
 import { blackbaudImport } from './blackbaud'
 import { neonInput } from './neon'
@@ -33,7 +34,7 @@ function confirmedNeonCurrency(job:Row) {
 }
 function authorize(c: Context) {if(!manager(c.actor))fail('manager_required','Only the owner or an admin moves records in.',403)}
 export async function jobs(c: Context) {return all(c,"SELECT id,source,state,parts,applied_parts,created_at,json_extract(report,'$.canApply') AS can_apply FROM cf_move_in_jobs ORDER BY created_at DESC LIMIT 20")}
-const summary=(p:ParsedImport)=>({...((p.opportunities??[]).length?{opportunities:p.opportunities!.length,designations:p.gifts.reduce((n,g)=>n+(g.designations?.length??0),0)}:{}),...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...((p.recurringReferences??[]).length?{recurringReferences:p.recurringReferences!.length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...(['spreadsheet','givebutter','zeffy','neon'].includes(p.source)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
+const summary=(p:ParsedImport)=>({...((p.tasks??[]).length?{tasks:p.tasks!.length}:{}),...((p.opportunities??[]).length?{opportunities:p.opportunities!.length,designations:p.gifts.reduce((n,g)=>n+(g.designations?.length??0),0)}:{}),...Object.fromEntries(['donors','households','gifts','pledges','installments','relationships','softCredits','notes'].map(k=>[k,((p as any)[k]??[]).length])),...((p.recurringReferences??[]).length?{recurringReferences:p.recurringReferences!.length}:{}),solicitations:(p.solicitations??[]).length,channelWithdrawals:(p.channelWithdrawals??[]).filter(r=>!r.status||r.status==='withdrawn').length,...(['spreadsheet','givebutter','zeffy','neon'].includes(p.source)?{channelPreferences:(p.channelWithdrawals??[]).length}:{}),householdsWithHead:p.households.filter(h=>h.headExternalId).length,householdsWithoutHead:p.households.filter(h=>!h.headExternalId).length})
 
 export async function spreadsheetMappings(c:Context) {
  authorize(c)
@@ -109,7 +110,7 @@ export async function apply(c: Context,input:{id:string;fingerprint:string;accep
  if(job.state!=='reviewed' || !job.fingerprint || input.fingerprint!==job.fingerprint)fail('MOVE_IN_CHANGED','The files changed after review. Upload them and review again.',409)
  const report=JSON.parse(job.report)
  if(report.definitionMappings&&JSON.stringify(await skyDefinitionSnapshot(c,report.definitionMappings.map((m:Row)=>m.key)))!==JSON.stringify(report.skyDefinitionSnapshot))fail('MOVE_IN_CHANGED','Custom definitions changed after SKY review. Preview again before applying any records.',409)
- if(report.sourceCoverage?.provider==='Blackbaud SKY')for(const part of await all(c,'SELECT payload FROM cf_move_in_parts WHERE job_id=? ORDER BY position',job.id))for(const o of (JSON.parse(part.payload) as ParsedImport).opportunities??[])await importedOpportunity(c,o,'reviewed-source-identity')
+ if(report.sourceCoverage?.provider==='Blackbaud SKY')for(const part of await all(c,'SELECT payload FROM cf_move_in_parts WHERE job_id=? ORDER BY position',job.id)){const parsed=JSON.parse(part.payload) as ParsedImport;for(const o of parsed.opportunities??[])await importedOpportunity(c,o,'reviewed-source-identity');for(const t of parsed.tasks??[])await importedSourceTask(c,t,'reviewed-source-identity')}
  if(report.sourceIndexComplete===false)fail('MOVE_IN_CHANGED','The source index is incomplete. Preview the exports again.',409)
  if(report.canApply===false || !job.parts)fail('MOVE_IN_ERRORS','This review has rows that must be fixed first. Fix them in your files and upload them again.',409)
  const acceptedReason=optional(input.acceptedReason,'Reason for accepting differences',2000)
@@ -262,7 +263,7 @@ export async function undo(c: Context,id:string) {
   ['cf_pledge_adjustments','pledge_id','pledge',null,'id'],['cf_pledge_plans','pledge_id','pledge',null,'pledge_id'],
   ['cf_record_documents','donor_id','donor',null,'id'],['cf_record_documents','gift_id','gift',null,'id'],['cf_record_documents','pledge_id','pledge',null,'id'],
   ['cf_grants','donor_id','donor',null,'id'],['cf_grants','pledge_id','pledge',null,'id'],
-  ['cf_prospects','donor_id','donor','opportunity','id'],['cf_prospects','pledge_id','pledge',null,'id'],['cf_prospects','gift_id','gift',null,'id'],['cf_call_tasks','donor_id','donor',null,'id'],['cf_call_tasks','interaction_id','interaction',null,'id'],
+  ['cf_prospects','donor_id','donor','opportunity','id'],['cf_prospects','pledge_id','pledge','opportunity','id'],['cf_prospects','gift_id','gift','opportunity','id'],['cf_call_tasks','donor_id','donor','task','id'],['cf_call_tasks','interaction_id','interaction','task','id'],['cf_call_tasks','prospect_id','opportunity','task','id'],
  ]
  for(const [table,fk,parent,child,key] of dependencies)writes.push(guard(`NOT EXISTS(SELECT 1 FROM ${table} WHERE ${fk} IN (${owned(parent)})${child?` AND ${key} NOT IN (${owned(child)})`:''})`,'MOVE_IN_USED','Someone has used these imported records. Nothing was undone.',id,...(child?[id]:[])))
  writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_custom_values v WHERE (v.donor_id IN (${owned('donor')}) OR v.record_id IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND owned=1)) AND NOT EXISTS(SELECT 1 FROM cf_move_in_records r WHERE r.job_id=? AND r.kind='customValue' AND r.native_id=v.record_id AND json_extract(r.snapshot,'$.field_key')=v.field_key))`,'MOVE_IN_USED','Custom values were added after this move-in. Nothing was undone.',id,id,id))
@@ -294,7 +295,7 @@ function contents(part: ParsedImport) {
  const rows=part[main].map(x=>x.location), files=[...new Set(rows.map(l=>l.file))]
  return `${part[main].length} ${kindName[main]} from ${files.map(f=>{const r=rows.filter(l=>l.file===f).map(l=>l.row);return `${f} rows ${Math.min(...r)}–${Math.max(...r)}`}).join(', ')}`
 }
-const label=(kind: Kind)=>({opportunity:'opportunity',giftDesignation:'gift designation',contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',softCreditAcknowledgment:'soft-credit acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation',platformGift:'source transaction',recurringReference:'recurring source reference'} as Record<Kind,string>)[kind]
+const label=(kind: Kind)=>({task:'source action',opportunity:'opportunity',giftDesignation:'gift designation',contact:'contact point',solicitation:'solicitation restriction',consent:'channel withdrawal',softCredit:'soft credit',household:'household',donor:'donor',gift:'gift',tribute:'gift tribute',acknowledgment:'gift acknowledgment',softCreditAcknowledgment:'soft-credit acknowledgment',pledge:'pledge',installment:'installment',campaign:'gift appeal',channel:'gift channel',allocation:'pledge payment',relationship:'relationship',note:'note',interaction:'conversation',platformGift:'source transaction',recurringReference:'recurring source reference'} as Record<Kind,string>)[kind]
 /** Unique indexes that commit() reports by name. */
 const UNIQUE_CODES: Record<string,[string,string[]]> = {DUPLICATE_EMAIL:['cf_donors',['email']],DUPLICATE_REFERENCE:['cf_gifts',['source','reference']],DUPLICATE_HOUSEHOLD:['cf_households',['name']]}
 /** A database refusal names its part, the rows behind it and the reason, never only "the operation failed". */
