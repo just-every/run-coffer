@@ -1,3 +1,4 @@
+import {publicWebhookDns} from './webhook-dns-edge.mjs'
 import assert from 'node:assert/strict'
 import {createHmac,randomUUID} from 'node:crypto'
 import {run,donor,reviewed} from './harness.mjs'
@@ -11,11 +12,12 @@ const tick=async(h,when)=>{
  assert.equal(response.status,200,await response.text())
 }
 
-// Only Stripe and the outbound receiver are faked; every source uses a public door.
+// Only DNS, Stripe and the outbound receiver are faked; every source uses a public door.
 function sourceEdges(){
  const recurring=recurringStripeEdge(),sessions=new Map(),objects=new Map(),received=[]
  recurring.state.now=now
  const outbound=async request=>{
+  const dns=publicWebhookDns(request);if(dns)return dns
   const url=new URL(request.url)
   if(url.hostname==='receiver.example.test'){
    const body=await request.text()

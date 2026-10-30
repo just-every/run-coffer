@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c7a08344e26e906e592e5c9d204b79e4d1aa93a681dbcd9f21f411dd0274801f",
+      "sha256": "f19e99a401f820384df51ce13f7517d5b7843551a6c1a1d5a60227be19982b2d",
       "executable": false
     },
     "deploy-demo.json": {
@@ -843,7 +843,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "8ab8fced1c1b200cf98cd29ebfd73b478d3b7b713c73b393420f565f335d8ede",
+      "sha256": "a5df377f222e999f4a10e24c7b8f483c371a019f0ad650708a4adcfca2f9b299",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1576,6 +1576,10 @@
     },
     "migrations/core/0181_coffer_source_plan_schedule.sql": {
       "sha256": "088f5c26eff9d4bbf3f76a995d5c83268ef729dd189ebc9cb4544fbad2c60cf9",
+      "executable": false
+    },
+    "migrations/core/0181_coffer_webhook_network.sql": {
+      "sha256": "e6c39987216360284e00e1979501394762ae715742900a3b7e068fda875c2d9e",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -5075,7 +5079,7 @@
       "executable": false
     },
     "src/coffer/ui/webhooks.ts": {
-      "sha256": "c95894688cd039a975dfb652a765c3510d0676683bb37f13685bdf3e3b13eb09",
+      "sha256": "f657f60ce919c21abebe1e9431456234902b79503c103c302d854d8bbaf01687",
       "executable": false
     },
     "src/coffer/volunteering.ts": {
@@ -5083,7 +5087,7 @@
       "executable": false
     },
     "src/coffer/webhooks.ts": {
-      "sha256": "e363033102c0d7659d826e88ec38821f7c51fcead9b8686d6f6923946537b799",
+      "sha256": "28bc822b7764db5c730e2ba4796c3180da8e2c461ac3feff659e87e187b969ad",
       "executable": false
     },
     "src/coffer/webhooks/continuity.ts": {
@@ -5091,7 +5095,11 @@
       "executable": false
     },
     "src/coffer/webhooks/delivery.ts": {
-      "sha256": "98f0c6527c951d26c94be6db99c7e64af65bbb831459609022ac3b735f04585a",
+      "sha256": "30871defd2b88be62fe92708033daa7a930bdfb68e617a8e84ba5ff99366a830",
+      "executable": false
+    },
+    "src/coffer/webhooks/network.ts": {
+      "sha256": "f057ec786d16fd71ec6f2ce662c52c4c2d61c5594caef43d22df29798a0f9ef1",
       "executable": false
     },
     "src/coffer/webhooks/receiver.d.mts": {
@@ -8027,7 +8035,7 @@
       "executable": false
     },
     "tests/rest-api-journey.mjs": {
-      "sha256": "ab26988ebf2810e65e35a84a1d8afcef447294854851a90e692fac53cb308da7",
+      "sha256": "d0a71c629ea4764d3dbb82c9bb6234ef59dd34aa479ab30a1c00f4fbd04dfd43",
       "executable": false
     },
     "tests/rest-api-native.mjs": {
@@ -8183,23 +8191,31 @@
       "executable": false
     },
     "tests/webhook-continuity-journey.mjs": {
-      "sha256": "9c5d3a317bea21cce5b14d7a167a97dc41907345fc91e71d9b1c083b225ef89d",
+      "sha256": "3d058c6487f355db30842ccba3c9c8013f4460ed77c6de043a66db732894d6dd",
+      "executable": false
+    },
+    "tests/webhook-dns-edge.mjs": {
+      "sha256": "33b25b99cbf488059da2921fe3446b774a76f399375bda8d20033eefcf6344ad",
       "executable": false
     },
     "tests/webhook-history-journey.mjs": {
-      "sha256": "0984ee75b2801bbab3589714d388a4b4d7c842e12719a065ffda49b83cbffa28",
+      "sha256": "aaef25d369ee60959ba3192cabe26c68a30514b9ecef2a481f0f4bb852729c55",
+      "executable": false
+    },
+    "tests/webhook-network-journey.mjs": {
+      "sha256": "3fd1cd419c2f72401951bd2a826e1542d717a455b0d17789c92c6854b339555a",
       "executable": false
     },
     "tests/webhook-sources-journey.mjs": {
-      "sha256": "96ff22e6fac82ef44f6261c13eebd48751cec2e3c29db1bc79ca708deaa63a9e",
+      "sha256": "c5ef1abdc24f578acc3e56763261066f30832478c8fc517da0a665079eb104ce",
       "executable": false
     },
     "tests/webhooks-browser.mjs": {
-      "sha256": "05ae59d519d4ffa1fdc951c7e3b914f654051f13ba84a7e7aa9c9a8eb66ac9cc",
+      "sha256": "07e4f142cc4acbf34d457636c0c692f9eaca7538d98716e82c8259cf55706eb4",
       "executable": false
     },
     "tests/webhooks-journey.mjs": {
-      "sha256": "ddae5af3ed5057c2b51d9ee70ee3eccb2bf74996938800a081a9086fbc3c8ad1",
+      "sha256": "7a7c22d5df1fbfee69a30b6c5bdd855f0fe7706cf2fba262a21a15647c994967",
       "executable": false
     },
     "tests/webhooks-sandbox-journey.mjs": {
