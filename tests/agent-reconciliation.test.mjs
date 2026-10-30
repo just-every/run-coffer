@@ -114,3 +114,8 @@ test('reconciliation verifies Pantry exact payload and posted journal without su
   assert.equal(submissions,1)
  },{outbound,bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1502',PANTRY_ORIGIN:'https://pantry.example.test',PANTRY_AGENT_TOKEN:'pantry_agent_'+'a'.repeat(43),PANTRY_DEPOSIT_ACCOUNT:'bank',PANTRY_FEE_ACCOUNT:'fees',PANTRY_FUND_ACCOUNTS:JSON.stringify({Meals:'meals'})}})
 })
+
+test('DEV-001: owner compares QuickBooks source deposits and adjustments without accounting writes or false recovery',async()=>{
+ const {agentQuickbooksJourney}=await import('./agent-quickbooks-journey.mjs')
+ await agentQuickbooksJourney()
+})

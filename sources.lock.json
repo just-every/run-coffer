@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "ee2310cd7024e39b83ef3c65998478d75ff4c93beb56383aa08f03d1c863467a",
+      "sha256": "d6c18633636746e0a8c16842c15cf9399d8e34b5ace01ec18d7a7c1ba6223e8e",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ee2b673be6f2717e3291f5d3441584859f35a6cb9749a7f1ae247c15cffdad2a",
+      "sha256": "3ba0b9b86e0176a3a6cf746020554ac13d8657bfad8dc3c17151693d08fec775",
       "executable": false
     },
     "deploy-demo.json": {
@@ -635,7 +635,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "b8c70539e882e3ad5943264a1636aefad6901ed2355773d73dbc732a566361c8",
+      "sha256": "38a2919555d4256f6747453c4a04a10ae34fdb484fa3f8140431f060d1d34610",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -3043,7 +3043,7 @@
       "executable": false
     },
     "src/coffer/agent/http.ts": {
-      "sha256": "1620086838f954bb2c2fa5ceb94322d37ae3f50773631189da49bcee7f0e72e2",
+      "sha256": "99ce3dd5f55e146f481a975f53b8553dddb2e55d22c7075efc497841f2a5e2c8",
       "executable": false
     },
     "src/coffer/agent/hygiene-ui.ts": {
@@ -3086,16 +3086,20 @@
       "sha256": "63a0864931700dc4b2b0848bfb865d1aaa814338f207fb5d25e750bcf80cc5dd",
       "executable": false
     },
+    "src/coffer/agent/reconcile-quickbooks.ts": {
+      "sha256": "63ed8cdec610f0143f4124e2c53d110f9b0d137bb9b800f293f22ad3e46374e2",
+      "executable": false
+    },
     "src/coffer/agent/reconcile-scan.ts": {
       "sha256": "ed55aecb4049d270e40ccca99272fff24120206ea53ef82b77b93e90d81853ca",
       "executable": false
     },
     "src/coffer/agent/reconciliation-ui.ts": {
-      "sha256": "14e8212c65d522d318f6d1e2d9b7238cd72a7d597605fff2bd4d5e55333b690f",
+      "sha256": "841ba0745e0290a6b5e0f77b65f966dc41a940d74af6e6c2a2b8797fb6b4b3e1",
       "executable": false
     },
     "src/coffer/agent/reconciliation.ts": {
-      "sha256": "2a82d91dada92dbd8fa6348787cccc89e31b03f18ac5ab6453bc94ed8e9c1474",
+      "sha256": "44f47e7803a03f6fe5fdf789fe8193b5832e819b164b348df7528f60415ef5d2",
       "executable": false
     },
     "src/coffer/agent/recovery-notices-rules.ts": {
@@ -4251,7 +4255,7 @@
       "executable": false
     },
     "src/coffer/payments/quickbooks/client.ts": {
-      "sha256": "3cc632e6d359d39226d972c73df4277aa94a78e937c89a285445bd5399d242d0",
+      "sha256": "e56555a79f5e414e4c49357f0fb0e2c0035e9d5e1c84e79ed6738538596557ea",
       "executable": false
     },
     "src/coffer/payments/quickbooks/connection.ts": {
@@ -4259,7 +4263,7 @@
       "executable": false
     },
     "src/coffer/payments/quickbooks/deposits.ts": {
-      "sha256": "1fef42f44b7f8258f6fbb04a063ad7cb24d4f67651accd5576ea12abb1f495c5",
+      "sha256": "3013ed5ade26496205471bf83132f0f8f0acd4310a0383dd5118fd225276e6f2",
       "executable": false
     },
     "src/coffer/payments/quickbooks/http.ts": {
@@ -4267,7 +4271,7 @@
       "executable": false
     },
     "src/coffer/payments/quickbooks/postings.ts": {
-      "sha256": "e5a32b1b9f6d24eb9ad067576bdc0bdebca1a873900832253f5257e6d49cd6b0",
+      "sha256": "af55a4db09b30c9ebcb427b0cdbc5f456a3feda7d0328ad4580c9f01c3b0915a",
       "executable": false
     },
     "src/coffer/payments/quickbooks/ui.ts": {
@@ -7102,12 +7106,20 @@
       "sha256": "675fda98a81db8e0aebab6720962aebb3ad9714999c06c9ceb65bdfa133e0c3e",
       "executable": false
     },
+    "tests/agent-quickbooks-browser.mjs": {
+      "sha256": "f189f8fa0b08efb79554513340a9926ccc9286ed50347ee9644d800deeaaa7b8",
+      "executable": false
+    },
+    "tests/agent-quickbooks-journey.mjs": {
+      "sha256": "ef023c84e57d5e86e01ada6035e2056b52d5819f1d4edae0bf3568c2bc4a492b",
+      "executable": false
+    },
     "tests/agent-receipts.test.mjs": {
       "sha256": "465b969ab7d0687549366de0cd92554a2e46e9fb40ce56e26160492b95619c7b",
       "executable": false
     },
     "tests/agent-reconciliation.test.mjs": {
-      "sha256": "b007854f27f7639b0204282daa0b7c6ed15668250c7a4ac247021c1b962e77dd",
+      "sha256": "539edbc57b6ea97e06b03fc59fdf027ccd04c81aec0d5ae2702d2c207a17399f",
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
@@ -7827,7 +7839,7 @@
       "executable": false
     },
     "tests/quickbooks/edge.mjs": {
-      "sha256": "7e8d65a37dd2c2a5888d6822fef0bcbc7e052fd05c63ca8de6795995ac6cc033",
+      "sha256": "c2b1092a81d5f2e348527ef3fe25c89fc1e4b1315d5bd78f9c711ff02ae8b197",
       "executable": false
     },
     "tests/quickbooks/journey.mjs": {

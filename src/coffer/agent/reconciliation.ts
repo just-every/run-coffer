@@ -9,14 +9,15 @@ import { payoutDetail } from '../payments/payouts'
 import { payoutJournal } from '../payments/exports'
 import { reconciliationPosting, type PaymentsEnv } from '../payments/pantry'
 import { activityStatement } from './activity'
+import { quickbooksKinds, scanQuickbooks } from './reconcile-quickbooks'
 import { chargeFinding, fingerprint, type Correction, type Finding } from './reconcile-scan'
 
 function authorize(c: Context, scheduled = false) {
  if (!manager(c.actor) && !(scheduled && automated(c) && c.automation.id === 'reconciliation')) fail('FORBIDDEN','Only the owner or an admin can reconcile giving.',403)
 }
 export async function reconciliationData(c: Context) {
- const rows = await all(c,'SELECT * FROM cf_agent_issues ORDER BY CASE state WHEN \'open\' THEN 0 ELSE 1 END,found_at DESC,id DESC LIMIT 100')
- return { lastRun:await one(c,"SELECT * FROM cf_agent_runs WHERE job='reconciliation'"), issues:rows.map((r):Row=>({...r,evidence:JSON.parse(r.evidence),proposed:JSON.parse(r.proposed)})) }
+ const rows = await all(c,`SELECT * FROM cf_agent_issues WHERE (?=1 OR kind NOT LIKE 'quickbooks_%') ORDER BY CASE state WHEN 'open' THEN 0 ELSE 1 END,found_at DESC,id DESC LIMIT 100`,c.actor.role==='owner'?1:0)
+ return { quickbooksRun:c.actor.role==='owner'?await one(c,"SELECT * FROM cf_agent_runs WHERE job='reconciliation.quickbooks'"):null, lastRun:await one(c,"SELECT * FROM cf_agent_runs WHERE job='reconciliation'"), issues:rows.map((r):Row=>({...r,evidence:JSON.parse(r.evidence),proposed:JSON.parse(r.proposed)})) }
 }
 async function save(c: Context, finding: Finding) {
  const hash=await fingerprint(finding)
@@ -80,6 +81,17 @@ export async function runReconciliation(c:Context,env:PaymentsEnv) {
  await commit(c,[sql("INSERT INTO cf_agent_runs(job,at,summary) VALUES('reconciliation',?,?) ON CONFLICT(job) DO UPDATE SET at=excluded.at,summary=excluded.summary",c.now,JSON.stringify(summary)),activity.statement])
  return {...summary,...await reconciliationData(c)}
 }
+/** Owner review is distinct from existing scheduled checks and accounting writes. */
+export async function runQuickbooksReconciliation(c: Context, env: PaymentsEnv) {
+ const { observations, ...summary } = await scanQuickbooks(c, env)
+ for (const observation of observations) {
+  if (observation.complete) await observed(c, observation.sourceId, quickbooksKinds, observation.findings)
+  else for (const finding of observation.findings) await save(c, finding)
+ }
+ const activity = activityStatement(c, { kind: 'reconciliation.quickbooks', subjectId: 'quickbooks', summary: `Checked ${summary.checkedSources} QuickBooks sources and ${summary.checkedDocuments} documents; comparison ${summary.complete ? 'complete' : 'incomplete'}.`, why: 'Independent reads only. Existing accounting approvals and uncertain-result recovery remain in Payments.' })
+ await commit(c, [sql("INSERT INTO cf_agent_runs(job,at,summary) VALUES('reconciliation.quickbooks',?,?) ON CONFLICT(job) DO UPDATE SET at=excluded.at,summary=excluded.summary", c.now, JSON.stringify(summary)), activity.statement])
+ return { ...summary, ...await reconciliationData(c) }
+}
 function contribution(c:Context,proposal:Row,change:Correction,id:string):Stmt {
  return sql(`INSERT INTO cf_payment_entries(id,source_id,charge_id,kind,amount_cents,fee_cents,net_cents,fund,gift_id,contribution_cents,currency,received_on,created_at)
   VALUES(?,?,?,'reconciliation',0,0,0,?,?,?,'usd',?,?)`,id,id,proposal.chargeId,change.fund,proposal.giftId,change.cents,proposal.receivedOn,c.now)
@@ -88,7 +100,7 @@ export async function applyReconciliation(c:Context,env:PaymentsEnv,input:Row) {
  authorize(c)
  const id=text(input.id,'Issue ID',100),issue=await one(c,'SELECT * FROM cf_agent_issues WHERE id=?',id)
  if(!issue || issue.state!=='open') fail('ISSUE_CHANGED','This issue is no longer open. Run reconciliation again.')
- if(!['contribution','missing_gift'].includes(issue.kind)) fail('REVIEW_REQUIRED','This discrepancy requires review in Payments or Pantry; no safe automatic correction is available.')
+ if(!['contribution','missing_gift'].includes(issue.kind)) fail('REVIEW_REQUIRED','This discrepancy requires review in Payments, QuickBooks or Pantry; no safe automatic correction is available.')
  const current=await chargeFinding(c,await stripe(env,'/charges/'+encodeURIComponent(issue.source_id)),env)
  if(!current || current.proposed.action==='review' || await fingerprint(current)!==issue.fingerprint) fail('ISSUE_CHANGED','Stripe or the contribution ledger changed. Run reconciliation again before applying.')
  if(issue.kind==='missing_gift') {

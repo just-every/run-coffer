@@ -3,7 +3,7 @@ import type { PaymentsEnv } from '../pantry'
 
 export type QboConnection = { realm: string; sandbox: boolean; clientId: string; token: string }
 export class QboFailure extends Error {
- constructor(public definitive: boolean, message: string) { super(message) }
+ constructor(public definitive: boolean, message: string, public status?: number, public code?: string) { super(message) }
 }
 export async function tokenRequest(env: PaymentsEnv, body: URLSearchParams) {
  if (!env.QBO_CLIENT_ID || !env.QBO_CLIENT_SECRET) fail('QBO_CONFIG', 'Configure the QuickBooks application client ID and secret first.', 503)
@@ -34,7 +34,7 @@ export async function qboRequest(conn: QboConnection, path: string, body?: Row):
   // Only a structured provider refusal proves that no money was created.
   const definitive = response.status >= 400 && response.status < 500 && Boolean(data?.Fault)
   const code = String(data?.Fault?.Error?.[0]?.code ?? response.status).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40)
-  throw new QboFailure(definitive, `QuickBooks refused the request (code ${code}). Review accounts, authorization and the accounting period, then retry.`)
+  throw new QboFailure(definitive, `QuickBooks refused the request (code ${code}). Review accounts, authorization and the accounting period, then retry.`, response.status, code)
  }
  if (!data) throw new QboFailure(false, 'QuickBooks returned an unreadable result. Retry the saved request to recover it.')
  return data
