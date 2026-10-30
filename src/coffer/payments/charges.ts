@@ -53,7 +53,10 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
    if(bank.status!=='succeeded'&&bank.status!=='returned')return null
    if(intent.donor_id&&!(await one(c,'SELECT id FROM cf_donors WHERE id=? AND erased_at IS NULL',intent.donor_id)))return null
   }
-  if (intent?.frequency === 'once' && (intent.customer_id !== customerId || intent.amount_cents !== gross)) fail('payment_mismatch', 'The charge differs from the agreed checkout total.', 409)
+  // Erasure removes the staff request and customer reference from the intent.
+  // Its separate processor tombstone still permits anonymous financial custody.
+  const erasedStaff=intent?.staff_channel&&intent.frequency==='once'&&intent.customer_id===null&&await one(c,'SELECT e.donor_id FROM cf_erased_stripe_customers e JOIN cf_donors d ON d.id=e.donor_id WHERE e.customer_id=? AND e.donor_id=? AND d.erased_at IS NOT NULL',customerId,intent.donor_id)
+  if (intent?.frequency === 'once' && ((intent.customer_id !== customerId&&!erasedStaff) || intent.amount_cents !== gross)) fail('payment_mismatch', 'The charge differs from the agreed checkout total.', 409)
   // A verified paid charge can arrive before the browser return. Use the
   // giving recorder so designation, private answers, consent and receipts have
   // the same frozen source whichever transport observes payment first.

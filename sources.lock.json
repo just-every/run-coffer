@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e72301db2d632dfe8d8dfaf856e05775815c626a7a412b883b5cfbd6ad2eec98",
+      "sha256": "c6cd7212681116a391f0b0792e245ce719a837e9bbe3bf841efd1143e1ef6059",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "96a97afbe3cc52039491c268ddfbeee566bb50bb7e3bfc8deb58a71c5050dca4",
+      "sha256": "53838760b3707c345b195f285be3e8d8cdd5fa13d4ce55aa458cc424c67cd8c5",
       "executable": false
     },
     "deploy-demo.json": {
@@ -719,7 +719,7 @@
       "executable": false
     },
     "docs/ONLINE-GIVING.md": {
-      "sha256": "e61361c465dd9ba8071594230559fe91619e5ab1778ea227b686b7cac1c1fae5",
+      "sha256": "a5b236e7c4dc162f5cb44c2d3ad1e28b787cdc2b48e7319221505671bc448f4f",
       "executable": false
     },
     "docs/PAYMENTS.md": {
@@ -3807,7 +3807,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "177e21a9b75409dc96f69de9df40d77e10e9fa34b1a73de89e1af89b0d92f916",
+      "sha256": "44dd99230b532e8cdaad1d50cd0e7015e8f221da991fbe1b41e09100ab3b9759",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -4123,7 +4123,7 @@
       "executable": false
     },
     "src/coffer/payments/charges.ts": {
-      "sha256": "60801c181731a96485759194aa8f83c5c26df8b2a55950979411d61835879351",
+      "sha256": "112a5564b8fc34da802c7e02a1c3780961192d95ed49def5124241146415f952",
       "executable": false
     },
     "src/coffer/payments/disputes.ts": {
@@ -7955,7 +7955,7 @@
       "executable": false
     },
     "tests/staff-payment-journey.mjs": {
-      "sha256": "c830be42868fe7fe4b4d3ec92da96b29be57eee1f0cbce4ec01e5f1f2f944593",
+      "sha256": "92a3acc824bfebb9f88f69abdaec1d966d09a55f4eb54c9fcf09d4b0cefc167d",
       "executable": false
     },
     "tests/staff-plan-create-journey.mjs": {
