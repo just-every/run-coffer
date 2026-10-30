@@ -5,6 +5,25 @@ import {join} from 'node:path'
 import {withBrowserWorker} from './browser-worker.mjs'
 
 const base='/app/move-in/crm'
+export async function moveInGuideNamesBrowser(h,survivorId){
+ const directory=process.env.COFFER_MOVE_IN_GUIDE_BROWSER||await mkdtemp(join(tmpdir(),'coffer-switching-guide-'))
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  try{
+   await page.goto(origin+base+'?source=bloomerang#installation-checklist')
+   const checklist=page.locator('#installation-checklist')
+   await checklist.getByText('Compare name evidence',{exact:true}).click()
+   assert.equal(await checklist.locator('[data-switch-step=names]').getAttribute('data-complete'),'false')
+   assert.equal(await checklist.locator(`a[href="/app/donors/${survivorId}"]`).innerText(),'Ava Survivor Updated')
+   for(const width of (process.env.COFFER_MOVE_IN_GUIDE_PROOF==='1'?[1440,390]:[1440])){
+    await page.setViewportSize({width,height:1000})
+    await page.screenshot({path:join(directory,'checklist-survivor-needs-review-'+width+'.png'),fullPage:true})
+   }
+  }finally{await page.close()}
+ })
+}
+
 export async function moveInGuideBrowser(h,input,preview){
  const directory=process.env.COFFER_MOVE_IN_GUIDE_BROWSER||await mkdtemp(join(tmpdir(),'coffer-switching-guide-'))
  await mkdir(directory,{recursive:true})

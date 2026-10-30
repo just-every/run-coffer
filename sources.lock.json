@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a5bfd1ef4b7a5b084c640b2426476d456d5c9e25116aad7b8ef7e7e760fe8b8a",
+      "sha256": "35882cdbf5e31b2582842e89e1691d2496669fbb7014590ee4636635111475e8",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "150209ee438d015b2d69e946e85a6e30f24de0735adaeef0be11f6f85b595a7d",
+      "sha256": "2e23a2e33c8e1b0e4381e5578413f3c9e87dc2526017a1824f5a906ab65d72cd",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3983,7 +3983,7 @@
       "executable": false
     },
     "src/coffer/move-in/checklist.ts": {
-      "sha256": "6ded16d6f0af6a94493c4573ffa8508613294e2c8a91c43cdfc18f9c7499046f",
+      "sha256": "bdb2413cad3c9a0ccbc475ed27ab941ba82d0b88eb54de4818402ff53667ed1c",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -7707,11 +7707,11 @@
       "executable": false
     },
     "tests/move-in-guide-browser.mjs": {
-      "sha256": "3887669b16420839fc6d8d35ee02664af48a4f28dd048ea2a3c033ef5aad458d",
+      "sha256": "a44b6b465cd0c93e7aa44e2b1a792c1e5c844914077a61f0bff506bd5f007886",
       "executable": false
     },
     "tests/move-in-guide-journey.mjs": {
-      "sha256": "2d988ddff67c04b3080bffe2d69a09f0f07f1cab5d6c843a0eba71c6be890ab8",
+      "sha256": "fd4238715881eb614ac21dee6e6c0460c194039c557cc12582f42f29e173a840",
       "executable": false
     },
     "tests/move-in.test.mjs": {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {archive,restore,run} from './harness.mjs'
-import {moveInGuideBrowser} from './move-in-guide-browser.mjs'
+import {moveInGuideBrowser,moveInGuideNamesBrowser} from './move-in-guide-browser.mjs'
 
 const base='/api/coffer/move-in'
 const source='bloomerang'
@@ -52,6 +52,27 @@ export async function moveInGuideJourney(){
   assert.deepEqual(done(await get(h)),done(complete))
   const saved=await archive(h)
   assert.ok(saved.some(l=>JSON.stringify(l).includes('cf_move_in_checklists')),'Reviews are portable installation evidence')
+  await run(async fresh=>{
+   await restore(fresh,saved)
+   const survivor=await fresh.command('donor.create',{name:'Ava Survivor'})
+   const comparison=await fresh.get('/api/coffer/duplicates/compare?source='+people[0].id+'&target='+survivor.id)
+   await fresh.command('donor.merge',{sourceDonorId:people[0].id,sourceVersion:comparison.source.version,donorId:survivor.id,version:comparison.target.version,reason:'duplicate_record'})
+   const reviewed=await approve(fresh,await get(fresh),'names')
+   assert.equal(reviewed.steps.find(s=>s.id==='names').done,true)
+   const current=await fresh.get('/api/coffer/donors/'+survivor.id)
+   await fresh.command('donor.update',{donorId:survivor.id,version:current.donor.version,name:'Ava Survivor Updated'})
+   const renamed=await get(fresh)
+   assert.notEqual(renamed.fingerprint,reviewed.fingerprint,'Renaming the merged survivor changes the current installation evidence')
+   assert.equal(renamed.steps.find(s=>s.id==='names').done,false,'A merged survivor rename requires a fresh name review')
+   assert.equal(renamed.names[0].original.name,'Ava Lee Reed')
+   assert.equal(renamed.names[0].current.id,survivor.id)
+   assert.equal(renamed.names[0].current.name,'Ava Survivor Updated')
+   await approve(fresh,reviewed,'names',{status:409})
+   console.log('MOVE-011 blocker-A probe: '+JSON.stringify({namesDoneBefore:reviewed.steps.find(s=>s.id==='names').done,namesDoneAfter:renamed.steps.find(s=>s.id==='names').done,fingerprintChanged:renamed.fingerprint!==reviewed.fingerprint,currentDonorIsSurvivor:renamed.names[0].current.id===survivor.id,staleApprovalStatus:409}))
+   await moveInGuideNamesBrowser(fresh,survivor.id)
+   const approved=await approve(fresh,await get(fresh),'names')
+   assert.equal(approved.steps.find(s=>s.id==='names').done,true,'The current survivor can be reviewed again')
+  })
   await run(async fresh=>{
    await restore(fresh,saved)
    const restored=await get(fresh)
