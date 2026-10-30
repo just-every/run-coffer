@@ -8063,11 +8063,11 @@
       "executable": false
     },
     "tests/staff-payment-browser.mjs": {
-      "sha256": "18e82364d517c9e3cc1a311cecd01ed09adc56773309ec70a3a596e3acdce0ce",
+      "sha256": "e34f3b29b6d48fefb0b64046a02cb906554e70c92f3dcbe7442b99f9a5a9f98e",
       "executable": false
     },
     "tests/staff-payment-journey.mjs": {
-      "sha256": "0eccc5e2303e3f1d1a01c898be7621d96fda7dcaea56e0868730227926fce714",
+      "sha256": "c830be42868fe7fe4b4d3ec92da96b29be57eee1f0cbce4ec01e5f1f2f944593",
       "executable": false
     },
     "tests/staff-plan-create-journey.mjs": {
