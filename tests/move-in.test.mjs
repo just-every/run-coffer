@@ -416,3 +416,8 @@ test('MOVE-004: reviewed Neon history preserves money, source acknowledgment, pr
  const {neonJourney}=await import('./neon-journey.mjs')
  await neonJourney()
 })
+
+test('MOVE-011: switching guides and durable installation reviews follow current import evidence without claiming cutover',async()=>{
+ const {moveInGuideJourney}=await import('./move-in-guide-journey.mjs')
+ await moveInGuideJourney()
+})
