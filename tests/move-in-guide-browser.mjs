@@ -11,18 +11,18 @@ export async function moveInGuideBrowser(h,input,preview){
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
   try {
-   await page.goto(origin+base+'?source=bloomerang')
+   await page.goto(origin+base+'?checklistSource=bloomerang')
    const checklist=()=>page.locator('#installation-checklist')
    // Follow every live section link for every supported named source. The guide
    // is served by the actual installation, so an unresolved route or fragment fails.
-   const options=await checklist().locator('select[name=source] option').evaluateAll(nodes=>nodes.map(n=>n.value))
+   const options=await checklist().locator('select[name=checklistSource] option').evaluateAll(nodes=>nodes.map(n=>n.value))
    assert.equal(options.length,6)
    for(const source of options){
-    await page.goto(origin+base+'?source='+source)
+    await page.goto(origin+base+'?checklistSource='+source)
     const links=await checklist().locator('ol a').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('href')))
     assert.equal(links.length,9)
     for(const href of links){
-     await page.goto(origin+base+'?source='+source)
+     await page.goto(origin+base+'?checklistSource='+source)
      await checklist().locator(`a[href="${href}"]`).click()
      assert.equal(new URL(page.url()).hash,new URL(href,origin).hash)
      await page.locator(new URL(page.url()).hash).getByRole('heading').waitFor()
@@ -42,7 +42,7 @@ export async function moveInGuideBrowser(h,input,preview){
    await apply.locator('input[name=confirm]').check()
    await apply.getByRole('button',{name:'Move these records in',exact:true}).click()
    await page.waitForURL('**/app/move-in/crm/journal?id=*')
-   await page.goto(origin+base+'?source=bloomerang')
+   await page.goto(origin+base+'?checklistSource=bloomerang')
    assert.equal(await checklist().locator('[data-switch-step=exports]').getAttribute('data-complete'),'true')
    for(const [summary,button,step] of [['Compare name evidence','Approve reviewed names','names'],['Compare field evidence','Approve reviewed fields','fields'],['Compare current totals','Approve reviewed totals','reconciliation']]){
     await checklist().getByText(summary,{exact:true}).click()
@@ -55,7 +55,7 @@ export async function moveInGuideBrowser(h,input,preview){
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Checklist fits 1440')
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
-    await page.goto(origin+base+'?source=bloomerang#installation-checklist')
+    await page.goto(origin+base+'?checklistSource=bloomerang#installation-checklist')
     for(const summary of ['Compare name evidence','Compare field evidence','Compare current totals'])await checklist().getByText(summary,{exact:true}).click()
     await page.screenshot({path:join(directory,'checklist-completed-'+width+'.png'),fullPage:true})
     for(const source of options){
@@ -73,7 +73,7 @@ export async function moveInGuideRenamedBrowser(h){
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
   try {
-   await page.goto(origin+base+'?source=bloomerang#installation-checklist')
+   await page.goto(origin+base+'?checklistSource=bloomerang#installation-checklist')
    const checklist=page.locator('#installation-checklist')
    assert.equal(await checklist.locator('[data-switch-step=names]').getAttribute('data-complete'),'false')
    await checklist.getByText('Compare name evidence',{exact:true}).click()
