@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "ecd0d62c4962054b54a0ae4f59b1ee5c7f281a1c35abb676afc33f05758fa6c7",
+      "sha256": "27ed8e8a566432c6493b3802ea4b0ee30d0adbbb2d931d786dd1577147cf1e13",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "572119213f597e0f1a8c6072e967e30177a943b2050abc5b62e8f94dcd7a6842",
+      "sha256": "6576aab32b23421696786d5cd88e59de103f7e6218dbaafacc8d79a0253591c2",
       "executable": false
     },
     "deploy-demo.json": {
@@ -607,7 +607,7 @@
       "executable": false
     },
     "docs/blackbaud-move-in.md": {
-      "sha256": "2500a63a3a531c030ada1074ecae497525a43ead2f8f269824ac85a5e6e52248",
+      "sha256": "fe6fcbf53b0381d1147037ec2025d763923060894787f152c10b60bb7a141f34",
       "executable": false
     },
     "docs/CLAIMS.md": {
@@ -1568,6 +1568,10 @@
     },
     "migrations/core/0179_coffer_undone_custom_custody.sql": {
       "sha256": "51a823109730b0ea5160a5aabf4f5038fb9b6f447ab3ae457e88444f450c174e",
+      "executable": false
+    },
+    "migrations/core/0180_coffer_source_plan_schedule.sql": {
+      "sha256": "088f5c26eff9d4bbf3f76a995d5c83268ef729dd189ebc9cb4544fbad2c60cf9",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3982,12 +3986,24 @@
       "sha256": "ba8d8ffa075c32f4403015423aa354f49f2e6faf0c5be71c5f339e26ea574594",
       "executable": false
     },
+    "src/coffer/move-in/blackbaud-contacts.ts": {
+      "sha256": "db2d65c1c8fbc77983abd6438d0dae9c97af6af35f5c58bd096594353f663621",
+      "executable": false
+    },
+    "src/coffer/move-in/blackbaud-custom.ts": {
+      "sha256": "93ef1fcbd2d7a9908a885ad368bc956a75650f3583251ae2d266830ca16954b7",
+      "executable": false
+    },
     "src/coffer/move-in/blackbaud-edge.ts": {
       "sha256": "cf61d92f7363d21aae7b6844636bfc3f6fb7b4a898a14ac71c8de1e502e70d50",
       "executable": false
     },
+    "src/coffer/move-in/blackbaud-recurring.ts": {
+      "sha256": "2419df73eba22db3cac843977d6bb846ee7adaba1cb8f3357a041a56dd4e694a",
+      "executable": false
+    },
     "src/coffer/move-in/blackbaud.ts": {
-      "sha256": "9518d71e19896c410998636bf35cec2ff812dce73dc5a5fbd9df888c103a3a10",
+      "sha256": "982cc321467702b681118f76d7b72b29f9e208d05dccb8a827d8386ec3b5412f",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -4011,7 +4027,7 @@
       "executable": false
     },
     "src/coffer/move-in/custom-fields.ts": {
-      "sha256": "8443f23116c67653e5a00f97f3ee1abe467ea9178454f92ef043648cee1a256c",
+      "sha256": "56aba92ebd28af935f38b99d2a8bb7f19564500d4152ba5edad8587407ad56f3",
       "executable": false
     },
     "src/coffer/move-in/custom-review-plan.ts": {
@@ -4079,7 +4095,7 @@
       "executable": false
     },
     "src/coffer/move-in/plan.ts": {
-      "sha256": "50e679955fd4073e1ea8f1369e52cee007f476f1f1acec77125403c5fc928e51",
+      "sha256": "92d9bdd5456ec5e74d19aa6f848238969e9f1a733220eb85b08d9885406e96a0",
       "executable": false
     },
     "src/coffer/move-in/platform-export.ts": {
@@ -4099,7 +4115,7 @@
       "executable": false
     },
     "src/coffer/move-in/service.ts": {
-      "sha256": "2caa49f00112b61bbb9ccb90d83aa90da6c6e9287edf1ef6215e52ff14397127",
+      "sha256": "2e2fde8d3dd313130aa9ba6510edba582fd18d834323a82ac291c7933b846a8b",
       "executable": false
     },
     "src/coffer/move-in/solicitation-import.ts": {
@@ -4159,11 +4175,11 @@
       "executable": false
     },
     "src/coffer/move-in/stage.ts": {
-      "sha256": "086dd39d55c237ce8f455a360b3747faff53e023719da6fc19a663322db05083",
+      "sha256": "650004d7fce26990e88bc13df7867732a4ad99946f1fc1b1feb1b052c252a809",
       "executable": false
     },
     "src/coffer/move-in/tables.ts": {
-      "sha256": "5498f07abf5d2dffc1f0ca23ebaaa322dc1cdd41e89496cbad1da888da034fc9",
+      "sha256": "067745b511a35a753595c7a009d5503559056a44024f7be28d975600d0b8da16",
       "executable": false
     },
     "src/coffer/move-in/tributes.ts": {
@@ -4171,7 +4187,7 @@
       "executable": false
     },
     "src/coffer/move-in/types.ts": {
-      "sha256": "7d939b40e24abde72f444b5995e195019469c15c57eeb510d2d3ea3c9ede28f6",
+      "sha256": "7eac6350302920ad946d016e9b55c42a4f80de7173478223509f74fe05ab50df",
       "executable": false
     },
     "src/coffer/opportunity-close.ts": {
@@ -7163,11 +7179,11 @@
       "executable": false
     },
     "tests/blackbaud-fixture.mjs": {
-      "sha256": "16f5a55f39a0e4e6db23374f5b2e47101b08ece4c69064c84e8ac26273ee424d",
+      "sha256": "232aeda0e502aa37b8f8e3329044449a6cfe2ce14fda021d3cba6513f9c1f154",
       "executable": false
     },
     "tests/blackbaud-journey.mjs": {
-      "sha256": "25683d3ea792b93d3cd484d9be19848113df034e64a1e6a4420abab474952c21",
+      "sha256": "445824d49302aa237df07cec8cb4ccfa2c0dee1297c46dd5d0bc094952bc5b00",
       "executable": false
     },
     "tests/browser-journey.mjs": {

@@ -12,7 +12,7 @@ export const tables = {
  giftDesignation: {table:'cf_gift_allocations',key:'id',columns:['id','gift_id','position','fund','campaign_id','amount_cents']},
  opportunity: {table:'cf_prospects',key:'id',columns:['id','donor_id','label','stage','owner_id','ask_amount_cents','expected_amount_cents','probability_percent','fund','campaign_id','expected_close_on','next_step','version','created_at','created_by','updated_at','updated_by','pledge_id','gift_id','closed_on']},
  tribute: { table: 'cf_gift_tributes', key: 'gift_id', columns: ['gift_id','version','kind','honoree','notified_name','notified_email','notified_address','amount_permission','group_key','source_group','donor_id','created_at','created_by'] },
- recurringReference: {table:'cf_recurring_source_references',key:'id',columns:['id','donor_id','source','source_id','amount_cents','frequency','status','method','campaign','next_on','customer_reference','payment_method_reference','imported_at']},
+ recurringReference: {table:'cf_recurring_source_references',key:'id',columns:['id','donor_id','source','source_id','amount_cents','frequency','status','method','campaign','next_on','customer_reference','payment_method_reference','imported_at','fund','appeal','source_schedule']},
  platformGift: {table:'cf_platform_gifts',key:'gift_id',columns:['gift_id','source','source_id','campaign_id','campaign_name','fee_cents']},
  campaign: { table: 'cf_gift_appeals', key: 'gift_id', columns: ['gift_id','appeal'] },
  channel: { table: 'cf_gift_channels', key: 'gift_id', columns: ['gift_id','channel'] },
@@ -31,6 +31,7 @@ export const snapshot = (kind: Kind, alias = 'n') => `json_object(${tables[kind]
 /** Older import snapshots predate the acknowledgment custody columns. Their
  * implicit database defaults still fence any later version or linked record. */
 export const custodySnapshot = (kind: Kind, alias = 'r') => {
+ if(kind==='recurringReference')return `json_set(${alias}.snapshot,'$.fund',COALESCE(json_extract(${alias}.snapshot,'$.fund'),''),'$.appeal',COALESCE(json_extract(${alias}.snapshot,'$.appeal'),''),'$.source_schedule',COALESCE(json_extract(${alias}.snapshot,'$.source_schedule'),'{}'))`
  if (kind !== 'acknowledgment') return `${alias}.snapshot`
  const defaults: Record<string,string> = {version:'1',outcome_unknown:'0',updated_by_id:"'coffer-import'",updated_by_role:"'owner'",change_source:"'automatic'"}
  return `json_object(${tables.acknowledgment.columns.map(column => {
