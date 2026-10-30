@@ -555,7 +555,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d6c18633636746e0a8c16842c15cf9399d8e34b5ace01ec18d7a7c1ba6223e8e",
+      "sha256": "53e318d517c67663a0e25c0968677d2baa08da1aab100bee8916f99755a885f1",
       "executable": false
     },
     "AGENTS.md": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3ba0b9b86e0176a3a6cf746020554ac13d8657bfad8dc3c17151693d08fec775",
+      "sha256": "77f05ce25fe2078b90d82a36013c86fdd29aa5f840bb103e47650348e20c7270",
       "executable": false
     },
     "deploy-demo.json": {
@@ -635,7 +635,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "38a2919555d4256f6747453c4a04a10ae34fdb484fa3f8140431f060d1d34610",
+      "sha256": "5021ffc33f8900651590725a29d67644994fbdcd8befcdb5b1eeb24a5a10577d",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -3087,7 +3087,7 @@
       "executable": false
     },
     "src/coffer/agent/reconcile-quickbooks.ts": {
-      "sha256": "63ed8cdec610f0143f4124e2c53d110f9b0d137bb9b800f293f22ad3e46374e2",
+      "sha256": "6da351a49436ef42d92308d2e70776528367b56a6bd4c5efafdf7a72e32d225e",
       "executable": false
     },
     "src/coffer/agent/reconcile-scan.ts": {
@@ -3095,7 +3095,7 @@
       "executable": false
     },
     "src/coffer/agent/reconciliation-ui.ts": {
-      "sha256": "841ba0745e0290a6b5e0f77b65f966dc41a940d74af6e6c2a2b8797fb6b4b3e1",
+      "sha256": "daf32ef40a91dde6e20933527879efa47ec92fe07b31b45c5f880b7c902f3cee",
       "executable": false
     },
     "src/coffer/agent/reconciliation.ts": {
@@ -7107,11 +7107,11 @@
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
-      "sha256": "f189f8fa0b08efb79554513340a9926ccc9286ed50347ee9644d800deeaaa7b8",
+      "sha256": "cfbe22ad98eb2099e21a6d2adb3b4a640435c1c75a7718fb426036d4ff4e3c27",
       "executable": false
     },
     "tests/agent-quickbooks-journey.mjs": {
-      "sha256": "ef023c84e57d5e86e01ada6035e2056b52d5819f1d4edae0bf3568c2bc4a492b",
+      "sha256": "0bb5932bd9333ab8336aa307253345e48baf433176982c8bfc4296305c410a8e",
       "executable": false
     },
     "tests/agent-receipts.test.mjs": {

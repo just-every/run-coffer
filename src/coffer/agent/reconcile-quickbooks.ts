@@ -11,6 +11,20 @@ export type QuickbooksObservation = { sourceId: string; complete: boolean; findi
 const detail = 'Review the cited source and saved request in Payments and QuickBooks. Corrections require the existing explicit accounting approval; this check submits no deposit or journal and never retries an uncertain posting.'
 const finding = (sourceId: string, kind: string, summary: string, why: string, evidence: Row): Finding => ({ sourceId, kind, summary, why, evidence, proposed: { action: 'review', detail } })
 
+function explain(expected: Row, remote: Row, differences: string[]) {
+ const money = (cents: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100)
+ const names: Row = { bank: 'Bank account', source: 'Source reference', date: 'Date', currency: 'Currency', location: 'Location', totalCents: 'Deposit total' }
+ const lines = (left: Row[], right: Row[]) => {
+  const remaining = right.map(line => JSON.stringify(line))
+  return left.filter(line => { const index = remaining.indexOf(JSON.stringify(line)); if (index < 0) return true; remaining.splice(index, 1); return false })
+ }
+ const describe = (line: Row) => `${money(line.cents)} in account ${line.account}${line.fundClass ? ', fund class ' + line.fundClass : ''}${line.location ? ', location ' + line.location : ''}${line.posting ? ', ' + line.posting.toLowerCase() : ''}`
+ return differences.flatMap(key => key === 'lines' ? [
+  ...lines(expected.lines, remote.lines).map(line => 'Missing expected accounting line: ' + describe(line) + '.'),
+  ...lines(remote.lines, expected.lines).map(line => 'Unexpected remote accounting line: ' + describe(line) + '.'),
+ ] : [`${names[key] ?? key}: expected ${key === 'totalCents' ? money(expected[key]) : expected[key] ?? 'none'}; read ${key === 'totalCents' ? money(remote[key]) : remote[key] ?? 'none'}.`])
+}
+
 /** Explicit owner action only. Existing background reconciliation gains no token access. */
 export async function scanQuickbooks(c: Context, env: PaymentsEnv) {
  qboOwner(c, env)
@@ -27,7 +41,7 @@ export async function scanQuickbooks(c: Context, env: PaymentsEnv) {
  for (const source of sources) {
   const rows = await qboPostings(c, source.kind, source.id)
   const sourceUrl = source.kind === 'payout' ? '/api/coffer/payments/' + encodeURIComponent(source.id) : '/api/coffer/gift-batches?id=' + encodeURIComponent(source.id)
-  const citation = { kind: source.kind, id: source.id, url: sourceUrl, reviewUrl: `/app/payouts/quickbooks/${source.kind}/${encodeURIComponent(source.id)}` }
+  const citation = { kind: source.kind, id: source.id, url: sourceUrl, reviewUrl: `/app/payouts/quickbooks/${source.kind}/${encodeURIComponent(source.id)}`, pageUrl: source.kind === 'payout' ? '/app/payouts/' + encodeURIComponent(source.id) : '/app/payouts/batches/' + encodeURIComponent(source.id) }
   const sourceKey = `quickbooks:source:${source.kind}:${source.id}`
   let documents, sourceComplete = true
   try {
@@ -46,7 +60,7 @@ export async function scanQuickbooks(c: Context, env: PaymentsEnv) {
   for (const document of documents) {
    const sourceId = `quickbooks:${document.kind}:${document.sourceId}`
    const row = rows.find(r => r.kind === document.kind && r.source_id === document.sourceId)
-   const evidence: Row = { source: citation, document: { kind: document.kind, sourceId: document.sourceId, entity: document.entity }, ...(row ? { posting: { requestId: row.request_id, state: row.state, externalId: row.external_id, companyId: row.realm_id } } : {}) }
+   const evidence: Row = { expected: compareDocument(document.entity, row ? JSON.parse(row.payload) : document.payload, {}).expected, source: citation, document: { kind: document.kind, sourceId: document.sourceId, entity: document.entity }, ...(row ? { posting: { requestId: row.request_id, state: row.state, externalId: row.external_id, companyId: row.realm_id } } : {}) }
    let issue: Finding | null = null, complete = false
    if (!row) issue = finding(sourceId, 'quickbooks_missing', 'QuickBooks accounting submission is absent.', 'This native deposit or adjustment has no saved QuickBooks request; a source record is not proof of a posted accounting entry.', evidence)
    else if (row.state !== 'posted') {
@@ -60,7 +74,8 @@ export async function scanQuickbooks(c: Context, env: PaymentsEnv) {
      complete = comparison.complete
      if (!complete) issue = finding(sourceId, 'quickbooks_incomplete', 'QuickBooks document read is incomplete.', 'The independent read did not include a complete accounting document. Earlier exceptions remain open.', evidence)
      else if (String(remote[row.entity].Id) !== row.external_id || comparison.differences.length) {
-      if (String(remote[row.entity].Id) !== row.external_id) evidence.differences.push('record ID')
+      evidence.explanation = explain(comparison.expected, comparison.remote!, comparison.differences)
+      if (String(remote[row.entity].Id) !== row.external_id) { evidence.differences.push('record ID'); evidence.explanation.push(`Record ID: expected ${row.external_id}; read ${remote[row.entity].Id}.`) }
       issue = finding(sourceId, 'quickbooks_changed', 'QuickBooks accounting facts differ.', `The independent ${row.entity} read differs in ${evidence.differences.join(', ')}. The saved request and original source remain unchanged.`, evidence)
      }
     } catch (error) {

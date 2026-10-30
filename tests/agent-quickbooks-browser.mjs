@@ -20,6 +20,9 @@ export async function agentQuickbooksBrowser(h,{phase,expected}){
     await cards.first().getByText('Evidence and source IDs',{exact:true}).click()
     assert.match(await cards.first().locator('pre').innerText(),/requestId/)
     assert.match(await cards.first().locator('pre').innerText(),/externalId/)
+    await cards.first().getByText('Evidence and source IDs',{exact:true}).click()
+    assert.match(await cards.filter({hasText:'txn_qbo_refund'}).innerText(),/\$24\.99/)
+    assert.equal(await cards.getByRole('link',{name:'Open native source',exact:true}).count(),4)
    }
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
