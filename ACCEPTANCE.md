@@ -26,8 +26,8 @@ COMM-006 current-tree proof: the SMS journey and native schedule and registratio
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 86 | 37 | 21 | 144 |
-| All | 95 | 37 | 21 | 153 |
+| Target and push further | 87 | 37 | 20 | 144 |
+| All | 96 | 37 | 20 | 153 |
 
 ## Target
 
@@ -230,4 +230,4 @@ Additional GIVE-010 acceptance: make a recovery submission uncertain, then fail 
 
 ## Additional target acceptance
 
-1. **`MOVE-012` Importing a payment linked to an installment after an unlinked payment of the same amount replaces the earlier allocation: the pledge reads fully paid with no phantom balance** (missing). 1. Importing an unlinked $500 payment and then a $500 payment linked to installment one yields ONE allocation of $500 on that installment, not two. 2. A fully paid $1,000 pledge never reports $500 unpaid after that sequence. 3. The reverse order (linked first, then an unlinked payment of the same amount) also leaves no phantom balance. 4. The replaced allocation is kept as history on the payment (nothing deleted, both import sources named). 5. One public-door journey runs the unlinked-then-linked probe end to end. Requirement:  Remaining: Both import orders, single active allocation, fully paid balance and retained replacement history with both import sources remain unproved.
+1. **`MOVE-012` Importing a payment linked to an installment after an unlinked payment of the same amount replaces the earlier allocation: the pledge reads fully paid with no phantom balance** (done). 1. Importing an unlinked $500 payment and then a $500 payment linked to installment one yields ONE allocation of $500 on that installment, not two. 2. A fully paid $1,000 pledge never reports $500 unpaid after that sequence. 3. The reverse order (linked first, then an unlinked payment of the same amount) also leaves no phantom balance. 4. The replaced allocation is kept as history on the payment (nothing deleted, both import sources named). 5. One public-door journey runs the unlinked-then-linked probe end to end. Requirement: *Ruling:* Ct NEW, 29 October 2026 at 07:15 UTC, split from the capped migration clause. Evidence: `tests/move-in.test.mjs` — "MOVE-012: imported installment links replace general allocations without losing payment history or creating unpaid balances" invokes "importedPledgePayments" in `tests/imported-pledge-payments.mjs`: points 1 and 3 run both import orders and read one current $500 allocation per installment; point 2 reads $1,000 paid and zero remaining through donor HTTP and the native pledge page; point 4 reads retained original allocation identity and both source files and import IDs, including after archive restoration; point 5 runs reviewed preview, apply, read and replay end to end. The same journey refuses member, revoked-admin, stale, conflicting-link and destructive undo attempts without changing money, prevents erased-donor replay, and opens the payment history at 1440 and 390. Replacement history schema: `migrations/core/0180_coffer_allocation_replacement.sql`..

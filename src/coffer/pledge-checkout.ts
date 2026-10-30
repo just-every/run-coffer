@@ -76,7 +76,7 @@ export async function completePledgeCheckout(env: GivingEnv,sessionId:string) {
   env.DB.prepare('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT ?,campaign_id FROM cf_pledges WHERE id=? AND campaign_id IS NOT NULL').bind(giftId,i.pledge_id),
   env.DB.prepare(`INSERT OR IGNORE INTO cf_pledge_allocations(id,installment_id,gift_id,amount_cents,created_at,created_by)
    SELECT ?,i.id,?,MIN(?,i.amount_cents-i.paid_cents),?,'Stripe' FROM cf_pledge_balances i WHERE i.id=? AND i.amount_cents>i.paid_cents
-   AND NOT EXISTS(SELECT 1 FROM cf_pledge_allocations WHERE gift_id=?)`).bind(newId(),giftId,saved.amount_cents,now,i.id,giftId),
+   AND NOT EXISTS(SELECT 1 FROM cf_pledge_active_allocations WHERE gift_id=?)`).bind(newId(),giftId,saved.amount_cents,now,i.id,giftId),
   env.DB.prepare("UPDATE cf_pledge_checkouts SET gift_id=?,payment_id=?,status='paid' WHERE id=?").bind(giftId,pi.id,saved.id),
   env.DB.prepare(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
    SELECT ?,'stripe','Stripe','agent','pledge.paid','pledge',?,?,? WHERE NOT EXISTS(SELECT 1 FROM cf_events WHERE action='pledge.paid' AND json_extract(detail,'$.paymentId')=?)`).bind(now,i.pledge_id,i.donor_id,JSON.stringify({paymentId:pi.id,installmentId:i.id,amountCents:saved.amount_cents}),pi.id),

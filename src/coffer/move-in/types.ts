@@ -20,7 +20,7 @@ export type ParsedDonor = Located & {
 }
 export type ParsedGift = Located & {
  platform?: {feeCents:number;campaignId:string;campaignName:string}; externalId: string; donorExternalId: string; receivedOn: string; amountCents: number; fund: string
- campaign: string; appeal?: string; channel?: string; checkReference?: string; method: string; note: string; pledgeExternalId: string; noGoodsOrServices: boolean; goodsCents: number | null; goodsDescription: string; tribute?: ParsedTribute; acknowledgment?: ParsedAcknowledgment
+ campaign: string; appeal?: string; channel?: string; checkReference?: string; method: string; note: string; pledgeExternalId: string; installmentExternalId?: string; noGoodsOrServices: boolean; goodsCents: number | null; goodsDescription: string; tribute?: ParsedTribute; acknowledgment?: ParsedAcknowledgment
 }
 export type ParsedTribute = { kind: 'honor' | 'memory'; honoree: string; notifiedName?: string; notifiedEmail?: string; notifiedAddress?: string; sourceGroup?: string }
 export type ParsedAcknowledgment = {

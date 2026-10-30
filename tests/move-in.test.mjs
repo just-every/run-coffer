@@ -245,6 +245,10 @@ test('lgl: the review lists every row to fix, spouses share an email, and a late
 }))
 
 
+test('MOVE-012: imported installment links replace general allocations without losing payment history or creating unpaid balances',async()=>{
+ await (await import('./imported-pledge-payments.mjs')).importedPledgePayments()
+})
+
 test('DONOR-013: LGL and Bloomerang contact reports preserve three typed emails and two addresses through reviewed replay and guarded undo',async()=>{
  for(const source of ['lgl','bloomerang','re-nxt'])await run(async h=>{
   const idColumn=source==='lgl'?'LGL Constituent ID':source==='bloomerang'?'Account Number':'Constituent ID'

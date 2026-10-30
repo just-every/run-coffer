@@ -21,7 +21,7 @@ const customValues=(kind:string,record:string)=>`(SELECT json_group_object(v.fie
 const netGift = `CASE WHEN EXISTS(SELECT 1 FROM cf_gifts r WHERE r.reverses=g.id) THEN 0
  ELSE g.amount_cents+COALESCE((SELECT SUM(p.contribution_cents) FROM cf_payment_entries p WHERE p.gift_id=g.id),0) END`
 const pledgePaid = `COALESCE((SELECT SUM(g.amount_cents-CASE WHEN g.kind='reversal' THEN -1 ELSE 1 END*
- COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0))
+ COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_active_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0))
  FROM cf_monetary_contributions g WHERE g.pledge_id=p.id),0)+
  COALESCE((SELECT SUM(i.paid_cents) FROM cf_pledge_balances i WHERE i.pledge_id=p.id),0)`
 

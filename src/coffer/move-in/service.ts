@@ -137,7 +137,10 @@ export async function continueApply(c: Context,id:string) {
   const addresses=part.source==='spreadsheet'?await spreadsheetAddresses(c,plan):[]
   const writes:Stmt[]=[...plan.checks,guard('EXISTS(SELECT 1 FROM cf_move_in_parts WHERE job_id=? AND position=? AND applied_at IS NULL)','MOVE_IN_CHANGED','This part was applied in another window. Refresh the journal.',id,next.position)]
   writes.push(sql('INSERT INTO cf_identity_ingest VALUES(1)'))
+  const allocationChangeFile=part.gifts.map(g=>g.location.file).filter((file,index,files)=>files.indexOf(file)===index).join(', ')
+  for(const a of plan.allocationChanges.replaced)writes.push(sql('INSERT INTO cf_pledge_allocation_replacements(allocation_id,job_id,source,source_file,recorded_at,recorded_by) VALUES(?,?,?,?,?,?)',a.id,id,job.source,allocationChangeFile,c.now,c.actor.name))
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
+  for(const a of plan.allocationChanges.origins)writes.push(sql('INSERT INTO cf_move_in_allocation_sources(allocation_id,source,job_id,source_file,source_gift_id,explicit_installment_id) VALUES(?,?,?,?,?,?)',a.allocation_id,job.source,id,a.source_file,a.source_gift_id,a.explicit_installment_id))
   writes.push(...addresses)
   writes.push(...importedAcknowledgmentEvents(c,plan,job.source,id))
   writes.push(...await importedCustomWrites(c,plan,job.source,id))
@@ -220,6 +223,7 @@ export async function undo(c: Context,id:string) {
   const t=tables[kind]
   writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN ${t.table} n ON n.${t.key}=r.native_id WHERE r.job_id=? AND r.kind=? AND (n.${t.key} IS NULL OR r.snapshot IS NULL OR ${snapshot(kind)}<>${custodySnapshot(kind)}))`,'MOVE_IN_USED','Imported records changed since the move-in. Nothing was undone.',id,kind))
  }
+ writes.push(guard(`NOT EXISTS(SELECT 1 FROM cf_pledge_allocation_replacements x WHERE x.job_id=? OR x.allocation_id IN(SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='allocation'))`,'MOVE_IN_USED','A later payment allocation uses this import history. Nothing was undone.',id,id))
  writes.push(importHouseholdUndoFence(id),...customImportUndoGuards(id),...customTagUndoGuards(id))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(result.job.source))writes.push(...spreadsheetDefinitionUndoGuards(id))
  const owned=(kind:Kind)=>`SELECT native_id FROM cf_move_in_records WHERE job_id=? AND kind='${kind}' AND owned=1`
@@ -266,6 +270,7 @@ export async function undo(c: Context,id:string) {
  writes.push(sql('DELETE FROM cf_prior_acknowledgements WHERE job_id=?',id),sql('DELETE FROM cf_move_in_job_gifts WHERE job_id=?',id))
  writes.push(sql(`DELETE FROM cf_contact_history WHERE donor_id IN (${owned('donor')})`,id),sql(`DELETE FROM cf_contact_points WHERE donor_id IN (${owned('donor')})`,id))
  if(result.job.source==='spreadsheet')writes.push(sql(`DELETE FROM cf_address_checks WHERE donor_id IN (${owned('donor')})`,id))
+ writes.push(sql('DELETE FROM cf_move_in_allocation_sources WHERE job_id=?',id))
  for(const kind of [...kinds].reverse()) {const t=tables[kind];writes.push(sql(`DELETE FROM ${t.table} WHERE ${t.key} IN (${owned(kind)})`,id))}
  // Retained source reviews still need donor erasure custody after undo releases import ownership.
  writes.push(sql('DELETE FROM cf_move_in_records WHERE job_id=?',id),sql('DELETE FROM cf_move_in_parts WHERE job_id=?',id),sql("UPDATE cf_move_in_jobs SET state='undone',undone_at=?,applied_parts=0,report=json_remove(report,'$.solicitationUndoInProgress') WHERE id=?",c.now,id),event(c,'move-in.undo','move-in',id,null))

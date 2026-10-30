@@ -1,3 +1,4 @@
+import { planPledgeAllocations, type AllocationChange } from './pledge-allocations'
 import { planCustomValues, type CustomImportWrite } from './custom-fields'
 import { planSolicitationImports } from './solicitation-import'
 import { planAcknowledgmentImports } from './acknowledgment-import'
@@ -11,7 +12,7 @@ import { accumulate, emptyTotals } from './source-totals'
 import { importedOverrides } from '../person-names'
 
 export type Effect = { kind: Kind; sourceKey: string; contentHash: string; nativeId: string; owned: boolean; row: Row; donorId: string | null; relatedId: string | null; location?: Located['location'] }
-export type Plan = { customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
+export type Plan = { allocationChanges: AllocationChange; customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
 const stable = (value: unknown): string => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))) : v)
 export const contentHash = (value: unknown) => sha256(stable(value))
 export const nativeId = async (source: string, kind: string, key: string) => `crm-${(await contentHash([source,kind,key])).slice(0,40)}`
@@ -31,7 +32,7 @@ const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solici
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
- const plan: Plan = {customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
+ const plan: Plan = {allocationChanges:{replaced:[],origins:[]},customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
  const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
@@ -189,19 +190,7 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(g.appeal??g.campaign)await add('campaign',g,{gift_id:id,appeal:g.appeal??g.campaign},undefined,donorId)
   if(g.channel)await add('channel',g,{gift_id:id,channel:g.channel},undefined,donorId)
  }
- // Source pledge-payment links pay the dated installments in date order.
- for(const p of parsed.pledges) {
-  const schedule=parsed.installments.filter(i=>i.pledgeExternalId===p.externalId).sort((a,b)=>a.dueOn.localeCompare(b.dueOn)),remaining=new Map(schedule.map(i=>[i.externalId,i.amountCents]))
-  const payments=parsed.gifts.filter(g=>g.pledgeExternalId===p.externalId).sort((a,b)=>a.receivedOn.localeCompare(b.receivedOn))
-  for(const g of payments) {
-   let balance=g.amountCents
-   for(const i of schedule) {
-    const cents=Math.min(balance,remaining.get(i.externalId)||0);if(!cents)continue
-    await add('allocation',{externalId:`${g.externalId}@${i.externalId}`,location:g.location},{installment_id:installments.get(i.externalId),gift_id:plan.giftIds.get(g.externalId),amount_cents:cents,created_at:c.now,created_by:c.actor.name},undefined,plan.donorIds.get(g.donorExternalId))
-    balance-=cents;remaining.set(i.externalId,(remaining.get(i.externalId)||0)-cents)
-   }
-  }
- }
+ await planPledgeAllocations(c,parsed,plan,pledges,installments,(query,params)=>readSet(c,plan,query,params))
  const relationshipRows=await readSet(c,plan,`SELECT ${snapshot('relationship')} AS snapshot FROM cf_relationships n WHERE donor_id IN (SELECT value FROM json_each(?)) OR related_donor_id IN (SELECT value FROM json_each(?)) ORDER BY n.id`,[JSON.stringify([...plan.donorIds.values()]),JSON.stringify([...plan.donorIds.values()])])
  for(const r of parsed.relationships) {
   let a=donor(r.donorExternalId,r.location),b=donor(r.relatedDonorExternalId,r.location)

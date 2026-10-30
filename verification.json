@@ -14,7 +14,7 @@
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010",
+        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012",
         "node --test --test-name-pattern=\"^MOVE-010: Bloomerang\" tests/move-in.test.mjs"
       ]
     },
