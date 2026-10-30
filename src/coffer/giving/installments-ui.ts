@@ -15,7 +15,7 @@ export async function installmentsPage(c:Context,id?:string){
  (p.status!=='canceled'?form('cancel','Cancel future installments'):'') )+
  box('Installment history',s.installments.length?s.installments.map(i=>'<p>'+e(i.due_on)+' · '+e(i.state)+' · approved version '+e(i.plan_version)+(i.gift_id?' · <a href="/app/donors/'+e(p.donor_id)+'">Linked gift and receipt</a>':'')+'</p>').join(''):empty('No payment has been submitted.'))+
  box('Held payment investigation','<p>Reconciliation only reads Stripe. It never submits another debit. An unknown submission requires its exact Stripe payment identity; a failed or uncertain installment prevents further charging.</p><form method="post">'+hidden('action','reconcile')+field('Stripe payment identity (optional)','paymentIntentId','text','','')+'<button>Read provider result</button></form>')+
- box('Plan history',s.history.map(h=>'<p>'+e(h.at)+' · '+e(h.action)+' · '+e(h.actor_name)+'</p>').join(''))
+ box('Plan history',s.history.map(h=>'<p>'+e(h.at)+' · '+e(({create:'Prepared',approve:'Approved',pause:'Paused',resume:'Resumed',cancel:'Canceled'} as Record<string,string>)[h.action.replace('installmentPlan.','')]??'Plan reviewed')+' · '+e(h.actor_name)+'</p>').join(''))
 }
 export async function installmentCreatePage(c:Context,donorId:string){
  if(!donorId){

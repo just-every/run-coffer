@@ -50,11 +50,13 @@ export async function nativeInstallmentsJourney(){
   // Current approver authority is rechecked after the durable claim and slow card read.
   const admin=await h.person(address(8104),'admin'),authority=await prepare(),authorityId=(await api(root,authority.body)).id
   await instruction(authorityId,'approve',{}, {as:admin.cookie})
-  const authorityDebits=state.debits
+  const authorityDebits=state.debits,authorityPayment=[...payments.values()].at(-1)
   state.beforeRead=async()=>{state.beforeRead=()=>api('/auth/operator/status',{operatorId:admin.id,status:'inactive'})}
   await tick('2026-07-10T12:00:00.000Z')
   assert.equal(state.debits,authorityDebits,'Revoking the approver during the final card read stops submission')
   assert.equal((await get(root+'/'+authorityId)).installments.at(-1).state,'blocked')
+  await deliver('payment_intent.succeeded',authorityPayment.id)
+  assert.equal((await get(root+'/'+authorityId)).plan.status,'past_due','Replaying an older paid installment cannot release a later payment hold')
   // Failure and a lost create response each hold all subsequent ticks and fresh requests.
   const failed=await prepare(),failedId=(await api(root,failed.body)).id;state.mode='failed';await instruction(failedId,'approve')
   const bad=await get(root+'/'+failedId);assert.equal(bad.plan.status,'past_due');assert.equal(bad.installments[0].state,'failed')
@@ -92,12 +94,20 @@ export async function nativeInstallmentsJourney(){
   assert.equal((await get(root+'/'+mergeId)).plan.status,'canceled','A merged billing identity loses charging approval')
   const mergeDebits=state.debits
   await tick('2026-08-10T12:00:00.000Z');assert.equal(state.debits,mergeDebits,'Merge cannot reactivate native billing')
+  const restoreSubject=await prepare(),restoreId=(await api(root,restoreSubject.body)).id
+  await instruction(restoreId,'approve')
+  assert.ok((await get(root+'/'+restoreId)).approval,'The source has real active charging approval before export')
+  const restoreDebits=state.debits,restorePayment=[...payments.values()].at(-1)
   // Portable history excludes charging approval and cannot restart collections.
   const lines=await archive(h),restored=await installation({entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,givingProtection:false,bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-8102',STRIPE_WEBHOOK_SECRET:secret},outbound})
-  try{await restore(restored,lines);const r=await restored.get(root+'/'+id);assert.equal(r.approval,null);await restored.request('/cdn-cgi/local/scheduled?time='+Date.parse('2027-01-10T12:00:00Z'));assert.equal(state.debits,mergeDebits)}finally{await restored.close()}
+  try{await restore(restored,lines);const r=await restored.get(root+'/'+restoreId);assert.equal(r.approval,null);const tick=await restored.request('/cdn-cgi/local/scheduled?time='+Date.parse('2027-01-10T12:00:00Z'));assert.equal(tick.status,200,await tick.text());assert.equal(state.debits,restoreDebits)}finally{await restored.close()}
+  await instruction(restoreId,'cancel')
+  await command('donor.erase',{donorId:restoreSubject.person.id,confirm:'ERASE'})
+  await deliver('payment_intent.succeeded',restorePayment.id)
+  await get(root+'/'+restoreId,{status:404})
   await command('donor.erase',{donorId:withdrawn.person.id,confirm:'ERASE'})
   await get(root+'/'+withdrawnId,{status:404})
-  await tick('2026-09-10T12:00:00.000Z');assert.equal(state.debits,mergeDebits)
+  await tick('2026-09-10T12:00:00.000Z');assert.equal(state.debits,restoreDebits)
   await nativeInstallmentsBrowser(h,edge,{id:failedId,person:failed.person,directory:process.env.COFFER_NATIVE_INSTALLMENTS_BROWSER,phase:'held'})
   return {installments:3,gross:7500,fee:309,net:7191,debits:state.debits}
  })

@@ -3687,11 +3687,11 @@
       "executable": false
     },
     "src/coffer/giving/installments-ui.ts": {
-      "sha256": "c83c69ccc7a6f87cd4f83454b37d2306e5f62d1f04ffd9c9456f0a93b05161be",
+      "sha256": "935722d30e5082b7a94faf54b5241d5b24b41e9dc7d561b3899baceb7e55bba4",
       "executable": false
     },
     "src/coffer/giving/installments.ts": {
-      "sha256": "cbffc4985d05c1b7b3e34ca7e34d338aec01f864278c7439f2010066b843b00a",
+      "sha256": "d4b55282ae3928f73fe1ac3a2ebc98ff06da0bab92671e1e0fd1ccb2c1a60520",
       "executable": false
     },
     "src/coffer/giving/manage-media-ui.ts": {
@@ -7747,7 +7747,7 @@
       "executable": false
     },
     "tests/native-installments-journey.mjs": {
-      "sha256": "0aaab4079719d95f87b770e27c2d8c8196d907febf52c3eb5e269705d503bc03",
+      "sha256": "f09b626bc5001da7cc43da3b8a447f2cd34d8b7e8683168d2a2063783efaaf48",
       "executable": false
     },
     "tests/native-installments-recovery.mjs": {
