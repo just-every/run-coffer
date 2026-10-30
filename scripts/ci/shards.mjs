@@ -101,33 +101,50 @@ export function split(command, shard) {
  return units;
 }
 
+// Nested-package installation is local to one runner. Keep its ordered setup
+// prefix with every distributed consumer, never as an independent work unit.
+export function shardUnits(shard) {
+ if (shard.hosted) return [{ command: 'node scripts/verify-ci.mjs ' + quote(shard.name), label: shard.name + ': hosted checks', seconds: weight(estimates['hosted checks'] ?? 100) }];
+ const firstTest = shard.commands.findIndex(command => /\bnode --test\b|\bpnpm run test:/.test(command));
+ const setup = /^npm ci\b/.test(shard.commands[0]) && firstTest > 0 ? shard.commands.slice(0, firstTest) : [];
+ return shard.commands.slice(setup.length).flatMap(command => split(command, shard))
+  .map(unit => ({ ...unit, prerequisites: setup, exclusive: unit.label.includes(': CAMP-004:') }));
+}
+const prerequisiteSeconds = commands => commands.reduce((total, command) => total + weight(estimates[command] ?? 30), 0);
 export async function schedule(tier) {
  if (!['push', 'all'].includes(tier)) throw Error('Expected push or all');
  const plan = await verificationPlan();
  const shards = tier === 'all' ? [...plan.push, ...plan.nightly] : plan.push;
- const units = shards.flatMap(shard => shard.hosted
-  ? [{ command: 'node scripts/verify-ci.mjs ' + quote(shard.name), label: shard.name + ': hosted checks', seconds: weight(estimates['hosted checks'] ?? 100) }]
-  : shard.commands.flatMap(command => split(command, shard)));
- // Isolate the longest registrations in their own lanes, then use the fewest
- // jobs (8..14) whose three concurrent lanes all fit the fifteen-minute target.
- units.sort((a, b) => b.seconds - a.seconds || a.label.localeCompare(b.label));
+ const units = shards.flatMap(shardUnits);
+ // Tight browser registrations get a whole runner, not just a lane. Every
+ // other runner retains three lanes and the original fifteen-minute target.
+ units.sort((a, b) => Number(Boolean(b.exclusive)) - Number(Boolean(a.exclusive)) || b.seconds - a.seconds || a.label.localeCompare(b.label));
  for (let count = MIN_JOBS; count <= MAX_JOBS; count++) {
-  const lanes = Array.from({ length: count * WORKERS }, (_, index) => ({ index, seconds: 0, units: [], isolated: false }));
+  const jobs = Array.from({ length: count }, (_, index) => ({
+   name: 'balanced-' + (index + 1), browser: true, prerequisites: [], exclusive: false,
+   lanes: Array.from({ length: WORKERS }, () => ({ seconds: 0, units: [], isolated: false })),
+  }));
+  let assigned = 0;
   for (const unit of units) {
    const isolate = unit.seconds >= LANE_TARGET * 0.75;
-   const lane = lanes.filter(lane => !lane.isolated && (!isolate || !lane.units.length))
-    .sort((a, b) => a.seconds - b.seconds || a.index - b.index)[0];
-   if (!lane) break;
+   const candidates = jobs.filter(job => !job.exclusive && (!unit.exclusive || job.lanes.every(lane => !lane.units.length)))
+    .flatMap(job => job.lanes.filter(lane => !lane.isolated && (!isolate || !lane.units.length)).map(lane => {
+     const prerequisites = [...new Set([...job.prerequisites, ...(unit.prerequisites ?? [])])];
+     const seconds = prerequisiteSeconds(prerequisites) + Math.max(...job.lanes.map(other => other.seconds + (other === lane ? unit.seconds : 0)));
+     return { job, lane, prerequisites, seconds };
+    })).filter(candidate => candidate.seconds <= LANE_TARGET)
+    .sort((a, b) => a.lane.seconds - b.lane.seconds || a.seconds - b.seconds);
+   const candidate = candidates[0];
+   if (!candidate) break;
+   const { job, lane, prerequisites } = candidate;
+   job.prerequisites = prerequisites;
+   job.exclusive ||= Boolean(unit.exclusive);
    lane.units.push(unit);
    lane.seconds += unit.seconds;
    lane.isolated = isolate;
+   assigned++;
   }
-  if (lanes.reduce((total, lane) => total + lane.units.length, 0) !== units.length
-   || lanes.some(lane => lane.seconds > LANE_TARGET)) continue;
-  return Array.from({ length: count }, (_, index) => ({
-   name: 'balanced-' + (index + 1), browser: true,
-   lanes: lanes.filter(lane => lane.index % count === index),
-  }));
+  if (assigned === units.length) return jobs;
  }
  throw Error(`Verification cannot fit ${MAX_JOBS} shards within ${JOB_TARGET}s including setup; split the longest registration group`);
 }
@@ -140,7 +157,7 @@ if (mode === '--matrix') {
 } else if (mode === '--check') {
  for (const tier of ['push', 'all']) {
   const jobs = await schedule(tier);
-  console.log(tier + ': ' + jobs.flatMap(job => job.lanes.flatMap(lane => lane.units)).length + ' commands; ' + jobs.map(job => job.name + '=' + (SETUP_SECONDS + Math.max(...job.lanes.map(lane => lane.seconds))) + 's including setup').join(', '));
+  console.log(tier + ': ' + jobs.flatMap(job => job.lanes.flatMap(lane => lane.units)).length + ' commands; ' + jobs.map(job => job.name + '=' + (SETUP_SECONDS + prerequisiteSeconds(job.prerequisites) + Math.max(...job.lanes.map(lane => lane.seconds))) + 's including setup').join(', '));
  }
 } else if (mode === '--plan') {
  console.log(JSON.stringify(await schedule(value)));
@@ -156,6 +173,8 @@ if (mode === '--matrix') {
   }
   process.exit(signal === 'SIGINT' ? 130 : 143);
  });
+ const { run } = await import('../verify-app.mjs');
+ for (const command of job.prerequisites) run(command);
  let failures = 0;
  await Promise.all(job.lanes.map(async (lane, laneIndex) => {
   for (const [index, unit] of lane.units.entries()) {
