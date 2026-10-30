@@ -70,13 +70,16 @@ export async function proveDelivery({app,receiver,query,db,marker,afterDelivery}
  assert.equal(received.seen.filter(r=>r.event_id===target.event_id).length,1)
  assert.equal(received.business[0].gifts,1,'Durable deduplication applies one business effect')
  const signed=timestamp=>`t=${timestamp},v1=${createHmac('sha256',live.secret).update(timestamp+'.'+canonical).digest('hex')}`
+ const probeTimeout=30000
  const probe=async(signature,body)=>{
-  const response=await receiver.request('/events',{method:'POST',raw:body,anonymous:true,headers:{'coffer-signature':signature,'coffer-event-id':target.event_id,'coffer-delivery-id':target.id}})
+  const response=await receiver.request('/events',{method:'POST',raw:body,anonymous:true,timeout:probeTimeout,headers:{'coffer-signature':signature,'coffer-event-id':target.event_id,'coffer-delivery-id':target.id}})
   assert.equal(response.status,401,'Receiver rejects invalid or stale exact signed bytes')
  }
  const now=Math.floor(Date.now()/1000)
  await probe(signed(now-301),canonical)
- await probe(signed(now+301),canonical)
+ // Transit must not bring a future signature inside the valid window before
+ // receipt. The fixed-clock native journey still checks the one-second boundary.
+ await probe(signed(Math.ceil((Date.now()+probeTimeout)/1000)+301),canonical)
  await probe(signed(now),canonical+' ')
  const after=await state()
  assert.equal(after.receipts.length,received.receipts.length);assert.equal(after.business[0].gifts,1)
