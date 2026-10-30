@@ -1,9 +1,10 @@
 import { bankCheckoutState } from '../giving/bank-checkout'
+import { erasureHash } from '../imports/snapshots'
 import { pledgeSessionForCharge } from '../pledge-checkout'
 import { identify, recordGift } from '../giving/recording'
 import { runGiftRules } from '../gift-rules'
 import { canonicalDonor } from '../donor-merge'
-import { approvedMatch, emailCandidates, holdDonorMatch, matchGuards } from './donor-match'
+import { approvedMatch, emailCandidates, holdDonorMatch, holdErasedMatch, matchGuards } from './donor-match'
 import { email, fail, one, sql, type Context } from '../db'
 import { settings } from '../settings'
 import { stripe, type GivingEnv } from '../giving/stripe'
@@ -71,8 +72,9 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
   let customer: any = null
   if (!donor && customerId) customer = await stripe(env, '/customers/' + encodeURIComponent(customerId))
   const mail = email(charge.billing_details?.email ?? charge.receipt_email ?? customer?.email)
+  if(!donor&&mail&&await one(c,'SELECT hash FROM cf_erasures WHERE hash=?',erasureHash(mail))){await holdErasedMatch(env,charge.id,authority);return null}
   const donorName = String(charge.billing_details?.name ?? customer?.name ?? mail).slice(0,200)
-  // An unlinked processor customer is a distinct source identity.
+  // Existing current donors match by email; a shared contact never picks a person.
   if(!donor&&mail){
    const candidates=await emailCandidates(c,mail)
    if(review||candidates.length>1){

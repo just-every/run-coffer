@@ -44,6 +44,14 @@ export async function holdDonorMatch(env: GivingEnv, charge: Row, mail: string |
   charge.id,installation(env),account,stripeId(charge.customer)||null,mail,snapshot,list,now,now)],authority)
 }
 
+/** A previously erased source may retain only an opaque charge tombstone. */
+export async function holdErasedMatch(env: GivingEnv, chargeId: string, authority?: Context) {
+ const account=await stripeAccount(env),now=new Date().toISOString()
+ await paymentWrite(env,[sql(`INSERT OR IGNORE INTO cf_payment_donor_matches
+  (charge_id,installation_id,account_id,state,facts,candidates,created_at,updated_at)
+  VALUES(?,?,?,'erased','{}','[]',?,?)`,chargeId,installation(env),account,now,now)],authority)
+}
+
 export function matchGuards(row: Row): Stmt[] {
  return [guard(`EXISTS(SELECT 1 FROM cf_payment_donor_matches r JOIN cf_donors d ON d.id=r.donor_id
   WHERE r.charge_id=? AND r.version=? AND r.state='approved' AND r.donor_id=? AND d.version=r.donor_version
@@ -149,9 +157,10 @@ export async function approveDonorMatch(c: Context, env: GivingEnv, chargeId: st
 
 /** Redact all affected source evidence, retaining an opaque replay tombstone.
  * A shared address is never enough to recreate an erased person's payment. */
-export function donorMatchErasure(donorId: string): Stmt[] {
+export function donorMatchErasure(donorId: string, placeholderId: string): Stmt[] {
  const affected=`donor_id=? OR EXISTS(SELECT 1 FROM json_each(candidates) WHERE json_extract(value,'$.id')=?)
  OR lower(email) IN (SELECT lower(email) FROM cf_donors WHERE id=? UNION SELECT lower(value) FROM cf_contact_points WHERE donor_id=? AND kind='email')`
- return [sql(`UPDATE cf_payment_donor_matches SET state='erased',email=NULL,customer_id=NULL,facts='{}',candidates='[]',
+ return [sql(`INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_payment_donor_matches WHERE customer_id IS NOT NULL AND (${affected})`,placeholderId,donorId,donorId,donorId,donorId),
+ sql(`UPDATE cf_payment_donor_matches SET state='erased',email=NULL,customer_id=NULL,facts='{}',candidates='[]',
  donor_id=NULL,donor_version=NULL,approved_by=NULL,approved_actor_version=NULL,approved_at=NULL,version=version+1 WHERE ${affected}`,donorId,donorId,donorId,donorId)]
 }
