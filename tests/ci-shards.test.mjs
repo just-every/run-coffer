@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { schedule } from '../scripts/ci/shards.mjs';
 import { verificationPlan } from '../scripts/verify-app.mjs';
 import { planVerification } from '../scripts/verify-plan.mjs';
@@ -56,5 +57,47 @@ test('reuse requires successful balanced jobs, rejecting obsolete semantic shard
   const decision = await planVerification({ env, fetch, plan, matrices });
   assert.equal(decision.coverage, balanced ? 'reuse' : 'full');
   assert.equal(decision.skip, balanced);
+ }
+});
+
+test('ordered prerequisites run once per runner before dependent lanes within the job budget', async () => {
+ const plan = await verificationPlan();
+ for (const tier of ['push', 'all']) {
+  const jobs = await schedule(tier);
+  assert.ok(jobs.length <= 8);
+  assert.ok(Math.max(...jobs.map(job => job.seconds)) <= 1.5 * jobs.reduce((sum, job) => sum + job.seconds, 0) / jobs.length);
+  for (const job of jobs) {
+   assert.ok(job.seconds < 1200, job.name);
+   assert.equal(job.seconds, 120 + job.prerequisites.reduce((sum, unit) => sum + unit.seconds, 0)
+    + Math.max(...job.lanes.map(lane => lane.seconds)));
+   assert.equal(new Set(job.prerequisites.map(unit => unit.id)).size, job.prerequisites.length);
+   const required = new Set();
+   for (const unit of job.lanes.flatMap(lane => lane.units)) {
+    const positions = (unit.prerequisites ?? []).map(prerequisite => {
+     required.add(prerequisite.id);
+     const position = job.prerequisites.findIndex(candidate => candidate.id === prerequisite.id);
+     assert.ok(position >= 0, unit.label);
+     assert.equal(job.prerequisites[position].command, prerequisite.command);
+     return position;
+    });
+    assert.deepEqual(positions, [...positions].sort((a, b) => a - b), unit.label);
+   }
+   assert.deepEqual(new Set(job.prerequisites.map(unit => unit.id)), required);
+  }
+  // Derive dependencies from the authoritative command order, including pnpm
+  // test scripts. No test name or integration is special to the scheduler.
+  const scripts = JSON.parse(await readFile('package.json', 'utf8')).scripts;
+  for (const shard of tier === 'all' ? [...plan.push, ...plan.nightly] : plan.push) {
+   if (shard.hosted) continue;
+   const prerequisites = [];
+   for (const command of shard.commands) {
+    const expanded = command.replace(/\bpnpm run ([\w:-]+)/g, (match, name) => scripts[name] ?? match);
+    if (!/\bnode --test\b/.test(expanded)) { prerequisites.push(command); continue; }
+    const units = jobs.flatMap(job => job.lanes.flatMap(lane => lane.units))
+     .filter(unit => unit.label === shard.name || unit.label.startsWith(shard.name + ': '));
+    // All current source shards have their prerequisites before their tests.
+    for (const unit of units) assert.deepEqual((unit.prerequisites ?? []).map(unit => unit.command), prerequisites, unit.label);
+   }
+  }
  }
 });

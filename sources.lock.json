@@ -1975,7 +1975,7 @@
       "executable": false
     },
     "scripts/ci/shards.mjs": {
-      "sha256": "93302d98f5b95d4fefeb8a7ef1ef8bc8cbcd81003b11b9768dec741755e60577",
+      "sha256": "0ded35528149a301b6ec62f27a712107bf6fdf753c9ac66e9ce9e1de4e699539",
       "executable": false
     },
     "scripts/contract-docs.mjs": {
@@ -7111,7 +7111,7 @@
       "executable": false
     },
     "tests/ci-shards.test.mjs": {
-      "sha256": "5d6e8d894cc0d563898d54d3535be0ffe7a7f9dbfcaeb93b8c4f68f69eb1926e",
+      "sha256": "b6d4f7ec073977a14482a4bff263cfbe11a137ccec981c71b8ace2d346cf67af",
       "executable": false
     },
     "tests/clone-journey.mjs": {

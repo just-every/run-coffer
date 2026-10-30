@@ -5,10 +5,11 @@ import { spawn } from 'node:child_process';
 import { verificationPlan } from '../verify-app.mjs';
 
 const MIN_JOBS = 8;
-const MAX_JOBS = 14;
-const WORKERS = 3;
+const MAX_JOBS = 8;
+const WORKERS = 4;
 const JOB_TARGET = 15 * 60;
 const SETUP_SECONDS = 120;
+const JOB_TIMEOUT = 20 * 60;
 const LANE_TARGET = JOB_TARGET - SETUP_SECONDS;
 // Successful END lines from Verify 40911159077 and 40920377253, including
 // browser opt-ins; retain the larger observation for each registration. The
@@ -23,11 +24,15 @@ const option = /--test-name-pattern(?:=|\s+)('(?:[^']*)'|"(?:[^"]*)"|[^\s]+)/;
 const skipOption = /--test-skip-pattern(?:=|\s+)('(?:[^']*)'|"(?:[^"]*)"|[^\s]+)/;
 const unquote = value => /^['"]/.test(value) ? value.slice(1, -1) : value;
 
-function split(command, shard) {
+function expand(command) {
  // Expand only the existing Node test scripts. Other commands, including rer's
  // hosted production-output/hydration checks, retain their original entry point.
- command = command.replace(/\bpnpm run ([\w:-]+)/g, (match, name) =>
+ return command.replace(/\bpnpm run ([\w:-]+)/g, (match, name) =>
   /\bnode --test\b/.test(scripts[name] ?? '') ? scripts[name] : match);
+}
+
+function split(command, shard) {
+ command = expand(command);
  if (!/\bnode --test\b/.test(command)) return [{ command, label: shard.name, seconds: weight(estimates[command] ?? 100) }];
  const patterns = [...command.matchAll(/\btests\/[\w.*-]+\.mjs\b/g)].map(match => match[0]);
  if (!patterns.length) return [{ command, label: shard.name, seconds: 100 }];
@@ -113,16 +118,41 @@ function split(command, shard) {
  return units;
 }
 
+function orderedUnits(shard) {
+ const prerequisites = [];
+ return shard.commands.flatMap((command, index) => {
+  // Order is the dependency declaration: a non-test command before a test
+  // prepares all following units in this source shard. Keep trailing commands
+  // as work, and leave shards with no prerequisites freely balanced.
+  if (!/\bnode --test\b/.test(expand(command))
+   && shard.commands.slice(index + 1).some(next => /\bnode --test\b/.test(expand(next)))) {
+   prerequisites.push({ ...split(command, shard)[0], id: shard.name + ':' + index });
+   return [];
+  }
+  return split(command, shard).map(unit => ({ ...unit, prerequisites: [...prerequisites] }));
+ });
+}
+
+function prepare(job) {
+ // A runner owns one checkout. Complete its ordered prerequisites once before
+ // starting any lanes, so concurrent dependent units cannot race installation.
+ job.prerequisites = [...new Map(job.lanes.flatMap(lane => lane.units)
+  .flatMap(unit => unit.prerequisites ?? []).map(unit => [unit.id, unit])).values()];
+ job.seconds = SETUP_SECONDS + job.prerequisites.reduce((sum, unit) => sum + unit.seconds, 0)
+  + Math.max(...job.lanes.map(lane => lane.seconds));
+ return job;
+}
+
 export async function schedule(tier) {
  if (!['push', 'all'].includes(tier)) throw Error('Expected push or all');
  const plan = await verificationPlan();
  const shards = tier === 'all' ? [...plan.push, ...plan.nightly] : plan.push;
  const units = shards.flatMap(shard => shard.hosted
   ? [{ command: 'node scripts/verify-ci.mjs ' + quote(shard.name), label: shard.name + ': hosted checks', seconds: weight(estimates['hosted checks'] ?? 100) }]
-  : shard.commands.flatMap(command => split(command, shard)));
+  : orderedUnits(shard));
  // Serial jobs give timeout-sensitive registrations a runner without competing
  // lanes. Their estimates reserve at least the full existing test deadline.
- // Other jobs retain three lanes and isolate their longest registrations.
+ // Other jobs use four lanes and isolate their longest registrations.
  units.sort((a, b) => b.seconds - a.seconds || a.label.localeCompare(b.label));
  const serial = [];
  for (const unit of units.filter(unit => unit.exclusive)) {
@@ -148,14 +178,18 @@ export async function schedule(tier) {
   }
   if (lanes.reduce((total, lane) => total + lane.units.length, 0) !== concurrent.length
    || lanes.some(lane => lane.seconds > LANE_TARGET)) continue;
-  return [...Array.from({ length: parallelJobs }, (_, index) => ({
+  const jobs = [...Array.from({ length: parallelJobs }, (_, index) => ({
    name: 'balanced-' + (index + 1), browser: true,
    lanes: lanes.filter(lane => lane.index % parallelJobs === index),
   })), ...serial.map((lane, index) => ({
    name: 'balanced-' + (parallelJobs + index + 1), browser: true, lanes: [lane],
-  }))];
+  }))].map(prepare);
+  if (jobs.some(job => job.seconds >= JOB_TIMEOUT)) continue;
+  const mean = jobs.reduce((sum, job) => sum + job.seconds, 0) / jobs.length;
+  if (Math.max(...jobs.map(job => job.seconds)) > mean * 1.5) continue;
+  return jobs;
  }
- throw Error(`Verification cannot fit ${MAX_JOBS} shards within ${JOB_TARGET}s including setup; split the longest registration group`);
+ throw Error(`Verification cannot fit ${MAX_JOBS} shards within ${JOB_TARGET}s lane target and ordered prerequisites within ${JOB_TIMEOUT}s per job; split the longest registration group`);
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(import.meta.filename)) {
@@ -165,7 +199,7 @@ if (mode === '--matrix') {
 } else if (mode === '--check') {
  for (const tier of ['push', 'all']) {
   const jobs = await schedule(tier);
-  console.log(tier + ': ' + jobs.flatMap(job => job.lanes.flatMap(lane => lane.units)).length + ' commands; ' + jobs.map(job => job.name + '=' + (SETUP_SECONDS + Math.max(...job.lanes.map(lane => lane.seconds))) + 's including setup').join(', '));
+  console.log(tier + ': ' + jobs.flatMap(job => [...job.prerequisites, ...job.lanes.flatMap(lane => lane.units)]).length + ' commands; ' + jobs.map(job => job.name + '=' + job.seconds + 's including setup').join(', '));
  }
 } else if (mode === '--plan') {
  console.log(JSON.stringify(await schedule(value)));
@@ -182,8 +216,7 @@ if (mode === '--matrix') {
   process.exit(signal === 'SIGINT' ? 130 : 143);
  });
  let failures = 0;
- await Promise.all(job.lanes.map(async (lane, laneIndex) => {
-  for (const [index, unit] of lane.units.entries()) {
+ const execute = async (unit, laneIndex, index) => {
    const log = `${directory}/${laneIndex}-${index}.log`;
    const fd = openSync(log, 'w');
    const start = Date.now();
@@ -203,7 +236,13 @@ if (mode === '--matrix') {
    if (failure) console.error(failure);
    console.log(`END lane=${laneIndex} exit=${code} seconds=${((Date.now() - start) / 1000).toFixed(1)} ${unit.label}`);
    if (code !== 0) failures++;
-  }
+   return code;
+ };
+ for (const [index, unit] of job.prerequisites.entries()) {
+  if (await execute(unit, 'prerequisite', index) !== 0) process.exit(1);
+ }
+ await Promise.all(job.lanes.map(async (lane, laneIndex) => {
+  for (const [index, unit] of lane.units.entries()) await execute(unit, laneIndex, index);
  }));
  if (failures) {
   console.error(`${failures} verification commands failed`);
