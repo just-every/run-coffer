@@ -543,7 +543,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "f06c57404efe9d94afe0d6d1f1e84d2aecaf1d656b59368a51f2fb5643b095c9",
+      "sha256": "fcff8c1efebcfb99975b705bcf727796a231b9b817132e0c953399b1ac6f8557",
       "executable": false
     },
     ".gitignore": {
@@ -1966,6 +1966,18 @@
       "sha256": "a5a6931a772d466f66882f0c97e680208bbd892fa5efc9d9417747cfad9578b0",
       "executable": false
     },
+    "scripts/ci/chromium-probe.mjs": {
+      "sha256": "3d5ca171079ad72c533c7f40bef289e3e0f7e4b9617909713268874838255074",
+      "executable": false
+    },
+    "scripts/ci/durations.json": {
+      "sha256": "83314539567ce659275930719f013a2e2ab78e328c23ad06ec80646526a5f36d",
+      "executable": false
+    },
+    "scripts/ci/shards.mjs": {
+      "sha256": "47f9f11d2713f39f01f082c93a75fb6fd7bc23d5cc8abd23dbc0f5f6529a9fd0",
+      "executable": false
+    },
     "scripts/contract-docs.mjs": {
       "sha256": "3e77d02bb726eb5f08d448b4dca5aa271af7cf570b9def0d11e4082b02f75175",
       "executable": false
@@ -2727,7 +2739,7 @@
       "executable": false
     },
     "scripts/verify-ci.mjs": {
-      "sha256": "cf1ceb8773ed276f82245fb8fb4c4bdc95bff40ecc0e8ca8ac9e776978b17340",
+      "sha256": "b25cc7052779bdc9e2c626a8142271e0748a22b353f995f26fbc968e6eafc235",
       "executable": false
     },
     "scripts/verify-evidence.mjs": {
@@ -2739,7 +2751,7 @@
       "executable": false
     },
     "scripts/verify-plan.mjs": {
-      "sha256": "45fe2ab9c5cbc72d0186bf77fab32c985605caae6ecee50676dd618612c3e78f",
+      "sha256": "4827b1ee07202e6b02ee97b0a785eb83942d39f1043772b86a2b95f64c133d78",
       "executable": false
     },
     "SEED-COMMAND-CONTRACT.md": {
@@ -7098,6 +7110,10 @@
       "sha256": "a84170300c99392b8b35000836720c02f950c079e33ec5f2a0d6642b57b4bcdf",
       "executable": false
     },
+    "tests/ci-shards.test.mjs": {
+      "sha256": "4827b8ca9c694d23f3c079eea3e94038096f377d301c73a647880eb9d8032651",
+      "executable": false
+    },
     "tests/clone-journey.mjs": {
       "sha256": "b7cdeefe7b1a4f287f044b50ddd27fcfbf42c890abbe2fe384133c9b6df672b4",
       "executable": false
@@ -8075,7 +8091,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "820ebb801cb6abd757d538ad8de104c27378c4d46b10ffe76774de0a27b0943e",
+      "sha256": "203b38a166292317876c5ef5f2387dc6f1db7e19b69fa884dff613b83fa250b5",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

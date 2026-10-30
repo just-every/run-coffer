@@ -62,7 +62,7 @@ jobs:
     needs: plan
     if: ${{ needs.plan.outputs.has_shards == 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ inputs.timeout || ((matrix.name == 'pipeline' || matrix.name == 'donors') && 20 || 12) }}
+    timeout-minutes: ${{ inputs.timeout || 12 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -138,7 +138,8 @@ jobs:
       - name: Run this shard
         env:
           SHARD: ${{ matrix.name }}
-        run: node scripts/verify-ci.mjs "$SHARD"
+          TIER: ${{ needs.plan.outputs.tier }}
+        run: node scripts/ci/shards.mjs "$SHARD" "$TIER"
 
   light:
     needs: plan
