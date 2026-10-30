@@ -5,8 +5,17 @@ import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { verificationPlan } from '../verify-app.mjs';
 
-const JOBS = 8;
+const MIN_JOBS = 8;
+const MAX_JOBS = 14;
 const WORKERS = 3;
+const JOB_TARGET = 15 * 60;
+const SETUP_SECONDS = 120;
+const LANE_TARGET = JOB_TARGET - SETUP_SECONDS;
+// Successful END lines from Verify 40911159077 (fb0d74b6), including its
+// browser opt-ins. The run was cancelled, so incomplete units retain the prior
+// samples. The computed move-in group uses its larger, fixed-complement local
+// observation. Pad observations by 10%; reserve two minutes for runner setup.
+const weight = seconds => Math.ceil(seconds * 1.1);
 const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
 const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const estimates = JSON.parse(readFileSync(new URL('./durations.json', import.meta.url), 'utf8'));
@@ -20,7 +29,7 @@ function split(command, shard) {
  // hosted production-output/hydration checks, retain their original entry point.
  command = command.replace(/\bpnpm run ([\w:-]+)/g, (match, name) =>
   /\bnode --test\b/.test(scripts[name] ?? '') ? scripts[name] : match);
- if (!/\bnode --test\b/.test(command)) return [{ command, label: shard.name, seconds: 100 }];
+ if (!/\bnode --test\b/.test(command)) return [{ command, label: shard.name, seconds: weight(estimates[command] ?? 100) }];
  const patterns = [...command.matchAll(/\btests\/[\w.*-]+\.mjs\b/g)].map(match => match[0]);
  if (!patterns.length) return [{ command, label: shard.name, seconds: 100 }];
  const files = [...new Set(patterns.flatMap(pattern => {
@@ -55,12 +64,20 @@ function split(command, shard) {
  const units = [...names].filter(selected).map(name => ({
   command: filtered('^' + escape(name) + '(?:$| > )'),
   label: shard.name + ': ' + name,
-  seconds: estimates[name] ?? 90,
+  seconds: weight(estimates[name] ?? 90),
  }));
  units.push({
-  command: filtered('^(?!(?:' + [...names].map(escape).join('|') + ')(?:$| > ))'),
-  label: shard.name + ': remaining registrations',
-  seconds: 30,
+  // Node also matches the synthetic <root> ancestor. A negative include matches
+  // that root and runs every descendant again, including browser journeys.
+  // Exclude the recognized registrations with a positive skip instead, keeping
+  // the original include and skip so computed/future registrations still run.
+  command: (() => {
+   const known = '^(?:' + [...names].map(escape).join('|') + ')(?:$| > )';
+   const flag = '--test-skip-pattern=' + quote(exclude ? '(?:' + unquote(exclude[1]) + ')|(?:' + known + ')' : known);
+   return exclude ? command.replace(skipOption, () => flag) : command.replace(/\bnode --test\b/, match => match + ' ' + flag);
+  })(),
+  label: shard.name + ': remaining registrations (' + files.join(', ') + ')',
+  seconds: weight(estimates['remaining:' + files.join(', ')] ?? 30),
  });
  // Validate the partition whenever CI constructs its matrix. Original name
  // filters must select each recognized registration exactly once, or zero times
@@ -68,10 +85,18 @@ function split(command, shard) {
  for (const name of names) {
   const matches = units.filter(unit => {
    const pattern = option.exec(unit.command);
-   return new RegExp(unquote(pattern[1])).test(name)
-    && (!exclude || !new RegExp(unquote(exclude[1])).test(name));
+   const skip = skipOption.exec(unit.command);
+   return (!pattern || new RegExp(unquote(pattern[1])).test(name))
+    && (!skip || !new RegExp(unquote(skip[1])).test(name));
   }).length;
   if (matches !== Number(selected(name))) throw Error(`Invalid CI partition: ${shard.name}: ${name}`);
+ }
+ for (const unit of units) {
+  for (const pattern of [option.exec(unit.command), skipOption.exec(unit.command)].filter(Boolean)) {
+   if (['', '<root>'].some(root => new RegExp(unquote(pattern[1])).test(root))) {
+    throw Error(`CI partition matches Node's synthetic root: ${unit.label}`);
+   }
+  }
  }
  return units;
 }
@@ -81,19 +106,30 @@ export async function schedule(tier) {
  const plan = await verificationPlan();
  const shards = tier === 'all' ? [...plan.push, ...plan.nightly] : plan.push;
  const units = shards.flatMap(shard => shard.hosted
-  ? [{ command: 'node scripts/verify-ci.mjs ' + quote(shard.name), label: shard.name + ': hosted checks', seconds: 100 }]
+  ? [{ command: 'node scripts/verify-ci.mjs ' + quote(shard.name), label: shard.name + ': hosted checks', seconds: weight(estimates['hosted checks'] ?? 100) }]
   : shard.commands.flatMap(command => split(command, shard)));
- const lanes = Array.from({ length: JOBS * WORKERS }, (_, index) => ({ index, seconds: 0, units: [] }));
- // Longest first balances the actual selected tests rather than file counts.
- for (const unit of units.sort((a, b) => b.seconds - a.seconds || a.label.localeCompare(b.label))) {
-  const lane = [...lanes].sort((a, b) => a.seconds - b.seconds || a.index - b.index)[0];
-  lane.units.push(unit);
-  lane.seconds += unit.seconds;
+ // Isolate the longest registrations in their own lanes, then use the fewest
+ // jobs (8..14) whose three concurrent lanes all fit the fifteen-minute target.
+ units.sort((a, b) => b.seconds - a.seconds || a.label.localeCompare(b.label));
+ for (let count = MIN_JOBS; count <= MAX_JOBS; count++) {
+  const lanes = Array.from({ length: count * WORKERS }, (_, index) => ({ index, seconds: 0, units: [], isolated: false }));
+  for (const unit of units) {
+   const isolate = unit.seconds >= LANE_TARGET * 0.75;
+   const lane = lanes.filter(lane => !lane.isolated && (!isolate || !lane.units.length))
+    .sort((a, b) => a.seconds - b.seconds || a.index - b.index)[0];
+   if (!lane) break;
+   lane.units.push(unit);
+   lane.seconds += unit.seconds;
+   lane.isolated = isolate;
+  }
+  if (lanes.reduce((total, lane) => total + lane.units.length, 0) !== units.length
+   || lanes.some(lane => lane.seconds > LANE_TARGET)) continue;
+  return Array.from({ length: count }, (_, index) => ({
+   name: 'balanced-' + (index + 1), browser: true,
+   lanes: lanes.filter(lane => lane.index % count === index),
+  }));
  }
- return Array.from({ length: JOBS }, (_, index) => ({
-  name: 'balanced-' + (index + 1), browser: true,
-  lanes: lanes.filter(lane => lane.index % JOBS === index),
- }));
+ throw Error(`Verification cannot fit ${MAX_JOBS} shards within ${JOB_TARGET}s including setup; split the longest registration group`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -103,8 +139,10 @@ if (mode === '--matrix') {
 } else if (mode === '--check') {
  for (const tier of ['push', 'all']) {
   const jobs = await schedule(tier);
-  console.log(tier + ': ' + jobs.flatMap(job => job.lanes.flatMap(lane => lane.units)).length + ' commands; ' + jobs.map(job => job.name + '=' + Math.max(...job.lanes.map(lane => lane.seconds)) + 's').join(', '));
+  console.log(tier + ': ' + jobs.flatMap(job => job.lanes.flatMap(lane => lane.units)).length + ' commands; ' + jobs.map(job => job.name + '=' + (SETUP_SECONDS + Math.max(...job.lanes.map(lane => lane.seconds))) + 's including setup').join(', '));
  }
+} else if (mode === '--plan') {
+ console.log(JSON.stringify(await schedule(value)));
 } else {
  const job = (await schedule(value)).find(job => job.name === mode);
  if (!job) throw Error('Usage: shards.mjs --matrix|--check push|all OR balanced-N push|all');
