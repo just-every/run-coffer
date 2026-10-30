@@ -3739,7 +3739,7 @@
       "executable": false
     },
     "src/coffer/giving/staff-payment-ui.ts": {
-      "sha256": "a3f7b4c83a2669e58a4ae95b4a965a425bfc00b30280e99237d6c9098656e1ae",
+      "sha256": "fcbc46c28bcf733babb373c098ebeef4d3445a05220275971745027389e62e2c",
       "executable": false
     },
     "src/coffer/giving/staff-payment.ts": {
