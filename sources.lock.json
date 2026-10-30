@@ -4043,7 +4043,7 @@
       "executable": false
     },
     "src/coffer/move-in/http.ts": {
-      "sha256": "56f74885343d413216a20ce72c540f360d9caf0a618ff64d7a090632f1f58806",
+      "sha256": "6fc3712ea590bf70e52aab7fe4356a64cb73263342d6337e2b0aadc3c839f1fb",
       "executable": false
     },
     "src/coffer/move-in/lgl-definitions.ts": {
@@ -4899,7 +4899,7 @@
       "executable": false
     },
     "src/coffer/ui/move-in-checklist.ts": {
-      "sha256": "347f5aca6ffd9d7c73b67855aaa2355b5c2220dd02da2dd797c405d8d3a263ed",
+      "sha256": "61193c89c785637bafd39947c3164aeced8217d7b9d6738efa0b85ee72627d55",
       "executable": false
     },
     "src/coffer/ui/move-in.ts": {
@@ -7707,7 +7707,7 @@
       "executable": false
     },
     "tests/move-in-guide-browser.mjs": {
-      "sha256": "a44b6b465cd0c93e7aa44e2b1a792c1e5c844914077a61f0bff506bd5f007886",
+      "sha256": "67b1293268d453c85512c60114119d566d357bbcfd79bb960187dae5e36b44df",
       "executable": false
     },
     "tests/move-in-guide-journey.mjs": {

@@ -44,7 +44,7 @@ export async function crmMoveInResponse(request:Request,c:Context,readers:Reader
   }
   if(action==='spreadsheet-mappings'&&api)return json(await service.spreadsheetMappings(c))
   if(action==='checklist'&&api)return json(await installationChecklist(c,url.searchParams.get('source')||'bloomerang',url.searchParams.get('id')||undefined))
-  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c),await installationChecklist(c,url.searchParams.get('source')||'bloomerang',url.searchParams.get('id')||undefined)),c.actor,200,'/app/more')
+  if(!action && !api)return page('Move in from your CRM',crmMoveInPage(await service.jobs(c),(await settings(c)).timezone,await customFields(c),await installationChecklist(c,url.searchParams.get('checklistSource')||url.searchParams.get('source')||'bloomerang',url.searchParams.get('id')||undefined)),c.actor,200,'/app/more')
   const q:IssueQuery={severity:url.searchParams.get('show')||url.searchParams.get('severity')||undefined,code:url.searchParams.get('code')||undefined,file:url.searchParams.get('file')||undefined,page:Number(url.searchParams.get('page'))||1}
   if(action==='custom-review'){const job=await customReview(c,url.searchParams.get('id')||'');return api?json({id:job.id,review:job.report.customReview}):page('Review source custom fields',customImportReviewPage(job,await customFields(c)),c.actor,200,'/app/settings')}
   if(action==='review' && !api) {

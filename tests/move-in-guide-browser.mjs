@@ -34,7 +34,7 @@ export async function moveInGuideBrowser(h,input,preview){
    const checklist=()=>page.locator('#installation-checklist')
    // Follow every live section link for every supported named source. The guide
    // is served by the actual installation, so an unresolved route or fragment fails.
-   const options=await checklist().locator('select[name=source] option').evaluateAll(nodes=>nodes.map(n=>n.value))
+   const options=await checklist().locator('select[name=checklistSource] option').evaluateAll(nodes=>nodes.map(n=>n.value))
    assert.equal(options.length,6)
    for(const source of options){
     await page.goto(origin+base+'?source='+source)
