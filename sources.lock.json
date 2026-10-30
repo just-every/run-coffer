@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3aac300316f11e94b3659d150f585745c873d9dd8c70b69855ea32ff26f2da47",
+      "sha256": "2419f409516dc8d1daa5201e9948bb1afc7b3dc0deb2a53fef84b32e8fd49566",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5067,11 +5067,11 @@
       "executable": false
     },
     "src/coffer/webhooks/delivery.ts": {
-      "sha256": "30871defd2b88be62fe92708033daa7a930bdfb68e617a8e84ba5ff99366a830",
+      "sha256": "92ef0b86860f0a2fff3e3858e44a368877096c5ef45c40f67757712c89ea2258",
       "executable": false
     },
     "src/coffer/webhooks/network.ts": {
-      "sha256": "18177ba000ba6469b80cc44ac2a4155fb68287209f919c7173483cc5c7e68fc0",
+      "sha256": "3a088796469bf5cb39d04edf0902d13c90f6a5a71046d92b392b564dd07da6a8",
       "executable": false
     },
     "src/coffer/webhooks/receiver.d.mts": {
@@ -8167,7 +8167,7 @@
       "executable": false
     },
     "tests/webhook-network-journey.mjs": {
-      "sha256": "aac2418a38b6e82406a24b58df6d6a184130efcfb1178ac29bd7a29eec26cd94",
+      "sha256": "4fab0a181553dd4f5465a5767f5c0b4a66112d498141169b09ff956f878861f7",
       "executable": false
     },
     "tests/webhook-sources-journey.mjs": {

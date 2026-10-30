@@ -39,8 +39,20 @@ export async function runWebhooks(env: Bindings, at=new Date()) {
    env.DB.prepare(`INSERT INTO cf_webhook_attempts(id,delivery_id,attempted_at,status) SELECT ?,?,?,'sending' FROM cf_webhook_deliveries d JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id JOIN oa_operators o ON o.id=s.approved_by WHERE d.id=? AND d.lease_token=? AND s.enabled=1 AND s.version=? AND o.status='active' AND o.role IN ('owner','admin') AND o.version=s.approver_version`).bind(attemptId,claimed.id,now,claimed.id,lease,s!.version),
    env.DB.prepare('UPDATE cf_webhook_deliveries SET attempts=? WHERE id=? AND lease_token=? AND EXISTS(SELECT 1 FROM cf_webhook_attempts WHERE id=?)').bind(attempt,claimed.id,lease,attemptId)
   ])
-  if (!await one(c,'SELECT id FROM cf_webhook_attempts WHERE id=?',attemptId)) {
-   await env.DB.prepare("UPDATE cf_webhook_deliveries SET status='held',lease_token=NULL,lease_until=NULL WHERE id=? AND lease_token=?").bind(claimed.id,lease).run()
+  // The insert and the final read each yield to other requests. A pause or
+  // revocation committed between them must still prevent signed disclosure.
+  if (!await one(c,`SELECT a.id FROM cf_webhook_attempts a
+   JOIN cf_webhook_deliveries d ON d.id=a.delivery_id
+   JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id
+   JOIN oa_operators o ON o.id=s.approved_by
+   JOIN cf_webhook_events e ON e.id=d.event_id
+   WHERE a.id=? AND a.status='sending' AND d.status='sending' AND d.lease_token=?
+   AND s.enabled=1 AND s.version=? AND o.status='active'
+   AND o.role IN ('owner','admin') AND o.version=s.approver_version`,attemptId,lease,s!.version)) {
+   await env.DB.batch([
+    env.DB.prepare("UPDATE cf_webhook_attempts SET status='failed' WHERE id=? AND status='sending'").bind(attemptId),
+    env.DB.prepare("UPDATE cf_webhook_deliveries SET status='held',lease_token=NULL,lease_until=NULL WHERE id=? AND lease_token=?").bind(claimed.id,lease)
+   ])
    continue
   }
   let status:number|null=null

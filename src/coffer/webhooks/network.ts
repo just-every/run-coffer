@@ -39,9 +39,9 @@ function publicAddress(value: string, family: number): boolean {
  const count = parts.reduce((n,side) => n + side.length,0)
  if (parts.flat().some(part => !/^[0-9a-f]{1,4}$/.test(part)) || (sides.length === 1 ? count !== 8 : count >= 8)) return refuse('dns_malformed')
  const words = [...parts[0],...Array(sides.length === 2 ? 8-count : 0).fill('0'),...(parts[1] ?? [])].map(part => parseInt(part,16))
- // Only global unicast, excluding special-purpose, transition and documentation ranges.
+ // Only global unicast, excluding special-purpose, transition, retired 6bone and documentation ranges.
  return words[0] >= 0x2000 && words[0] <= 0x3fff &&
-  !(words[0] === 0x2001 && (words[1] < 0x200 || words[1] === 0xdb8) || words[0] === 0x2002 || words[0] === 0x3fff && words[1] < 0x1000)
+  !(words[0] === 0x2001 && (words[1] < 0x200 || words[1] === 0xdb8) || words[0] === 0x2002 || words[0] === 0x3ffe || words[0] === 0x3fff && words[1] < 0x1000)
 }
 
 type Answer = { name: string; type: number; data: string }
