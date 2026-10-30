@@ -72,3 +72,21 @@ test('reuse requires every balanced job alongside the current full-push proof', 
   assert.equal(decision.skip, !missing);
  }
 });
+
+test('nested-package setup follows consumers and the tight membership journey owns its runner', async () => {
+ const jobs = await schedule('push');
+ let consumers = 0, exclusive = 0;
+ for (const job of jobs) {
+  const units = job.lanes.flatMap(lane => lane.units);
+  for (const unit of units.filter(unit => unit.label.startsWith('donors:'))) {
+   consumers++;
+   assert.deepEqual(job.prerequisites, ['npm ci --prefix integrations/zapier --no-audit --no-fund', 'npm run validate --prefix integrations/zapier']);
+  }
+  if (units.some(unit => unit.label.includes(': CAMP-004:'))) {
+   exclusive++;
+   assert.equal(units.length, 1);
+  }
+ }
+ assert.ok(consumers > 0);
+ assert.equal(exclusive, 1);
+});
