@@ -8075,7 +8075,7 @@
       "executable": false
     },
     "tests/stewardship-sources-journey.mjs": {
-      "sha256": "3e9ef4bbbadbe29a7bd8da036a0fe773f7530aab9c451ee74b659cd40b1abf81",
+      "sha256": "2ee27518493526a8bd01e301700e3248efa6e1b294e0462d31cd1578ed28c570",
       "executable": false
     },
     "tests/stewardship.test.mjs": {
