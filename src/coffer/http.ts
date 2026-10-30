@@ -151,7 +151,7 @@ import { readStripe } from './imports/live-stripe'
 import { available as stripeAvailable } from './giving/stripe'
 import { page, when } from './ui/common'
 import { givingResponse } from './giving/http'
-import { staffPlanResponse } from './giving/http'
+import { staffPlanResponse, staffPaymentResponse } from './giving/http'
 import { paymentsResponse } from './payments/http'
 import { agentResponse } from './agent/http'
 import { crmMoveInResponse } from './move-in/http'
@@ -333,6 +333,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if(formSettings)return formSettings
   const membership=await membershipResponse(request,c,async()=>isApi?jsonBody(request):Object.fromEntries(await formBody(request)))
   if(membership)return membership
+  const staffPayment = await staffPaymentResponse(request,c)
+  if(staffPayment)return staffPayment
   const staffPlans = await staffPlanResponse(request,c)
   if(staffPlans)return staffPlans
   const payments = await paymentsResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
