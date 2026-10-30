@@ -141,6 +141,10 @@ export async function continueApply(c: Context,id:string) {
   for(const a of plan.allocationChanges.replaced)writes.push(sql('INSERT INTO cf_pledge_allocation_replacements(allocation_id,job_id,source,source_file,recorded_at,recorded_by) VALUES(?,?,?,?,?,?)',a.id,id,job.source,allocationChangeFile,c.now,c.actor.name))
   for(const kind of kinds)writeKind(writes,plan,kind,job.source,id)
   for(const a of plan.allocationChanges.origins)writes.push(sql('INSERT INTO cf_move_in_allocation_sources(allocation_id,source,job_id,source_file,source_gift_id,explicit_installment_id) VALUES(?,?,?,?,?,?)',a.allocation_id,job.source,id,a.source_file,a.source_gift_id,a.explicit_installment_id))
+  // Capture every reviewed reference, including records reused from earlier
+  // imports. Native undo snapshots keep their separate ownership semantics.
+  writes.push(sql(`INSERT OR REPLACE INTO cf_migration_source_records(job_id,kind,source_key,native_id,donor_id,fact)
+   SELECT ?,json_extract(value,'$.kind'),json_extract(value,'$.sourceKey'),json_extract(value,'$.nativeId'),json_extract(value,'$.donorId'),json_extract(value,'$.fact') FROM json_each(?)`,id,JSON.stringify(plan.reviewedEffects)))
   writes.push(...addresses)
   writes.push(...importedAcknowledgmentEvents(c,plan,job.source,id))
   writes.push(...await importedCustomWrites(c,plan,job.source,id))

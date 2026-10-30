@@ -17,6 +17,6 @@ export function includeMatchedDonors(input:ParseInput,out:ParsedImport) {
   if(out.donors.some(d=>d.externalId===externalId))continue
   const linked=[...out.gifts,...out.softCredits,...out.notes,...out.pledges].find(r=>r.donorExternalId===externalId)
   if(!linked)continue
-  out.donors.push({location:linked.location,externalId,name:match.name,organization:false,firstName:'',lastName:'',email:'',phone:'',addressLine1:'',addressLine2:'',city:'',region:'',postalCode:'',country:'',householdKey:'',householdName:''})
+  out.donors.push({sourceNameUnknown:true,location:linked.location,externalId,name:match.name,organization:false,firstName:'',lastName:'',email:'',phone:'',addressLine1:'',addressLine2:'',city:'',region:'',postalCode:'',country:'',householdKey:'',householdName:''})
  }
 }

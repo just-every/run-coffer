@@ -4,6 +4,14 @@ import {withBrowserWorker} from './browser-worker.mjs'
 
 export async function migrationAgentBrowser(h,analysisId,directory,mode='current'){
  if(directory)await mkdir(directory,{recursive:true})
+ let sourcePage
+ if(mode==='current'){
+  const analysis=(await h.get('/api/coffer/agent/move-in?analysisId='+analysisId)).analysis
+  const source=await h.get('/api/coffer/agent/move-in/source?kind='+analysis.kind+'&jobId='+analysis.jobId)
+  const record=source.records.findIndex(r=>r.kind==='donor'&&r.fact.name==='Synthetic Migration One')
+  assert.ok(record>=0)
+  sourcePage='/app/agent/move-in/source?kind='+analysis.kind+'&jobId='+analysis.jobId+'&version='+source.nativeVersion+'&record='+record
+ }
  await withBrowserWorker(h,async(context,origin)=>{
   const page=await context.newPage()
   try{
@@ -34,6 +42,8 @@ export async function migrationAgentBrowser(h,analysisId,directory,mode='current
     if(directory)await page.screenshot({path:directory+'/migration-current-'+width+'.png',fullPage:true})
     await page.getByRole('link',{name:'Reviewed source donor',exact:true}).first().click()
     if(width===1440){await page.getByRole('heading',{name:'Reviewed migration source',exact:true}).waitFor();assert.match(await page.locator('main').innerText(),/Synthetic Migration/)}
+    await page.goto(origin+sourcePage)
+    if(width===1440){await page.getByRole('heading',{name:'Reviewed migration source',exact:true}).waitFor();assert.match(await page.locator('main').innerText(),/Synthetic Migration One/);assert.doesNotMatch(await page.locator('main').innerText(),/Synthetic Native Preserved/)}
     if(directory)await page.screenshot({path:directory+'/migration-source-'+width+'.png',fullPage:true})
    }
   }finally{await page.close()}
