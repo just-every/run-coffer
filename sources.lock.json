@@ -2003,7 +2003,7 @@
       "executable": false
     },
     "scripts/ci/shards.mjs": {
-      "sha256": "a5b05196927381b17626dca7cd5cced7d1be4cd3a2fad8f53f8ffe6664b499dc",
+      "sha256": "9062ef2612fbde47ae567350368bfdd485e8104d684a043ba456f6eb0353cad8",
       "executable": false
     },
     "scripts/contract-docs.mjs": {
@@ -2767,7 +2767,7 @@
       "executable": false
     },
     "scripts/verify-ci.mjs": {
-      "sha256": "04dcc494c9adc7053f784b71d917856e73a0b851f02f4d7ecc4f259820f8b601",
+      "sha256": "d8fc45d1fc7ff69a0926bd69a4772628767b9775cd1eff5f2d94c65e410fa526",
       "executable": false
     },
     "scripts/verify-evidence.mjs": {
@@ -2779,7 +2779,7 @@
       "executable": false
     },
     "scripts/verify-plan.mjs": {
-      "sha256": "45fe2ab9c5cbc72d0186bf77fab32c985605caae6ecee50676dd618612c3e78f",
+      "sha256": "f6504b25a42d99d724c81ee2e5c2e34a4e0aa76ebc500a7176f0793452977186",
       "executable": false
     },
     "SEED-COMMAND-CONTRACT.md": {
@@ -7587,7 +7587,7 @@
       "executable": false
     },
     "tests/giving.test.mjs": {
-      "sha256": "2236f16ecf71006093ba0f129486f87ecdbe7f0723bee4cb0f8ef8d52b0ca7d5",
+      "sha256": "a445d2f459356667377a4e78d92ab25bb6aad73d19f46f309d2d7e92e7da303d",
       "executable": false
     },
     "tests/grants-journey.mjs": {
