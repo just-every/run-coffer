@@ -139,7 +139,10 @@ export async function staffPlanResponse(request:Request,c:Context):Promise<Respo
    return api?Response.json(id?await nativePlan(c,id):{plans:await nativePlans(c)},{headers}):page('Native monthly plans',await installmentsPage(c,id),c.actor)
   }
   if(request.method!=='POST')fail('method_not_allowed','Use POST.',405)
-  const raw=await givingBody(request),input=api?JSON.parse(raw):Object.fromEntries(new URLSearchParams(raw))
+  const raw=await givingBody(request)
+  let input:Record<string,unknown>
+  try{input=api?JSON.parse(raw):Object.fromEntries(new URLSearchParams(raw))}catch{fail('INPUT','Send a plan instruction.',400)}
+  if(!input||typeof input!=='object'||Array.isArray(input))fail('INPUT','Send a plan instruction.',400)
   const result=!id||id==='new'?await createNativePlan(c,input):await changeNativePlan(c,id,input)
   return api?Response.json(result,{headers}):givingRedirect('/app/giving/installments/'+encodeURIComponent(result.id))
  }

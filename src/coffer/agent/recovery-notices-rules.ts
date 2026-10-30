@@ -11,7 +11,7 @@ export async function noticeStop(c:Context,subscriptionId:string,caseKey:string,
  if(await one(c,'SELECT invoice_id FROM cf_recovery_closures WHERE invoice_id IN (?,?)',caseKey,'plan:'+subscriptionId))return 'Closed by a person'
  if((await one(c,`SELECT (${portalStopSql}) AS stopped`,subscriptionId,started))?.stopped)return 'Payment method updated in the donor portal'
  const sub=await one(c,'SELECT status FROM cf_subscriptions WHERE id=?',subscriptionId)
- if(!sub||['unpaid','canceled','incomplete_expired'].includes(sub.status))return 'Plan lapsed or stopped'
+ if(!sub||['unpaid','canceled','incomplete_expired','paused'].includes(sub.status))return 'Plan lapsed or stopped'
  if(kind==='failure') {
   const recovery=await one(c,'SELECT state FROM cf_agent_recovery WHERE invoice_id=?',caseKey)
   if(recovery?.state==='recovered')return 'Recovered at Stripe'
