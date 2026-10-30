@@ -2006,6 +2006,10 @@
       "sha256": "69c794ea9a035681ed0481cb26b2ab21aa2a08cb7b9a207bf032054e04035a6e",
       "executable": false
     },
+    "scripts/ci/shards.test.mjs": {
+      "sha256": "77d9db0ec95a8926c42996c479e838ba0d7acd18a13b94c4770ead1ca01dfbc3",
+      "executable": false
+    },
     "scripts/contract-docs.mjs": {
       "sha256": "3e77d02bb726eb5f08d448b4dca5aa271af7cf570b9def0d11e4082b02f75175",
       "executable": false
