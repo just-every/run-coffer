@@ -99,7 +99,7 @@ export async function staffPaymentJourney(){
   assert.equal(edge.writes.length,0,'Unsafe authority, consent, card, evidence and exact-amount attempts submit no charge')
   for(let n=0;n<10;n++){const blocked=await h.request('/give/staff-payment-reading/checkout',form({requestId:randomUUID(),name:person.name,email:person.email,amount:'1',frequency:'once'}));assert.ok([403,429].includes(blocked.status))}
   const protection=await get('/api/coffer/giving/protection');assert.ok(protection.forms.some(r=>r.paused===1),'The public form is paused before staff entry')
-  await staffPaymentBrowser(h,{person,campaign,appeal,sourceRef,headers,directory:process.env.COFFER_STAFF_PAYMENT_BROWSER})
+  await staffPaymentBrowser(h,{person,campaign,appeal,sourceRef,headers,portal:portals.get(person.id),directory:process.env.COFFER_STAFF_PAYMENT_BROWSER})
   assert.equal(edge.writes.length,1,'Native confirmation submits one saved-card charge')
   const payment=[...edge.payments.values()][0],requestId=payment.metadata.coffer_intent
   const result=await get(endpoint+'/'+requestId);assert.equal(result.state,'complete')
@@ -179,5 +179,23 @@ export async function staffPaymentJourney(){
   await get(endpoint+'/'+uncertain.requestId,{status:404})
   assert.equal(edge.writes.length,attempted,'Merge, erasure and provider replay cannot charge again')
   assert.equal((await get('/api/coffer/donors')).donors.some(d=>d.id===target.id),false)
+  const paidHistory=await get('/api/coffer/donors/'+person.id)
+  for(const letter of paidHistory.letters){
+   if(!letter.printed_at&&!['submitted','delivered','bounced','complained'].includes(letter.delivery_status)){const batch=await get('/api/coffer/letters/'+letter.batch_id);await h.command('ack.discard',{batchId:batch.id,version:batch.version},{headers})}
+  }
+  const survivor=await donor(h,'Synthetic Coffer Emery'),paidComparison=await get('/api/coffer/duplicates/compare?source='+person.id+'&target='+survivor.id)
+  await h.command('donor.merge',{sourceDonorId:person.id,donorId:survivor.id,sourceVersion:paidComparison.source.version,version:paidComparison.target.version,reason:'duplicate_record'},{headers})
+  assert.deepEqual((await get('/api/coffer/donors/'+survivor.id)).gifts.map(g=>g.amount_cents).sort((a,b)=>a-b),[3725,10000])
+  assert.equal((await get(endpoint+'/'+requestId)).donor_id,survivor.id)
+  await deliver('charge.succeeded',payment.latest_charge,'synthetic-coffer-9017')
+  assert.equal((await get('/api/coffer/donors/'+survivor.id)).gifts.length,2,'Replaying a paid charge after merge preserves the original two gifts')
+  await h.command('donor.erase',{donorId:survivor.id,confirm:'ERASE'},{headers})
+  await deliver('payment_intent.succeeded',payment.id,'synthetic-coffer-9018')
+  await deliver('charge.succeeded',payment.latest_charge,'synthetic-coffer-9019')
+  await get(endpoint+'/'+requestId,{status:404})
+  assert.equal((await get('/api/coffer/reports/attribution?from=2026-01-01&to=2026-12-31')).ledgerCents,13725,'Erasure and replay retain anonymous money without resurrecting the donor')
+  assert.ok(!(await get('/api/coffer/donors')).donors.some(d=>d.name===person.name||d.name==='Synthetic Coffer Emery'))
+  assert.deepEqual(await get('/api/coffer/giving/protection'),protection)
+  assert.equal(edge.writes.length,attempted)
  }finally{await h.close()}
 }
