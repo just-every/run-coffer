@@ -3931,7 +3931,7 @@
       "executable": false
     },
     "src/coffer/major-gifts.ts": {
-      "sha256": "0706c4b1f4286fc7b413baf3104b3dd44c36e84a31a974e417792f1af55ddbcd",
+      "sha256": "78bab356584ffd5bd4121dd1ea877b5d5882f620a6f43c2878410fd8fb11cc86",
       "executable": false
     },
     "src/coffer/mcp.ts": {
@@ -3987,7 +3987,7 @@
       "executable": false
     },
     "src/coffer/move-in/blackbaud.ts": {
-      "sha256": "331677a3c612e60cccdd0c6556b941e9a0b63060d2d4af65f64d23d67ae225ea",
+      "sha256": "9518d71e19896c410998636bf35cec2ff812dce73dc5a5fbd9df888c103a3a10",
       "executable": false
     },
     "src/coffer/move-in/checks.ts": {
@@ -7163,11 +7163,11 @@
       "executable": false
     },
     "tests/blackbaud-fixture.mjs": {
-      "sha256": "8543b4cc69d350a1f9ff882f11302c8a30f1a3bc38acb1077cd275336d09fab1",
+      "sha256": "16f5a55f39a0e4e6db23374f5b2e47101b08ece4c69064c84e8ac26273ee424d",
       "executable": false
     },
     "tests/blackbaud-journey.mjs": {
-      "sha256": "7d6a15f6c5d493b8ceb17242d54c247606499251555e27134fc9d30f468f85db",
+      "sha256": "25683d3ea792b93d3cd484d9be19848113df034e64a1e6a4420abab474952c21",
       "executable": false
     },
     "tests/browser-journey.mjs": {

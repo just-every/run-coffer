@@ -26,6 +26,8 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
  for(const key of ['funds','campaigns','appeals','stages','owners','contactTypes','households','gifts','softCredits'])review![key]=dictionary(review![key],key)
  const {read,list}=blackbaudReader(input.blackbaud!),people=await list('/constituent/v1/constituents?include_inactive=true&include_deceased=true')
  const ids=new Set(people.map(p=>p.id)),donors:Row[]=[],notes:Row[]=[],relationships:Row[]=[],gifts:Row[]=[],pledges:Row[]=[],credits:Row[]=[],splits=new Map<string,any[]>(),opportunities:ParsedOpportunity[]=[]
+ const withdrawals=new Map<string,{codes:string[];dates:string[]}>()
+ const withdraw=(row:Row,donorId:string,channel:string,code:string,sourceOn='')=>{const label=channel==='sms'?'SMS':channel[0].toUpperCase()+channel.slice(1);row[label+' Preference']='no';const key=donorId+':'+channel,prior=withdrawals.get(key)??{codes:[],dates:[]};prior.codes.push(code);prior.dates.push(sourceOn);withdrawals.set(key,prior)}
  const used={gifts:new Set<string>(),softCredits:new Set<string>()}
  const custom=review!.customFields??(typeof input.customFields==='string'?JSON.parse(input.customFields):input.customFields??[])
  if(!Array.isArray(custom))error('Review the custom column mappings.')
@@ -45,7 +47,9 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
   const pref=await list(`/constituent/v1/constituents/${encodeURIComponent(p.id)}/communicationpreferences`)
   if(pref.some(v=>v.constituent_id!==p.id||!v.solicit_code||v.end||v.start&&day(v.start)>importDay))error('Dated, ended or incomplete solicit codes need a separate reviewed migration.')
   row['Solicit Codes']=pref.map(v=>v.solicit_code).join('; ');
-  for(const prefRow of pref){const rule=input.solicitCodes?.[prefRow.solicit_code];if(rule?.type==='channels')for(const channel of rule.channels??[])row[channel==='sms'?'SMS Preference':channel[0].toUpperCase()+channel.slice(1)+' Preference']='no'}row['Restriction Date']=pref.length&&pref.every(v=>v.start)?pref.map(v=>day(v.start)).sort().at(-1):''
+  for(const prefRow of pref){const rule=input.solicitCodes?.[prefRow.solicit_code];if(rule?.type==='channels')for(const channel of rule.channels??[])withdraw(row,p.id,channel,prefRow.solicit_code,prefRow.start?day(prefRow.start):'')}
+  row['Restriction Date']=pref.length&&pref.every(v=>v.start)?pref.map(v=>day(v.start)).sort().at(-1):''
+  if(person.requests_no_email)withdraw(row,p.id,'email','SKY constituent requests no email')
   for(const [kind,path] of [['email','emailaddresses'],['phone','phones'],['address','addresses']] as const){
    const points=await list(`/constituent/v1/constituents/${encodeURIComponent(p.id)}/${path}`)
    if(points.length>(kind==='address'?2:3)||points.some(v=>v.constituent_id!==p.id||v.inactive||v.start||v.end||v.seasonal_start||v.seasonal_end)||points.length&&points.filter(v=>kind==='address'?v.preferred:v.primary).length!==1)error('Review contacts: this slice requires at most three emails, three phones and two undated active addresses, each kind with one explicit primary.')
@@ -55,9 +59,9 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
     row[label+' '+(i+1)+' Type']=type;row[label+' '+(i+1)+' Primary']=(kind==='address'?v.preferred:v.primary)?'yes':'no'
     if(kind==='address'){const lines=String(v.address_lines??'').split(/\r?\n/);if(lines.length>2)error('Addresses with more than two lines need a separate mapping.');for(const [k,value] of Object.entries({[i?'Street':'Address Line 1']:lines[0],[i?'Street 2':'Address Line 2']:lines[1],City:v.city,State:v.state,'Postal Code':v.postal_code,Country:v.country}))row[(i?prefix+' ':'')+k]=value}
     else row[prefix]=kind==='email'?v.address:v.number
-    if(v.do_not_email||person.requests_no_email)row['Email Preference']='no'
-    if(v.do_not_call)row['Phone Preference']='no'
-    if(v.do_not_mail)row['Mail Preference']='no'
+    if(v.do_not_email)withdraw(row,p.id,'email','SKY email contact requests no email')
+    if(v.do_not_call)withdraw(row,p.id,'phone','SKY phone contact requests no calls')
+    if(v.do_not_mail)withdraw(row,p.id,'mail','SKY address requests no mail')
    }
   }
   customValues(await list(`/constituent/v1/constituents/${encodeURIComponent(p.id)}/customfields`),'constituent',row)
@@ -109,6 +113,7 @@ export async function blackbaudImport(input:ParseInput,importDay:string):Promise
  }
  for(const section of ['gifts','softCredits'] as const)if(Object.keys(review![section]).some(id=>!used[section].has(id)))error('Source history names an object that was not read from SKY.')
  const parsed=await parseExports({source:'re-nxt',files:[...[["constituents.csv",donors],["gifts.csv",gifts],["pledges.csv",pledges],["relationships.csv",relationships],["interactions.csv",notes],["soft-credits.csv",credits]].filter(([,rows])=>(rows as Row[]).length).map(([name,rows])=>file(name as string,rows as Row[]))],solicitCodes:input.solicitCodes?Object.fromEntries(Object.entries(input.solicitCodes).map(([k,v])=>[k,v.type==='channels'?{type:'ignore' as const}:v])):undefined,customFields:custom})
+ for(const preference of parsed.channelWithdrawals??[]){const source=withdrawals.get(preference.donorExternalId+':'+preference.channel);if(source){preference.codes=[...new Set(source.codes)].sort();preference.sourceOn=source.dates.every(d=>d&&d===source.dates[0])?source.dates[0]:''}}
  for(const gift of parsed.gifts)gift.designations=splits.get(gift.externalId)
  // Count each parent once as cash; fund dimensions independently sum source splits.
  for(const totals of [parsed.sourceTotals,parsed.mappedTotals]){
