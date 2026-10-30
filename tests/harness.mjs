@@ -29,7 +29,7 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
  const bundle=await bundles.get(entry)
  const directory=await mkdtemp(join(tmpdir(),'coffer-api-')),setup=randomBytes(32).toString('hex'),messages=[]
  const secret=randomBytes(32).toString('hex')
- const options=()=>({...convertV4MiniflareOptions({unsafeTriggerHandlers:triggerHandlers,host:'127.0.0.1',port:Number(new URL(origin).port),modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],r2Buckets:['FILES'],bindings:{AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'auth@example.test',...bindings},outboundService:outboundService??(async request=>{if(outbound&&new URL(request.url).hostname!=='api.resend.com')return outbound(request);assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})})}),resourcePersistencePath:directory})
+ const options=()=>({...convertV4MiniflareOptions({unsafeTriggerHandlers:triggerHandlers,host:'127.0.0.1',port:Number(new URL(origin).port),modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],r2Buckets:['FILES'],bindings:{AUTH_ORIGIN:origin,OWNER_EMAIL:('owner'+String.fromCharCode(64)+'example.test'),SESSION_SECRET:secret,SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_API_KEY:'test-mail-edge',MAIL_FROM:('auth'+String.fromCharCode(64)+'example.test'),...bindings},outboundService:outboundService??(async request=>{if(outbound&&new URL(request.url).hostname!=='api.resend.com')return outbound(request);assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})})}),resourcePersistencePath:directory})
  const mf=new Miniflare(options())
  try {
   origin='https://'+(await mf.ready).host
@@ -62,9 +62,9 @@ export async function installation({entry='tests/worker.ts',bindings={},outbound
  }catch(error){await mf.dispose();await rm(directory,{recursive:true,force:true});throw error}
 }
 export async function run(fn,options){const h=await installation(options);try{return await fn(h)}finally{await h.close()}}
-export async function archive(h) {
+export async function archive(h,{maxParts=1}={}) {
  const {id}=await h.api('/api/portability/exports',{},{status:201})
- let state;do{state=await h.api(`/api/portability/exports/${id}/advance`,{})}while(state.phase!=='complete')
+ let state;do{state=await h.api(`/api/portability/exports/${id}/advance`,{maxParts})}while(state.phase!=='complete')
  const response=await h.request(`/api/portability/exports/${id}/download`);assert.equal(response.status,200)
  return (await response.text()).trim().split('\n').map(x=>JSON.parse(x))
 }

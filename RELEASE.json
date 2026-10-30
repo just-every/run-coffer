@@ -96,7 +96,9 @@
     "migrations/core/0130_operator_scheduled_policy.sql",
     "migrations/core/0131_dependency_keys_sealed.sql",
     "migrations/core/0171_coffer_giving_forms.sql",
-    "migrations/core/0174_coffer_peer_fundraising.sql"
+    "migrations/core/0174_coffer_peer_fundraising.sql",
+    "migrations/core/0178_coffer_source_custom_index.sql",
+    "migrations/core/0179_coffer_undone_custom_custody.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Back up through the existing local or hosted recovery workflow before adopting. This source prepares the next release; no release tag has been created.",

@@ -1,4 +1,5 @@
 import { platformTables, platformRow } from './platform-export'
+import { importSourceNames } from './sources'
 import { reviewedCustomMappings, mapCustomColumns } from './custom-fields'
 import { reviewedSpreadsheet } from './spreadsheet-mapping'
 import { includeMatchedDonors } from './spreadsheet-matches'
@@ -16,8 +17,8 @@ export type { ParsedImport, ParseInput } from './types'
 /** A bounded, pure preview: malformed rows remain visible as structured diagnostics. */
 export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  const out: ParsedImport = { source: input.source, solicitations: [], channelWithdrawals: [], solicitCodes: input.solicitCodes, donors: [], gifts: [], households: [], relationships: [], softCredits: [], pledges: [], installments: [], notes: [], unmapped: [], diagnostics: [], sourceTotals: emptyTotals(), mappedTotals: emptyTotals(), controlTotals: [], files: [] }
- if (!['lgl', 'bloomerang', 're-nxt', 'spreadsheet', 'givebutter', 'zeffy', 'neon'].includes(input.source)) {
-  out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose an available CRM or spreadsheet.' }); return out
+ if (!Object.hasOwn(importSourceNames,input.source)) {
+  out.diagnostics.push({ severity: 'error', code: 'SOURCE', message: 'Choose a supported CRM or spreadsheet source.' }); return out
  }
  if(input.source==='spreadsheet')out.spreadsheet=reviewedSpreadsheet(input.spreadsheet,out)
  reviewedCustomMappings(input,out)
@@ -38,7 +39,7 @@ export async function parseExports(input: ParseInput): Promise<ParsedImport> {
  if(out.source==='spreadsheet')includeMatchedDonors(input,out)
  if(out.spreadsheet?.donorMatches)for(const donor of out.donors)if(Object.hasOwn(out.spreadsheet.donorMatches,donor.externalId))donor.match=out.spreadsheet.donorMatches[donor.externalId]
  if(out.spreadsheet?.donorMatches)for(const id of Object.keys(out.spreadsheet.donorMatches))if(!out.donors.some(d=>d.externalId===id))out.diagnostics.push({severity:'error',code:'DONOR_MATCH',message:`Source constituent ${id} has no mapped constituent row. Include its identity before choosing a match.`})
- mapCustomColumns(rows,out)
+ mapCustomColumns(rows,out,input.deferCustomValues===true)
  for(const r of out.recurringReferences??[])if(!out.donors.some(d=>d.externalId===r.donorExternalId))out.diagnostics.push({...r.location,severity:'error',code:'MISSING_REFERENCE',message:'Source plan needs its contact row.'})
  inferHouseholds(out)
  validateHouseholdHeads(out)

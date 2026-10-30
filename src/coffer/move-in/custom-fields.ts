@@ -1,9 +1,12 @@
+import { columnDefinitions, stageColumnValue } from './column-definitions'
 import { customValue } from '../custom-fields'
 import { spreadsheetDefinitionWrites } from './spreadsheet-definitions'
 import { all, guard, sha256, sql, type Context, type Row, type Stmt } from '../db'
 import { valueText, type SourceRow } from './source-rows'
 import type { CustomImportMapping, ImportedCustomValue, Located, ParseInput, ParsedImport } from './types'
 import type { Plan } from './plan'
+import { createImportDefinitionWrites, customDefinitionUndoGuards, customDefinitionUndoWrites } from './custom-definition-undo'
+export { createImportDefinitionWrites } from './custom-definition-undo'
 
 /** A mapping is explicit and belongs to one CRM and worksheet, never inferred from a label. */
 export function reviewedCustomMappings(input: ParseInput, out: ParsedImport) {
@@ -26,7 +29,8 @@ export function reviewedCustomMappings(input: ParseInput, out: ParsedImport) {
  } catch (e) { out.customFields = []; out.diagnostics.push({severity:'error',code:'CUSTOM_MAPPING',message:String(e instanceof Error ? e.message : e)}) }
 }
 
-export function mapCustomColumns(rows: SourceRow[], out: ParsedImport) {
+export function mapCustomColumns(rows: SourceRow[], out: ParsedImport, deferCustomValues=false) {
+ if(out.source==='spreadsheet'&&deferCustomValues){const columns=columnDefinitions(out);out.columnDefinitions=columns.definitions;out.columnMappings=columns.mappings}
  const inventory = new Map<string,{column:string;sheet:string;kind:string}>(), used = new Set<CustomImportMapping>()
  for (const r of rows) {
   const sourceKind = r.kind(), kind = sourceKind === 'donor' ? 'constituent' : sourceKind === 'note' ? ['call','meeting','email'].includes(r.peek('noteType').toLowerCase()) ? 'interaction' : 'note' : sourceKind
@@ -45,6 +49,10 @@ export function mapCustomColumns(rows: SourceRow[], out: ParsedImport) {
    const collection = targetKind === 'constituent' ? out.donors : kind === 'gift' ? out.gifts : kind === 'pledge' ? out.pledges : out.notes
    const entity = collection.find(x => x.location.file === r.location.file && x.location.sheet === r.location.sheet && x.location.row === r.location.row) ?? (targetKind === 'constituent' ? out.donors.find(d => d.externalId === r.peek('donorId')) : undefined)
    if (!entity) { r.error('CUSTOM_MAPPING','This custom value has no successfully mapped source record.',mapping.column); continue }
+   if(out.source==='spreadsheet'&&stageColumnValue(out,mapping,entity.externalId,original)){
+    out.unmapped=out.unmapped.filter(u=>!(u.file===r.location.file&&u.sheet===r.location.sheet&&u.row===r.location.row&&u.column===mapping.column))
+    continue
+   }
    try {
     const value = customValue({...mapping,choices:JSON.stringify(mapping.choices)},mapping.entry === 'pick-many' ? JSON.parse(original) : original.trim())
     const prior = entity.customValues?.find(v => v.mapping.key === mapping.key)
@@ -97,11 +105,11 @@ export async function planCustomValues(c:Context, parsed:ParsedImport, plan:Plan
  if (plan.customWrites.length) plan.checks.push(guard(`NOT EXISTS(SELECT 1 FROM cf_custom_values v JOIN json_each(?) j ON v.field_key=json_extract(j.value,'$.key') AND v.record_id=json_extract(j.value,'$.recordId'))`,'MOVE_IN_CHANGED','A custom value changed. Review the files again.',JSON.stringify(plan.customWrites.map(w=>({key:w.field.key,recordId:w.recordId})))))
 }
 
-export function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:string):Stmt[] {
+export async function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:string):Promise<Stmt[]> {
  const writes:Stmt[] = []
  if (!plan.customWrites.length) return writes
  const fields = plan.customWrites.filter(w=>w.createField).map(w=>w.field)
- if (fields.length) writes.push(sql(`INSERT INTO cf_custom_fields(key,label,kind,type,entry,choices,version,created_at) SELECT json_extract(value,'$.key'),json_extract(value,'$.label'),json_extract(value,'$.kind'),json_extract(value,'$.type'),json_extract(value,'$.entry'),json_extract(value,'$.choices'),1,? FROM json_each(?)`,c.now,JSON.stringify(fields)))
+ writes.push(...await createImportDefinitionWrites(c,fields,source,jobId))
  if(['spreadsheet','givebutter','zeffy','neon'].includes(source))writes.push(...spreadsheetDefinitionWrites(fields,jobId))
  const values = plan.customWrites.map(w=>{
   const provenance = {source,column:w.imported.mapping.column,location:w.imported.location,sourceRecordId:w.externalId,sourceDonorId:w.donorExternalId,original:w.imported.original}
@@ -121,9 +129,9 @@ export function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:
 
 const customOwned = "SELECT snapshot FROM cf_move_in_records WHERE job_id=? AND kind='customValue'"
 export function customImportUndoGuards(jobId:string):Stmt[] {
- return [guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN cf_custom_values v ON v.record_id=r.native_id AND v.field_key=json_extract(r.snapshot,'$.field_key') WHERE r.job_id=? AND r.kind='customValue' AND (r.snapshot IS NULL OR v.record_id IS NULL OR v.value<>json_extract(r.snapshot,'$.value') OR v.version<>json_extract(r.snapshot,'$.version') OR v.source<>json_extract(r.snapshot,'$.source') OR v.donor_id<>r.donor_id OR v.updated_at<>json_extract(r.snapshot,'$.updated_at')))`,'MOVE_IN_USED','An imported custom value changed after the move-in. Nothing was undone.',jobId)]
+ return [guard(`NOT EXISTS(SELECT 1 FROM cf_move_in_records r LEFT JOIN cf_custom_values v ON v.record_id=r.native_id AND v.field_key=json_extract(r.snapshot,'$.field_key') WHERE r.job_id=? AND r.kind='customValue' AND (r.snapshot IS NULL OR v.record_id IS NULL OR v.value<>json_extract(r.snapshot,'$.value') OR v.version<>json_extract(r.snapshot,'$.version') OR v.source<>json_extract(r.snapshot,'$.source') OR v.donor_id<>r.donor_id OR v.updated_at<>json_extract(r.snapshot,'$.updated_at')))`,'MOVE_IN_USED','An imported custom value changed after the move-in. Nothing was undone.',jobId),...customDefinitionUndoGuards(jobId)]
 }
 export function customImportUndoWrites(jobId:string):Stmt[] {
  return [sql(`DELETE FROM cf_custom_value_history WHERE (field_key,record_id) IN(SELECT json_extract(snapshot,'$.field_key'),json_extract(snapshot,'$.record_id') FROM (${customOwned}))`,jobId),
-  sql(`DELETE FROM cf_custom_values WHERE (field_key,record_id) IN(SELECT json_extract(snapshot,'$.field_key'),json_extract(snapshot,'$.record_id') FROM (${customOwned}))`,jobId)]
+  sql(`DELETE FROM cf_custom_values WHERE (field_key,record_id) IN(SELECT json_extract(snapshot,'$.field_key'),json_extract(snapshot,'$.record_id') FROM (${customOwned}))`,jobId),...customDefinitionUndoWrites(jobId)]
 }

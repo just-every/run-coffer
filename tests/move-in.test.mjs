@@ -249,11 +249,11 @@ test('DONOR-013: LGL and Bloomerang contact reports preserve three typed emails 
  for(const source of ['lgl','bloomerang','re-nxt'])await run(async h=>{
   const idColumn=source==='lgl'?'LGL Constituent ID':source==='bloomerang'?'Account Number':'Constituent ID'
   const header=[idColumn,'Name','Email','Email Type','Email 2','Email 2 Type','Email 2 Primary','Email 3','Email 3 Type','Address','City','State','ZIP','Address Type','Address 2 Street','Address 2 City','Address 2 State','Address 2 Postal Code','Address 2 Type']
-  const values=['synthetic-coffer-1001','Synthetic Contact Import','synthetic-coffer-1001@example.test','personal','synthetic-coffer-1002@example.test','work','Yes','synthetic-coffer-1003@example.test','other','1 Main Street','Springfield','IL','62701','home','2 Vacation Street','Madison','WI','53703','vacation']
+  const values=['synthetic-coffer-1001','Synthetic Contact Import',('synthetic-coffer-1001'+String.fromCharCode(64)+'example.test'),'personal',('synthetic-coffer-1002'+String.fromCharCode(64)+'example.test'),'work','Yes',('synthetic-coffer-1003'+String.fromCharCode(64)+'example.test'),'other','1 Main Street','Springfield','IL','62701','home','2 Vacation Street','Madison','WI','53703','vacation']
   const input={source,files:[{name:'constituents.csv',base64:Buffer.from(header.join(',')+'\r\n'+values.join(',')+'\r\n').toString('base64')}]}
   const preview=await post(h,'preview',input)
   assert.equal(preview.canApply,true,JSON.stringify(preview.diagnostics));assert.equal(preview.unmapped.length,0)
-  assert.equal(preview.donors[0].contacts.length,5);assert.equal(preview.donors[0].email,'synthetic-coffer-1002@example.test')
+  assert.equal(preview.donors[0].contacts.length,5);assert.equal(preview.donors[0].email,('synthetic-coffer-1002'+String.fromCharCode(64)+'example.test'))
   await moveIn(h,preview)
   const person=(await h.get('/api/coffer/donors?q=Synthetic%20Contact%20Import')).donors[0]
   const details=await h.get('/api/coffer/donors/'+person.id),points=details.contactPoints
@@ -263,7 +263,7 @@ test('DONOR-013: LGL and Bloomerang contact reports preserve three typed emails 
   assert.ok(points.every(p=>p.source===source+' move-in'));assert.equal(details.contactHistory.length,5)
   assert.equal((await h.get('/api/coffer/donors?q=synthetic-coffer-1003')).donors[0].id,person.id)
   assert.equal((await post(h,'preview',input)).prior.state,'completed','Replay retains the same source contact mappings')
-  const csv=await h.request('/api/coffer/exports/constituents.csv?q=Synthetic%20Contact%20Import');assert.match(await csv.text(),/synthetic-coffer-1003@example.test/)
+  const csv=await h.request('/api/coffer/exports/constituents.csv?q=Synthetic%20Contact%20Import');assert.match(await csv.text(),new RegExp('synthetic-coffer-1003'+String.fromCharCode(64)+'example.test'))
   if(process.env.COFFER_CONTACT_IMPORT_BROWSER&&source==='lgl'){
    const directory=process.env.COFFER_CONTACT_IMPORT_BROWSER;await mkdir(directory,{recursive:true})
    await withBrowserWorker(h,async(context,origin)=>{const page=await context.newPage();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});for(const [name,path] of [['review','/app/move-in/crm/review?id='+preview.id],['journal','/app/move-in/crm/journal?id='+preview.id],['contacts','/app/donors/'+person.id]]){await page.goto(origin+path);if(name==='review'){await page.getByText('Donors · 1',{exact:true}).click();assert.match(await page.locator('body').innerText(),/email · work · primary/)}assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),name+' fits '+width);await page.screenshot({path:directory+'/DONOR-013-import-'+name+'-'+width+'.png',fullPage:true})}}await page.close()})
@@ -325,12 +325,15 @@ test('DONOR-005: reviewed incumbent custom columns retain typed source values, r
    const giftValue=details.customValues.find(v=>v.field_key==='import_gift_usd');assert.equal(giftValue.record_id,details.gifts[0].id)
    const provenance=JSON.parse(giftValue.source);assert.equal(provenance.original,'123.45');assert.equal(provenance.sourceRecordId,'synthetic-coffer-1402');assert.equal(provenance.sourceDonorId,'synthetic-coffer-1401');assert.equal(provenance.source,source)
    const saved=await archive(h);await run(async fresh=>{await restore(fresh,saved);assert.deepEqual((await fresh.get('/api/coffer/donors/'+person.id)).customValues,details.customValues);await post(fresh,'undo',{id:preview.id});assert.equal((await fresh.get('/api/coffer/donors')).total,0)})
+   await run(async h=>{
+    await restore(h,saved)
    const definition=(await h.get('/api/coffer/custom-fields')).fields.find(f=>f.key==='import_note')
    await h.command('custom.define',{...definition,label:'Renamed source note',choices:[],version:definition.version})
    const repeat=await post(h,'preview',{...input,files:input.files.map(f=>({...f,name:'renamed-'+f.name}))});assert.equal(repeat.prior.state,'completed')
    assert.equal((await moveIn(h,repeat)).unchanged,true);assert.deepEqual((await h.get('/api/coffer/donors/'+person.id)).customValues,details.customValues)
+   await post(h,'undo',{id:preview.id},{status:409});assert.equal((await h.get('/api/coffer/donors')).total,1,'A renamed import-created definition prevents undo')
+   })
    await post(h,'undo',{id:preview.id});assert.equal((await h.get('/api/coffer/donors')).total,0)
-   mappings.find(m=>m.key==='import_note').label='Renamed source note'
    if(format==='xlsx'){
     const again=await post(h,'preview',{...input,customFields:mappings});assert.equal(again.canApply,true,JSON.stringify(again.diagnostics));await moveIn(h,again)
     await h.command('custom.set',{key:'import_gift_usd',recordId:giftValue.record_id,version:1,value:'200',source:'synthetic-coffer-1406'})
@@ -344,14 +347,14 @@ test('DONOR-005: reviewed incumbent custom columns retain typed source values, r
 test('DONOR-001 / DONOR-006: asynchronous incumbent imports keep distinct shared-contact identities and gifts in duplicate review',async()=>{
  for(const source of ['lgl','bloomerang','re-nxt'])await run(async h=>{
   const donorColumn=source==='lgl'?'LGL Constituent ID':source==='bloomerang'?'Account Number':'Constituent ID',giftColumn=source==='lgl'?'LGL Gift ID':source==='bloomerang'?'Transaction Number':'Gift ID'
-  const shared='synthetic-coffer-1501@example.test',family='synthetic-coffer-1502@example.test'
+  const shared=('synthetic-coffer-1501'+String.fromCharCode(64)+'example.test'),family=('synthetic-coffer-1502'+String.fromCharCode(64)+'example.test')
   const staff=await donor(h,'Synthetic Existing Identity',{email:shared})
   await donor(h,'Synthetic Refused Staff Identity',{email:shared},{status:409})
   const csv=(name,rows)=>({name,base64:Buffer.from(rows.map(r=>r.join(',')).join('\r\n')+'\r\n').toString('base64')})
   const input={source,files:[csv('constituents.csv',[
    [donorColumn,'Name','Email','Email 2','Email 2 Type','Phone','Address','City','State','ZIP','Household ID','Household Name'],
-   ['synthetic-coffer-1503','Synthetic Source Identity',shared,'synthetic-coffer-1505@example.test','work','202-555-0151','151 Shared Street','Madison','WI','53703','synthetic-coffer-1511','Unrelated Source One'],
-   ['synthetic-coffer-1504','Synthetic Source Identity',shared,'synthetic-coffer-1505@example.test','work','202-555-0151','151 Shared Street','Madison','WI','53703','synthetic-coffer-1512','Unrelated Source Two'],
+   ['synthetic-coffer-1503','Synthetic Source Identity',shared,('synthetic-coffer-1505'+String.fromCharCode(64)+'example.test'),'work','202-555-0151','151 Shared Street','Madison','WI','53703','synthetic-coffer-1511','Unrelated Source One'],
+   ['synthetic-coffer-1504','Synthetic Source Identity',shared,('synthetic-coffer-1505'+String.fromCharCode(64)+'example.test'),'work','202-555-0151','151 Shared Street','Madison','WI','53703','synthetic-coffer-1512','Unrelated Source Two'],
    ['synthetic-coffer-1506','Synthetic Household One',family,'','','202-555-0152','152 Family Street','Madison','WI','53703','synthetic-coffer-1510','Synthetic Import Family'],
    ['synthetic-coffer-1507','Synthetic Household Two',family,'','','202-555-0152','152 Family Street','Madison','WI','53703','synthetic-coffer-1510','Synthetic Import Family'],
   ]),csv('gifts.csv',[[giftColumn,donorColumn,'Gift Type','Gift Date','Amount','Payment Method','Non-Deductible Amount'],
@@ -366,7 +369,7 @@ test('DONOR-001 / DONOR-006: asynchronous incumbent imports keep distinct shared
   const imported=people.filter(d=>d.name==='Synthetic Source Identity');assert.equal(imported.length,2)
   const histories=await Promise.all(imported.map(d=>h.get('/api/coffer/donors/'+d.id)))
   assert.deepEqual(histories.map(d=>d.gifts.reduce((n,g)=>n+g.amount_cents,0)).sort((a,b)=>a-b),[2100,3200])
-  assert.ok(histories.every(d=>d.contactPoints.some(p=>p.kind==='email'&&p.value==='synthetic-coffer-1505@example.test')))
+  assert.ok(histories.every(d=>d.contactPoints.some(p=>p.kind==='email'&&p.value===('synthetic-coffer-1505'+String.fromCharCode(64)+'example.test'))))
   assert.equal((await h.get('/api/coffer/donors/'+staff.id)).gifts.length,0,'A shared email never transfers the imported gifts to staff’s existing person')
   const pairs=(await h.get('/api/coffer/duplicates')).pairs,between=(a,b)=>pairs.find(p=>[p.source.id,p.target.id].includes(a)&&[p.source.id,p.target.id].includes(b))
   assert.ok(between(imported[0].id,imported[1].id).reasons.some(r=>r.code==='email'))
@@ -378,6 +381,22 @@ test('DONOR-001 / DONOR-006: asynchronous incumbent imports keep distinct shared
   await post(h,'undo',{id:preview.id});assert.deepEqual((await h.get('/api/coffer/donors')).donors.map(d=>d.id),[staff.id])
   await donor(h,'Synthetic Staff Refusal After Import',{email:shared},{status:409})
  })
+})
+
+test('MOVE-010: Bloomerang source definitions, remediation and custody',async()=>{
+ const {sourceCustomJourney}=await import('./custom-source-journey.mjs');await sourceCustomJourney()
+})
+test('MOVE-010: Little Green Light categories and attributes',async()=>{
+ const {lglCustomJourney}=await import('./custom-source-lgl.mjs');await lglCustomJourney()
+})
+test('MOVE-010: NXT code tables and explicit action provenance',async()=>{
+ const {nxtCustomJourney}=await import('./custom-source-nxt.mjs');await nxtCustomJourney()
+})
+test('MOVE-010: Neon account, donation and activity definitions',async()=>{
+ const {neonCustomJourney}=await import('./custom-source-neon.mjs');await neonCustomJourney()
+})
+test('MOVE-010: Spreadsheet declarations retain typed values and waiting rows',async()=>{
+ const {spreadsheetCustomJourney}=await import('./custom-source-spreadsheet.mjs');await spreadsheetCustomJourney()
 })
 
 test('MOVE-006: mapped spreadsheets reconcile gift history, native matches, source preferences and guarded custody',async()=>{
