@@ -119,7 +119,7 @@ export async function planCustomValues(c:Context, parsed:ParsedImport, plan:Plan
  if (plan.customWrites.length) plan.checks.push(guard(`NOT EXISTS(SELECT 1 FROM cf_custom_values v JOIN json_each(?) j ON v.field_key=json_extract(j.value,'$.key') AND v.record_id=json_extract(j.value,'$.recordId'))`,'MOVE_IN_CHANGED','A custom value changed. Review the files again.',JSON.stringify(plan.customWrites.map(w=>({key:w.field.key,recordId:w.recordId})))))
 }
 
-export async function importedCustomWrites(c:Context, plan:Plan, source:string, jobId:string):Promise<Stmt[]> {
+export async function importedCustomWrites(c:Context, plan:Pick<Plan,'customWrites'|'customDefinitionWrites'|'sourceProvider'>, source:string, jobId:string):Promise<Stmt[]> {
  const writes:Stmt[] = []
  if (!plan.customWrites.length&&!plan.customDefinitionWrites.length) return writes
  const fields = [...plan.customDefinitionWrites,...plan.customWrites.filter(w=>w.createField).map(w=>w.field)]
