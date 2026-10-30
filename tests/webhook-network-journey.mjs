@@ -24,7 +24,12 @@ export async function webhookNetworkJourney(){
   const gift=async()=>command('gift.record',{donorId:d.id,amount:'42.50',receivedOn:'2026-10-26',method:'cash',goods:'none'})
   const delivery=async id=>(await state()).deliveries.find(row=>row.subject_id===id)
   const successful=await gift()
-  await Promise.all([tick(),tick()])
+  block={family:28,entered:deferred(),release:deferred()}
+  const initialTicks=Promise.all([tick(),tick()])
+  try {
+   await block.entered.promise
+   assert.equal(submitted.length,0,'Signed bytes wait for both address families to finish resolving')
+  }finally{block.release.resolve();await initialTicks;block=null}
   const accepted=await delivery(successful.id),capture=submitted.find(row=>row.deliveryId===accepted.id)
   assert.equal(accepted.status,'delivered');assert.equal(accepted.attempts,1)
   assert.equal(submitted.filter(row=>row.deliveryId===accepted.id).length,1,'Concurrent minute ticks submit only once')
@@ -59,6 +64,7 @@ export async function webhookNetworkJourney(){
   cases.push(
    ['mixed A','dns_nonpublic',q=>dnsAnswer(q,[dnsRecord(q.name,q.type,publicIp(q.type)),...(q.type===1?[dnsRecord(q.name,1,'10.0.0.1')]:[])])],
    ['mixed AAAA','dns_nonpublic',q=>dnsAnswer(q,[dnsRecord(q.name,q.type,publicIp(q.type)),...(q.type===28?[dnsRecord(q.name,28,'fd00::1')]:[])])],
+   ['competing family failures','dns_nonpublic',q=>q.type===1?dnsAnswer(q,[dnsRecord(q.name,1,'127.0.0.1')]):new Response('{synthetic-coffer-2',{headers:{'content-type':'application/dns-json'}})],
    ['unsafe alias','dns_alias_unsafe',q=>dnsAnswer(q,[dnsRecord(q.name,5,'service.localhost.')])],
    ['literal alias','dns_alias_unsafe',q=>dnsAnswer(q,[dnsRecord(q.name,5,'127.0.0.1.')])],
    ['alias cycle','dns_alias_unsafe',q=>dnsAnswer(q,[dnsRecord(q.name,5,'alias.example.test.'),dnsRecord('alias.example.test',5,q.name+'.')])],
@@ -109,7 +115,10 @@ export async function webhookNetworkJourney(){
   const v6=await gift();await tick()
   const v6Delivery=await delivery(v6.id)
   assert.equal(v6Delivery.status,'delivered')
-  assert.ok(submitted.some(row=>row.deliveryId===v6Delivery.id),'Complete public IPv6-only resolution submits the signed event')
+  const v6Capture=submitted.find(row=>row.deliveryId===v6Delivery.id)
+  const v6Bytes=JSON.stringify({id:v6Delivery.event_id,type:'gift.created',occurredAt:v6Delivery.occurred_at,data:{id:v6.id}})
+  assert.equal(v6Capture.body,v6Bytes,'Complete public IPv6-only resolution submits the exact event bytes')
+  assert.equal(v6Capture.signature,`t=${Date.parse(clock)/1000},v1=${createHmac('sha256',signed.secret).update(String(Date.parse(clock)/1000)+'.'+v6Bytes).digest('hex')}`)
   answer=normal;receiverStatus=302
   const redirect=await gift(),redirectCount=submitted.length;await tick()
   assert.equal(submitted.length,redirectCount+1,'A target redirect is not followed')
@@ -161,7 +170,7 @@ export async function webhookNetworkJourney(){
   probe('current-authority-and-erasure','in-flight pause, version change, revocation and erasure produce zero disclosure')
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,bindings:{COFFER_TEST_NOW:clock},outbound:async request=>{
   const q=webhookDnsQuestion(request)
-  if(q){resolved.push(q);if(block&&q.type===1){block.entered.resolve();await block.release.promise}return answer(q)}
+  if(q){resolved.push(q);if(block&&q.type===(block.family??1)){block.entered.resolve();await block.release.promise}return answer(q)}
   assert.equal(request.url,endpoint,'No resolver or receiver redirect may be followed')
   submitted.push({body:await request.text(),signature:request.headers.get('coffer-signature'),deliveryId:request.headers.get('coffer-delivery-id')})
   return new Response(receiverStatus===204?null:'synthetic-coffer-private-receiver-body',{status:receiverStatus,headers:{location:'https://redirect.example.test/private'}})
