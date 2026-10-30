@@ -86,8 +86,10 @@ export async function changeNativePlan(c:Context,id:string,input:Row){
  const version=p.version+1,active=action==='approve'||action==='resume'
  const owner=await one(c,"SELECT version FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin')",c.actor.id)
  const due=action==='resume'?futureDue(day(c.now),p.anchor_day):action==='approve'?day(c.now):p.next_due_on
+ // The confirmed immediate first charge starts the monthly schedule.
+ const anchor=action==='approve'?Number(due.slice(8)):p.anchor_day
  await commit(c,[...(active?checks:[]),guard('EXISTS(SELECT 1 FROM cf_native_plans WHERE id=? AND version=?)','VERSION','The plan changed.',id,p.version),
-  sql('UPDATE cf_native_plans SET version=?,next_due_on=? WHERE id=?',version,due,id),
+  sql('UPDATE cf_native_plans SET version=?,next_due_on=?,anchor_day=? WHERE id=?',version,due,anchor,id),
   sql('DELETE FROM cf_native_plan_approvals WHERE plan_id=?',id),
   ...(active?[sql('INSERT INTO cf_native_plan_approvals VALUES(?,?,?,?,?)',id,version,c.actor.id,owner!.version,c.now)]:[]),
   sql("UPDATE cf_portal_subscription_settings SET collection_paused=?,observed_at=? WHERE subscription_id=?",active?0:1,c.now,id),
