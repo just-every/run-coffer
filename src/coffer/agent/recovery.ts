@@ -1,3 +1,4 @@
+import { reconcileNativeRecovery } from '../giving/installments'
 import { recoveryPolicyRequired, policyConfigured, legacyRecoveryPolicy } from './recovery-notices-rules'
 import { advanceRecoveryNotices, settleRecoveryNotices } from './recovery-notices'
 import { automated, automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
@@ -84,6 +85,7 @@ export async function runRecovery(c: Context, env: GivingEnv) {
  const result = { enabled: true, checked: 0, recovered: 0, lapsed: 0, errors: 0 }
  for (const sub of subscriptions) {
   try {
+   if(await reconcileNativeRecovery(c,env,sub.id)){result.checked++;continue}
    // Check each tracked invoice too: a subscription may already have advanced to
    // a newer invoice while an earlier failure was paid or written off.
    const tracked = await all(c, "SELECT invoice_id FROM cf_agent_recovery WHERE subscription_id=? AND state='waiting'", sub.id)

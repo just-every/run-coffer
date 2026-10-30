@@ -1,3 +1,4 @@
+import { runNativeInstallments } from './coffer/giving/installments'
 import { runScheduledTexts } from './coffer/sms-scheduler'
 import { runScheduledJourneys } from './coffer/communications/journey-runner'
 import { advanceDevelopmentReports } from './coffer/agent/development-report-scheduler'
@@ -47,6 +48,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     execution.waitUntil(runScheduledJourneys(runtimeBindings(env),new Date(controller.scheduledTime)))
     execution.waitUntil(runWelcome(runtimeBindings(env),new Date(controller.scheduledTime)))
     const tick=new Date(controller.scheduledTime)
+    execution.waitUntil(runNativeInstallments(runtimeBindings(env),tick))
     execution.waitUntil(runScheduledTexts(runtimeBindings(env),tick))
     execution.waitUntil(advanceDevelopmentReports(runtimeBindings(env),tick))
     execution.waitUntil(runTaskReminders(runtimeBindings(env),tick))
