@@ -9,6 +9,8 @@ export const tables = {
  pledge: { table: 'cf_pledges', key: 'id', columns: ['id','donor_id','amount_cents','pledged_on','due_by','fund','created_at','created_by'] },
  installment: { table: 'cf_pledge_installments', key: 'id', columns: ['id','pledge_id','position','due_on','amount_cents','remind_on','reminder_status'] },
  gift: { table: 'cf_gifts', key: 'id', columns: ['id','version','donor_id','kind','reverses','received_on','amount_cents','method','reference','fund','pledge_id','goods','goods_cents','goods_description','note','source','created_at','created_by'] },
+ giftDesignation: {table:'cf_gift_allocations',key:'id',columns:['id','gift_id','position','fund','campaign_id','amount_cents']},
+ opportunity: {table:'cf_prospects',key:'id',columns:['id','donor_id','label','stage','owner_id','ask_amount_cents','expected_amount_cents','probability_percent','fund','campaign_id','expected_close_on','next_step','version','created_at','created_by','updated_at','updated_by','pledge_id','gift_id','closed_on']},
  tribute: { table: 'cf_gift_tributes', key: 'gift_id', columns: ['gift_id','version','kind','honoree','notified_name','notified_email','notified_address','amount_permission','group_key','source_group','donor_id','created_at','created_by'] },
  recurringReference: {table:'cf_recurring_source_references',key:'id',columns:['id','donor_id','source','source_id','amount_cents','frequency','status','method','campaign','next_on','customer_reference','payment_method_reference','imported_at']},
  platformGift: {table:'cf_platform_gifts',key:'gift_id',columns:['gift_id','source','source_id','campaign_id','campaign_name','fee_cents']},

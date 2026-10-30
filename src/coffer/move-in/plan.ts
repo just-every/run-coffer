@@ -1,3 +1,5 @@
+import { prepareGiftAllocations } from '../gift-splits'
+import { importedOpportunity } from '../major-gifts'
 import { planCustomValues, type CustomImportWrite } from './custom-fields'
 import { planSolicitationImports } from './solicitation-import'
 import { planAcknowledgmentImports } from './acknowledgment-import'
@@ -11,7 +13,7 @@ import { accumulate, emptyTotals } from './source-totals'
 import { importedOverrides } from '../person-names'
 
 export type Effect = { kind: Kind; sourceKey: string; contentHash: string; nativeId: string; owned: boolean; row: Row; donorId: string | null; relatedId: string | null; location?: Located['location'] }
-export type Plan = { customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
+export type Plan = { sourceProvider?:string; customWrites: CustomImportWrite[]; effects: Effect[]; checks: Stmt[]; state: unknown[]; donorIds: Map<string,string>; giftIds: Map<string,string>; already: number; diagnostics: Row[]; totals: ImportTotals; householdChanges: HouseholdChange[] }
 const stable = (value: unknown): string => JSON.stringify(value, (_, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))) : v)
 export const contentHash = (value: unknown) => sha256(stable(value))
 export const nativeId = async (source: string, kind: string, key: string) => `crm-${(await contentHash([source,kind,key])).slice(0,40)}`
@@ -27,15 +29,15 @@ async function readSet(c: Context, plan: Plan, query: string, params: unknown[] 
  return rows.map(r=>JSON.parse(r.snapshot)) as Row[]
 }
 
-const label: Record<Kind,string> = {contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',recurringReference:'Source plan',platformGift:'Source transaction'}
+const label: Record<Kind,string> = {opportunity:'Opportunity',giftDesignation:'Gift designation',contact:'Contact point',solicitation:'Solicitation restriction',consent:'Channel withdrawal',recognition:'Recognition name',household:'Household',donor:'Constituent',pledge:'Pledge',installment:'Installment',gift:'Gift',tribute:'Gift tribute',acknowledgment:'Gift acknowledgment',softCreditAcknowledgment:'Soft-credit acknowledgment',campaign:'Gift',channel:'Gift',allocation:'Pledge payment',relationship:'Relationship',softCredit:'Soft credit',note:'Note',interaction:'Note',recurringReference:'Source plan',platformGift:'Source transaction'}
 
 /** Plans one part. A preview plans every part with the same rules, so apply meets no refusal the review did not name. */
 export async function planImport(c: Context, parsed: ParsedImport, { preview = false } = {}): Promise<Plan> {
- const plan: Plan = {customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
+ const plan: Plan = {sourceProvider:parsed.sourceCoverage?.provider,customWrites:[],effects:[],checks:[],state:[],donorIds:new Map(),giftIds:new Map(),already:0,diagnostics:[],totals:emptyTotals(),householdChanges:[]}
  const source = parsed.source
- const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[])]
+ const entities = [...parsed.households,...parsed.donors,...parsed.pledges,...parsed.installments,...parsed.gifts,...parsed.relationships,...parsed.softCredits,...parsed.notes,...(parsed.solicitations??[]),...(parsed.channelWithdrawals??[]),...(parsed.recurringReferences??[]),...(parsed.opportunities??[])]
  const allocationKeys=parsed.gifts.flatMap(g=>parsed.installments.filter(i=>i.pledgeExternalId===g.pledgeExternalId).map(i=>`${g.externalId}@${i.externalId}`))
- const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...allocationKeys,...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
+ const keys = await Promise.all([...entities.map(x=>x.externalId),...parsed.donors.flatMap(d=>(d.contacts??[]).map(p=>p.externalId)),...parsed.gifts.map(g=>g.pledgeExternalId).filter(Boolean),...[...parsed.gifts,...parsed.softCredits].map(g=>g.acknowledgment?.interactionExternalId).filter((id):id is string=>!!id),...allocationKeys,...parsed.gifts.flatMap(g=>(g.designations??[]).map(d=>`${g.externalId}:${d.externalId}`)),...parsed.pledges.filter(p=>p.note).map(p=>`pledge-note:${p.externalId}`)].map(sourceKey))
  const mappings = await readSet(c, plan, `SELECT json_object('kind',kind,'source_key',source_key,'native_id',native_id,'content_hash',content_hash,'snapshot',snapshot) AS snapshot FROM cf_move_in_records WHERE source=? AND source_key IN (SELECT value FROM json_each(?)) ORDER BY kind,source_key`, [source,JSON.stringify(keys)])
  const existing = new Map(mappings.map(m=>[`${m.kind}:${m.source_key}`,m]))
  const merges = await readSet(c,plan,`SELECT json_object('donor_id',donor_id,'into_id',into_id) AS snapshot FROM cf_donor_merges ORDER BY donor_id`)
@@ -177,6 +179,10 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   if(held && held!==existing.get(`gift:${await sourceKey(g.externalId)}`)?.native_id)diagnostic(`Gift ${g.externalId}: Coffer already holds a gift with the reference ${reference(g)} that did not come from a move-in. Delete this exported row if it is the same gift. If it is a different gift, correct its source Gift ID to a distinct ID and upload again.`,g.location,'error','MOVE_IN_MAPPING','Gift ID')
   const id=await add('gift',g,{version:1,donor_id:donorId,kind:'gift',reverses:null,received_on:g.receivedOn,amount_cents:g.amountCents,method:g.method||'imported',reference:reference(g),fund:g.fund,pledge_id:pledges.get(g.pledgeExternalId)||null,goods:g.goodsCents===null?'unknown':g.goodsCents>0?'provided':'none',goods_cents:g.goodsCents||0,goods_description:g.goodsCents?g.goodsDescription||'Goods or services recorded in source export':null,note:g.note||null,source:'manual',created_at:c.now,created_by:c.actor.name},undefined,donorId)
   plan.giftIds.set(g.externalId,id)
+  if(g.designations){
+   const allocations=await prepareGiftAllocations(c,{allocations:g.designations.map(d=>({fund:d.fund,amountCents:d.amountCents}))},g.amountCents)
+   for(const [i,a] of allocations.entries())await add('giftDesignation',{...g.designations[i],externalId:`${g.externalId}:${g.designations[i].externalId}`,location:g.location},{gift_id:id,position:a.position,fund:a.fund,campaign_id:a.campaignId,amount_cents:a.amountCents},undefined,donorId)
+  }
   if(g.platform)await add('platformGift',g,{gift_id:id,source,source_id:g.externalId,campaign_id:g.platform.campaignId,campaign_name:g.platform.campaignName,fee_cents:g.platform.feeCents},undefined,donorId)
   if(g.tribute) {
    const t=g.tribute
@@ -230,6 +236,13 @@ export async function planImport(c: Context, parsed: ParsedImport, { preview = f
   else await add('note',n,{donor_id:donorId,occurred_on:n.date,body:n.text,source,recorded_at:c.now,recorded_by:c.actor.name},undefined,donorId)
  }
  for(const r of parsed.recurringReferences??[])await add('recurringReference',r,{donor_id:plan.donorIds.get(r.donorExternalId),source,source_id:r.externalId,amount_cents:r.amountCents,frequency:r.frequency,status:r.status,method:r.method,campaign:r.campaign,next_on:r.nextOn,customer_reference:r.customerReference,payment_method_reference:r.paymentMethodReference,imported_at:c.now},undefined,plan.donorIds.get(r.donorExternalId))
+ for(const o of parsed.opportunities??[]){
+  try {
+   const prepared=await importedOpportunity(c,o,plan.donorIds.get(o.donorExternalId)??'')
+   plan.checks.push(...prepared.checks)
+   await add('opportunity',o,prepared.row,undefined,plan.donorIds.get(o.donorExternalId))
+  }catch(error){diagnostic(error instanceof Error?error.message:'Review opportunity identity, stage and owner.',o.location,'error','SKY_OPPORTUNITY')}
+ }
  await planAcknowledgmentImports(c,parsed,plan,existing,add,readSet)
  await planCustomValues(c,parsed,plan,existing)
  // Never expose a partial transaction as an option when inputs exceed D1's bound.
