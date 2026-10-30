@@ -6,6 +6,16 @@ Event IDs, charge references and balance transaction IDs prevent duplicate money
 
 The payments ledger and Pantry books use US dollars. A Stripe account that settles in another currency still takes USD gifts, but its payouts arrive in that currency: Coffer refuses a non-USD balance transaction rather than treating another currency as dollars, so payout reconciliation needs a USD-settling Stripe account.
 
+## Review ambiguous donors
+
+Open **Payouts → Review donor matches** for external charges whose email belongs to several current donors. Coffer holds those payments without assigning a donor, creating a gift or making a receipt eligible. Any affected payout stays incomplete and cannot be exported as a journal or posted.
+
+An owner or admin opens the charge, compares the current donor records, selects the actual donor and explicitly confirms that assignment. Approval checks the saved review version, current account authority, installation, Stripe account, charge, actual processing fee and complete history of completed refunds again. Changed source facts or donor records require **Refresh provider and candidates** and another review. A missing provider page or fee leaves the payment held. Known Coffer checkout associations keep their existing donor.
+
+Approval records the full paid gift, actual fee and completed refunds through the ordinary payment ledger once. Repeated events and approval retries cannot create another gift. The selection grants no marketing consent, merges no donors and creates no reusable customer association. External gifts retain their unknown goods answer until staff review it, and receipts still need the ordinary preparation and approval.
+
+Private review evidence travels in the owner archive. A restored installation cannot reuse another installation's approval. Merged or edited candidates require fresh review; erasure removes source email and candidates while retaining opaque references that stop replay from recreating the person. OAuth, automatic webhook registration, complete historical backfill and a daily sweep remain unavailable; this queue does not establish live Stripe qualification.
+
 ## Reconcile a payout
 
 Open **Payouts** and sync all payouts or a specific Stripe payout ID. Automatic payouts read every page of Stripe's payout-filtered balance transactions. A manual payout has no processor-defined membership: paste the exact available balance transaction IDs from your Stripe records and confirm the selection. Coffer checks that the transactions existed and were available at payout creation, belong to no other payout and sum to the payout amount. It never assigns by date or amount alone.
@@ -71,3 +81,5 @@ In **Payouts → Refunds and disputes**, an owner or admin enters an exact USD a
 Refunds, dispute withdrawals and reinstatements each retain one relationship-manager notice attempt, routed as donor replies are (portfolio manager, opportunity owner, then owner). SendGrid acceptance is **submitted**, not delivery. Unavailable or uncertain notices need human review and are not automatically sent again. Disputes show Stripe's current status, exact UTC evidence deadline and evidence flags, with a link to review and submit evidence in Stripe. The ledger, original receipts and new corrected copies retain their separate identities.
 
 [Stripe refund creation](https://docs.stripe.com/api/refunds/create) and [dispute status/evidence fields](https://docs.stripe.com/api/disputes/object) define the provider boundary. The automated journey uses documented synthetic Stripe and SendGrid edges; it does not claim a live account refund or notice delivery.
+
+The external-payment donor review schema is added by `migrations/core/0180_coffer_payment_donor_match.sql`; apply it after the existing core migrations before using the queue.

@@ -492,7 +492,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const auctionErasure=await auctionErasureStatements(c,donorId,placeholder)
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)
  const givingErasure = [
-  ...donorMatchErasure(donorId),
+  ...donorMatchErasure(donorId,placeholder),
   {sql:'DELETE FROM cf_membership_reminders WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
   {sql:'DELETE FROM cf_membership_payments WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
   {sql:'DELETE FROM cf_memberships WHERE donor_id=?',params:[donorId]},

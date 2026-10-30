@@ -1096,6 +1096,12 @@
       "name": "core-0179_coffer_undone_custom_custody.sql",
       "sha256": "51a823109730b0ea5160a5aabf4f5038fb9b6f447ab3ae457e88444f450c174e",
       "sql": "-- Earlier undos discarded the source index, leaving captured private values\n-- without donor erasure custody. Keep historical totals and reusable mappings.\nUPDATE cf_move_in_jobs SET report=json_remove(report,'$.customReview')\nWHERE state='undone' AND json_type(report,'$.customReview') IS NOT NULL\n AND NOT EXISTS(SELECT 1 FROM cf_move_in_source_records WHERE job_id=cf_move_in_jobs.id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0180_coffer_payment_donor_match.sql",
+      "sha256": "26821f804262ba895402456dd4c84d098ccecd689256451dc99c297f0bce5ed9",
+      "sql": "-- Private review evidence never grants a reusable customer association.\nCREATE TABLE cf_payment_donor_matches (\n charge_id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, account_id TEXT NOT NULL,\n version INTEGER NOT NULL DEFAULT 1,\n state TEXT NOT NULL CHECK(state IN ('held','approved','resolved','erased')),\n customer_id TEXT, email TEXT, facts TEXT NOT NULL CHECK(json_valid(facts)),\n candidates TEXT NOT NULL CHECK(json_valid(candidates)),\n donor_id TEXT REFERENCES cf_donors(id), donor_version INTEGER,\n approved_version INTEGER, approved_by TEXT, approved_actor_version INTEGER, approved_at TEXT,\n created_at TEXT NOT NULL, updated_at TEXT NOT NULL\n);\nCREATE TABLE cf_payment_match_payouts (\n charge_id TEXT NOT NULL REFERENCES cf_payment_donor_matches(charge_id),\n payout_id TEXT NOT NULL REFERENCES cf_payouts(id),\n PRIMARY KEY(charge_id,payout_id)\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
