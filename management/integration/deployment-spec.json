@@ -1096,6 +1096,12 @@
       "name": "core-0179_coffer_undone_custom_custody.sql",
       "sha256": "51a823109730b0ea5160a5aabf4f5038fb9b6f447ab3ae457e88444f450c174e",
       "sql": "-- Earlier undos discarded the source index, leaving captured private values\n-- without donor erasure custody. Keep historical totals and reusable mappings.\nUPDATE cf_move_in_jobs SET report=json_remove(report,'$.customReview')\nWHERE state='undone' AND json_type(report,'$.customReview') IS NOT NULL\n AND NOT EXISTS(SELECT 1 FROM cf_move_in_source_records WHERE job_id=cf_move_in_jobs.id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0180_coffer_staff_payment_permission.sql",
+      "sha256": "c0dbca83e4f747e65efc17461ebbb17baf93e2d2f64dd715225d4885b421d2e1",
+      "sql": "-- Existing donor permission continues to authorize recurring gifts only.\nALTER TABLE cf_saved_card_consents ADD COLUMN scope TEXT NOT NULL DEFAULT 'recurring' CHECK(scope IN ('recurring','once'));\nCREATE INDEX cf_saved_card_consent_scope ON cf_saved_card_consents(donor_id,customer_id,payment_method_id,scope,id DESC);\n\n-- Private staff authorization requests follow aliases through erasure as well.\nCREATE TRIGGER cf_staff_payment_erasure AFTER UPDATE OF erased_at ON cf_donors\nWHEN OLD.erased_at IS NULL AND NEW.erased_at IS NOT NULL BEGIN\n DELETE FROM cf_portal_changes WHERE action='staff.payment' AND\n (donor_id=NEW.id OR donor_id IN (SELECT donor_id FROM cf_donor_merges WHERE into_id=NEW.id));\nEND;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
