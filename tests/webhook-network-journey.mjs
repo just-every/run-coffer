@@ -55,7 +55,7 @@ export async function webhookNetworkJourney(){
   // Cases share the native dangerous path and independently assert no receiver request.
   const cases=[]
   for(const ip of ['0.0.0.0','10.1.2.3','100.64.0.1','169.254.169.254','172.16.0.1','192.168.1.2','192.0.2.1','198.18.0.1','224.0.0.1','255.255.255.255'])cases.push([ip,'dns_nonpublic',q=>dnsAnswer(q,[dnsRecord(q.name,q.type,q.type===1?ip:publicIp(q.type))])])
-  for(const ip of ['::1','::','fc00::1','fe80::1','::ffff:7f00:1','64:ff9b::7f00:1','2001:db8::1','2002:7f00:1::','3fff::1'])cases.push([ip,'dns_nonpublic',q=>dnsAnswer(q,[dnsRecord(q.name,q.type,q.type===28?ip:publicIp(q.type))])])
+  for(const ip of ['::1','::','fc00::1','fe80::1','::ffff:7f00:1','64:ff9b::7f00:1','2001:db8::1','2002:7f00:1::','3ffe::1','3fff::1'])cases.push([ip,'dns_nonpublic',q=>dnsAnswer(q,[dnsRecord(q.name,q.type,q.type===28?ip:publicIp(q.type))])])
   cases.push(
    ['mixed A','dns_nonpublic',q=>dnsAnswer(q,[dnsRecord(q.name,q.type,publicIp(q.type)),...(q.type===1?[dnsRecord(q.name,1,'10.0.0.1')]:[])])],
    ['mixed AAAA','dns_nonpublic',q=>dnsAnswer(q,[dnsRecord(q.name,q.type,publicIp(q.type)),...(q.type===28?[dnsRecord(q.name,28,'fd00::1')]:[])])],
@@ -88,7 +88,7 @@ export async function webhookNetworkJourney(){
    assert.equal(submitted.length,count,label+' sends no target request')
    refusals.push({id:row.id,code})
   }
-  probe('refusals','private IPv4 and IPv6, mixed answers, unsafe chains and incomplete, malformed or unavailable resolution refused')
+  probe('refusals','private IPv4 and IPv6, retired 6bone, mixed answers, unsafe chains and incomplete, malformed or unavailable resolution refused')
   const logs=JSON.stringify(await state())
   for(const privateValue of ['127.0.0.1','fd00::1','synthetic-coffer-private-resolver','93.184.216.34','2606:4700'])assert.equal(logs.includes(privateValue),false,'Readback retains no answers or network diagnostics')
   if(process.env.COFFER_WEBHOOK_BROWSER)await webhooksNetworkBrowser(h,process.env.COFFER_WEBHOOK_BROWSER,refusals)
@@ -104,6 +104,12 @@ export async function webhookNetworkJourney(){
   // A complete negative AAAA response permits an ordinary IPv4-only public receiver.
   answer=q=>q.type===1?normal(q):dnsAnswer(q,[],{Authority:[dnsRecord('example.test',6,'ns.example.test. hostmaster.example.test. 1 3600 600 86400 60')]})
   const v4=await gift();await tick();assert.equal((await delivery(v4.id)).status,'delivered')
+  // An IPv6-only receiver needs the same complete negative proof for A.
+  answer=q=>q.type===28?normal(q):dnsAnswer(q,[],{Authority:[dnsRecord('example.test',6,'ns.example.test. hostmaster.example.test. 1 3600 600 86400 60')]})
+  const v6=await gift();await tick()
+  const v6Delivery=await delivery(v6.id)
+  assert.equal(v6Delivery.status,'delivered')
+  assert.ok(submitted.some(row=>row.deliveryId===v6Delivery.id),'Complete public IPv6-only resolution submits the signed event')
   answer=normal;receiverStatus=302
   const redirect=await gift(),redirectCount=submitted.length;await tick()
   assert.equal(submitted.length,redirectCount+1,'A target redirect is not followed')
