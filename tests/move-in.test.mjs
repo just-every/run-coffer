@@ -416,3 +416,8 @@ test('MOVE-004: reviewed Neon history preserves money, source acknowledgment, pr
  const {neonJourney}=await import('./neon-journey.mjs')
  await neonJourney()
 })
+
+test('MOVE-009: reviewed Stripe card and ACH mappings preserve evidence without billing authority',async()=>{
+ const {vaultMappingJourney}=await import('./vault-mapping-journey.mjs')
+ await vaultMappingJourney()
+})

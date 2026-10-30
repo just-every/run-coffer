@@ -40,3 +40,94 @@ The journal’s **Undo** removes exactly the donors, gifts and monthly plans thi
 ## Advanced: saved JSON
 
 JSON files are copies of Stripe API responses. Use the collapsed **Advanced: upload saved Stripe JSON** option only if someone has already saved those files for you. It accepts unchanged Customers and Charges list responses, such as `{"object":"list","data":[...],"has_more":false}`. Multiple files or pasted pages are supported. A saved page whose `has_more` is true is explicitly warned as incomplete. The normal connected path reads the remaining pages for you.
+
+
+## Payment mapping review
+
+An owner or admin opens **CRM move-in → Review transferred payment references**.
+This door saves reviewed evidence only. A file match is **not verified provider
+usability**, a donor permission, a replacement schedule or permission to charge.
+No source plan is stopped. Existing Stripe billing and source plans are unchanged.
+
+Request the PCI transfer directly between the incumbent processor and Stripe;
+never send encrypted or plain card, routing or account numbers to Coffer. Stripe
+must import into the nonprofit's explicitly identified destination account before
+returning the mapping files. Account names entered here are owner attestations;
+Coffer has not verified tenant authority or transfer completion.
+
+### Stripe post-import mappings
+
+Source: [Stripe payment data import, Post import → Update your integration](https://docs.stripe.com/get-started/data-migrations/pan-import#update-integration).
+The card PaymentMethod CSV columns are `old_id`, `source_old_id`,
+`created_customer`, `source_new_id`; optional descriptive columns are
+`card_fingerprint`, `card_last4`, `card_exp_month`, `card_exp_year`, `card_brand`.
+The destination instrument must be a `pm_` reference. Expiration fields must be
+supplied together; an attested expired card is unsupported, never labelled usable.
+
+The ACH CSV columns are `old_customer_id`, `customer_id`, `old_bank_account_id`,
+`bank_account_id`; optional columns are `bank_account_fingerprint` and
+`bank_account_last4`. `bank_account_id` may hold either a `pm_` or `ba_` reference.
+CSV quoting follows RFC 4180 and preserves opaque source IDs as text.
+
+JSON accepts the corresponding array of those CSV row objects. It also accepts
+the customer-keyed object illustrated by Stripe: each old customer key contains
+`id` (the destination customer) and `cards` or `bank_accounts`. Each instrument
+collection is keyed by its old instrument ID and contains `id` (the destination
+instrument), with optional `fingerprint` and `last4`; cards additionally accept
+`exp_month`, `exp_year`, `brand`. The bank collection uses the same explicit
+customer and old-instrument association for both supported ACH reference shapes.
+No undocumented field is inferred. Request these reference-only shapes from the
+migration contact if the returned file differs. Card objects with a `card_`
+reference remain unsupported by this review slice.
+
+Descriptive metadata is validated and discarded. Coffer retains only opaque
+references and any supplied expiration month for this evidence. Unknown columns,
+raw account data, malformed files and unbound mapping instruments are refused
+before a review is stored. Files must contain 1–1000 rows, be UTF-8 CSV or JSON,
+and fit within 750 KB each. Supply at most six mapping files in one review.
+
+### Reviewed source plans
+
+The source-plan file is a CSV or a JSON array with exactly these fields:
+
+| Field | Meaning |
+| --- | --- |
+| `source_plan_id`, `source_donor_id` | Stable incumbent plan and donor IDs. Each donor needs an explicit selection of the current Coffer identity and version. |
+| `source_customer_id`, `source_payment_id` | Opaque original processor references used to join the returned mappings. |
+| `payment_type`, `amount_cents`, `currency`, `frequency` | Source payment kind (`card` or `ach`), positive integer cents, currency and schedule. This review recognizes USD and weekly, monthly, quarterly or annual schedules; other values remain visibly unsupported. |
+| `fund`, `campaign`, `next_charge_on`, `history_reference` | Source designations, ISO next date and opaque installment-history reference. Empty values remain unknown. Full historical installment import remains owed. |
+| `authorization_reference`, `authorization_date`, `authorization_method` | Source-attested debit authorization record, ISO date and method (all three together, or all empty). This is provenance only, never an authorization grant or legal verification. |
+
+Use the nonprofit's incumbent export to prepare this reference-only interchange;
+this door does not claim an automatic complete Bloomerang recurring-plan adapter.
+Keep supplied source values unchanged. When an earlier supported CRM import
+retained the same plan, its donor, amount, schedule, campaign and payment
+references must agree. An identity already bound by retained source evidence
+cannot be selected as another donor. Names and shared contacts never choose one.
+The native form supports eight distinct donor selections per upload; the HTTP
+door accepts the documented `donors` object keyed by source donor ID with
+`id` and `version` for each selection.
+
+Preview groups every source plan as matched, missing, conflicting or unsupported.
+An exact source customer and instrument association is required; duplicate rows,
+conflicting customer assignments and destination instrument collisions remain
+conflicting. A mapped ACH plan without attested authorization provenance remains
+missing. Saving acknowledges unresolved rows as evidence; it never approves them
+for use. The fingerprint includes accounts, source facts, selected identities,
+versions and every mapping outcome. Replaying the same review reuses its ID.
+Changed facts need a new review; a different destination is separate evidence.
+
+Saved and unsaved evidence survives an installation archive and restore under
+the destination installation's native owner authority. No account permission or
+provider credential is included. Donor edits prevent saving or removal; merge
+moves private custody and invalidates the review. Erasure removes the entire
+linked multi-person review's references and its merge snapshots, retaining only
+one-way source-identity tombstones to refuse resurrection. Removal requires the
+exact unchanged review version and confirmation and changes no billing record.
+
+Actual PCI transfer and tenant authority, provider instrument verification,
+complete source plans and installment history, source-stop confirmation,
+replacement schedules, original next-date behavior, ACH settlement and returns,
+first charging on a Stripe test clock, reauthorization and approved descriptor
+notices remain unproved. The existing no-catch-up and no-automatic-retry limits,
+per-card donor permission and current authority boundaries remain in force.
