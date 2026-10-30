@@ -25,7 +25,12 @@ for(const id of ids){
  if(!point)throw Error('Clause has no acceptance '+id)
  const requirement=clause.text.split('*Acceptance:*')[0].trim()
  const pattern=new RegExp('^([0-9]+\\. )\\*\\*`'+id+'`[^\\n]*','m')
- if(!pattern.test(acceptance))throw Error('Acceptance view has no clause '+id)
+ if(!pattern.test(acceptance)){
+  const heading='## Additional target acceptance'
+  if(!acceptance.includes(heading))acceptance+='\n'+heading+'\n'
+  const section=acceptance.slice(acceptance.indexOf(heading)),number=[...section.matchAll(/^([0-9]+)\. /gm)].length+1
+  acceptance+='\n'+number+'. **`'+id+'`**\n'
+ }
  acceptance=acceptance.replace(pattern,(_,number)=>`${number}**\`${id}\` ${clause.title}** (${clause.status}). ${point} Requirement: ${requirement}${evidence?' Evidence: '+evidence+'.':''}${clause.gap?' Remaining: '+clause.gap:''}`)
 }
 // Claim copy remains owner-owned. Only the reviewed backing and status of a

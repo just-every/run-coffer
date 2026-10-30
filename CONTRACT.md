@@ -1118,6 +1118,15 @@ For each named incumbent (Little Green Light, Bloomerang, Raiser's Edge NXT, Neo
 
 *Acceptance:* A browser journey at 1440 and 390 pixels opens the move-in screen for Bloomerang, reads its ordered steps each linked to a built guide page that names the export or API key, the PCI transfer request, the mapping files and the cutover stop, and sees steps marked done as a fixture import, a mapping-file upload and the owner's sign-off complete.
 
+#### MOVE-012 — Importing a payment linked to an installment after an unlinked payment of the same amount replaces the earlier allocation: the pledge reads fully paid with no phantom balance.
+
+*Acceptance:*
+1. Importing an unlinked $500 payment and then a $500 payment linked to installment one yields ONE allocation of $500 on that installment, not two.
+2. A fully paid $1,000 pledge never reports $500 unpaid after that sequence.
+3. The reverse order (linked first, then an unlinked payment of the same amount) also leaves no phantom balance.
+4. The replaced allocation is kept as history on the payment (nothing deleted, both import sources named).
+5. One public-door journey runs the unlinked-then-linked probe end to end.
+
 ### Team and access
 
 Roles a small development shop and its volunteers need.
@@ -1665,8 +1674,8 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 0 | 0 | 9 |
-| Target and push further | 86 | 37 | 20 | 143 |
-| All | 95 | 37 | 20 | 152 |
+| Target and push further | 86 | 37 | 21 | 144 |
+| All | 95 | 37 | 21 | 153 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -1782,6 +1791,7 @@ The rows distinguish implemented behavior and named tests from the remaining acc
 | `MOVE-008` | Consent and preferences moved with provenance | target | missing |  | No importer carries consent. |
 | `MOVE-010` | Custom fields carried across | target | partial | `tests/move-in.test.mjs` — "MOVE-010: Bloomerang source definitions, remediation and custody" proves documented definition and value reads, source and target metadata, existing fields, renamed targets, tags, skipped fields, explicit value remediation, reconciliation, saved lists, gift grouping, mapping reuse, stale refusal, replay, current authority, archive restore, merge, erasure and guarded definition undo. The same file names "MOVE-010: Little Green Light categories and attributes", "MOVE-010: NXT code tables and explicit action provenance", "MOVE-010: Neon account, donation and activity definitions", and "MOVE-010: Spreadsheet declarations retain typed values and waiting rows" for their native source doors. `tests/custom-import-browser.mjs` — "sourceCaptureBrowser", "sourceCustomBrowser" and "spreadsheetImportBrowser" perform native upload and review at 1440 and 390. Custody schema: `migrations/core/0178_coffer_source_custom_index.sql` and `migrations/core/0179_coffer_undone_custom_custody.sql`. Browser assertions use one width per invocation; landing proof covers 1440 and 390. Only documented provider network edges are faked. | Givebutter complete question definitions, choices and cardinality are absent from its documented API; an authorized reference-account definition export or a documented provider definition endpoint is still needed. Complete parity beyond the documented reader types and read bounds remains owed, including LGL attributes whose definitions supply no classification, unsupported source field types, note-level tag destinations and larger custom review payloads. Wider staff authority remains owed by TEAM-001. No live provider qualification is claimed. |
 | `MOVE-011` | Switching guide for each incumbent | target | partial | `src/coffer/move-in/service.ts`, `src/coffer/move-in/plan.ts`, `src/coffer/ui/crm-move-in.ts`, `tests/move-in.test.mjs`, `docs/MOVE-IN-SOURCES.md` | The CRM export guide gives vendor report/menu guidance, official source links, required IDs, supported fields and source control interpretation for LGL, Bloomerang and NXT, alongside the Stripe guide. PCI transfer and an installation cutover checklist remain unbuilt. |
+| `MOVE-012` | Importing a payment linked to an installment after an unlinked payment of the same amount replaces the earlier allocation: the pledge reads fully paid with no phantom balance | target | missing |  | Both import orders, single active allocation, fully paid balance and retained replacement history with both import sources remain unproved. |
 | `TEAM-001` | Roles and record-level access | target | partial | `tests/coffer.test.mjs` — "TEAM-001: native read-only restrictions preserve ordinary views and refuse mutations, disclosure and stale authority" invokes "teamAccessJourney" in `tests/team-access-journey.mjs`: real native owner assignment, admin removal, member and agent management refusals, safe seeded records and nonconfidential timelines, command and direct-transport refusals, all four record-file parents and foreign files, stale and concurrent changes, in-flight transaction and pre-provider refusal, session revocation, restore without identities, merge and erasure; "teamAccessBrowser" in `tests/team-access-browser.mjs` exercises native assignment, persisted restricted views and refusals at 1440 and 390. Existing "taskRemindersJourney" in `tests/task-reminders-journey.mjs` and "callPrioritiesJourney" in `tests/call-priorities-journey.mjs` retain manager and capacity proof. | Fundraiser, finance and volunteer roles, portfolio scoping, wider confidential-data authority, additional read-only capabilities and the complete TEAM-001 action, document, export, API, webhook, household, acknowledgment and charging matrices remain owed. The conservative owner or admin managed restriction for current active native members is adopted under the standing scope policy; TEAM-001 remains partial pending ct approval of the interim authority semantics. DEV-001 wider finance and confidential authority, its interim policy and nightly QuickBooks comparison remain held; COMM-004 broader staff authority and existing account, ct, Base, device and gate-loop holds remain unchanged. This slice grants no charging, sending, confidential-data or export authority and establishes no provider qualification. |
 | `TEAM-002` | Single sign-on and two-step sign-in | target | partial | `src/modules/operator-auth/identity/oidc` | Base sign-in supports an OIDC provider; requiring SSO and a second factor are not offered in Coffer. |
 | `TEAM-003` | Audit log | target | done | `src/coffer/audit.ts`, `src/coffer/ui/audit.ts`, `migrations/core/0041_coffer_audit.sql`, `migrations/core/0043_coffer_access_audit.sql`, `tests/audit.test.mjs` |  |
