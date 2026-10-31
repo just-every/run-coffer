@@ -185,7 +185,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/agent-*.test.mjs tests/stewardship.test.mjs"
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=2 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/agent-*.test.mjs tests/stewardship.test.mjs"
       ]
     },
     {
