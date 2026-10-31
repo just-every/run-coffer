@@ -1,3 +1,5 @@
+import { createNativePlan, nativeCreateState, nativePlan, nativePlans, changeNativePlan } from './installments'
+import { installmentCreatePage, installmentsPage } from './installments-ui'
 import { peerResponse } from '../peer/http'
 import { publicPage } from '../peer/service'
 import { publicMembershipResponse } from '../memberships/http'
@@ -127,7 +129,21 @@ export async function givingResponse(request: Request, original: Bindings): Prom
 
 /** Called after the native staff session has supplied its current authority. */
 export async function staffPlanResponse(request:Request,c:Context):Promise<Response|null>{
- const url=new URL(request.url),match=url.pathname.match(/^\/(app|api\/coffer)\/giving\/plans(?:\/([^/]+))?$/)
+ const url=new URL(request.url),native=url.pathname.match(/^\/(app|api\/coffer)\/giving\/installments(?:\/([^/]+))?$/)
+ if(native){
+  requireRole(c.actor,['owner','admin'],'manage native recurring plans');originGuard(request,c.env!)
+  const api=native[1]==='api/coffer',id=native[2]?decodeURIComponent(native[2]):undefined
+  if(request.method==='GET'){
+   const donorId=url.searchParams.get('donorId')??''
+   if(id==='new')return api?Response.json(await nativeCreateState(c,donorId),{headers}):page('Prepare monthly plan',await installmentCreatePage(c,donorId),c.actor)
+   return api?Response.json(id?await nativePlan(c,id):{plans:await nativePlans(c)},{headers}):page('Native monthly plans',await installmentsPage(c,id),c.actor)
+  }
+  if(request.method!=='POST')fail('method_not_allowed','Use POST.',405)
+  const raw=await givingBody(request),input=api?JSON.parse(raw):Object.fromEntries(new URLSearchParams(raw))
+  const result=!id||id==='new'?await createNativePlan(c,input):await changeNativePlan(c,id,input)
+  return api?Response.json(result,{headers}):givingRedirect('/app/giving/installments/'+encodeURIComponent(result.id))
+ }
+ const match=url.pathname.match(/^\/(app|api\/coffer)\/giving\/plans(?:\/([^/]+))?$/)
  if(!match)return null
  requireRole(c.actor,['owner','admin'],'manage recurring plans')
  originGuard(request,c.env!)

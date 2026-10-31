@@ -11,7 +11,7 @@ import { requireSavedCardConsent, savedCardConsent } from './saved-card-consent'
 
 const staff=(c:Context)=>requireRole(c.actor,['owner','admin'],'create recurring plans')
 const live=`d.erased_at IS NULL AND d.constituent_status='active' AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)`
-async function donorAccount(c:Context,donorId:string){
+export async function donorAccount(c:Context,donorId:string){
  staff(c)
  const donor=await one(c,`SELECT d.id,d.version,d.name,d.email FROM cf_donors d WHERE d.id=? AND ${live}`,donorId)
  if(!donor)fail('DONOR_UNAVAILABLE','Choose a current constituent record.',404)
@@ -21,7 +21,7 @@ async function donorAccount(c:Context,donorId:string){
  if(await one(c,'SELECT 1 FROM cf_subscriptions WHERE customer_id=? AND donor_id<>?',customerId,donor.id))fail('CUSTOMER_AMBIGUOUS','Separate the shared Stripe customer before starting a plan.',409)
  return {donor,customerId}
 }
-async function savedMethod(c:Context,customerId:string){
+export async function savedMethod(c:Context,customerId:string){
  const customer=await stripe(c.env as GivingEnv,'customers/'+encodeURIComponent(customerId))
  if(customer.id!==customerId||customer.deleted)fail('CUSTOMER_UNAVAILABLE','The saved Stripe customer is no longer available.',409)
  if(customer.discount||(Array.isArray(customer.discounts)&&customer.discounts.length)||customer.balance||Object.values(customer.invoice_credit_balance??{}).some(value=>value!==0)||customer.currency&&customer.currency!=='usd')fail('CUSTOMER_BILLING_REVIEW','Review customer discounts, balances and currency at Stripe before starting a plan.',409)
@@ -48,7 +48,7 @@ export async function staffPlanCreateState(c:Context,donorId:string){
  await commit(c,[])
  return {donor,customerId,...method,cardConsent,version:await versionOf(donor,customerId,{...method,consentId:cardConsent?.status==='granted'?cardConsent.id:null}),campaigns,sources,pending}
 }
-async function authorization(c:Context,donorId:string,reference:string,channel:string):Promise<{snapshot:string;guard:Stmt}>{
+export async function authorization(c:Context,donorId:string,reference:string,channel:string):Promise<{snapshot:string;guard:Stmt}>{
  const [kind,id,...rest]=reference.split(':')
  if(rest.length||!id||!['interaction','document'].includes(kind))fail('INPUT','Choose a recorded phone call or attached authorization document.',400)
  if(channel==='mail'&&kind!=='document')fail('AUTHORIZATION_REQUIRED','A mailed authorization requires an attached document.',400)

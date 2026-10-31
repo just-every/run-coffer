@@ -1,3 +1,4 @@
+import { reconcileNativePayment } from '../giving/installments'
 import { bankCheckoutState } from '../giving/bank-checkout'
 import { pledgeSessionForCharge } from '../pledge-checkout'
 import { identify, recordGift } from '../giving/recording'
@@ -17,11 +18,15 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
  if (saved) return saved
  const charge = await stripe(env, '/charges/' + encodeURIComponent(chargeId))
  if (charge.status !== 'succeeded' || !charge.paid) return null
+ if(charge.metadata?.coffer_installment || await one(c,'SELECT id FROM cf_native_installments WHERE payment_intent_id=?',stripeId(charge.payment_intent))){
+  await reconcileNativePayment(env,stripeId(charge.payment_intent),charge)
+  return one(c,'SELECT * FROM cf_stripe_charges WHERE id=?',chargeId)
+ }
  if (charge.currency !== 'usd') fail('currency', 'Only USD payments can be reconciled.', 409)
  if(charge.metadata?.coffer_pledge_checkout)await pledgeSessionForCharge(env,charge.metadata.coffer_pledge_checkout)
  const gross = cents(charge.amount), customerId = stripeId(charge.customer), pi = stripeId(charge.payment_intent)
  const refs = [charge.id, pi, stripeId(charge.invoice)].filter(Boolean)
- const savedIntent = customerId ? await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.customer_id=? ORDER BY i.created_at DESC LIMIT 1', customerId) : null
+ const savedIntent = customerId ? await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.customer_id=? AND i.native_plan_id IS NULL ORDER BY i.created_at DESC LIMIT 1', customerId) : null
  // Newer Stripe versions keep the recurring invoice association on InvoicePayment.
  const givingCustomer = customerId && await one(c, 'SELECT donor_id FROM cf_giving_customers WHERE customer_id=?', customerId)
  if ((givingCustomer || savedIntent) && pi) {
@@ -37,6 +42,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
    const payment = await stripe(env, '/payment_intents/' + encodeURIComponent(pi))
    if (payment.metadata?.coffer_intent) intent = await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', payment.metadata.coffer_intent)
   }
+  if(intent?.native_plan_id)fail('PAYMENT_HELD','Native installment payments require their exact durable claim.',409)
   if(intent?.payment_method==='us_bank_account'){
    const capture=await one(c,'SELECT fund FROM cf_giving_form_intents WHERE intent_id=?',intent.id)
    intent={...intent,fund:capture?.fund??intent.fund}

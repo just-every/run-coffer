@@ -1,3 +1,4 @@
+import { reconcileNativePayment } from './installments'
 import { bankCheckoutState, recoverBankSession } from './bank-checkout'
 import { syncEntry } from '../payments/entries'
 import { recordMembershipPayment } from '../memberships/service'
@@ -74,6 +75,7 @@ export async function webhook(env: GivingEnv, request: Request, raw: string) {
   if (saved) await completed(env, object.id)
   else await completePledgeCheckout(env,object.id)
  } else if(event.type==='checkout.session.async_payment_failed') {
+  await reconcileNativePayment(env,object.id)
   const bank=await one({db:env.DB},"SELECT session_id FROM cf_giving_intents WHERE session_id=? AND payment_method='us_bank_account'",object.id)
   if(bank)await completed(env,object.id)
   await checkoutFailure(env,object.id)

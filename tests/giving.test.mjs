@@ -268,7 +268,7 @@ test('GIVE-007: address bursts pause giving, alert administrators and count veri
  const {givingProtectionJourney}=await import('./giving-protection-journey.mjs');await givingProtectionJourney()
 })
 
-test('GIVE-003: recurring schedules preserve three clocked installments, receipts, actual fees and provenance',async()=>{const {recurringPlansJourney}=await import('./recurring-plans-journey.mjs');await recurringPlansJourney()})
+test('GIVE-003: recurring schedules preserve three clocked installments, receipts, actual fees and provenance',async()=>{const {recurringPlansJourney}=await import('./recurring-plans-journey.mjs');await recurringPlansJourney();const {nativeInstallmentsJourney}=await import('./native-installments-journey.mjs');await nativeInstallmentsJourney()})
 
 test('CAMP-002: hosted gala tickets preserve receipt benefits, phone attendance, scoring and custody',async()=>{const {fundraisingEventsJourney}=await import('./fundraising-events-journey.mjs');await fundraisingEventsJourney()})
 
