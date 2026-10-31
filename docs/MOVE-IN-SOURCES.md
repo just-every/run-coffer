@@ -1,14 +1,14 @@
 # Move in from a CRM
 
-Open **More → Move in from a CRM** in Coffer. Choose where you are moving from, add your export files, preview them and compare totals before anything changes. The page lists each CRM's export steps; this guide adds the detail behind them. It was checked against each vendor's public documentation on 17 October 2026.
+Open **More → Move in from a CRM** in Coffer. Choose where you are moving from, add your export files, preview them and compare totals before anything changes. The installation checklist links to ordered guides for all six incumbents. The configured CSV report reference below was checked against vendor documentation on 17 October 2026; the supported Neon and Givebutter reads and Zeffy history door are described separately below.
 
-These are the report layouts Coffer reads. Your account may label a column a little differently; Coffer matches common variants. The review lists every filled column it cannot use, so nothing is dropped without you seeing it. Record IDs stay as text, including leading zeroes. Coffer reads the files itself; it never asks for your CRM password and never connects to the CRM.
+These are the report layouts Coffer reads. Your account may label a column a little differently; Coffer matches common variants. The review lists every filled column it cannot use, so nothing is dropped without you seeing it. Record IDs stay as text, including leading zeroes. Coffer reads uploaded files itself and never asks for your CRM password. The optional Neon and Givebutter read forms use a supplied API key for that read only; the key is not retained.
 
 ## Export steps at a glance
 
 | Moving from | File 1: people | File 2: gifts | Optional |
 | --- | --- | --- | --- |
-| Little Green Light | **Constituents → All constituents → Export results → Customize**; select fields, then **Save Export** as CSV | **Home → Reports → Gift/Pledge Reports → Full Export -- CSV**; edit a copy for all years, then **Save Export** | Constituent search → **Export results → Customize → Relationships (csv only)** |
+| Little Green Light | **Constituents → All constituents → Export results → Customize**; select fields, then **Save Export** as CSV | **Home → Reports → Gift&#47;Pledge Reports → Full Export -- CSV**; edit a copy for all years, then **Save Export** | Constituent search → **Export results → Customize → Relationships (csv only)** |
 | Bloomerang | **Reports** → new **Constituent** report → **Export** | **Reports** → new **Transactions** report, all dates → **Export** | **Reports** → **Notes** report |
 | Raiser's Edge NXT | Database view → **Export** → **New export** → **Constituent** type, one row per record, **Include header** → **Export now** as CSV | Same with the **Gift** export type | Relationships export |
 
@@ -154,3 +154,124 @@ supplying current credentials and the source-linked review file. Preview
 includes parent gifts, designation allocations and reviewed open opportunities;
 unsupported source objects and incomplete pagination refuse the read. This
 does not establish full NXT parity, live OAuth qualification or vault transfer.
+
+## Ordered switching guides
+
+In **Move in from your CRM**, choose the incumbent under **Installation checklist**.
+Each numbered step opens its section in the built installation guide. The public
+reference is this page; the installation guide also shows supported doors and
+unavailable work without treating documentation as completed work.
+
+### Little Green Light switching order
+
+1. **Export and import history:** Constituents → All constituents → Export results → Customize, then Save Export. For gifts: Home → Reports → Gift&#47;Pledge Reports → Full Export -- CSV; include all years. Export relationships using Relationships (csv only). Follow the detailed column reference above, preview, resolve blocking rows and approve the supported import.
+2. **Request the PCI transfer:** identify the processor behind LGL Forms and use the direct-transfer request below. An LGL export does not transfer a vault.
+3. **Upload Stripe mapping files:** preserve every card and ACH mapping in the shapes below. Upload and validation remain unavailable.
+4. **Review name mapping:** compare constituent name parts, salutations and addressee unchanged; gift-report labels link by ID.
+5. **Review custom field mapping:** explicitly map configured custom columns and inspect their native values. Full LGL field and category definition parity remains owed.
+6. **Review current reconciliation:** check the journal against source counts and amounts, including an independent totals export. Recheck after changes.
+7. **Stop source plans:** the owner stops each plan at LGL Forms or the actual processor and independently confirms each stop before replacement charging. Coffer cannot confirm these stops.
+8. **Approve full cutover:** unavailable until the complete inventory, payment migration and plan-level stops are proven; importing history is not sign-off.
+9. **Choose bulk email:** use Mango or Mailchimp under current consent and solicitation rules; reading the guide establishes no connection or send.
+
+### Bloomerang switching order
+
+1. **Export and import history:** Reports → new Constituent report → Export; Reports → new Transactions report covering all dates → Export; optionally export Notes. Preserve Account Number and Transaction Number and use designation Amount, never repeated Payment Amount. This release supports configured CSV and XLSX reports; a REST history importer and complete source coverage remain owed.
+2. **Request the PCI transfer:** ask Bloomerang which processor holds the cards and bank accounts, then make the direct processor-to-Stripe request below.
+3. **Upload Stripe mapping files:** retain the card file and both applicable ACH shapes below. This upload door remains unavailable.
+4. **Review name mapping:** compare original constituent names, name parts, addressee and salutations with the actual donor records. Never infer a person from a gift label.
+5. **Review custom field mapping:** map exported columns explicitly to typed fields and inspect imported values and current definitions. Complete Bloomerang source-definition parity remains owed under MOVE-010.
+6. **Review current reconciliation:** compare gift counts and exact amounts by year, fund and donor, plus independent controls; inspect every difference and the acknowledgment cutoff. The checklist records only supported current controls.
+7. **Stop source plans:** the owner stops each original plan at its actual processor before its replacement first charges. No source-stop confirmation is available here.
+8. **Approve full cutover:** full owner sign-off remains unavailable; a name or field review is not that approval.
+9. **Choose bulk email:** Mango or Mailchimp replaces bulk email, with fresh consent, topic, frequency and solicitation checks before outbound work.
+
+### Raiser's Edge NXT switching order
+
+1. **Export and import history:** database view → Export → New export → Constituent; include headers and one row per record → Export now. Repeat with Gift and the relationship exports. Use the configured fields above. For supported SKY history, parent gifts, designation allocations and reviewed open opportunities, use the separate read-only NXT history form and the [Blackbaud source mappings and boundaries](./blackbaud-move-in.md). Unsupported source objects remain held.
+2. **Request the PCI transfer:** identify the processor holding each recurring plan and ask it and Stripe for the direct transfer below.
+3. **Upload Stripe mapping files:** retain every returned customer, card and bank mapping in the shapes below; upload and validation remain unavailable.
+4. **Review name mapping:** preserve primary addressee and salutation, linking by Constituent ID rather than display-name guesses.
+5. **Review custom field mapping:** review configured typed columns; complete constituent, gift and action definitions and code tables remain owed.
+6. **Review current reconciliation:** compare counts and signed amounts with independent source controls. Unsupported grouped gifts must be resolved before moving, never treated as reconciled cash.
+7. **Stop source plans:** stop and independently confirm each original at its processor before replacement charging; no confirmation door exists here.
+8. **Approve full cutover:** unavailable while full migration and source-stop proof remain missing.
+9. **Choose bulk email:** use Mango or Mailchimp with current permission checks. No connection or campaign is implied.
+
+### Neon CRM switching order
+
+1. **Read and import history:** an administrator opens Settings → Global Settings → User Management, selects or creates the API user and enables API access. Supply the organization ID and that user's API key in Read Neon history. Confirm USD only after checking the account. Review the supported accounts, pick-one account fields, fully paid donations, activities and paid event registrations; see the [Neon reference](/docs/neon-move-in). Memberships, pledges, recurring migration and remaining source objects are unsupported. The [Neon API reference](https://developer.neoncrm.com/api-v2/) describes the network boundary.
+2. **Request the PCI transfer:** identify the processor behind Neon Pay, then arrange its direct transfer to Stripe below.
+3. **Upload Stripe mapping files:** keep every card and ACH mapping below. This upload and validation door is unavailable.
+4. **Review name mapping:** inspect account name parts and unchanged salutations beside the imported donor records.
+5. **Review custom field mapping:** inspect supported pick-one account definitions and values. Donation and activity fields and remaining definition parity stay owed.
+6. **Review current reconciliation:** compare supported paid cash and controls with the complete Neon inventory. Unsupported objects were not fetched and cannot be counted as cash or inferred complete.
+7. **Stop source plans:** the owner stops each plan in Neon or its actual processor before replacement charging; no source-stop confirmation exists here.
+8. **Approve full cutover:** full sign-off is unavailable while omitted objects and payment migration remain unresolved.
+9. **Choose bulk email:** use Mango or Mailchimp with current channel and solicitation checks; no campaign is created by this guide.
+
+### Givebutter switching order
+
+1. **Read and import history:** Settings → Integrations → API → create an API key, then paste it into Read Givebutter history. Check a known source amount before choosing cents or USD dollars. Review contacts, transactions, campaigns and recurring references; attach source evidence for facts absent from the API. See the [history reference](/docs/platform-history) and [Givebutter API documentation](https://docs.givebutter.com/). The read changes no source plan.
+2. **Request the PCI transfer:** ask Givebutter which processor holds each payment method, then use the direct request below.
+3. **Upload Stripe mapping files:** preserve each card and ACH mapping below. Stored processor references never substitute for this unavailable upload and validation.
+4. **Review name mapping:** compare contact first and last names with native donor names and source IDs.
+5. **Review custom field mapping:** explicitly map custom-question columns and inspect native values. Unmapped or unsupported questions remain incomplete.
+6. **Review current reconciliation:** compare gift totals and independent campaign and fee controls. Recurring references are evidence, never active replacement schedules.
+7. **Stop source plans:** the owner stops each plan at the actual processor before its replacement first charges; Coffer cannot confirm the stop.
+8. **Approve full cutover:** unavailable until complete migration and owner approval exist.
+9. **Choose bulk email:** Mango or Mailchimp handles bulk email; connection, qualification and sending remain separate reviewed work.
+
+### Zeffy switching order
+
+1. **Export and import history:** Contacts → export; Payments → select the complete date range → Export. Choose Zeffy in Coffer and upload both reports with stable contact and payment IDs. Use one row per payment, USD currency and completed payment states; use the configured [history columns](/docs/platform-history) when headings differ. The [Zeffy export instructions](https://support.zeffy.com/export-or-download-all-payments-or-tickets-associated-with-a-specific-form-u0tyj) describe payment exports. Unsupported states and missing source IDs block review.
+2. **Request the PCI transfer:** ask Zeffy to identify the processor and coordinate the direct Stripe transfer below. Do not assume portability or a completed transfer.
+3. **Upload Stripe mapping files:** preserve every applicable card and ACH mapping. The upload and validation door is unavailable.
+4. **Review name mapping:** inspect source first and last names and their native donor records, linked by Contact ID.
+5. **Review custom field mapping:** explicitly map supported custom questions to typed fields; inspect values. Unsupported source definitions remain owed.
+6. **Review current reconciliation:** compare source payment counts and amounts, campaign totals, fees and receipt history. An absent fact stays unknown.
+7. **Stop source plans:** the owner stops and independently confirms each old plan before replacement charging; no confirmation door exists here.
+8. **Approve full cutover:** full sign-off remains unavailable, independent of successful history imports.
+9. **Choose bulk email:** use Mango or Mailchimp under current consent and solicitation checks. This documentation establishes no send.
+
+### Direct processor-to-Stripe request and required mapping shapes
+
+Ask the incumbent to identify the processor holding each card or ACH mandate.
+Ask that processor and Stripe's data migration team to transfer the encrypted
+card numbers and bank routing and account numbers **directly to the nonprofit's
+own Stripe account**. Never give those numbers to Coffer. Follow
+[Stripe's migration process](https://docs.stripe.com/get-started/data-migrations).
+Request all post-import mappings and verify the destination account with Stripe.
+
+| Returned file | Required source and destination identifiers |
+| --- | --- |
+| Card mapping, CSV or JSON | Old customer ID and old card ID to new Stripe customer ID and card payment-method ID |
+| ACH mapping, CSV or JSON, payment-method shape | Old customer ID and old bank ID to new Stripe customer ID and bank payment-method ID |
+| ACH mapping, CSV or JSON, bank-account shape | Old customer ID and old bank ID to new Stripe customer ID and bank-account ID |
+
+These are semantic shapes, not a released Coffer upload schema. Keep every file
+Stripe returns. Pair them with the source recurring-plan export: plan and donor
+IDs, amount, frequency, fund, campaign, next charge date and historical
+installments. ACH also needs the source debit authorization reference, date and
+method. MOVE-009 still owes actual upload, validation, vault matching,
+replacement schedules, missing-method review and the exact charge sequence.
+Nothing in a guide, history import or checklist tick proves any transfer.
+
+### What the installation checklist proves
+
+Only the current owner or admin may review installation evidence. Completed
+history derives from a durable finished import. Name and field reviews bind to
+that import and the current native records and definitions. Current
+reconciliation is computed again from native records against retained source
+controls; its review binds to that result. Changed records, erased donors,
+changed definitions, new selected files or an undone import require a new review.
+Unmapped values and unsupported work remain visibly incomplete. Reviews survive
+reload and ordinary archive restore as historical reviews; restored native
+state is checked again before showing completion. No credential or donor text
+is stored in checklist reviews.
+
+The checklist never accepts a manual completion flag for PCI transfer, mapping
+files, source stops, full cutover sign-off or bulk email readiness. Those steps
+remain unavailable or incomplete until their actual doors and proof exist.
+The owner must stop each old plan before its replacement first charges; Coffer
+never cancels an original plan and this change starts no replacement charge.

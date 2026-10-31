@@ -425,3 +425,8 @@ test('MOVE-003: reviewed SKY history preserves parent cash, designation splits, 
  const {blackbaudJourney}=await import('./blackbaud-journey.mjs')
  await blackbaudJourney()
 })
+
+test('MOVE-011: switching guides and durable installation reviews follow current import evidence without claiming cutover',async()=>{
+ const {moveInGuideJourney}=await import('./move-in-guide-journey.mjs')
+ await moveInGuideJourney()
+})
