@@ -9,9 +9,15 @@ const publicIp=type=>type===1?'93.184.216.34':'2606:4700:4700::1111'
 const normal=q=>dnsAnswer(q,[dnsRecord(q.name,q.type,publicIp(q.type))])
 const endpoint='https://receiver.example.test/network'
 
+// A truncated response must not qualify even if its received JSON is parseable.
+const framed=async(q,delta)=>{
+ const body=await normal(q).text(),length=new TextEncoder().encode(body).length
+ return new Response(body,{headers:{'content-type':'application/dns-json','content-length':String(length+delta)}})
+}
+
 /** Native subscription, gift, minute Cron and log readback; only network edges are faked. */
 export async function webhookNetworkJourney(){
- let answer=normal,block,receiverStatus=204,clock='2026-10-27T12:00:00.000Z'
+ let answer=q=>framed(q,0),block,receiverStatus=204,clock='2026-10-27T12:00:00.000Z'
  const submitted=[],resolved=[],probe=(point,output)=>console.log('PROBE API-002 '+point+': native subscription, gift, minute Cron and log -> '+output)
  await run(async h=>{
   const options=()=>({headers:{'x-test-now':clock}})
@@ -83,6 +89,8 @@ export async function webhookNetworkJourney(){
    ['missing family','dns_incomplete',q=>q.type===1?normal(q):dnsAnswer(q,[])],
    ['malformed negative authority','dns_malformed',q=>q.type===1?normal(q):dnsAnswer(q,[],{Authority:[dnsRecord('example.test',6,'invalid..example.test. hostmaster.example.test. 1 3600 600 86400 60')]})],
    ['unavailable family','dns_unavailable',q=>q.type===1?normal(q):new Response('synthetic-coffer-private-resolver-body',{status:503})],
+   ['truncated public A response','dns_unavailable',q=>q.type===1?framed(q,1):normal(q)],
+   ['truncated public AAAA response','dns_unavailable',q=>q.type===28?framed(q,1):normal(q)],
    ['NXDOMAIN','dns_unavailable',q=>dnsAnswer(q,[],{Status:3})],
    ['resolver failure','dns_unavailable',()=>{throw Error('synthetic-coffer-private-resolver-error')}],
    ['resolver redirect','dns_unavailable',()=>new Response(null,{status:302,headers:{location:'https://redirect.example.test/private'}})],
@@ -95,9 +103,9 @@ export async function webhookNetworkJourney(){
    assert.equal(row.last_status,null,label);assert.equal(attempts.length,1,label)
    assert.equal(attempts[0].failure_code,code,label);assert.equal(attempts[0].http_status,null,label)
    assert.equal(submitted.length,count,label+' sends no target request')
-   refusals.push({id:row.id,code})
+   refusals.push({id:row.id,code,label})
   }
-  probe('refusals','private IPv4 and IPv6, retired 6bone, mixed answers, unsafe chains and incomplete, malformed or unavailable resolution refused')
+  probe('refusals','private IPv4 and IPv6, retired 6bone, mixed answers, unsafe chains and incomplete, malformed or unavailable resolution refused, including truncated A and AAAA responses')
   const logs=JSON.stringify(await state())
   for(const privateValue of ['127.0.0.1','fd00::1','synthetic-coffer-private-resolver','93.184.216.34','2606:4700'])assert.equal(logs.includes(privateValue),false,'Readback retains no answers or network diagnostics')
   if(process.env.COFFER_WEBHOOK_BROWSER)await webhooksNetworkBrowser(h,process.env.COFFER_WEBHOOK_BROWSER,refusals)

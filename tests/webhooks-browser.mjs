@@ -253,7 +253,8 @@ export async function webhooksNetworkBrowser(h,directory,refusals){
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
     for(const [code,meaning] of outcomes){
-     const id=refusals.find(item=>item.code===code).id,delivery=row(page,'delivery',id)
+     const selected=code==='dns_unavailable'?refusals.find(item=>item.label==='truncated public A response'):refusals.find(item=>item.code===code)
+     const delivery=row(page,'delivery',selected.id)
      if(width===1440){
       assert.ok((await delivery.innerText()).includes(meaning+' No target request was sent.'),'The refusal log explains '+code)
       assert.equal(await delivery.getByText('HTTP',{exact:false}).count(),0,'DNS refusal does not invent an HTTP status')
@@ -265,6 +266,9 @@ export async function webhooksNetworkBrowser(h,directory,refusals){
     const sample=row(page,'delivery',refusals.find(item=>item.code==='dns_nonpublic').id)
     await sample.scrollIntoViewIfNeeded()
     await sample.screenshot({path:`${directory}/API-002-network-refusal-${width}.png`})
+    const truncated=row(page,'delivery',refusals.find(item=>item.label==='truncated public A response').id)
+    await truncated.scrollIntoViewIfNeeded()
+    await truncated.screenshot({path:`${directory}/API-002-truncated-resolution-${width}.png`})
    }
   }finally{await page.close()}
  })
