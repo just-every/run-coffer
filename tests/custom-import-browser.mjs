@@ -68,7 +68,7 @@ export async function sourceCaptureBrowser(h,id,directory,apiKey='synthetic-coff
    await page.setViewportSize({width,height:1000})
    if(organizationId){
     await page.goto(origin+'/app/move-in/crm')
-    await page.locator('select[name=source]').selectOption('neon')
+    await page.locator('form[action="/app/move-in/crm/preview"] select[name=source]').selectOption('neon')
     await page.locator('input[name=neonExportCurrency]').check()
     await page.screenshot({path:directory+'/MOVE-010-export-confirmation-'+width+'.png',fullPage:true})
    }
