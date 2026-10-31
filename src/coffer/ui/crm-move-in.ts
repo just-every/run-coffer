@@ -3,7 +3,7 @@ import { customCaptureForm } from './custom-import-review'
 import type { ParsedContact } from '../move-in/types'
 import type { Row } from '../db'
 import { area, box, chip, e, empty, field, guide, hidden, longDay, money, select, when } from './common'
-import { exportSteps } from './crm-export-steps'
+import { exportSteps, sourceOptions, switchGuideUrl } from './crm-export-steps'
 
 export const sources:[string,string][]=Object.entries(importSourceNames)
 const name=(source:string)=>sources.find(([key])=>key===source)?.[1]||source
@@ -49,7 +49,8 @@ export function crmMoveInPage(jobs:Row[],tz:string,definitions:Row[]=[]) {
  <p class="muted">Include the constituent and gift exports, plus relationships, pledges, soft credits and notes if you have them. Workbooks can contain several sheets. One move-in takes up to 16 MB of files and 100,000 rows, about 10,000 donors with 80,000 gifts. Larger? Split the gift export by year and move the years in oldest first, uploading constituents.csv again with each year’s file; donors and pledges already moved in are matched by their CRM ID, not copied.</p>
  ${restrictionMapping()}${customMapping('',{customDefinitions:definitions})}<label><input type="checkbox" name="noGoodsOrServices" value="yes"> All gifts without a recorded goods value were donations with no goods or services in return.</label>
  <p class="muted">Leave this unticked if you are unsure. Those gifts wait for a goods answer before a receipt.</p><button>Preview exports</button></form>`)}
- </div><div>${box('Export from your CRM',`<p>Open your CRM’s steps below. Each export needs the record IDs, so gifts find their donors.</p>${exportSteps()}<p><a href="${sourceGuide}">CRM move-in guide</a> covers pledges, soft credits, households and total checks in more detail.</p>`)}
+ </div><div>${box('Switching guides',`<ol class="list">${sourceOptions.map(([key,label])=>`<li><a href="${switchGuideUrl(key)}">Switch from ${e(label)}</a></li>`).join('')}</ol>`)}
+ ${box('Export from your CRM',`<p>Open your CRM’s steps below. Each export needs the record IDs, so gifts find their donors.</p>${exportSteps()}<p><a href="${sourceGuide}">CRM move-in guide</a> covers pledges, soft credits, households and total checks in more detail.</p>`)}
  ${box('Prepare the switch',`<ol class="steps"><li>Export the files above, keeping the record ID columns.</li><li>Check the counts and the gift totals by year, fund and donor against your CRM.</li><li>Fix every row the review marks “Must fix” (it lists them all and downloads them as a spreadsheet), or say why a difference is fine.</li><li>Move it in. Large exports go in parts of about 800 records; Coffer checks the totals again at the end. Undo removes everything this move-in added while nobody has used it yet.</li></ol><p>Exports move history. They do not move stored cards or start or stop recurring charges. Keep the old system until your cutover is complete.</p><p><a href="/app/move-in">Move in from Stripe</a></p>`)}
  ${box('Recent CRM imports',jobs.length?`<ul class="list">${jobs.map(j=>`<li><a href="/app/move-in/crm/${j.state==='reviewed'?'review':'journal'}?id=${e(j.id)}">${e(name(j.source))} · ${j.state==='completed'?'Moved in':j.state==='applying'?`Part ${j.applied_parts} of ${j.parts}`:j.state==='reviewed'?(j.can_apply===0?'Rows to fix':'Reviewed'):'Undone'}</a> · ${when(j.created_at,tz)}</li>`).join('')}</ul>`:empty('No CRM exports imported yet.'))}</div></div>`
 }
