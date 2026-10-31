@@ -72,6 +72,7 @@ export async function webhookNetworkJourney(){
    ['malformed address','dns_malformed',q=>dnsAnswer(q,[dnsRecord(q.name,q.type,q.type===1?'999.1.2.3':publicIp(q.type))])],
    ['wrong question','dns_malformed',q=>dnsAnswer({...q,name:'foreign.example.test'},[dnsRecord(q.name,q.type,publicIp(q.type))])],
    ['missing family','dns_incomplete',q=>q.type===1?normal(q):dnsAnswer(q,[])],
+   ['malformed negative authority','dns_malformed',q=>q.type===1?normal(q):dnsAnswer(q,[],{Authority:[dnsRecord('example.test',6,'invalid..example.test. hostmaster.example.test. 1 3600 600 86400 60')]})],
    ['unavailable family','dns_unavailable',q=>q.type===1?normal(q):new Response('synthetic-coffer-private-resolver-body',{status:503})],
    ['NXDOMAIN','dns_unavailable',q=>dnsAnswer(q,[],{Status:3})],
    ['resolver failure','dns_unavailable',()=>{throw Error('synthetic-coffer-private-resolver-error')}],
