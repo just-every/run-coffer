@@ -107,6 +107,8 @@ export async function stewardshipSourcesJourney(){
    await h.api(route('draft'),{donorId:people[0].id,kind:'impact'},options)
    await h.api(route('save'),{...people[0].draft,subject:'Refused',body:'Refused'},options)
    await h.api(route('send'),{...people[0].draft,confirm:'SEND'},options)
+   await h.api(route('schedule'),{...people[0].draft,dueOn:'2026-10-30',confirm:'SCHEDULE'},options)
+   await h.api(route('cancel'),{...people[0].draft,taskVersion:1,confirm:'CANCEL'},options)
   }
   assert.equal(calls.length,authorityCalls,'Refused roles cannot disclose sources to the model')
   assert.equal(h.messages.length,authorityMail,'Refused roles submit no email')

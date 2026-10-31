@@ -173,4 +173,6 @@ test('DEV-011: monthly development reports cite their sources and require exact 
 test('DEV-004: donor-linked attendance and private replies ground three reviewed notes with authority, freshness and custody',async()=>{
  const {stewardshipSourcesJourney}=await import('./stewardship-sources-journey.mjs')
  await stewardshipSourcesJourney()
+ const {stewardshipTouchesJourney}=await import('./stewardship-touches-journey.mjs')
+ await stewardshipTouchesJourney()
 })
