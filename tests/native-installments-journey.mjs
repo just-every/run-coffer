@@ -46,6 +46,10 @@ export async function nativeInstallmentsJourney(){
   await tick('2026-05-20T12:00:00.000Z');assert.equal(state.debits,3,'Resume never charges missed months')
   if(process.env.COFFER_NATIVE_INSTALLMENTS_BROWSER)await mkdir(process.env.COFFER_NATIVE_INSTALLMENTS_BROWSER,{recursive:true})
   await nativeInstallmentsBrowser(h,edge,{id,person:first.person,directory:process.env.COFFER_NATIVE_INSTALLMENTS_BROWSER})
+  await first.card('withdrawn')
+  await tick('2026-06-10T12:00:00.000Z')
+  assert.equal(state.debits,3,'Withdrawing card permission stops an already approved scheduled installment')
+  assert.equal((await get(root+'/'+id)).installments.at(-1).state,'blocked')
   await instruction(id,'cancel');await tick('2026-06-10T12:00:00.000Z');assert.equal(state.debits,3)
   // Current approver authority is rechecked after the durable claim and slow card read.
   const admin=await h.person(address(8104),'admin'),authority=await prepare(),authorityId=(await api(root,authority.body)).id
