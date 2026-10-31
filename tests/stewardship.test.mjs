@@ -143,7 +143,7 @@ test('stewardship uses real cited records, protects the key, and only sends an e
   calls.push(call)
   let output
   if (input.requestedStatus) output = { status:'connected' }
-  else if (input.subject) output = { assessment:unsupported?'The claimed outcome is absent from the records.':'The current contribution and fund support the note.',supported:!unsupported,sourceIds:[input.sources.find(s=>s.kind==='gift' && s.facts.current_amount_cents>0).id,input.sources.find(s=>s.kind==='fund' && s.facts.current_amount_cents>0).id] }
+  else if (input.subject) output = { assessment:unsupported?'The claimed outcome is absent from the records.':'The current contribution and fund support the note.',supported:!unsupported,isAsk:false,sourceIds:[input.sources.find(s=>s.kind==='gift' && s.facts.current_amount_cents>0).id,input.sources.find(s=>s.kind==='fund' && s.facts.current_amount_cents>0).id] }
   else {
    const gift = input.sources.find(s => s.kind === 'gift' && s.facts.current_amount_cents>0)
    const fund = input.sources.find(s => s.kind === 'fund' && s.facts.current_amount_cents>0)
@@ -168,4 +168,9 @@ test('DEV-006: schedule, day-ahead source-linked brief, existing research bounda
 test('DEV-011: monthly development reports cite their sources and require exact director approval before submission',async()=>{
  const {developmentReportJourney}=await import('./development-report-journey.mjs')
  await developmentReportJourney()
+})
+
+test('DEV-004: donor-linked attendance and private replies ground three reviewed notes with authority, freshness and custody',async()=>{
+ const {stewardshipSourcesJourney}=await import('./stewardship-sources-journey.mjs')
+ await stewardshipSourcesJourney()
 })
