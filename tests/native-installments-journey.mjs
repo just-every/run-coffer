@@ -11,6 +11,32 @@ const address=n=>'synthetic-coffer-'+n+String.fromCharCode(64)+'example.test'
 /** Only Stripe and mail are substituted. Every schedule, approval, clock tick,
  * ledger read and custody operation uses Coffer's actual public doors. */
 export async function nativeInstallmentsJourney(){
+ await nativeFixture(async({edge,prepare,api,root,instruction,tick,state,get,deliver,payments})=>{
+  const prepared=await prepare(),id=(await api(root,prepared.body)).id
+  edge.state.now='2026-02-09T12:00:00.000Z'
+  await instruction(id,'approve')
+  assert.equal(state.debits,1,'Delayed approval charges only the confirmed first installment')
+  const approved=await get(root+'/'+id)
+  assert.deepEqual(approved.installments.map(i=>i.due_on),['2026-02-09'])
+  assert.equal(approved.plan.next_due_on,'2026-03-09','The monthly schedule starts at approval, not preparation')
+  await tick('2026-02-10T12:00:00.000Z')
+  await tick('2026-03-08T12:00:00.000Z')
+  assert.equal(state.debits,1,'Neither the old preparation boundary nor an early tick submits another debit')
+  await Promise.all([tick('2026-03-09T12:00:00.000Z'),tick('2026-03-09T12:00:00.000Z')])
+  assert.equal(state.debits,2,'The next approved monthly date submits exactly one installment')
+  for(const payment of payments.values())await deliver('payment_intent.succeeded',payment.id)
+  const scheduled=await get(root+'/'+id),history=await get('/api/coffer/donors/'+prepared.person.id)
+  assert.deepEqual(scheduled.installments.map(i=>[i.due_on,i.state]),[['2026-02-09','paid'],['2026-03-09','paid']])
+  assert.equal(scheduled.plan.next_due_on,'2026-04-09')
+  assert.deepEqual(history.gifts.map(g=>g.amount_cents),[2500,2500])
+  assert.equal(history.letters.length,2)
+  assert.equal(state.debits,2,'Payment event replay cannot move the schedule or charge again')
+  await tick('2026-05-08T12:00:00.000Z')
+  assert.equal(state.debits,3)
+  assert.equal((await get(root+'/'+id)).plan.next_due_on,'2026-06-09','A late tick skips the nearby boundary instead of catching up')
+  await tick('2026-05-09T12:00:00.000Z')
+  assert.equal(state.debits,3,'A late installment cannot be followed by another debit the next day')
+ })
  return nativeFixture(async({h,edge,state,payments,transactions,headers,get,api,command,form,root,tick,deliver,prepare,instruction,secret,campaign,member,outbound})=>{
   const first=await prepare(),before=state.debits
   await api(root,first.body,{as:member.cookie,status:403});await api(root,{...first.body,confirm:'no'},{status:400})
@@ -79,6 +105,8 @@ export async function nativeInstallmentsJourney(){
   const debitCount=state.debits
   await Promise.all([tick('2026-07-10T12:00:00.000Z'),tick('2026-07-10T12:00:00.000Z')]);assert.equal(state.debits,debitCount)
   const pi=[...payments.values()].at(-1)
+  await deliver('payment_intent.succeeded',pi.id)
+  assert.equal((await get('/api/coffer/donors/'+pending.person.id)).gifts.length,1,'A verified PaymentIntent event reconciles the held native payment')
   await instruction(pendingId,'reconcile',{paymentIntentId:pi.id});await instruction(pendingId,'reconcile',{paymentIntentId:pi.id});assert.equal(state.debits,debitCount)
   assert.equal((await get('/api/coffer/donors/'+pending.person.id)).gifts.length,1)
   await instruction(pendingId,'cancel')

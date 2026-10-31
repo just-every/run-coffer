@@ -55,7 +55,7 @@ const vendor: Record<ImportSource, Record<string, string[]>> = {
   acknowledgmentOptOut: ['Do Not Acknowledge', 'Do Not Acknowledge?', 'Do Not Acknowledge via LGL'],
  },
  bloomerang: { communicationRestrictions: ['Communication Restrictions', 'Communication Restriction'], tributeHonoree: ['Tribute'], tributeType: ['Tribute Type'], hasTribute: ['Has Tribute'], name: ['Name', 'Full Name', 'Constituent Name'], softName: ['Donor Name', 'Soft Credit Name(s)'], donorId: ['Account Number', 'Constituent ID'], giftId: ['Transaction Number', 'Transaction ID'] },
- 're-nxt': { communicationRestrictions: ['Solicit Codes', 'Solicit Code', 'Constituent Solicit Codes'], tributeHonoree: ['Tribute Honoree'], tributeType: ['Tribute Type'], donorId: ['Constituent ID', 'Constituent System Record ID'], giftId: ['Gift ID', 'Gift System Record ID'],
+ 're-nxt': { tributeGroup:['Tribute Group'],tributeNotifiedName:['Tribute Recipient Name'],tributeNotifiedAddress:['Tribute Recipient Address'],emailPreference:['Email Preference'],mailPreference:['Mail Preference'],smsPreference:['SMS Preference'],phonePreference:['Phone Preference'],preferenceDate:['Preference Date'], communicationRestrictions: ['Solicit Codes', 'Solicit Code', 'Constituent Solicit Codes'], tributeHonoree: ['Tribute Honoree'], tributeType: ['Tribute Type'], donorId: ['Constituent ID', 'Constituent System Record ID'], giftId: ['Gift ID', 'Gift System Record ID'],
   acknowledgmentReference: ['Acknowledgment Reference', 'Acknowledgement Reference', 'Acknowledgment Letter', 'Acknowledgement Letter', 'Acknowledgment Letter ID', 'Acknowledgement Letter ID', 'Linked Acknowledgment Letter', 'Linked Acknowledgement Letter'],
  },
 }

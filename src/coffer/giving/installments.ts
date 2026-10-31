@@ -13,9 +13,9 @@ const staff=(c:Context)=>requireRole(c.actor,['owner','admin'],'manage native re
 const day=(at:string)=>at.slice(0,10)
 const system=(env:GivingEnv,now=new Date().toISOString()):Context=>({db:env.DB,env,now,actor:{id:'native-installments',name:'Coffer installments',role:'agent'},authority:{sql:'1',params:[]}})
 /** Preserve the original day across short months; resumption always skips debt. */
-function futureDue(after:string,anchor:number) {
+function futureDue(after:string,anchor:number,nextMonth=false) {
  const at=new Date(after+'T00:00:00Z')
- for(let offset=0;offset<2;offset++){
+ for(let offset=nextMonth?1:0;offset<2;offset++){
   const month=at.getUTCMonth()+offset,year=at.getUTCFullYear(),last=new Date(Date.UTC(year,month+1,0)).getUTCDate()
   const candidate=new Date(Date.UTC(year,month,Math.min(anchor,last))).toISOString().slice(0,10)
   if(candidate>after)return candidate
@@ -86,8 +86,10 @@ export async function changeNativePlan(c:Context,id:string,input:Row){
  const version=p.version+1,active=action==='approve'||action==='resume'
  const owner=await one(c,"SELECT version FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin')",c.actor.id)
  const due=action==='resume'?futureDue(day(c.now),p.anchor_day):action==='approve'?day(c.now):p.next_due_on
+ // The immediate first installment establishes the approved monthly anchor.
+ const anchor=action==='approve'?Number(day(c.now).slice(8)):p.anchor_day
  await commit(c,[...(active?checks:[]),guard('EXISTS(SELECT 1 FROM cf_native_plans WHERE id=? AND version=?)','VERSION','The plan changed.',id,p.version),
-  sql('UPDATE cf_native_plans SET version=?,next_due_on=? WHERE id=?',version,due,id),
+  sql('UPDATE cf_native_plans SET version=?,next_due_on=?,anchor_day=? WHERE id=?',version,due,anchor,id),
   sql('DELETE FROM cf_native_plan_approvals WHERE plan_id=?',id),
   ...(active?[sql('INSERT INTO cf_native_plan_approvals VALUES(?,?,?,?,?)',id,version,c.actor.id,owner!.version,c.now)]:[]),
   sql("UPDATE cf_portal_subscription_settings SET collection_paused=?,observed_at=? WHERE subscription_id=?",active?0:1,c.now,id),
@@ -163,7 +165,7 @@ export async function reconcileNativePayment(env:GivingEnv,paymentId:string,supp
  await env.DB.batch([
   env.DB.prepare('INSERT OR IGNORE INTO cf_stripe_charges VALUES(?,?,0,?)').bind(charge.id,giftId,c.now),
   env.DB.prepare("UPDATE cf_native_installments SET state='paid',gift_id=?,checked_at=? WHERE id=?").bind(giftId,c.now,id),
-  env.DB.prepare('UPDATE cf_native_plans SET next_due_on=? WHERE id=? AND next_due_on=?').bind(futureDue(day(c.now),p.anchor_day),p.id,claim.due_on),
+  env.DB.prepare('UPDATE cf_native_plans SET next_due_on=? WHERE id=? AND next_due_on=?').bind(futureDue(day(c.now),p.anchor_day,true),p.id,claim.due_on),
   env.DB.prepare("UPDATE cf_subscriptions SET status=CASE WHEN status='past_due' AND NOT EXISTS(SELECT 1 FROM cf_native_installments WHERE plan_id=? AND state<>'paid') THEN 'active' ELSE status END,recovered=CASE WHEN EXISTS(SELECT 1 FROM cf_recurring_payment_health WHERE invoice_id=?) THEN 1 ELSE recovered END,updated_at=? WHERE id=?").bind(p.id,claim.id,c.now,p.id)])
  await env.DB.prepare('UPDATE cf_recurring_payment_health SET recovered_at=COALESCE(recovered_at,?) WHERE invoice_id=?').bind(new Date(charge.created*1000).toISOString(),claim.id).run()
  await syncEntry(env,txn)

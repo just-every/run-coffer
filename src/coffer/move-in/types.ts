@@ -9,17 +9,17 @@ export type SourceLocation = { file: string; sheet: string; row: number }
 export type Diagnostic = Partial<SourceLocation> & { severity: 'error' | 'warning'; code: string; message: string; column?: string }
 export type UnmappedValue = SourceLocation & { column: string; value: string; reason: string }
 export type CustomImportKind = 'constituent' | 'gift' | 'pledge' | 'interaction' | 'note'
-export type CustomImportMapping = { source: ImportSource; column: string; sheet?: string; key: string; label: string; kind: CustomImportKind; type: 'text'|'number'|'currency'|'date'|'year'|'checkbox'; entry: 'free-form'|'pick-one'|'pick-many'; choices: string[]; version?: number }
-export type ImportedCustomValue = { mapping: CustomImportMapping; value: string; original: string; location: SourceLocation }
+export type CustomImportMapping = { source: ImportSource; column: string; sourceDefinitionId?:string; sheet?: string; key: string; label: string; kind: CustomImportKind; type: 'text'|'number'|'currency'|'date'|'year'|'checkbox'; entry: 'free-form'|'pick-one'|'pick-many'; choices: string[]; version?: number }
+export type ImportedCustomValue = { mapping: CustomImportMapping; sourceMetadata?: Record<string,unknown>[]; value: string; original: string; location: SourceLocation }
 export type Located = { location: SourceLocation; customValues?: ImportedCustomValue[] }
-export type ParsedContact={externalId:string;kind:'email'|'phone'|'address';type:string;value:string;primary:boolean;startsOn:string|null;endsOn:string|null}
+export type ParsedContact={active?:boolean;source?:string;sourceOn?:string;externalId:string;kind:'email'|'phone'|'address';type:string;value:string;primary:boolean;startsOn:string|null;endsOn:string|null}
 export type ParsedDonor = Located & {
  expectedNativeId?:string; match?:{id:string;version:number}; contacts?:ParsedContact[]; externalId: string; name: string; email: string; phone: string; addressLine1: string; addressLine2: string
  city: string; region: string; postalCode: string; country: string; householdKey: string; householdName: string
  firstName: string; lastName: string; prefix?: string; middleName?: string; suffix?: string; nickname?: string; constituentStatus?: string; deceasedOn?: string; statusReason?: string; informalName?: string; formalName?: string; envelopeName?: string; recognitionName?: string; organization: boolean
 }
 export type ParsedGift = Located & {
- platform?: {feeCents:number;campaignId:string;campaignName:string}; externalId: string; donorExternalId: string; receivedOn: string; amountCents: number; fund: string
+ designations?:{externalId:string;fund:string;amountCents:number;campaign:string;appeal:string}[]; platform?: {feeCents:number;campaignId:string;campaignName:string}; externalId: string; donorExternalId: string; receivedOn: string; amountCents: number; fund: string
  campaign: string; appeal?: string; channel?: string; checkReference?: string; method: string; note: string; pledgeExternalId: string; installmentExternalId?: string; noGoodsOrServices: boolean; goodsCents: number | null; goodsDescription: string; tribute?: ParsedTribute; acknowledgment?: ParsedAcknowledgment
 }
 export type ParsedTribute = { kind: 'honor' | 'memory'; honoree: string; notifiedName?: string; notifiedEmail?: string; notifiedAddress?: string; sourceGroup?: string }
@@ -42,9 +42,11 @@ export type ControlTotal = Located & {
 export type SolicitCodeRule = { type: 'stop' | 'channels' | 'limit' | 'ignore'; channels?: ('email'|'mail'|'phone'|'sms')[]; maxAsks?: number }
 export type ParsedSolicitation = Located & { externalId:string; donorExternalId:string; type:'stop'|'channels'|'limit'; channels:string[]; maxAsks:number|null; sourceOn:string; codes:string[] }
 export type ParsedWithdrawal = Located & { externalId:string; donorExternalId:string; channel:'email'|'mail'|'phone'|'sms'; sourceOn:string; codes:string[]; status?:'granted'|'withdrawn'|'unknown' }
-export type ParsedRecurringReference = Located & {externalId:string;donorExternalId:string;amountCents:number;frequency:string;status:string;method:string;campaign:string;nextOn:string|null;customerReference:string|null;paymentMethodReference:string|null}
-export type SourceCoverage = { currency?:string; counts:Record<string,number>; unsupported:string[] }
-export type ParsedImport = { sourceCoverage?:SourceCoverage;
+export type ParsedRecurringReference = Located & {fund?:string;appeal?:string;schedule?:{startsOn:string;endsOn:string|null};externalId:string;donorExternalId:string;amountCents:number;frequency:string;status:string;method:string;campaign:string;nextOn:string|null;customerReference:string|null;paymentMethodReference:string|null}
+export type ParsedOpportunity = Located & {closedOn?:string;giftExternalId?:string;pledgeExternalId?:string;sourceInactive?:boolean;sourceFundraisers?:string[];externalId:string;donorExternalId:string;label:string;stage:string;stageVersion?:number;stageLabel?:string;ownerName?:string;sourceStage:string;ownerId:string;ownerVersion:number;askAmountCents:number;expectedAmountCents:number;probability:number;fund:string;sourceCampaign:string;expectedCloseOn:string;nextStep:string}
+export type ParsedTask = Located & {externalId:string;donorExternalId:string;ownerId:string;ownerVersion:number;ownerName?:string;title:string;dueOn:string;kind:'call'|'meeting'|'follow_up';prospectExternalId?:string;sourceCategory:string}
+export type SourceCoverage = { provider?:string; currency?:string; counts:Record<string,number>; unsupported:string[] }
+export type ParsedImport = { tasks?:ParsedTask[];definitionMappings?:CustomImportMapping[]; opportunities?:ParsedOpportunity[]; sourceCoverage?:SourceCoverage;
  columnDefinitions?:SourceDefinition[];columnMappings?:FieldMapping[];
  recurringReferences?:ParsedRecurringReference[];
  spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[]; sourceColumns?: {column:string;sheet:string;kind:string}[]; source: ImportSource; solicitations?: ParsedSolicitation[]; channelWithdrawals?: ParsedWithdrawal[]; solicitCodes?: Record<string,SolicitCodeRule>; donors: ParsedDonor[]; gifts: ParsedGift[]; households: ParsedHousehold[]
@@ -53,6 +55,6 @@ export type ParsedImport = { sourceCoverage?:SourceCoverage;
  sourceTotals: ImportTotals; mappedTotals: ImportTotals; controlTotals: ControlTotal[]
  files: { name: string; bytes: number; sheets: string[]; rows: number }[]
 }
-export type ParseInput = { deferCustomValues?:boolean; neonExportCurrency?:string; neon?:{organizationId:string;apiKey:string;currency?:string}; givebutterKey?:string; givebutterAmountUnit?:'cents'|'dollars'; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
+export type ParseInput = { blackbaud?:{accessToken:string;subscriptionKey:string}; deferCustomValues?:boolean; neonExportCurrency?:string; neon?:{organizationId:string;apiKey:string;currency?:string}; givebutterKey?:string; givebutterAmountUnit?:'cents'|'dollars'; matchedDonors?:Record<string,{id:string;name:string}>; spreadsheet?:SpreadsheetMapping; customFields?: CustomImportMapping[] | string; source: ImportSource; files: ExportFile[]; noGoodsOrServices?: boolean; solicitCodes?: Record<string,SolicitCodeRule> }
 export type Cell = string | number | boolean | Date | null
 export type Table = { file: string; sheet: string; rows: Cell[][] }

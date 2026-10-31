@@ -1,6 +1,6 @@
 import { engagementScores } from './engagement'
 import { requireRole } from './auth'
-import { all, commit, date, event, fail, guard, id, integer, newId, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
+import { all, commit, date, event, fail, guard, id, integer, newId, one, optional, sql, text, today, type Context, type Row, type Stmt } from './db'
 import { amount } from './money'
 import { settings } from './settings'
 import { opportunityStages, saveOpportunityStages } from './opportunity-stages'
@@ -29,7 +29,7 @@ export async function majorGiftCommand(c: Context, command: string, p: Row): Pro
  const version = existingId ? integer(Number(p.version), 'Prospect version', 1) : 0
  const statements = [liveDonor(donorId),
   guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND opportunity_stages_version=?)', 'VERSION', 'Pipeline stages changed. Refresh before saving.', policy.version),
-  guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member'))", 'OWNER_CHANGED', 'Choose an active owner, admin or member as the prospect owner.', ownerId)]
+  opportunityOwnerGuard(ownerId)]
  if (campaignId) statements.push(guard('EXISTS(SELECT 1 FROM cf_campaigns WHERE id=? AND fund=?)', 'CAMPAIGN_CHANGED', 'Choose a campaign for this opportunity’s fund.', campaignId, fund))
  if (existingId) statements.push(
   guard('EXISTS(SELECT 1 FROM cf_prospects WHERE id=? AND donor_id=? AND version=? AND closed_on IS NULL)', 'VERSION', 'This prospect changed or is closed. Refresh before saving your changes.', prospectId, donorId, version),
@@ -95,4 +95,31 @@ export async function opportunityPipeline(c: Context, url: URL) {
 export function majorGiftMergeStatements(sourceId: string, targetId: string): Stmt[] {
  if (sourceId === targetId) fail('INPUT', 'Choose two different donors to merge.', 400)
  return [liveDonor(targetId), sql('UPDATE cf_prospects SET donor_id=?,version=version+1 WHERE donor_id=?', targetId, sourceId)]
+}
+
+/** The reviewed import uses the same stage, close-link and current-owner boundaries as
+ * native entry. Source amounts remain promises, never ledger cash. */
+export async function importedOpportunity(c:Context,o:import('./move-in/types').ParsedOpportunity,donorId:string,links:{giftId?:string;pledgeId?:string}={}) {
+ const policy=await opportunityStages(c),stage=policy.stages.find(s=>s.id===o.stage)
+ if(!stage)fail('INPUT','Map the source opportunity to an existing pipeline stage.',400)
+ const closedOn=o.closedOn?date(o.closedOn,'Source close date'):null
+ if(stage.outcome==='open'&&(closedOn||o.giftExternalId||o.pledgeExternalId)||stage.outcome!=='open'&&!closedOn||closedOn&&closedOn>today((await settings(c)).timezone,new Date(c.now)))fail('INPUT','Source stage, close date and gift or pledge links must agree.',400)
+ if(stage.outcome==='won'&&(!!o.giftExternalId===!!o.pledgeExternalId)||stage.outcome==='lost'&&(o.giftExternalId||o.pledgeExternalId))fail('INPUT','A won source opportunity needs one received gift or pledge; a lost opportunity has neither.',400)
+ if(o.stageVersion!==undefined&&o.stageVersion!==policy.version)fail('VERSION','Pipeline settings changed after source review. Preview SKY again.',409)
+ o.stageVersion??=policy.version
+ const ownerId=id(o.ownerId,'Reviewed opportunity owner'),version=integer(Number(o.ownerVersion),'Reviewed owner version',1)
+ const owner=await one(c,"SELECT id,version,display_name FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member')",ownerId)
+ if(!owner||owner.version!==version)fail('OWNER_CHANGED','The reviewed opportunity owner changed. Read and review SKY again.',409)
+ o.ownerName=owner.display_name;o.stageLabel=stage.label
+ const ask=amount({amountCents:o.askAmountCents},'amount','Source ask amount',{allowZero:true}),expected=amount({amountCents:o.expectedAmountCents},'amount','Source expected amount',{allowZero:true})
+ const probability=integer(Number(o.probability),'Reviewed probability (%)',0,100)
+ const checks=[guard('EXISTS(SELECT 1 FROM cf_settings WHERE id=1 AND opportunity_stages_version=?)','VERSION','Pipeline stages changed. Preview SKY again.',policy.version),opportunityOwnerGuard(ownerId,version)]
+ if(links.giftId)checks.push(guard(`EXISTS(SELECT 1 FROM cf_gift_balances g WHERE g.id=? AND g.donor_id=? AND g.kind='gift' AND g.net_cents>0 AND EXISTS(SELECT 1 FROM cf_fund_ledger f WHERE f.gift_id=g.id AND f.fund=? AND f.amount_cents>0))`,'GIFT_CHANGED','The source opportunity needs its received gift in the same constituent and fund.',links.giftId,donorId,o.fund),guard('NOT EXISTS(SELECT 1 FROM cf_prospects WHERE gift_id=?)','LINK_USED','The source gift already closes an opportunity.',links.giftId))
+ if(links.pledgeId)checks.push(guard('EXISTS(SELECT 1 FROM cf_pledges WHERE id=? AND donor_id=? AND fund=?)','PLEDGE_CHANGED','The source opportunity needs its pledge in the same constituent and fund.',links.pledgeId,donorId,o.fund),guard('NOT EXISTS(SELECT 1 FROM cf_prospects WHERE pledge_id=?)','LINK_USED','The source pledge already closes an opportunity.',links.pledgeId))
+ return {checks,row:{donor_id:donorId,label:text(o.label,'Opportunity name',200),stage:stage.id,owner_id:ownerId,ask_amount_cents:ask,expected_amount_cents:expected,probability_percent:probability,fund:text(o.fund,'Source fund',100),campaign_id:null,expected_close_on:date(o.expectedCloseOn,'Source expected close date'),next_step:text(o.nextStep+(o.sourceCampaign?'\nSource campaign: '+o.sourceCampaign:''),'Source next step',2000),version:1,created_at:c.now,created_by:c.actor.id,updated_at:c.now,updated_by:c.actor.id,pledge_id:links.pledgeId??null,gift_id:links.giftId??null,closed_on:closedOn}}
+}
+
+/** Native entry and source review enforce the same live owner boundary. */
+export function opportunityOwnerGuard(ownerId:string,version?:number):Stmt {
+ return guard(`EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin','member')${version===undefined?'':' AND version=?'})`,'OWNER_CHANGED','Choose a current active owner, admin or member; refresh a changed source review.',ownerId,...(version===undefined?[]:[version]))
 }
