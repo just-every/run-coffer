@@ -1,7 +1,7 @@
 import { all, CofferError, commit, event, fail, guard, one, sha256, sql, type Context, type Row } from '../../db'
 import type { PaymentsEnv } from '../pantry'
 import { QboFailure, qboRequest, type QboConnection } from './client'
-import { qboConnection } from './connection'
+import { qboConnection, qboReadGuard } from './connection'
 import { prepareDeposit, verifyDocument } from './deposits'
 
 export const qboPostings = (c: Pick<Context, 'db'>, kind: string, id: string) => all(c, `SELECT * FROM cf_qbo_postings WHERE (kind=? AND source_id=?) OR (kind='adjustment' AND source_id IN (SELECT entry_id FROM cf_payout_entries WHERE payout_id=?)) ORDER BY kind,source_id`, kind, id, kind === 'payout' ? id : '')
@@ -46,7 +46,7 @@ export async function postDeposit(c: Context, env: PaymentsEnv, kind: string, id
 /** Independent read only; never recovers, confirms or submits a saved request. */
 export async function readPosting(c: Context, conn: QboConnection, row: Row) {
  if (row.realm_id !== conn.realm || Boolean(row.sandbox) !== conn.sandbox || row.client_id !== conn.clientId) fail('QBO_COMPANY', 'Reconnect the QuickBooks company that owns these entries.', 409)
- const current = () => commit(c, [guard('EXISTS(SELECT 1 FROM cf_qbo_connection WHERE id=1 AND realm_id=? AND sandbox=? AND client_id=?)', 'QBO_CONNECTION_CHANGED', 'The QuickBooks connection changed. Read again with current authority.', conn.realm, conn.sandbox ? 1 : 0, conn.clientId)])
+ const current = () => commit(c, [qboReadGuard(conn)])
  await current()
  const response = await qboRequest(conn, row.entity.toLowerCase() + '/' + encodeURIComponent(row.external_id))
  await current()

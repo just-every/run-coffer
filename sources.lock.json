@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a92a6ff417810e3890a766a4c2b5e3f8faf90af73fd42f1ebfd1a79af36d034d",
+      "sha256": "82d5e5e437b5a366766e6d3ac92841cc8a1c01da49db001426bc720b918dcc39",
       "executable": false
     },
     "deploy-demo.json": {
@@ -639,7 +639,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "5021ffc33f8900651590725a29d67644994fbdcd8befcdb5b1eeb24a5a10577d",
+      "sha256": "6cac0db0eb8907cde98248c1e945a486c47cca6158e251679d20e7aac351fa3b",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -3099,7 +3099,7 @@
       "executable": false
     },
     "src/coffer/agent/reconcile-quickbooks.ts": {
-      "sha256": "6da351a49436ef42d92308d2e70776528367b56a6bd4c5efafdf7a72e32d225e",
+      "sha256": "3bd854db059bf2ab37019f67cd777de6193863accbfd5d3ce16aeb4b319a9532",
       "executable": false
     },
     "src/coffer/agent/reconcile-scan.ts": {
@@ -3111,7 +3111,7 @@
       "executable": false
     },
     "src/coffer/agent/reconciliation.ts": {
-      "sha256": "44f47e7803a03f6fe5fdf789fe8193b5832e819b164b348df7528f60415ef5d2",
+      "sha256": "c2777aa655b7210d17ba366f165a9c029ab24858b7d523545e86602b71146d77",
       "executable": false
     },
     "src/coffer/agent/recovery-notices-rules.ts": {
@@ -4291,11 +4291,11 @@
       "executable": false
     },
     "src/coffer/payments/quickbooks/client.ts": {
-      "sha256": "e56555a79f5e414e4c49357f0fb0e2c0035e9d5e1c84e79ed6738538596557ea",
+      "sha256": "03716844710bce9ed70509c67c844960c2b5a2bac2f315192502ad348de1f0db",
       "executable": false
     },
     "src/coffer/payments/quickbooks/connection.ts": {
-      "sha256": "ab1826c202b9ce6ce903ee959c29a021df8fe6114eb24c86ee5d1246a7587c84",
+      "sha256": "5ed8a0594da2b6445887e3221774397f5a70c92975b375fe97d2af64bf920db9",
       "executable": false
     },
     "src/coffer/payments/quickbooks/deposits.ts": {
@@ -4307,7 +4307,7 @@
       "executable": false
     },
     "src/coffer/payments/quickbooks/postings.ts": {
-      "sha256": "af55a4db09b30c9ebcb427b0cdbc5f456a3feda7d0328ad4580c9f01c3b0915a",
+      "sha256": "c820b7e5ead6b67dc3571efbd4de08305a5a9e2c9ff81fac4fb22b9cbad46bd0",
       "executable": false
     },
     "src/coffer/payments/quickbooks/ui.ts": {
@@ -7147,7 +7147,7 @@
       "executable": false
     },
     "tests/agent-quickbooks-journey.mjs": {
-      "sha256": "0bb5932bd9333ab8336aa307253345e48baf433176982c8bfc4296305c410a8e",
+      "sha256": "b59defb8b3a88e70156042b406f7b453fe5741871343ad448c314de92f7c1036",
       "executable": false
     },
     "tests/agent-receipts.test.mjs": {

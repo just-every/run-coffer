@@ -19,15 +19,19 @@ export async function reconciliationData(c: Context) {
  const rows = await all(c,`SELECT * FROM cf_agent_issues WHERE (?=1 OR kind NOT LIKE 'quickbooks_%') ORDER BY CASE state WHEN 'open' THEN 0 ELSE 1 END,found_at DESC,id DESC LIMIT 100`,c.actor.role==='owner'?1:0)
  return { quickbooksRun:c.actor.role==='owner'?await one(c,"SELECT * FROM cf_agent_runs WHERE job='reconciliation.quickbooks'"):null, lastRun:await one(c,"SELECT * FROM cf_agent_runs WHERE job='reconciliation'"), issues:rows.map((r):Row=>({...r,evidence:JSON.parse(r.evidence),proposed:JSON.parse(r.proposed)})) }
 }
-async function save(c: Context, finding: Finding) {
+async function findingStatement(c: Context, finding: Finding): Promise<Stmt> {
  const hash=await fingerprint(finding)
- await commit(c,[sql(`INSERT INTO cf_agent_issues(id,source_id,kind,state,summary,why,evidence,proposed,fingerprint,found_at)
+ return sql(`INSERT INTO cf_agent_issues(id,source_id,kind,state,summary,why,evidence,proposed,fingerprint,found_at)
   VALUES(?,?,?,'open',?,?,?,?,?,?) ON CONFLICT(source_id,kind) WHERE state='open' DO UPDATE SET
   summary=excluded.summary,why=excluded.why,evidence=excluded.evidence,proposed=excluded.proposed,fingerprint=excluded.fingerprint,found_at=excluded.found_at`,
-  newId(),finding.sourceId,finding.kind,finding.summary,finding.why,JSON.stringify(finding.evidence),JSON.stringify(finding.proposed),hash,c.now)])
+  newId(),finding.sourceId,finding.kind,finding.summary,finding.why,JSON.stringify(finding.evidence),JSON.stringify(finding.proposed),hash,c.now)
 }
+async function save(c: Context, finding: Finding) {
+ await commit(c,[await findingStatement(c,finding)])
+}
+const resolveFindings = (sourceId:string,kinds:string[],findings:Finding[]) => sql(`UPDATE cf_agent_issues SET state='resolved' WHERE state='open' AND source_id=? AND kind IN (SELECT value FROM json_each(?)) AND kind NOT IN (SELECT value FROM json_each(?))`,sourceId,JSON.stringify(kinds),JSON.stringify(findings.map(f=>f.kind)))
 async function observed(c: Context, sourceId:string, kinds:string[], findings:Finding[]) {
- await commit(c,[sql(`UPDATE cf_agent_issues SET state='resolved' WHERE state='open' AND source_id=? AND kind IN (SELECT value FROM json_each(?)) AND kind NOT IN (SELECT value FROM json_each(?))`,sourceId,JSON.stringify(kinds),JSON.stringify(findings.map(f=>f.kind)))])
+ await commit(c,[resolveFindings(sourceId,kinds,findings)])
  for(const finding of findings) await save(c,finding)
 }
 const review=(sourceId:string,kind:string,summary:string,why:string,evidence:Row,detail:string):Finding=>({sourceId,kind,summary,why,evidence,proposed:{action:'review',detail}})
@@ -83,13 +87,15 @@ export async function runReconciliation(c:Context,env:PaymentsEnv) {
 }
 /** Owner review is distinct from existing scheduled checks and accounting writes. */
 export async function runQuickbooksReconciliation(c: Context, env: PaymentsEnv) {
- const { observations, ...summary } = await scanQuickbooks(c, env)
+ const { observations, guards, ...summary } = await scanQuickbooks(c, env)
+ const statements: Stmt[] = [...guards]
  for (const observation of observations) {
-  if (observation.complete) await observed(c, observation.sourceId, quickbooksKinds, observation.findings)
-  else for (const finding of observation.findings) await save(c, finding)
+  if (observation.complete) statements.push(resolveFindings(observation.sourceId, quickbooksKinds, observation.findings))
+  for (const finding of observation.findings) statements.push(await findingStatement(c, finding))
  }
  const activity = activityStatement(c, { kind: 'reconciliation.quickbooks', subjectId: 'quickbooks', summary: `Checked ${summary.checkedSources} QuickBooks sources and ${summary.checkedDocuments} documents; comparison ${summary.complete ? 'complete' : 'incomplete'}.`, why: 'Independent reads only. Existing accounting approvals and uncertain-result recovery remain in Payments.' })
- await commit(c, [sql("INSERT INTO cf_agent_runs(job,at,summary) VALUES('reconciliation.quickbooks',?,?) ON CONFLICT(job) DO UPDATE SET at=excluded.at,summary=excluded.summary", c.now, JSON.stringify(summary)), activity.statement])
+ // Findings and run completion publish together under the exact read authority.
+ await commit(c, [...statements, sql("INSERT INTO cf_agent_runs(job,at,summary) VALUES('reconciliation.quickbooks',?,?) ON CONFLICT(job) DO UPDATE SET at=excluded.at,summary=excluded.summary", c.now, JSON.stringify(summary)), activity.statement])
  return { ...summary, ...await reconciliationData(c) }
 }
 function contribution(c:Context,proposal:Row,change:Correction,id:string):Stmt {

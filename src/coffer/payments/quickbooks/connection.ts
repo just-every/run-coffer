@@ -40,14 +40,19 @@ export async function qboConnection(c: Context, env: PaymentsEnv): Promise<QboCo
  const row = await one(c, 'SELECT * FROM cf_qbo_connection WHERE id=1')
  if (!row) fail('QBO_CONNECTION', 'Connect QuickBooks in Settings first.', 409)
  if (row.client_id !== env.QBO_CLIENT_ID) fail('QBO_APPLICATION', 'Reconnect using the original QuickBooks application before recovering its accounting entries.', 409)
- let tokens = await openGiving(env, row.sealed)
+ let sealed = row.sealed
+ let tokens = await openGiving(env, sealed)
  if (Date.parse(row.expires_at) <= Date.parse(c.now) + 60_000) {
   const fresh = await tokenRequest(env, new URLSearchParams({ grant_type: 'refresh_token', refresh_token: tokens.refresh }))
   tokens = { access: fresh.access_token, refresh: fresh.refresh_token }
-  await commit(c, [guard('EXISTS(SELECT 1 FROM cf_qbo_connection WHERE id=1 AND version=?)', 'QBO_CONNECTION_CHANGED', 'The QuickBooks connection changed. Retry with the current connection.', row.version), sql('UPDATE cf_qbo_connection SET sealed=?,expires_at=?,version=version+1 WHERE id=1', await sealGiving(env, tokens), new Date(Date.parse(c.now) + fresh.expires_in * 1000).toISOString())])
+  sealed = await sealGiving(env, tokens)
+  await commit(c, [guard('EXISTS(SELECT 1 FROM cf_qbo_connection WHERE id=1 AND version=? AND sealed=?)', 'QBO_CONNECTION_CHANGED', 'The QuickBooks connection changed. Retry with the current connection.', row.version, row.sealed), sql('UPDATE cf_qbo_connection SET sealed=?,expires_at=?,version=version+1 WHERE id=1', sealed, new Date(Date.parse(c.now) + fresh.expires_in * 1000).toISOString())])
  }
- return { realm: row.realm_id, sandbox: Boolean(row.sandbox), clientId: row.client_id, token: tokens.access }
+ return { realm: row.realm_id, sandbox: Boolean(row.sandbox), clientId: row.client_id, token: tokens.access, sealed }
 }
+/** The randomized sealed value changes on reconnect, even for the same company.
+ * It stays internal and fences an old read across disconnect and reconnection. */
+export const qboReadGuard = (conn: QboConnection) => guard('EXISTS(SELECT 1 FROM cf_qbo_connection WHERE id=1 AND realm_id=? AND sandbox=? AND client_id=? AND sealed=?)', 'QBO_CONNECTION_CHANGED', 'QuickBooks authority changed. Start a fresh comparison; earlier exceptions remain unchanged.', conn.realm, conn.sandbox ? 1 : 0, conn.clientId, conn.sealed)
 export async function qboSettings(c: Context) {
  return { connection: await one(c, 'SELECT realm_id,sandbox,connected_at FROM cf_qbo_connection WHERE id=1'), mapping: await one(c, 'SELECT * FROM cf_qbo_mapping WHERE id=1'), funds: await all(c, `SELECT name FROM cf_funds UNION SELECT fund AS name FROM cf_fund_ledger ORDER BY name`) }
 }

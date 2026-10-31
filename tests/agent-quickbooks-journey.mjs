@@ -11,13 +11,14 @@ export async function agentQuickbooksJourney(){
  const edge=quickbooksEdge(),bindings={QBO_CLIENT_ID:'synthetic-coffer-1701',QBO_CLIENT_SECRET:'synthetic-coffer-1702',QBO_SANDBOX:'true',STRIPE_SECRET_KEY:'synthetic-coffer-1801'}
  edge.expiresIn=3600
  const mutations=new Map(),reads=[]
- let readFailure=null,readOverride=null,readonly=false
+ let readFailure=null,readOverride=null,readonly=false,duringRead=null
  const outbound=async request=>{
   const u=new URL(request.url),accounting=u.hostname==='sandbox-quickbooks.api.intuit.com'
   if(accounting){
    if(readonly)assert.equal(request.method,'GET','The agent must never submit accounting entries')
    if(request.method==='GET'&&/\/(deposit|journalentry)\//.test(u.pathname)){
     reads.push(u.pathname)
+    if(duringRead){const change=duringRead;duringRead=null;await change()}
     if(readFailure)return Response.json({Fault:{Error:[{code:readFailure===404?'610':'synthetic-coffer-unavailable'}]}},{status:readFailure})
     if(readOverride)return Response.json(readOverride)
     const response=await edge.outbound(request),body=await response.json(),entity=u.pathname.includes('journalentry')?'JournalEntry':'Deposit'
@@ -139,6 +140,16 @@ export async function agentQuickbooksJourney(){
   await h.command('donor.erase',{donorId:d.id,confirm:'ERASE'})
   assert.equal((await h.api(check,{})).complete,true)
   assert.equal(JSON.stringify((await h.get('/api/coffer/agent/reconcile')).issues).includes('Synthetic Coffer Accounting'),false,'Replayed accounting observations cannot resurrect erased donor identity')
+  assert.equal(edge.requests.length,writes)
+  const beforeRevocation=await h.get('/api/coffer/agent/reconcile'),beforeInterruptedRead=reads.length
+  duringRead=async()=>{
+   await h.api(root+'/disconnect',{})
+   assert.equal((await connectQuickbooks(h,edge)).response.status,303)
+  }
+  await h.api(check,{}, {status:409})
+  assert.equal(reads.length,beforeInterruptedRead+1,'A replacement authorization stops the old read before another document is requested')
+  assert.deepEqual(await h.get('/api/coffer/agent/reconcile'),beforeRevocation,'A revoked comparison cannot publish findings or a clean result under a replacement connection')
+  assert.equal((await h.api(check,{})).complete,true,'The replacement connection can start a fresh independent comparison')
   assert.equal(edge.requests.length,writes)
   await h.api(root+'/disconnect',{})
   const beforeRevoked=reads.length
