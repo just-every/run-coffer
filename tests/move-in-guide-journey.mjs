@@ -101,4 +101,72 @@ export async function moveInGuideJourney(){
   assert.equal((await h.api(base+'/preview',input)).canApply,false,'A replay cannot resurrect erased import data or completion')
   assert.deepEqual(done(await get(h)),[])
  })
+ await reusedGuideEvidenceJourney()
+}
+
+// Importing another year reuses the first year's donor and custom-value custody.
+// Reviews must still show those names and fields through the installation door.
+async function reusedGuideEvidenceJourney(){
+ await run(async h=>{
+  await h.command('custom.define',{key:'guide_membership',label:'Source membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer']})
+  const input=year=>({source,customFields:[{source,column:'Custom membership',key:'guide_membership',label:'Source membership',kind:'constituent',type:'text',entry:'pick-one',choices:['Board','Volunteer'],version:1}],files:[
+   file('constituents.csv',[
+    ['Account Number','First Name','Middle Name','Last Name','Custom membership'],
+    ['synthetic-coffer-8111','Ava','Lee','Reed','Board'],
+   ]),
+   file('transactions.csv',[
+    ['Transaction Number','Account Number','Type','Date','Amount','Fund','Method','Non-deductible Amount'],
+    ['synthetic-coffer-'+year,'synthetic-coffer-8111','Donation',year+'-09-01','50','Library','Check','0'],
+   ]),
+  ]})
+  const first=await h.api(base+'/preview',input(2025))
+  assert.equal(first.canApply,true,JSON.stringify(first.diagnostics))
+  await h.api(base+'/apply',{id:first.id,fingerprint:first.fingerprint,acknowledged:'no'})
+  for(const step of ['names','fields','reconciliation'])await approve(h,await get(h),step)
+  const prior=await get(h)
+  assert.deepEqual(done(prior),['exports','names','fields','reconciliation'])
+  const next=await h.api(base+'/preview',input(2026))
+  assert.equal(next.canApply,true,JSON.stringify(next.diagnostics))
+  // Preview is not a completed installation; review cannot forge that state.
+  assert.deepEqual(done(await h.get(base+'/checklist?source='+source+'&id='+next.id)),[])
+  await approve(h,{...prior,jobId:next.id},'names',{status:409})
+  await h.api(base+'/apply',{id:next.id,fingerprint:next.fingerprint,acknowledged:'no'})
+  const current=await h.get(base+'/checklist?source='+source+'&id='+next.id)
+  assert.equal(current.imports.length,2)
+  assert.equal(current.nameCount,1,'The reused donor remains visible without a duplicate record')
+  assert.equal(current.names[0].original.name,'Ava Lee Reed')
+  assert.equal(current.mappings.length,1,'The earlier typed mapping is present once')
+  assert.equal(current.definitions[0].key,'guide_membership')
+  assert.equal(current.reconciliation.matches,true)
+  assert.ok(current.steps.find(s=>s.id==='names').available)
+  assert.ok(current.steps.find(s=>s.id==='fields').available,'Earlier imported values support current field review')
+  await approve(h,{...prior,jobId:next.id},'fields',{status:409})
+  for(const step of ['names','fields','reconciliation'])await approve(h,await h.get(base+'/checklist?source='+source+'&id='+next.id),step)
+  const reviewed=await h.get(base+'/checklist?source='+source+'&id='+next.id)
+  assert.deepEqual(done(reviewed),done(prior))
+  const people=(await h.get('/api/coffer/donors')).donors
+  assert.equal(people.length,1)
+  assert.equal((await h.get('/api/coffer/donors/'+people[0].id)).gifts.length,2)
+  const saved=await archive(h)
+  await run(async fresh=>{
+   await restore(fresh,saved)
+   const restored=await fresh.get(base+'/checklist?source='+source+'&id='+next.id)
+   assert.deepEqual(done(restored),done(reviewed))
+   assert.equal(restored.nameCount,1)
+   assert.equal(restored.mappings.length,1)
+   await fresh.api(base+'/undo',{id:next.id})
+   assert.deepEqual(done(await fresh.get(base+'/checklist?source='+source+'&id='+next.id)),[])
+   const remaining=await fresh.get(base+'/checklist?source='+source+'&id='+first.id)
+   assert.equal(remaining.imports.length,1)
+   assert.equal(remaining.nameCount,1)
+   assert.ok(remaining.steps.find(s=>s.id==='fields').available)
+   assert.equal(remaining.steps.find(s=>s.id==='fields').done,false,'Undo requires fresh review of the remaining installation')
+  })
+  await h.command('donor.erase',{donorId:people[0].id,confirm:'ERASE'})
+  const erased=await h.get(base+'/checklist?source='+source+'&id='+next.id)
+  assert.deepEqual(done(erased),[])
+  assert.deepEqual(erased.names,[])
+  assert.deepEqual(erased.mappings,[])
+  assert.equal((await h.api(base+'/preview',input(2026))).canApply,false)
+ })
 }
