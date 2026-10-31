@@ -4,6 +4,7 @@ import { prepareSolicitationRun, solicitationRunGuards } from './solicitation'
 import { askFlag, phoneHolds, withTaskRestrictions, completedAsk } from './solicitation-tasks'
 import { addDays, all, choice, commit, date, event, fail, guard, id, integer, longText, newId, one, optional, sql, today, type Context, type Row } from './db'
 import { requireRole } from './auth'
+import { stewardshipTaskGuards } from './agent/stewardship'
 import { settings } from './settings'
 import { lapses } from './lapses'
 import { annualLapses } from './annual-lapses'
@@ -82,7 +83,7 @@ export async function callTaskCommand(c: Context, command: string, p: Row): Prom
  const taskId = id(p.taskId, 'Task'), version = integer(p.version, 'Task version', 1)
  const task = await one(c, 'SELECT * FROM cf_call_tasks WHERE id=?', taskId)
  if (!task) fail('NOT_FOUND', 'That task no longer exists.', 404)
- const checks = [live(task.donor_id), guard("EXISTS(SELECT 1 FROM cf_call_tasks WHERE id=? AND version=? AND status<>'done')", 'TASK_CHANGED', 'This task changed or is already done. Refresh before saving.', taskId,version)]
+ const checks = [...await stewardshipTaskGuards(c, task, command, p), live(task.donor_id), guard("EXISTS(SELECT 1 FROM cf_call_tasks WHERE id=? AND version=? AND status<>'done')", 'TASK_CHANGED', 'This task changed or is already done. Refresh before saving.', taskId,version)]
  if (command === 'task.assign') {
   const ownerId = id(p.ownerId,'Owner'), due = date(p.dueOn,'Due date')
   await commit(c,[...checks,owner(ownerId),sql('UPDATE cf_call_tasks SET owner_id=?,due_on=?,version=version+1 WHERE id=?',ownerId,due,taskId),event(c,command,'task',taskId,task.donor_id,{ownerId,dueOn:due})])
