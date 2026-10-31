@@ -1,5 +1,5 @@
 import {prepareVerifiedMail} from './verified-mail-edge.mjs'
-import {test} from 'node:test'
+import {describe,test} from 'node:test'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {createHash} from 'node:crypto'
@@ -8,6 +8,9 @@ const recorded=JSON.parse(await readFile(new URL('./fixtures/mango/audience.json
 const chimp=JSON.parse(await readFile(new URL('./fixtures/mailchimp/responses.json',import.meta.url),'utf8'))
 const form=(h,fields)=>h.request('/app/actions',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(fields).toString()})
 
+// Each case owns its Worker, database and provider fixtures. Keep the full
+// coverage within Verify's job limit by running at most two cases together.
+describe('communications', {concurrency:2},()=>{
 test('COMM-001: portal topics and channel frequency fence current outreach and retain original preference custody',async()=>{
  const {communicationPreferencesJourney}=await import('./communication-preferences-journey.mjs')
  await communicationPreferencesJourney()
@@ -507,4 +510,6 @@ test('STEW-003: shared welcome caps retain uncertain claims and merged donor cus
 test('STEW-003: an anniversary enrolls on the calendar day and its later steps remain active',async()=>{
  const {anniversaryJourney}=await import('./journey-custody.mjs')
  await anniversaryJourney()
+})
+
 })

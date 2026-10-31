@@ -7287,7 +7287,7 @@
       "executable": false
     },
     "tests/communications.test.mjs": {
-      "sha256": "6ae50f6f6539cbcfad9a2257b40e42664cbaaf85d16ea9fbb2ecc4faaf0fbcf9",
+      "sha256": "e45273e37776a7b8666a91038f3a0f3f4a781c7b2e7029770fc61d4d5af53d06",
       "executable": false
     },
     "tests/contact-points-journey.mjs": {
