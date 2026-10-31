@@ -149,7 +149,7 @@ Currency uses USD with at most two decimal places. Pick-many cells contain a JSO
 ### Read-only SKY preview
 
 The native CRM move-in screen also reads the supported NXT SKY history slice.
-See [Blackbaud source mappings and boundaries](./blackbaud-move-in.md) before
+See [Blackbaud source mappings and boundaries](/docs/blackbaud-move-in) before
 supplying current credentials and the source-linked review file. Preview
 includes parent gifts, designation allocations and reviewed open opportunities;
 unsupported source objects and incomplete pagination refuse the read. This
