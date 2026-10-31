@@ -7127,7 +7127,7 @@
       "executable": false
     },
     "tests/advancing-clock-worker.ts": {
-      "sha256": "d3361c965b568896bd9acf17b0313d5bda660783efb3f6b18fe93efb78812fa4",
+      "sha256": "f667b13b67e5d2b508c24810f2ad1fc6d7188b712cdcd9cc57915e59a97332a1",
       "executable": false
     },
     "tests/agent-appeals-browser.mjs": {
@@ -8259,7 +8259,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "e725cbba27b792fd18487f7290e4f7d16fdc00c24ae7eddfc55fdd8015eda349",
+      "sha256": "41470f5c543b75c835f0b7914a2a421f6376084e6aaf56405e86e2dd081cca19",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
