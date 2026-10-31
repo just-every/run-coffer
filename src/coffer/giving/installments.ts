@@ -69,7 +69,7 @@ async function chargingChecks(c:Context,p:Row,claimId=''):Promise<Stmt[]>{
  if(method.paymentMethodId!==p.payment_method_id||consent.id!==p.consent_id||evidence.snapshot!==p.source_hash)fail('AUTHORIZATION_CHANGED','The current card, permission or recorded authorization changed. No payment submitted.',409)
  return [consent.guard,evidence.guard,
   guard("NOT EXISTS(SELECT 1 FROM cf_native_installments i JOIN cf_subscriptions s ON s.id=i.plan_id WHERE s.donor_id=? AND i.state<>'paid' AND i.id<>?) AND NOT EXISTS(SELECT 1 FROM cf_portal_changes WHERE donor_id=? AND action='staff.create' AND state IN ('pending','uncertain'))",'PAYMENT_HELD','A prior submission for this donor needs investigation before any further debit.',p.donor_id,claimId,p.donor_id),
-  guard(`EXISTS(SELECT 1 FROM cf_native_plans n JOIN cf_subscriptions s ON s.id=n.id JOIN cf_donors d ON d.id=n.donor_id JOIN cf_giving_customers g ON g.donor_id=d.id WHERE n.id=? AND n.version=? AND s.donor_id=n.donor_id AND s.customer_id=n.customer_id AND d.version=n.donor_version AND d.erased_at IS NULL AND d.constituent_status='active' AND g.customer_id=n.customer_id AND (SELECT count(*) FROM cf_giving_customers WHERE donor_id=d.id)=1 AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))`,'DONOR_CHANGED','The approved donor or saved customer changed.',p.id,p.version)]
+  guard(`EXISTS(SELECT 1 FROM cf_native_plans n JOIN cf_subscriptions s ON s.id=n.id JOIN cf_donors d ON d.id=n.donor_id JOIN cf_giving_customers g ON g.donor_id=d.id WHERE n.id=? AND n.version=? AND s.donor_id=n.donor_id AND s.customer_id=n.customer_id AND d.version=n.donor_version AND d.erased_at IS NULL AND d.constituent_status='active' AND g.customer_id=n.customer_id AND NOT EXISTS(SELECT 1 FROM cf_subscriptions other WHERE other.customer_id=n.customer_id AND other.donor_id<>n.donor_id) AND (SELECT count(*) FROM cf_giving_customers WHERE donor_id=d.id)=1 AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))`,'DONOR_CHANGED','The approved donor or saved customer changed.',p.id,p.version)]
 }
 const approvalSql=`EXISTS(SELECT 1 FROM cf_native_plan_approvals a JOIN cf_native_plans n ON n.id=a.plan_id JOIN oa_operators o ON o.id=a.approved_by WHERE n.id=? AND n.version=a.plan_version AND o.version=a.approver_version AND o.status='active' AND o.role IN ('owner','admin') AND COALESCE((SELECT read_only FROM cf_team_access WHERE operator_id=o.id),0)=0)`
 export async function changeNativePlan(c:Context,id:string,input:Row){
@@ -99,17 +99,17 @@ export async function changeNativePlan(c:Context,id:string,input:Row){
 async function hold(env:GivingEnv,p:Row,claim:Row,state:string,now:string){
  await env.DB.batch([
   env.DB.prepare("UPDATE cf_native_installments SET state=?,checked_at=? WHERE id=? AND state<>'paid'").bind(state,now,claim.id),
-  env.DB.prepare('INSERT OR IGNORE INTO cf_recurring_payment_health(invoice_id,subscription_id,failed_at) VALUES(?,?,?)').bind(claim.id,p.id,now),
+  env.DB.prepare("INSERT OR IGNORE INTO cf_recurring_payment_health(invoice_id,subscription_id,failed_at) SELECT ?,?,? WHERE ?<>'blocked'").bind(claim.id,p.id,now,state),
   env.DB.prepare("UPDATE cf_subscriptions SET status=CASE WHEN status IN ('paused','canceled') THEN status ELSE 'past_due' END,failed_attempts=MAX(failed_attempts,1),updated_at=? WHERE id=?").bind(now,p.id)])
  const c=system(env,now)
  // One owned, non-ask follow-up; the scheduler never retries the debit.
  const owner=`COALESCE((SELECT o.id FROM cf_portfolio_members m JOIN cf_portfolios f ON f.id=m.portfolio_id JOIN oa_operators o ON o.id=f.manager_id WHERE m.donor_id=? AND o.status='active'),(SELECT id FROM oa_operators WHERE role='owner' AND status='active' ORDER BY id LIMIT 1))`
  await commit(c,[sql(`INSERT OR IGNORE INTO cf_call_tasks(id,donor_id,source_key,source_kind,reason,amount_cents,owner_id,due_on,created_at,is_ask) SELECT ?,?,?,'recovery','Native installment held; investigate without another debit.',?,${owner},?,?,0 WHERE EXISTS(SELECT 1 FROM cf_donors d WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id))`, 'native-task-'+claim.id,p.donor_id,'recovery:'+claim.id,p.amount_cents,p.donor_id,day(now),now,p.donor_id)])
- await observeRecovery(env,{id:claim.id,status:'open',amount_paid:0,attempt_count:1,next_payment_attempt:null},{id:p.id,status:'past_due'},{donor_id:p.donor_id,amount_cents:p.amount_cents},undefined,now)
+ if(state!=='blocked')await observeRecovery(env,{id:claim.id,status:'open',amount_paid:0,attempt_count:1,next_payment_attempt:null},{id:p.id,status:'past_due'},{donor_id:p.donor_id,amount_cents:p.amount_cents},undefined,now)
 }
 export async function runNativeInstallments(env:GivingEnv,at=new Date(),only?:string){
  if(!available(env))return
- const now=at.toISOString(),c=system(env,now),plans=await all(c,`SELECT n.*,s.amount_cents FROM cf_native_plans n JOIN cf_subscriptions s ON s.id=n.id WHERE s.status='active' AND n.next_due_on<=? ${only?'AND n.id=?':''}`,day(now),...(only?[only]:[]))
+ const now=at.toISOString(),c=system(env,now),plans=await all(c,`SELECT n.*,s.amount_cents FROM cf_native_plans n JOIN cf_subscriptions s ON s.id=n.id JOIN cf_native_plan_approvals a ON a.plan_id=n.id AND a.plan_version=n.version WHERE s.status='active' AND n.next_due_on<=? ${only?'AND n.id=?':''}`,day(now),...(only?[only]:[]))
  for(const p of plans){
   const claimId=p.id+':'+p.next_due_on
   let claimed=false,submitted=false
@@ -130,6 +130,10 @@ export async function runNativeInstallments(env:GivingEnv,at=new Date(),only?:st
    await reconcileNativePayment(env,payment.id,undefined,now)
   }catch{
    if(claimed)await hold(env,p,{id:claimId},submitted?'uncertain':'blocked',now)
+   else{
+    await env.DB.prepare("INSERT OR IGNORE INTO cf_native_installments(id,plan_id,plan_version,due_on,state,created_at,checked_at) SELECT ?,?,?,?,'blocked',?,? WHERE EXISTS(SELECT 1 FROM cf_subscriptions s JOIN cf_native_plans n ON n.id=s.id WHERE s.id=? AND s.status='active' AND n.version=? AND n.next_due_on=?)").bind(claimId,p.id,p.version,p.next_due_on,now,now,p.id,p.version,p.next_due_on).run()
+    if(await one(c,"SELECT id FROM cf_native_installments WHERE id=? AND state='blocked'",claimId))await hold(env,p,{id:claimId},'blocked',now)
+   }
   }
  }
 }
@@ -140,6 +144,7 @@ export async function reconcileNativePayment(env:GivingEnv,paymentId:string,supp
  const c=system(env,at),claim=await one(c,'SELECT * FROM cf_native_installments WHERE id=?',id)
  if(!claim)fail('PAYMENT_MISMATCH','No durable installment claim matches this payment.',409)
  const p=await one(c,'SELECT n.*,s.amount_cents FROM cf_native_plans n JOIN cf_subscriptions s ON s.id=n.id WHERE n.id=?',claim.plan_id)
+ if(p&&(!p.customer_id||!p.payment_method_id||!await one(c,"SELECT id FROM cf_donors d WHERE d.id=? AND d.erased_at IS NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id)",p.donor_id)))return {state:'identity-held'}
  if(!p||payment.id!==paymentId||payment.metadata?.coffer_intent!==p.intent_id||stripeId(payment.customer)!==p.customer_id||stripeId(payment.payment_method)!==p.payment_method_id||payment.currency!=='usd'||payment.amount!==p.amount_cents||claim.payment_intent_id&&claim.payment_intent_id!==paymentId)fail('PAYMENT_MISMATCH','The provider payment differs from this installment.',409)
  await env.DB.prepare('UPDATE cf_native_installments SET payment_intent_id=COALESCE(payment_intent_id,?),checked_at=? WHERE id=?').bind(paymentId,c.now,id).run()
  if(payment.status!=='succeeded'){
@@ -159,7 +164,7 @@ export async function reconcileNativePayment(env:GivingEnv,paymentId:string,supp
   env.DB.prepare('INSERT OR IGNORE INTO cf_stripe_charges VALUES(?,?,0,?)').bind(charge.id,giftId,c.now),
   env.DB.prepare("UPDATE cf_native_installments SET state='paid',gift_id=?,checked_at=? WHERE id=?").bind(giftId,c.now,id),
   env.DB.prepare('UPDATE cf_native_plans SET next_due_on=? WHERE id=? AND next_due_on=?').bind(futureDue(day(c.now),p.anchor_day),p.id,claim.due_on),
-  env.DB.prepare("UPDATE cf_subscriptions SET status=CASE WHEN status='past_due' THEN 'active' ELSE status END,recovered=CASE WHEN failed_attempts>0 THEN 1 ELSE recovered END,updated_at=? WHERE id=?").bind(c.now,p.id)])
+  env.DB.prepare("UPDATE cf_subscriptions SET status=CASE WHEN status='past_due' AND NOT EXISTS(SELECT 1 FROM cf_native_installments WHERE plan_id=? AND state<>'paid') THEN 'active' ELSE status END,recovered=CASE WHEN EXISTS(SELECT 1 FROM cf_recurring_payment_health WHERE invoice_id=?) THEN 1 ELSE recovered END,updated_at=? WHERE id=?").bind(p.id,claim.id,c.now,p.id)])
  await env.DB.prepare('UPDATE cf_recurring_payment_health SET recovered_at=COALESCE(recovered_at,?) WHERE invoice_id=?').bind(new Date(charge.created*1000).toISOString(),claim.id).run()
  await syncEntry(env,txn)
  await observeRecovery(env,{id:claim.id,status:'paid',amount_paid:p.amount_cents,attempt_count:1,status_transitions:{paid_at:charge.created}},{id:p.id,status:'active'},{donor_id:p.donor_id,amount_cents:p.amount_cents},undefined,c.now)
