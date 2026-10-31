@@ -180,7 +180,7 @@ unavailable work without treating documentation as completed work.
 2. **Request the PCI transfer:** ask Bloomerang which processor holds the cards and bank accounts, then make the direct processor-to-Stripe request below.
 3. **Upload Stripe mapping files:** retain the card file and both applicable ACH shapes below. This upload door remains unavailable.
 4. **Review name mapping:** compare original constituent names, name parts, addressee and salutations with the actual donor records. Never infer a person from a gift label.
-5. **Review custom field mapping:** map exported columns explicitly to typed fields and inspect imported values and current definitions. Complete Bloomerang source-definition parity remains owed under MOVE-010.
+5. **Review custom field mapping:** map exported columns explicitly to typed fields and inspect imported values and current definitions. Use the native source-definition review for the documented Bloomerang types; unsupported types and complete parity remain owed under MOVE-010.
 6. **Review current reconciliation:** compare gift counts and exact amounts by year, fund and donor, plus independent controls; inspect every difference and the acknowledgment cutoff. The checklist records only supported current controls.
 7. **Stop source plans:** the owner stops each original plan at its actual processor before its replacement first charges. No source-stop confirmation is available here.
 8. **Approve full cutover:** full owner sign-off remains unavailable; a name or field review is not that approval.
@@ -188,7 +188,7 @@ unavailable work without treating documentation as completed work.
 
 ### Raiser's Edge NXT switching order
 
-1. **Export and import history:** database view → Export → New export → Constituent; include headers and one row per record → Export now. Repeat with Gift and the relationship exports. Use the configured fields above. SKY API, opportunities and grouped designation allocation remain unavailable in this door.
+1. **Export and import history:** database view → Export → New export → Constituent; include headers and one row per record → Export now. Repeat with Gift and the relationship exports. Use the configured fields above. For the separately supported read-only SKY history door, including parent gifts, designation allocations and reviewed open opportunities, follow the Blackbaud source mappings and boundaries above. Full NXT parity remains owed.
 2. **Request the PCI transfer:** identify the processor holding each recurring plan and ask it and Stripe for the direct transfer below.
 3. **Upload Stripe mapping files:** retain every returned customer, card and bank mapping in the shapes below; upload and validation remain unavailable.
 4. **Review name mapping:** preserve primary addressee and salutation, linking by Constituent ID rather than display-name guesses.
@@ -212,7 +212,7 @@ unavailable work without treating documentation as completed work.
 
 ### Givebutter switching order
 
-1. **Read and import history:** Settings → Integrations → API → create an API key, then paste it into Read Givebutter history. Check a known source amount before choosing cents or USD dollars. Review contacts, transactions, campaigns and recurring references; attach source evidence for facts absent from the API. See the [history reference](/docs/platform-history) and [Givebutter API documentation](https://docs.givebutter.com/). The read changes no source plan.
+1. **Read and import history:** Settings → Developers → API → New API key, then paste it into Read Givebutter history. Check a known source amount before choosing cents or USD dollars. Review contacts, transactions, campaigns and recurring references; attach source evidence for facts absent from the API. See the [history reference](/docs/platform-history) and [Givebutter API documentation](https://docs.givebutter.com/). The read changes no source plan.
 2. **Request the PCI transfer:** ask Givebutter which processor holds each payment method, then use the direct request below.
 3. **Upload Stripe mapping files:** preserve each card and ACH mapping below. Stored processor references never substitute for this unavailable upload and validation.
 4. **Review name mapping:** compare contact first and last names with native donor names and source IDs.
@@ -275,3 +275,8 @@ files, source stops, full cutover sign-off or bulk email readiness. Those steps
 remain unavailable or incomplete until their actual doors and proof exist.
 The owner must stop each old plan before its replacement first charges; Coffer
 never cancels an original plan and this change starts no replacement charge.
+
+When a later year reuses donors or custom values from an earlier completed import,
+name and field review includes that earlier import’s current, unerased custody.
+The selected import still owns its own totals comparison. A new preview does not
+complete an import, and changed or undone evidence requires a fresh review.
