@@ -1,6 +1,7 @@
 import { box, chip, e, field, hidden, money, page } from '../ui/common'
 
 export interface PortalSubscription {
+ native_schedule?:number
  id: string
  campaign_name: string
  amount_cents: number
@@ -49,7 +50,7 @@ export const cancellationPage = (s: PortalSubscription) => portalPage('Cancel re
 export function subscriptionsPage(name: string, subscriptions: PortalSubscription[], cancelled = false, params=new URLSearchParams()) {
  const rows = subscriptions.map(s => {
   const ended = ['canceled', 'incomplete_expired'].includes(s.status)
-  const actions = ended ? '' : `<form method="post" action="/giving/portal/card">${hidden('subscription', s.id)}<button>Update payment card</button></form><p><a href="/giving/portal/plan?subscription=${encodeURIComponent(s.id)}">Manage amount, frequency or pause</a></p>${s.cancel_at_period_end ? '' : `<p><a href="/giving/portal/cancel?subscription=${encodeURIComponent(s.id)}">Cancel recurring gift</a></p>`}`
+  const actions = s.native_schedule ? '<p>Coffer schedules this monthly plan. Contact the organization for changes, or withdraw saved card permission below to stop future submissions.</p>' : ended ? '' : `<form method="post" action="/giving/portal/card">${hidden('subscription', s.id)}<button>Update payment card</button></form><p><a href="/giving/portal/plan?subscription=${encodeURIComponent(s.id)}">Manage amount, frequency or pause</a></p>${s.cancel_at_period_end ? '' : `<p><a href="/giving/portal/cancel?subscription=${encodeURIComponent(s.id)}">Cancel recurring gift</a></p>`}`
   return box(s.campaign_name, `<p><strong>${money(s.amount_cents)} ${e(s.interval?(s.interval_count===1?`per ${s.interval}`:`every ${s.interval_count} ${s.interval}s`):'recurring')}</strong> ${subscriptionState(s)}</p>${s.cancel_at_period_end && !ended ? '<p>Scheduled to end at the end of the current billing period.</p>' : ''}${actions}`)
  }).join('')
  return portalPage('Your giving account', `<p>Welcome, ${e(name)}.</p>${cancelled ? '<p class="notice" role="status">Your cancellation request was saved. The current status is shown below.</p>' : ''}${params.get('changed')==='1'?'<p class="notice" role="status">Your recurring gift change is saved.</p>':''}${params.get('card')==='updated'?'<p class="notice" role="status">Your payment method change was confirmed at Stripe.</p>':params.get('card')==='unchanged'?'<p class="notice" role="status">Stripe has not confirmed a different default payment method. You can try the hosted update again.</p>':''}${rows || box('Monthly gifts', '<p>You have no monthly gifts on this account.</p>')}<p><a href="/giving/peer">My fundraising pages</a></p><p><a href="/giving/portal/saved-card">Saved card permission</a> · <a href="/giving/portal/history">View gifts, receipts and statements</a></p><p><a href="/giving/portal/communications">Communication preferences</a></p><p><a href="/giving/portal/preferences">Manage donation requests</a></p><p>Payment card details are handled securely by Stripe.</p>`)

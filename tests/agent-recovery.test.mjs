@@ -208,4 +208,6 @@ test('DEV-002: explicit standing approval and donor permissions govern scheduled
  for(const frequency of ['monthly','quarterly','annually'])await recoveryNoticesJourney(frequency)
  await uncertainRecoveryJourney()
  await inflightRecoveryJourney()
+ const {nativeRecoveryJourney}=await import('./native-installments-recovery.mjs')
+ await nativeRecoveryJourney()
 })
