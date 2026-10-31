@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "432ef3e523f0556b3ffa52dfb19c0ae77e39117208b90182b2e270c9bebf9b21",
+      "sha256": "72999889d264785980d4f458dd4642a850064ed0f6b7aafbbf896a30022fbe17",
       "executable": false
     },
     "deploy-demo.json": {
@@ -843,7 +843,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "a5df377f222e999f4a10e24c7b8f483c371a019f0ad650708a4adcfca2f9b299",
+      "sha256": "741ad87917f2477fa91b906a0aaf4f763f646db747ecf00e7126bc837ff00ed5",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -8203,7 +8203,7 @@
       "executable": false
     },
     "tests/webhook-network-journey.mjs": {
-      "sha256": "20da148128d056cd9030da2af5d796c6113e3a1b163d20a37969902b1c1d8c35",
+      "sha256": "7dc8ef2f4f85b5f5fc4453e3e4990b88edc3a4121211808afe0509faac044321",
       "executable": false
     },
     "tests/webhook-sources-journey.mjs": {
