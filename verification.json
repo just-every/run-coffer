@@ -14,7 +14,7 @@
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012",
+        "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-011 MOVE-012",
         "node --test --test-name-pattern=\"^MOVE-010: Bloomerang\" tests/move-in.test.mjs"
       ]
     },
@@ -160,7 +160,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005|MOVE-010|MOVE-003):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005|MOVE-010|MOVE-003|MOVE-011):' tests/move-in.test.mjs"
       ]
     },
     {
@@ -168,7 +168,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-013|MOVE-005):' tests/move-in.test.mjs",
+        "COFFER_MOVE_IN_GUIDE_BROWSER=.cache/move-in-guide node --test --test-concurrency=1 --test-name-pattern='^(DONOR-013|MOVE-005|MOVE-011):' tests/move-in.test.mjs",
         "node --test --test-name-pattern=\"^MOVE-010: Spreadsheet\" tests/move-in.test.mjs"
       ]
     },
