@@ -4,10 +4,11 @@ import { run, donor, reviewed, archive, restore } from './harness.mjs'
 import { recognitionEdges, form } from './recognition-edge.mjs'
 
 export async function campaignProgressJourney() {
- const edge = recognitionEdges()
+ const edge = recognitionEdges(), clock = {entry:'tests/fixed-clock-worker.ts'}
  await run(async h => {
   await reviewed(h)
-  const day = new Intl.DateTimeFormat('en-CA', {timeZone:'America/New_York'}).format(new Date())
+  // The fixed Worker clock is October 17 in New York, within the campaign.
+  const day = '2026-10-17'
   const publish = input => h.api('/api/coffer/giving/campaigns', {name:'Spring reading',slug:'spring-reading',description:'Books for every neighborhood.',fund:'Reading',goal:'60000',...input})
   await h.command('appealCode.define',{code:'SPRING',name:'Spring appeal'})
   await h.api('/api/coffer/giving/campaigns',{name:'Invalid',slug:'invalid',description:'Dates',fund:'Reading',goal:'1',startsOn:'2026-12-01',endsOn:'2026-01-01'},{status:400})
@@ -47,10 +48,10 @@ export async function campaignProgressJourney() {
   for(const expected of ['Spring reading','Neighborhood phase','$250.00','$30.00','$62.50','4 giving donors','3 first-time donors','SPRING','/give/spring-reading'])assert.ok(html.includes(expected),expected)
   if(process.env.COFFER_CAMPAIGN_BROWSER){const {campaignBrowser}=await import('./campaign-browser.mjs');await campaignBrowser(h,parent.id,process.env.COFFER_CAMPAIGN_BROWSER)}
   const saved = await archive(h)
-  await run(async fresh=>{await restore(fresh,saved);const copied=await fresh.get('/api/coffer/giving/campaigns/'+parent.id);assert.deepEqual(copied,r)})
+  await run(async fresh=>{await restore(fresh,saved);const copied=await fresh.get('/api/coffer/giving/campaigns/'+parent.id);assert.deepEqual(copied,r)},clock)
   await h.command('gift.reverse',{giftId:neighborhood.id,reason:'Returned',reversedOn:day})
   assert.deepEqual([(await read(parent.id)).raisedCents,(await read(parent.id)).softCreditCents],[19000,0])
   await h.command('donor.erase',{donorId:ben.id,confirm:'ERASE'})
   assert.equal((await read(parent.id)).raisedCents,19000,'erasure keeps received ledger cents')
- }, {bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6000'},outbound:edge.outbound})
+ }, {...clock,bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-6000'},outbound:edge.outbound})
 }

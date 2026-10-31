@@ -31,7 +31,7 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
  t.mock.timers.enable({apis:['Date'],now:Date.parse(fixedNow)})
  const frequency='monthly'
  {
- const state = { intent: null, attempt: 1, paid: false, canceled: false, cardUpdated: false, paymentMethod: null, expiryOffset: 2, calls: [], invoiceId: 'in_recovery' }
+ const state = { intent: null, attempt: 1, paid: false, canceled: false, cardUpdated: false, paymentMethod: null, expiryMonth: 12, calls: [], invoiceId: 'in_recovery' }
  const second={intent:null,invoiceId:'in_lapsed',canceled:false}
  const subscription = () => ({ id: 'sub_recovery', customer: 'cus_recovery', metadata: { coffer_intent: state.intent }, status: state.canceled ? 'canceled' : state.paid ? 'active' : 'past_due', cancel_at_period_end: false, items: { data: [{ quantity:1,price: { unit_amount: 2500,recurring:{interval:frequency==='annually'?'year':'month',interval_count:frequency==='quarterly'?3:1} } }] }, latest_invoice: state.invoiceId, default_payment_method: state.paymentMethod })
  const invoice = () => ({ id: state.invoiceId, customer: 'cus_recovery', currency: 'usd', parent: { subscription_details: { subscription: 'sub_recovery' } }, status: state.paid ? 'paid' : 'open', amount_paid: state.paid ? 2500 : 0, attempt_count: state.attempt, next_payment_attempt: state.paid ? null : 1800000000, status_transitions: { paid_at: state.paid ? Math.floor(Date.now() / 1000) : null } })
@@ -51,8 +51,9 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
   if(url.pathname==='/v1/customers/cus_second')return Response.json({id:'cus_second',invoice_settings:{default_payment_method:null}})
   if (url.pathname === '/v1/customers/cus_recovery' && request.method === 'GET') return Response.json({id:'cus_recovery',invoice_settings:{default_payment_method:null}})
   if (url.pathname === '/v1/payment_methods/'+state.paymentMethod && request.method === 'GET') {
-   const date=new Date(),expiry=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+state.expiryOffset,1))
-   return Response.json({id:state.paymentMethod,customer:'cus_recovery',type:'card',card:{exp_year:expiry.getUTCFullYear(),exp_month:expiry.getUTCMonth()+1,last4:'4242'}})
+   // The test and Worker clocks are in October 2026 in New York.
+   // December is two months away; November must warn as next month.
+   return Response.json({id:state.paymentMethod,customer:'cus_recovery',type:'card',card:{exp_year:2026,exp_month:state.expiryMonth,last4:'4242'}})
   }
   if (url.pathname === '/v1/subscriptions/sub_recovery' && request.method === 'GET') return Response.json(subscription())
   if (url.pathname === '/v1/invoices/' + state.invoiceId && request.method === 'GET') return Response.json(invoice())
@@ -173,7 +174,7 @@ test('GIVE-006: failed monthly gifts recover on Stripe retries, exhausted invoic
   const beforeExpiry=portalMessages().length
   await h.api('/api/coffer/agent/recovery/run',{})
   assert.equal(portalMessages().length,beforeExpiry,'A card two calendar months away sends no warning')
-  state.expiryOffset=1
+  state.expiryMonth=11
   await Promise.all([h.api('/api/coffer/agent/recovery/run',{}),h.api('/api/coffer/agent/recovery/run',{})])
   assert.equal(portalMessages().length,beforeExpiry+1,'Concurrent checks claim one expiry warning')
   assert.match(portalMessages().at(-1).subject,/expires next month/)

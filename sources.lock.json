@@ -7159,7 +7159,7 @@
       "executable": false
     },
     "tests/agent-recovery.test.mjs": {
-      "sha256": "8523fb171d209796104c15f12beab4d0923068d070d7d8c626161e566ec3ed87",
+      "sha256": "689391d6bc0798d97f68b2cc582156efe24f93a61b33f9da7a0bb7c2b568947f",
       "executable": false
     },
     "tests/annual-lapses-journey.mjs": {
@@ -7243,7 +7243,7 @@
       "executable": false
     },
     "tests/campaign-progress-journey.mjs": {
-      "sha256": "a84170300c99392b8b35000836720c02f950c079e33ec5f2a0d6642b57b4bcdf",
+      "sha256": "334ec11ebcab561bb8b29a24cfd22a767ad0b7db1cbb545e09d544452e7ad608",
       "executable": false
     },
     "tests/clone-journey.mjs": {
