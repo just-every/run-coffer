@@ -731,7 +731,7 @@
       "executable": false
     },
     "docs/MOVE-IN-SOURCES.md": {
-      "sha256": "09ba7fd86353f72918fa6389089ef3cbb2babc9f8b39a79d42e1816fbd2414fa",
+      "sha256": "b04ea58f33695524b59af96b79f839513fb9181ae778d76e1cd59d1ae72c195b",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -4071,7 +4071,7 @@
       "executable": false
     },
     "src/coffer/move-in/http.ts": {
-      "sha256": "e596f1cbfac9f5af0b13763cde4a7deb805fa558284b26ed2b1e11111d7782c7",
+      "sha256": "cebb9e62a3fb5401234423534f2691455e4343a09b95483325bb42a9c18e4c58",
       "executable": false
     },
     "src/coffer/move-in/lgl-definitions.ts": {
@@ -4763,11 +4763,11 @@
       "executable": false
     },
     "src/coffer/ui/crm-export-steps.ts": {
-      "sha256": "a5ed15eb2c01318fe849e117f24e607b2fdc6c76b1b0740875d0a3194d4df7d0",
+      "sha256": "f92ce3698fd84aa237f9e3ad67d4a0ef88e2c0acc2b349f198b7a8fc77d1aa65",
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
-      "sha256": "da33a7bed46d86f0cb6c6a49983040ec0416791c44f039bb66ff8305764d4ed6",
+      "sha256": "d3b97a1901cc6effaa6b39153a2300853d7fe6c62899855fc4d33e07000d6d0e",
       "executable": false
     },
     "src/coffer/ui/cultivation.ts": {
