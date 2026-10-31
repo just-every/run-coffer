@@ -4,6 +4,16 @@ import { requireRole } from './auth'
 import { defineEventQuestion, eventQuestions } from './event-questions'
 import { matchEventGuest } from './event-guest-review'
 
+// Correlated to the canonical donor snapshot. Buying a ticket is not attendance;
+// only a paid, donor-linked guest with an actual check-in supplies this fact.
+export const stewardshipAttendanceSql = `SELECT json_group_array(json(j)) FROM (
+ SELECT json_object('id',r.id,'event_id',e.id,'event_name',e.name,'starts_on',e.starts_on,
+  'checked_in_at',r.checked_in_at,'version',r.version) AS j
+ FROM cf_event_registrations r JOIN cf_fundraising_events e ON e.id=r.event_id
+ JOIN cf_event_orders o ON o.intent_id=r.intent_id
+ WHERE r.donor_id=d.id AND r.checked_in_at IS NOT NULL AND o.paid_at IS NOT NULL
+ ORDER BY e.starts_on DESC,r.checked_in_at DESC,r.id LIMIT 10)`
+
 export const fundraisingEvents = (c: {db:D1Database}) => all(c, 'SELECT e.*,c.name AS campaign FROM cf_fundraising_events e JOIN cf_campaigns c ON c.id=e.campaign_id ORDER BY starts_on DESC,e.id')
 export async function fundraisingEvent(c:{db:D1Database},slug:string):Promise<Row & {tickets:Row[];questions:Row[]}>{
  const row=await one(c,'SELECT e.*,c.slug AS campaign_slug FROM cf_fundraising_events e JOIN cf_campaigns c ON c.id=e.campaign_id WHERE e.slug=? AND c.active=1',slug)

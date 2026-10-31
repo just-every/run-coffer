@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a92a6ff417810e3890a766a4c2b5e3f8faf90af73fd42f1ebfd1a79af36d034d",
+      "sha256": "f1ab43b4e4e6a40bda6fbed9a93662470bbec0a92247662a2dcac34b6c0baabb",
       "executable": false
     },
     "deploy-demo.json": {
@@ -639,7 +639,7 @@
       "executable": false
     },
     "docs/DEVELOPMENT-AGENT.md": {
-      "sha256": "5021ffc33f8900651590725a29d67644994fbdcd8befcdb5b1eeb24a5a10577d",
+      "sha256": "b5772a6dfbfc04affbce393213a58af53ecc66fbc3dace95fc5ae6a6f98f6167",
       "executable": false
     },
     "docs/direct-mail.md": {
@@ -843,7 +843,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "8ab8fced1c1b200cf98cd29ebfd73b478d3b7b713c73b393420f565f335d8ede",
+      "sha256": "97a674082c3bf0b2f48311672bc694f26c3c746bd86eafb72c50cc1a23e28f15",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1578,6 +1578,10 @@
       "sha256": "088f5c26eff9d4bbf3f76a995d5c83268ef729dd189ebc9cb4544fbad2c60cf9",
       "executable": false
     },
+    "migrations/core/0182_coffer_reply_ingress.sql": {
+      "sha256": "874cc2f77109be38538c293e68de5f79551912a64dc6a870615081a6b45a2201",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -1983,7 +1987,7 @@
       "executable": false
     },
     "RELEASE.json": {
-      "sha256": "3f16eb5eb5e40196a49bf034035037aa974c0435d0dd8c84f09d72eb113d942f",
+      "sha256": "fa8e2cf69f06d37c9a161c17d9684cc13aba0fe3896576b2c3e9f9384e63e385",
       "executable": false
     },
     "rer-project.json": {
@@ -3135,11 +3139,11 @@
       "executable": false
     },
     "src/coffer/agent/stewardship-ui.ts": {
-      "sha256": "7f210fc3eb21d788b578e3f205340d5bedb133ede6c93123b24191e706c17682",
+      "sha256": "875139188f1c1570e6cbe2f6e4815f9676f42c628d2b432ff55fa2b0470ffeb3",
       "executable": false
     },
     "src/coffer/agent/stewardship.ts": {
-      "sha256": "e4a5ccb82cda94d31156d515a73af2dca34793e67b44a9d4766a503d90c364dc",
+      "sha256": "9adc25fdccf81842a3fb9f8b272179776c9ba01479b0128823709e569071d93e",
       "executable": false
     },
     "src/coffer/annual-lapses.ts": {
@@ -3375,7 +3379,7 @@
       "executable": false
     },
     "src/coffer/communications/replies.ts": {
-      "sha256": "59b816b99c259c417681030bce07aa25ea498eb30b7ac38ddd2713f0e42dbb53",
+      "sha256": "78ff7eee9f6c8932c04e8402c8210419b9b14f2a1ad5fa03e2876e58552714ed",
       "executable": false
     },
     "src/coffer/communications/reply-stop.ts": {
@@ -3579,7 +3583,7 @@
       "executable": false
     },
     "src/coffer/fundraising-events.ts": {
-      "sha256": "faad9cf9bed0f121241335db77b5f751a5554556d705dcf44a22f2f5418bcbed",
+      "sha256": "16761382f39688a6edd57450ff99fbc3c219dbd9acae9e406ce8243622d2f4f8",
       "executable": false
     },
     "src/coffer/gift-ack-receipt.ts": {
@@ -8126,8 +8130,16 @@
       "sha256": "cc9af435e258d1125a5eccf98c128a5a027154b344026979f163291fa0f97c30",
       "executable": false
     },
+    "tests/stewardship-sources-browser.mjs": {
+      "sha256": "bdf277423bc07d555fd43e42e8b857ab74181eefc1441c2fc8d06b12c624403e",
+      "executable": false
+    },
+    "tests/stewardship-sources-journey.mjs": {
+      "sha256": "6afe8fd968ce7f3b978202cbca2223f00b2fbf0efa403d20f9f988ba69fae904",
+      "executable": false
+    },
     "tests/stewardship.test.mjs": {
-      "sha256": "18ff195d4459a7160b30f7e666d56950008cbabeda90451b4ece35fcca3ca05b",
+      "sha256": "6038406fc6af452478806b49b8bb3372888a193a099d80a1f0b11ca17d4deb37",
       "executable": false
     },
     "tests/task-reminders-browser.mjs": {
