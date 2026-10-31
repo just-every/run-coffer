@@ -185,7 +185,39 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/agent-*.test.mjs tests/stewardship.test.mjs"
+        "COFFER_RECOVERY_NOTICES_BROWSER=.cache/recovery-notices node --test --test-concurrency=1 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/agent-recovery.test.mjs"
+      ]
+    },
+    {
+      "name": "agent-appeals",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node --test --test-concurrency=1 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/agent-appeals.test.mjs"
+      ]
+    },
+    {
+      "name": "agent-receipts",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_HYGIENE_BROWSER=.cache/hygiene node --test --test-concurrency=1 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/agent-receipts.test.mjs"
+      ]
+    },
+    {
+      "name": "agent-reconciliation",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node --test --test-concurrency=1 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/agent-reconciliation.test.mjs"
+      ]
+    },
+    {
+      "name": "stewardship",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "COFFER_DEVELOPMENT_REPORT_BROWSER=.cache/development-reports node --test --test-concurrency=1 --test-skip-pattern='^(GIVE-006|DEV-006|STEW-006):' tests/stewardship.test.mjs"
       ]
     },
     {
