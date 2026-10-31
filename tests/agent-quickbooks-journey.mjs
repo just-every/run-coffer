@@ -11,9 +11,13 @@ export async function agentQuickbooksJourney(){
  const edge=quickbooksEdge(),bindings={QBO_CLIENT_ID:'synthetic-coffer-1701',QBO_CLIENT_SECRET:'synthetic-coffer-1702',QBO_SANDBOX:'true',STRIPE_SECRET_KEY:'synthetic-coffer-1801'}
  edge.expiresIn=3600
  const mutations=new Map(),reads=[]
- let readFailure=null,readOverride=null,readonly=false,duringRead=null
+ let readFailure=null,readOverride=null,readonly=false,duringRead=null,duringRefresh=null
  const outbound=async request=>{
   const u=new URL(request.url),accounting=u.hostname==='sandbox-quickbooks.api.intuit.com'
+  if(u.hostname==='oauth.platform.intuit.com'&&duringRefresh){
+   const body=new URLSearchParams(await request.clone().text())
+   if(body.get('grant_type')==='refresh_token'){const change=duringRefresh;duringRefresh=null;await change()}
+  }
   if(accounting){
    if(readonly)assert.equal(request.method,'GET','The agent must never submit accounting entries')
    if(request.method==='GET'&&/\/(deposit|journalentry)\//.test(u.pathname)){
@@ -141,6 +145,9 @@ export async function agentQuickbooksJourney(){
   assert.equal((await h.api(check,{})).complete,true)
   assert.equal(JSON.stringify((await h.get('/api/coffer/agent/reconcile')).issues).includes('Synthetic Coffer Accounting'),false,'Replayed accounting observations cannot resurrect erased donor identity')
   assert.equal(edge.requests.length,writes)
+  mutations.set(find('payout').external_id,record=>{record.DepositToAccountRef.value='synthetic-coffer-revoked-bank'})
+  assert.equal(open(await h.api(check,{})).filter(i=>i.kind==='quickbooks_changed').length,1)
+  mutations.clear()
   const beforeRevocation=await h.get('/api/coffer/agent/reconcile'),beforeInterruptedRead=reads.length
   duringRead=async()=>{
    await h.api(root+'/disconnect',{})
@@ -149,7 +156,21 @@ export async function agentQuickbooksJourney(){
   await h.api(check,{}, {status:409})
   assert.equal(reads.length,beforeInterruptedRead+1,'A replacement authorization stops the old read before another document is requested')
   assert.deepEqual(await h.get('/api/coffer/agent/reconcile'),beforeRevocation,'A revoked comparison cannot publish findings or a clean result under a replacement connection')
-  assert.equal((await h.api(check,{})).complete,true,'The replacement connection can start a fresh independent comparison')
+  const freshResult=await h.api(check,{})
+  assert.equal(freshResult.complete,true,'The replacement connection can start a fresh independent comparison')
+  assert.equal(open(freshResult).length,0,'Only the fresh authorized comparison resolves the earlier bank exception')
+  edge.expiresIn=1
+  assert.equal((await connectQuickbooks(h,edge)).response.status,303)
+  const beforeRefreshReplacement=await h.get('/api/coffer/agent/reconcile'),beforeRefreshRead=reads.length
+  duringRefresh=async()=>{
+   await h.api(root+'/disconnect',{})
+   edge.expiresIn=3600
+   assert.equal((await connectQuickbooks(h,edge)).response.status,303)
+  }
+  await h.api(check,{}, {status:409})
+  assert.equal(reads.length,beforeRefreshRead,'An old token refresh cannot read documents using a replacement connection')
+  assert.deepEqual(await h.get('/api/coffer/agent/reconcile'),beforeRefreshReplacement,'A stale refresh publishes no comparison result')
+  assert.equal((await h.api(check,{})).complete,true,'An interrupted token refresh leaves the new authorization usable')
   assert.equal(edge.requests.length,writes)
   await h.api(root+'/disconnect',{})
   const beforeRevoked=reads.length
