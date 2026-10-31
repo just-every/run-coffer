@@ -96,7 +96,7 @@ export async function agentResponse(request:Request,c:Context,env:GivingEnv,body
  else if(tail==='/activity/undo'){result=await undoActivity(c,env,p)}
  else if(tail.startsWith('/stewardship/')) {
   const command=tail.split('/').at(-1)!
-  if(!['setup','test','draft','save','send','discard','restore'].includes(command))fail('NOT_FOUND','Unknown stewardship action.',404)
+  if(!['setup','test','draft','save','send','schedule','cancel','discard','restore'].includes(command))fail('NOT_FOUND','Unknown stewardship action.',404)
   result=await stewardshipCommand(c,command as any,p)
   back=['setup','test'].includes(command)?'/app/agent/setup':'/app/agent/stewardship'+(p.donorId?'?donorId='+encodeURIComponent(p.donorId):'')
  } else fail('NOT_FOUND','Unknown agent action.',404)
