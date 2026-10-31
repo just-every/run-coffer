@@ -1105,6 +1105,12 @@
     },
     {
       "binding": "DB",
+      "name": "core-0181_coffer_source_plan_schedule.sql",
+      "sha256": "088f5c26eff9d4bbf3f76a995d5c83268ef729dd189ebc9cb4544fbad2c60cf9",
+      "sql": "-- Preserve source dimensions and original dates as migration evidence only.\n-- These columns do not create any native subscription or payment authority.\nALTER TABLE cf_recurring_source_references ADD COLUMN fund TEXT NOT NULL DEFAULT '';\nALTER TABLE cf_recurring_source_references ADD COLUMN appeal TEXT NOT NULL DEFAULT '';\nALTER TABLE cf_recurring_source_references ADD COLUMN source_schedule TEXT NOT NULL DEFAULT '{}';\n"
+    },
+    {
+      "binding": "DB",
       "name": "core-0182_coffer_webhook_network.sql",
       "sha256": "e6c39987216360284e00e1979501394762ae715742900a3b7e068fda875c2d9e",
       "sql": "-- Stable outcomes only; DNS answers and receiver response bodies stay unretained.\nALTER TABLE cf_webhook_attempts ADD COLUMN failure_code TEXT;\nALTER TABLE cf_webhook_deliveries ADD COLUMN last_failure_code TEXT;\n"
