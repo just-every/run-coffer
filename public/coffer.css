@@ -462,3 +462,13 @@
 .coffer .report-document dl { display: block; margin: 0; }
 .coffer .report-document dd { margin: 0 0 12px; }
 .coffer .report-document ol { padding-left: 20px; }
+
+/* Payment mapping evidence uses the same card and type scale as CRM review. */
+.coffer .vault-row h3, .coffer .vault-row dd { overflow-wrap: anywhere; }
+.coffer .vault-facts { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr); gap: 8px 16px; }
+.coffer .vault-facts dd { margin: 0; min-width: 0; }
+@media (max-width: 640px) {
+ .coffer .vault-facts { display: block; }
+ .coffer .vault-facts dt { margin-top: 12px; }
+ .coffer .vault-facts dd { margin: 4px 0 12px; }
+}

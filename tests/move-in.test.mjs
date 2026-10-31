@@ -425,3 +425,8 @@ test('MOVE-003: reviewed SKY history preserves parent cash, designation splits, 
  const {blackbaudJourney}=await import('./blackbaud-journey.mjs')
  await blackbaudJourney()
 })
+
+test('MOVE-009: reviewed Stripe card and ACH mappings preserve evidence without billing authority',async()=>{
+ const {vaultMappingJourney}=await import('./vault-mapping-journey.mjs')
+ await vaultMappingJourney()
+})
