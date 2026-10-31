@@ -7315,7 +7315,7 @@
       "executable": false
     },
     "tests/custom-import-browser.mjs": {
-      "sha256": "34b762e193e4355f4a566544faa4318d267637c350831a85e8c51df91f7e0c49",
+      "sha256": "10487c2932ff2686e0294bf9844bdd48994f69390ee716297ec6e17cda381383",
       "executable": false
     },
     "tests/custom-source-journey.mjs": {
