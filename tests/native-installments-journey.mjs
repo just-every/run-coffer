@@ -11,7 +11,7 @@ const address=n=>'synthetic-coffer-'+n+String.fromCharCode(64)+'example.test'
 /** Only Stripe and mail are substituted. Every schedule, approval, clock tick,
  * ledger read and custody operation uses Coffer's actual public doors. */
 export async function nativeInstallmentsJourney(){
- return nativeFixture(async({h,edge,state,payments,transactions,headers,get,api,command,form,root,tick,deliver,prepare,instruction,secret,campaign,member,outbound})=>{
+ const result=await nativeFixture(async({h,edge,state,payments,transactions,headers,get,api,command,form,root,tick,deliver,prepare,instruction,secret,campaign,member,outbound})=>{
   const first=await prepare(),before=state.debits
   await api(root,first.body,{as:member.cookie,status:403});await api(root,{...first.body,confirm:'no'},{status:400})
   await api(root,{...first.body,sourceRef:'interaction:foreign'},{status:409})
@@ -115,6 +115,27 @@ export async function nativeInstallmentsJourney(){
   await nativeInstallmentsBrowser(h,edge,{id:failedId,person:failed.person,directory:process.env.COFFER_NATIVE_INSTALLMENTS_BROWSER,phase:'held'})
   return {installments:3,gross:7500,fee:309,net:7191,debits:state.debits}
  })
+ await nativeFixture(async({h,edge,state,payments,get,api,root,tick,deliver,prepare,instruction})=>{
+  const prepared=await prepare(),id=(await api(root,prepared.body)).id
+  edge.state.now='2026-02-09T12:00:00.000Z'
+  await instruction(id,'approve')
+  const approved=await get(root+'/'+id)
+  assert.equal(state.debits,1)
+  assert.equal(approved.installments[0].due_on,'2026-02-09')
+  assert.equal(approved.plan.next_due_on,'2026-03-09','Delayed approval starts a full monthly interval at its confirmed first charge')
+  await Promise.all([tick('2026-02-10T12:00:00.000Z'),tick('2026-02-10T12:00:00.000Z')])
+  assert.equal(state.debits,1,'The preparation day cannot charge again the day after approval')
+  await h.replaceBindings({})
+  await deliver('payment_intent.succeeded',[...payments.values()][0].id)
+  assert.equal((await get(root+'/'+id)).plan.next_due_on,'2026-03-09','Restart and replay retain the approved monthly date')
+  await tick('2026-03-08T12:00:00.000Z');assert.equal(state.debits,1)
+  await tick('2026-03-09T12:00:00.000Z');assert.equal(state.debits,2)
+  const history=await get('/api/coffer/donors/'+prepared.person.id)
+  assert.deepEqual(history.gifts.map(g=>[g.received_on,g.amount_cents]).sort(),[['2026-02-09',2500],['2026-03-09',2500]])
+  assert.equal(history.letters.length,2)
+  assert.equal((await get(root+'/'+id)).plan.next_due_on,'2026-04-09')
+ })
+ return result
 }
 export async function nativeFixture(fn){
  const edge=recurringStripeEdge(),payments=new Map(),transactions=new Map(),state={debits:0,mode:'paid',beforeRead:null,uncertain:false,mailUncertain:false}

@@ -75,11 +75,11 @@ export async function webhook(env: GivingEnv, request: Request, raw: string) {
   if (saved) await completed(env, object.id)
   else await completePledgeCheckout(env,object.id)
  } else if(event.type==='checkout.session.async_payment_failed') {
-  await reconcileNativePayment(env,object.id)
   const bank=await one({db:env.DB},"SELECT session_id FROM cf_giving_intents WHERE session_id=? AND payment_method='us_bank_account'",object.id)
   if(bank)await completed(env,object.id)
   await checkoutFailure(env,object.id)
  } else if (['payment_intent.processing','payment_intent.succeeded','payment_intent.payment_failed','payment_intent.canceled'].includes(event.type)) {
+  await reconcileNativePayment(env,object.id)
   const bank=await one({db:env.DB},"SELECT session_id FROM cf_giving_intents WHERE payment_method='us_bank_account' AND (id=? OR id IN (SELECT intent_id FROM cf_bank_checkouts WHERE payment_intent_id=?))",object.metadata?.coffer_intent??'',object.id)
   if(bank?.session_id)await completed(env,bank.session_id)
  } else if (['invoice.paid', 'invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.updated'].includes(event.type)) {
