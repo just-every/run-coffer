@@ -14,6 +14,15 @@ const labels: Record<string, string> = {
  exhausted: 'Retries exhausted', held: 'Held', uncertain: 'Delivery unconfirmed',
 }
 
+const networkLabels: Record<string,string> = {
+ dns_nonpublic: 'DNS preflight refused a nonpublic address. No target request was sent.',
+ dns_alias_unsafe: 'DNS preflight refused an unsafe or inconsistent alias chain. No target request was sent.',
+ dns_incomplete: 'DNS preflight could not establish complete public address resolution. No target request was sent.',
+ dns_malformed: 'DNS preflight received an invalid resolution response. No target request was sent.',
+ dns_unavailable: 'DNS preflight was unavailable. No target request was sent.',
+}
+const networkOutcome = (code: string | null) => code ? `<p>${e(networkLabels[code] ?? 'DNS preflight refused this attempt. No target request was sent.')}</p>` : ''
+
 function subscriptionItem(subscription: Subscription) {
  const values={subscriptionId:subscription.id,version:subscription.version}
  const approval=(label:string)=>`<label><input type="checkbox" name="reviewed" value="yes" required> ${label}</label>`
@@ -30,7 +39,7 @@ function subscriptionItem(subscription: Subscription) {
 
 function attemptHistory(attempts: Attempt[]) {
  if (!attempts.length) return '<p class="muted">No attempts yet.</p>'
- return `<details><summary>Attempt history (${attempts.length})</summary><ol class="steps">${attempts.map(attempt => `<li>${utc(attempt.attempted_at)}<br>${e(labels[attempt.status])}${attempt.http_status === null ? '' : ` · HTTP ${e(attempt.http_status)}`}</li>`).join('')}</ol></details>`
+ return `<details><summary>Attempt history (${attempts.length})</summary><ol class="steps">${attempts.map(attempt => `<li>${utc(attempt.attempted_at)}<br>${e(labels[attempt.status])}${networkOutcome(attempt.failure_code)}${attempt.http_status === null ? '' : ` · HTTP ${e(attempt.http_status)}`}</li>`).join('')}</ol></details>`
 }
 
 function deliveryItem(delivery: Delivery, subscription: Subscription | undefined, attempts: Attempt[], subscriptions: Subscription[]) {
@@ -44,7 +53,7 @@ function deliveryItem(delivery: Delivery, subscription: Subscription | undefined
   <p class="muted">Delivery <code>${e(delivery.id)}</code></p>
   <details><summary>Event details</summary><p>Event <code>${e(delivery.event_id)}</code><br>Record <code>${e(delivery.subject_id)}</code><br>${utc(delivery.occurred_at)}</p></details>
   ${delivery.replay_of ? `<p>Replay of <code>${e(delivery.replay_of)}</code></p>` : ''}</td>
-  <td data-label="Outcome"><strong>${e(labels[delivery.status])}</strong><p>${e(delivery.attempts)} attempts${delivery.last_status === null ? '' : ` · Last HTTP ${e(delivery.last_status)}`}</p><p>${retry}</p></td>
+  <td data-label="Outcome"><strong>${e(labels[delivery.status])}</strong>${networkOutcome(delivery.last_failure_code)}<p>${e(delivery.attempts)} attempts${delivery.last_status === null ? '' : ` · Last HTTP ${e(delivery.last_status)}`}</p><p>${retry}</p></td>
   <td data-label="Attempts">${attemptHistory(attempts)}</td><td data-label="Action">${replay}${migrate}</td></tr>`
 }
 
@@ -67,7 +76,7 @@ export async function webhookPage(c: Context, before?: string | null) {
  return `<p><a href="/app/settings">Back to Settings</a></p>
   ${box('Endpoints', data.subscriptions.length ? `<ul class="list">${data.subscriptions.map(subscriptionItem).join('')}</ul>` : empty('No endpoints connected yet. Connect your first endpoint below.'), 'webhook-endpoints')}
   ${box('Connect an endpoint', data.subscriptions.length ? `<details class="edit"><summary>Add an endpoint</summary>${create}</details>` : create, 'webhook-connect')}
-  ${box('Delivery log', `<details><summary>Delivery and retention policy</summary><p>History stays in this installation until the associated donor is erased. Archives exclude webhook keys, approvals and history. Manage signing keys on each endpoint for rotation, bounded overlap or fresh-key recovery. Recovery cannot disclose an old key after the installation session secret changes. Reviewed replacement replay retains original history and event identity.</p></details><p>Receivers must verify the signature timestamp is within five minutes of their current clock and deduplicate using the event ID. Automatic retries and manual replays can deliver the same event more than once.</p>${data.deliveries.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Endpoint and event</th><th>Outcome and next attempt (UTC)</th><th>Attempt history</th><th>Action</th></tr></thead><tbody>${data.deliveries.map(delivery => deliveryItem(delivery, subscriptions.get(delivery.subscription_id), attempts.get(delivery.id) ?? [],data.subscriptions)).join('')}</tbody></table></div>` : empty('No deliveries yet. New matching events will appear here.')}`, 'webhook-deliveries')}<nav aria-label="Delivery history">${before?'<a href="/app/webhooks">Newest deliveries</a> ':''}${data.nextCursor?`<a href="/app/webhooks?before=${encodeURIComponent(data.nextCursor)}">Older deliveries</a>`:''}</nav>`
+  ${box('Delivery log', `<details><summary>Delivery and retention policy</summary><p>History stays in this installation until the associated donor is erased. Archives exclude webhook keys, approvals and history. Manage signing keys on each endpoint for rotation, bounded overlap or fresh-key recovery. Recovery cannot disclose an old key after the installation session secret changes. Reviewed replacement replay retains original history and event identity.</p></details><p>DNS preflight checks both address families before submission. It does not pin the connection address or establish live public-network enforcement.</p><p>Receivers must verify the signature timestamp is within five minutes of their current clock and deduplicate using the event ID. Automatic retries and manual replays can deliver the same event more than once.</p>${data.deliveries.length ? `<div class="scroll"><table class="stack"><thead><tr><th>Endpoint and event</th><th>Outcome and next attempt (UTC)</th><th>Attempt history</th><th>Action</th></tr></thead><tbody>${data.deliveries.map(delivery => deliveryItem(delivery, subscriptions.get(delivery.subscription_id), attempts.get(delivery.id) ?? [],data.subscriptions)).join('')}</tbody></table></div>` : empty('No deliveries yet. New matching events will appear here.')}`, 'webhook-deliveries')}<nav aria-label="Delivery history">${before?'<a href="/app/webhooks">Newest deliveries</a> ':''}${data.nextCursor?`<a href="/app/webhooks?before=${encodeURIComponent(data.nextCursor)}">Older deliveries</a>`:''}</nav>`
 }
 
 export function webhookSecretPage(secret: string) {

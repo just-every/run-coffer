@@ -17,7 +17,7 @@ export async function webhookState(c: Context, before?: string | null) {
   all(c,`SELECT d.*,e.event_type,e.subject_id,e.occurred_at,s.name AS endpoint_name FROM cf_webhook_deliveries d JOIN cf_webhook_events e ON e.id=d.event_id JOIN cf_webhook_subscriptions s ON s.id=d.subscription_id ${cursor?'WHERE (d.created_at,d.id)<(?,?)':''} ORDER BY d.created_at DESC,d.id DESC LIMIT 101`,...(cursor??[]))
  ])
  const deliveries=rows.slice(0,100),last=deliveries.at(-1)
- const attempts=deliveries.length?await all(c,`SELECT * FROM cf_webhook_attempts WHERE delivery_id IN (${deliveries.map(()=>'?').join(',')}) ORDER BY attempted_at,id`,...deliveries.map(d=>d.id)):[]
+ const attempts=deliveries.length?await all(c,`SELECT id,delivery_id,attempted_at,status,http_status,failure_code FROM cf_webhook_attempts WHERE delivery_id IN (${deliveries.map(()=>'?').join(',')}) ORDER BY attempted_at,id`,...deliveries.map(d=>d.id)):[]
  const publicSubscriptions=await Promise.all(subscriptions.map(async(s):Promise<Row & {events:string[]}>=>{const {sealed_secret,...safe}=s;return {...safe,events:JSON.parse(s.events),key_available:await readableWebhookKey(c,s)}}))
  return {subscriptions:publicSubscriptions,deliveries,attempts,nextCursor:rows.length>100&&last?btoa(JSON.stringify([last.created_at,last.id])):null}
 }
