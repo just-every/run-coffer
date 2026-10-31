@@ -1,4 +1,5 @@
 import { bankCheckoutState } from '../giving/bank-checkout'
+import { observeStaffPayment } from '../giving/staff-payment'
 import { pledgeSessionForCharge } from '../pledge-checkout'
 import { identify, recordGift } from '../giving/recording'
 import { runGiftRules } from '../gift-rules'
@@ -20,6 +21,14 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
  if (charge.currency !== 'usd') fail('currency', 'Only USD payments can be reconciled.', 409)
  if(charge.metadata?.coffer_pledge_checkout)await pledgeSessionForCharge(env,charge.metadata.coffer_pledge_checkout)
  const gross = cents(charge.amount), customerId = stripeId(charge.customer), pi = stripeId(charge.payment_intent)
+ let providerIntentId=charge.metadata?.coffer_intent??''
+ const staffPayment=pi&&await one(c,"SELECT 1 FROM cf_portal_changes p JOIN cf_giving_intents i ON i.id=p.id WHERE p.action='staff.payment' AND i.customer_id=?",customerId)
+ if(staffPayment){const payment=await stripe(env,'/payment_intents/'+encodeURIComponent(pi));providerIntentId=payment.metadata?.coffer_intent??providerIntentId}
+ if(staffPayment&&!await one(c,"SELECT 1 FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'",pi)&&await observeStaffPayment(env,pi,authority)){
+  const recorded=await one(c,'SELECT * FROM cf_stripe_charges WHERE id=?',chargeId)
+  if(recorded)return recorded
+  return null
+ }
  const refs = [charge.id, pi, stripeId(charge.invoice)].filter(Boolean)
  const savedIntent = customerId ? await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.customer_id=? ORDER BY i.created_at DESC LIMIT 1', customerId) : null
  // Newer Stripe versions keep the recurring invoice association on InvoicePayment.
@@ -32,7 +41,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
  let gift = await one(c, "SELECT * FROM cf_gifts WHERE source='stripe' AND kind='gift' AND reference IN (SELECT value FROM json_each(?)) ORDER BY created_at LIMIT 1", JSON.stringify(refs))
  const now = new Date().toISOString()
  if (!gift) {
-  let intent = charge.metadata?.coffer_intent ? await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', charge.metadata.coffer_intent) : savedIntent
+  let intent = providerIntentId ? await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', providerIntentId) : savedIntent?.staff_channel&&savedIntent.frequency==='once'?null:savedIntent
   if (!intent && pi) {
    const payment = await stripe(env, '/payment_intents/' + encodeURIComponent(pi))
    if (payment.metadata?.coffer_intent) intent = await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', payment.metadata.coffer_intent)
@@ -44,7 +53,10 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
    if(bank.status!=='succeeded'&&bank.status!=='returned')return null
    if(intent.donor_id&&!(await one(c,'SELECT id FROM cf_donors WHERE id=? AND erased_at IS NULL',intent.donor_id)))return null
   }
-  if (intent?.frequency === 'once' && (intent.customer_id !== customerId || intent.amount_cents !== gross)) fail('payment_mismatch', 'The charge differs from the agreed checkout total.', 409)
+  // Erasure removes the staff request and customer reference from the intent.
+  // Its separate processor tombstone still permits anonymous financial custody.
+  const erasedStaff=intent?.staff_channel&&intent.frequency==='once'&&intent.customer_id===null&&await one(c,'SELECT e.donor_id FROM cf_erased_stripe_customers e JOIN cf_donors d ON d.id=e.donor_id WHERE e.customer_id=? AND e.donor_id=? AND d.erased_at IS NOT NULL',customerId,intent.donor_id)
+  if (intent?.frequency === 'once' && ((intent.customer_id !== customerId&&!erasedStaff) || intent.amount_cents !== gross)) fail('payment_mismatch', 'The charge differs from the agreed checkout total.', 409)
   // A verified paid charge can arrive before the browser return. Use the
   // giving recorder so designation, private answers, consent and receipts have
   // the same frozen source whichever transport observes payment first.

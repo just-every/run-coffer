@@ -1,5 +1,6 @@
 import { bankCheckoutState, recoverBankSession } from './bank-checkout'
 import { syncEntry } from '../payments/entries'
+import { observeStaffPayment } from './staff-payment'
 import { recordMembershipPayment } from '../memberships/service'
 import { completePledgeCheckout } from '../pledge-checkout'
 import { checkoutFailure, invoiceProtection, radarFailure } from './protection'
@@ -80,6 +81,7 @@ export async function webhook(env: GivingEnv, request: Request, raw: string) {
  } else if (['payment_intent.processing','payment_intent.succeeded','payment_intent.payment_failed','payment_intent.canceled'].includes(event.type)) {
   const bank=await one({db:env.DB},"SELECT session_id FROM cf_giving_intents WHERE payment_method='us_bank_account' AND (id=? OR id IN (SELECT intent_id FROM cf_bank_checkouts WHERE payment_intent_id=?))",object.metadata?.coffer_intent??'',object.id)
   if(bank?.session_id)await completed(env,bank.session_id)
+  if(event.type==='payment_intent.succeeded')await observeStaffPayment(env,object.id)
  } else if (['invoice.paid', 'invoice.payment_succeeded', 'invoice.payment_failed', 'invoice.updated'].includes(event.type)) {
   await invoice(env, object.id, event.type === 'invoice.payment_failed' ? event.id : undefined)
  } else if (['customer.subscription.updated', 'customer.subscription.deleted', 'customer.subscription.created'].includes(event.type)) {

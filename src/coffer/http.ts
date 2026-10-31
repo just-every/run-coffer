@@ -151,7 +151,7 @@ import { readStripe } from './imports/live-stripe'
 import { available as stripeAvailable } from './giving/stripe'
 import { page, when } from './ui/common'
 import { givingResponse } from './giving/http'
-import { staffPlanResponse } from './giving/http'
+import { staffPlanResponse, staffPaymentResponse } from './giving/http'
 import { paymentsResponse } from './payments/http'
 import { agentResponse } from './agent/http'
 import { crmMoveInResponse } from './move-in/http'
@@ -333,6 +333,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if(formSettings)return formSettings
   const membership=await membershipResponse(request,c,async()=>isApi?jsonBody(request):Object.fromEntries(await formBody(request)))
   if(membership)return membership
+  const staffPayment = await staffPaymentResponse(request,c)
+  if(staffPayment)return staffPayment
   const staffPlans = await staffPlanResponse(request,c)
   if(staffPlans)return staffPlans
   const payments = await paymentsResponse(request, c, env, async () => isApi ? jsonBody(request) : Object.fromEntries(await formBody(request)))
@@ -513,7 +515,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
   {sql:'DELETE FROM cf_custom_value_history WHERE donor_id=?',params:[donorId]},
   {sql:'DELETE FROM cf_custom_values WHERE donor_id=?',params:[donorId]},
   { sql: 'DELETE FROM cf_giving_customers WHERE donor_id=?', params: [donorId] },
-  { sql: "UPDATE cf_giving_intents SET donor_id=?,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR email=?", params: [placeholder, donorId, donor.email ?? ''] },
+  { sql: "UPDATE cf_giving_intents SET donor_id=CASE WHEN staff_channel IS NOT NULL AND frequency='once' AND donor_id<>? THEN donor_id ELSE ? END,name='Erased donor',email='',customer_id=NULL WHERE donor_id=? OR email=?", params: [donorId, placeholder, donorId, donor.email ?? ''] },
   { sql: "UPDATE cf_subscriptions SET donor_id=?,customer_id='' WHERE donor_id=?", params: [placeholder, donorId] },
  ]
  // The placeholder must exist before its references move; delete the old donor last.

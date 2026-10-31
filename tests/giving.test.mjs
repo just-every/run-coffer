@@ -296,3 +296,7 @@ test('CAMP-004: paid memberships renew once, disclose benefits, reconcile campai
 test('GIVE-004: hosted ACH stays pending, settles once with actual fees, and returns with owned non-ask follow-up', {timeout:600000}, async()=>{
  const {achCheckoutJourney}=await import('./ach-checkout-journey.mjs');await achCheckoutJourney()
 })
+
+test('GIVE-009: authorized one-time saved-card entry records exact gifts, fees and appeals while unsafe and uncertain charges stay held', {timeout:300000}, async()=>{
+ const {staffPaymentJourney}=await import('./staff-payment-journey.mjs');await staffPaymentJourney()
+})

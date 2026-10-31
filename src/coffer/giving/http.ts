@@ -1,3 +1,5 @@
+import { createStaffPayment, reviewStaffPayment, staffPaymentState, staffPaymentResult } from './staff-payment'
+import { staffPaymentPage, staffPaymentReview, staffPaymentOutcome } from './staff-payment-ui'
 import { peerResponse } from '../peer/http'
 import { publicPage } from '../peer/service'
 import { publicMembershipResponse } from '../memberships/http'
@@ -146,4 +148,32 @@ export async function staffPlanResponse(request:Request,c:Context):Promise<Respo
  else input=Object.fromEntries(new URLSearchParams(body))
  const result=await (!id||id==='new'?createStaffPlan(c,input):changeStaffPlan(c,id,input))
  return api?Response.json(result,{headers}):givingRedirect('/app/giving/plans/'+encodeURIComponent(result.id)+'?saved=1')
+}
+
+/** Native sessions and direct transports share the same charge boundary. */
+export async function staffPaymentResponse(request:Request,c:Context):Promise<Response|null>{
+ const url=new URL(request.url),match=url.pathname.match(/^\/(app|api\/coffer)\/giving\/payments\/(new|review|[a-f0-9-]{36})$/)
+ if(!match)return null
+ requireRole(c.actor,['owner','admin'],'charge an authorized saved card')
+ originGuard(request,c.env!)
+ const api=match[1]!=='app',action=match[2]
+ if(request.method==='GET'){
+  if(action==='review')fail('METHOD','Use the payment entry form.',405)
+  const donorId=url.searchParams.get('donorId')??''
+  if(api)return Response.json(action==='new'?await staffPaymentState(c,donorId):await staffPaymentResult(c,action),{headers})
+  return page('Staff payment',action==='new'?await staffPaymentPage(c,donorId):await staffPaymentOutcome(c,action),c.actor,200,'/app/giving')
+ }
+ if(request.method!=='POST'||!['new','review'].includes(action))fail('METHOD','Use the payment entry form.',405)
+ const type=request.headers.get('content-type')??''
+ if(api?!type.startsWith('application/json'):!type.startsWith('application/x-www-form-urlencoded'))fail('FORM','Use the payment form or JSON transport.',415)
+ const raw=await givingBody(request)
+ let input:Record<string,unknown>
+ if(api){try{input=JSON.parse(raw)}catch{fail('INPUT','Send a JSON object.',400)}if(!input||typeof input!=='object'||Array.isArray(input))fail('INPUT','Send a JSON object.',400)}
+ else input=Object.fromEntries(new URLSearchParams(raw))
+ if(action==='review'){
+  const reviewed=await reviewStaffPayment(c,input)
+  return api?Response.json({reviewVersion:reviewed.reviewVersion,amountCents:reviewed.amountCents,campaign:reviewed.campaign,appeal:reviewed.appeal},{headers}):page('Review staff payment',staffPaymentReview(reviewed,input),c.actor,200,'/app/giving')
+ }
+ const result=await createStaffPayment(c,input)
+ return api?Response.json(result,{headers}):givingRedirect('/app/giving/payments/'+encodeURIComponent(result.id))
 }

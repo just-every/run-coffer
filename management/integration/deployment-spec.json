@@ -1114,6 +1114,12 @@
       "name": "core-0182_coffer_reply_ingress.sql",
       "sha256": "874cc2f77109be38538c293e68de5f79551912a64dc6a870615081a6b45a2201",
       "sql": "-- Opaque replay receipts survive erasure without retaining a donor identity,\n-- sender address, subject or excerpt. Deleting the private task leaves only\n-- its one-way ingress hash, so an old capture cannot move to a new identity.\nCREATE TABLE cf_reply_ingress (\n id TEXT PRIMARY KEY CHECK(length(id)=64),\n task_id TEXT REFERENCES cf_reply_tasks(id) ON DELETE SET NULL\n);\nCREATE INDEX cf_reply_ingress_task ON cf_reply_ingress(task_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0183_coffer_staff_payment_permission.sql",
+      "sha256": "c0dbca83e4f747e65efc17461ebbb17baf93e2d2f64dd715225d4885b421d2e1",
+      "sql": "-- Existing donor permission continues to authorize recurring gifts only.\nALTER TABLE cf_saved_card_consents ADD COLUMN scope TEXT NOT NULL DEFAULT 'recurring' CHECK(scope IN ('recurring','once'));\nCREATE INDEX cf_saved_card_consent_scope ON cf_saved_card_consents(donor_id,customer_id,payment_method_id,scope,id DESC);\n\n-- Private staff authorization requests follow aliases through erasure as well.\nCREATE TRIGGER cf_staff_payment_erasure AFTER UPDATE OF erased_at ON cf_donors\nWHEN OLD.erased_at IS NULL AND NEW.erased_at IS NOT NULL BEGIN\n DELETE FROM cf_portal_changes WHERE action='staff.payment' AND\n (donor_id=NEW.id OR donor_id IN (SELECT donor_id FROM cf_donor_merges WHERE into_id=NEW.id));\nEND;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
