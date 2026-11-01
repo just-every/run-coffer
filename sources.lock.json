@@ -4775,7 +4775,7 @@
       "executable": false
     },
     "src/coffer/ui/crm-export-steps.ts": {
-      "sha256": "59e96bea2da5995ea0446c8fb77a82b543287a742b66644549cd3453cfd829d1",
+      "sha256": "43ea1e5a0e108ff656a75113a3419447f152ecb6b54dbcf51b6334049bc319fc",
       "executable": false
     },
     "src/coffer/ui/crm-move-in.ts": {
