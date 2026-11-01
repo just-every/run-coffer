@@ -430,3 +430,8 @@ test('MOVE-009: reviewed Stripe card and ACH mappings preserve evidence without 
  const {vaultMappingJourney}=await import('./vault-mapping-journey.mjs')
  await vaultMappingJourney()
 })
+
+test('MOVE-011: switching guides and durable installation reviews follow current import evidence without claiming cutover',async()=>{
+ const {moveInGuideJourney}=await import('./move-in-guide-journey.mjs')
+ await moveInGuideJourney()
+})

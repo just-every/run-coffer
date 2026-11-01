@@ -160,7 +160,23 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-skip-pattern='^(DONOR-005|DONOR-013|MOVE-005|MOVE-010|MOVE-003):' tests/move-in.test.mjs"
+        "node --test --test-concurrency=1 --test-skip-pattern='^ACK-001|^(DONOR-005|DONOR-013|MOVE-005|MOVE-010|MOVE-003|MOVE-011|MOVE-009|MOVE-006):' tests/move-in.test.mjs"
+      ]
+    },
+    {
+      "name": "move-in-acknowledgments",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node --test --test-concurrency=1 --test-name-pattern='^ACK-001 / MOVE-' tests/move-in.test.mjs"
+      ]
+    },
+    {
+      "name": "move-in-mapping",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node --test --test-concurrency=1 --test-name-pattern='^MOVE-(006|009):' tests/move-in.test.mjs"
       ]
     },
     {
@@ -168,7 +184,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node --test --test-concurrency=1 --test-name-pattern='^(DONOR-013|MOVE-005):' tests/move-in.test.mjs",
+        "COFFER_MOVE_IN_GUIDE_BROWSER=.cache/move-in-guide node --test --test-concurrency=1 --test-name-pattern='^(DONOR-013|MOVE-005|MOVE-011):' tests/move-in.test.mjs",
         "node --test --test-name-pattern=\"^MOVE-010: Spreadsheet\" tests/move-in.test.mjs"
       ]
     },
