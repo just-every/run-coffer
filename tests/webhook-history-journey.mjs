@@ -1,3 +1,4 @@
+import {publicWebhookDns} from './webhook-dns-edge.mjs'
 import assert from 'node:assert/strict'
 import {run,donor} from './harness.mjs'
 
@@ -80,6 +81,7 @@ export async function webhookHistoryJourney(){
   assert.deepEqual(exhausted.attempts,[],'Terminal history contains no orphan attempts')
   assert.equal(exhausted.nextCursor,null,'The empty terminal page has no continuation')
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,outbound:async request=>{
+  const dns=publicWebhookDns(request);if(dns)return dns
   assert.ok([endpoint,endpoint+'-replacement'].includes(request.url))
   const event=await request.json(),delivery_id=request.headers.get('coffer-delivery-id'),row=expected.get(delivery_id)
   assert.ok(row,'Every network delivery was created through a known native door')
