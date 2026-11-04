@@ -12,13 +12,13 @@ const providerFacts=(s:Row)=>({...planFacts(s),nextBillingAt:(s.status==='triali
 
 export async function staffPlans(c:Context){
  staff(c)
- const rows=await all(c,`${planQuery} JOIN cf_donors d ON d.id=s.donor_id WHERE ${live} ORDER BY s.updated_at DESC,s.id`)
+ const rows=await all(c,`${planQuery} JOIN cf_donors d ON d.id=s.donor_id WHERE ${live} AND NOT EXISTS(SELECT 1 FROM cf_native_plans n WHERE n.id=s.id) ORDER BY s.updated_at DESC,s.id`)
  await commit(c,[])
  return rows
 }
 async function adoptedPlan(c:Context,id:string){
  staff(c)
- const own=await one(c,`${planQuery} JOIN cf_donors d ON d.id=s.donor_id WHERE s.id=? AND ${live}`,id)
+ const own=await one(c,`${planQuery} JOIN cf_donors d ON d.id=s.donor_id WHERE s.id=? AND ${live} AND NOT EXISTS(SELECT 1 FROM cf_native_plans n WHERE n.id=s.id)`,id)
  if(!own)fail('NOT_FOUND','Choose an adopted Stripe plan on a current constituent.',404)
  if(await one(c,'SELECT 1 FROM cf_subscriptions WHERE customer_id=? AND donor_id<>? UNION ALL SELECT 1 FROM cf_giving_customers WHERE customer_id=? AND donor_id<>?',own.customer_id,own.donor_id,own.customer_id,own.donor_id))fail('CUSTOMER_AMBIGUOUS','Separate the shared Stripe customer before changing this plan.',409)
  return own

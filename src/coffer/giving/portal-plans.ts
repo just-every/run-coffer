@@ -7,9 +7,10 @@ import { portalContext, type PortalDonor } from './portal-identity'
 import { portalPage } from './portal-ui'
 import { stripe, type GivingEnv, type StripeParams } from './stripe'
 
-export const planQuery=`SELECT s.*,c.name AS campaign_name,p.interval,p.interval_count,p.collection_paused,p.observed_at AS schedule_observed_at FROM cf_subscriptions s JOIN cf_campaigns c ON c.id=s.campaign_id LEFT JOIN cf_portal_subscription_settings p ON p.subscription_id=s.id`
+export const planQuery=`SELECT s.*,c.name AS campaign_name,p.interval,p.interval_count,p.collection_paused,p.observed_at AS schedule_observed_at,EXISTS(SELECT 1 FROM cf_native_plans n WHERE n.id=s.id) AS native_schedule FROM cf_subscriptions s JOIN cf_campaigns c ON c.id=s.campaign_id LEFT JOIN cf_portal_subscription_settings p ON p.subscription_id=s.id`
 export async function ownPlan(env:GivingEnv,donor:PortalDonor,id:string){
  const c=await portalContext(env,donor),own=await one(c,planQuery+' WHERE s.id=? AND s.donor_id=?',id,donor.id)
+ if(own?.native_schedule)fail('native_plan_review','This Coffer monthly schedule is managed by the organization. You can withdraw saved card permission in your giving account to stop future submissions.',409)
  if(!own)fail('not_found','That recurring gift is not on your account.',404)
  if(await one(c,'SELECT 1 FROM cf_subscriptions WHERE customer_id=? AND donor_id<>? UNION ALL SELECT 1 FROM cf_giving_customers WHERE customer_id=? AND donor_id<>?',own.customer_id,donor.id,own.customer_id,donor.id))fail('portal_customer_ambiguous','The organization needs to separate this payment account before you can update it.',403)
  return {c,own}

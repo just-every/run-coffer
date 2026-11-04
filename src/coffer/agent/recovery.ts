@@ -1,3 +1,4 @@
+import { reconcileNativeRecovery } from '../giving/installments'
 import { recoveryPolicyRequired, policyConfigured, legacyRecoveryPolicy } from './recovery-notices-rules'
 import { advanceRecoveryNotices, settleRecoveryNotices } from './recovery-notices'
 import { automated, automationContext, automationAllows, automationRecords, claimAutomation } from '../automation-grants'
@@ -17,8 +18,8 @@ function authorize(c: Context) {
 }
 
 /** Observe current provider state, never the potentially stale webhook payload. */
-export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, intent: Row, failureEventId?: string) {
- const c = await automationContext(env,'recovery')
+export async function observeRecovery(env: GivingEnv, current: Row, sub: Row, intent: Row, failureEventId?: string, at=new Date().toISOString()) {
+ const c = await automationContext(env,'recovery',at)
  if(!c || !automationAllows(c,intent.donor_id))return
  const previous = await one(c, 'SELECT * FROM cf_agent_recovery WHERE invoice_id=?', current.id)
  const failed = ['open','void','uncollectible'].includes(current.status) && current.attempt_count > 0
@@ -84,6 +85,7 @@ export async function runRecovery(c: Context, env: GivingEnv) {
  const result = { enabled: true, checked: 0, recovered: 0, lapsed: 0, errors: 0 }
  for (const sub of subscriptions) {
   try {
+   if(await reconcileNativeRecovery(c,env,sub.id)){result.checked++;continue}
    // Check each tracked invoice too: a subscription may already have advanced to
    // a newer invoice while an earlier failure was paid or written off.
    const tracked = await all(c, "SELECT invoice_id FROM cf_agent_recovery WHERE subscription_id=? AND state='waiting'", sub.id)

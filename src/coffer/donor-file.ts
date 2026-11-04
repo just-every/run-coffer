@@ -19,6 +19,7 @@ const DONOR_COLUMNS: Record<string, string[]> = {
 }
 // A column naming a parent record, and the table whose `id` it names.
 const PARENTS: Record<string, string> = {
+ plan_id:'cf_native_plans',
  page_id:'cf_peer_pages', team_id:'cf_peer_teams', intent_id:'cf_giving_intents', gift_id: 'cf_gifts', received_gift_id: 'cf_gifts', first_gift_id: 'cf_gifts', reverses: 'cf_gifts', pledge_id: 'cf_pledges', prospect_id: 'cf_prospects',
  in_kind_id: 'cf_in_kind_gifts', grant_id: 'cf_grants', subscription_id: 'cf_subscriptions', installment_id: 'cf_pledge_installments',
  communication_id: 'cf_communications', letter_id: 'cf_acks', series_id: 'cf_recurring_task_series', soft_credit_id: 'cf_soft_credits',
@@ -26,6 +27,7 @@ const PARENTS: Record<string, string> = {
 }
 // Rows that reach a donor but are not records about them.
 export const NOT_IN_FILE: Record<string, string> = {
+ cf_native_plan_approvals:'Installation charging authority is private and must be approved again after restore.',
  cf_meeting_links: 'Private scheduling capabilities and staff authorization stay in this installation.',
  cf_auction_jobs: 'Complete source files contain other bidders and stay private.',
  cf_auction_donors: 'Internal undo snapshots contain complete imported contact records.',

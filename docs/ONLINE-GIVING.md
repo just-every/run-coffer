@@ -142,3 +142,36 @@ Provider references: [hosted ACH collection](https://docs.stripe.com/payments/ac
 [Charge fields](https://docs.stripe.com/api/charges/object),
 [Mandate fields](https://docs.stripe.com/api/mandates/object) and
 [Dispute fields](https://docs.stripe.com/api/disputes/object).
+
+
+## Coffer monthly saved-card schedules
+
+From recurring plans, open **Coffer monthly saved-card plans** and choose a
+constituent with one saved Stripe customer. The donor must personally grant
+permission for the current saved card in their giving account. Record the phone
+authorization or attach the mailed signed authorization on that constituent.
+Preparation records the fixed USD amount, monthly schedule and authorization.
+A separate owner or admin review confirms the immediate first installment.
+
+Coffer then submits each monthly installment once. The native plan shows its
+approved version, due dates, payment state and linked gift and receipt history.
+Successful installments use the ordinary actual-fee ledger and recurring reports.
+Staff entry retains phone or mail attribution and does not invent form provenance.
+
+Pausing stops future installments. Resuming explicitly reviews the plan again
+and selects the next future monthly boundary; missed months are skipped.
+Cancellation preserves history. A failed or uncertain submission holds later
+charging for that donor, including a fresh plan request. **Read provider result**
+reconciles an existing Stripe payment and never submits another debit. If the
+initial response was lost, supply the exact Stripe payment identity for review.
+
+Current owner or admin authority, donor identity, recorded authorization and
+permission for the exact current card are checked before submission. A replaced
+card requires fresh donor permission. Restored history carries no charging
+approval; merge and erasure stop billing. Recovery notices require their separate
+standing policy, donor contact permission, current channel consent and any
+named development-lead review. They do not authorize a payment retry.
+
+Existing Stripe subscriptions continue on their existing billing path. Native
+quarterly and annual schedules, other form and entry cases, new card or bank
+collection, and native amount or date changes remain unavailable.
