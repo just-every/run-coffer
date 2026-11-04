@@ -1114,6 +1114,18 @@
       "name": "core-0182_coffer_reply_ingress.sql",
       "sha256": "874cc2f77109be38538c293e68de5f79551912a64dc6a870615081a6b45a2201",
       "sql": "-- Opaque replay receipts survive erasure without retaining a donor identity,\n-- sender address, subject or excerpt. Deleting the private task leaves only\n-- its one-way ingress hash, so an old capture cannot move to a new identity.\nCREATE TABLE cf_reply_ingress (\n id TEXT PRIMARY KEY CHECK(length(id)=64),\n task_id TEXT REFERENCES cf_reply_tasks(id) ON DELETE SET NULL\n);\nCREATE INDEX cf_reply_ingress_task ON cf_reply_ingress(task_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0183_coffer_move_in_checklist.sql",
+      "sha256": "6cf759d9d76e45e4abe3c016663f0b8e37de730e1735ca0ddad75dc0d025e2aa",
+      "sql": "-- Reviews store only evidence digests. Completion is recomputed from live imports.\nCREATE TABLE cf_move_in_checklists (\n source TEXT PRIMARY KEY CHECK(source IN ('lgl','bloomerang','re-nxt','neon','givebutter','zeffy')),\n version INTEGER NOT NULL CHECK(version > 0),\n job_id TEXT NOT NULL REFERENCES cf_move_in_jobs(id),\n names_hash TEXT,\n fields_hash TEXT,\n reconciliation_hash TEXT,\n reviewed_at TEXT NOT NULL,\n reviewed_by TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0184_coffer_webhook_network.sql",
+      "sha256": "e6c39987216360284e00e1979501394762ae715742900a3b7e068fda875c2d9e",
+      "sql": "-- Stable outcomes only; DNS answers and receiver response bodies stay unretained.\nALTER TABLE cf_webhook_attempts ADD COLUMN failure_code TEXT;\nALTER TABLE cf_webhook_deliveries ADD COLUMN last_failure_code TEXT;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

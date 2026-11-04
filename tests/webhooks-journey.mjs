@@ -1,3 +1,5 @@
+import {webhookNetworkJourney} from './webhook-network-journey.mjs'
+import {publicWebhookDns} from './webhook-dns-edge.mjs'
 import assert from 'node:assert/strict'
 import {createHmac,randomUUID} from 'node:crypto'
 import {run,donor,archive,restore,installation,reviewed} from './harness.mjs'
@@ -165,9 +167,11 @@ export async function webhooksJourney(){
   const audit=(await h.get('/api/coffer/audit?action=webhook.subscribe')).rows
   assert.ok(audit.length>=2);assert.ok(audit.every(x=>JSON.parse(x.detail).explicitDisclosureApproval===true))
  },{entry:'tests/advancing-clock-worker.ts',triggerHandlers:true,outbound:async request=>{
+  const dns=publicWebhookDns(request);if(dns)return dns
   assert.equal(new URL(request.url).hostname,'receiver.example.test')
   return receiver(request)
  }})
+ await webhookNetworkJourney()
  await webhookHistoryJourney()
  await webhookContinuityJourney()
  await webhookSourceJourney()
@@ -208,6 +212,7 @@ async function webhookSourceJourney(){
    assert.equal(v,createHmac('sha256',signed.secret).update(t+'.'+delivery.body).digest('hex'),'Signed '+kind)
   }
  },{triggerHandlers:true,bindings:{STRIPE_SECRET_KEY:'synthetic-coffer-1816',STRIPE_WEBHOOK_SECRET:'synthetic-coffer-1811'},outbound:async request=>{
+  const dns=publicWebhookDns(request);if(dns)return dns
   if(new URL(request.url).hostname==='receiver.example.test'){const body=await request.text();delivered.push({event:JSON.parse(body),body,signature:request.headers.get('coffer-signature')});return new Response(null,{status:204})}
   return edge.outbound(request)
  }})

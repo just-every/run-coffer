@@ -1,3 +1,4 @@
+import {publicWebhookDns} from './webhook-dns-edge.mjs'
 import assert from 'node:assert/strict'
 import {createHmac} from 'node:crypto'
 import {run,donor,reviewed,archive,restore} from './harness.mjs'
@@ -280,6 +281,7 @@ export async function restApiJourney(){
   for(let i=0;i<200;i++){const response=await h.request(prefix+'/openapi.json',{...bearer(limited)});if(response.status===429){throttled=response;break}assert.equal(response.status,200);await response.arrayBuffer()}
   assert.ok(throttled,'Repeated requests reach the durable rate limit');assert.ok(Number(throttled.headers.get('retry-after'))>0)
  },{...clock,bindings:{...clock.bindings,...payments.bindings,GIFT_RULE_SLACK_URL:'https://hooks.slack.com/services/synthetic-coffer-4290/synthetic-coffer-4291/synthetic-coffer-4292'},outbound:async request=>{
+  const dns=publicWebhookDns(request);if(dns)return dns
   const nativeResult=await native.outbound(request);if(nativeResult)return nativeResult
   if(new URL(request.url).hostname==='api.stripe.com')return payments.outbound(request)
   assert.equal(new URL(request.url).hostname,'receiver.example.test','Public API local writes do not make unapproved provider calls')
