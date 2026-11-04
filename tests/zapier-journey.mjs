@@ -286,9 +286,13 @@ export async function zapierHooksJourney(){
   const freshTick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+String(stamp+2000));assert.equal(freshTick.status,200)
   const fresh=messages.find(message=>message.event.data.id===freshDonor.id);assert.ok(fresh)
   assert.deepEqual(await trigger(fresh),[fresh.event],'Current signing authority accepts a fresh post-rotation event')
-  const expired=await h.api(prefix+'/keys',{label:'synthetic-coffer-7557',scope:'full',expiresOn:'2026-11-01'},keyOptions)
+  // Native key authorization also checks D1's real clock. Keep the positive
+  // expiry case in its future, then advance the request clock past that expiry.
+  const expiryStart=Math.max(Date.now(),stamp+2000)
+  const expiresOn=new Date(expiryStart+86400000).toISOString().slice(0,10)
+  const expired=await h.api(prefix+'/keys',{label:'synthetic-coffer-7557',scope:'full',expiresOn},keyOptions)
   assert.deepEqual(await trigger(fresh,{authData:{baseUrl,apiKey:expired.token}}),[fresh.event])
-  transport.setNow('2026-11-02T00:00:00.000Z')
+  transport.setNow(new Date(Date.parse(expiresOn+'T23:59:59.999Z')+1).toISOString())
   await denied(()=>trigger(fresh,{authData:{baseUrl,apiKey:expired.token}}),401)
   transport.setNow(new Date(stamp+2000).toISOString())
   await h.api(prefix+'/keys/'+full.id+'/revoke',{})

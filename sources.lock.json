@@ -8287,7 +8287,7 @@
       "executable": false
     },
     "tests/zapier-journey.mjs": {
-      "sha256": "59ac54a182735a9b8f94419939bde8f30753d066a99b865b723b62b5ffd42988",
+      "sha256": "2ea3f9c3a1d5cc60f1ddebddd2e2d76cb8d4fe34e12a6bd8cd28260704caba42",
       "executable": false
     },
     "tsconfig.json": {
