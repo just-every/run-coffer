@@ -559,7 +559,7 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "efb69f186d1bda8cf5ee2b73eb6d99d6ef0858019a7f31b645b60963eecfc934",
+      "sha256": "eae0817e3a726034ae3858778019c2b00734e21ee0f782b6274cd1b918ee008d",
       "executable": false
     },
     "base-copies.json": {
@@ -8279,7 +8279,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "3ce8b7f5e96a03bc245fc1c5fe1b21fd664d2a25daed633af316a9780796b4e0",
+      "sha256": "4be1531ded6c53871473b7a065f9c31c4feb07c8ab1f600d7297cfd74d549857",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
