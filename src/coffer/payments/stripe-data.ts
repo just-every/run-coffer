@@ -14,12 +14,12 @@ function stamp(seconds: number) {
 export const day = (seconds: number, timezone: string): string => today(timezone, stamp(seconds))
 /** A Stripe calendar date (a payout's arrival date), which Stripe sends as midnight UTC. */
 export const utcDay = (seconds: number): string => stamp(seconds).toISOString().slice(0, 10)
-export async function* stripePages(env: GivingEnv, path: string): AsyncGenerator<any> {
+export async function* stripePages(env: GivingEnv, path: string, strict = false): AsyncGenerator<any> {
  let after = ''
  for (;;) {
   const separator = path.includes('?') ? '&' : '?'
   const page = await stripe(env, path + separator + 'limit=100' + (after ? '&starting_after=' + encodeURIComponent(after) : ''))
-  if (!Array.isArray(page.data)) fail('invalid_payment', 'Stripe returned an invalid list.', 502)
+  if (!Array.isArray(page.data) || (strict && typeof page.has_more !== 'boolean')) fail('invalid_payment', 'Stripe returned an invalid list.', 502)
   for (const row of page.data) yield row
   if (!page.has_more) return
   const next = page.data.at(-1)?.id

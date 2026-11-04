@@ -1,3 +1,5 @@
+import { approveDonorMatch, donorMatchQueue, donorMatchView, refreshDonorMatch } from './donor-match'
+import { donorMatchPage, donorMatchQueuePage, donorMatchStyles } from './donor-match-ui'
 import { quickbooksResponse } from './quickbooks/http'
 import { batchDeposit, batchEvidence, postBatchToPantry } from './batch-deposits'
 import { batchDepositPage } from './batch-ui'
@@ -30,6 +32,27 @@ export async function paymentsResponse(request: Request, c: Context, env: Paymen
  const flags = { managed: managed(env), stripeAvailable: available(env), pantryAvailable: !managed(env) && Boolean(env.PANTRY_ORIGIN && env.PANTRY_AGENT_TOKEN) }
  const redirect = (location: string) => new Response(null, { status: 303, headers: { location, 'cache-control': 'no-store' } })
  const suffix = path.slice(root.length)
+ if(suffix==='/donor-match.css'&&['GET','HEAD'].includes(request.method))return new Response(donorMatchStyles,{headers:{'content-type':'text/css','cache-control':'no-store'}})
+ if(suffix==='/donor-matches'&&['GET','HEAD'].includes(request.method)){
+  const view=await donorMatchQueue(c)
+  return api?json(view):page('Donor matches',donorMatchQueuePage(view),c.actor,200,'/app/payouts')
+ }
+ const donorReview=suffix.match(/^\/donor-matches\/([^/]+)(?:\/(approve|refresh))?$/)
+ if(donorReview){
+  const chargeId=id(decodeURIComponent(donorReview[1]),'Stripe charge'),action=donorReview[2]
+  if(request.method==='POST'&&action){
+   const data=await input()
+   if(!api&&action==='approve'){
+    const selection=String(data.selection??''),at=selection.lastIndexOf(':')
+    data.donorId=selection.slice(0,at);data.donorVersion=Number(selection.slice(at+1))
+   }
+   const result=action==='approve'?await approveDonorMatch(c,env,chargeId,data):await refreshDonorMatch(c,env,chargeId)
+   return api?json(result):redirect('/app/payouts/donor-matches/'+encodeURIComponent(chargeId))
+  }
+  if(action||!['GET','HEAD'].includes(request.method))fail('method_not_allowed','Use the donor review buttons.',405)
+  const view=await donorMatchView(c,chargeId)
+  return api?json(view):page('Review donor match',donorMatchPage(view),c.actor,200,'/app/payouts')
+ }
  if (suffix === '/refunds' && request.method === 'POST') {
   const result = await requestRefund(c,env,await input())
   return api ? json(result) : redirect('/app/payouts/adjustments')
