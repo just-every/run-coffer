@@ -8,10 +8,16 @@ const refuse = (code: WebhookNetworkFailure): never => { throw new Refusal(code)
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
 const uint32 = (value: unknown) => Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 0xffffffff
 
-function hostname(value: unknown): string {
+function dnsName(value: unknown): string {
  if (typeof value !== 'string') return refuse('dns_malformed')
+ if (value === '.') return value
  const name = value.toLowerCase().replace(/\.$/, '')
- if (name.length > 253 || !name.includes('.') || !name.split('.').every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))) return refuse('dns_alias_unsafe')
+ if (name.length > 253 || !name.split('.').every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))) return refuse('dns_malformed')
+ return name
+}
+function hostname(value: unknown): string {
+ const name = dnsName(value)
+ if (!name.includes('.')) return refuse('dns_alias_unsafe')
  try { if (new URL(webhookEndpoint('https://' + name + '/')).hostname !== name) return refuse('dns_alias_unsafe') }
  catch { return refuse('dns_alias_unsafe') }
  return name
@@ -80,8 +86,10 @@ function inspect(value: unknown, name: string, family: number) {
   const negative = authority.some(row => {
    if (row.type !== 6 || !(terminal === row.name || terminal.endsWith('.'+row.name))) return false
    const fields = row.data.split(/\s+/)
-   return fields.length === 7 && fields.slice(0,2).every(field => /^[a-z0-9.-]+\.?$/i.test(field)) &&
-    fields.slice(2).every(field => /^\d+$/.test(field) && uint32(Number(field)))
+   if (fields.length !== 7 || !fields.slice(2).every(field => /^\d+$/.test(field) && uint32(Number(field)))) return refuse('dns_malformed')
+   // SOA mailbox and primary-server names are DNS names, not arbitrary text.
+   fields.slice(0,2).forEach(dnsName)
+   return true
   })
   if (!negative) return refuse('dns_incomplete')
  }
