@@ -222,7 +222,17 @@ export async function zapierRecordsJourney(){
 export async function zapierHooksJourney(){
  await webhookSourcesJourney(async({phase,h,signed,messages,erasedIds})=>connector(h,async transport=>{
   const {test,baseUrl}=transport
-  const keyOptions={status:201}
+  // SQLite also checks real time. Sign in and mint keys at the same current instant.
+  const headers={'x-test-now':new Date().toISOString()}
+  const currentSession=async as=>{
+   const {operator}=await h.get('/auth/session',{as})
+   await h.api('/auth/magic-link',{email:operator.email},{as:'',headers,status:202})
+   const link=h.messages.at(-1).text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/);assert.ok(link)
+   const signedIn=await h.request('/auth/confirm',{method:'POST',as:'',headers,body:{token:new URL(link[0]).searchParams.get('token')}})
+   assert.equal(signedIn.status,303)
+   return signedIn.headers.getSetCookie().map(value=>value.split(';')[0]).join('; ')
+  }
+  const keyOptions={status:201,headers,as:await currentSession(h.owner)}
   const full=await h.api(prefix+'/keys',{label:'synthetic-coffer-7550',scope:'full'},keyOptions)
   const targetUrl='https://receiver.example.test/events'
   const capture=message=>({authData:{baseUrl,apiKey:full.token},inputData:{subscriptionId:signed.id,targetUrl},
@@ -266,7 +276,7 @@ export async function zapierHooksJourney(){
   const limited=await h.api(prefix+'/keys',{label:'synthetic-coffer-7553',scope:'read-only'},keyOptions)
   await denied(()=>trigger(first,{authData:{baseUrl,apiKey:limited.token}}),403)
   const admin=await h.person(['synthetic-coffer-7554','example.test'].join('@'),'admin')
-  const foreignKey=await h.api(prefix+'/keys',{label:'synthetic-coffer-7555',scope:'full'},{...keyOptions,as:admin.cookie})
+  const foreignKey=await h.api(prefix+'/keys',{label:'synthetic-coffer-7555',scope:'full'},{...keyOptions,as:await currentSession(admin.cookie)})
   await denied(()=>trigger(first,{authData:{baseUrl,apiKey:foreignKey.token}}),403)
   const replay=await h.command('webhook.replay',{deliveryId:first.deliveryId,reviewed:'yes'})
   const replayTick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+String(stamp+1000));assert.equal(replayTick.status,200)
@@ -286,9 +296,9 @@ export async function zapierHooksJourney(){
   const freshTick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+String(stamp+2000));assert.equal(freshTick.status,200)
   const fresh=messages.find(message=>message.event.data.id===freshDonor.id);assert.ok(fresh)
   assert.deepEqual(await trigger(fresh),[fresh.event],'Current signing authority accepts a fresh post-rotation event')
-  const expired=await h.api(prefix+'/keys',{label:'synthetic-coffer-7557',scope:'full',expiresOn:'2026-11-01'},keyOptions)
+  const expired=await h.api(prefix+'/keys',{label:'synthetic-coffer-7557',scope:'full',expiresOn:new Date(Date.parse(keyOptions.headers['x-test-now'])+86400000).toISOString().slice(0,10)},keyOptions)
   assert.deepEqual(await trigger(fresh,{authData:{baseUrl,apiKey:expired.token}}),[fresh.event])
-  transport.setNow('2026-11-02T00:00:00.000Z')
+  transport.setNow(new Date(expired.expiresAt+1).toISOString())
   await denied(()=>trigger(fresh,{authData:{baseUrl,apiKey:expired.token}}),401)
   transport.setNow(new Date(stamp+2000).toISOString())
   await h.api(prefix+'/keys/'+full.id+'/revoke',{})
