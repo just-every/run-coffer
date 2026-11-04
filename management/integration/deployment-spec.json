@@ -1114,6 +1114,18 @@
       "name": "core-0182_coffer_reply_ingress.sql",
       "sha256": "874cc2f77109be38538c293e68de5f79551912a64dc6a870615081a6b45a2201",
       "sql": "-- Opaque replay receipts survive erasure without retaining a donor identity,\n-- sender address, subject or excerpt. Deleting the private task leaves only\n-- its one-way ingress hash, so an old capture cannot move to a new identity.\nCREATE TABLE cf_reply_ingress (\n id TEXT PRIMARY KEY CHECK(length(id)=64),\n task_id TEXT REFERENCES cf_reply_tasks(id) ON DELETE SET NULL\n);\nCREATE INDEX cf_reply_ingress_task ON cf_reply_ingress(task_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0183_coffer_move_in_checklist.sql",
+      "sha256": "6cf759d9d76e45e4abe3c016663f0b8e37de730e1735ca0ddad75dc0d025e2aa",
+      "sql": "-- Reviews store only evidence digests. Completion is recomputed from live imports.\nCREATE TABLE cf_move_in_checklists (\n source TEXT PRIMARY KEY CHECK(source IN ('lgl','bloomerang','re-nxt','neon','givebutter','zeffy')),\n version INTEGER NOT NULL CHECK(version > 0),\n job_id TEXT NOT NULL REFERENCES cf_move_in_jobs(id),\n names_hash TEXT,\n fields_hash TEXT,\n reconciliation_hash TEXT,\n reviewed_at TEXT NOT NULL,\n reviewed_by TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0184_coffer_payment_donor_match.sql",
+      "sha256": "26821f804262ba895402456dd4c84d098ccecd689256451dc99c297f0bce5ed9",
+      "sql": "-- Private review evidence never grants a reusable customer association.\nCREATE TABLE cf_payment_donor_matches (\n charge_id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, account_id TEXT NOT NULL,\n version INTEGER NOT NULL DEFAULT 1,\n state TEXT NOT NULL CHECK(state IN ('held','approved','resolved','erased')),\n customer_id TEXT, email TEXT, facts TEXT NOT NULL CHECK(json_valid(facts)),\n candidates TEXT NOT NULL CHECK(json_valid(candidates)),\n donor_id TEXT REFERENCES cf_donors(id), donor_version INTEGER,\n approved_version INTEGER, approved_by TEXT, approved_actor_version INTEGER, approved_at TEXT,\n created_at TEXT NOT NULL, updated_at TEXT NOT NULL\n);\nCREATE TABLE cf_payment_match_payouts (\n charge_id TEXT NOT NULL REFERENCES cf_payment_donor_matches(charge_id),\n payout_id TEXT NOT NULL REFERENCES cf_payouts(id),\n PRIMARY KEY(charge_id,payout_id)\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
