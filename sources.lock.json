@@ -8175,7 +8175,7 @@
       "executable": false
     },
     "tests/team-access-browser.mjs": {
-      "sha256": "b79e5c5ceb63b24e5a6054983dcdc7ff9586783e32a7a5313dc13b6be741e288",
+      "sha256": "a17b29ec854c56932011514c04d1cf610a01b8b7150f4ee536d78e362ba99442",
       "executable": false
     },
     "tests/team-access-journey.mjs": {

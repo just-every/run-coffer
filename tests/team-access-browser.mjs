@@ -18,7 +18,11 @@ export async function teamAccessBrowser(h,{member,donor},directory){
   await page.goto(origin+'/app/settings/team-access')
   const memberCard=page.locator('section.card').filter({has:page.getByRole('heading',{name:'synthetic-coffer-1',exact:true})}).last()
   await memberCard.getByLabel('Coffer access').selectOption('1')
-  await memberCard.getByRole('button',{name:'Save member access'}).click()
+  // Finish the form's redirect before reloading its persisted assignment.
+  await Promise.all([
+   page.waitForNavigation({waitUntil:'load'}),
+   memberCard.getByRole('button',{name:'Save member access'}).click()
+  ])
   await page.reload()
   assert.equal(await page.locator('select[name=readOnly]').first().inputValue(),'1')
   await shot('assignment')
