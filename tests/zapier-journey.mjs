@@ -222,7 +222,17 @@ export async function zapierRecordsJourney(){
 export async function zapierHooksJourney(){
  await webhookSourcesJourney(async({phase,h,signed,messages,erasedIds})=>connector(h,async transport=>{
   const {test,baseUrl}=transport
-  const keyOptions={status:201}
+  // Key authorization also checks SQLite's real clock. Issue keys at a fixture
+  // time no earlier than either clock, while keeping signed event times fixed.
+  const keyNow=new Date(Math.max(Date.now(),Date.parse('2026-10-27T12:00:00.000Z')))
+  const keyHeaders={'x-test-now':keyNow.toISOString()}
+  const keySession=async email=>{
+   const requested=await h.request('/auth/magic-link',{method:'POST',as:'',body:{email},headers:keyHeaders});assert.equal(requested.status,202)
+   const link=h.messages.at(-1).text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]
+   const confirmed=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:new URL(link).searchParams.get('token')},headers:keyHeaders});assert.equal(confirmed.status,303)
+   return confirmed.headers.getSetCookie().map(value=>value.split(';')[0]).join('; ')
+  }
+  const keyOptions={status:201,headers:keyHeaders,as:await keySession('owner@example.test')}
   const full=await h.api(prefix+'/keys',{label:'synthetic-coffer-7550',scope:'full'},keyOptions)
   const targetUrl='https://receiver.example.test/events'
   const capture=message=>({authData:{baseUrl,apiKey:full.token},inputData:{subscriptionId:signed.id,targetUrl},
@@ -266,7 +276,7 @@ export async function zapierHooksJourney(){
   const limited=await h.api(prefix+'/keys',{label:'synthetic-coffer-7553',scope:'read-only'},keyOptions)
   await denied(()=>trigger(first,{authData:{baseUrl,apiKey:limited.token}}),403)
   const admin=await h.person(['synthetic-coffer-7554','example.test'].join('@'),'admin')
-  const foreignKey=await h.api(prefix+'/keys',{label:'synthetic-coffer-7555',scope:'full'},{...keyOptions,as:admin.cookie})
+  const foreignKey=await h.api(prefix+'/keys',{label:'synthetic-coffer-7555',scope:'full'},{...keyOptions,as:await keySession(admin.session.operator.email)})
   await denied(()=>trigger(first,{authData:{baseUrl,apiKey:foreignKey.token}}),403)
   const replay=await h.command('webhook.replay',{deliveryId:first.deliveryId,reviewed:'yes'})
   const replayTick=await h.request('/cdn-cgi/local/scheduled?cron=*+*+*+*+*&time='+String(stamp+1000));assert.equal(replayTick.status,200)
