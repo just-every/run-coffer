@@ -78,9 +78,18 @@ test('nested-package setup follows consumers and the tight membership journey ow
  let consumers = 0, exclusive = 0;
  for (const job of jobs) {
   const units = job.lanes.flatMap(lane => lane.units);
+  assert.deepEqual([...job.prerequisites].sort(), [...new Set(units.flatMap(unit => unit.prerequisites ?? []))].sort());
+  for (const unit of units) {
+   let previous = -1;
+   for (const command of unit.prerequisites ?? []) {
+    const index = job.prerequisites.indexOf(command);
+    assert.ok(index > previous, `${unit.label}: prerequisite order retained`);
+    previous = index;
+   }
+  }
   for (const unit of units.filter(unit => unit.label.startsWith('donors:'))) {
    consumers++;
-   assert.deepEqual(job.prerequisites, ['npm ci --prefix integrations/zapier --no-audit --no-fund', 'npm run validate --prefix integrations/zapier']);
+   assert.deepEqual(unit.prerequisites, ['npm ci --prefix integrations/zapier --no-audit --no-fund', 'npm run validate --prefix integrations/zapier']);
   }
   if (units.some(unit => unit.label.includes(': CAMP-004:'))) {
    exclusive++;

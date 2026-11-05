@@ -2027,7 +2027,11 @@
       "executable": false
     },
     "scripts/ci/shards.mjs": {
-      "sha256": "176c1ab7c035118488644c04e54d10baa4022703206b905ea508b757f3cec5cd",
+      "sha256": "39a05a6f62c9525ad9b076ac1338419e2e3f9de95b0febedba750456bfbd4979",
+      "executable": false
+    },
+    "scripts/ci/shards.test.mjs": {
+      "sha256": "0ccddca31a73ca19c640561579724efb0ac84fb5920aeb8ef6cc512afc536376",
       "executable": false
     },
     "scripts/contract-docs.mjs": {
@@ -7283,7 +7287,7 @@
       "executable": false
     },
     "tests/ci-shards.test.mjs": {
-      "sha256": "e95439a93a1260338ff16460dc01b8a27883c0295b3ebebf840c9e9ff5c12566",
+      "sha256": "88a73fe8f98e9dcd4593d20764aea4ed0b15c9e383b082e7f92ea93925a8bc70",
       "executable": false
     },
     "tests/clone-journey.mjs": {
@@ -7671,7 +7675,7 @@
       "executable": false
     },
     "tests/giving.test.mjs": {
-      "sha256": "2236f16ecf71006093ba0f129486f87ecdbe7f0723bee4cb0f8ef8d52b0ca7d5",
+      "sha256": "a445d2f459356667377a4e78d92ab25bb6aad73d19f46f309d2d7e92e7da303d",
       "executable": false
     },
     "tests/grants-journey.mjs": {
@@ -8311,7 +8315,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "e6797b7e1325998b90b79f009b46ce891c018386afdc093f4737848c8eb09c63",
+      "sha256": "cd7b11f0d1f400eda1af4c83dff19b23c95968db34ee0fad19074e6b9b9972af",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
