@@ -1,8 +1,10 @@
 import { bankCheckoutState } from '../giving/bank-checkout'
+import { erasureHash } from '../imports/snapshots'
 import { pledgeSessionForCharge } from '../pledge-checkout'
 import { identify, recordGift } from '../giving/recording'
 import { runGiftRules } from '../gift-rules'
-import { canonicalDonor, lookupEmailDonor } from '../donor-merge'
+import { canonicalDonor } from '../donor-merge'
+import { approvedMatch, emailCandidates, holdDonorMatch, holdErasedMatch, matchGuards } from './donor-match'
 import { email, fail, one, sql, type Context } from '../db'
 import { settings } from '../settings'
 import { stripe, type GivingEnv } from '../giving/stripe'
@@ -19,6 +21,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
  if (charge.status !== 'succeeded' || !charge.paid) return null
  if (charge.currency !== 'usd') fail('currency', 'Only USD payments can be reconciled.', 409)
  if(charge.metadata?.coffer_pledge_checkout)await pledgeSessionForCharge(env,charge.metadata.coffer_pledge_checkout)
+ if(charge.id!==chargeId)fail('payment_mismatch','Stripe returned a different charge.',409)
  const gross = cents(charge.amount), customerId = stripeId(charge.customer), pi = stripeId(charge.payment_intent)
  const refs = [charge.id, pi, stripeId(charge.invoice)].filter(Boolean)
  const savedIntent = customerId ? await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.customer_id=? ORDER BY i.created_at DESC LIMIT 1', customerId) : null
@@ -29,8 +32,11 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
    if (stripeId(payment.invoice)) refs.push(stripeId(payment.invoice))
   }
  }
+ const review=await one(c,'SELECT * FROM cf_payment_donor_matches WHERE charge_id=?',chargeId)
+ if(review?.state==='erased')return null
  let gift = await one(c, "SELECT * FROM cf_gifts WHERE source='stripe' AND kind='gift' AND reference IN (SELECT value FROM json_each(?)) ORDER BY created_at LIMIT 1", JSON.stringify(refs))
  const now = new Date().toISOString()
+ let match: any = null
  if (!gift) {
   let intent = charge.metadata?.coffer_intent ? await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.id=?', charge.metadata.coffer_intent) : savedIntent
   if (!intent && pi) {
@@ -66,9 +72,18 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
   let customer: any = null
   if (!donor && customerId) customer = await stripe(env, '/customers/' + encodeURIComponent(customerId))
   const mail = email(charge.billing_details?.email ?? charge.receipt_email ?? customer?.email)
+  if(!donor&&mail&&await one(c,'SELECT hash FROM cf_erasures WHERE hash=?',erasureHash(mail))){await holdErasedMatch(env,charge.id,authority);return null}
   const donorName = String(charge.billing_details?.name ?? customer?.name ?? mail).slice(0,200)
-  // An unlinked processor customer is a distinct source identity.
-  if (!donor && mail && !customerId) donor = await lookupEmailDonor(c,mail,donorName)
+  // Existing current donors match by email; a shared contact never picks a person.
+  if(!donor&&mail){
+   const candidates=await emailCandidates(c,mail)
+   if(review||candidates.length>1){
+    match=await approvedMatch(env,charge,mail)
+    if(!match){await holdDonorMatch(env,charge,mail,candidates,authority);return null}
+    donor=await one(c,'SELECT * FROM cf_donors WHERE id=? AND version=? AND erased_at IS NULL',match.donor_id,match.donor_version)
+    if(!donor)return null
+   }else if(candidates.length===1)donor=await one(c,'SELECT * FROM cf_donors WHERE id=?',candidates[0].id)
+  }
   if (!donor && !mail) fail('donor_match_required', 'Add a donor email to this Stripe payment before syncing it.', 409)
   if (!donor) {
    const donorId = 'stripe-donor-' + (customerId || charge.id)
@@ -82,12 +97,14 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
   // A Coffer Checkout return and a charge event use the same reference and ID.
   const reference = intent ? (refs.find(ref => ref.startsWith('in_')) ?? (pi || charge.id)) : charge.id
   await paymentWrite(env, [
+   ...(match?matchGuards(match):[]),
    sql(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,source,created_at,created_by)
     VALUES(?,1,?,'gift',?,?,'card',?,?,?,0,'stripe',?,?)`, giftId, donor.id, day(charge.created, (await settings(c)).timezone), gross, reference, fund, intent ? 'none' : 'unknown', now,intent?.staff_actor_name??'Stripe'),
    ...(intent ? [sql('INSERT OR IGNORE INTO cf_campaign_gifts(gift_id,campaign_id) SELECT id,? FROM cf_gifts WHERE source=\'stripe\' AND reference=?', intent.campaign_id, reference), ...onlineAttribution(intent, reference), ...(!intent.staff_channel?[sql("INSERT OR IGNORE INTO cf_dashboard_gift_forms(gift_id,form_id) SELECT id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'",intent.campaign_id,reference)]:[])] : []),
    sql(`INSERT INTO cf_events(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail)
     SELECT ?,'stripe','Stripe','agent','payments.gift','gift',id,donor_id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'
     AND NOT EXISTS(SELECT 1 FROM cf_events WHERE action='payments.gift' AND subject_id=cf_gifts.id)`, now, JSON.stringify({ chargeId, amountCents: gross }), reference),
+   ...(match?[sql('INSERT OR IGNORE INTO cf_stripe_charges(id,gift_id,refund_baseline,created_at) VALUES(?,?,0,?)',charge.id,giftId,now)]:[]),
   ], authority)
   gift = await one(c, "SELECT * FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'", reference)
   if(gift)await runGiftRules(env,gift.id)

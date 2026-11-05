@@ -4,5 +4,5 @@ import type { GivingEnv } from '../giving/stripe'
  * session in every transaction, including after a slow provider response. */
 export async function paymentWrite(env: GivingEnv, statements: Stmt[], c?: Context) {
  if (c) return commit(c, statements)
- await env.DB.batch(statements.map(s => env.DB.prepare(s.sql).bind(...s.params)))
+ await env.DB.batch([...statements,{sql:'DELETE FROM cf_assert',params:[]}].map(s => env.DB.prepare(s.sql).bind(...s.params)))
 }

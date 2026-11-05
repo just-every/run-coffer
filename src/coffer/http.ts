@@ -19,6 +19,7 @@ import { restApiResponse } from './api/http'
 import { apiKeysPage, apiKeySecretPage } from './ui/api-keys'
 import { auctionState, auctionUploadResponse } from './auction'
 import { auctionPage } from './auction-ui'
+import { donorMatchErasure } from './payments/donor-match'
 import { auctionErasureStatements } from './auction-custody'
 import { developmentReportResponse } from './agent/development-report-http'
 import { taskTeam } from './task-team'
@@ -491,6 +492,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const auctionErasure=await auctionErasureStatements(c,donorId,placeholder)
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)
  const givingErasure = [
+  ...donorMatchErasure(donorId,placeholder),
   {sql:'DELETE FROM cf_membership_reminders WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
   {sql:'DELETE FROM cf_membership_payments WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
   {sql:'DELETE FROM cf_memberships WHERE donor_id=?',params:[donorId]},
