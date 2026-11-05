@@ -2,7 +2,7 @@ import { paymentFundLines } from '../gift-splits'
 import { all, fail, guard, one, sql, text, type Context } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { syncEntry } from './entries'
-import { cents, stripePages, utcDay } from './stripe-data'
+import { cents, stripeId, stripePages, utcDay } from './stripe-data'
 import { paymentWrite } from './write'
 
 export async function payoutDetail(c: { db: D1Database }, id: string) {
@@ -39,7 +39,7 @@ export async function matchManualPayout(env: GivingEnv, c: Context, id: string, 
  }
  if (entries.reduce((sum, txn) => sum + cents(txn.net), 0) !== payout.amount) fail('PAYOUT_NOT_READY', 'The selected transactions do not equal this payout.')
  await syncPayout(env, id, c)
- for (const txn of entries) await syncEntry(env, txn, c)
+ for (const txn of entries) if(!await syncEntry(env,txn,c))fail('DONOR_MATCH_REQUIRED','Review held donor matches before completing this payout.')
  const view = await payoutDetail(c, id)
  if (view.payout.complete) {
   if (view.lines.length !== ids.length || view.lines.some(line => !ids.includes(line.id))) fail('PAYOUT_CHANGED', 'This payout already has a different match.')
@@ -62,14 +62,26 @@ export async function syncPayout(env: GivingEnv, id: string, authority?: Context
  // Stripe only provides exact payout membership for automatic payouts.
  // Manual payouts remain unmatched instead of guessing by date or amount.
  if (!payout.automatic || payout.reconciliation_status === 'in_progress') return payoutDetail({ db: env.DB }, id)
+ let held=false
  for await (const txn of stripePages(env, '/balance_transactions?payout=' + encodeURIComponent(id) + '&expand[]=data.source')) {
   if (txn.type === 'payout') continue
-  await syncEntry(env, txn, authority)
+  const entry=await syncEntry(env,txn,authority)
+  if(!entry){
+   held=true
+   const sourceId=stripeId(txn.source)
+   const source=typeof txn.source==='object'?txn.source:
+    /^(re_|pyr_)/.test(sourceId)?await stripe(env,'/refunds/'+encodeURIComponent(sourceId)):
+    sourceId.startsWith('dp_')?await stripe(env,'/disputes/'+encodeURIComponent(sourceId)):null
+   const chargeId=stripeId(source?.charge)||sourceId
+   await paymentWrite(env,[sql(`INSERT OR IGNORE INTO cf_payment_match_payouts(charge_id,payout_id)
+    SELECT charge_id,? FROM cf_payment_donor_matches WHERE charge_id=?`,id,chargeId)],authority)
+   continue
+  }
   const member = await one({ db: env.DB }, 'SELECT payout_id FROM cf_payout_entries WHERE entry_id=?', txn.id)
   if (member && member.payout_id !== id) fail('payout_changed', 'A transaction is already matched to another payout.', 409)
   if (!member) await paymentWrite(env, [sql('INSERT OR IGNORE INTO cf_payout_entries(entry_id,payout_id) VALUES(?,?)', txn.id, id)], authority)
  }
- await paymentWrite(env, [sql('UPDATE cf_payouts SET complete=1 WHERE id=?', id)], authority)
+ await paymentWrite(env, [sql('UPDATE cf_payouts SET complete=? WHERE id=?',held?0:1,id)],authority)
  return payoutDetail({ db: env.DB }, id)
 }
 export async function syncPayouts(env: GivingEnv, id?: string, authority?: Context) {

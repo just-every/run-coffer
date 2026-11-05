@@ -259,3 +259,7 @@ test('FIN-002: closed check deposits retain evidence, approval and uncertain-sub
 test('FIN-001: QuickBooks owner connects, maps three funds and posts exact deposits and separate adjustments once across failure and restore',async()=>{
  const {quickbooksJourney}=await import('./quickbooks/journey.mjs');await quickbooksJourney()
 })
+
+test('PAY-001: external donor review holds money and releases exact gifts, fees and prior refunds once under current authority',async()=>{
+ const {paymentDonorMatchJourney}=await import('./payment-donor-match-journey.mjs');await paymentDonorMatchJourney()
+})
