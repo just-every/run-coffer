@@ -1590,6 +1590,10 @@
       "sha256": "e6c39987216360284e00e1979501394762ae715742900a3b7e068fda875c2d9e",
       "executable": false
     },
+    "migrations/core/0185_coffer_payment_donor_match.sql": {
+      "sha256": "26821f804262ba895402456dd4c84d098ccecd689256451dc99c297f0bce5ed9",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -3867,7 +3871,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "5292132bb4d06a49a33c9272082f7027adde95249a9e0ccde4a82a3475a597ae",
+      "sha256": "78fdb18b6b04caabfd72b3b841ec2df133d23deffea32d6a26f94637d7056a6d",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -4271,15 +4275,23 @@
       "executable": false
     },
     "src/coffer/payments/charges.ts": {
-      "sha256": "636fab0d6f6a8104aef72a6fc0fad83dcfd7f504abc14cedb90a7ac03fcc696b",
+      "sha256": "ecdc2f4503972a2cfa87f87687d99aebb9d3f4f762d0afdcb74c85a969589d1f",
       "executable": false
     },
     "src/coffer/payments/disputes.ts": {
       "sha256": "4b9d4ff0ad221d17ed7752267da1490fc47c0c2db997bf6d129341254772747b",
       "executable": false
     },
+    "src/coffer/payments/donor-match-ui.ts": {
+      "sha256": "0bc81f7bba234d4da59689f0c2068907b6309061901553847b1fea8d0a8a99a9",
+      "executable": false
+    },
+    "src/coffer/payments/donor-match.ts": {
+      "sha256": "cc3361e31306d64b1d79420b91228e009ae31bac1a1de6c1da81f750e41ecd96",
+      "executable": false
+    },
     "src/coffer/payments/entries.ts": {
-      "sha256": "8205fb6dda1493f873bc5557d18dc57f4c370104b1822d8797ea4c118f5fb423",
+      "sha256": "86d65ab091a3ce285c92908461058bfe6a873c45df173de39631388ac88c7a66",
       "executable": false
     },
     "src/coffer/payments/events.ts": {
@@ -4299,7 +4311,7 @@
       "executable": false
     },
     "src/coffer/payments/http.ts": {
-      "sha256": "fd003c05a1c1b7e83217ef3e5238454929c3b37adc536dc04a03ab6db8c939b8",
+      "sha256": "973d283b4e9198c4e514a373295b47344c20ec3425675b4614ccc22c2ac9b8f8",
       "executable": false
     },
     "src/coffer/payments/pantry-client.ts": {
@@ -4311,7 +4323,7 @@
       "executable": false
     },
     "src/coffer/payments/payouts.ts": {
-      "sha256": "e9d4aef2c5b36d7598348769c4056652ca18fb3f47c4054019d584af1f900a16",
+      "sha256": "de0d518c518da2fb9001a9d66dab8cec2b290777ccfc97f4a447dd2a63b614ef",
       "executable": false
     },
     "src/coffer/payments/pending-bank.ts": {
@@ -4359,15 +4371,15 @@
       "executable": false
     },
     "src/coffer/payments/stripe-data.ts": {
-      "sha256": "82184bc94597938909f441cbf591933953a9998004799438470667774b37acfe",
+      "sha256": "d1fb376485fb7d191686495779dfc6a88f8f40d7b24d23262a22a170b39e4b26",
       "executable": false
     },
     "src/coffer/payments/ui.ts": {
-      "sha256": "f62e5a5069b647383464739517964aa1b0c54aaa00a2e02546222a0e22384e85",
+      "sha256": "f12f4f70747fab8b012e8ba7a9c5962294310e39607c0eea1fce9e7718f67f8f",
       "executable": false
     },
     "src/coffer/payments/write.ts": {
-      "sha256": "2b8ff173c8fc609b292dbfcab2eb7e14ff72e377afa682759724821d0a8e1512",
+      "sha256": "44657357c919abfc16582ae8b56f007468422a85ccf8b025ffd66d3f463fef95",
       "executable": false
     },
     "src/coffer/peer/accounting.ts": {
@@ -7850,12 +7862,20 @@
       "sha256": "777d72c0287e5d6e28e5c0af66e2c3539964bb6579981f330c4fef9550a418ba",
       "executable": false
     },
+    "tests/payment-donor-match-browser.mjs": {
+      "sha256": "4cd762fb6b46612d090ae1043e86e0063512447e87c9e7772c818ab472374fc8",
+      "executable": false
+    },
+    "tests/payment-donor-match-journey.mjs": {
+      "sha256": "188488dddfc3c402ab3a1d4fa162586ddbab94d471a9a3ecbece49d724f47a55",
+      "executable": false
+    },
     "tests/payments-browser.mjs": {
       "sha256": "850055059e68317580bf745c5f2e614125389200151a2443206a6c89ec856282",
       "executable": false
     },
     "tests/payments.test.mjs": {
-      "sha256": "25ad4b3af20229dae8052b17e6fadde28adbf9e50f229b492513610c360892fb",
+      "sha256": "68ce9eca9554ba651c63bded437a4f4b6bd3490fae33caa29d41a8730968c505",
       "executable": false
     },
     "tests/peer-browser.mjs": {
