@@ -95,6 +95,8 @@ export async function mergeDonor(c: Context, p: Row, tail: Stmt[] = []): Promise
   sql('UPDATE cf_donors SET version=version+1 WHERE id=?',source),
   sql('UPDATE cf_gifts SET donor_id=?,version=version+1 WHERE donor_id=?',target,source),
   sql('UPDATE cf_recurring_source_references SET donor_id=? WHERE donor_id=?',target,source),
+  sql('UPDATE cf_vault_rows SET donor_id=? WHERE donor_id=?',target,source),
+  sql('UPDATE cf_vault_identities SET donor_id=? WHERE donor_id=?',target,source),
   sql('UPDATE cf_consents SET donor_id=? WHERE donor_id=?',target,source),
   // A tag records the first triggering gift. If both identities already carry
   // it, retain the earlier provenance rather than whichever row SQLite visits.
