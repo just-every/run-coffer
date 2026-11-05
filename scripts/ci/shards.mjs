@@ -24,11 +24,13 @@ const option = /--test-name-pattern(?:=|\s+)('(?:[^']*)'|"(?:[^"]*)"|[^\s]+)/;
 const skipOption = /--test-skip-pattern(?:=|\s+)('(?:[^']*)'|"(?:[^"]*)"|[^\s]+)/;
 const unquote = value => /^['"]/.test(value) ? value.slice(1, -1) : value;
 
+const expand = command => command.replace(/\bpnpm run ([\w:-]+)/g, (match, name) =>
+ /\bnode --test\b/.test(scripts[name] ?? '') ? scripts[name] : match);
+
 export function split(command, shard) {
  // Expand only the existing Node test scripts. Other commands, including rer's
  // hosted production-output/hydration checks, retain their original entry point.
- command = command.replace(/\bpnpm run ([\w:-]+)/g, (match, name) =>
-  /\bnode --test\b/.test(scripts[name] ?? '') ? scripts[name] : match);
+ command = expand(command);
  if (!/\bnode --test\b/.test(command)) return [{ command, label: shard.name, seconds: weight(estimates[command] ?? 100) }];
  const patterns = [...command.matchAll(/\btests\/[\w.*-]+\.mjs\b/g)].map(match => match[0]);
  if (!patterns.length) return [{ command, label: shard.name, seconds: 100 }];
@@ -101,12 +103,12 @@ export function split(command, shard) {
  return units;
 }
 
-// Nested-package installation is local to one runner. Keep its ordered setup
-// prefix with every distributed consumer, never as an independent work unit.
+// Leading setup and validation commands belong to every distributed consumer.
+// Keep their order and account for their cost before starting parallel lanes.
 export function shardUnits(shard) {
  if (shard.hosted) return [{ command: 'node scripts/verify-ci.mjs ' + quote(shard.name), label: shard.name + ': hosted checks', seconds: weight(estimates['hosted checks'] ?? 100) }];
- const firstTest = shard.commands.findIndex(command => /\bnode --test\b|\bpnpm run test:/.test(command));
- const setup = /^npm ci\b/.test(shard.commands[0]) && firstTest > 0 ? shard.commands.slice(0, firstTest) : [];
+ const firstTest = shard.commands.findIndex(command => /\bnode --test\b/.test(expand(command)));
+ const setup = firstTest > 0 ? shard.commands.slice(0, firstTest) : [];
  return shard.commands.slice(setup.length).flatMap(command => split(command, shard))
   .map(unit => ({ ...unit, prerequisites: setup, exclusive: unit.label.includes(': CAMP-004:') }));
 }
@@ -150,7 +152,7 @@ export async function schedule(tier) {
 }
 
 const invokedDirectly = () => { try { return realpathSync(process.argv[1]) === realpathSync(import.meta.filename); } catch { return false; } };
-if (invokedDirectly()) {
+async function main() {
 const [mode, value = 'push'] = process.argv.slice(2);
 if (mode === '--matrix') {
  console.log(JSON.stringify({ include: (await schedule(value)).map(({ name, browser }) => ({ name, browser })) }));
@@ -173,11 +175,8 @@ if (mode === '--matrix') {
   }
   process.exit(signal === 'SIGINT' ? 130 : 143);
  });
- const { run } = await import('../verify-app.mjs');
- for (const command of job.prerequisites) run(command);
  let failures = 0;
- await Promise.all(job.lanes.map(async (lane, laneIndex) => {
-  for (const [index, unit] of lane.units.entries()) {
+ async function runUnit(unit, laneIndex, index) {
    const log = `${directory}/${laneIndex}-${index}.log`;
    const fd = openSync(log, 'w');
    const start = Date.now();
@@ -197,7 +196,17 @@ if (mode === '--matrix') {
    if (failure) console.error(failure);
    console.log(`END lane=${laneIndex} exit=${code} seconds=${((Date.now() - start) / 1000).toFixed(1)} ${unit.label}`);
    if (code !== 0) failures++;
+   return code;
+ }
+ for (const [index, command] of job.prerequisites.entries()) {
+  const code = await runUnit({ command, label: 'runner prerequisite' }, 'prepare', index);
+  if (code !== 0) {
+   process.exitCode = code;
+   return;
   }
+ }
+ await Promise.all(job.lanes.map(async (lane, laneIndex) => {
+  for (const [index, unit] of lane.units.entries()) await runUnit(unit, laneIndex, index);
  }));
  if (failures) {
   console.error(`${failures} verification commands failed`);
@@ -206,3 +215,5 @@ if (mode === '--matrix') {
 }
 
 }
+
+if (invokedDirectly()) await main();
