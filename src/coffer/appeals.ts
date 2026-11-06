@@ -1,3 +1,4 @@
+import { prepareEmailSource, emailSourceGuards, emailSourceStatements } from './giving/email-source'
 import { communicationReasons } from './communications/preference-rules'
 import { customAllowed } from './custom-fields'
 import { recipientMergeFields, renderTemplate, templateTokens } from './template-fields'
@@ -81,6 +82,9 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (written && !String(p.subject ?? '').trim()) fail('INPUT', 'Add an email subject. Donors see it in their inbox before they open the appeal.', 400)
  if (written && !String(p.body ?? '').trim()) fail('INPUT', 'Write the email message donors will receive, or clear the subject to export the list instead.', 400)
  const message = written ? {subject:text(p.subject,'Email subject',250),body:longText(p.body,'Email message',12000)} : null
+  const appealId = newId(), code = 'RUN-' + appealId
+  const emailLink = await prepareEmailSource(c,p,appealId,code,message)
+  if(emailLink) message!.body += '\n\nGive: ' + emailLink.url
   if(message){const fields=await customAllowed(c,[...LETTER,'last_gift']);checkTemplate(message.subject,'Appeal subject',fields,[]);checkTemplate(message.body,'Appeal message',fields,[])}
   if(message&&templateTokens(message.subject+'\n'+message.body).some(t=>t.field.startsWith('custom.'))&&!['owner','admin'].includes(c.actor.role))fail('FORBIDDEN','Only an owner or admin chooses custom-data fields for a new appeal. Use an owner-reviewed template door for approved custom wording.',403)
   const addressPass=channel==='mail'?await mailPreflight(c,p.addressType||''):null
@@ -88,7 +92,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
   if (!recipients.length) fail('NO_RECIPIENTS', 'No donor in this segment has current consent for this channel.', 409, excluded)
   if (recipients.length > MAX_RECIPIENTS) fail('TOO_MANY', `An appeal holds at most ${MAX_RECIPIENTS} recipients. Narrow the segment.`, 400)
   if(message){const s=await settings(c),used=[...new Set(templateTokens(message.subject+'\n'+message.body).map(t=>t.field))];for(const r of recipients){const d=await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',r.donor_id);if(!d)fail('DONOR_CHANGED','A recipient changed. Prepare again.',409);const recipient=await letterRecipient(c,d,{emailType:p.emailType||undefined}),fields:Record<string,string>={...recipientMergeFields(recipient),date:longDate(today(s.timezone,new Date(c.now))),donor_name:recipient.letter_salutation??d.name,organization:s.organisation,ein:s.ein,last_gift:r.last_gift||'No gift recorded'},selected=Object.fromEntries(used.map(key=>[key,fields[key]??''])),rendered=renderTemplate(message,selected);Object.assign(r,{merge_fields:JSON.stringify(selected),merge_blanks:rendered.merge_blanks,rendered_subject:rendered.subject,rendered_body:rendered.body})}}
-  const appealId = newId(), code = 'RUN-' + appealId, costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, grouping=channel==='mail'?await prepareAppealPieces(c,appealId,recipients,p.onePiecePer,{addressType:p.addressType||'',isAsk}):null, hash = await hashOf(name, channel, recipients,message,grouping?.pieces), list = JSON.stringify(recipients)
+  const costCents = p.cost || p.costCents ? amount(p, 'cost', 'Appeal cost', {allowZero:true}) : 0, grouping=channel==='mail'?await prepareAppealPieces(c,appealId,recipients,p.onePiecePer,{addressType:p.addressType||'',isAsk}):null, hash = await hashOf(name, channel, recipients,message,grouping?.pieces), list = JSON.stringify(recipients)
   if(grouping&&!grouping.pieces.length)fail('NO_GIFTS','No positive-balance gifts were found for gift-based mail pieces. Choose constituent or household pieces.',409)
   const addressSnapshot=await mailSnapshot(c,appealId,addressPass,recipients)
   const restriction=await prepareSolicitationRun(c,{kind:'appeal',id:appealId,channel,isAsk,donorIds:recipients.map(r=>r.donor_id),includes})
@@ -102,6 +106,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
     appealId, name, channel, JSON.stringify({ ...(p.emailType&&channel==='email'?{emailType:p.emailType}:{}),...(p.addressType?{addressType:p.addressType}:{}),...(grouping?{onePiecePer:grouping.basis,pieceCount:grouping.pieces.length,postagePerPieceCents:p.postagePerPiece?amount(p,'postagePerPiece','Postage per piece',{allowZero:true}):null}:{}),...(saved?{listId:p.listId}:{}),givenSince, minTotalCents, fund, purpose, isAsk, lastAskDates, ...(selection ? {resendOf:selection.resendOf} : {}), ...(annual ? {annualList,listYear:annual.year,listThrough:annual.through} : {}) }), JSON.stringify(excluded), hash, recipients.length, c.actor.id, c.actor.name, c.actor.role, c.now),
    sql('INSERT INTO cf_appeal_runs(appeal_id,code,cost_cents) VALUES(?,?,?)',appealId,code,costCents),
    sql(`INSERT INTO cf_appeal_recipients(appeal_id,donor_id,consent_id,name,email,address,total_cents,gift_count,last_gift,name_fields,email_contact_id,email_contact_version,merge_fields,merge_blanks,rendered_subject,rendered_body) SELECT ?,json_extract(value,'$.donor_id'),json_extract(value,'$.consent_id'),json_extract(value,'$.name'),json_extract(value,'$.email'),json_extract(value,'$.address'),json_extract(value,'$.total_cents'),json_extract(value,'$.gift_count'),json_extract(value,'$.last_gift'),json_extract(value,'$.name_fields'),json_extract(value,'$.email_contact_id'),json_extract(value,'$.email_contact_version'),json_extract(value,'$.merge_fields'),json_extract(value,'$.merge_blanks'),json_extract(value,'$.rendered_subject'),json_extract(value,'$.rendered_body') FROM json_each(?)`, appealId, list),
+   ...emailSourceStatements(emailLink,hash),
    ...addressSnapshot,...(grouping?.statements??[]),
    ...(message ? [sql('INSERT INTO cf_appeal_messages VALUES(?,?,?)',appealId,message.subject,message.body)] : []),
    event(c, 'appeal.prepare', 'appeal', appealId, null, { channel, recipients: recipients.length, excluded })])
@@ -118,7 +123,7 @@ export async function appealCommand(c: Context, command: string, p: Row, selecti
  if (command === 'appeal.approve') {
   if (appeal.status !== 'prepared') fail('NOT_PREPARED', 'Only a prepared appeal can be approved.')
   if (await hashOf(appeal.name, appeal.channel, await recipientsOf(c, appealId),await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),(await appealPieces(c,appealId))) !== appeal.content_hash) fail('CONTENT_CHANGED', 'This audience no longer matches what was prepared. Discard it and prepare again.')
-  await commit(c, [at(['prepared']), consent,householdPieceGuard(appealId), ...await mailRunGuards(c,appealId), ...await solicitationRunGuards(c,'appeal',appealId),
+  await commit(c, [at(['prepared']), ...await emailSourceGuards(c,appealId), consent,householdPieceGuard(appealId), ...await mailRunGuards(c,appealId), ...await solicitationRunGuards(c,'appeal',appealId),
    sql('INSERT INTO cf_approvals VALUES(?,?,?,?,?,?,?,?,?,?,?)', newId(), 'appeal', appealId, appeal.content_hash, appeal.prepared_by_id, appeal.prepared_by_name, appeal.prepared_by_role, c.actor.id, c.actor.name, c.actor.role, c.now),
    bump('approved'), event(c, 'appeal.approve', 'appeal', appealId, null, { recipients: appeal.recipients, preparedBy: appeal.prepared_by_role })])
   return { id: appealId, version: version + 1, status: 'approved' }
@@ -171,5 +176,5 @@ export async function appealDetail(c: { db: D1Database }, appealId: string) {
   }).length
  }
  const pieces=await appealPieces(c,appealId)
- return { appeal, recipients,mergeReview:recipients.flatMap(r=>{const fields=JSON.parse(r.merge_blanks??'[]');return fields.length?[{donorId:r.donor_id,recipientName:r.name,fields}]:[]}), mailPieces:pieces,pieceCount:pieces.length||recipients.length,approval, addressChanged:await mailAddressChanged(c,appealId), restrictionChanged, inclusions, results: await appealResults(c,appealId), message:await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),messages:await all(c,"SELECT m.*,d.name FROM cf_communications m JOIN cf_donors d ON d.id=m.donor_id WHERE m.source_kind='appeal' AND m.source_id=? ORDER BY m.created_at",appealId), consentChanged: changed?.n ?? 0 }
+ return { appeal, recipients, emailSource:await one(c,'SELECT * FROM cf_appeal_email_sources WHERE appeal_id=?',appealId),mergeReview:recipients.flatMap(r=>{const fields=JSON.parse(r.merge_blanks??'[]');return fields.length?[{donorId:r.donor_id,recipientName:r.name,fields}]:[]}), mailPieces:pieces,pieceCount:pieces.length||recipients.length,approval, addressChanged:await mailAddressChanged(c,appealId), restrictionChanged, inclusions, results: await appealResults(c,appealId), message:await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId),messages:await all(c,"SELECT m.*,d.name FROM cf_communications m JOIN cf_donors d ON d.id=m.donor_id WHERE m.source_kind='appeal' AND m.source_id=? ORDER BY m.created_at",appealId), consentChanged: changed?.n ?? 0 }
 }

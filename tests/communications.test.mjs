@@ -508,3 +508,9 @@ test('STEW-003: an anniversary enrolls on the calendar day and its later steps r
  const {anniversaryJourney}=await import('./journey-custody.mjs')
  await anniversaryJourney()
 })
+
+
+test('COMM-002: frozen campaign email links retain honest attribution through payment, reversal and custody',async()=>{
+ const {appealEmailAttributionJourney}=await import('./appeal-email-attribution-journey.mjs')
+ await appealEmailAttributionJourney()
+})

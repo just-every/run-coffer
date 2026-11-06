@@ -1,3 +1,4 @@
+import { emailSource } from './email-source'
 import { identify } from './recording'
 import { bankSessionParams, checkoutMethod } from './bank-checkout'
 import { membershipCapture } from '../memberships/service'
@@ -64,10 +65,13 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
  const tribute=givingTribute(p)
  const recognition=intentRecognition(p)
  const linkedText = await textLink(env, slug, p.textLink)
- const appeal = await trackedAppeal({ db: env.DB }, linkedText ? linkedText.appeal : p.appeal), consent = p.emailConsent === 'yes' ? 1 : 0
+ const linkedEmail = await emailSource({db:env.DB},slug,p.emailSource,p.appeal)
+ if(linkedEmail && (ticket || membership || peerPageId || linkedText || frequency!=='once')) fail('email_source','Email appeal links support ordinary one-time campaign gifts.',409)
+ const appeal = linkedEmail?.code ?? await trackedAppeal({ db: env.DB }, linkedText ? linkedText.appeal : p.appeal), consent = p.emailConsent === 'yes' ? 1 : 0
  const storedTribute=tribute??{kind:null,honoree:null,notified_name:null,notified_email:null,notified_address:null,amount_permission:0}
  await env.DB.batch([
-  env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at,anonymous,wall_opt_in,recognition_name,appeal,requested_amount_cents,fee_cover_cents,fee_cover_rate_bps,fee_cover_fixed_cents,giving_channel,billing_frequency,payment_method) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, storedFrequency, consent, new Date().toISOString(),recognition.anonymous,recognition.wallOptIn,recognition.recognitionName,appeal,base,cents-base,covers?rate:null,covers?fixed:null,linkedText?'text':'form',frequency,method),
+  env.DB.prepare('INSERT OR IGNORE INTO cf_giving_intents(id,campaign_id,name,email,amount_cents,frequency,email_consent,created_at,anonymous,wall_opt_in,recognition_name,appeal,requested_amount_cents,fee_cover_cents,fee_cover_rate_bps,fee_cover_fixed_cents,giving_channel,billing_frequency,payment_method,email_source_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, c.id, name, mail, cents, storedFrequency, consent, new Date().toISOString(),recognition.anonymous,recognition.wallOptIn,recognition.recognitionName,appeal,base,cents-base,covers?rate:null,covers?fixed:null,linkedText?'text':'form',frequency,method,linkedEmail?.id??null),
+  ...(linkedEmail?[env.DB.prepare("INSERT INTO cf_assert(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM cf_appeal_email_sources s JOIN cf_appeals a ON a.id=s.appeal_id JOIN cf_campaigns c ON c.id=s.campaign_id WHERE s.id=? AND s.content_hash=a.content_hash AND a.status IN ('approved','exported','sent') AND c.active=1 AND c.slug=s.slug AND c.fund=s.fund) THEN 1 ELSE 0 END").bind(linkedEmail.id)]:[]),
   ...peerStatements.map(s=>env.DB.prepare(s.sql).bind(...s.params)),
   ...(!peerPageId ? [env.DB.prepare('INSERT INTO cf_assert(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM cf_peer_intents WHERE intent_id=?) THEN 1 ELSE 0 END').bind(id)] : []),
   ...memberCapture.map(s=>env.DB.prepare(s.sql).bind(...s.params)),
@@ -78,7 +82,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   env.DB.prepare('DELETE FROM cf_assert'),
  ])
  const intent = await one({ db: env.DB }, 'SELECT * FROM cf_giving_intents WHERE id=?', id)
- if (!intent || intent.payment_method!==method || intent.campaign_id !== c.id || intent.name !== name || intent.email !== mail || intent.amount_cents !== cents || intent.billing_frequency !== frequency || intent.email_consent !== consent || intent.anonymous!==recognition.anonymous || intent.wall_opt_in!==recognition.wallOptIn || intent.recognition_name!==recognition.recognitionName || intent.appeal!==appeal || intent.requested_amount_cents!==base || intent.fee_cover_cents!==cents-base || intent.fee_cover_rate_bps!==(covers?rate:null) || intent.fee_cover_fixed_cents!==(covers?fixed:null)) fail('checkout_changed', 'Reload the donation page before changing this gift.', 409)
+ if (!intent || intent.email_source_id!==(linkedEmail?.id??null) || intent.payment_method!==method || intent.campaign_id !== c.id || intent.name !== name || intent.email !== mail || intent.amount_cents !== cents || intent.billing_frequency !== frequency || intent.email_consent !== consent || intent.anonymous!==recognition.anonymous || intent.wall_opt_in!==recognition.wallOptIn || intent.recognition_name!==recognition.recognitionName || intent.appeal!==appeal || intent.requested_amount_cents!==base || intent.fee_cover_cents!==cents-base || intent.fee_cover_rate_bps!==(covers?rate:null) || intent.fee_cover_fixed_cents!==(covers?fixed:null)) fail('checkout_changed', 'Reload the donation page before changing this gift.', 409)
  const savedTribute=await one({db:env.DB},'SELECT kind,honoree,notified_name,notified_email,notified_address,amount_permission FROM cf_giving_tributes WHERE intent_id=?',id)
  if(JSON.stringify(savedTribute)!==JSON.stringify(storedTribute))fail('checkout_changed','Reload the donation page before changing this tribute.',409)
  if (intent.giving_channel !== (linkedText ? 'text' : 'form')) fail('checkout_changed', 'Reload the donation page before changing the source.', 409)
@@ -98,7 +102,7 @@ export async function checkout(env: GivingEnv, request: Request, slug: string, p
   'line_items[0][price_data][product_data][name]': membership?membership.name:c.name,
   'line_items[0][quantity]': '1', 'metadata[coffer_intent]': id,
   success_url: env.AUTH_ORIGIN + '/giving/thanks?session_id={CHECKOUT_SESSION_ID}',
-  cancel_url: env.AUTH_ORIGIN + '/give/' + slug + '?cancelled=1' + (peerPageId ? '&peer=' + encodeURIComponent(peerPageId) : '') + (appeal ? '&appeal=' + encodeURIComponent(appeal) : '') + (linkedText ? '&text=' + encodeURIComponent(p.textLink) : ''),
+  cancel_url: env.AUTH_ORIGIN + '/give/' + slug + '?cancelled=1' + (peerPageId ? '&peer=' + encodeURIComponent(peerPageId) : '') + (appeal ? '&appeal=' + encodeURIComponent(appeal) : '') + (linkedEmail ? '&emailSource=' + encodeURIComponent(linkedEmail.id) : '') + (linkedText ? '&text=' + encodeURIComponent(p.textLink) : ''),
  }
  if (frequency !== 'once') {
   params['line_items[0][price_data][recurring][interval]'] = frequency === 'annually' ? 'year' : 'month'

@@ -18,7 +18,7 @@ async function savedResult(c: Context, messageId: string, disposition: string) {
  return message
 }
 
-export type MessageInput = { key:string; donorId:string; subject:string; body:string; sourceKind:'appeal'|'welcome'; sourceId:string; listName:string; expectedEmail?:string;emailType?:string;expectedContactId?:string;expectedContactVersion?:number; merge?:Row; rendered?:{subject:string;body:string}; checks?:()=>Promise<Stmt[]> }
+export type MessageInput = { key:string; donorId:string; donationUrl?:string; subject:string; body:string; sourceKind:'appeal'|'welcome'; sourceId:string; listName:string; expectedEmail?:string;emailType?:string;expectedContactId?:string;expectedContactVersion?:number; merge?:Row; rendered?:{subject:string;body:string}; checks?:()=>Promise<Stmt[]> }
 export function mergeMessage(template: string, values: Row) {
  const fields: Row = {...(values.name_fields ? JSON.parse(values.name_fields) : nameMergeFields(values)),donor_name:values.name,total_given:usd(values.total_cents??0),last_gift:values.last_gift||'No gift recorded',gift_count:String(values.gift_count??0)}
  return fillFields(template,{...fields,...(typeof values.merge_fields==='string'?JSON.parse(values.merge_fields):values.merge_fields??{})})
@@ -48,7 +48,7 @@ export async function submitMessage(c: Context,input:MessageInput):Promise<Row> 
  if(input.expectedEmail!==undefined && input.expectedEmail!==currentNames.email)fail('RECIPIENT_CHANGED','The donor’s email changed after approval. Prepare a new appeal audience.',409)
  const preference=excludedStatus?{allowed:false,state:'excluded',note:`The constituent is ${excludedStatus}; no email was sent.`}:await reconcileDonor(c,d.id,conn.provider==='mailchimp',{emailType:input.emailType})
  if(preference.allowed||conn.provider==='mango'&&preference.state==='pending')selectedProfileFields(conn,currentNames)
- const row={id:newId(),email:currentNames.email,name:d.name,subject:input.rendered?.subject??mergeMessage(input.subject,input.merge??currentNames),body:input.rendered?.body??mergeMessage(input.body,input.merge??currentNames)}
+ const row={id:newId(),donationUrl:input.donationUrl,email:currentNames.email,name:d.name,subject:input.rendered?.subject??mergeMessage(input.subject,input.merge??currentNames),body:input.rendered?.body??mergeMessage(input.body,input.merge??currentNames)}
  const replyTo=(conn.fromEmail??c.env?.COFFER_REPLY_ADDRESS??'').trim().toLowerCase()
  const allowed=preference.allowed||conn.provider==='mango'&&preference.state==='pending'
  const state=allowed?'preparing':'suppressed'
