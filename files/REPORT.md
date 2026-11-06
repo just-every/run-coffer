@@ -31,6 +31,8 @@ The new sanity journey is directly registered in tests/communications.test.mjs u
 
 No existing registration, behavior assertion, guard or workflow is removed, skipped or narrowed. The one new registered test is a public-door sanity journey; the existing attribution dimension assertions are reused unchanged through a shared helper. Development fixture corrections supplied the documented Mailchimp contact shape and accepted its empty send-action response. The erased checkout's existing refusal is 409, with no data resurrection.
 
+Provider proof uses sender, Stripe and mail network fixtures plus the shared harness’s existing Turnstile network fixture and script. Actual checkout protection and every Coffer business service remain in use.
+
 Full plan: PLAN.md. Runtime observations: PROBES.md. Rider assessment: RIDERS.md. Actual terminal receipts and logs accompany this report. Product and evidence custody remain separate.
 
 ## Remaining scope and landing
@@ -44,3 +46,7 @@ No DONE claim or ct judge request is made. The guarded fleet lander owns main eq
 Final head and CI run are recorded in RECEIPT.json and ci.json. The focused Node 22.20.0 journey, build and final mechanical receipts name this exact candidate SHA. Pre-publication regression suite logs are identified separately. No earlier run is represented as an execution on a different SHA.
 
 Lander-Regenerate for this touched clause: `node scripts/contract-docs.mjs write REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012 COMM-002`, followed by the same arguments with `check`, then `node scripts/edition-authoring/cli.mjs lock` and `node scripts/edition-authoring/cli.mjs check`. The cloud already proved generation, then restored both generated views from main.
+
+Final product head: ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b on cloud/sx-coffer-c-f161. Verify 42213222120, push event, completed success on that exact SHA. Five GitHub API calls were used; there was one watcher and no dispatch or rerun. Product custody is READY for the guarded fleet lander. No product blocker is known. Combined COMM-002 remains PARTIAL with the named remaining scope.
+
+MECHANICAL lock=node scripts/edition-authoring/cli.mjs lock then node scripts/edition-authoring/cli.mjs check exit=0; views=node scripts/contract-docs.mjs write REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012 COMM-002 then the same command with check exit=0; ledger=node migration-ledger-check.mjs exit=0. Generated views were restored from main.

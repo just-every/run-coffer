@@ -1,6 +1,6 @@
 # Native COMM-002 probes
 
-These observations come from the real Coffer HTTP handlers, D1 storage and browser forms in appealEmailAttributionJourney. Only sender, payment and mail network edges are faked. The focused journey passed for Mailchimp and Mango. Exact candidate provenance is recorded in the final receipt.
+These observations come from the real Coffer HTTP handlers, D1 storage and browser forms in appealEmailAttributionJourney. Sender, payment and mail use network-edge fixtures. The existing shared harness also supplies its standard Turnstile network fixture and script; real checkout protection still validates the resulting response. The focused journey passed for Mailchimp and Mango. Exact candidate provenance is recorded in the final receipt.
 
 PROBE COMM-002 frozen wording: native appeal preparation with an owner-selected Reading campaign -> permanent RUN code and campaign-bound opaque source appended to the exact prepared and recipient-rendered message; unapproved source returned 410; native approval retained the wording.
 

@@ -1,1 +1,6 @@
-{"total_count":1,"workflow_runs":[{"conclusion":null,"created_at":"2026-11-06T11:50:43Z","event":"push","head_sha":"ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b","html_url":"https://github.com/just-every/run-coffer/actions/runs/42213222120","id":42213222120,"name":"Verify","status":"in_progress"}]}
+{
+  "conclusion": "success",
+  "head_sha": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+  "html_url": "https://github.com/just-every/run-coffer/actions/runs/42213222120",
+  "status": "completed"
+}

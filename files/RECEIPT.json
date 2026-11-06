@@ -5,7 +5,7 @@
   "head": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
   "tree": "db0b2771b049f06ec424fb24619aaa2949e3e67b",
   "productPushed": true,
-  "status": "PUSHED",
+  "status": "READY",
   "baseMain": "aca389ce5feeaab26b9cfece0e74370ac948b83e",
   "countsBefore": {
     "done": 96,
@@ -168,14 +168,14 @@
     }
   },
   "verify": {
-    "conclusion": null,
+    "conclusion": "success",
     "created_at": "2026-11-06T11:50:43Z",
     "event": "push",
     "head_sha": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
     "html_url": "https://github.com/just-every/run-coffer/actions/runs/42213222120",
     "id": 42213222120,
     "name": "Verify",
-    "status": "in_progress"
+    "status": "completed"
   },
   "publicationScan": {
     "status": "NOT RUN IN CLOUD",
@@ -191,5 +191,6 @@
   "generatedViewsCommitted": false,
   "workflowChanged": false,
   "newTestRegistrations": 1,
-  "updated": "2026-11-06T11:54:10.513755+00:00"
+  "updated": "2026-11-06T12:08:02.492704+00:00",
+  "githubApiCallsUsed": 5
 }
