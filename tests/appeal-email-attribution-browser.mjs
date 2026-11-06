@@ -53,6 +53,7 @@ export async function emailAttributionBrowser(h, operate, provider) {
     assert.deepEqual(await page.locator('select[name=frequency] option').evaluateAll(rows=>rows.map(r=>r.value)),['once'])
     assert.equal(await page.locator('input[name=emailConsent]').isChecked(),false)
    })},
+   async outcome(session){await show('/giving/thanks?session_id='+session,'giving-outcome',async()=>{assert.ok((await page.locator('main').innerText()).includes('gift has been recorded'))})},
    async reports(id){await show('/app/appeals/'+id,'response-report',async()=>{
     const text=await page.locator('main').innerText();assert.ok(text.includes('$30.00'));assert.ok(text.includes('Unknown'))
    });await show('/app/gifts/attribution?from=2026-01-01&to=2026-12-31','attribution-report',async()=>{

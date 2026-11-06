@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "cb0dc8b4c01ffcec1ae9a0befe5f5df1c6b47e7ff4360dfeb6e48c18d4ef4688",
+      "sha256": "7b0f4fb62dda90fed56c45be84ae85b282b4606abfbe4363cc492f82c1e1e42c",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3247,7 +3247,7 @@
       "executable": false
     },
     "src/coffer/attribution.ts": {
-      "sha256": "ba5c111a77e3b66128bdd882da39ebacd643ed99f4cef825941f8af511f7b8cd",
+      "sha256": "28c5c6ba1fba69ccf8aac37de9cab6b1e9efff43623c6110215deddbbfa18ea8",
       "executable": false
     },
     "src/coffer/auction-core.ts": {
@@ -7247,11 +7247,11 @@
       "executable": false
     },
     "tests/appeal-email-attribution-browser.mjs": {
-      "sha256": "766d626b6f8f0a2992d3e658e1e40377966b160aa4197ccb664383cd5a742997",
+      "sha256": "3cda99945cb1c82c5a8acff74696ed3942625282f0d9163b79d84e43ee610466",
       "executable": false
     },
     "tests/appeal-email-attribution-journey.mjs": {
-      "sha256": "297209416a48cfb1b1515ee0f01d837f21bb9437f345751a7c7d37cdf2c682fd",
+      "sha256": "04372143c1cb602566a00a392419f3a88c4e4577c1d325d3bcde0e07459754f7",
       "executable": false
     },
     "tests/attribution-journey.mjs": {

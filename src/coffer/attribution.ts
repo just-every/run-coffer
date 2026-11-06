@@ -50,7 +50,7 @@ export async function entryAttribution(c: Context, p: Row, fund: string, split: 
  return { campaignId, appeal, channel, statements }
 }
 
-/** Online gifts: the giving form is the channel and the tracked link's appeal travels on the intent. */
+/** The captured native source chooses email; ordinary tracked links retain the form channel. */
 export function onlineAttribution(intent: Row, reference: string): Stmt[] {
  const gift = "SELECT id FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'"
  return [

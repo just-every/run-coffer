@@ -162,6 +162,7 @@ export async function appealEmailAttributionJourney(){
     const fees=await h.get('/api/coffer/payments/fees')
     assert.deepEqual(fees.totals,{gross_cents:3000,fee_cents:125,net_cents:2875})
     for(const group of [fees.byFund,fees.byCampaign,fees.byForm])assert.deepEqual(group.map(r=>[r.gross_cents,r.fee_cents,r.net_cents]),[[3000,125,2875]])
+    await browser.outcome(session.id)
     await browser.reports(appealId)
     const plain=await start({...values,requestId:randomUUID(),emailSource:'',name:'Synthetic Other Giver',email:address(9723),channel:'email'})
     assert.equal(plain.status,303,await plain.text())
@@ -202,7 +203,7 @@ export async function appealEmailAttributionJourney(){
      assert.equal((await fresh.get('/api/coffer/donors/'+target.id)).totals.lifetimeCents,3000)
      await fresh.command('donor.erase',{donorId:target.id,confirm:'ERASE'})
      const count=(await fresh.get('/api/coffer/donors')).total
-     assert.equal((await fresh.request('/giving/thanks?session_id='+session.id,{as:''})).status,404)
+     assert.equal((await fresh.request('/giving/thanks?session_id='+session.id,{as:''})).status,409)
      assert.equal((await fresh.get('/api/coffer/donors')).total,count)
      assert.ok(!JSON.stringify(await archive(fresh)).includes(address(9716)),'Erased giver details never return from source custody')
     },{...options,givingProtection:false})
