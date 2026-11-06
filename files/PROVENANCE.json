@@ -1,0 +1,11 @@
+{
+  "head": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+  "origin_main": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+  "status": "",
+  "candidate_identity_scan": "",
+  "contract_cached_diff": "",
+  "contract_candidate_diff": "",
+  "remote_custody": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf\trefs/heads/cloud/sx-coffer-c-f163\nc0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf\trefs/heads/main",
+  "named_predecessor": "53339239597ca1635e3d419a2e2055817a237472",
+  "predecessor_is_ancestor": true
+}

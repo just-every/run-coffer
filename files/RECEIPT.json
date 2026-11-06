@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "tag": "sx-coffer-c-f163",
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f163",
+  "head": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+  "recorded_at": "2026-11-06T14:23:18.202381+00:00",
+  "new_product_commits": 0,
+  "product_diff_files": [],
+  "checks": [
+    {
+      "id": "native-link",
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium COFFER_EMAIL_ATTRIBUTION_BROWSER=<packet>/browser cloud_run timeout 1200 node --test --test-name-pattern=\"COMM-002: frozen campaign email links\" tests/communications.test.mjs",
+      "exit": 0,
+      "log": "native-link-test.log",
+      "log_sha256": "617fd777c4b00fa29fec134a5d39d88f1d53a0125c44620d648bfdf206ce572e"
+    },
+    {
+      "id": "typecheck",
+      "command": "pnpm typecheck",
+      "exit": 0,
+      "log": "typecheck.log",
+      "log_sha256": "144a3ebbc903396085f8d659cf977755b51a2f1531474aab26ac818d58f1cfc3"
+    },
+    {
+      "id": "first-party",
+      "command": "pnpm exec rer check --profile first-party",
+      "exit": 0,
+      "log": "first-party.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "views-write",
+      "command": "node scripts/contract-docs.mjs write REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012 COMM-002",
+      "exit": 0,
+      "log": "views-write.log",
+      "log_sha256": "c8fb9a4a5e9681a023a81549ff0b702f7c2139b64f8c5df86007d6e141e75c58"
+    },
+    {
+      "id": "views-check",
+      "command": "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012 COMM-002",
+      "exit": 0,
+      "log": "views-check.log",
+      "log_sha256": "09d0f8633e44e85690d37e025c2033b083ba01491831b11982b7e86e8734b6d2"
+    },
+    {
+      "id": "lock-check",
+      "command": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0,
+      "log": "lock-check.log",
+      "log_sha256": "f174d3e57bb40cb2bc2aaa97859aad8a0c66b55e5c0802a306c81a93d3fec3a9"
+    }
+  ],
+  "mechanical": {
+    "views_restored_from": "origin/main",
+    "source_lock_regenerated": true,
+    "source_lock_changed": false,
+    "migration_ledger": "not applicable; no migrations changed"
+  },
+  "focused_test": {
+    "tests": 1,
+    "pass_count": 1,
+    "fail_count": 0,
+    "duration_ms": 238740.950742,
+    "providers": [
+      "mailchimp",
+      "mango"
+    ],
+    "screenshots": 32
+  },
+  "counts_before": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20
+  },
+  "counts_after": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20
+  },
+  "status_before": "PARTIAL",
+  "status_after": "PARTIAL",
+  "publication_scan": {
+    "commit": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+    "complete": null,
+    "historyScanned": null,
+    "findings": null,
+    "status": "NOT RUN in cloud; fleet landing custody"
+  },
+  "ci": {
+    "runs": [
+      {
+        "conclusion": "skipped",
+        "event": "push",
+        "head_sha": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+        "html_url": "https://github.com/just-every/run-coffer/actions/runs/42230330342",
+        "id": 42230330342,
+        "name": "Run demo",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "event": "push",
+        "head_sha": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+        "html_url": "https://github.com/just-every/run-coffer/actions/runs/42230330057",
+        "id": 42230330057,
+        "name": "Run site",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "event": "push",
+        "head_sha": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+        "html_url": "https://github.com/just-every/run-coffer/actions/runs/42230330264",
+        "id": 42230330264,
+        "name": "Verify",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "event": "dynamic",
+        "head_sha": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+        "html_url": "https://github.com/just-every/run-coffer/actions/runs/42230330202",
+        "id": 42230330202,
+        "name": "Push on main",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "event": "push",
+        "head_sha": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+        "html_url": "https://github.com/just-every/run-coffer/actions/runs/42228057357",
+        "id": 42228057357,
+        "name": "Verify",
+        "status": "completed"
+      }
+    ]
+  }
+}

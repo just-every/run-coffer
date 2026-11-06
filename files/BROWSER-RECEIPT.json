@@ -1,0 +1,261 @@
+{
+  "head": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+  "screenshots": [
+    {
+      "path": "browser/mailchimp-preparation-1440.png",
+      "sha256": "41b78692a85c1ed863699ada88a6c90dac4e807525ffe686429c8240eb5f0a4d",
+      "dimensions": [
+        1440,
+        4969
+      ]
+    },
+    {
+      "path": "browser/mailchimp-preparation-390.png",
+      "sha256": "da9000264477671b79542b20d5ac8d02fe50baee201d0119ef2e0b93f77fb218",
+      "dimensions": [
+        390,
+        6092
+      ]
+    },
+    {
+      "path": "browser/mailchimp-prepared-1440.png",
+      "sha256": "849fe8f7342fe1f70ffff299b255e3803e25193975b5f61f0f126513aa3b63be",
+      "dimensions": [
+        1440,
+        1611
+      ]
+    },
+    {
+      "path": "browser/mailchimp-prepared-390.png",
+      "sha256": "edfc3a29bdb094dd97dacdd42702cfcfd771ad372ddf5a2f7980113c786883ec",
+      "dimensions": [
+        390,
+        2061
+      ]
+    },
+    {
+      "path": "browser/mailchimp-approved-1440.png",
+      "sha256": "02e55f874713ca1ea69b8cdf1b96c543e47b3fbf1e87f43a1839308bb794dc2c",
+      "dimensions": [
+        1440,
+        1778
+      ]
+    },
+    {
+      "path": "browser/mailchimp-approved-390.png",
+      "sha256": "b06b5b4fdc34e22ce3c22d28b49305beef0c656c9afbeec0f76a7ba40c1c797e",
+      "dimensions": [
+        390,
+        2229
+      ]
+    },
+    {
+      "path": "browser/mailchimp-handoff-1440.png",
+      "sha256": "43608864434dad881e88e1abfa0cb2ac14e008d2460ecae2de499bfdef3732c0",
+      "dimensions": [
+        1440,
+        1838
+      ]
+    },
+    {
+      "path": "browser/mailchimp-handoff-390.png",
+      "sha256": "280ea016a2fee24b6570519b4ad2ffc10f87b5f5c8e3b5de03e4bb0a46d619d4",
+      "dimensions": [
+        390,
+        2254
+      ]
+    },
+    {
+      "path": "browser/mailchimp-giving-1440.png",
+      "sha256": "bc9c9a4264290674844cbd11ae17294426f6c361cb170300c78ec5ec255aebac",
+      "dimensions": [
+        1440,
+        1731
+      ]
+    },
+    {
+      "path": "browser/mailchimp-giving-390.png",
+      "sha256": "d1d7d6c0845d722f047e701f8087cbe04da32cfb1b3df6f414443aa0220fd249",
+      "dimensions": [
+        390,
+        2159
+      ]
+    },
+    {
+      "path": "browser/mailchimp-giving-outcome-1440.png",
+      "sha256": "824ff4e27629b4728417a256b942184ac8b563515187fe6446bf8271634b70f7",
+      "dimensions": [
+        1440,
+        1000
+      ]
+    },
+    {
+      "path": "browser/mailchimp-giving-outcome-390.png",
+      "sha256": "a25c3da2793dc926bdc61aba618e8525ec5d5e43bcd379801b1e14d2e7bd569c",
+      "dimensions": [
+        390,
+        1000
+      ]
+    },
+    {
+      "path": "browser/mailchimp-response-report-1440.png",
+      "sha256": "f869f51c5ea0d45cb09f4cf37f29c8a3a1491cefecf1e42cffc0bb60163af711",
+      "dimensions": [
+        1440,
+        1838
+      ]
+    },
+    {
+      "path": "browser/mailchimp-response-report-390.png",
+      "sha256": "4d66e4ca2bc1f571279b7876cb3295cf1d425f3440f00ba98751ec55e03871c7",
+      "dimensions": [
+        390,
+        2254
+      ]
+    },
+    {
+      "path": "browser/mailchimp-attribution-report-1440.png",
+      "sha256": "2847d988a2e802e6405c6b4bcdbd45edf1c60c311af0fe1c773d8403b46d552d",
+      "dimensions": [
+        1440,
+        1808
+      ]
+    },
+    {
+      "path": "browser/mailchimp-attribution-report-390.png",
+      "sha256": "96b68ab31c88853b2aeb3bdb22a8c6db8739404102bf7e632f710bc576c908d9",
+      "dimensions": [
+        390,
+        2662
+      ]
+    },
+    {
+      "path": "browser/mango-preparation-1440.png",
+      "sha256": "e508a7c232433d2f3861ca34d4d0f9216fd1d83433e5c593a5795ca75b3899e2",
+      "dimensions": [
+        1440,
+        4969
+      ]
+    },
+    {
+      "path": "browser/mango-preparation-390.png",
+      "sha256": "455755192e4318d9ac34b7a4c1f3f1d9b568eda4a825df1035bfc5cc912b51bb",
+      "dimensions": [
+        390,
+        6092
+      ]
+    },
+    {
+      "path": "browser/mango-prepared-1440.png",
+      "sha256": "bad6ff43617169cea358ae5c89d3f9d4ffc0abe146b4e0419231f00ce9b5c290",
+      "dimensions": [
+        1440,
+        1591
+      ]
+    },
+    {
+      "path": "browser/mango-prepared-390.png",
+      "sha256": "d356a6cd8ef259446c0485bfc3c7045df450753946d8e4b728d05f6fe55e830b",
+      "dimensions": [
+        390,
+        2061
+      ]
+    },
+    {
+      "path": "browser/mango-approved-1440.png",
+      "sha256": "d974bdfb94b11808173b275e5cfe9b45017f8c25df0dfc829d0c5248bc59a3e4",
+      "dimensions": [
+        1440,
+        1778
+      ]
+    },
+    {
+      "path": "browser/mango-approved-390.png",
+      "sha256": "b3935301ccc8285ed819b5e2ee635390924a73e411da38a2529c2ded0edf53b7",
+      "dimensions": [
+        390,
+        2249
+      ]
+    },
+    {
+      "path": "browser/mango-handoff-1440.png",
+      "sha256": "eeb4af2761ef0d9ab8813b830940d4af2f4430156929795f8b29378ab6981006",
+      "dimensions": [
+        1440,
+        2398
+      ]
+    },
+    {
+      "path": "browser/mango-handoff-390.png",
+      "sha256": "c87d628853899cfd4ff8ef2e0cc6bfa448203bbecb7cd8afa3d56da8fbddc70d",
+      "dimensions": [
+        390,
+        2930
+      ]
+    },
+    {
+      "path": "browser/mango-giving-1440.png",
+      "sha256": "bc9c9a4264290674844cbd11ae17294426f6c361cb170300c78ec5ec255aebac",
+      "dimensions": [
+        1440,
+        1731
+      ]
+    },
+    {
+      "path": "browser/mango-giving-390.png",
+      "sha256": "d1d7d6c0845d722f047e701f8087cbe04da32cfb1b3df6f414443aa0220fd249",
+      "dimensions": [
+        390,
+        2159
+      ]
+    },
+    {
+      "path": "browser/mango-giving-outcome-1440.png",
+      "sha256": "824ff4e27629b4728417a256b942184ac8b563515187fe6446bf8271634b70f7",
+      "dimensions": [
+        1440,
+        1000
+      ]
+    },
+    {
+      "path": "browser/mango-giving-outcome-390.png",
+      "sha256": "a25c3da2793dc926bdc61aba618e8525ec5d5e43bcd379801b1e14d2e7bd569c",
+      "dimensions": [
+        390,
+        1000
+      ]
+    },
+    {
+      "path": "browser/mango-response-report-1440.png",
+      "sha256": "28862b46756a85dd1874d070da3eeecdefd4735cae5115320d437d89d5179141",
+      "dimensions": [
+        1440,
+        2398
+      ]
+    },
+    {
+      "path": "browser/mango-response-report-390.png",
+      "sha256": "5b7ab82048b9561abdd73e8c86fdf8279d7b9b124ea4ddd5e23d0a120517acb6",
+      "dimensions": [
+        390,
+        2930
+      ]
+    },
+    {
+      "path": "browser/mango-attribution-report-1440.png",
+      "sha256": "940037aa9416d1ca92f11b49553f02f5c41cea960d70c9d413789c0f40b07d08",
+      "dimensions": [
+        1440,
+        1808
+      ]
+    },
+    {
+      "path": "browser/mango-attribution-report-390.png",
+      "sha256": "ba44bb11f494e1089a5aebaf36f60650ebc0a11a4960871049a37349c5ebd020",
+      "dimensions": [
+        390,
+        2662
+      ]
+    }
+  ]
+}
