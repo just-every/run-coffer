@@ -1,6 +1,6 @@
 # Rulings
 
-## RL-102 — DEV-004 Gap reconcile (ct, 4 November 2026)
+### RL-104 — DEV-004 Gap reconcile (ct, 4 November 2026)
 
 Verdict: REWRITE; DEV-004 remains partial. Reviewed against main `7759c2d9e1fec30f796c0c8208b0af75ddce68ea` and the ct evidence report supplied with `ct-coffer-gaptext-20261104-1910`.
 
