@@ -7,6 +7,12 @@
       "sha256": "a60f845e82a88661611a3d1d5876e59c655ea724756cee48e6813057a877f9f4"
     },
     {
+      "blob": "2fe385f9c64b94ed78c937287cd888409f508a4a",
+      "bytes": 8999,
+      "path": "EVIDENCE-CHECK.json",
+      "sha256": "a6da31d86a888cea9e959b7a9acc710eb318b800e1578146ddb16e9e551bc2ee"
+    },
+    {
       "blob": "694724ba716ea65defe0481f1e61f94badaa0a31",
       "bytes": 1886,
       "path": "PLAN.md",
@@ -19,16 +25,16 @@
       "sha256": "230d0776b5d66f98a3ece51989146d5958134f08f8399f09d0c0cecf01e2cc61"
     },
     {
-      "blob": "e75e4fd728771e5fdc10eabb3b198cbc85643462",
-      "bytes": 4417,
+      "blob": "334089b0c4629a36d13c91f76af9b0f8497f5ee3",
+      "bytes": 6628,
       "path": "RECEIPT.json",
-      "sha256": "8f9e9fb3519b6b09ff3a0e5fcdbaaa117fcd8bae5e5b2fec2454e302b50f9d47"
+      "sha256": "f33c179660c72f49fcd898af7818102d981a8aba7b990bc3f5dc8cd301a502ec"
     },
     {
-      "blob": "a3caf5df8c954aabce78950a8c3007aebc146825",
-      "bytes": 15861,
+      "blob": "00bf4469c27836ae63d390add6735ac27c2219df",
+      "bytes": 16743,
       "path": "REPORT.md",
-      "sha256": "441db6ed089297df62b4021030069207c6a50e26adbfb373a0d0eb24b06251f1"
+      "sha256": "cb987c25f3faa8e533bca75554c027bfeb25ea7e37b114665e995ffeebdd4b5c"
     },
     {
       "blob": "939002ae6904e2b0107a767a331e1f089f040d48",
@@ -221,6 +227,12 @@
       "bytes": 245112,
       "path": "browser/mango-response-report-390.png",
       "sha256": "5b7ab82048b9561abdd73e8c86fdf8279d7b9b124ea4ddd5e23d0a120517acb6"
+    },
+    {
+      "blob": "757c6898e8e56ab2c90dba4097f2e0df25e1bfc7",
+      "bytes": 1593,
+      "path": "ci-final.json",
+      "sha256": "99c26bbfa378b5bcf2df86c50c60195b0e00eab6c20ad006e723d6ababea8810"
     },
     {
       "blob": "baeae2aa8f595b6342acb409fcc2984cc25b38e0",

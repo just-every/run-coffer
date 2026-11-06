@@ -32,7 +32,7 @@ No existing assertion was removed, narrowed, skipped or placed behind a new widt
 
 ## Exact-head CI and publication boundary
 
-The single REST discovery call returned these completed successful runs on the exact product head, before this branch-only custody publication:
+The first REST discovery call returned these completed successful runs on the exact product head, before this branch-only custody publication:
 
 - Verify **42230330264**, event **push**, **completed/success**, `c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf`.
 - Verify **42228057357**, event **push**, **completed/success**, the same exact SHA.
@@ -40,7 +40,7 @@ The single REST discovery call returned these completed successful runs on the e
 - Push on main **42230330202**, event dynamic, completed/success, the same exact SHA.
 - Run demo **42230330342** was skipped and is not counted as proof.
 
-Actual API results and URLs are in `ci-initial.json`. No Verify dispatch, rerun, failed-job log request or PR API write was made. CI success is cited only for this exact unchanged SHA; it is not a claim that a new run for this run's named branch had completed.
+A second discovery, made more than 300 seconds later, also records the named branch's automatic Verify **42233287757**, event push, **in_progress**, on this same exact SHA. Earlier main Verify 42230330264 and predecessor branch Verify 42228057357 remain completed/success. The required named-branch publication itself started this duplicate run; no dispatch was made. Actual API results, head branches and URLs are in `ci-initial.json` and `ci-final.json`. Two REST calls total; no short-interval polling. No Verify dispatch, rerun, failed-job log request or PR API write was made. CI success is cited only for this exact unchanged SHA; it is not a claim that a new run for this run's named branch had completed.
 
 Full-history publication scanning is a fleet landing duty and was not run from this cloud. Exact-SHA scan receipt: `commit=c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf complete=UNESTABLISHED historyScanned=UNESTABLISHED findings=UNESTABLISHED`. This run makes no zero-finding or COMPLETE scan claim. Remote main equality is recorded directly, not inferred from CI. No new product text or email-shaped fixture string was introduced.
 
@@ -92,7 +92,7 @@ No DONE claim is made. Each rider is accounted for without promoting the contrac
 1. The selected native outcome has passing sanity assertions through public doors. Full clause completion is expressly not claimed.
 2. No assertion or test was changed, removed, narrowed or conditionally hidden.
 3. Current role, consent and ask refusals, source replay, merge and erased-giver resurrection guards passed. This run does not expand credential or wider staff authority.
-4. No screens were changed. Existing look was retained; the browser proof contains both widths. A new UI polish or icon-control audit was not fabricated.
+4. No screens were changed. Existing look was retained; the browser proof contains both widths. No new UI polish or icon-control audit was performed.
 5. Exact-SHA Verify and Run site are green as listed, source lock is fresh, main equality is direct. Cloud scan COMPLETE and zero findings are unestablished and remain fleet custody. No new fixture was introduced.
 
 PROBE COMM-002 1: native appeal preparation, approval and sender handoff with selected campaign -> exact frozen link and defined RUN code in approved wording; one handoff per recipient.
@@ -107,3 +107,5 @@ CLAIM COMM-002 PARTIAL points=none tests=tests/communications.test.mjs#COMM-002:
 GAP COMM-002: Native link POINTS are already implemented and pass on the unchanged main head; Base-held Mango recipient results, tag synchronization, scheduling, full campaign and timeline parity, stated live-provider accounts and existing authority and ct holds prevent full DONE. No status or count change.
 
 The full execution plan is in `PLAN.md`. Actual local command output, machine-readable receipts, source provenance, CI discovery and the explicitly selected 32 screenshots accompany this report. Private setup state, credentials, environment files and held-out gate material are excluded.
+
+Evidence transport check: the first report-only publication at `96c68ef0198d61e4d494263eacf3b8d1c7076dfc` was fetched into isolated temporary Git storage and all 45 explicitly selected files were restored with verified manifest hashes. `EVIDENCE-CHECK.json` records the actual successful transfer. This report update adds that receipt and the second CI discovery to the final evidence packet; product head and index remain unchanged.
