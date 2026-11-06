@@ -23,5 +23,9 @@
   },
   "main_not_pushed": true,
   "publication_scan": "not run in cloud; fleet landing gate",
-  "Run site": "pending landing"
+  "Run site": "pending landing",
+  "handoff": "PUSHED",
+  "verify_run": 42223734180,
+  "verify_status": "in_progress",
+  "verify_conclusion": null
 }

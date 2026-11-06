@@ -64,3 +64,7 @@ MECHANICAL lock=node scripts/edition-authoring/cli.mjs lock then check exit=0; v
 All nine local committed-candidate checks in checks.json passed. The named journey took 213.59 seconds, covering both sender variants. Product push succeeded on attempt one and the remote branch head was independently verified. No PR was needed because the push started Verify.
 
 Observed candidate Verify: 42223734180 at 2026-11-06T13:13:35.449291+00:00; in_progress. Final observed conclusion is in CI.json.
+
+The first evidence publication at f2bcb56c6da7cbb3e0aafa2a05ca43a3f7e967d8 was fetched through the provided entrypoint and all 54 manifest entries and file hashes were verified. The actual retrieval receipt is fetch-receipt.json. Final evidence publication adds this receipt and the last observed CI result; its exact ref and head are reported in the terminal handoff.
+
+Final cloud handoff: PUSHED branch=cloud/sx-coffer-c-f162 head=53339239597ca1635e3d419a2e2055817a237472. Verify 42223734180 remains in progress at 2026-11-06T13:23:51.128249+00:00. Four GitHub API calls were used: starting-main discovery, candidate discovery and two status polls separated by at least 300 seconds. No completed failing workflow was observed; no branch-green result or READY is claimed. The bounded cloud CI wait ends here; exact-SHA success, the COMPLETE publication scan and guarded landing remain fleet gates.
