@@ -1,0 +1,165 @@
+{
+  "head": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+  "screens": [
+    {
+      "path": "screens-exact/mailchimp-preparation-1440.png",
+      "bytes": 506866,
+      "sha256": "41b78692a85c1ed863699ada88a6c90dac4e807525ffe686429c8240eb5f0a4d"
+    },
+    {
+      "path": "screens-exact/mailchimp-preparation-390.png",
+      "bytes": 397800,
+      "sha256": "da9000264477671b79542b20d5ac8d02fe50baee201d0119ef2e0b93f77fb218"
+    },
+    {
+      "path": "screens-exact/mailchimp-prepared-1440.png",
+      "bytes": 250310,
+      "sha256": "14cb78413e6a7ca8ba5ad440dd45775dc64db42aa99d85b5be5a80882f816d02"
+    },
+    {
+      "path": "screens-exact/mailchimp-prepared-390.png",
+      "bytes": 165502,
+      "sha256": "d5d7a583b5d372091ba0a43be9a54ee1e9a0672d625cb272edebe19d6311ac1e"
+    },
+    {
+      "path": "screens-exact/mailchimp-approved-1440.png",
+      "bytes": 270076,
+      "sha256": "86c31e4cd6849dad727110483d4b48d00dfb4ecce8fee8c5bf001e69de030e7f"
+    },
+    {
+      "path": "screens-exact/mailchimp-approved-390.png",
+      "bytes": 181206,
+      "sha256": "ba2a988884d8cd9efb8c25eeeb9e2ee9b76f288cd95ccf3d85b3db03ed51a26e"
+    },
+    {
+      "path": "screens-exact/mailchimp-handoff-1440.png",
+      "bytes": 271167,
+      "sha256": "19f19b306163d0c75fd2472b0f08500db646066f7ef05df7c56e4a017aa0623c"
+    },
+    {
+      "path": "screens-exact/mailchimp-handoff-390.png",
+      "bytes": 182462,
+      "sha256": "f4f0a1404be5487511c0735b24f979f2f4090e44817a93b1290760fcae370eb5"
+    },
+    {
+      "path": "screens-exact/mailchimp-giving-1440.png",
+      "bytes": 1356749,
+      "sha256": "bc9c9a4264290674844cbd11ae17294426f6c361cb170300c78ec5ec255aebac"
+    },
+    {
+      "path": "screens-exact/mailchimp-giving-390.png",
+      "bytes": 453497,
+      "sha256": "d1d7d6c0845d722f047e701f8087cbe04da32cfb1b3df6f414443aa0220fd249"
+    },
+    {
+      "path": "screens-exact/mailchimp-giving-outcome-1440.png",
+      "bytes": 217209,
+      "sha256": "824ff4e27629b4728417a256b942184ac8b563515187fe6446bf8271634b70f7"
+    },
+    {
+      "path": "screens-exact/mailchimp-giving-outcome-390.png",
+      "bytes": 68645,
+      "sha256": "a25c3da2793dc926bdc61aba618e8525ec5d5e43bcd379801b1e14d2e7bd569c"
+    },
+    {
+      "path": "screens-exact/mailchimp-response-report-1440.png",
+      "bytes": 271205,
+      "sha256": "22eb8191bfaff86f1555ab00275dc8143e900c7fe6f97946af92c85ef6ee1b07"
+    },
+    {
+      "path": "screens-exact/mailchimp-response-report-390.png",
+      "bytes": 182158,
+      "sha256": "719576cb578af4c452b1f5174dbef0cf7d2b5544d698d1638224f70c7b167f89"
+    },
+    {
+      "path": "screens-exact/mailchimp-attribution-report-1440.png",
+      "bytes": 258357,
+      "sha256": "3d1a60953578114e83b943571ebb656a53c3e0a6489b8306ee5d6db31cb8d762"
+    },
+    {
+      "path": "screens-exact/mailchimp-attribution-report-390.png",
+      "bytes": 190452,
+      "sha256": "f50200e546e25641fae1211f006555266c89ef7946ab76528862a2b31de6012d"
+    },
+    {
+      "path": "screens-exact/mango-preparation-1440.png",
+      "bytes": 506410,
+      "sha256": "e508a7c232433d2f3861ca34d4d0f9216fd1d83433e5c593a5795ca75b3899e2"
+    },
+    {
+      "path": "screens-exact/mango-preparation-390.png",
+      "bytes": 397826,
+      "sha256": "455755192e4318d9ac34b7a4c1f3f1d9b568eda4a825df1035bfc5cc912b51bb"
+    },
+    {
+      "path": "screens-exact/mango-prepared-1440.png",
+      "bytes": 251468,
+      "sha256": "993e7be6e98c9a210d1b465c895748981b4dedc345aa1c30f78fd5a3e437382d"
+    },
+    {
+      "path": "screens-exact/mango-prepared-390.png",
+      "bytes": 164334,
+      "sha256": "8be062f8545773d848cb684b9cee201891d9cf9dcb6670366a3b4e495f8ab825"
+    },
+    {
+      "path": "screens-exact/mango-approved-1440.png",
+      "bytes": 276746,
+      "sha256": "68e2dd713d9eab260137e4c7f81edc5f1af4160893aea97101a885a199b16643"
+    },
+    {
+      "path": "screens-exact/mango-approved-390.png",
+      "bytes": 184593,
+      "sha256": "435a82969e86bde8756d23e0bfff7dc3aeb6bebd57aaa130144b09f1201df8eb"
+    },
+    {
+      "path": "screens-exact/mango-handoff-1440.png",
+      "bytes": 348853,
+      "sha256": "c1e563b098d1c8edd2be895578a819ee0d3f8464f2b5667df6f3d9e5c557a7fd"
+    },
+    {
+      "path": "screens-exact/mango-handoff-390.png",
+      "bytes": 244889,
+      "sha256": "c402a32e234a8a1af614812e21737d4bb1934b302ca23192814f942f697d253c"
+    },
+    {
+      "path": "screens-exact/mango-giving-1440.png",
+      "bytes": 1356749,
+      "sha256": "bc9c9a4264290674844cbd11ae17294426f6c361cb170300c78ec5ec255aebac"
+    },
+    {
+      "path": "screens-exact/mango-giving-390.png",
+      "bytes": 453497,
+      "sha256": "d1d7d6c0845d722f047e701f8087cbe04da32cfb1b3df6f414443aa0220fd249"
+    },
+    {
+      "path": "screens-exact/mango-giving-outcome-1440.png",
+      "bytes": 217209,
+      "sha256": "824ff4e27629b4728417a256b942184ac8b563515187fe6446bf8271634b70f7"
+    },
+    {
+      "path": "screens-exact/mango-giving-outcome-390.png",
+      "bytes": 68645,
+      "sha256": "a25c3da2793dc926bdc61aba618e8525ec5d5e43bcd379801b1e14d2e7bd569c"
+    },
+    {
+      "path": "screens-exact/mango-response-report-1440.png",
+      "bytes": 348878,
+      "sha256": "81876950d58187426ac84db476a893de469862c1a452fd16d6603cd544e96575"
+    },
+    {
+      "path": "screens-exact/mango-response-report-390.png",
+      "bytes": 244590,
+      "sha256": "fe1e6a9573ea65451597d92fdc7dd28943144b221a2b28a4c788f995238d90a5"
+    },
+    {
+      "path": "screens-exact/mango-attribution-report-1440.png",
+      "bytes": 259393,
+      "sha256": "ec1bff01dc287e8d8a1e00dbccde4715b8035c9ce94735d8f895fbc5d075fd29"
+    },
+    {
+      "path": "screens-exact/mango-attribution-report-390.png",
+      "bytes": 190787,
+      "sha256": "9a73b9b9f314b3bda64ec1a64f08f1a913fb5fae4c79947c37a549fedb3ab4f0"
+    }
+  ]
+}

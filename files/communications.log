@@ -1,0 +1,24 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+✔ COMM-001: portal topics and channel frequency fence current outreach and retain original preference custody (110721.487447ms)
+✔ COMM-005: routed replies reach managers, withdraw explicit stops once and review ambiguous requests with custody (67435.735934ms)
+✔ DONOR-014: Mailchimp audience names follow parts and typed overrides for subscribed and new pending members without overriding opt-outs (5713.702828ms)
+✔ DONOR-014: Connect Mango from the page, send an approved appeal to a Mango list, and keep opt-outs in step (48431.825489ms)
+✔ COMM-008: email appeal results match signed ledger and sender outcomes with tracking off (64822.543326ms)
+✔ RCPT-010: welcome fields share the receipt catalog, hold missing recipients before handoff and resume with literal custom values (18223.289572ms)
+✔ REPORT-005: saved selections send current weekly and monthly report attachments once to explicitly approved recipients (73760.808746ms)
+✔ STEW-003: published journeys enroll live giving cohorts and hold shared-frequency work with current consent and custody (55750.526269ms)
+✔ STEW-003: the minute scheduler advances published welcome steps once and stops a repeat giver (5939.846116ms)
+✔ STEW-003: reply branches create owned tasks once, waits send nothing, and list custody requires explicit resume (5937.00699ms)
+✔ STEW-003: shared welcome caps retain uncertain claims and merged donor custody without automatic retry (5642.828103ms)
+✔ STEW-003: an anniversary enrolls on the calendar day and its later steps remain active (4973.661571ms)
+✔ COMM-002: frozen campaign email links retain honest attribution through payment, reversal and custody (215664.243617ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 683908.772501

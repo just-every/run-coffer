@@ -1,0 +1,195 @@
+{
+  "tag": "sx-coffer-c-f161",
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f161",
+  "head": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+  "tree": "db0b2771b049f06ec424fb24619aaa2949e3e67b",
+  "productPushed": true,
+  "status": "PUSHED",
+  "baseMain": "aca389ce5feeaab26b9cfece0e74370ac948b83e",
+  "countsBefore": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "countsAfter": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "clauses": [
+    {
+      "id": "COMM-002",
+      "before": "partial",
+      "after": "partial",
+      "nativePoint": "complete",
+      "acceptanceTextChanged": false,
+      "doneClaim": false
+    }
+  ],
+  "checks": {
+    "communications": {
+      "exit": 0,
+      "tests": 13
+    },
+    "attributionRegression": {
+      "exit": 0,
+      "tests": 1
+    },
+    "givingRegressions": {
+      "exit": 0,
+      "tests": 3
+    },
+    "exactShaJourney": {
+      "head": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+      "tree": "db0b2771b049f06ec424fb24619aaa2949e3e67b",
+      "branch": "cloud/sx-coffer-c-f161",
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern=^COMM-002: frozen",
+        "tests/communications.test.mjs"
+      ],
+      "node": "v22.20.0",
+      "started": "2026-11-06T11:46:26.399574+00:00",
+      "finished": "2026-11-06T11:50:03.506133+00:00",
+      "seconds": 217.107,
+      "exit": 0,
+      "checkoutUnchanged": true
+    },
+    "build": {
+      "exit": 0,
+      "head": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b"
+    },
+    "mechanical": {
+      "head": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+      "node": "v22.20.0",
+      "finished": "2026-11-06T11:52:19.176155+00:00",
+      "commands": [
+        {
+          "label": "views_write",
+          "command": [
+            "node",
+            "scripts/contract-docs.mjs",
+            "write",
+            "REPORT-004",
+            "DATA-004",
+            "MOVE-004",
+            "MOVE-010",
+            "MOVE-012",
+            "COMM-002"
+          ],
+          "exit": 0,
+          "outputSha256": "c8fb9a4a5e9681a023a81549ff0b702f7c2139b64f8c5df86007d6e141e75c58"
+        },
+        {
+          "label": "views_check",
+          "command": [
+            "node",
+            "scripts/contract-docs.mjs",
+            "check",
+            "REPORT-004",
+            "DATA-004",
+            "MOVE-004",
+            "MOVE-010",
+            "MOVE-012",
+            "COMM-002"
+          ],
+          "exit": 0,
+          "outputSha256": "09d0f8633e44e85690d37e025c2033b083ba01491831b11982b7e86e8734b6d2"
+        },
+        {
+          "label": "restore_views",
+          "command": [
+            "git",
+            "checkout",
+            "origin/main",
+            "--",
+            "ACCEPTANCE.md",
+            "docs/CLAIMS.md"
+          ],
+          "exit": 0,
+          "outputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "label": "lock",
+          "command": [
+            "node",
+            "scripts/edition-authoring/cli.mjs",
+            "lock"
+          ],
+          "exit": 0,
+          "outputSha256": "56936bf8536a0e751b76f60f917dda7d64aa7bccf039b6cb4f940a2921280e11"
+        },
+        {
+          "label": "lock_check",
+          "command": [
+            "node",
+            "scripts/edition-authoring/cli.mjs",
+            "check"
+          ],
+          "exit": 0,
+          "outputSha256": "e6bf6871c31024a4e11690818b98dac7481e718ed20290117eb54624824bc3c5"
+        },
+        {
+          "label": "typecheck",
+          "command": [
+            "pnpm",
+            "typecheck"
+          ],
+          "exit": 0,
+          "outputSha256": "117e785213daa97aa7d63aff3a5b0f80a4c38e75fa9fc5d72520fa529c47023b"
+        },
+        {
+          "label": "first_party",
+          "command": [
+            "pnpm",
+            "run",
+            "check",
+            "--profile",
+            "first-party"
+          ],
+          "exit": 0,
+          "outputSha256": "744c3816bc048a4f28057c55d135e11ca297cb1f65c91915f97cbfdd31f6294f"
+        },
+        {
+          "label": "ledger",
+          "command": [
+            "node",
+            "/home/agent/rer-consolidation/work/sx-coffer-c-f161/packet/migration-ledger-check.mjs"
+          ],
+          "exit": 0,
+          "outputSha256": "8095fb06ccb8ab5fb5d4147e1b8e66c2086056c19a22c0d43a0dc786f877e4ea"
+        }
+      ],
+      "checkoutUnchanged": true
+    }
+  },
+  "verify": {
+    "conclusion": null,
+    "created_at": "2026-11-06T11:50:43Z",
+    "event": "push",
+    "head_sha": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+    "html_url": "https://github.com/just-every/run-coffer/actions/runs/42213222120",
+    "id": 42213222120,
+    "name": "Verify",
+    "status": "in_progress"
+  },
+  "publicationScan": {
+    "status": "NOT RUN IN CLOUD",
+    "owner": "guarded fleet lander"
+  },
+  "runSite": {
+    "status": "PENDING LANDING",
+    "owner": "guarded fleet lander"
+  },
+  "pr": null,
+  "knownProductFailures": [],
+  "sourceLockSha256": "c8495560100e6b3851ed87675a50534f18963abe51cdf737d169f5840095ab2b",
+  "generatedViewsCommitted": false,
+  "workflowChanged": false,
+  "newTestRegistrations": 1,
+  "updated": "2026-11-06T11:54:10.513755+00:00"
+}

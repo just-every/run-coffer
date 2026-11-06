@@ -1,0 +1,5 @@
+{"conclusion":"skipped","head_sha":"aca389ce5feeaab26b9cfece0e74370ac948b83e","html_url":"https://github.com/just-every/run-coffer/actions/runs/42189934556","id":42189934556,"name":"Run demo","status":"completed"}
+{"conclusion":"success","head_sha":"aca389ce5feeaab26b9cfece0e74370ac948b83e","html_url":"https://github.com/just-every/run-coffer/actions/runs/42189934688","id":42189934688,"name":"Verify","status":"completed"}
+{"conclusion":"success","head_sha":"aca389ce5feeaab26b9cfece0e74370ac948b83e","html_url":"https://github.com/just-every/run-coffer/actions/runs/42189934466","id":42189934466,"name":"Run site","status":"completed"}
+{"conclusion":"success","head_sha":"aca389ce5feeaab26b9cfece0e74370ac948b83e","html_url":"https://github.com/just-every/run-coffer/actions/runs/42189933026","id":42189933026,"name":"Push on main","status":"completed"}
+{"conclusion":"success","head_sha":"aca389ce5feeaab26b9cfece0e74370ac948b83e","html_url":"https://github.com/just-every/run-coffer/actions/runs/42187559542","id":42187559542,"name":"Verify","status":"completed"}

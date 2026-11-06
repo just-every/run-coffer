@@ -1,0 +1,17 @@
+{
+  "head": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+  "tree": "db0b2771b049f06ec424fb24619aaa2949e3e67b",
+  "branch": "cloud/sx-coffer-c-f161",
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=^COMM-002: frozen",
+    "tests/communications.test.mjs"
+  ],
+  "node": "v22.20.0",
+  "started": "2026-11-06T11:46:26.399574+00:00",
+  "finished": "2026-11-06T11:50:03.506133+00:00",
+  "seconds": 217.107,
+  "exit": 0,
+  "checkoutUnchanged": true
+}

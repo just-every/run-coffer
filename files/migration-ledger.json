@@ -1,0 +1,13 @@
+{
+  "command": "node migration-ledger-check.mjs",
+  "exit": 0,
+  "head": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+  "files": 189,
+  "applied": 189,
+  "retainedParentFiles": 188,
+  "newMigration": {
+    "name": "0187_coffer_appeal_email_sources.sql",
+    "sha256": "1c82631b67370dde5bfea440c3c43aa01fa73b832753119748b66acf62179af2"
+  },
+  "inventorySha256": "bc510099dbeb1a7f3770aa44a53dde79ced91d79f7c13d34e97a517f814fd432"
+}
