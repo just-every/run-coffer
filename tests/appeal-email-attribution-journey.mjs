@@ -94,9 +94,12 @@ export async function appealEmailAttributionJourney(){
     await h.command('marketing.connectMailchimp',{apiKey:'synthetic-coffer-9719'.replaceAll('-','')+'-us21'})
     await h.command('marketing.chooseAudience',{listId:'synthetic-coffer-9712',fromName:'Synthetic Sender',fromEmail:address(9720)})
    }else await h.command('marketing.connectMango',{origin:'https://mango.example.test',credential:'synthetic-coffer-9721'})
-   const create=(name,slug,fund)=>h.api('/api/coffer/giving/campaigns',{name,slug,description:'Books for our community.',fund,goal:'1000'})
-   const campaign=await create('Synthetic Reading','synthetic-reading','Reading'),other=await create('Synthetic Meals','synthetic-meals','Meals')
+   const create=(name,slug,fund,closesOn)=>h.api('/api/coffer/giving/campaigns',{name,slug,description:'Books for our community.',fund,goal:'1000',closesOn})
+   const campaign=await create('Synthetic Reading','synthetic-reading','Reading','2026-10-15'),other=await create('Synthetic Meals','synthetic-meals','Meals')
    const input={name:'Synthetic '+provider+' appeal',channel:'email',donationCampaignId:campaign.id,subject:'Hello {{donor_name}}',body:'Support the reading room.'}
+   const closed=await create('Synthetic Closed','synthetic-closed','Reading','2026-10-14')
+   await h.command('appeal.prepare',{...input,donationCampaignId:closed.id},{status:409})
+   const afterClose={headers:{'x-test-now':'2026-10-16T04:00:00Z'}}
    const member={cookie:await recognitionMember(h,{messages:state.mails},address(9722))};state.mails.length=0
    await h.command('appeal.prepare',input,{as:member.cookie,status:403})
    await h.command('appeal.prepare',input,{as:'',status:401})
@@ -113,9 +116,16 @@ export async function appealEmailAttributionJourney(){
     assert.equal((await h.request(publicLink,{as:''})).status,410,'Unapproved frozen link cannot start checkout')
     await browser.review(appealId,'prepared',prepared.message.body)
     await h.command('appeal.approve',{appealId,version:1},{as:member.cookie,status:403})
+    await h.command('appeal.approve',{appealId,version:1},{...afterClose,status:409})
+    assert.equal((await detail()).appeal.status,'prepared','Closing the page prevents approving an unusable donation link')
     await browser.approve(appealId)
+    assert.equal((await h.request(publicLink,{as:'',headers:{'x-test-now':'2026-10-16T03:59:59Z'}})).status,200,'The final organization-local giving day remains open')
+    assert.equal((await h.request(publicLink,{as:'',...afterClose})).status,410,'A closed campaign cannot resolve its email source')
     await browser.review(appealId,'approved',prepared.message.body)
     await h.command('appeal.send',{appealId,version:2},{as:member.cookie,status:403})
+    await h.command('appeal.send',{appealId,version:2},{...afterClose,status:409})
+    assert.deepEqual((await detail()).messages,[],'A closed campaign creates no sender claim')
+    assert.equal(state.handoffs.length,0,'A closed campaign reaches neither sender edge')
     await browser.send(appealId)
     assert.deepEqual(state.handoffs,[address(9715)],JSON.stringify((await detail()).messages))
     assert.equal((await detail()).messages[0].body,prepared.recipients[0].rendered_body)
@@ -128,21 +138,24 @@ export async function appealEmailAttributionJourney(){
     const values={requestId:randomUUID(),name:'Synthetic Independent Giver',email:address(9716),amount:'50.00',frequency:'once',appeal:source.code,emailSource:token,'cf-turnstile-response':'synthetic-coffer-security-token'}
     const start=(v=values,slug='synthetic-reading')=>h.request('/give/'+slug+'/checkout',{...form(v),as:''})
     for(const [changes,slug,status] of [[{emailSource:randomUUID()},'synthetic-reading',410],[{appeal:'FORGED'},'synthetic-reading',410],[{},'synthetic-meals',410],[{frequency:'monthly'},'synthetic-reading',409]])assert.equal((await start({...values,...changes},slug)).status,status)
+    const closedCheckout=form(values)
+    assert.equal((await h.request('/give/synthetic-reading/checkout',{...closedCheckout,as:'',headers:{...closedCheckout.headers,...afterClose.headers}})).status,409,'A closed campaign starts no checkout')
     assert.equal(state.sessions.size,0,'Refusals submit no payment')
     const checkout=await start({...values,channel:'mail'});assert.equal(checkout.status,303,await checkout.text())
     const session=[...state.sessions.values()][0],charge=[...state.charges.values()][0]
-    const event=async(type,id,eventId=randomUUID())=>{
-     const raw=JSON.stringify({id:eventId,type,data:{object:{id}}}),timestamp=instant,signature=createHmac('sha256',webhookSecret).update(timestamp+'.'+raw).digest('hex')
-     const response=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',headers:{'stripe-signature':`t=${timestamp},v1=${signature}`},raw});assert.equal(response.status,200,await response.text())
+    const event=async(type,id,at='2026-10-15T16:00:00Z')=>{
+     const raw=JSON.stringify({id:randomUUID(),type,data:{object:{id}}}),timestamp=Date.parse(at)/1000,signature=createHmac('sha256',webhookSecret).update(timestamp+'.'+raw).digest('hex')
+     const response=await h.request('/api/coffer/giving/webhook',{method:'POST',as:'',headers:{'stripe-signature':`t=${timestamp},v1=${signature}`,'x-test-now':at},raw});assert.equal(response.status,200,await response.text())
     }
     // A refund observed first must record the original once before its correction.
     const refund={id:'re_synthetic_coffer',charge:charge.id,status:'succeeded',amount:2000,currency:'usd',balance_transaction:'txn_synthetic_coffer_refund',created:instant+1}
     state.refunds.set(refund.id,refund);charge.amount_refunded=2000
     state.entries.push({id:refund.balance_transaction,type:'refund',source:refund,amount:-2000,fee:-50,net:-1950,currency:'usd',created:instant+1})
-    await event('refund.created',refund.id)
+    await event('refund.created',refund.id,'2026-10-16T04:00:00Z')
     await event('charge.succeeded',charge.id)
     const returnPage=()=>h.request('/giving/thanks?session_id='+session.id,{as:''})
     assert.equal((await returnPage()).status,200)
+    assert.equal((await h.request('/giving/thanks?session_id='+session.id,{as:'',...afterClose})).status,200,'An earlier paid checkout still reconciles after campaign closure')
     await event('checkout.session.completed',session.id)
     await event('charge.refunded',charge.id)
     assert.equal((await start({...values,channel:'email'})).status,303);assert.equal(state.sessions.size,1)

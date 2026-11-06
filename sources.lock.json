@@ -571,7 +571,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7b0f4fb62dda90fed56c45be84ae85b282b4606abfbe4363cc492f82c1e1e42c",
+      "sha256": "ff26dfe67e634f9837715ff14000fc66bbb2974502b0fd72fbd78d8525f267fa",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3691,7 +3691,7 @@
       "executable": false
     },
     "src/coffer/giving/email-source.ts": {
-      "sha256": "846c789bb43653cb51edc02a5b391bcbf96fcf2f9150a88802f8869b5662a42b",
+      "sha256": "2f7aaaf9686ec61529ee9067bae75776951c1515a339f3e4c5e07b4ac4c39e5a",
       "executable": false
     },
     "src/coffer/giving/fee-cover.ts": {
@@ -7251,7 +7251,7 @@
       "executable": false
     },
     "tests/appeal-email-attribution-journey.mjs": {
-      "sha256": "04372143c1cb602566a00a392419f3a88c4e4577c1d325d3bcde0e07459754f7",
+      "sha256": "abfe5cc5517964f06df1a07dd32c83ffd9824a23df2121bf2be0d4f0094b5e55",
       "executable": false
     },
     "tests/attribution-journey.mjs": {
