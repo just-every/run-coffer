@@ -1,0 +1,202 @@
+{
+  "head": "53339239597ca1635e3d419a2e2055817a237472",
+  "assertion_width": 1440,
+  "proof_widths": [
+    1440,
+    390
+  ],
+  "screens": [
+    {
+      "path": "browser/mailchimp-preparation-1440.png",
+      "bytes": 506866,
+      "sha256": "41b78692a85c1ed863699ada88a6c90dac4e807525ffe686429c8240eb5f0a4d",
+      "recorded_at": "2026-11-06T13:09:03.640841+00:00"
+    },
+    {
+      "path": "browser/mailchimp-preparation-390.png",
+      "bytes": 397800,
+      "sha256": "da9000264477671b79542b20d5ac8d02fe50baee201d0119ef2e0b93f77fb218",
+      "recorded_at": "2026-11-06T13:09:03.940839+00:00"
+    },
+    {
+      "path": "browser/mailchimp-prepared-1440.png",
+      "bytes": 249723,
+      "sha256": "980fc85678a0fe35b823ad06cc87e6e47a7583720783c9673444eac7afe3dcb0",
+      "recorded_at": "2026-11-06T13:09:04.376837+00:00"
+    },
+    {
+      "path": "browser/mailchimp-prepared-390.png",
+      "bytes": 164483,
+      "sha256": "a082bdeeca78df21ecb2d0c51d3886c140e719d82211b886554d04567cd3770c",
+      "recorded_at": "2026-11-06T13:09:04.560836+00:00"
+    },
+    {
+      "path": "browser/mailchimp-approved-1440.png",
+      "bytes": 269491,
+      "sha256": "ce0d5ea4126acfbbe4a840cdd1701c3c2673da6800f39a7994cab9562ed323cd",
+      "recorded_at": "2026-11-06T13:09:05.052833+00:00"
+    },
+    {
+      "path": "browser/mailchimp-approved-390.png",
+      "bytes": 180177,
+      "sha256": "5a74883aaed2d209ebe8bf17b9694577efd8a1e48da8f36300a272a5c27b0a9e",
+      "recorded_at": "2026-11-06T13:09:05.236831+00:00"
+    },
+    {
+      "path": "browser/mailchimp-handoff-1440.png",
+      "bytes": 270570,
+      "sha256": "8d98bf93a20750cc1319f3b2a1516c0ab0c4e414068e09314775771a69530c6f",
+      "recorded_at": "2026-11-06T13:09:05.956827+00:00"
+    },
+    {
+      "path": "browser/mailchimp-handoff-390.png",
+      "bytes": 181448,
+      "sha256": "004b87b26e9eee95f5d8c86c9514c39c33662d2d8e5b48a43361fb097066451a",
+      "recorded_at": "2026-11-06T13:09:06.112826+00:00"
+    },
+    {
+      "path": "browser/mailchimp-giving-1440.png",
+      "bytes": 1356749,
+      "sha256": "bc9c9a4264290674844cbd11ae17294426f6c361cb170300c78ec5ec255aebac",
+      "recorded_at": "2026-11-06T13:09:06.716823+00:00"
+    },
+    {
+      "path": "browser/mailchimp-giving-390.png",
+      "bytes": 453497,
+      "sha256": "d1d7d6c0845d722f047e701f8087cbe04da32cfb1b3df6f414443aa0220fd249",
+      "recorded_at": "2026-11-06T13:09:06.984821+00:00"
+    },
+    {
+      "path": "browser/mailchimp-giving-outcome-1440.png",
+      "bytes": 217209,
+      "sha256": "824ff4e27629b4728417a256b942184ac8b563515187fe6446bf8271634b70f7",
+      "recorded_at": "2026-11-06T13:09:07.524818+00:00"
+    },
+    {
+      "path": "browser/mailchimp-giving-outcome-390.png",
+      "bytes": 68645,
+      "sha256": "a25c3da2793dc926bdc61aba618e8525ec5d5e43bcd379801b1e14d2e7bd569c",
+      "recorded_at": "2026-11-06T13:09:07.644817+00:00"
+    },
+    {
+      "path": "browser/mailchimp-response-report-1440.png",
+      "bytes": 270596,
+      "sha256": "2bf03ccd17eefe2fee1b0e63999b0a94b1ef2c8ed97fa5a6c22631d3d135adae",
+      "recorded_at": "2026-11-06T13:09:07.868816+00:00"
+    },
+    {
+      "path": "browser/mailchimp-response-report-390.png",
+      "bytes": 181144,
+      "sha256": "059fc1046aef3454a87ea78909796e6bbff1ae7e7c13c94c22cb68939d178af2",
+      "recorded_at": "2026-11-06T13:09:08.028815+00:00"
+    },
+    {
+      "path": "browser/mailchimp-attribution-report-1440.png",
+      "bytes": 257891,
+      "sha256": "027f41a744f3950c5b9721c87c8c97b23c3b9875d187c066e13881924d01804d",
+      "recorded_at": "2026-11-06T13:09:08.236814+00:00"
+    },
+    {
+      "path": "browser/mailchimp-attribution-report-390.png",
+      "bytes": 190113,
+      "sha256": "1bfeacdb52070173b19aa6376c1baf9c855318153281ee5257e19ed7c3bde78c",
+      "recorded_at": "2026-11-06T13:09:08.436813+00:00"
+    },
+    {
+      "path": "browser/mango-preparation-1440.png",
+      "bytes": 506410,
+      "sha256": "e508a7c232433d2f3861ca34d4d0f9216fd1d83433e5c593a5795ca75b3899e2",
+      "recorded_at": "2026-11-06T13:10:49.300206+00:00"
+    },
+    {
+      "path": "browser/mango-preparation-390.png",
+      "bytes": 397826,
+      "sha256": "455755192e4318d9ac34b7a4c1f3f1d9b568eda4a825df1035bfc5cc912b51bb",
+      "recorded_at": "2026-11-06T13:10:49.584204+00:00"
+    },
+    {
+      "path": "browser/mango-prepared-1440.png",
+      "bytes": 252300,
+      "sha256": "04841d5b1ca49c012152d7c703a2117dd0cdf8e396285bca5fe5535af47ee8fc",
+      "recorded_at": "2026-11-06T13:10:50.016201+00:00"
+    },
+    {
+      "path": "browser/mango-prepared-390.png",
+      "bytes": 164695,
+      "sha256": "66f3b9451e4ff0555254fd88687a74f00a237a7a09a38402f44234f1080e90a6",
+      "recorded_at": "2026-11-06T13:10:50.212200+00:00"
+    },
+    {
+      "path": "browser/mango-approved-1440.png",
+      "bytes": 277594,
+      "sha256": "51bfd3ed5350eb7b4444a8ae530396feeef626b31208a3f99880eb5e3f453f9a",
+      "recorded_at": "2026-11-06T13:10:50.680197+00:00"
+    },
+    {
+      "path": "browser/mango-approved-390.png",
+      "bytes": 184947,
+      "sha256": "c7befd14c4a4823303532262b553a46ef926d65032ebc993f6215e90f72bbdd5",
+      "recorded_at": "2026-11-06T13:10:50.860196+00:00"
+    },
+    {
+      "path": "browser/mango-handoff-1440.png",
+      "bytes": 349660,
+      "sha256": "4e85d6094d7ed2cf5c47094a6a364617421588d401714e061bd2c0cc33865ba8",
+      "recorded_at": "2026-11-06T13:10:51.520192+00:00"
+    },
+    {
+      "path": "browser/mango-handoff-390.png",
+      "bytes": 244716,
+      "sha256": "465812fd05f0705e250617a3d9d92f5a18483d85e7e190a0a656510c1f8b7ef6",
+      "recorded_at": "2026-11-06T13:10:51.708191+00:00"
+    },
+    {
+      "path": "browser/mango-giving-1440.png",
+      "bytes": 1356749,
+      "sha256": "bc9c9a4264290674844cbd11ae17294426f6c361cb170300c78ec5ec255aebac",
+      "recorded_at": "2026-11-06T13:10:52.240188+00:00"
+    },
+    {
+      "path": "browser/mango-giving-390.png",
+      "bytes": 453497,
+      "sha256": "d1d7d6c0845d722f047e701f8087cbe04da32cfb1b3df6f414443aa0220fd249",
+      "recorded_at": "2026-11-06T13:10:52.496186+00:00"
+    },
+    {
+      "path": "browser/mango-giving-outcome-1440.png",
+      "bytes": 217209,
+      "sha256": "824ff4e27629b4728417a256b942184ac8b563515187fe6446bf8271634b70f7",
+      "recorded_at": "2026-11-06T13:10:53.060183+00:00"
+    },
+    {
+      "path": "browser/mango-giving-outcome-390.png",
+      "bytes": 68645,
+      "sha256": "a25c3da2793dc926bdc61aba618e8525ec5d5e43bcd379801b1e14d2e7bd569c",
+      "recorded_at": "2026-11-06T13:10:53.176182+00:00"
+    },
+    {
+      "path": "browser/mango-response-report-1440.png",
+      "bytes": 349689,
+      "sha256": "4a3cfe7b2d49faa58f4152dc1077d9e52c4ff64e433eabeda4d764844b4fe92e",
+      "recorded_at": "2026-11-06T13:10:53.420181+00:00"
+    },
+    {
+      "path": "browser/mango-response-report-390.png",
+      "bytes": 244416,
+      "sha256": "ea099aaac0acd1bfc50adc6df1df432bed25ec4bff99bf26f12122499615728b",
+      "recorded_at": "2026-11-06T13:10:53.604179+00:00"
+    },
+    {
+      "path": "browser/mango-attribution-report-1440.png",
+      "bytes": 258727,
+      "sha256": "3fc33bddb3c2dcd8c0105b4a9634746f15bef5b2a5362985f01c77d6c86b46ce",
+      "recorded_at": "2026-11-06T13:10:53.820178+00:00"
+    },
+    {
+      "path": "browser/mango-attribution-report-390.png",
+      "bytes": 190478,
+      "sha256": "bc01f1975d1e9af670f6a133f1453ecf06dc2c2161bf9b92b7b168739a8cfc05",
+      "recorded_at": "2026-11-06T13:10:53.980177+00:00"
+    }
+  ]
+}

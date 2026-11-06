@@ -1,0 +1,28 @@
+{
+  "repository": "just-every/run-coffer",
+  "candidate": "53339239597ca1635e3d419a2e2055817a237472",
+  "observed_at": "2026-11-06T13:13:35.449291+00:00",
+  "candidate_runs": [
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "53339239597ca1635e3d419a2e2055817a237472",
+      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42223734180",
+      "id": 42223734180,
+      "name": "Verify",
+      "status": "in_progress"
+    }
+  ],
+  "github_calls_used": 3,
+  "starting_main": {
+    "head": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+    "Verify": [
+      42219497595,
+      42213222120
+    ],
+    "Run site": 42219497567,
+    "observed_conclusions": "success"
+  },
+  "poll_rule": "one watcher; discovery counts; at least 300 seconds before polling each discovered run",
+  "status_observed_at": "2026-11-06T13:18:49.772183+00:00"
+}

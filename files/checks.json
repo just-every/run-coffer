@@ -1,0 +1,126 @@
+{
+  "head": "53339239597ca1635e3d419a2e2055817a237472",
+  "branch": "cloud/sx-coffer-c-f162",
+  "started": "2026-11-06T13:08:56.371174+00:00",
+  "checks": [
+    {
+      "name": "journey",
+      "command": [
+        "timeout",
+        "1200",
+        "node",
+        "--test",
+        "--test-name-pattern=COMM-002: frozen campaign",
+        "tests/communications.test.mjs"
+      ],
+      "started": "2026-11-06T13:08:56.371256+00:00",
+      "exit": 0,
+      "output": "checks/journey.log",
+      "sha256": "18b7e47654f231cc4bba17ca98b03692943e5ff60b309cd188c5845d7c487c13"
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "pnpm",
+        "typecheck"
+      ],
+      "started": "2026-11-06T13:12:30.879987+00:00",
+      "exit": 0,
+      "output": "checks/typecheck.log",
+      "sha256": "992d8530952eefce2c28e4e96f3e9fb2387600eae9db91a63333a0e235e00dc3"
+    },
+    {
+      "name": "first-party",
+      "command": [
+        "npx",
+        "-y",
+        "@runeditrun/rer",
+        "check",
+        "--profile",
+        "first-party"
+      ],
+      "started": "2026-11-06T13:12:31.291851+00:00",
+      "exit": 0,
+      "output": "checks/first-party.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "views-write",
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "write",
+        "COMM-002"
+      ],
+      "started": "2026-11-06T13:12:32.106441+00:00",
+      "exit": 0,
+      "output": "checks/views-write.log",
+      "sha256": "455e5c391b654e12631674d74f3f9f68277c0618cd31775559a7bac2947e87ea"
+    },
+    {
+      "name": "views-check",
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "check",
+        "COMM-002"
+      ],
+      "started": "2026-11-06T13:12:32.214081+00:00",
+      "exit": 0,
+      "output": "checks/views-check.log",
+      "sha256": "ad263e9d6ca9fed329e34cf23b3bc25326d2a1945109dd236971c38e4fe4a2f4"
+    },
+    {
+      "name": "views-restore",
+      "command": [
+        "git",
+        "checkout",
+        "origin/main",
+        "--",
+        "ACCEPTANCE.md",
+        "docs/CLAIMS.md"
+      ],
+      "started": "2026-11-06T13:12:32.316527+00:00",
+      "exit": 0,
+      "output": "checks/views-restore.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lock-write",
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "lock"
+      ],
+      "started": "2026-11-06T13:12:32.343188+00:00",
+      "exit": 0,
+      "output": "checks/lock-write.log",
+      "sha256": "8a7c97b0084eb05d51fcff717ed20839d94c66d00e9341e131f406ae925129c3"
+    },
+    {
+      "name": "lock-check",
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "check"
+      ],
+      "started": "2026-11-06T13:12:32.614788+00:00",
+      "exit": 0,
+      "output": "checks/lock-check.log",
+      "sha256": "525782a9dac54c0ffa03740fd5f5554848ed1cd1ae632848351f7031c28bfa3b"
+    },
+    {
+      "name": "clean",
+      "command": [
+        "git",
+        "diff",
+        "--exit-code"
+      ],
+      "started": "2026-11-06T13:12:32.911153+00:00",
+      "exit": 0,
+      "output": "checks/clean.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "finished": "2026-11-06T13:12:32.941372+00:00"
+}

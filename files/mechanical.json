@@ -1,0 +1,20 @@
+{
+  "head": "53339239597ca1635e3d419a2e2055817a237472",
+  "main": "ec8d718b9a5c442cc1704c817e9d4c7eaee1b43b",
+  "views": {
+    "write": "node scripts/contract-docs.mjs write COMM-002",
+    "check": "node scripts/contract-docs.mjs check COMM-002",
+    "exit": 0,
+    "generated_views_restored": true
+  },
+  "lock": {
+    "write": "node scripts/edition-authoring/cli.mjs lock",
+    "check": "node scripts/edition-authoring/cli.mjs check",
+    "exit": 0
+  },
+  "ledger": {
+    "command": "none; no migration changed",
+    "exit": 0
+  },
+  "working_tree": "clean"
+}

@@ -1,0 +1,36 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+✖ COMM-002: frozen campaign email links retain honest attribution through payment, reversal and custody (6022.120186ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6804.128399
+
+✖ failing tests:
+
+test at tests/communications.test.mjs:513:1
+✖ COMM-002: frozen campaign email links retain honest attribution through payment, reversal and custody (6022.120186ms)
+  AssertionError [ERR_ASSERTION]: {"id":"5f28d1a5-939f-478c-bb8e-4ed0797f1975","code":"RUN-5f28d1a5-939f-478c-bb8e-4ed0797f1975","costCents":0,"version":1,"recipients":1,"excluded":{"no consent recorded":1,"consent withdrawn":0,"no email address":0,"no postal address":0},"contentHash":"1e72f1b9ff289043ff30d35c3f741977db4755419d13c72883a0db6ad63fef5d"}
+  
+  200 !== 409
+  
+      at api (file:///home/agent/rer-consolidation/work/sx-coffer-c-f162/run-coffer/tests/harness.mjs:48:194)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///home/agent/rer-consolidation/work/sx-coffer-c-f162/run-coffer/tests/appeal-email-attribution-journey.mjs:101:4
+      at async run (file:///home/agent/rer-consolidation/work/sx-coffer-c-f162/run-coffer/tests/harness.mjs:64:86)
+      at async appealEmailAttributionJourney (file:///home/agent/rer-consolidation/work/sx-coffer-c-f162/run-coffer/tests/appeal-email-attribution-journey.mjs:87:3)
+      at async TestContext.<anonymous> (file:///home/agent/rer-consolidation/work/sx-coffer-c-f162/run-coffer/tests/communications.test.mjs:515:2)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 409,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,27 @@
+{
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f162",
+  "head": "53339239597ca1635e3d419a2e2055817a237472",
+  "remote_ref": "refs/heads/cloud/sx-coffer-c-f162",
+  "remote_head": "53339239597ca1635e3d419a2e2055817a237472",
+  "observed_at": "2026-11-06T13:14:17.433225+00:00",
+  "push": "success",
+  "push_attempts": 1,
+  "push_guard": "python3 $HOME/rer-consolidation/.tools/cloud-push.py origin cloud/sx-coffer-c-f162",
+  "pr": null,
+  "status_before": "partial",
+  "status_after": "partial",
+  "counts_before": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20
+  },
+  "counts_after": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20
+  },
+  "main_not_pushed": true,
+  "publication_scan": "not run in cloud; fleet landing gate",
+  "Run site": "pending landing"
+}

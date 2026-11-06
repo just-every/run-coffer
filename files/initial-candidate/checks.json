@@ -1,0 +1,23 @@
+{
+  "head": "31b3f27666728b4b7105ddb7f6855664a98ae063",
+  "branch": "cloud/sx-coffer-c-f162",
+  "started": "2026-11-06T13:07:42.865287+00:00",
+  "checks": [
+    {
+      "name": "journey",
+      "command": [
+        "timeout",
+        "1200",
+        "node",
+        "--test",
+        "--test-name-pattern=COMM-002: frozen campaign",
+        "tests/communications.test.mjs"
+      ],
+      "started": "2026-11-06T13:07:42.865369+00:00",
+      "exit": 1,
+      "output": "checks/journey.log",
+      "sha256": "463ebdfd6d3e23822ee01b177346309e41a83ce505455021eb13584b7b46c757"
+    }
+  ],
+  "finished": "2026-11-06T13:07:53.888366+00:00"
+}
