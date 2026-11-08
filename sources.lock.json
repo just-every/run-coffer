@@ -4003,7 +4003,7 @@
       "executable": false
     },
     "src/coffer/mcp.ts": {
-      "sha256": "3b207a9ce7fef0701eac18110bd14797fd5b31c2894da982a609aad9b0f1025c",
+      "sha256": "ab119818eb46a2332f2d2b67069c6c839aff62bae2ae8597d197941d1b726aee",
       "executable": false
     },
     "src/coffer/mcp/catalog.ts": {
@@ -7375,7 +7375,7 @@
       "executable": false
     },
     "tests/coffer.test.mjs": {
-      "sha256": "b86233c978de58b16b764b3c3a7cc304901a39a36ab20fd4781fb6a0439b359b",
+      "sha256": "55779af34ab39718dfb0307fd050e29593dbcbae78f58f176c3156b0466dc606",
       "executable": false
     },
     "tests/communication-authority-journey.mjs": {
@@ -7854,8 +7854,12 @@
       "sha256": "48cb849b7e2b2b2cd480413ace0035635dee56628ee7b05ec0f34eab873b2456",
       "executable": false
     },
+    "tests/mcp-docs-browser.mjs": {
+      "sha256": "e95ee4121f80b3f7ffd995412a236ef2433e43794b41efbd276fcf733bf9dc42",
+      "executable": false
+    },
     "tests/mcp-journey.mjs": {
-      "sha256": "10db46ca2807f2df5e221d39730a7203bbcd06c173208f0addd0fb74a8a682cc",
+      "sha256": "ffe5990c69b22392ae35741d005b8f8385af50d8372083bf94444f7689ee5f73",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {
@@ -8191,7 +8195,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "9723a8c64f6f5f9c4614fb9cc07b97a090a5c4485182c65ee003756d54f16e76",
+      "sha256": "59a6937bae7f7eca225c70ec3947749b33d4ddcfd2f5b2e0dbb49ded8673c5b5",
       "executable": false
     },
     "tests/saved-lists-journey.mjs": {
@@ -8415,7 +8419,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "cd7b11f0d1f400eda1af4c83dff19b23c95968db34ee0fad19074e6b9b9972af",
+      "sha256": "2b838a5930595d3def97ca1acf06d21cfc753e4b6cd5379da276a6e1c20b29c0",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

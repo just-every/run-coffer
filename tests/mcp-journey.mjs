@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { build } from 'esbuild'
 import { catalogSchemas } from './mcp-schemas.mjs'
 import { run, donor, reviewed } from './harness.mjs'
 
@@ -28,6 +29,7 @@ function client(h, key, version = current, endpoint = path) {
 }
 
 export async function mcpJourney() {
+ await mcpDocumentationJourney()
  await run(async h => {
   const ana = await donor(h, 'Ana MCP'), gift = await h.command('gift.record', { donorId: ana.id, amount: '250', receivedOn: '2026-09-20', method: 'check', goods: 'none' })
   const related = await donor(h, 'Related MCP')
@@ -372,4 +374,95 @@ async function mcpCapacityJourney() {
   assert.deepEqual(await h.get('/api/coffer/letters'), after)
   assert.equal(h.messages.length, before.messages)
  }, { entry: 'tests/advancing-clock-worker.ts', bindings: { COFFER_TEST_NOW: now } })
+}
+
+// Read what the docs build actually publishes; expected catalogs come from RPC,
+// rather than importing the documentation producer into the assertions.
+export function documentationBlocks(html) {
+ const decode = text => text.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+ return [...html.matchAll(/<code class="language-json">([\s\S]*?)<\/code>/g)].map(match => JSON.parse(decode(match[1])))
+}
+
+export async function builtAgentDocumentation() {
+ const bundle = await build({ entryPoints: ['src/site/docs/build/site.ts'], bundle: true, write: false, format: 'esm', platform: 'node', external: ['node:*', 'cloudflare:*'] })
+ const { buildDocs } = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'))
+ return buildDocs(process.cwd()).bodies.agents
+}
+
+async function mcpDocumentationJourney() {
+ const page = await builtAgentDocumentation(), blocks = documentationBlocks(page.html)
+ const inventories = blocks.filter(block => block.profile)
+ assert.deepEqual(inventories.map(block => block.profile), ['preparation-key', 'named-grant'])
+ const descriptors = blocks.filter(block => block.inputSchema)
+ const examples = blocks.find(Array.isArray)
+ assert.ok(examples?.length)
+ await run(async h => {
+  await reviewed(h)
+  const allowed = await donor(h, 'synthetic-coffer-documentation-1', { email: '' })
+  const privateDonor = await donor(h, 'synthetic-coffer-documentation-2', { email: '' })
+  const keys = []
+  for (const [index, profile] of inventories.entries()) {
+   const key = await h.command('agent.create', { label: 'synthetic-coffer-documentation-' + index })
+   keys.push(key.token)
+   if (profile.profile === 'named-grant') {
+    const grant = await h.command('agentGrant.save', { name: 'Documentation examples', donorIds: [allowed.id], permissions: ['donors.list', 'donors.context', 'ack.prepare'], dailyLimit: 1 })
+    await h.command('agentGrant.attach', { keyId: key.id, grantId: grant.id })
+   }
+   const api = client(h, key)
+   const catalog = (await api.rpc('tools/list')).result.tools
+   const templates = (await api.rpc('resources/templates/list')).result.resourceTemplates
+   const discovery = (await api.rpc('server/discover')).result.instructions
+   const discoveryBlocks = [...discovery.matchAll(/```json\n([\s\S]*?)\n```/g)].map(match => JSON.parse(match[1]))
+   const discovered = discoveryBlocks.find(block => block.profile)
+   assert.equal(discovered.profile, profile.profile)
+   assert.deepEqual(discovered.tools, catalog.map(tool => tool.name))
+   assert.deepEqual(discovered.resourceTemplates, templates)
+   assert.deepEqual(profile.tools, catalog.map(tool => tool.name))
+   assert.deepEqual(profile.resourceTemplates.map(template => ({ ...template, uriTemplate: template.uriTemplate.replace('https://your-coffer.example', h.origin) })), templates)
+   for (const tool of catalog) {
+    assert.deepEqual(descriptors.find(descriptor => descriptor.name === tool.name), tool)
+    assert.deepEqual(discoveryBlocks.find(descriptor => descriptor.name === tool.name), tool)
+   }
+   // Established clients receive the same generated, authority-specific guide.
+   const old = client(h, key, legacy)
+   const initialized = await old.rpc('initialize', { protocolVersion: legacy, capabilities: {}, clientInfo: { name: 'documentation', version: '1' } })
+   assert.equal(initialized.result.instructions, discovery)
+   for (const text of [page.html, discovery]) {
+    for (const secret of [...keys, allowed.id, privateDonor.id, 'synthetic-coffer-documentation-1', 'synthetic-coffer-documentation-2']) assert.ok(!text.includes(secret), 'No credential or donor data enters documentation')
+   }
+   api.useCatalog(catalog)
+   const listExample = examples[0]
+   const found = await api.call(listExample.params.name, listExample.params.arguments)
+   assert.ok(found.donors.some(donor => donor.id === allowed.id))
+   if (profile.profile === 'named-grant') assert.deepEqual(found.donors.map(donor => donor.id), [allowed.id])
+   // Values come from authorized results, never an invented identifier or scope.
+   const donorId = found.donors.find(donor => donor.id === allowed.id).id
+   const context = await api.call(examples[1].params.name, { donorId })
+   const uri = examples[2].params.uri.replace('https://your-coffer.example', h.origin).replace('<donorId from the authorized list>', donorId)
+   const resource = (await api.rpc(examples[2].method, { uri })).result.contents[0]
+   assert.deepEqual(JSON.parse(resource.text), context)
+   const gift = await h.command('gift.record', { donorId, amount: '250', receivedOn: '2026-09-20', method: 'check', goods: 'none' })
+   const currentContext = await api.call(examples[1].params.name, { donorId })
+   const eligible = currentContext.gifts.find(row => row.id === gift.id)
+   assert.ok(eligible)
+   const batch = await api.call(examples[3].params.name, { giftIds: [eligible.id] })
+   assert.equal((await h.get('/api/coffer/letters/' + batch.id)).batch.status, 'prepared')
+   assert.equal(h.messages.length, 0, 'The documented preparation example sends nothing')
+   const letters = await h.get('/api/coffer/letters')
+   if (profile.profile === 'named-grant') {
+    const missing = (await api.rpc('resources/read', { uri: templates[0].uriTemplate.replace('{donorId}', 'synthetic-coffer-absent') })).error
+    assert.deepEqual((await api.rpc('resources/read', { uri: templates[0].uriTemplate.replace('{donorId}', privateDonor.id) })).error, missing)
+    for (const [name, args] of [['appeal.prepare', { name: 'Unavailable example', channel: 'email' }], ['ack.send', { batchId: batch.id, version: batch.version }]]) {
+     const refused = (await api.rpc('tools/call', { name, arguments: args })).result
+     assert.equal(refused.isError, true)
+     assert.equal(JSON.parse(refused.content[0].text).error, 'GRANT_FORBIDDEN')
+    }
+    assert.deepEqual(await h.get('/api/coffer/letters'), letters)
+    await h.command('donor.erase', { donorId, confirm: 'ERASE' })
+    for (let replay = 0; replay < 2; replay++) assert.deepEqual((await api.rpc('resources/read', { uri })).error, missing)
+   }
+   await h.command('agent.revoke', { id: key.id })
+   assert.equal((await api.send(api.envelope('resources/read', { uri }))).status, 401)
+  }
+ })
 }

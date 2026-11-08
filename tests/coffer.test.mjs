@@ -12,7 +12,7 @@ import {mcpJourney} from './mcp-journey.mjs'
 
 test('DONOR-014 / DONOR-002: organizations retain their own gifts, two named contacts, addressed receipts and state attribution',organizationsJourney)
 
-test('API-004: MCP donor context and preparation retain native keys and human approval',mcpJourney)
+test('API-004: MCP donor context, generated catalog documentation and preparation retain native keys and human approval',mcpJourney)
 
 const agentOf=async h=>{const key=await h.command('agent.create',{label:'Letters assistant'});return {key,as:{as:'',headers:{authorization:`Bearer ${key.token}`}}}}
 const consent=(h,donorIds,channel='email',status='granted',options={})=>h.command('consent.record',{donorIds,channel,status,method:'paper form',evidence:'Ticked the newsletter box on the gala RSVP card',capturedOn:'2026-03-14'},options)

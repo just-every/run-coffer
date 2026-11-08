@@ -26,7 +26,7 @@ function headerName(value: string | null): string | null {
  * UTF-8 text with its bounded private-body reader (1 MiB). No sessions are kept. */
 export async function mcpResponse(request: Request, c: Context, readBody: () => Promise<string>): Promise<Response> {
  const availableTools = catalogFor(c)
- const instructions = discoveryInstructions(Boolean(c.actor.grant), c.env!.AUTH_ORIGIN)
+ const instructions = () => discoveryInstructions(Boolean(c.actor.grant), c.env!.AUTH_ORIGIN)
  if(c.actor.grant)await commit(c,[event(c,'mcp.request','agent_grant',c.actor.grant.id,null,{},'cf_access_events')])
  if (c.actor.role !== 'agent') return error(null, -32600, 'Use an existing Coffer agent bearer key.', 403)
  if (request.method !== 'POST') return json({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Use POST; this endpoint does not offer a GET stream or sessions.' } }, 405, { allow: 'POST' })
@@ -56,9 +56,9 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
  }
  if (message.method === 'initialize' && !modern) {
   if (typeof p.protocolVersion !== 'string' || !object(p.capabilities) || !object(p.clientInfo) || typeof p.clientInfo.name !== 'string' || typeof p.clientInfo.version !== 'string') return error(id, -32602, 'Supply protocolVersion, clientInfo and capabilities.')
-  return result({ protocolVersion: LEGACY, capabilities, serverInfo, instructions })
+  return result({ protocolVersion: LEGACY, capabilities, serverInfo, instructions: instructions() })
  }
- if (message.method === 'server/discover' && modern) return result({ supportedVersions: versions, capabilities, instructions })
+ if (message.method === 'server/discover' && modern) return result({ supportedVersions: versions, capabilities, instructions: instructions() })
  if (message.method === 'ping' && !modern) return result({})
  if (message.method === 'resources/templates/list' || message.method === 'resources/list') {
   if (p.cursor !== undefined) return error(id, -32602, 'This catalog has one page; omit cursor.')
