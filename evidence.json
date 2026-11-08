@@ -19,6 +19,12 @@
       "sha256": "57a2a735d96a9a3dbb030bc359f68b2cd65e7f3a2efef85eff47efa7586dcca6"
     },
     {
+      "blob": "706b80e4fcfcf504ab2f89d322204bfe515ac412",
+      "bytes": 165,
+      "path": "EVIDENCE-TRANSFER-RECEIPT.json",
+      "sha256": "9ee5d8920c7405e3c102bbc236d9f1dc44bbffa373eb39b51394f852e810ab62"
+    },
+    {
       "blob": "9f6f9b34ca71e9f6091e09112f992b6abf53a1b7",
       "bytes": 91,
       "path": "FIRST-PARTY.log",
