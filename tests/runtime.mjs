@@ -41,6 +41,8 @@ try {
   for (const path of ['/missing', '/health/extra', '/api', '/api/missing']) {
     assert.equal((await fetch(`${origin}${path}`)).status, 404, path)
   }
+  const { mcpDocsBrowser } = await import('./mcp-docs-browser.mjs')
+  await mcpDocsBrowser(process.env.COFFER_MCP_DOCS_BROWSER || '.cache/mcp-docs')
   console.log('HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s')
 } finally {
   if (worker) {
