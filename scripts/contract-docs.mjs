@@ -21,9 +21,9 @@ acceptance=acceptance.replace(/^Judged from[^\n]*/m,contract.split('\n').find(li
 for(const id of ids){
  const clause=parsed.clauses.find(c=>c.id===id)
  if(!clause)throw Error('Unknown clause '+id)
- const row=lines[clause.row-1].split('|').map(cell=>cell.trim()),evidence=row[5],point=clause.text.split('*Acceptance:*')[1]?.trim()
+ const row=lines[clause.row-1].split('|').map(cell=>cell.trim()),evidence=row[5],parts=clause.text.split(/\*Acceptance:\*|\*\*Acceptance\.\*\*/),point=parts[1]?.trim()
  if(!point)throw Error('Clause has no acceptance '+id)
- const requirement=clause.text.split('*Acceptance:*')[0].trim()
+ const requirement=parts[0].trim()
  const pattern=new RegExp('^([0-9]+\\. )\\*\\*`'+id+'`[^\\n]*','m')
  if(!pattern.test(acceptance)){
   const heading='## Additional target acceptance'
