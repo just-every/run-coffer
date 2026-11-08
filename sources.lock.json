@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "a248a8eae5f77f615d2fda05998d76fb8817a92322db260e2376e1f5b80f9479",
+      "sha256": "b0924e7eba0750618127237403790e220e8a2b081f876fa250e91ef6b97095ab",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -7855,7 +7855,7 @@
       "executable": false
     },
     "tests/mcp-docs-browser.mjs": {
-      "sha256": "e95ee4121f80b3f7ffd995412a236ef2433e43794b41efbd276fcf733bf9dc42",
+      "sha256": "5897748ec215e25d8544a5e83f11701a6599c6532bc71210a43b86927571ead4",
       "executable": false
     },
     "tests/mcp-journey.mjs": {
