@@ -4,14 +4,9 @@ A nonprofit can connect its own assistant to `POST /mcp` (also available at `POS
 
 Keys without an explicitly attached grant retain the AGENT-001 read-and-prepare role under a real named preparation grant (`preparation:<key id>`), with per-day read/request and preparation limits and no sending permission. An owner or admin can attach a DEV-012 named grant, replacing that authority with explicit donor scope and permissions. The client continues to use the same bearer credential; there is no OAuth flow.
 
-The available tools are:
+<!-- coffer:mcp-current-surface -->
 
-| Tool | Result |
-| --- | --- |
-| `donors.list` | Search and page through native donor summaries, totals and consent. |
-| `donors.context` | Read the native donor record and history, resolving merges. |
-| `ack.prepare` | Save frozen letters for eligible gifts using reviewed organization settings. Optional `giftIds` selects gifts from donor history; otherwise prepare up to 500 due gifts. |
-| `appeal.prepare` | Save a frozen, consent-checked appeal audience and optional email wording. Supports channel, giving cutoff, minimum giving and fund filters. |
+The on-site [MCP for assistants](/docs/agents) page expands this marker from the live tool and resource descriptors at build time. Discovery instructions use the same generator for the calling key’s catalog profile. This source file retains the transport and grant guide below; it does not maintain a second inventory.
 
 Every tool publishes its complete accepted input JSON Schema and its native success `outputSchema` in `tools/list`. Donor notes and other record text are data, not trusted instructions. Preparation goes through the same Coffer command services and atomic authority checks as the ordinary API. The assistant receives the draft ID and version. A person opens `/app/letters/{id}` or `/app/appeals/{id}`, reviews the exact content and approves it through Coffer. Approval records both identities and the frozen content hash. Legacy keys expose no approve, export, send, gift-recording or settings tools; attempts to call them are refused. Named keys additionally expose `ack.send`, which requires an explicit standing approval in their current grant. A listed tool never implies permission to run it.
 
@@ -83,15 +78,7 @@ pretend that an error is a successful record.
 Each descriptor carries `_meta.coreClauseIds` for the Core duties that its current
 native action serves, and `_meta.nativeAction` identifies that action. These are
 implementation links, not a claim that every acceptance point of those clauses
-is complete. The catalog retains the established tool names:
-
-| Tool | Native action | Core duties | Hints |
-| --- | --- | --- | --- |
-| `donors.list` | `listDonors` or the named-grant read | DONOR-001, GIFT-001, CONSENT-001 | Read only, closed world |
-| `donors.context` | `donorHistory` or the named-grant read | DONOR-001, DONOR-004, GIFT-001, CONSENT-001 | Read only, closed world |
-| `ack.prepare` | `execute` with `ack.prepare` | ACK-001, AGENT-001 | Writes a draft, nondestructive, not idempotent, closed world |
-| `appeal.prepare` | `execute` with `appeal.prepare` | APPEAL-001, CONSENT-001, AGENT-001 | Writes a draft, nondestructive, not idempotent, closed world |
-| `ack.send` | `execute` with `ack.send` | ACK-001, RCPT-001, DEV-012 | Writes and contacts the mail provider, nondestructive, not idempotent, open world |
+is complete. The generated catalog above retains the established tool names and native bindings.
 
 The read schemas describe both existing authority projections. Named donor lists
 omit household, source and consent summaries. Named context omits related records

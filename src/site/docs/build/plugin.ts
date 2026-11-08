@@ -16,6 +16,7 @@ export function docsSite(): Plugin {
     resolveId(id) { if (id === docsModuleId) return resolvedId },
     load(id) {
       if (id !== resolvedId) return
+      // Generated MCP documentation shares the live descriptors; watch their sources too.
       const site = buildDocs(root)
       for (const file of site.files) this.addWatchFile(file)
       return `export const sections = ${JSON.stringify(site.sections)};\nexport const bodies = ${JSON.stringify(site.bodies)};\n`

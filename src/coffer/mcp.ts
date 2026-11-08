@@ -1,4 +1,5 @@
 import { catalogFor, describeTool } from './mcp/catalog'
+import { discoveryInstructions } from './mcp/documentation'
 import { validInput } from './mcp/input'
 import { commit, event } from './db'
 import { CofferError, type Context, type Row } from './db'
@@ -6,7 +7,7 @@ import { donorResourceLinks, donorResourceTemplate, readDonorResource } from './
 
 const CURRENT = '2026-07-28', LEGACY = '2025-11-25', versions = [CURRENT, LEGACY]
 const serverInfo = { name: 'coffer', version: '1.0.0' }, capabilities = { tools: {}, resources: {} }
-const instructions = 'Read donor context and prepare drafts under the key’s current authority. People approve ordinary drafts. Named grants may separately authorize sending standard receipts under a standing human approval; scope, templates, daily limits and kill switches apply to every call.'
+
 const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' }
 const json = (value: unknown, status = 200, extra = {}) => Response.json(value, { status, headers: { ...headers, ...extra } })
 const error = (id: string | number | null, code: number, message: string, status = 400, data?: unknown) => json({ jsonrpc: '2.0', id, error: { code, message, ...(data === undefined ? {} : { data }) } }, status)
@@ -24,6 +25,7 @@ function headerName(value: string | null): string | null {
  * UTF-8 text with its bounded private-body reader (1 MiB). No sessions are kept. */
 export async function mcpResponse(request: Request, c: Context, readBody: () => Promise<string>): Promise<Response> {
  const availableTools = catalogFor(c)
+ const instructions = discoveryInstructions(Boolean(c.actor.grant), c.env!.AUTH_ORIGIN)
  if(c.actor.grant)await commit(c,[event(c,'mcp.request','agent_grant',c.actor.grant.id,null,{},'cf_access_events')])
  if (c.actor.role !== 'agent') return error(null, -32600, 'Use an existing Coffer agent bearer key.', 403)
  if (request.method !== 'POST') return json({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Use POST; this endpoint does not offer a GET stream or sessions.' } }, 405, { allow: 'POST' })
