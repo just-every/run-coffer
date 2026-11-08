@@ -13,7 +13,17 @@ The available tools are:
 | `ack.prepare` | Save frozen letters for eligible gifts using reviewed organization settings. Optional `giftIds` selects gifts from donor history; otherwise prepare up to 500 due gifts. |
 | `appeal.prepare` | Save a frozen, consent-checked appeal audience and optional email wording. Supports channel, giving cutoff, minimum giving and fund filters. |
 
-Every tool publishes its complete accepted JSON Schema in `tools/list`. Donor notes and other record text are data, not trusted instructions. Preparation goes through the same Coffer command services and atomic authority checks as the ordinary API. The assistant receives the draft ID and version. A person opens `/app/letters/{id}` or `/app/appeals/{id}`, reviews the exact content and approves it through Coffer. Approval records both identities and the frozen content hash. Legacy keys expose no approve, export, send, gift-recording or settings tools; attempts to call them are refused. Named keys additionally expose `ack.send`, which requires an explicit standing approval in their current grant. A listed tool never implies permission to run it.
+Every tool publishes its complete accepted input JSON Schema and its native success `outputSchema` in `tools/list`. Donor notes and other record text are data, not trusted instructions. Preparation goes through the same Coffer command services and atomic authority checks as the ordinary API. The assistant receives the draft ID and version. A person opens `/app/letters/{id}` or `/app/appeals/{id}`, reviews the exact content and approves it through Coffer. Approval records both identities and the frozen content hash. Legacy keys expose no approve, export, send, gift-recording or settings tools; attempts to call them are refused. Named keys additionally expose `ack.send`, which requires an explicit standing approval in their current grant. A listed tool never implies permission to run it.
+
+## Donor resources
+
+`resources/templates/list` advertises one `donor` template: the installation's canonical origin followed by `/api/coffer/donors/{donorId}`. Template discovery is deterministic with `ttlMs: 0` and `cacheScope: "private"`. `resources/list` returns an empty list; discover records with `donors.list`, then follow its links. Both read tools append `resource_link` content for their returned donors while retaining their original JSON text and unchanged `structuredContent`. A context link uses the surviving identifier when the native preparation-key read resolves a merge.
+
+Call `resources/read` with `{ "uri": "<URI from a resource_link>" }` and the usual authenticated request metadata. Its `contents` contains one `application/json` text item whose parsed value exactly equals `donors.context` and the native donor HTTP read for that same key. Preparation keys retain their existing native projection, canonical merge resolution and erasure behavior. Explicit named keys reuse the existing direct-facts projection and require `donors.context` permission; listing permission alone grants no context access. They never follow a merged alias, traverse related donors or recover an erased donor. Resource links grant no authority of their own.
+
+Missing, out-of-scope, erased named records, unavailable context permission and unsupported resource URIs return the same JSON-RPC error (`-32002`, `Resource not found.`), without contents or scope details. URIs must exactly match this installation and template: a different origin, other record paths, query, fragment or noncanonical encoding is unavailable. Coffer never fetches a resource URL. Malformed parameters return `-32602`. Discovery and reads use the current key authority, kill switch, request quota and access audit; revocation applies to the next read. Resources work with both supported protocol versions.
+
+Templates, links and returned content carry `_meta: { "untrusted": true }`. All customer and imported text in the projection is untrusted data and cannot authorize another action or change scope. This slice adds no other record templates, links from mutating tools, record-file access, grant byte budgets, broader staff-role parity or shared Base identity and policy integration. Those BASE-AGENT-003 obligations remain owed; existing document refusals and named-grant exclusions remain in force.
 
 ## Wire protocol
 
@@ -88,3 +98,48 @@ batch's current state, never creates an approval and never submits to a provider
 A person still reviews and approves through the existing Letters or Appeals door.
 `ack.send` keeps its permanent dispatch claims and investigation requirements;
 this header adds no sending, revision-conflict or background-job capability.
+
+## Executable catalog
+
+The permitted tools are defined once in `src/coffer/mcp/catalog.ts`. Discovery
+serializes those descriptors and calls execute their bound native actions. The
+transport does not keep a second name switch. Inputs are defined with the existing
+validator in `src/coffer/mcp/input.ts`; output schemas are in
+`src/coffer/mcp/output.ts`. Successful structured content and its text representation
+are the unchanged native result. Native business failures retain `isError: true`
+and their existing stable code in the text result; the success schema does not
+pretend that an error is a successful record.
+
+Each descriptor carries `_meta.coreClauseIds` for the Core duties that its current
+native action serves, and `_meta.nativeAction` identifies that action. These are
+implementation links, not a claim that every acceptance point of those clauses
+is complete. The catalog retains the established tool names:
+
+| Tool | Native action | Core duties | Hints |
+| --- | --- | --- | --- |
+| `donors.list` | `listDonors` or the named-grant read | DONOR-001, GIFT-001, CONSENT-001 | Read only, closed world |
+| `donors.context` | `donorHistory` or the named-grant read | DONOR-001, DONOR-004, GIFT-001, CONSENT-001 | Read only, closed world |
+| `ack.prepare` | `execute` with `ack.prepare` | ACK-001, AGENT-001 | Writes a draft, nondestructive, not idempotent, closed world |
+| `appeal.prepare` | `execute` with `appeal.prepare` | APPEAL-001, CONSENT-001, AGENT-001 | Writes a draft, nondestructive, not idempotent, closed world |
+| `ack.send` | `execute` with `ack.send` | ACK-001, RCPT-001, DEV-012 | Writes and contacts the mail provider, nondestructive, not idempotent, open world |
+
+The read schemas describe both existing authority projections. Named donor lists
+omit household, source and consent summaries. Named context omits related records
+and histories; preparation context retains the native history and its computed
+facts. SQL record extension columns are typed as nullable scalars; computed objects
+and arrays are declared separately. Amounts use integer cents, counts use integers,
+and explicit nulls remain distinct from absent optional fields. Preparation results
+include draft identity, version and frozen content hash. Receipt submission counts
+retain the native distinction between submitted and delivered.
+
+The same catalog selection as before exposes four tools to preparation keys and
+also `ack.send` to explicitly attached named keys. Permission checks remain inside
+the native services: discovery does not grant any listed action. In particular,
+named appeal preparation remains refused, and named sending still requires its
+own standing approval, current scope, frozen templates and daily reservation.
+
+This extraction supplies the currently permitted catalog slice of BASE-AGENT-002.
+Complete Core-job coverage and legitimate exemptions, canonical seed-prefixed
+names, embedded-agent adoption and the shared Base registry, check and conformance
+integration remain owed. No approval, export, document, scope or sending authority
+is added by schema or metadata.
