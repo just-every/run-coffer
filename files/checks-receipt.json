@@ -1,0 +1,20 @@
+{
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f166",
+  "head": "bae5d2d9ffc4653b359614ee34387af8d874afac",
+  "started_at": "2026-11-08T06:50:22.727303+00:00",
+  "completed_at": "2026-11-08T06:50:54.146543+00:00",
+  "command": "bash /tmp/coffer-candidate-proof.sh",
+  "commands": [
+    "timeout 600 node --test --test-name-pattern=^(API-004|DEV-012): tests/coffer.test.mjs",
+    "pnpm typecheck",
+    "node scripts/edition-authoring/cli.mjs check",
+    "npx -y @runeditrun/rer check --profile first-party",
+    "node /tmp/coffer-ledger-probe.mjs"
+  ],
+  "exit": 0,
+  "log": "candidate-checks.log",
+  "log_sha256": "752e81a85299c254446ea71a01b2faf69ad56b3d1d38b14402ee30e404d6bd0e",
+  "source_lock_sha256": "806d3aaba3b0ba44facdba477a67a4ba16e9458b54f2e20277b153e696809036",
+  "working_tree_clean": true
+}

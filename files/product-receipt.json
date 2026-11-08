@@ -1,0 +1,57 @@
+{
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f166",
+  "head": "bae5d2d9ffc4653b359614ee34387af8d874afac",
+  "base": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+  "product_push": {
+    "status": "success",
+    "attempts": 1,
+    "command": "python3 $HOME/rer-consolidation/.tools/cloud-push.py origin cloud/sx-coffer-c-f166",
+    "remote_ref": "refs/heads/cloud/sx-coffer-c-f166",
+    "remote_head": "bae5d2d9ffc4653b359614ee34387af8d874afac"
+  },
+  "contract_changes": false,
+  "generated_views_committed": false,
+  "source_lock_check_exit": 0,
+  "views_write_exit": 0,
+  "views_check_exit": 0,
+  "ledger_check_exit": 0,
+  "ledger_native_apply": true,
+  "ledger_note": "Existing local setup history matches current migration files; the new migration is pending in that setup and was applied by both public-door journey installations.",
+  "counts_before": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "counts_after": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "test_registration_delta": 0,
+  "changed_files": [
+    "docs/MCP.md",
+    "migrations/core/0188_coffer_mcp_preparations.sql",
+    "sources.lock.json",
+    "src/coffer/archive-policy.mjs",
+    "src/coffer/db.ts",
+    "src/coffer/mcp.ts",
+    "src/coffer/mcp/preparation-idempotency.ts",
+    "tests/agent-grants-journey.mjs",
+    "tests/mcp-journey.mjs"
+  ],
+  "publication_scan": {
+    "commit": "bae5d2d9ffc4653b359614ee34387af8d874afac",
+    "complete": false,
+    "historyScanned": null,
+    "findings": null,
+    "status": "NOT_RUN_CLOUD",
+    "owner": "fleet lander"
+  },
+  "main_equality": false,
+  "run_site_candidate": null,
+  "pr": null,
+  "local_checks_receipt": "checks-receipt.json"
+}

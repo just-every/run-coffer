@@ -1,0 +1,70 @@
+{
+  "files": [
+    {
+      "blob": "56c60963dafa6fac25cb12381ebaa7ac1c3a8304",
+      "bytes": 11964,
+      "path": "REPORT.md",
+      "sha256": "f14a45147cdf487a041a975f78ed90aff729632055ce4cbb3821555d2a39785e"
+    },
+    {
+      "blob": "07408eef99c339a594d3bbed889175b5f0952089",
+      "bytes": 1375,
+      "path": "baseline-ci.json",
+      "sha256": "b49501a6e6ec88bbe20245738c4ec7ec0bca0d947eb36b9d7637dd2b4d04870d"
+    },
+    {
+      "blob": "c0f55f30ee3dca982bd6ce6a2fecdbbf4e77651b",
+      "bytes": 1265,
+      "path": "candidate-checks.log",
+      "sha256": "752e81a85299c254446ea71a01b2faf69ad56b3d1d38b14402ee30e404d6bd0e"
+    },
+    {
+      "blob": "6d52c30cce760aa879bcdc9c857d1bf9d90a5512",
+      "bytes": 390,
+      "path": "candidate-proof.sh",
+      "sha256": "eaa4379efd1e239bc525845a07d6460da40268394c9338dac4c9271101020bcf"
+    },
+    {
+      "blob": "0379b9d696b156782aba7349e481f4a210905d46",
+      "bytes": 832,
+      "path": "checks-receipt.json",
+      "sha256": "ddb82c7557814b847fbae7ef7d3402315ad08722efa867f57901f9b057e103cc"
+    },
+    {
+      "blob": "63f6766db7d8af46aa3fa979c67d63a8fed41696",
+      "bytes": 244,
+      "path": "ci-runs.json",
+      "sha256": "2131bcd7dd4ba5d6dee9222602dd72e830b8ab411cad66e9def4cbf1fca7ed71"
+    },
+    {
+      "blob": "f8695aa292f01ae83e52e980f9fa966a26382235",
+      "bytes": 166,
+      "path": "contract-views.log",
+      "sha256": "6e3b8c0ddccc1be304ee845b4715edafc3b8134bd7b5cc4dfb8d8de12b6393db"
+    },
+    {
+      "blob": "dde62bbfe73ba94f6849188e4482f27e5847ee5a",
+      "bytes": 1810,
+      "path": "development-regression.log",
+      "sha256": "22f45ebccd8cbf3da3c0da8fd94b684cddbea135ad727cedd61a0920b72d84a7"
+    },
+    {
+      "blob": "05023a27de431d79766b988b0fade9a62820f511",
+      "bytes": 893,
+      "path": "ledger-probe.mjs",
+      "sha256": "2d6bfbfc959058cd3b425ac18a35b7e107ae7634e1eb0b7af5e180ad922a48cd"
+    },
+    {
+      "blob": "d48f23e8fcfdeb285168341d21ddae1738faa171",
+      "bytes": 1756,
+      "path": "product-receipt.json",
+      "sha256": "752c958fe4b13376d88fdad946ab33303ba3121498aca30e05d17df88b84f837"
+    }
+  ],
+  "product_branch": "cloud/sx-coffer-c-f166",
+  "product_head": "bae5d2d9ffc4653b359614ee34387af8d874afac",
+  "ref": "refs/heads/evidence/sx-coffer-c-f166",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-c-f166"
+}
