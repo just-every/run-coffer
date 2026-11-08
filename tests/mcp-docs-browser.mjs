@@ -23,11 +23,11 @@ export async function mcpDocsBrowser(directory = '.cache/mcp-docs') {
  await mkdir(directory, { recursive: true })
  let browser
  try {
- browser = await chromium.launch({
-  headless: true,
-  ...(process.env.COFFER_CHROMIUM_PATH ? { executablePath: process.env.COFFER_CHROMIUM_PATH } : {}),
-  args: [...(process.env.COFFER_CHROMIUM_PATH ? ['--no-sandbox'] : []), '--use-mock-keychain', '--password-store=basic'],
- })
+  browser = await chromium.launch({
+   headless: true,
+   ...(process.env.COFFER_CHROMIUM_PATH ? { executablePath: process.env.COFFER_CHROMIUM_PATH } : {}),
+   args: [...(process.env.COFFER_CHROMIUM_PATH ? ['--no-sandbox'] : []), '--use-mock-keychain', '--password-store=basic'],
+  })
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   const page = await context.newPage()
   await page.goto(origin + '/docs')

@@ -6,7 +6,7 @@ Keys without an explicitly attached grant retain the AGENT-001 read-and-prepare 
 
 <!-- coffer:mcp-current-surface -->
 
-The on-site [MCP for assistants](/docs/agents) page expands this marker from the live tool and resource descriptors at build time. Discovery instructions use the same generator for the calling key’s catalog profile. This source file retains the transport and grant guide below; it does not maintain a second inventory.
+The on-site [MCP for assistants](/docs/agents) page publishes the current inventory and schemas from the live tool and resource descriptors. Authenticated discovery supplies the calling key’s catalog profile. The public page reads no installation records and contains no donor data or credentials. The transport and grant guide follows.
 
 Every tool publishes its complete accepted input JSON Schema and its native success `outputSchema` in `tools/list`. Donor notes and other record text are data, not trusted instructions. Preparation goes through the same Coffer command services and atomic authority checks as the ordinary API. The assistant receives the draft ID and version. A person opens `/app/letters/{id}` or `/app/appeals/{id}`, reviews the exact content and approves it through Coffer. Approval records both identities and the frozen content hash. Legacy keys expose no approve, export, send, gift-recording or settings tools; attempts to call them are refused. Named keys additionally expose `ack.send`, which requires an explicit standing approval in their current grant. A listed tool never implies permission to run it.
 
