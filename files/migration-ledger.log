@@ -1,0 +1,1 @@
+{"check":"nativeMigrationPreflight","nativeApply":false,"migrationCount":190,"newMigration":"0188_coffer_mcp_request_capacity.sql","exit":0}

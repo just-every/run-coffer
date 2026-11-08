@@ -1,0 +1,5 @@
+ WARN  Unsupported engine: wanted: {"node":"22.20.0"} (current: {"node":"v24.19.0","pnpm":"10.12.4"})
+
+> @nonprofit/coffer@0.1.1 check /workspace/scratch/coffer-f168
+> rer check --profile first-party
+

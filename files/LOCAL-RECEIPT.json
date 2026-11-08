@@ -1,0 +1,116 @@
+{
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f168",
+  "head": "cce622130cf0d7cfca1162e09d5e9a6e43694abe",
+  "baseline": "87809ba5bce50d1413e6262f41e163d84945c43f",
+  "checks": [
+    {
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit": 0,
+      "log": "typecheck.log"
+    },
+    {
+      "name": "journeys",
+      "command": "timeout 1200 node --test --test-concurrency=1 --test-name-pattern='^(API-004:|DEV-012:|backup restores)' tests/coffer.test.mjs",
+      "exit": 0,
+      "tests": 3,
+      "passed": 3,
+      "failed": 0,
+      "duration_ms": 131713.338422,
+      "log": "journeys.log",
+      "exit_evidence": "Complete Node test summary; original timeout process exit status 0 read from retained process status"
+    },
+    {
+      "name": "first-party",
+      "command": "pnpm run check --profile first-party",
+      "exit": 0,
+      "log": "first-party.log"
+    },
+    {
+      "name": "source-lock",
+      "command": "node scripts/edition-authoring/cli.mjs lock && node scripts/edition-authoring/cli.mjs check",
+      "exit": 0,
+      "log": "source-lock.log"
+    },
+    {
+      "name": "migration-ledger",
+      "command": "node migration-ledger-check.mjs <checkout>",
+      "exit": 0,
+      "log": "migration-ledger.log",
+      "migration_count": 190
+    },
+    {
+      "name": "documented-contract-views",
+      "command": "node scripts/contract-docs.mjs write REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012; node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012",
+      "exit": 0,
+      "log": "views-documented.log"
+    },
+    {
+      "name": "target-contract-views",
+      "command": "node scripts/contract-docs.mjs write BASE-AGENT-011; node scripts/contract-docs.mjs check BASE-AGENT-011",
+      "exit": 1,
+      "log": "views.log",
+      "failure": "Existing legacy generator recognizes *Acceptance:* but BASE-AGENT-011 uses **Acceptance.**; no contract or generated-view changes committed"
+    }
+  ],
+  "browser": {
+    "head": "cce622130cf0d7cfca1162e09d5e9a6e43694abe",
+    "widths": [
+      1440,
+      390
+    ],
+    "human_approval": true,
+    "directory": "screens",
+    "ui_source_changes": false
+  },
+  "product_push": {
+    "exit": 0,
+    "attempts": 1,
+    "command": "python3 $HOME/rer-consolidation/.tools/cloud-push.py origin cloud/sx-coffer-c-f168",
+    "old_head": "1bb2b6da1320caec02840178eb9bcc4e0f63e859",
+    "new_head": "cce622130cf0d7cfca1162e09d5e9a6e43694abe"
+  },
+  "ci": {
+    "id": 42467545900,
+    "event": "push",
+    "head_sha": "cce622130cf0d7cfca1162e09d5e9a6e43694abe",
+    "status": "in_progress",
+    "conclusion": null,
+    "observed_at": "2026-11-08T09:37:14Z",
+    "html_url": "https://github.com/just-every/run-coffer/actions/runs/42467545900"
+  },
+  "counts_before": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "counts_after": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "contract_status_changes": [],
+  "claim": {
+    "id": "BASE-AGENT-011",
+    "status": "PARTIAL",
+    "points": [
+      1
+    ]
+  },
+  "publication_scan": {
+    "commit": "cce622130cf0d7cfca1162e09d5e9a6e43694abe",
+    "complete": null,
+    "historyScanned": null,
+    "findings": null,
+    "status": "not run in cloud; guarded Mac lander owns scan"
+  },
+  "main_equality": false,
+  "run_site": "not run on branch; lander gate",
+  "pr": null,
+  "identity_audit": "Every candidate author and committer is Run Edit Run fleet with the fleet address; no trailers; full side-parent range checked before push",
+  "scope": "Only short-window authenticated MCP capacity; existing business quotas and grant authority preserved",
+  "terminal_product_status": "PUSHED; exact-SHA Verify still running after bounded cloud CI wait"
+}

@@ -1,0 +1,4 @@
+head=cce622130cf0d7cfca1162e09d5e9a6e43694abe
+node scripts/edition-authoring/cli.mjs lock exit=0
+node scripts/edition-authoring/cli.mjs check exit=0
+Regeneration left the committed tree unchanged. Full manifest output remains in the task workspace, not selected for publication.
