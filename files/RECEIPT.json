@@ -5,22 +5,22 @@
   "branch": "cloud/sx-coffer-c-f174",
   "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
   "product_status": "pushed",
-  "at": "2026-11-08T18:31:18.940161+00:00",
+  "at": "2026-11-08T18:50:16.521595+00:00",
   "starting_main": "73ba072819742dc675195fa3f9c5f772d49fecf0",
   "main_equals_candidate": false,
   "pr": null,
   "ci": [
     {
-      "conclusion": null,
-      "event": "push",
-      "head_sha": "ef73001250888e694b3fc9106270ef353d89ed5d",
-      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42510194590",
       "id": 42510194590,
       "name": "Verify",
-      "status": "in_progress"
+      "event": "push",
+      "conclusion": "success",
+      "head_sha": "ef73001250888e694b3fc9106270ef353d89ed5d",
+      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42510194590",
+      "status": "completed"
     }
   ],
-  "github_api_calls": 5,
+  "github_api_calls": 7,
   "source_status_counts_before": {
     "done": 96,
     "partial": 37,
@@ -53,7 +53,7 @@
       "fail": 0
     },
     {
-      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium COFFER_SHOP_BROWSER=<packet>/screens node --test --test-name-pattern='^PAY-006:' tests/payments.test.mjs",
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium COFFER_SHOP_BROWSER=/home/agent/rer-consolidation/work/sx-coffer-c-f174/packet/screens node --test --test-name-pattern='^PAY-006:' tests/payments.test.mjs",
       "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
       "exit": 0,
       "pass": 1,
@@ -121,9 +121,26 @@
     "new_assertions": "Receipt void, send and correction holds and lagging provider reads before and after original recording"
   },
   "ci_observation": {
-    "conclusion": null,
+    "conclusion": "success",
     "head_sha": "ef73001250888e694b3fc9106270ef353d89ed5d",
     "html_url": "https://github.com/just-every/run-coffer/actions/runs/42510194590",
-    "status": "in_progress"
+    "status": "completed"
+  },
+  "ci_discovery": [
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "ef73001250888e694b3fc9106270ef353d89ed5d",
+      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42510194590",
+      "id": 42510194590,
+      "name": "Verify",
+      "status": "in_progress"
+    }
+  ],
+  "retained_proof": {
+    "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
+    "pass": 3,
+    "fail": 0,
+    "log": "PAYMENTS-RETAINED-FINAL.log"
   }
 }

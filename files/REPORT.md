@@ -54,7 +54,7 @@ All runtime references below are the single registered PAY-006 sanity journey in
 | --- | --- | --- |
 | 1 | PARTIAL overall | Shopify journey reaches supported outcomes; Stall and charity-item outcomes remain held. |
 | 2 | PASS locally | Real seeded D1 and HTTP, allowed money and unsafe refusals, independent cents; no empty-list-only proof. |
-| 3 | Pending exact-SHA Verify until RECEIPT.json records its conclusion | New journey is always invoked from the existing payments wrapper, including browser assertions at 1440; optional directory only controls the extra 390 capture files. |
+| 3 | PASS: exact-SHA Verify 42510194590, push event, completed success | New journey is always invoked from the existing payments wrapper, including browser assertions at 1440; optional directory only controls the extra 390 capture files. |
 | 4 | Candidate-bound local proof and immutable diff | Final committed probe and screenshots are bound in RECEIPT.json; no later source edits are permitted. |
 | 5 | PASS, INSPECTED | PAY-006 already names PAY-004 and GIVE-006; no receiving duty is invented. |
 | 6 | Mechanical PASS | Contract generation write/check passes; generated views restored, source Status cells untouched; counts unchanged. |
@@ -103,6 +103,10 @@ A real public-door probe on superseded head 8f43ff266c42e75d4cf4551c87dc00c0d32e
 
 The final ef73001250888e694b3fc9106270ef353d89ed5d persists refund_pending independently of provider refresh state. A signed refund immediately voids existing gift and statement documents; native sending, preparation and corrected replacements remain refused while the refund or a source conflict is unresolved. A temporarily stale provider read cannot clear the hold, before or after the original gift exists. Separate exact full-refund approval appends the reversal and clears the hold atomically. The same registered sanity journey now executes both lagging-read cases, receipt send and correction refusals, and the ordinary subsequent full-refund path. It passes on this exact final committed SHA. The retained Stripe refund and receipt-correction journey also passes with the new receipt guards.
 
-The latest branch Verify is 42510194590 for ef73001250888e694b3fc9106270ef353d89ed5d. Earlier Verify 42508602256 is superseded and is never used as proof of the final head. Full clause status and counts remain unchanged.
+The latest branch Verify 42510194590 completed success for ef73001250888e694b3fc9106270ef353d89ed5d (push event). Earlier Verify 42508602256 is superseded and is never used as proof of the final head. Full clause status and counts remain unchanged.
 
 On the final committed head, the retained payment, donor-match and Benevity wrapper registrations pass together (3 pass, 0 fail), and the unchanged fee-cover journey passes. PAYMENTS-RETAINED-FINAL.log and FEE-COVER.log are the actual outputs. The final head has no pending local command and a clean product checkout.
+
+## Final CI and handoff
+
+Verify 42510194590 completed success on the exact product head ef73001250888e694b3fc9106270ef353d89ed5d. The REST response is recorded in RECEIPT.json; seven explicit task GitHub API calls were used. All local checks pass on the final source tree, the supported Shopify proof passes on the committed head, and the retained payment tests pass together on that head. The complete push Verify is green. Product history and Status rows remain untouched beyond the three fleet-authored product commits. No main push or landing was performed. Publication scan and main Run site remain guarded fleet duties. No native-slice blocker remains; the explicitly held full-clause scope remains listed in GAP PAY-006.
