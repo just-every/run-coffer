@@ -3999,7 +3999,7 @@
       "executable": false
     },
     "src/coffer/mcp/catalog.ts": {
-      "sha256": "9506fb3e8df1f1c28be63198f44a47c25100cd46a5c68a74ac83a227a14f4fd2",
+      "sha256": "6a315e3cd535719cb6de873602c5e97f32afcf783db0169dc679f1085c02036a",
       "executable": false
     },
     "src/coffer/mcp/input.ts": {
@@ -7227,7 +7227,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "deab4c1d5f9756bf31934bcb321695d2d9f67aa7e72cf5e0961dfc501f62148d",
+      "sha256": "8f6ddaebfa51ff7dd47236c873b43d7bb11f09a34bacfd6d82a6a7797e7f7192",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7831,11 +7831,11 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "ed6e60b6b1f7a699078d32b3668add332f35e7d13cb97e7bb7c99efbae2e57e8",
+      "sha256": "adec93190086370b98c45a212e6f282d80f502ed92885195a2e262151cb931a8",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {
-      "sha256": "d97b769c8535f2facfda8766c8abd3fd326beec76bed21f197c0054bdd6307ea",
+      "sha256": "166783542e3f9315521c157ae391ad1be446d7f623e036b4961f4c6af8020b39",
       "executable": false
     },
     "tests/meeting-briefs-browser.mjs": {

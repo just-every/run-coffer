@@ -95,6 +95,10 @@ export async function agentGrantsJourney() {
    assert.equal(freeze.letters[0].amount_cents,25000)
    assert.deepEqual(freeze.events.map(e=>e.action),['ack.prepare'])
   }
+  await h.command('donor.erase',{donorId:house.id,confirm:'ERASE'})
+  assert.equal((await api.mcp('donors.list')).total,1)
+  await api.mcp('donors.context',{donorId:house.id},'NOT_FOUND')
+  assert.equal(messages.length,0,'Erasure and refused reads submit no mail')
   // Both doors share one atomic daily counter. Parallel calls reach the same
   // real native letter-delivery reservation and network submission service.
   proof('dispatching under standing approval')
@@ -106,6 +110,10 @@ export async function agentGrantsJourney() {
   catalogSchemas(catalog)('ack.send',sent.value)
   const held=batches[1+race.findIndex(r=>r.isError)]
   assert.equal(messages.length,2)
+  const replay=await api.http('ack.send',{batchId:batches[0].id,version:1},409)
+  assert.equal(replay.error,'VERSION')
+  await api.mcp('ack.send',{batchId:batches[0].id,version:1},replay.error)
+  assert.equal(messages.length,2,'Replaying the submitted batch sends nothing')
   const detail=await h.get(`/api/coffer/letters/${batches[0].id}`)
   assert.equal(detail.approval.prepared_by_role,'agent');assert.equal(detail.approval.approved_by_role,'owner');assert.equal(detail.approval.content_hash,batches[0].contentHash)
   assert.ok(detail.events.filter(e=>e.actor_role==='agent').every(e=>{const d=JSON.parse(e.detail);return d.grantId===grant.id&&d.grantVersion===1}))
