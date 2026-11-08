@@ -1,0 +1,5 @@
+verify:runtime
+Heavy job admitted: Coffer verify:runtime:suite [f495b9fa1f89]
+MCP docs narrow layout: {"width":390,"documentWidth":390}
+MCP docs browser passed: emitted route, populated inventories, schemas, keyboard navigation, axe and 1440/390 proof
+HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s

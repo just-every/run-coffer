@@ -1,0 +1,12 @@
+✔ balanced scheduling preserves nightly coverage and fails closed without reusable proof (63.435838ms)
+✔ partition executes literal, nested and computed registrations once with original filters (474.271298ms)
+✔ reuse requires every balanced job alongside the current full-push proof (50.423929ms)
+✔ nested-package setup follows consumers and the tight membership journey owns its runner (27.826767ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 682.78296

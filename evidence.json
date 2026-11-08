@@ -1,0 +1,100 @@
+{
+  "files": [
+    {
+      "blob": "d9c7f97da23fc34032966a2db1e88a25c03ec2da",
+      "bytes": 320,
+      "path": "CI.json",
+      "sha256": "5bf61ae380ded8730eb05eb8b6633e82cf49a27d11abdc1506825e2f40ae0a24"
+    },
+    {
+      "blob": "cb6d1ba03ef501d4abeaa0e2209e63d66743dfca",
+      "bytes": 831,
+      "path": "PROVENANCE.json",
+      "sha256": "5a350dc5e23a0e9340a3de7775fc5e6e33e8422ab302fe774cc7eff7e5f56d99"
+    },
+    {
+      "blob": "a9e224edb1156ad83eec6fad5f44c833f522091c",
+      "bytes": 4671,
+      "path": "RECEIPT.json",
+      "sha256": "228c3f23f961b104af48748956d453cd7dbc48af898ac97567bf762a1b4ea9bf"
+    },
+    {
+      "blob": "7baf14a3df6429f07561070bddeadb873519a331",
+      "bytes": 14378,
+      "path": "REPORT.md",
+      "sha256": "2a2ff04222d1d519ce4f298bcfbae865cd18cae9240eb804e579558dc0597860"
+    },
+    {
+      "blob": "4b67e810a38638e177cbf384f7f9d8a99eec4414",
+      "bytes": 222833,
+      "path": "agents-1440.png",
+      "sha256": "f48f70f2bc5c1fdd3579c0723cbaf6a2489e90ae25d0b0eecea896f667616e43"
+    },
+    {
+      "blob": "e7ed1bf307a5b4ab3ea801a622cb384824850248",
+      "bytes": 65371,
+      "path": "agents-390.png",
+      "sha256": "aaf379aa06d35fe352c344e75daffd264d66004d5002273f89100a15ffd4176b"
+    },
+    {
+      "blob": "4835a0c927c9d25018fc941c53167015aec722d9",
+      "bytes": 4268,
+      "path": "app-build.log",
+      "sha256": "4779e2c361a07f47ed5d0d6a6f445258603f38eed761f3d0fe2231098e1a1508"
+    },
+    {
+      "blob": "3e648e7b93bb657765cf4a4e6b4b5629a59e3d92",
+      "bytes": 523,
+      "path": "ci-shards.log",
+      "sha256": "c992714d227a8dd482655fb0ac751683523c55548e7206d76a5ba22fece24cf7"
+    },
+    {
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "path": "first-party.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blob": "be3b8afeaccb462a0167bc27c285e024e3399328",
+      "bytes": 552,
+      "path": "journeys.log",
+      "sha256": "ad6979df246340c126a9253263881081269df73645c9ac4a49c74110bb0ce05c"
+    },
+    {
+      "blob": "e69af852516c2e1fe394b52b012e2e9214df39dd",
+      "bytes": 343942,
+      "path": "lock-check.log",
+      "sha256": "d0493a8e013174f6b314aefa61cd9607d60a412736118f1f8715134f8b9907f4"
+    },
+    {
+      "blob": "1c7ce0323126fda4bbbd4617db40aa55b9ba99c5",
+      "bytes": 353,
+      "path": "runtime.log",
+      "sha256": "2c74896fbe4b3a16e3cdb687170394aff8d45855e98858b6c515a80c896f6a86"
+    },
+    {
+      "blob": "eaeb000fe544fa6f5aed5a0a5b9961065eeba65f",
+      "bytes": 293,
+      "path": "site-build.log",
+      "sha256": "746d68651b45a125833dcb96fc24f812bcf0ded5c417e0857fd201e140e08344"
+    },
+    {
+      "blob": "220776ee664c3b17c67f8914b5967e2743aca23a",
+      "bytes": 194,
+      "path": "typecheck.log",
+      "sha256": "144a3ebbc903396085f8d659cf977755b51a2f1531474aab26ac818d58f1cfc3"
+    },
+    {
+      "blob": "f8695aa292f01ae83e52e980f9fa966a26382235",
+      "bytes": 166,
+      "path": "views.log",
+      "sha256": "6e3b8c0ddccc1be304ee845b4715edafc3b8134bd7b5cc4dfb8d8de12b6393db"
+    }
+  ],
+  "product_branch": "cloud/sx-coffer-c-f170",
+  "product_head": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+  "ref": "refs/heads/evidence/sx-coffer-c-f170",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-c-f170"
+}

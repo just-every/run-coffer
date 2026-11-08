@@ -1,0 +1,159 @@
+{
+  "schema": 1,
+  "tag": "sx-coffer-c-f170",
+  "repository": "just-every/run-coffer",
+  "candidate": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+  "local_results": [
+    {
+      "command": "node --test --test-concurrency=1 --test-name-pattern='^(API-004|DEV-012):' tests/coffer.test.mjs",
+      "exit": 0,
+      "head": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+      "tests": 2,
+      "passed": 2,
+      "log": "journeys.log"
+    },
+    {
+      "command": "pnpm typecheck",
+      "exit": 0,
+      "head": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+      "log": "typecheck.log"
+    },
+    {
+      "command": "pnpm exec rer check --profile first-party",
+      "exit": 0,
+      "head": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+      "log": "first-party.log"
+    },
+    {
+      "command": "node --test tests/ci-shards.test.mjs",
+      "exit": 0,
+      "head": "8dabfcd70b74fe373fa2c6ebb8c00828f9b0a712",
+      "tests": 4,
+      "passed": 4,
+      "log": "ci-shards.log"
+    },
+    {
+      "command": "npx -y @runeditrun/rer build",
+      "exit": 0,
+      "head": "8dabfcd70b74fe373fa2c6ebb8c00828f9b0a712",
+      "log": "app-build.log",
+      "candidate_equivalence": "Only source lock and run-site CSS changed; application build inputs are unchanged."
+    },
+    {
+      "command": "npx -y @runeditrun/rer build --site",
+      "exit": 0,
+      "head": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+      "pages": 27,
+      "log": "site-build.log"
+    },
+    {
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium node tests/runtime.mjs",
+      "exit": 0,
+      "head": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+      "log": "runtime.log",
+      "browser": {
+        "assertion_width": 1440,
+        "proof_widths": [
+          1440,
+          390
+        ],
+        "axe_violations": 0,
+        "narrow_document_width": 390
+      }
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0,
+      "head": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+      "log": "lock-check.log"
+    }
+  ],
+  "mechanical": {
+    "views_write_exit": 0,
+    "views_check_exit": 0,
+    "generated_files_restored": true,
+    "status_cells_changed": false,
+    "ledger": "not applicable; no migration changed",
+    "lock_fresh": true
+  },
+  "publication_scan": {
+    "commit": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+    "complete": false,
+    "historyScanned": null,
+    "findings": null,
+    "reason": "Cloud product pushes delegate the exact-tree full-history scan to the maintained Mac lander."
+  },
+  "ci": {
+    "conclusion": null,
+    "event": "push",
+    "head_sha": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+    "html_url": "https://github.com/just-every/run-coffer/actions/runs/42475597750",
+    "id": 42475597750,
+    "name": "Verify",
+    "status": "in_progress",
+    "observed_at": "2026-11-08T11:29:18Z",
+    "github_calls_used": 3
+  },
+  "files": [
+    {
+      "path": "PROVENANCE.json",
+      "bytes": 831,
+      "sha256": "5a350dc5e23a0e9340a3de7775fc5e6e33e8422ab302fe774cc7eff7e5f56d99"
+    },
+    {
+      "path": "agents-1440.png",
+      "bytes": 222833,
+      "sha256": "f48f70f2bc5c1fdd3579c0723cbaf6a2489e90ae25d0b0eecea896f667616e43"
+    },
+    {
+      "path": "agents-390.png",
+      "bytes": 65371,
+      "sha256": "aaf379aa06d35fe352c344e75daffd264d66004d5002273f89100a15ffd4176b"
+    },
+    {
+      "path": "app-build.log",
+      "bytes": 4268,
+      "sha256": "4779e2c361a07f47ed5d0d6a6f445258603f38eed761f3d0fe2231098e1a1508"
+    },
+    {
+      "path": "ci-shards.log",
+      "bytes": 523,
+      "sha256": "c992714d227a8dd482655fb0ac751683523c55548e7206d76a5ba22fece24cf7"
+    },
+    {
+      "path": "first-party.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "journeys.log",
+      "bytes": 552,
+      "sha256": "ad6979df246340c126a9253263881081269df73645c9ac4a49c74110bb0ce05c"
+    },
+    {
+      "path": "lock-check.log",
+      "bytes": 343942,
+      "sha256": "d0493a8e013174f6b314aefa61cd9607d60a412736118f1f8715134f8b9907f4"
+    },
+    {
+      "path": "runtime.log",
+      "bytes": 353,
+      "sha256": "2c74896fbe4b3a16e3cdb687170394aff8d45855e98858b6c515a80c896f6a86"
+    },
+    {
+      "path": "site-build.log",
+      "bytes": 293,
+      "sha256": "746d68651b45a125833dcb96fc24f812bcf0ded5c417e0857fd201e140e08344"
+    },
+    {
+      "path": "typecheck.log",
+      "bytes": 194,
+      "sha256": "144a3ebbc903396085f8d659cf977755b51a2f1531474aab26ac818d58f1cfc3"
+    },
+    {
+      "path": "views.log",
+      "bytes": 166,
+      "sha256": "6e3b8c0ddccc1be304ee845b4715edafc3b8134bd7b5cc4dfb8d8de12b6393db"
+    }
+  ]
+}

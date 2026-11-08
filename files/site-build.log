@@ -1,0 +1,8 @@
+Using project Node 22.20.0 (current Node 24.19.0).
+Heavy job admitted: Coffer build:workflow [f495b9fa1f89]
+Checking pinned pnpm
+10.12.4
+Building the run site
+{"pages":27,"assets":6,"styles":1}
+Run site written to dist/site (27 pages, 112 files): [REDACTED]/dist/site
+build: complete (exit 0)
