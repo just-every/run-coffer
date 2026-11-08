@@ -4,11 +4,11 @@ import { run, donor, reviewed } from './harness.mjs'
 
 const path = '/api/coffer/mcp', current = '2026-07-28', legacy = '2025-11-25'
 // A real JSON-RPC client over the public Worker door, with no application fake.
-function client(h, key, version = current) {
+function client(h, key, version = current, endpoint = path) {
  let sequence = 0, validateResult
  const envelope = (method, params = {}, id = ++sequence) => ({ jsonrpc: '2.0', id, method, params: version === current ? { ...params, _meta: { 'io.modelcontextprotocol/protocolVersion': version, 'io.modelcontextprotocol/clientInfo': { name: 'coffer-journey', version: '1.0.0' }, 'io.modelcontextprotocol/clientCapabilities': {} } } : params })
  const headers = message => ({ authorization: `Bearer ${key.token}`, accept: 'application/json, text/event-stream', 'mcp-protocol-version': version, ...(version === current ? { 'mcp-method': message.method, ...(message.method === 'tools/call' ? { 'mcp-name': message.params.name } : {}) } : {}) })
- const send = async (message, options = {}) => h.request(path, { method: 'POST', as: '', body: message, ...options, headers: { ...headers(message), ...options.headers } })
+ const send = async (message, options = {}) => h.request(endpoint, { method: 'POST', as: '', body: message, ...options, headers: { ...headers(message), ...options.headers } })
  const rpc = async (method, params, options = {}) => {
   const message = envelope(method, params), response = await send(message, options)
   assert.equal(response.status, options.status ?? 200)
@@ -293,4 +293,83 @@ export async function mcpJourney() {
   assert.equal((await mcp.send(invalid)).status, 401)
   assert.equal((await mcp.send(mcp.envelope('resources/read', { uri: resourceUri(ana.id) }))).status, 401)
  }, { entry: 'tests/advancing-clock-worker.ts' })
+ await mcpCapacityJourney()
+}
+
+// Installation capacity is exercised through the same public transport, with a
+// per-request advancing clock and real D1 transactions, never a service fake.
+async function mcpCapacityJourney() {
+ const instant = new Date(Date.now() + 86400000).setUTCHours(12, 0, 0, 0), now = new Date(instant).toISOString()
+ await run(async h => {
+  await reviewed(h)
+  const ana = await donor(h, 'Capacity review donor')
+  const gifts = []
+  for (let i = 0; i < 3; i++) gifts.push(await h.command('gift.record', { donorId: ana.id, amount: '250', receivedOn: now.slice(0, 10), method: 'check', goods: 'none' }))
+  const reviewKey = await h.command('agent.create', { label: 'Human-reviewed preparation client' })
+  const humanBatch = await client(h, reviewKey).call('ack.prepare', { giftIds: [gifts[0].id] })
+  const key = await h.command('agent.create', { label: 'Capacity client' })
+  const primary = client(h, key), alias = client(h, key, current, '/mcp'), old = client(h, key, legacy, '/mcp')
+  const send = (api, name = 'server/discover', args = {}, options = {}) => api.send(api.envelope(name, args), options)
+  // All requests overlap in one instant; path and protocol switching cannot
+  // multiply the key's capacity. Check the externally visible admitted count.
+  const burst = await Promise.all(Array.from({ length: 128 }, (_, i) => i % 3 === 0 ? send(old, 'ping') : send(i % 2 ? alias : primary)))
+  assert.equal(burst.filter(response => response.status === 200).length, 120, 'Concurrent MCP requests share one key capacity across both paths and revisions')
+  const rejected = burst.filter(response => response.status === 429)
+  assert.equal(rejected.length, 8)
+  for (const response of rejected) {
+   assert.equal(Number(response.headers.get('retry-after')), 60)
+   assert.equal((await response.json()).error, 'MCP_CAPACITY')
+  }
+  const before = { letters: await h.get('/api/coffer/letters'), appeals: await h.get('/api/coffer/appeals'), messages: h.messages.length }
+  const blocked = async (api, tool, args = {}, options = {}) => {
+   const response = await send(api, 'tools/call', { name: tool, arguments: args }, options)
+   assert.equal(response.status, 429)
+   assert.equal((await response.json()).error, 'MCP_CAPACITY')
+   assert.match(response.headers.get('retry-after'), /^[1-9][0-9]*$/)
+   return Number(response.headers.get('retry-after'))
+  }
+  await blocked(primary, 'ack.prepare', { giftIds: [gifts[1].id] })
+  await blocked(alias, 'appeal.prepare', { name: 'Refused capacity draft', channel: 'email', subject: 'Thank you', body: 'Dear {{donor_name}}, thank you.' })
+  assert.deepEqual(await h.get('/api/coffer/letters'), before.letters, 'Rejected preparation creates no additional letter batch')
+  assert.deepEqual(await h.get('/api/coffer/appeals'), before.appeals, 'Rejected preparation creates no appeal draft')
+  assert.equal(h.messages.length, before.messages, 'Capacity rejection submits no provider message')
+  // An independent key and ordinary bearer HTTP reads have their existing
+  // authority and quotas; an MCP burst does not block them.
+  const otherKey = await h.command('agent.create', { label: 'Independent capacity client' })
+  assert.equal((await client(h, otherKey, current, '/mcp').call('donors.context', { donorId: ana.id })).donor.id, ana.id)
+  assert.equal((await h.get('/api/coffer/donors/' + ana.id, { as: '', headers: { authorization: `Bearer ${key.token}` } })).donor.id, ana.id)
+  // Human review remains usable while the assistant is still throttled.
+  if (process.env.COFFER_MCP_CAPACITY_BROWSER) {
+   const { mcpBrowser } = await import('./mcp-browser.mjs')
+   await mcpBrowser(h, humanBatch, process.env.COFFER_MCP_CAPACITY_BROWSER)
+  } else await h.command('ack.approve', { batchId: humanBatch.id, version: humanBatch.version })
+  assert.equal((await h.get('/api/coffer/letters/' + humanBatch.id)).batch.status, 'approved')
+  const nearExpiry = new Date(instant + 59_999).toISOString()
+  assert.equal(await blocked(old, 'ack.prepare', { giftIds: [gifts[1].id] }, { headers: { 'x-test-now': nearExpiry } }), 1, 'Refusals do not extend the window')
+  const retryAfter = Number(rejected[0].headers.get('retry-after'))
+  const recoveredAt = new Date(instant + retryAfter * 1000).toISOString()
+  const recovered = await alias.rpc('tools/call', { name: 'ack.prepare', arguments: { giftIds: [gifts[1].id] } }, { headers: { 'x-test-now': recoveredAt } })
+  assert.equal(recovered.result.isError, false, JSON.stringify(recovered))
+  const prepared = recovered.result.structuredContent
+  assert.equal((await h.get('/api/coffer/letters/' + prepared.id)).batch.status, 'prepared')
+  assert.equal(h.messages.length, before.messages)
+  // Capacity rejection did not consume preparation budget: the existing daily
+  // quota still allows the second preparation, then refuses the third.
+  const preparation = (await h.get('/api/coffer/agent-grants')).preparationGrants.find(g => g.key_id === key.id)
+  await h.command('agentGrant.legacyLimits', { id: preparation.id, version: preparation.version, readLimit: 10000, prepareLimit: 2 })
+  const second = await primary.rpc('tools/call', { name: 'ack.prepare', arguments: { giftIds: [gifts[2].id] } }, { headers: { 'x-test-now': recoveredAt } })
+  assert.equal(second.result.isError, false, JSON.stringify(second))
+  const overDaily = await alias.rpc('tools/call', { name: 'appeal.prepare', arguments: { name: 'Daily quota refusal', channel: 'email' } }, { headers: { 'x-test-now': recoveredAt } })
+  assert.equal(overDaily.result.isError, true)
+  assert.equal(JSON.parse(overDaily.result.content[0].text).error, 'DAILY_LIMIT')
+  const after = await h.get('/api/coffer/letters')
+  await h.command('agent.revoke', { id: key.id })
+  const later = new Date(instant + retryAfter * 2000).toISOString()
+  for (const api of [primary, alias, old]) {
+   const response = await send(api, 'tools/call', { name: 'ack.prepare', arguments: { giftIds: [gifts[1].id] } }, { headers: { 'x-test-now': later } })
+   assert.equal(response.status, 401, 'Window expiry never revives a revoked key')
+  }
+  assert.deepEqual(await h.get('/api/coffer/letters'), after)
+  assert.equal(h.messages.length, before.messages)
+ }, { entry: 'tests/advancing-clock-worker.ts', bindings: { COFFER_TEST_NOW: now } })
 }

@@ -2,7 +2,7 @@ import type { Actor, Authority } from './auth'
 import type { Bindings } from '../auth.server'
 
 export class CofferError extends Error {
- constructor(public code: string, message: string, public status = 409, public details: unknown = null) { super(message); this.name = 'CofferError' }
+ constructor(public code: string, message: string, public status = 409, public details: unknown = null, public retryAfter?: number) { super(message); this.name = 'CofferError' }
 }
 export function fail(code: string, message: string, status = 409, details: unknown = null): never { throw new CofferError(code, message, status, details) }
 
@@ -35,6 +35,11 @@ export function event(c: { now: string; actor: { id: string; name: string; role:
 /** One D1 transaction: the caller's current authority, then the writes and
  * their guards. A failed guard is re-read to report which promise broke. */
 export async function commit(c: { db: D1Database; authority: Authority; actor?: {id:string;teamAccess?:Actor['teamAccess']}; transactionPlan?: TransactionPlan }, statements: Stmt[]) {
+ await commitResults(c, statements)
+}
+
+/** Return transaction results when a caller needs its own atomic reservation. */
+export async function commitResults(c: { db: D1Database; authority: Authority; actor?: {id:string;teamAccess?:Actor['teamAccess']}; transactionPlan?: TransactionPlan }, statements: Stmt[]) {
  // Restricted reads may retain access audit and rate accounting only. This
  // second boundary also protects services invoked without the HTTP dispatcher.
  if(c.actor?.teamAccess?.readOnly&&statements.some(s=>!s.check&&!/^INSERT INTO cf_(access_events|api_rate_windows)\b/i.test(s.sql.trim())))
@@ -46,7 +51,7 @@ export async function commit(c: { db: D1Database; authority: Authority; actor?: 
   return
  }
  const batch = [guard(c.authority.sql, 'SESSION_CHANGED', 'Your access changed. Sign in again.', ...c.authority.params), ...statements, sql('DELETE FROM cf_assert')]
- try { await c.db.batch(batch.map(s => c.db.prepare(s.sql).bind(...s.params))) } catch (error) {
+ try { return await c.db.batch(batch.map(s => c.db.prepare(s.sql).bind(...s.params))) } catch (error) {
   const text = String(error)
   if (/CHECK constraint failed/i.test(text) && /cf_assert|ok = 1|ok=1/i.test(text)) {
    for (const s of batch) {

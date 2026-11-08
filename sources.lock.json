@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "16cade7e5176b67f6cf5498de198876bf44a875aa525dd0bdefe0ae2dc22b8a6",
+      "sha256": "982ec75670a6ea73350554f95867323031c73eb4c1051bddb458344208956288",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -1602,7 +1602,11 @@
       "sha256": "1c82631b67370dde5bfea440c3c43aa01fa73b832753119748b66acf62179af2",
       "executable": false
     },
-    "migrations/core/0188_coffer_mcp_preparations.sql": {
+    "migrations/core/0188_coffer_mcp_request_capacity.sql": {
+      "sha256": "ec2a5c136eed1fa86b2b110118a8ba0d10588dd8e871e9b5d9460c87f9218a4c",
+      "executable": false
+    },
+    "migrations/core/0189_coffer_mcp_preparations.sql": {
       "sha256": "0ba7d2c140fdf78fcb9cd0afe93e9061f8a2848b008d02fccaad222bc1b6f1b1",
       "executable": false
     },
@@ -3247,7 +3251,7 @@
       "executable": false
     },
     "src/coffer/archive-policy.mjs": {
-      "sha256": "d1d0daabcb12031992b7d1cfb3f8867eaf25b64543124a1dd537a9041e04a20b",
+      "sha256": "233ebbd5ebb8de11d35b1793e4aa2c414e1f1f699914615228be49d7292e7288",
       "executable": false
     },
     "src/coffer/attribution.ts": {
@@ -3495,7 +3499,7 @@
       "executable": false
     },
     "src/coffer/db.ts": {
-      "sha256": "3f2e6c4b8e782316368592d910947d09770570580172e7f1bab927a90394b814",
+      "sha256": "c3e5fd123fa8a58ecd63843bd5cb8abaa60a945f3e3f0a0f7b470b79c22b54be",
       "executable": false
     },
     "src/coffer/demo/giving.ts": {
@@ -3891,7 +3895,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "78fdb18b6b04caabfd72b3b841ec2df133d23deffea32d6a26f94637d7056a6d",
+      "sha256": "261267de74616d0c402505aafb6841e485ae75a532292f92d13faadeadd00a06",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -4020,6 +4024,10 @@
     },
     "src/coffer/mcp/preparation-idempotency.ts": {
       "sha256": "0169464d1cc4bcbfebd20217660566eea5c196d851ff4ac168e26553e294f80c",
+      "executable": false
+    },
+    "src/coffer/mcp/request-capacity.ts": {
+      "sha256": "8ea37f3f89d7ab6ef641bbdc118c09b372e59444a3492684bb184d10315bdeff",
       "executable": false
     },
     "src/coffer/meeting-briefs.ts": {
@@ -7843,7 +7851,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "4805ec57d5c7de9c566455d4846e0bcf7059391fb0dde065b21d82ddd4fd1046",
+      "sha256": "10db46ca2807f2df5e221d39730a7203bbcd06c173208f0addd0fb74a8a682cc",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {
