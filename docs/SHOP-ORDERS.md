@@ -89,8 +89,11 @@ An optional linked Stripe gateway requires an explicit `SHOPIFY_STRIPE_ACCOUNT`
 and the Order Transaction's gateway-specific `authorization` identifying a
 charge. Only the `stripe` gateway and an exact current Stripe account, successful
 charge amount, currency and actual available balance fee are supported. Do not
-assume a Shopify Payments authorization is a Stripe charge. Review reserves
-that exact charge before generic Stripe recording can handle it. Shared,
+assume a Shopify Payments authorization is a Stripe charge. Signed webhook
+observation reads the current shop, order, transaction and linked charge and
+reserves that exact charge atomically with the source observation, before human
+review or fee allocation. Generic Stripe recording rechecks that reservation at
+its write boundary. Shared,
 unsupported or conflicting prior imports remain held; they do not rewrite
 historical gifts or suppress unrelated charges. Linked-gateway refunds remain
 unsupported and held. No metadata guess claims ownership of an entire account.
@@ -99,7 +102,11 @@ Signed observation hashes, private order, payment, line and refund references an
 identities are reviewer-private. Portable archives keep this evidence with its
 installation binding. Donor-request files omit it. Erasure scrubs retained source facts
 and review evidence, retaining opaque replay and source-identity tombstones and
-anonymous ledger amounts. A changed email for the same erased shop customer
+anonymous ledger amounts. A paid observation received after a refund fills the
+customer identity tombstone used by later erasure. After a donor match resolves,
+the selected donor owns the source: erasing an unselected shared-email candidate
+removes that candidate reference without erasing another donor's refund evidence.
+A changed email for the same erased shop customer
 cannot recreate that identity.
 
 Observations retain the original byte digest and allowlisted source facts. Provider session tokens, customer blobs, order-status capabilities and unrelated gateway response fields are never retained.

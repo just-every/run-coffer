@@ -13,7 +13,7 @@ const capture=o=>({id:o.id*10+3,order_id:o.id,amount:'74.20',currency:'USD',stat
 const balance=(o,tx)=>({id:tx.id+10000,source_order_id:o.id,source_order_transaction_id:tx.id,source_type:tx.kind==='refund'?'refund':'charge',amount:tx.kind==='refund'?'-74.20':'74.20',fee:tx.kind==='refund'?'0.00':'2.50',net:tx.kind==='refund'?'-74.20':'71.70',currency:'USD',payout_id:3004,payout_status:'paid'})
 const approval=r=>({version:r.version,fingerprint:r.fingerprint,confirm:'yes'})
 const selection=(v,d)=>({version:v.version,donorId:d.id,donorVersion:v.candidates.find(c=>c.id===d.id)?.version??1,confirm:'yes'})
-export async function shopOrdersJourney(){
+export async function shopOrdersJourney({regressionOnly}={}){
  const orders=new Map(),transactions=new Map(),balances=[],stripeObjects=new Map();let pauseStripeId,pausedStripe,enterStripe,stripeReads=0;let calls=0,settlementAvailable=true,shop=shopId,paused,entered
  const put=o=>{orders.set(o.id,o);const t=capture(o);transactions.set(o.id,[t]);balances.push(balance(o,t));return o}
  const addRefund=o=>{o.financial_status='refunded';const t={...capture(o),id:o.id*10+4,kind:'refund',parent_id:o.id*10+3};transactions.get(o.id).push(t);balances.push(balance(o,t));return {id:o.id*10+5,order_id:o.id,transactions:[t]}}
@@ -39,7 +39,7 @@ export async function shopOrdersJourney(){
  }
  const bindings={SHOPIFY_SHOP_DOMAIN:domain,SHOPIFY_SHOP_ID:shopId,SHOPIFY_WEBHOOK_SECRET:secret,SHOPIFY_ACCESS_TOKEN:'synthetic-coffer-3006',SHOPIFY_STRIPE_ACCOUNT:'acct_synthetic_coffer_3005',STRIPE_SECRET_KEY:'synthetic-coffer-3007',STRIPE_WEBHOOK_SECRET:'synthetic-coffer-3008'}
  const options={entry:'tests/fixed-clock-worker.ts',bindings,outbound:edge}
- await run(async h=>{
+ if(!regressionOnly)await run(async h=>{
   await reviewed(h)
   await h.command('settings.update',{...settings,threshold:'20',version:(await h.get('/api/coffer/settings')).version})
   await h.command('fund.define',{name:'Reading',restriction:'purpose',detail:'Literacy instruction'})
@@ -220,13 +220,13 @@ export async function shopOrdersJourney(){
   await h.api(root+'/'+changedKey+'/review',{...review,donationLineId:String(changed.id*10+2),version:changedReview.version},{status:409})
   const racing=put(order(3051,mail(3010))),racingCharge=stripeCharge('ch_synthetic_coffer_race_3051',mail(3042))
   transactions.set(racing.id,[{...capture(racing),gateway:'stripe',authorization:racingCharge.id}])
-  const racingKey=(await (await send(racing)).json()).id
-  const racingReview=await h.get(root+'/'+racingKey)
   let releaseStripe,notifyStripe
   pausedStripe=new Promise(resolve=>{releaseStripe=resolve})
   const stripeReached=new Promise(resolve=>{notifyStripe=resolve});enterStripe=notifyStripe;pauseStripeId=racingCharge.id
   const genericInFlight=sendStripe(racingCharge.id,409)
   await stripeReached
+  const racingKey=(await (await send(racing)).json()).id
+  const racingReview=await h.get(root+'/'+racingKey)
   assert.equal((await h.api(root+'/'+racingKey+'/review',{...review,donationLineId:String(racing.id*10+2),version:racingReview.version})).state,'review')
   releaseStripe();await genericInFlight;pauseStripeId=null
   await sendStripe(racingCharge.id)
@@ -257,5 +257,49 @@ export async function shopOrdersJourney(){
   assert.equal((await h.get('/api/coffer/donors/'+unrelated.id)).totals.lifetimeCents,12420)
   const after=await archive(h),copy=await installation({...options,givingProtection:false})
   try{await restore(copy,backup,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}})}finally{await copy.close()}
+ },options)
+ // These delivery-order regressions share the existing public-door journey.
+ for(const item of regressionOnly?[regressionOnly]:['shared-candidate-refund','refund-first-erasure','stripe-before-review'])await run(async h=>{
+  await reviewed(h)
+  await h.command('fund.define',{name:'Reading',restriction:'purpose',detail:'Literacy instruction'})
+  const chosen=await donor(h,'Synthetic Regression Chosen',{email:mail(3060),household:'Synthetic regression household'})
+  const unselected=item==='shared-candidate-refund'?await donor(h,'Synthetic Regression Candidate',{email:mail(3060),household:'Synthetic regression household'}):null
+  const paid=put(order(3061,mail(3060)))
+  const send=async(payload,topic=paidTopic)=>{
+   const raw=JSON.stringify(payload),sig=createHmac('sha256',secret).update(raw).digest('base64')
+   return h.api('/api/coffer/shops/shopify/webhook',undefined,{method:'POST',raw,as:'',headers:{'x-shopify-shop-domain':domain,'x-shopify-topic':topic,'x-shopify-event-id':'synthetic-coffer-regression-'+payload.id,'x-shopify-hmac-sha256':sig}})
+  }
+  if(item==='refund-first-erasure')await send(addRefund(paid),refundTopic)
+  if(item==='stripe-before-review'){
+   const charge={id:'ch_synthetic_coffer_before_review_3062',status:'succeeded',paid:true,amount:7420,currency:'usd',created:Date.parse(fixedNow)/1000,amount_refunded:0,metadata:{fund:'Reading'},billing_details:{name:'Synthetic Regression Chosen',email:mail(3060)},balance_transaction:'txn_synthetic_coffer_3063'}
+   stripeObjects.set('/v1/charges/'+charge.id,charge)
+   stripeObjects.set('/v1/balance_transactions/'+charge.balance_transaction,{id:charge.balance_transaction,source:charge.id,amount:7420,fee:250,net:7170,currency:'usd',status:'available',type:'charge',created:charge.created})
+   transactions.set(paid.id,[{...capture(paid),gateway:'stripe',authorization:charge.id}])
+   await send(paid)
+   const raw=JSON.stringify({id:'synthetic-coffer-before-review-event-3064',type:'charge.succeeded',data:{object:{id:charge.id}}}),t=Date.parse(fixedNow)/1000,sig=createHmac('sha256',bindings.STRIPE_WEBHOOK_SECRET).update(`${t}.${raw}`).digest('hex')
+   await h.api('/api/coffer/giving/webhook',undefined,{method:'POST',raw,as:'',headers:{'stripe-signature':`t=${t},v1=${sig}`}})
+   const d=await h.get('/api/coffer/donors/'+chosen.id)
+   assert.deepEqual({lifetime:d.totals.lifetimeCents,gifts:d.gifts.length},{lifetime:0,gifts:0},'A linked Stripe delivery after signed Shopify observation but before review must not credit the whole merchandise order')
+  }else{
+   const {id:key}=await send({...paid,financial_status:'paid'})
+   if(item==='refund-first-erasure'){
+    await h.command('donor.erase',{donorId:chosen.id,confirm:'ERASE'})
+    const later=put({...order(3065,mail(3066)),customer:paid.customer}),next=await send(later),r=await h.get(root+'/'+next.id)
+    assert.deepEqual({state:r.state,source:r.source,facts:r.facts},{state:'erased',source:null,facts:{}},'Refund-first then paid delivery must retain customer custody through erasure and a changed email')
+   }else{
+    const review={donationLineId:String(paid.id*10+2),fund:'Reading',campaign:'none',contributionFee:'1.00',noncontributionFee:'1.50',allocationReason:'Reviewed explicit allocation of the actual order fee.',confirm:'yes'}
+    let r=await h.get(root+'/'+key)
+    r=await h.api(root+'/'+key+'/review',{...review,version:r.version})
+    await h.api(match(key)+'/approve',selection(r.donorReview,chosen))
+    r=await h.get(root+'/'+key);await h.api(root+'/'+key+'/approve',approval(r))
+    await h.command('donor.erase',{donorId:unselected.id,confirm:'ERASE'})
+    await send(addRefund(paid),refundTopic)
+    r=await h.get(root+'/'+key)
+    const refreshed=await h.request(root+'/'+key+'/review',{method:'POST',body:{...review,version:r.version,refundContributionFee:'0.00',refundNoncontributionFee:'0.00'}})
+    if(refreshed.status===200)r=await refreshed.json()
+    const refunded=await h.request(root+'/'+key+'/refund',{method:'POST',body:approval(r)})
+    assert.deepEqual({refundStatus:refunded.status,lifetime:(await h.get('/api/coffer/donors/'+chosen.id)).totals.lifetimeCents},{refundStatus:200,lifetime:0},'Erasing an unselected shared-email candidate must preserve the chosen donor full contribution refund')
+   }
+  }
  },options)
 }

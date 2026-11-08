@@ -3,7 +3,7 @@ import { all, commit, event, fail, guard, one, sha256, sql, text, CofferError, t
 import { erasureHash } from '../../imports/snapshots'
 import { currentDonors, donorMatchView, emailCandidates, matchGuards } from '../donor-match'
 import { paymentWrite } from '../write'
-import { connection, decimal, home, observe, orderFacts, sourceId, type ShopEnv } from './provider'
+import { connection, decimal, home, observe, orderFacts, processorObservation, sourceId, type ShopEnv } from './provider'
 
 function authorize(c:Context){if(!manager(c.actor)||!person(c.actor))fail('manager_required','Only a current owner or admin reviews shop money.',403)}
 const paidTopic=['orders','paid'].join('/'),refundTopic=['refunds','create'].join('/')
@@ -49,7 +49,7 @@ export async function shopWebhook(request:Request,env:ShopEnv):Promise<Response>
   if(topic===paidTopic){
    try{facts=orderFacts(payload);sourceHash=await sha256(JSON.stringify(facts))}catch(e){if(!(e instanceof CofferError))throw e;issues.push(e.message)}
   }
-  const identityHash=topic===paidTopic&&payload.customer?.id?erasureHash(b.shop+':'+String(payload.customer.id)):null
+  const identityHash=payload.customer?.id?erasureHash(b.shop+':'+String(payload.customer.id)):null
   const mail=String(facts.email??payload.email??'').trim().toLowerCase(),candidates=mail?await emailCandidates(c,mail):[],now=new Date().toISOString()
   const erased=await one(c,'SELECT hash FROM cf_erasures WHERE hash=? UNION SELECT hash FROM cf_shop_erased_identities WHERE hash=?',erasureHash(mail),identityHash??'')
   if(erased){issues=['The source identity was erased.'];facts={};sourceHash=null}
@@ -59,10 +59,16 @@ export async function shopWebhook(request:Request,env:ShopEnv):Promise<Response>
    stmts.push(sql("INSERT INTO cf_shop_orders(id,installation_id,shop_id,shop_domain,order_id,state,source_hash,source,facts,issues,created_at,identity_hash,refund_pending) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",key,home(env),b.shop,b.domain,orderId,erased?'erased':'held',sourceHash,erased?null:topic===paidTopic?JSON.stringify(facts):null,JSON.stringify(facts),JSON.stringify(issues),now,identityHash,topic===refundTopic&&!erased?1:0),
     sql("INSERT INTO cf_payment_donor_matches(charge_id,installation_id,account_id,state,email,facts,candidates,created_at,updated_at,provider) VALUES(?,?,?,?,?,?,?,?,?,'shopify')",key,home(env),b.shop,erased?'erased':'held',erased?null:mail||null,JSON.stringify({amount:0}),erased?'[]':JSON.stringify(candidates),now,now))
   }else if(topic===paidTopic&&!existing.source_hash&&sourceHash){
-   stmts.push(sql("UPDATE cf_shop_orders SET source_hash=?,source=?,facts=?,issues='[]',version=version+1 WHERE id=?",sourceHash,JSON.stringify(facts),JSON.stringify(facts),key),sql("UPDATE cf_payment_donor_matches SET email=?,candidates=?,version=version+1 WHERE charge_id=?",mail,JSON.stringify(candidates),key))
+   stmts.push(sql("UPDATE cf_shop_orders SET source_hash=?,source=?,facts=?,identity_hash=COALESCE(identity_hash,?),issues='[]',version=version+1 WHERE id=?",sourceHash,JSON.stringify(facts),JSON.stringify(facts),identityHash,key),sql("UPDATE cf_payment_donor_matches SET email=?,candidates=?,version=version+1 WHERE charge_id=?",mail,JSON.stringify(candidates),key))
   }else if(topic===paidTopic&&existing.source_hash!==sourceHash){
    stmts.push(sql("UPDATE cf_shop_orders SET state='held',conflicted=1,issues=?,version=version+1,fingerprint=NULL WHERE id=?",JSON.stringify(['Conflicting source facts. Historical money remains unchanged.']),key))
   }else if(topic===refundTopic&&!(existing.state==='refunded'&&existing.evidence&&Array.isArray(payload.transactions)&&payload.transactions.some((t:Row)=>String(t.id)===JSON.parse(existing.evidence).refundId&&t.kind==='refund'&&t.status==='success')))stmts.push(sql("UPDATE cf_shop_orders SET state='refund-held',refund_pending=1,version=version+1,fingerprint=NULL,issues=? WHERE id=?",JSON.stringify(['A refund was observed. Refresh exact payment and allocation evidence before human approval.']),key))
+  if(!erased){
+   const processor=await processorObservation(env,orderId)
+   if(processor)stmts.push(
+    guard('NOT EXISTS(SELECT 1 FROM cf_shop_processor_bindings WHERE charge_id=? AND (order_key<>? OR account_id<>?))','SHOP_PROCESSOR_CONFLICT','This processor payment belongs to another shop observation.',processor.chargeId,key,processor.account),
+    sql('INSERT OR IGNORE INTO cf_shop_processor_bindings(charge_id,account_id,order_key) VALUES(?,?,?)',processor.chargeId,processor.account,key))
+  }
   stmts.push(sql('INSERT INTO cf_shop_events(id,order_key,topic,payload_hash,payload,created_at) VALUES(?,?,?,?,?,?)',eventKey,key,topic,hash,erased?null:JSON.stringify(topic===paidTopic?facts:{id:String(payload.id??''),order_id:orderId,transactions:Array.isArray(payload.transactions)?payload.transactions.map((t:Row)=>({id:String(t.id??''),kind:t.kind,status:t.status,amount:t.amount,currency:t.currency,parent_id:t.parent_id})):[]}),now))
   await paymentWrite(env,stmts)
   return Response.json({id:key,state:erased?'erased':'held'})

@@ -40,7 +40,7 @@ async function read(env:ShopEnv,path:string){
 }
 /** Documented REST Order, Transaction and Shopify Payments balance resources.
  * The balance listing is exhausted before matching, never guessed from dates. */
-export async function observe(env:ShopEnv,orderId:string){
+async function orderObservation(env:ShopEnv,orderId:string){
  const bound=connection(env),shop=(await read(env,'shop.json')).body.shop
  if(String(shop?.id)!==bound.shop||shop?.myshopify_domain!==bound.domain)fail('SHOP_BINDING','Shopify did not confirm this installation shop.')
  const order=(await read(env,'orders/'+orderId+'.json')).body.order,facts=orderFacts(order??{})
@@ -56,6 +56,29 @@ export async function observe(env:ShopEnv,orderId:string){
  if(refunds.length>1||refunds.some(r=>String(r.parent_id)!==payment||r.gateway!==capture.gateway||decimal(r.amount)!==facts.total))fail('SHOP_FACTS','Partial or ambiguous refunds stay held.')
  const refund=refunds[0],refundId=refund?sourceId(refund.id):null
  if((order.financial_status==='refunded')!==Boolean(refundId))fail('SHOP_FACTS','Order and full-refund observations conflict.')
+ return {facts,payment,refundId,capture,refund}
+}
+
+async function linkedProcessor(env:ShopEnv,facts:Row,capture:Row,refund:Row|undefined){
+ if(!env.SHOPIFY_STRIPE_ACCOUNT||!/^ch_[A-Za-z0-9_]+$/.test(capture.authorization??''))fail('SHOP_GATEWAY','This gateway or shared processor ownership is unsupported and stays held.')
+ const account=(await stripe(env,'/account')).id
+ if(account!==env.SHOPIFY_STRIPE_ACCOUNT)fail('SHOP_BINDING','The linked processor account is not this shop connection.')
+ const chargeId=String(capture.authorization),charge=await stripe(env,'/charges/'+encodeURIComponent(chargeId))
+ if(charge.id!==chargeId||charge.currency!=='usd'||charge.amount!==facts.total||charge.paid!==true||charge.status!=='succeeded'||charge.amount_refunded!==(refund?facts.total:0)||typeof charge.balance_transaction!=='string')fail('SHOP_BINDING','The linked charge does not confirm the complete order.')
+ if(charge.metadata?.coffer_intent||charge.metadata?.coffer_pledge_checkout)fail('SHOP_PROCESSOR_CONFLICT','This charge already belongs to a Coffer checkout.')
+ const processorRefs=[chargeId,charge.payment_intent,typeof charge.invoice==='string'?charge.invoice:null].filter((v):v is string=>typeof v==='string'&&Boolean(v))
+ return {account,chargeId,charge,processorRefs}
+}
+
+/** Establish linked-charge ownership at signed observation, before fee allocation
+ * or donor review. Missing settlement evidence must not release merchandise. */
+export async function processorObservation(env:ShopEnv,orderId:string){
+ const {facts,capture,refund}=await orderObservation(env,orderId)
+ return capture.gateway==='stripe'?linkedProcessor(env,facts,capture,refund):null
+}
+
+export async function observe(env:ShopEnv,orderId:string){
+ const bound=connection(env),{facts,payment,refundId,capture,refund}=await orderObservation(env,orderId)
  let processorRefs:string[]=[],fee=0,refundFee=0,settlement:string|null=null,chargeId:string|null=null,account:string|null=null,balances:Row[]=[]
  if(capture.gateway==='shopify_payments'){
   let path='shopify_payments/balance/transactions.json?limit=250'
@@ -80,14 +103,9 @@ export async function observe(env:ShopEnv,orderId:string){
   const paid=exact(payment,'charge',facts.total);fee=decimal(paid.fee,true);settlement=sourceId(paid.payout_id)
   balances=[paid,...(refund?[exact(refundId!,'refund',-facts.total)]:[])]
   if(refund)refundFee=decimal(balances[1].fee,true)
- }else if(capture.gateway==='stripe'&&env.SHOPIFY_STRIPE_ACCOUNT&&/^ch_[A-Za-z0-9_]+$/.test(capture.authorization??'')){
-  account=(await stripe(env,'/account')).id
-  if(account!==env.SHOPIFY_STRIPE_ACCOUNT)fail('SHOP_BINDING','The linked processor account is not this shop connection.')
-  chargeId=capture.authorization
-  const charge=await stripe(env,'/charges/'+encodeURIComponent(chargeId!))
-  if(charge.id!==chargeId||charge.currency!=='usd'||charge.amount!==facts.total||charge.paid!==true||charge.status!=='succeeded'||charge.amount_refunded!==(refund?facts.total:0)||typeof charge.balance_transaction!=='string')fail('SHOP_BINDING','The linked charge does not confirm the complete order.')
-  if(charge.metadata?.coffer_intent||charge.metadata?.coffer_pledge_checkout)fail('SHOP_PROCESSOR_CONFLICT','This charge already belongs to a Coffer checkout.')
-  processorRefs=[chargeId!,charge.payment_intent,typeof charge.invoice==='string'?charge.invoice:null].filter((v):v is string=>typeof v==='string'&&Boolean(v))
+ }else if(capture.gateway==='stripe'){
+  const linked=await linkedProcessor(env,facts,capture,refund),charge=linked.charge
+  account=linked.account;chargeId=linked.chargeId;processorRefs=linked.processorRefs
   const b=await stripe(env,'/balance_transactions/'+encodeURIComponent(charge.balance_transaction))
   if(b.id!==charge.balance_transaction||b.source!==chargeId||b.currency!=='usd'||b.amount!==facts.total||!Number.isSafeInteger(b.fee)||b.net!==b.amount-b.fee||b.status!=='available')fail('SHOP_FEES','The linked payment fee is incomplete.')
   fee=b.fee;balances=[b]
