@@ -1,0 +1,4 @@
+
+> @nonprofit/coffer@0.1.1 typecheck /home/agent/rer-consolidation/work/sx-coffer-f174fix2/run-coffer
+> tsc --build --incremental
+

@@ -1,0 +1,13 @@
+commit 170ee80d652dd51f2b415ed58d17816ea1fd2cbc
+Author:     Run Edit Run fleet <fleet@runeditrun.com>
+AuthorDate: Sun Nov 8 21:51:25 2026 +0000
+Commit:     Run Edit Run fleet <fleet@runeditrun.com>
+CommitDate: Sun Nov 8 21:51:25 2026 +0000
+
+    Keep recorded Stripe gifts refundable after Shopify observation
+
+ sources.lock.json              |  6 +++---
+ src/coffer/payments/charges.ts |  4 +++-
+ src/coffer/payments/entries.ts |  2 +-
+ tests/shop-orders-journey.mjs  | 18 ++++++++++++++----
+ 4 files changed, 21 insertions(+), 9 deletions(-)

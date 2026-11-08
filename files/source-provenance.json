@@ -1,0 +1,30 @@
+{
+  "main": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+  "contract_counts_before": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20
+  },
+  "contract_counts_after": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20
+  },
+  "contract_views_id_map_diff": "none",
+  "main_highest_migration": 191,
+  "inherited_candidate_migrations": [
+    "migrations/core/0192_coffer_shop_orders.sql",
+    "migrations/core/0193_coffer_shop_conflicts.sql",
+    "migrations/core/0194_coffer_shop_refund_holds.sql"
+  ],
+  "fix2_migrations_added": [],
+  "renumbering": "not needed; all inherited candidate migrations exceed main highest",
+  "is_shallow_repository": false,
+  "main_is_ancestor_of_product": true,
+  "fix2_product_files": [
+    "sources.lock.json",
+    "src/coffer/payments/charges.ts",
+    "src/coffer/payments/entries.ts",
+    "tests/shop-orders-journey.mjs"
+  ]
+}

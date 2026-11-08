@@ -1,0 +1,6 @@
+CI_DISCOVERY pending; next request in 300 seconds
+CI_DISCOVERED {"conclusion": null, "event": "push", "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc", "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739", "id": 42527867739, "name": "Verify", "status": "in_progress"}
+CI_POLL {"conclusion": null, "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc", "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739", "id": 42527867739, "status": "in_progress"}
+CI_POLL {"conclusion": null, "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc", "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739", "id": 42527867739, "status": "in_progress"}
+CI_POLL {"conclusion": "success", "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc", "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739", "id": 42527867739, "status": "completed"}
+CI_FINAL {"conclusion": "success", "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc", "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739", "id": 42527867739, "status": "completed"}

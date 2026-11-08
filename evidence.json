@@ -1,0 +1,106 @@
+{
+  "files": [
+    {
+      "blob": "fae787ce607baf2edeff3dce5d825e045a83b1eb",
+      "bytes": 1542,
+      "path": "PLAN.md",
+      "sha256": "98a1b438d0aa7421286e6506cab2f40b66b717f1ec24b5db427717ef72768229"
+    },
+    {
+      "blob": "52077869564454f04c483b9cc0b43e2135bd154a",
+      "bytes": 5132,
+      "path": "REPORT.md",
+      "sha256": "4ece1c19a887fa22936fcc1c0198790a4b57226082e7df96f81f1059d1604a55"
+    },
+    {
+      "blob": "9a100dc99e7c1241f525cbfd2954d93973b41d67",
+      "bytes": 192,
+      "path": "after-refund.log",
+      "sha256": "4122628a452ec26751198f23b95c80c20e40f7ed8b280faca4cfb72cd50170c7"
+    },
+    {
+      "blob": "e4e25bd1a8f8d4fc59bae7586ebe00b36af3b2e7",
+      "bytes": 1124,
+      "path": "before-refund.log",
+      "sha256": "00743ba3762e24507c7a6286a09b262b9b62f66079c49ffa0eba0dadc2016a48"
+    },
+    {
+      "blob": "60f643076153bb082f6c1869dc4b6128d692a1d8",
+      "bytes": 1743,
+      "path": "ci-receipt.json",
+      "sha256": "a4b9a591be730dcc4c0de7455af21f3ea09a4d424a85c29b9d04ccd0541270e6"
+    },
+    {
+      "blob": "8db0ee11f6a3726dac6f124618db255254ae376c",
+      "bytes": 1148,
+      "path": "ci-watch.log",
+      "sha256": "9cab9952a4608eb87245fc026af8e8fd2dfd3210ef7f77b2eff4b9001085093c"
+    },
+    {
+      "blob": "e0746d82caf17348cdc04c253bcde3312f0717a8",
+      "bytes": 136,
+      "path": "harness-node24.log",
+      "sha256": "6205e22497347c74bf6517d7c67792b17cc2051d7b12f33098353c4b1b9bed4a"
+    },
+    {
+      "blob": "1165e0a7c817132208c67d1a9e85d31d8c88c981",
+      "bytes": 510,
+      "path": "identity-check.log",
+      "sha256": "611ca8fded6b38fb8d0499c725b1e5b79156df92b61f2c7c14df1e8b612cea0a"
+    },
+    {
+      "blob": "10ba3806f37d452fe3f8da120d2d1f76206745db",
+      "bytes": 348069,
+      "path": "lock-check.log",
+      "sha256": "b71729b5699b02765fad71ca02a26be58d4d8b1cbb81e42ff7abfca8e7185874"
+    },
+    {
+      "blob": "283e199a68decaab1ea2a6936103c91788c86d6f",
+      "bytes": 348055,
+      "path": "lock-write.log",
+      "sha256": "f68c21de5f31fedec535f2e0db5ef69bbf314250c46a888d849c357065601904"
+    },
+    {
+      "blob": "15cb8bc34b6edb7b811e2c56e4cb19853cb18d1f",
+      "bytes": 2709,
+      "path": "payments.log",
+      "sha256": "82723d26c1e38ccd65e5e17df3fad2a72e99560f9c94c98bc0a4d4c602075a81"
+    },
+    {
+      "blob": "aeb33b1f4a86fa59f539866c0489e8d817d168a1",
+      "bytes": 543,
+      "path": "product-commit.txt",
+      "sha256": "d9a4711bd882c98b2994c577c1d54dab959f8939a3c3a137513fe4353e790804"
+    },
+    {
+      "blob": "8f467ec1d7e7835d8eaf5a92637c80aa9375e64e",
+      "bytes": 930,
+      "path": "product-push.log",
+      "sha256": "1f78f61ae19f92de8e36b6e130e074291ac1e1f69e7e4bb689708b05c64107fb"
+    },
+    {
+      "blob": "bb8bab33f2c5445d855065500477e5dc5ed19792",
+      "bytes": 3704,
+      "path": "receipt.json",
+      "sha256": "4c40b087f1eee6408d92150209098cade69dd0803b242b16ad3a0a680ad84d5f"
+    },
+    {
+      "blob": "39f48ebced82797d05d763cab7035c097fd12d4a",
+      "bytes": 868,
+      "path": "source-provenance.json",
+      "sha256": "5c391d3db10f0be76f5a288a997dfd433ad30768f78cea91d47c2b9b63c1f5a3"
+    },
+    {
+      "blob": "ae422e4f1a56f99c26fb832119c6e055587ad380",
+      "bytes": 131,
+      "path": "typecheck.log",
+      "sha256": "492e5fb6b1614d98623122cfe273d28a713f88a6b62f2c0adffa8de3d575c412"
+    }
+  ],
+  "product_branch": "cloud/sx-coffer-f174fix2",
+  "product_head": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+  "ref": "refs/heads/evidence/sx-coffer-f174fix2",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-f174fix2"
+}

@@ -1,0 +1,54 @@
+TAP version 13
+# [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+# Subtest: DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds, disputes, receipts and fees reconcile and post once after approval
+ok 1 - DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds, disputes, receipts and fees reconcile and post once after approval
+  ---
+  duration_ms: 18552.868731
+  type: 'test'
+  ...
+# Subtest: FIN-005: a month of pending ACH, late refunds, offline batches and posted payouts accounts for every cent
+ok 2 - FIN-005: a month of pending ACH, late refunds, offline batches and posted payouts accounts for every cent
+  ---
+  duration_ms: 5782.526978
+  type: 'test'
+  ...
+# Subtest: FIN-002: closed check deposits retain evidence, approval and uncertain-submission custody
+ok 3 - FIN-002: closed check deposits retain evidence, approval and uncertain-submission custody
+  ---
+  duration_ms: 36827.667922
+  type: 'test'
+  ...
+# Subtest: FIN-001: QuickBooks owner connects, maps three funds and posts exact deposits and separate adjustments once across failure and restore
+ok 4 - FIN-001: QuickBooks owner connects, maps three funds and posts exact deposits and separate adjustments once across failure and restore
+  ---
+  duration_ms: 52899.262981
+  type: 'test'
+  ...
+# Subtest: PAY-001: external donor review holds money and releases exact gifts, fees and prior refunds once under current authority
+ok 5 - PAY-001: external donor review holds money and releases exact gifts, fees and prior refunds once under current authority
+  ---
+  duration_ms: 47378.53942
+  type: 'test'
+  ...
+# Benevity: exact ledger, fees, receipt, replay and browser states passed; checking restore and erasure
+# Subtest: PAY-005: reviewed Benevity disbursements hold ambiguous donors and record exact source gifts, fees and payouts once with private custody
+ok 6 - PAY-005: reviewed Benevity disbursements hold ambiguous donors and record exact source gifts, fees and payouts once with private custody
+  ---
+  duration_ms: 103195.467195
+  type: 'test'
+  ...
+# Subtest: PAY-006: signed Shopify orders hold exact donation classification, actual fee allocation and current donor authority, then record and fully reverse only the contribution once
+ok 7 - PAY-006: signed Shopify orders hold exact donation classification, actual fee allocation and current donor authority, then record and fully reverse only the contribution once
+  ---
+  duration_ms: 128533.809899
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 394301.794315

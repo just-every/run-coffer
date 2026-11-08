@@ -1,0 +1,29 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+AssertionError [ERR_ASSERTION]: A Shopify observation must not suppress the full refund of a Stripe payment already recorded before that observation
++ actual - expected
+
+  {
++   after: 7420,
+-   after: 0,
+    before: 7420
+  }
+
+    at file:///home/agent/rer-consolidation/work/sx-coffer-f174fix2/run-coffer/tests/shop-orders-journey.mjs:291:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async run (file:///home/agent/rer-consolidation/work/sx-coffer-f174fix2/run-coffer/tests/harness.mjs:64:86)
+    at async shopOrdersJourney (file:///home/agent/rer-consolidation/work/sx-coffer-f174fix2/run-coffer/tests/shop-orders-journey.mjs:262:148) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: { before: 7420, after: 7420 },
+  expected: { before: 7420, after: 0 },
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.20.0

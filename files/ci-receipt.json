@@ -1,0 +1,59 @@
+{
+  "repository": "just-every/run-coffer",
+  "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+  "calls": 5,
+  "observations": [
+    {
+      "time_utc": "2026-11-08T21:58:48Z",
+      "discovery": []
+    },
+    {
+      "time_utc": "2026-11-08T22:03:48Z",
+      "discovery": [
+        {
+          "conclusion": null,
+          "event": "push",
+          "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+          "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739",
+          "id": 42527867739,
+          "name": "Verify",
+          "status": "in_progress"
+        }
+      ]
+    },
+    {
+      "time_utc": "2026-11-08T22:08:48Z",
+      "run": {
+        "conclusion": null,
+        "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+        "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739",
+        "id": 42527867739,
+        "status": "in_progress"
+      }
+    },
+    {
+      "time_utc": "2026-11-08T22:13:48Z",
+      "run": {
+        "conclusion": null,
+        "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+        "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739",
+        "id": 42527867739,
+        "status": "in_progress"
+      }
+    },
+    {
+      "time_utc": "2026-11-08T22:18:48Z",
+      "run": {
+        "conclusion": "success",
+        "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+        "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739",
+        "id": 42527867739,
+        "status": "completed"
+      }
+    }
+  ],
+  "run_id": 42527867739,
+  "status": "completed",
+  "conclusion": "success",
+  "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739"
+}

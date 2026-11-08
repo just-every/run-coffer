@@ -1,0 +1,115 @@
+{
+  "tag": "sx-coffer-f174fix2",
+  "repository": "just-every/run-coffer",
+  "start_head": "47d268f79a32c00016d076f6333f905cf9d6b489",
+  "initial_main": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+  "scope": "Stripe-first full-refund reversal only",
+  "before": {
+    "status": "expected failure reproduced",
+    "original_product_head": "47d268f79a32c00016d076f6333f905cf9d6b489",
+    "log": "before-refund.log",
+    "credited_before_cents": 7420,
+    "credited_after_cents": 7420,
+    "expected_after_cents": 0
+  },
+  "after": {
+    "status": "passed",
+    "head": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+    "log": "after-refund.log",
+    "credited_before_cents": 7420,
+    "credited_after_cents": 0
+  },
+  "ci": {
+    "status": "completed",
+    "receipt": "ci-receipt.json",
+    "watcher_log": "ci-watch.log",
+    "poll_interval_seconds": 300,
+    "watchers": 1,
+    "maximum_watcher_calls": 7,
+    "failure_diagnosis_reserve": 3,
+    "run_id": 42527867739,
+    "html_url": "https://github.com/just-every/run-coffer/actions/runs/42527867739",
+    "calls": 5,
+    "conclusion": "success",
+    "head_sha": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+    "exact_sha_verified": true
+  },
+  "contract_cells_changed": [],
+  "publication_scan": "not run, per FIX brief",
+  "harness_diagnostic": "Initial --input-type=module probe stalled Miniflare synchronous worker; stopped only owned processes and reran using dynamic import under pinned Node 22.20.0. No product/harness changes.",
+  "head": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+  "branch": "cloud/sx-coffer-f174fix2",
+  "checks": {
+    "typecheck": {
+      "command": "pnpm typecheck",
+      "exit": 0,
+      "log": "typecheck.log",
+      "runtime": "Node 22.20.0"
+    },
+    "source_lock": {
+      "write": "node scripts/edition-authoring/cli.mjs lock",
+      "check": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0,
+      "logs": [
+        "lock-write.log",
+        "lock-check.log"
+      ]
+    },
+    "payments": {
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium node --test tests/payments.test.mjs",
+      "status": "passed",
+      "log": "payments.log",
+      "exit": 0,
+      "tests": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "duration_ms": 394301.794315
+    }
+  },
+  "test_registration_counts": {
+    "payments_before": 7,
+    "payments_after": 7,
+    "new_assertions": 1,
+    "delivery_order_cases_before": 3,
+    "delivery_order_cases_after": 4
+  },
+  "clause_status_changes": [],
+  "pr": "not created; repository supports branch push Verify and fleet landing",
+  "blockers": [],
+  "product_push": {
+    "status": "pushed",
+    "branch": "cloud/sx-coffer-f174fix2",
+    "head": "170ee80d652dd51f2b415ed58d17816ea1fd2cbc",
+    "attempts": 1,
+    "log": "product-push.log"
+  },
+  "regression_rows": [
+    {
+      "name": "shared-candidate-refund",
+      "result": "passed in full PAY-006 journey"
+    },
+    {
+      "name": "refund-first-erasure",
+      "result": "passed in full PAY-006 journey"
+    },
+    {
+      "name": "stripe-before-review",
+      "result": "passed in full PAY-006 journey"
+    },
+    {
+      "name": "stripe-first-refund",
+      "result": "passed in full PAY-006 journey and focused after probe"
+    }
+  ],
+  "preservation": {
+    "all_product_commits_pushed": true,
+    "bundle_needed": false,
+    "publication_scan": "not run per FIX brief",
+    "candidate_identity_check": "all six commits fleet authors and committers; no trailers",
+    "identity_log": "identity-check.log",
+    "diff_check": "passed",
+    "worktree": "clean before report-only evidence publication"
+  },
+  "result": "READY candidate; independent gate and fleet landing remain separate"
+}
