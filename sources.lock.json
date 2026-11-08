@@ -3035,7 +3035,7 @@
       "executable": false
     },
     "src/coffer/agent-grants-execution.ts": {
-      "sha256": "a2291732f1d1b2420c6676424bc5c075889fd74a909fe4f72307622d84274568",
+      "sha256": "f752ff00365b7dc3b16d547525776ae01289648a94fbde7373163fbb7d34ff4a",
       "executable": false
     },
     "src/coffer/agent-grants-legacy.ts": {
@@ -4296,6 +4296,10 @@
     },
     "src/coffer/move-in/vault-mapping.ts": {
       "sha256": "d3314e39ced1c9f6669e49ef16997445d5d5d3c46064f42640a9400b20492ca5",
+      "executable": false
+    },
+    "src/coffer/native-key-attribution.ts": {
+      "sha256": "ae1dd185d28157c49d768637a1de87e5a097dd714342d667f8db54fef06e00ac",
       "executable": false
     },
     "src/coffer/opportunity-close.ts": {
@@ -7255,7 +7259,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "55b8342c4e9db4d0aeed212771305cea0077cca37ab74926a074ecdc7bd55976",
+      "sha256": "dcb4940fa261d24ad55b371cb5a41a3d0380476c34079f4e96faeaf6e6631680",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7307,7 +7311,7 @@
       "executable": false
     },
     "tests/audit.test.mjs": {
-      "sha256": "1fb9fe11501c0c620fcfd6668b40609cefcc6fd85593984edde2749df0d01b35",
+      "sha256": "9ca3dba0e5a97f0c0c73329be8a45a5a071c92b0ce9a63590113e98e0ceffa4a",
       "executable": false
     },
     "tests/automation-grants-journey.mjs": {
@@ -7855,7 +7859,7 @@
       "executable": false
     },
     "tests/mcp-browser.mjs": {
-      "sha256": "7b9622ae80ce5b983062807440fd0ca6869ba7f9d23bc17ef3d50d6f57049f21",
+      "sha256": "332ee5ec0d6837d0e9d51cd879307c3d430865d0d013d38fd423ae42b53a8ba6",
       "executable": false
     },
     "tests/mcp-docs-browser.mjs": {

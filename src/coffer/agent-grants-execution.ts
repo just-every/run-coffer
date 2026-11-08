@@ -49,7 +49,7 @@ export async function executeGranted(c: Context, command: string, p: Row): Promi
   sql('INSERT INTO cf_agent_grant_dispatches VALUES(?,?,?,?,?)',batchId,grant.id,grant.version,letters.length,c.now)]
  if(batch.status==='prepared')reserve.push(
   sql('INSERT INTO cf_approvals VALUES(?,?,?,?,?,?,?,?,?,?,?)',newId(),'acknowledgements',batchId,batch.content_hash,batch.prepared_by_id,batch.prepared_by_name,batch.prepared_by_role,grant.approved_by_id,grant.approved_by_name,grant.approved_by_role,c.now),
-  sql("UPDATE cf_ack_batches SET status='approved',version=version+1 WHERE id=?",batchId),event(c,'ack.standingApproval','acknowledgements',batchId,null,{approvedById:grant.approved_by_id,contentHash:batch.content_hash,settingsVersion:grant.settings_version,templateRevision:grant.template_revision}))
+  sql("UPDATE cf_ack_batches SET status='approved',version=version+1 WHERE id=?",batchId),event(c,'ack.standingApproval','acknowledgements',batchId,null,{approvedById:grant.approved_by_id,approvedByName:grant.approved_by_name,approvedByRole:grant.approved_by_role,approvalBasis:'standing-grant',contentHash:batch.content_hash,settingsVersion:grant.settings_version,templateRevision:grant.template_revision}))
  reserve.push(event(c,'agentGrant.reserve','acknowledgements',batchId,null,{day,letters:letters.length}))
  // The daily reservation and approval are atomic. The same current grant,
  // template and scope checks guard every native per-letter submission claim.

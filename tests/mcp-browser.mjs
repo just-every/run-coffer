@@ -62,3 +62,29 @@ export async function mcpAppealBrowser(h,appeal,key,directory,attribution){
   }
  })
 }
+
+export async function mcpStoredBrowser(h,batch,key,directory,attribution){
+ await mkdir(directory,{recursive:true})
+ await withBrowserWorker(h,async(context,origin)=>{
+  const page=await context.newPage()
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   for(const [screen,path] of [['stored-receipt',`/app/letters/${batch.id}`],['stored-audit',`/app/audit?person=${key.id}&action=ack.standingApproval`],['stored-activity','/app/agent']]){
+    await page.goto(origin+path)
+    if(width===1440){
+     const text=await page.locator('main').innerText()
+     assert.ok(text.includes(attribution))
+     if(screen==='stored-receipt')assert.ok(text.includes('approved by Morgan Lee under a standing grant'))
+     if(screen==='stored-audit'){
+      const row=page.locator('tbody tr').first()
+      await row.locator('summary').click()
+      assert.ok((await row.innerText()).includes('Morgan Lee'))
+     }
+     if(screen==='stored-activity')assert.ok(await page.locator('tbody tr').filter({hasText:attribution}).count()>0)
+    }
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+    await page.screenshot({path:`${directory}/BASE-AGENT-008-${screen}-${width}.png`,fullPage:true})
+   }
+  }
+ })
+}
