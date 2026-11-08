@@ -1,0 +1,37 @@
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+✔ DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds, disputes, receipts and fees reconcile and post once after approval (22369.288027ms)
+✔ FIN-005: a month of pending ACH, late refunds, offline batches and posted payouts accounts for every cent (6364.900738ms)
+✔ FIN-002: closed check deposits retain evidence, approval and uncertain-submission custody (39821.065781ms)
+✔ FIN-001: QuickBooks owner connects, maps three funds and posts exact deposits and separate adjustments once across failure and restore (59167.594017ms)
+✔ PAY-001: external donor review holds money and releases exact gifts, fees and prior refunds once under current authority (48556.243611ms)
+✖ PAY-005: reviewed Benevity disbursements hold ambiguous donors and record exact source gifts, fees and payouts once with private custody (37379.887631ms)
+✔ PAY-006: signed Shopify orders hold exact donation classification, actual fee allocation and current donor authority, then record and fully reverse only the contribution once (112754.757402ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 327507.6966
+
+✖ failing tests:
+
+test at tests/payments.test.mjs:267:1
+✖ PAY-005: reviewed Benevity disbursements hold ambiguous donors and record exact source gifts, fees and payouts once with private custody (37379.887631ms)
+  locator.waitFor: Timeout 30000ms exceeded.
+  Call log:
+    - waiting for getByRole('heading', { name: 'Disbursement preview', exact: true }) to be visible
+  
+      at /workspace/run-coffer/tests/platform-disbursement-browser.mjs:32:77
+      at async withBrowserWorker (/workspace/run-coffer/tests/browser-worker.mjs:35:10)
+      at async platformDisbursementBrowser (/workspace/run-coffer/tests/platform-disbursement-browser.mjs:8:2)
+      at async file:///workspace/run-coffer/tests/platform-disbursement-journey.mjs:84:3
+      at async run (/workspace/run-coffer/tests/harness.mjs:64:86)
+      at async platformDisbursementJourney (/workspace/run-coffer/tests/platform-disbursement-journey.mjs:17:2)
+      at async TestContext.<anonymous> (/workspace/run-coffer/tests/payments.test.mjs:269:2) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByRole('heading', { name: 'Disbursement preview', exact: true }) to be visible" ]
+  }

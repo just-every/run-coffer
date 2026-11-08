@@ -1,0 +1,13 @@
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+Benevity: exact ledger, fees, receipt, replay and browser states passed; checking restore and erasure
+✔ PAY-005: reviewed Benevity disbursements hold ambiguous donors and record exact source gifts, fees and payouts once with private custody (119919.222884ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 121276.022564

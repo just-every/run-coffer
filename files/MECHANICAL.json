@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "tag": "sx-coffer-c-f174",
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f174",
+  "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+  "at": "2026-11-08T18:09:50.809912+00:00",
+  "mechanical": [
+    {
+      "name": "views-write",
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "write",
+        "REPORT-004",
+        "DATA-004",
+        "MOVE-004",
+        "MOVE-010",
+        "MOVE-012",
+        "PAY-006"
+      ],
+      "exit": 0,
+      "output_sha256": "7823405384fb31d505aadc514c9c19c1d910edd8af1e15f3025961763ffb4d47"
+    },
+    {
+      "name": "views-check",
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "check",
+        "REPORT-004",
+        "DATA-004",
+        "MOVE-004",
+        "MOVE-010",
+        "MOVE-012",
+        "PAY-006"
+      ],
+      "exit": 0,
+      "output_sha256": "9846c8fe80b46714698a8332631bba0fbc00cf683127317cd38c2d3322429e14"
+    },
+    {
+      "name": "restore-views",
+      "command": [
+        "git",
+        "checkout",
+        "origin/main",
+        "--",
+        "ACCEPTANCE.md",
+        "docs/CLAIMS.md"
+      ],
+      "exit": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "lock",
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "lock"
+      ],
+      "exit": 0,
+      "output_sha256": "d4d6e0d95e182fb733e3ab8a21aabf9c909184a09d94f6e415cae55b3237e6fa"
+    },
+    {
+      "name": "lock-check",
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "check"
+      ],
+      "exit": 0,
+      "output_sha256": "24d2714ebd1fe5347ccaeb247415daa6b000daae79ba852cd10289cd413039d5"
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "pnpm",
+        "typecheck"
+      ],
+      "exit": 0,
+      "output_sha256": "144a3ebbc903396085f8d659cf977755b51a2f1531474aab26ac818d58f1cfc3"
+    },
+    {
+      "name": "first-party",
+      "command": [
+        "pnpm",
+        "run",
+        "check",
+        "--profile",
+        "first-party"
+      ],
+      "exit": 0,
+      "output_sha256": "c90ba2bb1586f6e726128581ac32217f4b976b0ad112f94f8cf0d409a9ff9e99"
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

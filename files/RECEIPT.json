@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "tag": "sx-coffer-c-f174",
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f174",
+  "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+  "product_status": "pushed",
+  "at": "2026-11-08T18:11:32.841794+00:00",
+  "starting_main": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+  "main_equals_candidate": false,
+  "pr": null,
+  "ci": [
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42508602256",
+      "id": 42508602256,
+      "name": "Verify",
+      "status": "in_progress"
+    }
+  ],
+  "github_api_calls": 2,
+  "source_status_counts_before": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20
+  },
+  "source_status_counts_after": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20
+  },
+  "clause": {
+    "id": "PAY-006",
+    "claim": "PARTIAL",
+    "source_status": "missing",
+    "whole_clause_done": false,
+    "points": []
+  },
+  "tests": [
+    {
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium node --test tests/payments.test.mjs",
+      "exit": 1,
+      "pass": 6,
+      "fail": 1,
+      "failure": "PAY-005 browser Disbursement preview heading timeout; isolated original rerun passes with no product or assertion change"
+    },
+    {
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium node --test --test-name-pattern='^PAY-005:' tests/payments.test.mjs",
+      "exit": 0,
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium COFFER_SHOP_BROWSER=<packet>/screens node --test --test-name-pattern='^PAY-006:' tests/payments.test.mjs",
+      "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+      "exit": 0,
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "command": "node /tmp/coffer-fee-cover-run.mjs (calls unchanged feeCoverJourney)",
+      "exit": 0
+    }
+  ],
+  "mechanical_receipt": "MECHANICAL.json",
+  "migration_ledger": {
+    "command": "collectMigrations from ./scripts/delivery/base/migrations.mjs against migrations/core with DB and core- prefix",
+    "exit": 0,
+    "unique_migrations": 195
+  },
+  "build": {
+    "command": "cloud_run npx -y @runeditrun/rer build",
+    "exit": 0
+  },
+  "publication_scan": {
+    "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+    "status": "not_run_cloud",
+    "complete": false,
+    "historyScanned": null,
+    "findings": null,
+    "custodian": "fleet lander"
+  },
+  "run_site": {
+    "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+    "status": "pending_lander",
+    "last_main_green_run": 42501793893
+  },
+  "main_verify_before": 42501793766,
+  "claims": [
+    "CLAIM PAY-006 PARTIAL points=none tests=tests/shop-orders-journey.mjs#shopOrdersJourney; tests/shop-orders-browser.mjs#shopOrdersBrowser"
+  ]
+}

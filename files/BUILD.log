@@ -1,0 +1,64 @@
+Using project Node 22.20.0 (current Node 24.19.0).
+Heavy job admitted: Coffer build:workflow [f495b9fa1f89]
+Checking pinned pnpm
+10.12.4
+Building your application
+build:app
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 135 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore               0.02 kB
+dist/client/assets/index-yFbwrrUW.js  311.19 kB │ gzip: 100.86 kB
+
+✓ built in 424ms
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 1341 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/server/wrangler.json                                      1.58 kB │ gzip:     0.81 kB
+dist/server/.vite/manifest.json                                6.84 kB │ gzip:     1.12 kB
+dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:     0.18 kB
+dist/server/assets/start-F3eVvvda.js                           0.28 kB │ gzip:     0.20 kB
+dist/server/assets/_tanstack-start-manifest_v-DXy5rpG3.js      0.35 kB │ gzip:     0.25 kB
+dist/server/assets/font-head-HgDHZCdz.js                       0.44 kB │ gzip:     0.30 kB
+dist/server/assets/activity-C1hfr8J_.js                        1.06 kB │ gzip:     0.61 kB
+dist/server/assets/rolldown-runtime-DC62tzP2.js                1.44 kB │ gzip:     0.67 kB
+dist/server/assets/stripe-FsFVKaW2.js                          4.34 kB │ gzip:     1.98 kB
+dist/server/assets/hash-PXZrq_ja.js                            4.70 kB │ gzip:     2.16 kB
+dist/server/assets/db-C8U8qRee.js                              8.16 kB │ gzip:     3.19 kB
+dist/server/assets/household-statements-c_7QghM9.js            9.10 kB │ gzip:     3.34 kB
+dist/server/assets/common-DrjgrUGx.js                         12.31 kB │ gzip:     5.19 kB
+dist/server/assets/recovery-notices-rules-E9poPQdz.js         13.52 kB │ gzip:     3.89 kB
+dist/server/assets/year-end-4YOivDz0.js                       16.62 kB │ gzip:     5.32 kB
+dist/server/assets/solicitation-CZeD6_i7.js                   31.36 kB │ gzip:     8.69 kB
+dist/server/assets/router-DfsbCemJ.js                         37.25 kB │ gzip:    10.08 kB
+dist/server/assets/donor-depth-B7m1icHT.js                    72.28 kB │ gzip:    19.92 kB
+dist/server/assets/settings-Czgu-FTF.js                      156.25 kB │ gzip:    42.63 kB
+dist/server/assets/Match-CHZesyjQ.js                         161.10 kB │ gzip:    40.32 kB
+dist/server/assets/list-members-DzsVWbUU.js                  170.80 kB │ gzip:    47.06 kB
+dist/server/assets/pledges-B6Z6Y6AS.js                       212.93 kB │ gzip:    57.52 kB
+dist/server/assets/operator-auth-CBEdAteD.js                 272.24 kB │ gzip:    67.05 kB
+dist/server/assets/entries-DlE81KFE.js                       641.31 kB │ gzip:   158.03 kB
+dist/server/index.js                                       5,986.92 kB │ gzip: 1,805.27 kB
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/agent/development-report-sources.ts is dynamically imported by src/coffer/agent/development-report-delivery.ts but also statically imported by src/coffer/agent/development-report-http.ts, src/coffer/agent/development-report-scheduler.ts, src/coffer/agent/development-report-ui.ts, src/coffer/agent/development-report.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/agent/recovery-policy.ts is dynamically imported by src/coffer/agent/recovery-ui.ts but also statically imported by src/coffer/agent/http.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/agent/receipt-autonomy.ts is dynamically imported by src/coffer/agent/receipts.ts but also statically imported by src/coffer/agent/http.ts, src/coffer/agent/receipts-ui.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/agent/journey-delivery.ts is dynamically imported by src/coffer/agent/appeals.ts but also statically imported by src/coffer/agent/http.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/payments/shops/service.ts is dynamically imported by src/coffer/payments/donor-match.ts but also statically imported by src/coffer/http.ts, src/coffer/payments/charges.ts, src/coffer/payments/entries.ts, src/coffer/payments/shops/http.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/retention.ts is dynamically imported by src/coffer/dashboard-ledger.ts but also statically imported by src/coffer/agent/development-report-sources.ts, src/coffer/call-outcomes.ts, src/coffer/dashboard.ts, src/coffer/exports-report-dashboard.ts, src/coffer/exports-report-retention.ts, ..., dynamic import will not move module into another chunk.
+
+✓ built in 2.17s
+Your application is built
+build: complete (exit 0)
