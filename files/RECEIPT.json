@@ -139,6 +139,9 @@
     "event": "push",
     "status": "in_progress",
     "conclusion": null,
-    "head": "73ba072819742dc675195fa3f9c5f772d49fecf0"
-  }
+    "head": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+    "observedAt": "2026-11-08T16:00:36.965084+00:00"
+  },
+  "terminalCustody": "PUSHED",
+  "githubApiCallsUsed": 4
 }

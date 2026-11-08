@@ -50,7 +50,7 @@ All line references below refer to the candidate's `./tests/platform-disbursemen
 | 6 | PASS MECHANICAL | Run the documented contract write and check with PAY-005 added, then restore both generated files from main. All main Status cells are unchanged. Source lock is regenerated last and checked. |
 | 7 | PASS INSPECTED | No acceptance point or contract Status, Gap or Evidence cell changed. |
 | 8 | PASS | Owner and admin allow; anonymous, member and agent deny; stale donor, stale batch, merged donor and revoked selector refuse with zero additional money. |
-| 9 | PASS BOUNDARY | No provider call or key is needed or used. No live Benevity qualification, account authority, Managed availability or delivery claim. |
+| 9 | PASS BOUNDARY | No giving-provider call or key is needed or used. Human receipt sending uses the existing captured mail edge. No live Benevity qualification, account authority, Managed availability or delivery claim. |
 | 10 | PASS CONSERVATIVE SCOPE; NO DONE | Current owner or admin only, explicit versioned selection and exact batch approval, private evidence and no outbound action follow the assignment's stated floor. Wider TEAM-001 authority and all ct holds remain unchanged. No broader policy approval is claimed. |
 | 11 | PENDING LANDER | Product remains branch-only. Main equality, COMPLETE publication scan with zero findings, exact-SHA Verify and resulting main Run site are the fleet lander's gates. |
 
@@ -88,3 +88,7 @@ CLAIM PAY-005 PARTIAL points=2 tests=tests/platform-disbursement-journey.mjs#pla
 ## Product push and exact-SHA CI custody
 
 The guarded product push succeeded on its first attempt. Remote readback confirms cloud/sx-coffer-c-f173 equals 73ba072819742dc675195fa3f9c5f772d49fecf0. Main remains 8a6fd3d093f2c9c1b44ecb74be12f72db09b4cc0; no main write or force push occurred. The exact candidate's push Verify is run 42497143310, observed in progress. Its conclusion is not yet established. No Verify was dispatched or rerun. CI-RECEIPT.json contains the actual REST observation; publication scanning and resulting main Run site remain with the lander.
+
+Final CI observation at 2026-11-08T16:00:36.965084+00:00: Verify 42497143310 remains in_progress, conclusion not established, on exact head 73ba072819742dc675195fa3f9c5f772d49fecf0. Four GitHub API calls were used in total, with one watcher and at least 300 seconds between candidate discovery and the follow-up. No failed run or job log was observed, no workflow was rerun, and no green CI or landing claim is made. The cloud's brief CI observation window is exhausted; the fleet retains the exact-SHA Verify, publication-scan and main Run site gates.
+
+PUSHED branch=cloud/sx-coffer-c-f173 head=73ba072819742dc675195fa3f9c5f772d49fecf0
