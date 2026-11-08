@@ -1,4 +1,4 @@
-Migration identity and byte ledger collected: 195 unique migrations; new shop migrations present: [
+Migration identity and byte ledger collected: 196 unique migrations; shop migrations: [
   {
     name: 'core-0192_coffer_shop_orders.sql',
     sha256: '97d8018c72d7a0d6da561033c8472e5580225eb304ac8eaf471df44311f1d8cb'
@@ -6,5 +6,9 @@ Migration identity and byte ledger collected: 195 unique migrations; new shop mi
   {
     name: 'core-0193_coffer_shop_conflicts.sql',
     sha256: '694ee87f828cc07cd998268644710f1d5ff7fefea4e5c005bb1a0263d1a85eff'
+  },
+  {
+    name: 'core-0194_coffer_shop_refund_holds.sql',
+    sha256: 'f09669fed2b25106c4fe431166b7e5bd34703e599be5e872488224c116e9bdef'
   }
 ]

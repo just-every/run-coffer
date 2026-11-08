@@ -15,14 +15,14 @@ computing gzip size...
 dist/client/.assetsignore               0.02 kB
 dist/client/assets/index-yFbwrrUW.js  311.19 kB │ gzip: 100.86 kB
 
-✓ built in 424ms
+✓ built in 540ms
 vite v8.2.2 building ssr environment for production...
 transforming...
 ✓ 1341 modules transformed.
 rendering chunks...
 computing gzip size...
 dist/server/wrangler.json                                      1.58 kB │ gzip:     0.81 kB
-dist/server/.vite/manifest.json                                6.84 kB │ gzip:     1.12 kB
+dist/server/.vite/manifest.json                                6.84 kB │ gzip:     1.11 kB
 dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:     0.18 kB
 dist/server/assets/start-F3eVvvda.js                           0.28 kB │ gzip:     0.20 kB
 dist/server/assets/_tanstack-start-manifest_v-DXy5rpG3.js      0.35 kB │ gzip:     0.25 kB
@@ -44,8 +44,8 @@ dist/server/assets/Match-CHZesyjQ.js                         161.10 kB │ gzip:
 dist/server/assets/list-members-DzsVWbUU.js                  170.80 kB │ gzip:    47.06 kB
 dist/server/assets/pledges-B6Z6Y6AS.js                       212.93 kB │ gzip:    57.52 kB
 dist/server/assets/operator-auth-CBEdAteD.js                 272.24 kB │ gzip:    67.05 kB
-dist/server/assets/entries-DlE81KFE.js                       641.31 kB │ gzip:   158.03 kB
-dist/server/index.js                                       5,986.92 kB │ gzip: 1,805.27 kB
+dist/server/assets/entries-B6M8J3JF.js                       642.07 kB │ gzip:   158.22 kB
+dist/server/index.js                                       5,987.20 kB │ gzip: 1,805.38 kB
 
 [INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/agent/development-report-sources.ts is dynamically imported by src/coffer/agent/development-report-delivery.ts but also statically imported by src/coffer/agent/development-report-http.ts, src/coffer/agent/development-report-scheduler.ts, src/coffer/agent/development-report-ui.ts, src/coffer/agent/development-report.ts, dynamic import will not move module into another chunk.
 
@@ -59,6 +59,6 @@ dist/server/index.js                                       5,986.92 kB │ gzip:
 
 [INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/retention.ts is dynamically imported by src/coffer/dashboard-ledger.ts but also statically imported by src/coffer/agent/development-report-sources.ts, src/coffer/call-outcomes.ts, src/coffer/dashboard.ts, src/coffer/exports-report-dashboard.ts, src/coffer/exports-report-retention.ts, ..., dynamic import will not move module into another chunk.
 
-✓ built in 2.17s
+✓ built in 1.52s
 Your application is built
 build: complete (exit 0)

@@ -3,9 +3,9 @@
   "tag": "sx-coffer-c-f174",
   "repository": "just-every/run-coffer",
   "branch": "cloud/sx-coffer-c-f174",
-  "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+  "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
   "product_status": "pushed",
-  "at": "2026-11-08T18:11:32.841794+00:00",
+  "at": "2026-11-08T18:31:18.940161+00:00",
   "starting_main": "73ba072819742dc675195fa3f9c5f772d49fecf0",
   "main_equals_candidate": false,
   "pr": null,
@@ -13,14 +13,14 @@
     {
       "conclusion": null,
       "event": "push",
-      "head_sha": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
-      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42508602256",
-      "id": 42508602256,
+      "head_sha": "ef73001250888e694b3fc9106270ef353d89ed5d",
+      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42510194590",
+      "id": 42510194590,
       "name": "Verify",
       "status": "in_progress"
     }
   ],
-  "github_api_calls": 2,
+  "github_api_calls": 5,
   "source_status_counts_before": {
     "done": 96,
     "partial": 37,
@@ -54,7 +54,7 @@
     },
     {
       "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium COFFER_SHOP_BROWSER=<packet>/screens node --test --test-name-pattern='^PAY-006:' tests/payments.test.mjs",
-      "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+      "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
       "exit": 0,
       "pass": 1,
       "fail": 0
@@ -62,20 +62,40 @@
     {
       "command": "node /tmp/coffer-fee-cover-run.mjs (calls unchanged feeCoverJourney)",
       "exit": 0
+    },
+    {
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium node /tmp/coffer-held-probe.mjs",
+      "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
+      "exit": 0,
+      "result": "Actual initial held state, no gift, 7420-cent order, assertions at 1440 and captures at 1440 and 390",
+      "log": "HELD-PROBE.log"
+    },
+    {
+      "command": "node --test --test-name-pattern='^DONOR-003' tests/payments.test.mjs",
+      "exit": 0,
+      "result": "Retained Stripe refund, dispute and correction journey after new source receipt guards"
+    },
+    {
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium node --test --test-name-pattern='^(DONOR-003|PAY-001|PAY-005)' tests/payments.test.mjs",
+      "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
+      "exit": 0,
+      "pass": 3,
+      "fail": 0,
+      "log": "PAYMENTS-RETAINED-FINAL.log"
     }
   ],
   "mechanical_receipt": "MECHANICAL.json",
   "migration_ledger": {
     "command": "collectMigrations from ./scripts/delivery/base/migrations.mjs against migrations/core with DB and core- prefix",
     "exit": 0,
-    "unique_migrations": 195
+    "unique_migrations": 196
   },
   "build": {
     "command": "cloud_run npx -y @runeditrun/rer build",
     "exit": 0
   },
   "publication_scan": {
-    "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+    "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
     "status": "not_run_cloud",
     "complete": false,
     "historyScanned": null,
@@ -83,12 +103,27 @@
     "custodian": "fleet lander"
   },
   "run_site": {
-    "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+    "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
     "status": "pending_lander",
     "last_main_green_run": 42501793893
   },
   "main_verify_before": 42501793766,
   "claims": [
     "CLAIM PAY-006 PARTIAL points=none tests=tests/shop-orders-journey.mjs#shopOrdersJourney; tests/shop-orders-browser.mjs#shopOrdersBrowser"
-  ]
+  ],
+  "local_reproduction": {
+    "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
+    "command": "node /tmp/coffer-refund-order-repro.mjs",
+    "test": "Receipt send after signed shop refund before money approval",
+    "exit": 1,
+    "failure": "200 !== 409; submitted=1 at the fake mail edge",
+    "fixed_head": "ef73001250888e694b3fc9106270ef353d89ed5d",
+    "new_assertions": "Receipt void, send and correction holds and lagging provider reads before and after original recording"
+  },
+  "ci_observation": {
+    "conclusion": null,
+    "head_sha": "ef73001250888e694b3fc9106270ef353d89ed5d",
+    "html_url": "https://github.com/just-every/run-coffer/actions/runs/42510194590",
+    "status": "in_progress"
+  }
 }

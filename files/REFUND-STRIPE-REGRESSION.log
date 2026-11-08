@@ -1,0 +1,12 @@
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+✔ DONOR-003 / FIN-003 / FIN-004 / PAY-003 / PAY-004: signed Stripe gifts, staff refunds, disputes, receipts and fees reconcile and post once after approval (23776.226405ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24800.021957

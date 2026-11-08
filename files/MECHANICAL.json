@@ -3,8 +3,8 @@
   "tag": "sx-coffer-c-f174",
   "repository": "just-every/run-coffer",
   "branch": "cloud/sx-coffer-c-f174",
-  "head": "8f43ff266c42e75d4cf4551c87dc00c0d32eb781",
-  "at": "2026-11-08T18:09:50.809912+00:00",
+  "head": "ef73001250888e694b3fc9106270ef353d89ed5d",
+  "at": "2026-11-08T18:28:15.901521+00:00",
   "mechanical": [
     {
       "name": "views-write",
@@ -59,7 +59,7 @@
         "lock"
       ],
       "exit": 0,
-      "output_sha256": "d4d6e0d95e182fb733e3ab8a21aabf9c909184a09d94f6e415cae55b3237e6fa"
+      "output_sha256": "f11af6b213635d4797bb4b933a2976f9b134a779ab40601a3ca84f050dde7184"
     },
     {
       "name": "lock-check",
@@ -69,7 +69,7 @@
         "check"
       ],
       "exit": 0,
-      "output_sha256": "24d2714ebd1fe5347ccaeb247415daa6b000daae79ba852cd10289cd413039d5"
+      "output_sha256": "f0ee160fc8a6e20ea986f7652fa2fcd2ae47d19ffc4f4a20f2c46d55ab59d03f"
     },
     {
       "name": "typecheck",

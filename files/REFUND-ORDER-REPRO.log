@@ -1,0 +1,26 @@
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"id":"d75a6f28-84d3-4686-8468-bd781a46fc06","version":3,"remaining":0,"submitted":1,"delivered":0,"print":0,"bounced":0}
+
+200 !== 409
+
+    at api (file:///workspace/run-coffer/tests/harness.mjs:48:194)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///tmp/coffer-refund-order-repro.mjs:111:3
+    at async run (file:///workspace/run-coffer/tests/harness.mjs:64:86)
+    at async shopOrdersJourney (file:///tmp/coffer-refund-order-repro.mjs:42:2)
+    at async file:///tmp/coffer-refund-order-repro.mjs:249:1 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 200,
+  expected: 409,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
