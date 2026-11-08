@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "8233c8beecf8ab2433664e3af5d4ef2de8e2829a01dd23347dd3140e0a1281bf",
+      "sha256": "5dc39c08eb2947ecf365e4d6dc1755280b7dfbc7a9187beee8f448886a8e1518",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -3035,7 +3035,7 @@
       "executable": false
     },
     "src/coffer/agent-grants-reads.ts": {
-      "sha256": "508af6f017d33332f3a93a7ebf377f85d95d6085668b9a77746586364460f398",
+      "sha256": "97926a4935e49840b52df50141e98c559ee642d55c6df495abc1590747f6e600",
       "executable": false
     },
     "src/coffer/agent-grants.ts": {
@@ -3995,7 +3995,11 @@
       "executable": false
     },
     "src/coffer/mcp.ts": {
-      "sha256": "0d32de59c78711223c1829182bc5cdcd702de857432d3249afd4e9eab0c8ab62",
+      "sha256": "3e37eec511c4c6a0cb79eddf5b3a3fe1b1d80a52f0b40722ea74d51cbc737d43",
+      "executable": false
+    },
+    "src/coffer/mcp/donor-resources.ts": {
+      "sha256": "4eb9d0d0c9cf3145c97c389f50b00832496dc5b5ea0ddf433b4c83ea0a1b2ca3",
       "executable": false
     },
     "src/coffer/meeting-briefs.ts": {
@@ -7215,7 +7219,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "675fda98a81db8e0aebab6720962aebb3ad9714999c06c9ceb65bdfa133e0c3e",
+      "sha256": "9d5b0f04c0be1b5de601752e2f1bdb61b6bc7f88ddfd274f8477c839d5b789db",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7819,7 +7823,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "00c2b5b35fd9cc52768f528e138f875eae007e18b70884a2bc50b4dab3305616",
+      "sha256": "9265f044765ef1b96f9fe23ae1ab127e368d8471dd26b815e017db1a64fa8f63",
       "executable": false
     },
     "tests/meeting-briefs-browser.mjs": {

@@ -1,5 +1,11 @@
 import { requireGrant, scopedDonor } from './agent-grants'
 import { all, commit, event, fail, one, type Context, type Row } from './db'
+import { donorHistory, listDonors } from './donors'
+
+/** The MCP tools and resources share the existing native key projections. */
+export async function agentDonorRead(c: Context, permission: 'donors.list'|'donors.context', p: Row = {}) {
+ return c.actor.grant ? grantedRead(c, permission, p) : permission === 'donors.list' ? listDonors(c, p) : donorHistory(c, p.donorId)
+}
 
 /** Deliberately small projection. Related constituents, household names, soft
  * credits, aggregate portfolios and free-form histories are not scope-safe. */

@@ -1,11 +1,11 @@
-import { grantedRead } from './agent-grants-reads'
+import { agentDonorRead } from './agent-grants-reads'
 import { commit, event } from './db'
 import { execute } from './commands'
 import { CofferError, type Context, type Row } from './db'
-import { donorHistory, listDonors } from './donors'
+import { donorResourceLinks, donorResourceTemplate, readDonorResource } from './mcp/donor-resources'
 
 const CURRENT = '2026-07-28', LEGACY = '2025-11-25', versions = [CURRENT, LEGACY]
-const serverInfo = { name: 'coffer', version: '1.0.0' }, capabilities = { tools: {} }
+const serverInfo = { name: 'coffer', version: '1.0.0' }, capabilities = { tools: {}, resources: {} }
 const instructions = 'Read donor context and prepare drafts under the key’s current authority. People approve ordinary drafts. Named grants may separately authorize sending standard receipts under a standing human approval; scope, templates, daily limits and kill switches apply to every call.'
 const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' }
 const json = (value: unknown, status = 200, extra = {}) => Response.json(value, { status, headers: { ...headers, ...extra } })
@@ -84,6 +84,20 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
  }
  if (message.method === 'server/discover' && modern) return result({ supportedVersions: versions, capabilities, instructions })
  if (message.method === 'ping' && !modern) return result({})
+ if (message.method === 'resources/templates/list' || message.method === 'resources/list') {
+  if (p.cursor !== undefined) return error(id, -32602, 'This catalog has one page; omit cursor.')
+  return result({ ...(message.method === 'resources/templates/list' ? { resourceTemplates: [donorResourceTemplate(c)] } : { resources: [] }), ttlMs: 0, cacheScope: 'private' })
+ }
+ if (message.method === 'resources/read') {
+  if (typeof p.uri !== 'string' || Object.keys(p).some(key => !['uri', '_meta'].includes(key))) return error(id, -32602, 'Supply only a resource URI and request metadata.')
+  try {
+   const resource = await readDonorResource(c, p.uri)
+   return resource ? result(resource) : error(id, -32002, 'Resource not found.', 200)
+  } catch (cause) {
+   if (!(cause instanceof CofferError)) return error(id, -32603, 'Internal error.', 500)
+   return error(id, -32000, cause.message, cause.status, { code: cause.code })
+  }
+ }
  if (message.method === 'tools/list') {
   if (p.cursor !== undefined) return error(id, -32602, 'This catalog has one page; omit cursor.')
   return result({ tools: availableTools })
@@ -97,9 +111,9 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
  const args = p.arguments === undefined ? {} : p.arguments
  if (!valid(args, tool.inputSchema)) return error(id, -32602, 'Tool arguments must match its inputSchema.', modern ? 400 : 200)
  try {
-  const value = c.actor.grant && ['donors.list','donors.context'].includes(tool.name) ? await grantedRead(c,tool.name as 'donors.list'|'donors.context',args) : tool.name === 'donors.list' ? await listDonors(c, args) : tool.name === 'donors.context' ? await donorHistory(c, args.donorId) : await execute(c, tool.name, args)
+  const value = ['donors.list','donors.context'].includes(tool.name) ? await agentDonorRead(c,tool.name as 'donors.list'|'donors.context',args) : await execute(c, tool.name, args)
   if(c.actor.preparationGrant)await commit(c,[event(c,'mcp.tool','agent_grant',c.actor.preparationGrant.id,tool.name==='donors.context'?String(args.donorId):null,{tool:tool.name},'cf_access_events')])
-  return result({ content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value, isError: false })
+  return result({ content: [{ type: 'text', text: JSON.stringify(value) }, ...donorResourceLinks(c, tool.name, value)], structuredContent: value, isError: false })
  } catch (cause) {
   if (!(cause instanceof CofferError)) return error(id, -32603, 'Internal error.', 500)
   // Domain failures stay tool results so a client can correct its proposal.
