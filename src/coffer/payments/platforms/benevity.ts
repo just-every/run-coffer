@@ -58,8 +58,8 @@ export async function parseBenevity(input: Row) {
   read('net',()=>money(raw.net,'Net payout',true))
   if(facts.amount!==null&&facts.fee!==null&&facts.net!==null&&facts.amount-facts.fee!==facts.net)rowIssues.push('Gross less actual fees must equal net payout.')
   facts.sourceFund=raw.fund;facts.sourceCampaign=raw.campaign
-  read('fund',()=>text(fundMap[raw.fund]??raw.fund,'Source fund',100))
-  read('campaign',()=>{if(!raw.campaign)fail('PROVENANCE','Supply source campaign provenance or explicit none.',400);const mapped=campaignMap[raw.campaign]??raw.campaign;return mapped==='none'?null:text(mapped,'Campaign ID',100)})
+  read('fund',()=>{if(!raw.fund)fail('PROVENANCE','Source fund provenance is missing.',400);return text(fundMap[raw.fund]??raw.fund,'Source fund',100)})
+  read('campaign',()=>{if(!raw.campaign)fail('PROVENANCE','Supply source campaign provenance or explicit none.',400);const mapped=campaignMap[raw.campaign]??raw.campaign;if(mapped==='none'&&raw.campaign!=='none')fail('PROVENANCE','A source campaign requires an explicit campaign destination.',400);return mapped==='none'?null:text(mapped,'Campaign ID',100)})
   facts.acknowledged=raw.acknowledged||'unknown';facts.ackDate=raw.ackDate||null;facts.ackMethod=raw.ackMethod||null
   if(!['unknown','acknowledged','not acknowledged','do not acknowledge'].includes(facts.acknowledged))rowIssues.push('Map the explicit source acknowledgment status, or leave it unknown.')
   if(facts.ackDate)read('ackDate',()=>date(raw.ackDate,'Source acknowledgment date'))

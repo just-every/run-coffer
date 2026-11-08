@@ -53,6 +53,12 @@ export async function platformDisbursementJourney(){
    assert.equal(refused.state,'held',reason);assert.ok(refused.issues.length>0,reason)
    await h.api(root+'/'+refused.id+'/approve',approval(refused),{status:409})
   }
+  const missingProvenance=rows.map(r=>r.map((v,i)=>i===1?'synthetic-coffer-missing-provenance':i===2?v+'-missing-provenance':i===11?'':v))
+  assert.equal((await h.api(root+'/preview',{...upload,csv:csv(missingProvenance),fundMap:{'':'Reading'}})).state,'held','A translation cannot invent missing source provenance')
+  const droppedCampaign=rows.map(r=>r.map((v,i)=>i===1?'synthetic-coffer-dropped-campaign':i===2?v+'-dropped-campaign':v))
+  assert.equal((await h.api(root+'/preview',{...upload,csv:csv(droppedCampaign),campaignMap:{'synthetic-coffer-source-campaign':'none',none:'none'}})).state,'held','An explicit source campaign cannot disappear through mapping')
+  const futureDeposit=rows.map(r=>r.map((v,i)=>i===1?'synthetic-coffer-future-deposit':i===2?v+'-future-deposit':v))
+  assert.equal((await h.api(root+'/preview',{...upload,csv:csv(futureDeposit),controls:{...upload.controls,arrivalOn:'2027-01-01'}})).state,'held')
   assert.equal((await h.get('/api/coffer/donors/'+second.id)).gifts.length,0,'Incomplete or conflicting facts cannot create money')
   const sourcePath=match(preview.rows[0].source_id),otherPath=match(preview.rows[1].source_id)
   let view=await h.get(sourcePath)

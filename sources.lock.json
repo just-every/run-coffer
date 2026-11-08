@@ -4415,7 +4415,7 @@
       "executable": false
     },
     "src/coffer/payments/platforms/benevity.ts": {
-      "sha256": "6675a56fe598ea91636c4eff7514bd90976113fcecb3ed06b85c8865fbab644a",
+      "sha256": "bb2f9f0a3975b3676dec41d9116a427563ba5fd2632e34fec6dea59d084a1253",
       "executable": false
     },
     "src/coffer/payments/platforms/custody.ts": {
@@ -4427,7 +4427,7 @@
       "executable": false
     },
     "src/coffer/payments/platforms/service.ts": {
-      "sha256": "0d4bbb93caf274950a766fe8b640c2c96f5860119fcfafda1d58ae6892eaa016",
+      "sha256": "520e807a30ddde9f556b16e8f824a1b96b3a618d260e3e2518449af8f8562caf",
       "executable": false
     },
     "src/coffer/payments/platforms/ui.ts": {
@@ -8023,7 +8023,7 @@
       "executable": false
     },
     "tests/platform-disbursement-journey.mjs": {
-      "sha256": "446c5e5380e721e52e6f7ca536e97851f27d934fed7f42174056bf06aa47ce59",
+      "sha256": "5efec01e230f967052963679fe74810cede57285ce7f02fe2805131b644cd155",
       "executable": false
     },
     "tests/platform-history-journey.mjs": {

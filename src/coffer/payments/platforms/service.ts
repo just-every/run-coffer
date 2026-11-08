@@ -22,9 +22,11 @@ export async function previewPlatform(c:Context,input:Row){
  const parsed=await parseBenevity(input),key='benevity-batch-'+await sha256(parsed.fingerprint),home=installation(c)
  const replay=await one(c,'SELECT * FROM cf_platform_batches WHERE id=?',key)
  if(replay){await commit(c,[]);return platformBatch(c,key)}
- const issues=[...parsed.issues],s=await settings(c)
+ const issues=[...parsed.issues],s=await settings(c),day=today(s.timezone,new Date(c.now))
+ if(parsed.controls.arrivalOn>day)issues.push('The deposit date is in the future.')
  for(const row of parsed.records){
-  if(row.facts.date>today(s.timezone,new Date(c.now)))issues.push(`Row ${row.rowNumber}: The contribution date is in the future.`)
+  if(row.facts.ackDate&&(row.facts.ackDate<row.facts.date||row.facts.ackDate>day))issues.push(`Row ${row.rowNumber}: Source acknowledgment date conflicts with the contribution date or current date.`)
+  if(row.facts.date>day)issues.push(`Row ${row.rowNumber}: The contribution date is in the future.`)
   if(!await one(c,'SELECT name FROM cf_funds WHERE name=?',row.facts.fund))issues.push(`Row ${row.rowNumber}: Choose an existing fund from the source.`)
   if(row.facts.campaign&&!await one(c,'SELECT id FROM cf_campaigns WHERE id=? AND fund=?',row.facts.campaign,row.facts.fund))issues.push(`Row ${row.rowNumber}: The campaign does not exist on this fund.`)
  }
