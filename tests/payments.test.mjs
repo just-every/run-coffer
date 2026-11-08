@@ -268,3 +268,8 @@ test('PAY-005: reviewed Benevity disbursements hold ambiguous donors and record 
  const {platformDisbursementJourney}=await import('./platform-disbursement-journey.mjs')
  await platformDisbursementJourney()
 })
+
+test('PAY-006: signed Shopify orders hold exact donation classification, actual fee allocation and current donor authority, then record and fully reverse only the contribution once',async()=>{
+ const {shopOrdersJourney}=await import('./shop-orders-journey.mjs')
+ await shopOrdersJourney()
+})

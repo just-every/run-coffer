@@ -23,8 +23,8 @@ export async function feeReport(c: { db: D1Database }, payoutId?: string | null)
  if (payoutId) id(payoutId, 'Payout ID')
  const payouts = await all(c, 'SELECT p.*,COALESCE(SUM(e.net_cents),0) AS matched_cents FROM cf_payouts p LEFT JOIN cf_payout_entries x ON x.payout_id=p.id LEFT JOIN cf_payment_entries e ON e.id=x.entry_id WHERE (? IS NULL OR p.id=?) GROUP BY p.id ORDER BY p.arrival_on,p.id', payoutId ?? null, payoutId ?? null)
  if (payoutId && !payouts.length) fail('not_found', 'That payout is not available.', 404)
- const raw = await all(c, `SELECT e.*,COALESCE(pb.provider,'stripe') AS provider,x.payout_id,cg.campaign_id AS gift_campaign_id,f.form_id,fc.name AS form_name
-  FROM cf_payment_entries e LEFT JOIN cf_platform_sources ps ON ps.gift_id=e.gift_id LEFT JOIN cf_platform_batches pb ON pb.id=ps.batch_id LEFT JOIN cf_payout_entries x ON x.entry_id=e.id
+ const raw = await all(c, `SELECT e.*,CASE WHEN so.id IS NOT NULL THEN 'shopify' ELSE COALESCE(pb.provider,'stripe') END AS provider,CASE WHEN so.id IS NOT NULL THEN 'Reviewed order fee allocation; not whole shop payout' ELSE NULL END AS allocation_label,x.payout_id,cg.campaign_id AS gift_campaign_id,f.form_id,fc.name AS form_name
+  FROM cf_payment_entries e LEFT JOIN cf_shop_orders so ON so.gift_id=e.gift_id LEFT JOIN cf_platform_sources ps ON ps.gift_id=e.gift_id LEFT JOIN cf_platform_batches pb ON pb.id=ps.batch_id LEFT JOIN cf_payout_entries x ON x.entry_id=e.id
   LEFT JOIN cf_campaign_gifts cg ON cg.gift_id=e.gift_id
   LEFT JOIN cf_dashboard_gift_forms f ON f.gift_id=e.gift_id LEFT JOIN cf_campaigns fc ON fc.id=f.form_id
   WHERE (? IS NULL OR x.payout_id=?) ORDER BY e.created_at,e.id`, payoutId ?? null, payoutId ?? null)

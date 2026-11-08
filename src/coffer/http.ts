@@ -1,3 +1,5 @@
+import { shopWebhook } from './payments/shops/service'
+import { shopSettingsPanel } from './payments/shops/http'
 import { restrictedRead, teamAccessState } from './team-access'
 import { readOnlyPage, teamAccessPage } from './ui/team-access'
 import { membershipResponse } from './memberships/http'
@@ -264,7 +266,7 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
  if (credentialRefusal) return credentialRefusal
  const response = await cofferHandler(request, original)
  const path = new URL(request.url).pathname
- const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook' || path === '/api/coffer/sms/registration/events' || path === '/api/coffer/calendar/bookings'
+ const provider = path === '/api/coffer/shops/shopify/webhook' || path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook' || path === '/api/coffer/sms/registration/events' || path === '/api/coffer/calendar/bookings'
  if (response && response.status < 400 && !provider && !response.headers.get('location')?.startsWith('/signin') && ROUTES.test(path)) {
   const env = runtimeBindings(original), captured=responseAuthorities.get(request)
   const auth=captured?null:await identity(request,env)
@@ -275,6 +277,7 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
  return response
 }
 async function cofferHandler(request: Request, original: Bindings): Promise<Response | null> {
+ if(new URL(request.url).pathname==='/api/coffer/shops/shopify/webhook')return shopWebhook(request,runtimeBindings(original))
  if(new URL(request.url).pathname==='/api/coffer/calendar/bookings')return bookingWebhook(request,runtimeBindings(original))
  const rest=await restApiResponse(request,original)
  if(rest){if(rest.context)responseAuthorities.set(request,rest.context);return rest.response}
@@ -846,7 +849,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if ((m = path.match(/^\/app\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
  if (path === '/app/more') return show('More', morePage(actor))
  if(path==='/app/calendar')return show('Your calendar',await calendarPage(c,url))
- if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c)+await calendarSettingsPanel(c)+await smsRegistrationPanel(c))
+ if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c)+await calendarSettingsPanel(c)+await smsRegistrationPanel(c)+shopSettingsPanel)
  if (path === '/app/data') {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
   return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited'), now: Date.parse(c.now), timeZone: (await settings(c)).timezone }) + await agentGrantsPanel(c))

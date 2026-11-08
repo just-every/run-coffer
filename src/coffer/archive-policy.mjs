@@ -3,6 +3,7 @@
 // a fresh installation claims its own owner.
 export default {
  product:'nonprofit/coffer',
+ // Signed shop observations remain private portable evidence, with installation-bound approvals.
  // Uploaded disbursement files and donor reviews remain portable private evidence.
  // Their installation binding and current approver versions prevent approval reuse after restore.
  // Calendar authorization and donor booking links must be re-approved after restore.

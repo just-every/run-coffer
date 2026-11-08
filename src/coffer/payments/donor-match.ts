@@ -81,8 +81,9 @@ export async function donorMatchView(c: Pick<Context,'db'>, chargeId: string):Pr
  const gift=await one(c,`SELECT g.id,g.donor_id,d.name FROM cf_stripe_charges s JOIN cf_gifts g ON g.id=s.gift_id
   JOIN cf_donors d ON d.id=g.donor_id WHERE s.id=? AND d.erased_at IS NULL`,chargeId)
  const platform=await one(c,`SELECT g.id,g.donor_id,d.name,s.batch_id FROM cf_platform_sources s JOIN cf_gifts g ON g.id=s.gift_id JOIN cf_donors d ON d.id=g.donor_id WHERE s.source_id=? AND d.erased_at IS NULL`,chargeId)
+ const shop=await one(c,`SELECT g.id,g.donor_id,d.name FROM cf_shop_orders s JOIN cf_gifts g ON g.id=s.gift_id JOIN cf_donors d ON d.id=g.donor_id WHERE s.id=? AND d.erased_at IS NULL`,chargeId)
  const batch=await one(c,'SELECT batch_id FROM cf_platform_sources WHERE source_id=?',chargeId)
- return {...row,facts:JSON.parse(row.facts),candidates,gift:gift??platform,batchId:batch?.batch_id??null}
+ return {...row,facts:JSON.parse(row.facts),candidates,gift:gift??platform??shop,batchId:batch?.batch_id??null}
 }
 export async function donorMatchQueue(c: Pick<Context,'db'>) {
  const rows=await all(c,'SELECT charge_id FROM cf_payment_donor_matches ORDER BY created_at DESC,charge_id')
@@ -124,6 +125,7 @@ async function providerReview(env: GivingEnv, chargeId: string) {
 
 export async function refreshDonorMatch(c: Context, env: GivingEnv, chargeId: string) {
  const source=await one(c,'SELECT provider FROM cf_payment_donor_matches WHERE charge_id=?',chargeId)
+ if(source?.provider==='shopify')return (await import('./shops/service')).refreshShopDonor(c,chargeId)
  if(source?.provider==='benevity')return (await import('./platforms/service')).refreshPlatformMatch(c,chargeId)
  if(!manager(c.actor))fail('manager_required','Only the owner or an admin reviews donor matches.',403)
  const row=await one(c,'SELECT * FROM cf_payment_donor_matches WHERE charge_id=?',chargeId)
@@ -135,6 +137,7 @@ export async function refreshDonorMatch(c: Context, env: GivingEnv, chargeId: st
 }
 export async function approveDonorMatch(c: Context, env: GivingEnv, chargeId: string, input: Row) {
  const source=await one(c,'SELECT provider FROM cf_payment_donor_matches WHERE charge_id=?',chargeId)
+ if(source?.provider==='shopify')return (await import('./shops/service')).selectShopDonor(c,chargeId,input)
  if(source?.provider==='benevity')return (await import('./platforms/service')).selectPlatformDonor(c,chargeId,input)
  if(!manager(c.actor))fail('manager_required','Only the owner or an admin reviews donor matches.',403)
  const version=integer(Number(input.version),'Review version',1),donorId=id(input.donorId,'Donor'),donorVersion=integer(Number(input.donorVersion),'Donor version',1)

@@ -1,3 +1,4 @@
+import { shopStripeBound } from './shops/service'
 import { bankCheckoutState } from '../giving/bank-checkout'
 import { erasureHash } from '../imports/snapshots'
 import { pledgeSessionForCharge } from '../pledge-checkout'
@@ -15,6 +16,7 @@ import { onlineAttribution } from '../attribution'
 /** Resolve the processor's charge to the existing move-in or giving reference.
  * Never infer consent or restore a record after erasure. */
 export async function syncCharge(env: GivingEnv, chargeId: string, authority?: Context) {
+ if(await shopStripeBound(env,chargeId))return null
  const c = { db: env.DB }, saved = await one(c, 'SELECT * FROM cf_stripe_charges WHERE id=?', chargeId)
  if (saved) return saved
  const charge = await stripe(env, '/charges/' + encodeURIComponent(chargeId))
