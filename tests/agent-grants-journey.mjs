@@ -1,15 +1,19 @@
 import assert from 'node:assert/strict'
 import { catalogSchemas } from './mcp-schemas.mjs'
 import { run, donor, reviewed, settings } from './harness.mjs'
+import { assertToolAudit } from './mcp-journey.mjs'
 
 function doors(h,key) {
  const headers={authorization:`Bearer ${key.token}`},version='2026-07-28'
  let sequence=0, validateResult
+ const calls=[]
  const http=(command,input,status=200)=>h.command(command,input,{as:'',headers,status})
  const get=(path,status=200)=>h.get(path,{as:'',headers,status})
  const rpc=async(method,params={},status=200,id=++sequence,extraHeaders={})=>{
   const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':method,...extraHeaders,...(method==='tools/call'?{'mcp-name':params.name}:{})},body:{jsonrpc:'2.0',id,method,params:{...params,_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
-  const answer=await response.json();assert.equal(response.status,status,JSON.stringify(answer));return answer
+  const answer=await response.json();assert.equal(response.status,status,JSON.stringify(answer))
+  if(method==='tools/call'&&response.status!==401&&response.headers.has('x-request-id'))calls.push({requestId:response.headers.get('x-request-id'),tool:params.name,answer})
+  return answer
  }
  const mcp=async(name,args={},expectedError=null,status=200,extraHeaders={})=>{
   const answer=await rpc('tools/call',{name,arguments:args},status,++sequence,extraHeaders)
@@ -29,7 +33,7 @@ function doors(h,key) {
   validateResult=catalogSchemas(tools)
   return tools
  }
- return {http,get,mcp,catalog,rpc}
+ return {http,get,mcp,catalog,rpc,calls}
 }
 
 /** One public-door journey for the named-grant authority boundary, through
@@ -118,6 +122,8 @@ export async function agentGrantsJourney() {
   const privateGift=await h.command('gift.record',{donorId:ben.id,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'})
   assert.equal((await api.http('ack.prepare',{giftIds:[privateGift.id]},403)).error,'GRANT_SCOPE')
   await api.mcp('ack.prepare',{giftIds:[privateGift.id]},'GRANT_SCOPE')
+  const unsafe='synthetic-coffer-outside-private-record'
+  await api.mcp('donors.context',{donorId:unsafe},'GRANT_SCOPE',200,{traceparent:'synthetic-coffer-invalid-trace'})
   await api.http('ack.prepare',{},400)
   // Related-recipient rendering is refused even on a scoped donor. The limited
   // context above never traversed that relationship or household.
@@ -180,6 +186,12 @@ export async function agentGrantsJourney() {
   await h.command('letterTemplate.save',{templateId:template.id,version:1,name:'Revised standard thank-you',minAmount:'250',subject:settings.letterSubject,body:settings.letterTemplate+' Thank you again.'})
   assert.equal((await api.http('ack.send',{batchId:held.id,version:1},409)).error,'TEMPLATES_CHANGED')
   await api.mcp('ack.send',{batchId:held.id,version:1},'TEMPLATES_CHANGED')
+  const beforeStops=await assertToolAudit(h,{...key,label:'Named receipt assistant'},'named-grant',api.calls,[unsafe,ben.id,privateGift.id,relative.id,'Private Ben','Private household','synthetic-coffer-invalid-trace','Forbidden audience','synthetic-coffer-1210'])
+  const outcomes=beforeStops.filter(row=>row.action==='mcp.tool.outcome').map(row=>JSON.parse(row.detail))
+  assert.ok(outcomes.every(row=>row.grantId===grant.id&&row.grantVersion===1))
+  for(const code of ['OK','GRANT_SCOPE','GRANT_FORBIDDEN','DAILY_LIMIT','VERSION','TEMPLATES_CHANGED'])assert.ok(outcomes.some(row=>row.code===code),code)
+  assert.ok(outcomes.some(row=>row.tool==='ack.send'&&row.outcome==='done'))
+  assert.ok(outcomes.some(row=>row.tool==='ack.prepare'&&row.targets.some(target=>target.id===batches[1].id)))
   proof('daily and template limits complete; testing kill switches')
   const control=(await h.get('/api/coffer/agent-grants')).control
   await h.command('agentGrant.kill',{version:control.version,enabled:false})
@@ -209,8 +221,10 @@ export async function agentGrantsJourney() {
   const replacement=await h.command('agentGrant.save',{...grantInput,donorIds:[ana.id],name:'Replacement preparation grant',permissions:['ack.prepare'],standingApproval:false})
   await h.command('agentGrant.attach',{keyId:key.id,grantId:replacement.id})
   await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},'GRANT_SCOPE',200,replayHeaders)
+  const retainedAudit=await assertToolAudit(h,{...key,label:'Named receipt assistant'},'named-grant',api.calls,[unsafe,privateGift.id,relative.id])
   await h.command('agent.revoke',{id:key.id})
   await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},null,401,replayHeaders)
+  assert.deepEqual(await assertToolAudit(h,{...key,label:'Named receipt assistant'},'named-grant'),retainedAudit)
   assert.equal(messages.length,2,'Refusals never submit more mail')
   // Legacy keys retain their AGENT-001 behavior until explicitly attached.
   const legacyKey=await h.command('agent.create',{label:'Legacy preparation client'}),legacy=doors(h,legacyKey)
@@ -234,6 +248,8 @@ export async function agentGrantsJourney() {
   assert.equal(quota.prepare_limit,1)
   assert.equal((await legacy.http('appeal.prepare',{name:'Over preparation limit',channel:'email'},409)).error,'DAILY_LIMIT')
   await legacy.mcp('appeal.prepare',{name:'Over preparation limit',channel:'email'},'DAILY_LIMIT')
+  const preparationEvents=await assertToolAudit(h,{...legacyKey,label:'Legacy preparation client'},'preparation-only',legacy.calls,['Over preparation limit','synthetic-coffer-1211'])
+  assert.ok(preparationEvents.some(row=>{const detail=JSON.parse(row.detail);return detail.outcome==='refused'&&detail.code==='DAILY_LIMIT'&&detail.grantId===preparation.id}))
   await legacy.http('ack.send',{batchId:held.id,version:1},403)
   const legacyAudit=await h.get('/api/coffer/audit?person='+legacyKey.id+'&action=mcp.tool')
   assert.ok(legacyAudit.rows.some(e=>JSON.parse(e.detail).grantId===preparation.id))

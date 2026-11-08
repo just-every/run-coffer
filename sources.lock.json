@@ -3499,7 +3499,7 @@
       "executable": false
     },
     "src/coffer/db.ts": {
-      "sha256": "c3e5fd123fa8a58ecd63843bd5cb8abaa60a945f3e3f0a0f7b470b79c22b54be",
+      "sha256": "bcfca297439cd044365b11a5c7ffc158d5574e74a7359856f8c7a4a57edefa32",
       "executable": false
     },
     "src/coffer/demo/giving.ts": {
@@ -3895,7 +3895,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "f71dffb8728bff1aaa240c14790e4d42a382177426e12c5715e1475e7c8630b6",
+      "sha256": "46780a4cbc6adc7a5f99061c4dfd8cdb9e590367e3e88f6ac4b6800549d7b025",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -4003,7 +4003,11 @@
       "executable": false
     },
     "src/coffer/mcp.ts": {
-      "sha256": "ab119818eb46a2332f2d2b67069c6c839aff62bae2ae8597d197941d1b726aee",
+      "sha256": "0dc240fba34b9e2e389231aab0e1d5ca0392a6c3a7fa188e475c30f4dd54a6a0",
+      "executable": false
+    },
+    "src/coffer/mcp/audit.ts": {
+      "sha256": "b91435f63c7c27d47fd81a8fddc5ab394689f372e18c421f83dfab2e925a3b7e",
       "executable": false
     },
     "src/coffer/mcp/catalog.ts": {
@@ -7255,7 +7259,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "33f98293d3a757c1a75d58b140e47e6fd200b1702094b1e3b10511eb008a03aa",
+      "sha256": "7588d9029698fa5ef40bfff26a6984e32cbdfa5c5a690f5ad37c564940a6715a",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7307,7 +7311,7 @@
       "executable": false
     },
     "tests/audit.test.mjs": {
-      "sha256": "ea27be9c35ee9f432f7a5af71b9cf4578899a270b6f97a3128cc7e9b3a4256cb",
+      "sha256": "9e6ec75c0ceb40c0a5b69de8f0287dfee719e2b6a9e4e4585f3ba0f044eacb83",
       "executable": false
     },
     "tests/automation-grants-journey.mjs": {
@@ -7863,7 +7867,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "b07be9d05cc9c33e8a1ab7d5598e1a906244b0d8211b411ff80fd3539fb5a0a9",
+      "sha256": "ed0334a3ebe6f26d30dcfa0bc5b496416950d3640b5160893f774a7129cabeda",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {

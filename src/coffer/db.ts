@@ -10,7 +10,7 @@ export type Stmt = { sql: string; params: unknown[]; check?: { condition: string
 /** Reviewed local-only adapters may collect native writes, then publish them
  * with their own receipt in one transaction. Never use with provider calls. */
 export type TransactionPlan = { statements: Stmt[]; commits: number }
-export type Context = { db: D1Database; actor: Actor; authority: Authority; now: string; env?: Bindings; transactionPlan?: TransactionPlan }
+export type Context = { db: D1Database; actor: Actor; authority: Authority; now: string; requestId?: string; env?: Bindings; transactionPlan?: TransactionPlan }
 export type Row = Record<string, any>
 
 export const sql = (text: string, ...params: unknown[]): Stmt => ({ sql: text, params })

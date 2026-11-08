@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {run,donor,reviewed} from './harness.mjs'
+import {assertToolAudit} from './mcp-journey.mjs'
 
 test('TEAM-003: owner filters changes by person, record and action and downloads the same audit as CSV',()=>run(async h=>{
  await reviewed(h)
@@ -9,6 +10,25 @@ test('TEAM-003: owner filters changes by person, record and action and downloads
  await h.command('gift.record',{donorId:a.id,amountCents:30000,receivedOn:'2026-10-01',method:'check',goods:'none'},as)
  const key=await h.command('agent.create',{label:'Receipt assistant'})
  await h.command('ack.prepare',{}, {as:'',headers:{authorization:`Bearer ${key.token}`}})
+ // The same authenticated log and CSV preserve correlated private-read access
+ // after revocation, while agent and member credentials cannot read the log.
+ const trace='00-abcdef0123456789abcdef0123456789-abcdef0123456789-00'
+ const tool=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{authorization:`Bearer ${key.token}`,accept:'application/json, text/event-stream','mcp-protocol-version':'2026-07-28','mcp-method':'tools/call','mcp-name':'donors.context',traceparent:trace},body:{jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'donors.context',arguments:{donorId:a.id},_meta:{'io.modelcontextprotocol/protocolVersion':'2026-07-28','io.modelcontextprotocol/clientCapabilities':{}}}}})
+ assert.equal(tool.status,200)
+ const answer=await tool.json();assert.equal(answer.result.structuredContent.donor.id,a.id)
+ const access=await assertToolAudit(h,{...key,label:'Receipt assistant'},'preparation-only',[{requestId:tool.headers.get('x-request-id'),tool:'donors.context',answer}])
+ assert.equal(access.length,2)
+ for(const row of access)assert.equal(JSON.parse(row.detail).traceparent,trace)
+ const record=await h.get('/api/coffer/audit?'+new URLSearchParams({person:key.id,action:'mcp.tool.outcome',record:a.id}))
+ assert.equal(record.total,1);assert.deepEqual(record.rows,access.filter(row=>row.action==='mcp.tool.outcome'))
+ const ignored={jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'donors.context',arguments:{donorId:a.id},_meta:{'io.modelcontextprotocol/protocolVersion':'2026-07-28','io.modelcontextprotocol/clientCapabilities':{},'io.modelcontextprotocol/clientInfo':{name:42,version:'synthetic-coffer-1'}}}}
+ const mcpHeaders={authorization:`Bearer ${key.token}`,accept:'application/json, text/event-stream','mcp-protocol-version':'2026-07-28','mcp-method':'tools/call','mcp-name':'donors.context'}
+ assert.equal((await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:mcpHeaders,body:ignored})).status,400)
+ delete ignored.params._meta['io.modelcontextprotocol/clientInfo']
+ for(const [as,authorization,status]of [['','',401],[h.owner,'',403]])assert.equal((await h.request('/api/coffer/mcp',{method:'POST',as,headers:{...mcpHeaders,authorization},body:ignored})).status,status)
+ ignored.params.name='synthetic-coffer-unknown-tool'
+ assert.equal((await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...mcpHeaders,'mcp-name':ignored.params.name},body:ignored})).status,400)
+ assert.deepEqual(await assertToolAudit(h,{...key,label:'Receipt assistant'},'preparation-only'),access,'Malformed metadata, unknown tools and unauthenticated callers produce no tool audit facts')
  const all=await h.get('/api/coffer/audit')
  assert.ok(all.rows.some(r=>r.action==='auth.signin'&&r.actor_id===member.id))
  assert.ok(all.rows.some(r=>r.actor_id===key.id&&r.action==='ack.prepare'))
@@ -27,6 +47,9 @@ test('TEAM-003: owner filters changes by person, record and action and downloads
  await h.get('/api/coffer/audit',{...as,status:403})
  await h.get('/api/coffer/audit.csv',{as:'',headers:{authorization:`Bearer ${key.token}`},status:403})
  await h.get('/api/coffer/audit',{as:'',status:401})
+ await h.get('/api/coffer/audit.csv',{...as,status:403})
+ await h.command('agent.revoke',{id:key.id})
+ assert.deepEqual(await assertToolAudit(h,{...key,label:'Receipt assistant'},'preparation-only'),access)
 }))
 
 test('TEAM-003: the log pages without losing events and identity changes retain their actor',()=>run(async h=>{

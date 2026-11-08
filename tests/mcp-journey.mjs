@@ -2,11 +2,13 @@ import assert from 'node:assert/strict'
 import { build } from 'esbuild'
 import { catalogSchemas } from './mcp-schemas.mjs'
 import { run, donor, reviewed } from './harness.mjs'
+import { parseCsv } from './exports-journey.mjs'
 
 const path = '/api/coffer/mcp', current = '2026-07-28', legacy = '2025-11-25'
 // A real JSON-RPC client over the public Worker door, with no application fake.
 function client(h, key, version = current, endpoint = path) {
  let sequence = 0, validateResult
+ const calls = []
  const envelope = (method, params = {}, id = ++sequence) => ({ jsonrpc: '2.0', id, method, params: version === current ? { ...params, _meta: { 'io.modelcontextprotocol/protocolVersion': version, 'io.modelcontextprotocol/clientInfo': { name: 'coffer-journey', version: '1.0.0' }, 'io.modelcontextprotocol/clientCapabilities': {} } } : params })
  const headers = message => ({ authorization: `Bearer ${key.token}`, accept: 'application/json, text/event-stream', 'mcp-protocol-version': version, ...(version === current ? { 'mcp-method': message.method, ...(message.method === 'tools/call' ? { 'mcp-name': message.params.name } : {}) } : {}) })
  const send = async (message, options = {}) => h.request(endpoint, { method: 'POST', as: '', body: message, ...options, headers: { ...headers(message), ...options.headers } })
@@ -16,6 +18,7 @@ function client(h, key, version = current, endpoint = path) {
   assert.match(response.headers.get('content-type'), /^application\/json/)
   const answer = await response.json()
   assert.equal(answer.jsonrpc, '2.0'); assert.equal(answer.id, message.id)
+  if (method === 'tools/call' && response.headers.has('x-request-id') && ['donors.list', 'donors.context', 'ack.prepare', 'appeal.prepare'].includes(params.name)) calls.push({ requestId: response.headers.get('x-request-id'), tool: params.name, answer })
   return answer
  }
  const call = async (name, args = {}, options = {}) => {
@@ -25,7 +28,72 @@ function client(h, key, version = current, endpoint = path) {
   validateResult?.(name, answer.result.structuredContent)
   return answer.result.structuredContent
  }
- return { envelope, headers, send, rpc, call, useCatalog(catalog) { validateResult = catalogSchemas(catalog) } }
+ return { envelope, headers, send, rpc, call, calls, useCatalog(catalog) { validateResult = catalogSchemas(catalog) } }
+}
+
+// Read the authenticated product audit, including all pages and the actual CSV.
+// Each transport attempt has its own identity even when RPC and replay IDs repeat.
+export async function assertToolAudit(h, key, profile, calls = [], forbidden = []) {
+ const rows = []
+ for (const action of ['mcp.tool.attempt', 'mcp.tool.outcome']) {
+  const query = new URLSearchParams({ person: key.id, action })
+  let page = 0, result
+  do {
+   result = await h.get('/api/coffer/audit?' + query + '&page=' + page++)
+   rows.push(...result.rows)
+  } while (result.more)
+  const response = await h.request('/api/coffer/audit.csv?' + query)
+  assert.equal(response.status, 200)
+  const text = await response.text(), csv = parseCsv(text)
+  assert.equal(csv.length, rows.filter(row => row.action === action).length)
+  for (const row of csv) {
+   const json = rows.find(item => item.id === row['Event ID'])
+   assert.equal(row['Person ID'], key.id)
+   assert.equal(row.Action, json.action)
+   assert.equal(row.Details, json.detail)
+  }
+  for (const sentinel of [key.token, ...forbidden]) assert.ok(!text.includes(sentinel), 'Credentials, raw arguments and private facts never enter tool audit CSV')
+ }
+ const attempts = rows.filter(row => row.action === 'mcp.tool.attempt'), outcomes = rows.filter(row => row.action === 'mcp.tool.outcome')
+ assert.ok(attempts.length)
+ assert.equal(outcomes.length, attempts.length)
+ const ids = new Set()
+ for (const row of attempts) {
+  const detail = JSON.parse(row.detail)
+  assert.equal(row.actor_name, key.label)
+  assert.equal(row.actor_role, 'agent')
+  assert.equal(detail.keyId, key.id)
+  assert.equal(detail.grantProfile, profile)
+  assert.equal(detail.grantId, row.subject_id)
+  assert.ok(detail.grantVersion > 0)
+  assert.match(detail.requestId, /^[0-9a-f-]{36}$/)
+  assert.ok(!ids.has(detail.attemptId)); ids.add(detail.attemptId)
+  assert.deepEqual(detail.targets, [])
+  const matches = outcomes.filter(outcome => JSON.parse(outcome.detail).attemptId === detail.attemptId)
+  assert.equal(matches.length, 1)
+  const terminal = JSON.parse(matches[0].detail)
+  for (const name of ['requestId', 'keyId', 'grantProfile', 'tool', 'grantId', 'grantVersion', 'traceparent']) assert.equal(terminal[name], detail[name])
+  assert.ok(!Object.hasOwn(terminal, 'decision') && !Object.hasOwn(terminal, 'classes'), 'Native outcomes never pretend to be company-policy decisions or fleet classes')
+  if (terminal.outcome !== 'done') assert.deepEqual(terminal.targets, [])
+ }
+ assert.equal(new Set(attempts.map(row => JSON.parse(row.detail).requestId)).size, attempts.length)
+ for (const call of calls) {
+  const matches = outcomes.filter(row => JSON.parse(row.detail).requestId === call.requestId)
+  assert.equal(matches.length, 1, JSON.stringify(call))
+  const detail = JSON.parse(matches[0].detail), result = call.answer.result
+  assert.equal(detail.tool, call.tool)
+  const code = typeof call.answer.error === 'string' ? call.answer.error : call.answer.error ? call.answer.error.code : result.isError ? JSON.parse(result.content[0].text).error : 'OK'
+  assert.equal(detail.code, code)
+  assert.equal(detail.outcome, code === 'OK' ? 'done' : 'refused')
+  if (code === 'OK') {
+   const value = result.structuredContent
+   const targets = call.tool === 'donors.list' ? value.donors.map(donor => ({ kind: 'donor', id: donor.id })) : call.tool === 'donors.context' ? [{ kind: 'donor', id: value.donor.id }] : [{ kind: call.tool === 'appeal.prepare' ? 'appeal' : 'ack_batch', id: value.id }]
+   assert.deepEqual(detail.targets, targets)
+  }
+ }
+ const output = JSON.stringify(rows)
+ for (const sentinel of [key.token, ...forbidden]) assert.ok(!output.includes(sentinel), 'Credentials, raw arguments and private facts never enter tool audit JSON')
+ return rows
 }
 
 export async function mcpJourney() {
@@ -61,7 +129,23 @@ export async function mcpJourney() {
   assert.deepEqual(found.donors.map(d => d.id), [ana.id])
   const agentOptions = { as: '', headers: { authorization: `Bearer ${key.token}` } }
   assert.deepEqual(found, await h.get('/api/coffer/donors?q=Ana%20MCP', agentOptions))
-  const context = await mcp.call('donors.context', { donorId: ana.id })
+  const trace = '00-1234567890abcdef1234567890abcdef-1234567890abcdef-01'
+  const context = await mcp.call('donors.context', { donorId: ana.id }, { headers: { traceparent: trace, 'x-request-id': 'synthetic-coffer-forged-request' } })
+  const tracedRequest = mcp.calls.at(-1).requestId
+  assert.notEqual(tracedRequest, 'synthetic-coffer-forged-request')
+  // Valid trace correlation is retained, while malformed contexts and all
+  // client-supplied identity claims are omitted rather than made authoritative.
+  const malformed = ['synthetic-coffer-trace-secret', '00-' + '0'.repeat(32) + '-1234567890abcdef-01', '00-1234567890abcdef1234567890abcdef-' + '0'.repeat(16) + '-01', trace + ', ' + trace, trace + 'x'.repeat(500)]
+  const untrusted = mcp.envelope('tools/call', { name: 'donors.context', arguments: { donorId: ana.id } })
+  untrusted.params._meta['io.modelcontextprotocol/clientInfo'] = { name: key.token, version: 'synthetic-coffer-client-secret'.repeat(200) }
+  untrusted.params._meta.traceparent = 'synthetic-coffer-meta-secret'
+  const omittedRequests = []
+  await Promise.all(malformed.map(async traceparent => {
+   const response = await mcp.send(untrusted, { headers: { traceparent } })
+   assert.equal(response.status, 200)
+   assert.equal((await response.json()).result.isError, false)
+   omittedRequests.push(response.headers.get('x-request-id'))
+  }))
   assert.ok(context.gifts.some(g => g.id === gift.id))
   assert.deepEqual(context, await h.get(`/api/coffer/donors/${ana.id}`, agentOptions))
   assert.equal(context.totals.lifetimeCents, 25000)
@@ -268,6 +352,12 @@ export async function mcpJourney() {
   assert.ok(audit.rows.some(e => JSON.parse(e.detail).outcome === 'not_found'))
   const callWithoutId = mcp.envelope('tools/call', { name: 'ack.prepare' }); delete callWithoutId.id
   assert.equal((await mcp.send(callWithoutId)).status, 400)
+  const auditRows = await assertToolAudit(h, { ...key, label: 'Nonprofit MCP assistant' }, 'preparation-only', [...mcp.calls, ...old.calls], ['synthetic-coffer-private-note', 'synthetic-coffer-trace-secret', 'synthetic-coffer-client-secret', 'synthetic-coffer-meta-secret', 'Dropped preparation response', 'Help the reading room', 'synthetic-coffer-1201'])
+  const toolOutcomes = auditRows.filter(row => row.action === 'mcp.tool.outcome').map(row => JSON.parse(row.detail))
+  assert.equal(toolOutcomes.find(row => row.requestId === tracedRequest).traceparent, trace)
+  for (const requestId of omittedRequests) assert.ok(!Object.hasOwn(toolOutcomes.find(row => row.requestId === requestId), 'traceparent'))
+  assert.ok(toolOutcomes.some(row => row.code === 'SETTINGS_UNREVIEWED'))
+  assert.ok(toolOutcomes.some(row => row.code === 'idempotency_conflict'))
   // Exercise expiry through the test clock at the network edge, not a DB edit.
   const expires = new Date(key.expiresAt + 1).toISOString()
   assert.equal((await mcp.send(invalid, { headers: { 'x-test-now': expires } })).status, 401)
@@ -290,12 +380,14 @@ export async function mcpJourney() {
    assert.ok(!JSON.stringify(erasedReplay).includes(batch.contentHash))
   }
   assert.equal(h.messages.length, 0)
+  const retainedAudit = await assertToolAudit(h, { ...key, label: 'Nonprofit MCP assistant' }, 'preparation-only', [...mcp.calls, ...old.calls])
   await h.command('agent.revoke', { id: key.id })
   assert.equal((await mcp.send(invalid)).status, 401)
   assert.equal((await mcp.send(expiresReplay, ackKey)).status, 401)
   assert.equal((await mcp.send(mcp.envelope('resources/read', { uri: resourceUri(ana.id) }), { headers: { 'x-test-now': expires } })).status, 401)
   assert.equal((await mcp.send(invalid)).status, 401)
   assert.equal((await mcp.send(mcp.envelope('resources/read', { uri: resourceUri(ana.id) }))).status, 401)
+  assert.deepEqual(await assertToolAudit(h, { ...key, label: 'Nonprofit MCP assistant' }, 'preparation-only'), retainedAudit, 'Revocation retains all correlated tool attempts and the key name; rejected replay adds no tool events')
  }, { entry: 'tests/advancing-clock-worker.ts', handleStructuredLogs: log => diagnostics.push(log) })
  await mcpCapacityJourney()
 }
@@ -383,10 +475,16 @@ async function mcpCapacityJourney() {
    assert.equal(response.status, 429)
    assert.equal((await response.json()).error, 'MCP_CAPACITY')
    assert.match(response.headers.get('retry-after'), /^[1-9][0-9]*$/)
+   const correlated=await h.get('/api/coffer/audit?'+new URLSearchParams({person:key.id,action:'mcp.tool.outcome'}))
+   const row=correlated.rows.find(row=>JSON.parse(row.detail).requestId===response.headers.get('x-request-id'))
+   assert.ok(row)
+   const detail=JSON.parse(row.detail)
+   assert.equal(detail.tool,tool);assert.equal(detail.code,'MCP_CAPACITY');assert.equal(detail.outcome,'refused');assert.deepEqual(detail.targets,[])
    return Number(response.headers.get('retry-after'))
   }
   await blocked(primary, 'ack.prepare', { giftIds: [gifts[1].id] })
   await blocked(alias, 'appeal.prepare', { name: 'Refused capacity draft', channel: 'email', subject: 'Thank you', body: 'Dear {{donor_name}}, thank you.' })
+  await blocked(primary, 'ack.prepare', { giftIds: [gifts[1].id] }, { headers: { 'mcp-name': '=?base64?' + Buffer.from('ack.prepare').toString('base64') + '?=' } })
   assert.deepEqual(await h.get('/api/coffer/letters'), before.letters, 'Rejected preparation creates no additional letter batch')
   assert.deepEqual(await h.get('/api/coffer/appeals'), before.appeals, 'Rejected preparation creates no appeal draft')
   assert.equal(h.messages.length, before.messages, 'Capacity rejection submits no provider message')
@@ -419,6 +517,8 @@ async function mcpCapacityJourney() {
   const overDaily = await alias.rpc('tools/call', { name: 'appeal.prepare', arguments: { name: 'Daily quota refusal', channel: 'email' } }, { headers: { 'x-test-now': recoveredAt } })
   assert.equal(overDaily.result.isError, true)
   assert.equal(JSON.parse(overDaily.result.content[0].text).error, 'DAILY_LIMIT')
+  const access=await assertToolAudit(h,{...key,label:'Capacity client'},'preparation-only',[...primary.calls,...alias.calls],['Refused capacity draft','Daily quota refusal'])
+  assert.ok(access.some(row=>JSON.parse(row.detail).code==='MCP_CAPACITY'))
   const after = await h.get('/api/coffer/letters')
   await h.command('agent.revoke', { id: key.id })
   const later = new Date(instant + retryAfter * 2000).toISOString()

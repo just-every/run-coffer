@@ -90,6 +90,7 @@ import { volunteeringPage } from './ui/volunteering'
 import { mcpResponse } from './mcp'
 import { mcpCredentialBoundary } from './mcp/credential-boundary'
 import { reserveMcpRequest } from './mcp/request-capacity'
+import { auditAdmissionRefusal } from './mcp/audit'
 import { taxReport } from './tax-reports'
 import { taxReportsPage } from './ui/tax-reports'
 import { inKindState, inKindAcknowledgment } from './in-kind'
@@ -295,7 +296,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    const callbackHeaders=new Headers(request.headers);callbackHeaders.delete('sec-fetch-site')
    originGuard(new Request(request,{headers:callbackHeaders}),env,auth.bearer)
   } else originGuard(request, env, auth.bearer, request.method === 'GET' && path === '/app/settings/quickbooks/callback')
-  const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
+  const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), requestId: crypto.randomUUID(), env }
   responseAuthorities.set(request,c)
   if(actor.teamAccess?.readOnly){
    const read=await restrictedRead(c,request)
@@ -308,9 +309,16 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if (isMcp) {
    if (!auth.bearer || actor.role !== 'agent') fail('agent_key_required', 'Use an existing Coffer agent key for MCP.', 403)
    if (request.headers.has('origin') && request.headers.get('origin') !== url.origin) fail('invalid_origin', 'This MCP request came from another origin.', 403)
-   await reserveMcpRequest(c)
-   if(c.actor.preparationGrant)await reservePreparationGrant(c,'read')
-   return await mcpResponse(request, c, () => textBody(request, LIMIT))
+   try {
+    await reserveMcpRequest(c)
+    if(c.actor.preparationGrant)await reservePreparationGrant(c,'read')
+   } catch (cause) {
+    if (cause instanceof CofferError && ['MCP_CAPACITY', 'DAILY_LIMIT'].includes(cause.code)) await auditAdmissionRefusal(c, request, () => textBody(request, LIMIT), cause.code)
+    throw cause
+   }
+   const response = await mcpResponse(request, c, () => textBody(request, LIMIT))
+   response.headers.set('x-request-id', c.requestId!)
+   return response
   }
   if(actor.grant) {
    if(request.method==='GET' && path==='/api/coffer/donors')return json(await grantedRead(c,'donors.list',Object.fromEntries(url.searchParams)))
@@ -470,6 +478,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if (status === 500) console.error('coffer request failed', error)
   if (isApi) {
    const response = json({ error: code, message, details: error?.details ?? undefined }, status)
+   if (isMcp && responseAuthorities.get(request)?.requestId) response.headers.set('x-request-id', responseAuthorities.get(request)!.requestId!)
    if (error instanceof CofferError && error.retryAfter !== undefined) response.headers.set('retry-after', String(error.retryAfter))
    return response
   }

@@ -2,6 +2,7 @@ import { prepareIdempotently } from './mcp/preparation-idempotency'
 import { catalogFor, describeTool } from './mcp/catalog'
 import { discoveryInstructions } from './mcp/documentation'
 import { validInput } from './mcp/input'
+import { beginToolAudit, headerName } from './mcp/audit'
 import { commit, event } from './db'
 import { CofferError, type Context, type Row } from './db'
 import { donorResourceLinks, donorResourceTemplate, readDonorResource } from './mcp/donor-resources'
@@ -13,14 +14,6 @@ const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosnif
 const json = (value: unknown, status = 200, extra = {}) => Response.json(value, { status, headers: { ...headers, ...extra } })
 const error = (id: string | number | null, code: number, message: string, status = 400, data?: unknown) => json({ jsonrpc: '2.0', id, error: { code, message, ...(data === undefined ? {} : { data }) } }, status)
 const object = (value: unknown): value is Row => !!value && typeof value === 'object' && !Array.isArray(value)
-
-function headerName(value: string | null): string | null {
- if (value === null) return null
- if (value.startsWith('=?base64?') && value.endsWith('?=')) {
-  try { const bytes = Uint8Array.from(atob(value.slice(9, -2)), x => x.charCodeAt(0)); return new TextDecoder('utf-8', { fatal: true }).decode(bytes) } catch { return null }
- }
- return /^[\x20-\x7e]+$/.test(value) && value.trim() === value ? value : null
-}
 
 /** Root supplies native bearer identity + authority, validates Origin, and reads
  * UTF-8 text with its bounded private-body reader (1 MiB). No sessions are kept. */
@@ -84,15 +77,22 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
  if (typeof p.name === 'string' && p.name.startsWith('documents.')) return error(id, -32602, 'Agent keys cannot use record documents.', 403, { code: 'FORBIDDEN' })
  const tool = availableTools.find(tool => tool.name === p.name)
  if (!tool) return error(id, -32602, 'Unknown tool. Only the listed read and preparation tools are available.', modern ? 400 : 200)
+ const finishAudit = await beginToolAudit(c, request, tool.name)
  const args = p.arguments === undefined ? {} : p.arguments
- if (!validInput(args, tool.inputSchema)) return error(id, -32602, 'Tool arguments must match its inputSchema.', modern ? 400 : 200)
+ if (!validInput(args, tool.inputSchema)) {
+  await finishAudit('refused', -32602)
+  return error(id, -32602, 'Tool arguments must match its inputSchema.', modern ? 400 : 200)
+ }
+ let value: Row
  try {
-  const value = ['ack.prepare','appeal.prepare'].includes(tool.name) && request.headers.has('idempotency-key') ? await prepareIdempotently(c, request, tool.name as 'ack.prepare'|'appeal.prepare', args, staged => tool.run(staged, args)) : await tool.run(c, args)
+  value = ['ack.prepare','appeal.prepare'].includes(tool.name) && request.headers.has('idempotency-key') ? await prepareIdempotently(c, request, tool.name as 'ack.prepare'|'appeal.prepare', args, staged => tool.run(staged, args)) : await tool.run(c, args)
   if(c.actor.preparationGrant)await commit(c,[event(c,'mcp.tool','agent_grant',c.actor.preparationGrant.id,tool.name==='donors.context'?String(args.donorId):null,{tool:tool.name},'cf_access_events')])
-  return result({ content: [{ type: 'text', text: JSON.stringify(value) }, ...donorResourceLinks(c, tool.name, value)], structuredContent: value, isError: false })
  } catch (cause) {
+  await finishAudit(cause instanceof CofferError ? 'refused' : 'failed', cause instanceof CofferError ? cause.code : -32603)
   if (!(cause instanceof CofferError)) return error(id, -32603, 'Internal error.', 500)
   // Domain failures stay tool results so a client can correct its proposal.
   return result({ content: [{ type: 'text', text: JSON.stringify({ error: cause.code, message: cause.message, details: cause.details }) }], isError: true })
  }
+ await finishAudit('done', 'OK', value)
+ return result({ content: [{ type: 'text', text: JSON.stringify(value) }, ...donorResourceLinks(c, tool.name, value)], structuredContent: value, isError: false })
 }
