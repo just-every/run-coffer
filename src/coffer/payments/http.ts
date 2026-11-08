@@ -1,3 +1,4 @@
+import { platformResponse } from './platforms/http'
 import { approveDonorMatch, donorMatchQueue, donorMatchView, refreshDonorMatch } from './donor-match'
 import { donorMatchPage, donorMatchQueuePage, donorMatchStyles } from './donor-match-ui'
 import { quickbooksResponse } from './quickbooks/http'
@@ -32,6 +33,8 @@ export async function paymentsResponse(request: Request, c: Context, env: Paymen
  const flags = { managed: managed(env), stripeAvailable: available(env), pantryAvailable: !managed(env) && Boolean(env.PANTRY_ORIGIN && env.PANTRY_AGENT_TOKEN) }
  const redirect = (location: string) => new Response(null, { status: 303, headers: { location, 'cache-control': 'no-store' } })
  const suffix = path.slice(root.length)
+ const platform=await platformResponse(request,c,input,suffix,api)
+ if(platform)return platform
  if(suffix==='/donor-match.css'&&['GET','HEAD'].includes(request.method))return new Response(donorMatchStyles,{headers:{'content-type':'text/css','cache-control':'no-store'}})
  if(suffix==='/donor-matches'&&['GET','HEAD'].includes(request.method)){
   const view=await donorMatchQueue(c)

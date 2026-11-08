@@ -1,3 +1,4 @@
+import { platformErasure } from './platforms/custody'
 import { manager } from '../auth'
 import { all, commit, event, fail, guard, id, integer, one, sql, type Context, type Row, type Stmt } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
@@ -8,7 +9,7 @@ import { cents, stripeId, stripePages } from './stripe-data'
 import { paymentWrite } from './write'
 
 const installation = (env: GivingEnv) => env.RER_INSTALLATION_ID || env.AUTH_ORIGIN
-const currentDonors = `SELECT DISTINCT d.id,d.version FROM (
+export const currentDonors = `SELECT DISTINCT d.id,d.version FROM (
  SELECT id AS donor_id,email FROM cf_donors UNION SELECT donor_id,email FROM cf_donor_aliases
  UNION SELECT donor_id,value AS email FROM cf_contact_points WHERE kind='email' AND active=1
 ) a LEFT JOIN cf_donor_merges m ON m.donor_id=a.donor_id
@@ -72,7 +73,7 @@ export async function approvedMatch(env: GivingEnv, charge: Row, mail: string | 
  return row
 }
 
-export async function donorMatchView(c: Pick<Context,'db'>, chargeId: string) {
+export async function donorMatchView(c: Pick<Context,'db'>, chargeId: string):Promise<Row> {
  const row=await one(c,'SELECT * FROM cf_payment_donor_matches WHERE charge_id=?',chargeId)
  if(!row)fail('NOT_FOUND','That donor review is not available.',404)
  const candidates=row.state==='erased'?[]:await all(c,`SELECT d.id,d.version,d.name,d.email FROM cf_donors d
@@ -80,7 +81,9 @@ export async function donorMatchView(c: Pick<Context,'db'>, chargeId: string) {
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges WHERE donor_id=d.id) ORDER BY d.name,d.id`,row.candidates)
  const gift=await one(c,`SELECT g.id,g.donor_id,d.name FROM cf_stripe_charges s JOIN cf_gifts g ON g.id=s.gift_id
   JOIN cf_donors d ON d.id=g.donor_id WHERE s.id=? AND d.erased_at IS NULL`,chargeId)
- return {...row,facts:JSON.parse(row.facts),candidates,gift}
+ const platform=await one(c,`SELECT g.id,g.donor_id,d.name,s.batch_id FROM cf_platform_sources s JOIN cf_gifts g ON g.id=s.gift_id JOIN cf_donors d ON d.id=g.donor_id WHERE s.source_id=? AND d.erased_at IS NULL`,chargeId)
+ const batch=await one(c,'SELECT batch_id FROM cf_platform_sources WHERE source_id=?',chargeId)
+ return {...row,facts:JSON.parse(row.facts),candidates,gift:gift??platform,batchId:batch?.batch_id??null}
 }
 export async function donorMatchQueue(c: Pick<Context,'db'>) {
  const rows=await all(c,'SELECT charge_id FROM cf_payment_donor_matches ORDER BY created_at DESC,charge_id')
@@ -121,6 +124,8 @@ async function providerReview(env: GivingEnv, chargeId: string) {
 }
 
 export async function refreshDonorMatch(c: Context, env: GivingEnv, chargeId: string) {
+ const source=await one(c,'SELECT provider FROM cf_payment_donor_matches WHERE charge_id=?',chargeId)
+ if(source?.provider==='benevity')return (await import('./platforms/service')).refreshPlatformMatch(c,chargeId)
  if(!manager(c.actor))fail('manager_required','Only the owner or an admin reviews donor matches.',403)
  const row=await one(c,'SELECT * FROM cf_payment_donor_matches WHERE charge_id=?',chargeId)
  if(!row||row.state==='erased')fail('MATCH_CHANGED','This payment cannot be reviewed.')
@@ -130,6 +135,8 @@ export async function refreshDonorMatch(c: Context, env: GivingEnv, chargeId: st
  return donorMatchView(c,chargeId)
 }
 export async function approveDonorMatch(c: Context, env: GivingEnv, chargeId: string, input: Row) {
+ const source=await one(c,'SELECT provider FROM cf_payment_donor_matches WHERE charge_id=?',chargeId)
+ if(source?.provider==='benevity')return (await import('./platforms/service')).selectPlatformDonor(c,chargeId,input)
  if(!manager(c.actor))fail('manager_required','Only the owner or an admin reviews donor matches.',403)
  const version=integer(Number(input.version),'Review version',1),donorId=id(input.donorId,'Donor'),donorVersion=integer(Number(input.donorVersion),'Donor version',1)
  if(input.confirm!=='yes')fail('confirmation_required','Confirm this exact donor assignment.',400)
@@ -164,7 +171,7 @@ export async function approveDonorMatch(c: Context, env: GivingEnv, chargeId: st
 export function donorMatchErasure(donorId: string, placeholderId: string): Stmt[] {
  const affected=`donor_id=? OR EXISTS(SELECT 1 FROM json_each(candidates) WHERE json_extract(value,'$.id')=?)
  OR lower(email) IN (SELECT lower(email) FROM cf_donors WHERE id=? UNION SELECT lower(value) FROM cf_contact_points WHERE donor_id=? AND kind='email')`
- return [sql(`INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_payment_donor_matches WHERE customer_id IS NOT NULL AND (${affected})`,placeholderId,donorId,donorId,donorId,donorId),
+ return [...platformErasure(donorId),sql(`INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_payment_donor_matches WHERE customer_id IS NOT NULL AND (${affected})`,placeholderId,donorId,donorId,donorId,donorId),
  sql(`UPDATE cf_payment_donor_matches SET state='erased',email=NULL,customer_id=NULL,facts='{}',candidates='[]',
  donor_id=NULL,donor_version=NULL,approved_by=NULL,approved_actor_version=NULL,approved_at=NULL,version=version+1 WHERE ${affected}`,donorId,donorId,donorId,donorId)]
 }

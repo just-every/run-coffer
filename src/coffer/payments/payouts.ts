@@ -6,9 +6,9 @@ import { cents, stripeId, stripePages, utcDay } from './stripe-data'
 import { paymentWrite } from './write'
 
 export async function payoutDetail(c: { db: D1Database }, id: string) {
- const payout = await one(c, `SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p WHERE id=?`, id)
+ const payout = await one(c, `SELECT p.*,COALESCE((SELECT provider FROM cf_platform_batches WHERE payout_id=p.id),'stripe') AS provider,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p WHERE id=?`, id)
  if (!payout) fail('not_found', 'That payout is not available.', 404)
- const lines = await all(c, `SELECT e.*,d.name AS donor_name FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id LEFT JOIN cf_gifts g ON g.id=e.gift_id LEFT JOIN cf_donors d ON d.id=g.donor_id WHERE x.payout_id=? ORDER BY e.received_on,e.id`, id)
+ const lines = await all(c, `SELECT e.*,COALESCE(pb.provider,'stripe') AS provider,d.name AS donor_name FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id LEFT JOIN cf_platform_sources ps ON ps.gift_id=e.gift_id LEFT JOIN cf_platform_batches pb ON pb.id=ps.batch_id LEFT JOIN cf_gifts g ON g.id=e.gift_id LEFT JOIN cf_donors d ON d.id=g.donor_id WHERE x.payout_id=? ORDER BY e.received_on,e.id`, id)
  const definitions=await all(c,'SELECT * FROM cf_funds')
  const withRestriction=(line:Record<string,any>):Record<string,any>=>{const f=definitions.find(f=>f.name===line.fund);return {...line,restriction:f?.restriction??'unrestricted',detail:f?.detail??null,release_on:f?.release_on??null}}
  const accountingLines=(await paymentFundLines(c,lines)).map(withRestriction), funds=new Map<string,{fund:string;gross_cents:number;fee_cents:number;net_cents:number}>()
@@ -19,7 +19,7 @@ export async function payoutDetail(c: { db: D1Database }, id: string) {
 export async function payoutList(c: { db: D1Database }) {
  const postings = await all(c, 'SELECT * FROM cf_payout_postings'), qboPostings = await all(c, "SELECT * FROM cf_qbo_postings WHERE kind='payout'")
  return {
-  payouts: (await all(c, 'SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p ORDER BY arrival_on DESC,id DESC LIMIT 100')).map(p => ({ ...p, posting: postings.find(x => x.payout_id === p.id) ?? null, qboPosting: qboPostings.find(x => x.source_id === p.id) ?? null })),
+  payouts: (await all(c, `SELECT p.*,COALESCE((SELECT provider FROM cf_platform_batches WHERE payout_id=p.id),'stripe') AS provider,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p ORDER BY arrival_on DESC,id DESC LIMIT 100`)).map(p => ({ ...p, posting: postings.find(x => x.payout_id === p.id) ?? null, qboPosting: qboPostings.find(x => x.source_id === p.id) ?? null })),
   failures: await all(c, 'SELECT * FROM cf_payment_failures ORDER BY created_at DESC LIMIT 30'),
  }
 }

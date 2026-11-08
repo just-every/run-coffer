@@ -3251,7 +3251,7 @@
       "executable": false
     },
     "src/coffer/archive-policy.mjs": {
-      "sha256": "233ebbd5ebb8de11d35b1793e4aa2c414e1f1f699914615228be49d7292e7288",
+      "sha256": "e73d2f7aa6979b3481a6ba7a7f734df4c1ee8fa3e4add886e74de56d71b702a2",
       "executable": false
     },
     "src/coffer/attribution.ts": {
@@ -3543,7 +3543,7 @@
       "executable": false
     },
     "src/coffer/donor-file.ts": {
-      "sha256": "465441e500b771f43293e5001dd79ac4fa36034a067e434e0f842e892f643984",
+      "sha256": "01b56356cf23245716e0d73d82bba3131782e1bb2e73d085a80ae42ee42fe71e",
       "executable": false
     },
     "src/coffer/donor-households.ts": {
@@ -4351,11 +4351,11 @@
       "executable": false
     },
     "src/coffer/payments/donor-match-ui.ts": {
-      "sha256": "0bc81f7bba234d4da59689f0c2068907b6309061901553847b1fea8d0a8a99a9",
+      "sha256": "f19dcf2b8aa9353ec1e912321eda6b375429612dc8473fe2d122af5c15b2f5c2",
       "executable": false
     },
     "src/coffer/payments/donor-match.ts": {
-      "sha256": "cc3361e31306d64b1d79420b91228e009ae31bac1a1de6c1da81f750e41ecd96",
+      "sha256": "fe91986fd60957ae53ce142aa85a163f1ec2bde6a700bbc3c1aaba8c67a6885e",
       "executable": false
     },
     "src/coffer/payments/entries.ts": {
@@ -4375,11 +4375,11 @@
       "executable": false
     },
     "src/coffer/payments/fee-report.ts": {
-      "sha256": "d2dc4e1fab789a781fa99c35d18dfbfc795f6f54458d90989a4a3d8fc43dde5d",
+      "sha256": "db43f469fc91e79bc1f9a767efe5411cf980b56282f77b43a37772c8f4e72c0d",
       "executable": false
     },
     "src/coffer/payments/http.ts": {
-      "sha256": "973d283b4e9198c4e514a373295b47344c20ec3425675b4614ccc22c2ac9b8f8",
+      "sha256": "a73822fa492b96f71e737776b7579029abe171099d6d6a21a80c9fa580ba6c80",
       "executable": false
     },
     "src/coffer/payments/pantry-client.ts": {
@@ -4391,7 +4391,7 @@
       "executable": false
     },
     "src/coffer/payments/payouts.ts": {
-      "sha256": "de0d518c518da2fb9001a9d66dab8cec2b290777ccfc97f4a447dd2a63b614ef",
+      "sha256": "df7beb4c55d920cd1df0fbebd365097caf8af466ebd044172c005515859fbb11",
       "executable": false
     },
     "src/coffer/payments/pending-bank.ts": {
@@ -7963,7 +7963,7 @@
       "executable": false
     },
     "tests/payments.test.mjs": {
-      "sha256": "68ce9eca9554ba651c63bded437a4f4b6bd3490fae33caa29d41a8730968c505",
+      "sha256": "d86b33e84762917eda4321642f5cf995fd6cfb2558a62b87a1f7ab8e1ab21a1d",
       "executable": false
     },
     "tests/peer-browser.mjs": {

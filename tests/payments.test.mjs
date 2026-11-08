@@ -263,3 +263,8 @@ test('FIN-001: QuickBooks owner connects, maps three funds and posts exact depos
 test('PAY-001: external donor review holds money and releases exact gifts, fees and prior refunds once under current authority',async()=>{
  const {paymentDonorMatchJourney}=await import('./payment-donor-match-journey.mjs');await paymentDonorMatchJourney()
 })
+
+test('PAY-005: reviewed Benevity disbursements hold ambiguous donors and record exact source gifts, fees and payouts once with private custody',async()=>{
+ const {platformDisbursementJourney}=await import('./platform-disbursement-journey.mjs')
+ await platformDisbursementJourney()
+})
