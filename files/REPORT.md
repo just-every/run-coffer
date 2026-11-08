@@ -88,4 +88,9 @@ Actual command output, exit codes, exact local SHAs, public file hashes and scre
 
 The superseded candidate 8dabfcd70b74fe373fa2c6ebb8c00828f9b0a712 had push Verify 42475445466 in progress when observed. This is not green proof for the final candidate. Final exact-SHA CI observations are stored separately in CI.json and RECEIPT.json. Evidence publication is independent of product readiness and does not accept or land the clause.
 
-Exact candidate push Verify: 42475597750, event push, head afcc253f8738732ebb405e0eb251b1bf4d317962, in progress at the first nonempty discovery. No green conclusion has been observed yet.
+Exact candidate push Verify: 42475597750, event push, head afcc253f8738732ebb405e0eb251b1bf4d317962, in progress at the first nonempty discovery. Final REST observation at 2026-11-08T11:39:23Z: completed, conclusion success, exact candidate SHA. Five GitHub API calls were used in total; no failed-job log read, rerun or dispatch was needed.
+
+Final gate custody: exact-SHA push Verify **42475597750 succeeded** on **afcc253f8738732ebb405e0eb251b1bf4d317962**. This records rider 3 for the current native documentation proof. The full clause remains PARTIAL for R2–R5; no DONE claim or count promotion is made. Main equality, complete publication scanning and main-only Run site remain with the maintained lander.
+
+READY branch=cloud/sx-coffer-c-f170 head=afcc253f8738732ebb405e0eb251b1bf4d317962
+READY repo=just-every/run-coffer branch=cloud/sx-coffer-c-f170 head=afcc253f8738732ebb405e0eb251b1bf4d317962

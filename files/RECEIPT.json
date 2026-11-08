@@ -84,15 +84,15 @@
     "reason": "Cloud product pushes delegate the exact-tree full-history scan to the maintained Mac lander."
   },
   "ci": {
-    "conclusion": null,
-    "event": "push",
+    "conclusion": "success",
     "head_sha": "afcc253f8738732ebb405e0eb251b1bf4d317962",
     "html_url": "https://github.com/just-every/run-coffer/actions/runs/42475597750",
+    "status": "completed",
     "id": 42475597750,
+    "event": "push",
     "name": "Verify",
-    "status": "in_progress",
-    "observed_at": "2026-11-08T11:29:18Z",
-    "github_calls_used": 3
+    "github_calls_used": 5,
+    "observed_at": "2026-11-08T11:39:23Z"
   },
   "files": [
     {
@@ -154,6 +154,22 @@
       "path": "views.log",
       "bytes": 166,
       "sha256": "6e3b8c0ddccc1be304ee845b4715edafc3b8134bd7b5cc4dfb8d8de12b6393db"
+    },
+    {
+      "path": "CI.json",
+      "bytes": 323,
+      "sha256": "20da374ba776b7621c0b40e7d8c65a1db2b6897982c8dbd0abc04bc7cabf5673"
     }
-  ]
+  ],
+  "product_push": {
+    "status": "pushed",
+    "branch": "cloud/sx-coffer-c-f170",
+    "head": "afcc253f8738732ebb405e0eb251b1bf4d317962",
+    "verified_worktree_clean": true
+  },
+  "evidence_verification": {
+    "prior_evidence_head": "8b8abcee6840282aacbfacd00ab9320c4b70debe",
+    "files": 15,
+    "remote_file_hashes_verified": true
+  }
 }
