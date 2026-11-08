@@ -16,8 +16,8 @@ function client(h, key, version = current) {
   assert.equal(answer.jsonrpc, '2.0'); assert.equal(answer.id, message.id)
   return answer
  }
- const call = async (name, args = {}) => {
-  const answer = await rpc('tools/call', { name, arguments: args })
+ const call = async (name, args = {}, options = {}) => {
+  const answer = await rpc('tools/call', { name, arguments: args }, options)
   assert.equal(answer.error, undefined); assert.equal(answer.result.isError, false)
   assert.deepEqual(JSON.parse(answer.result.content[0].text), answer.result.structuredContent)
   return answer.result.structuredContent
@@ -42,7 +42,24 @@ export async function mcpJourney() {
   assert.equal(unreviewed.result.isError, true)
   assert.equal(JSON.parse(unreviewed.result.content[0].text).error, 'SETTINGS_UNREVIEWED')
   await reviewed(h)
-  const batch = await mcp.call('ack.prepare', { giftIds: [gift.id] })
+  const keyed = key => ({ headers: { 'idempotency-key': key } })
+  const ackKey = keyed('synthetic-coffer-1201'), ackArgs = { giftIds: [gift.id] }
+  const copies = await Promise.all(Array.from({length: 4}, () => mcp.call('ack.prepare', ackArgs, ackKey)))
+  const batch = copies[0]
+  for (const copy of copies) assert.deepEqual(copy, batch)
+  assert.equal((await h.get('/api/coffer/letters')).batches.filter(b => b.id === batch.id).length, 1)
+  const ackAudit = await h.get('/api/coffer/audit?action=ack.prepare')
+  assert.equal(ackAudit.rows.filter(e => e.subject_id === batch.id).length, 1)
+  // A request that loses its response still publishes the same durable receipt.
+  const lostArgs = { name: 'Dropped preparation response', channel: 'email' }
+  const conflict = await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: {} }, ackKey)
+  assert.equal(JSON.parse(conflict.result.content[0].text).error, 'idempotency_conflict')
+  const changedTool = await mcp.rpc('tools/call', { name: 'appeal.prepare', arguments: lostArgs }, ackKey)
+  assert.equal(JSON.parse(changedTool.result.content[0].text).error, 'idempotency_conflict')
+  for (const badKey of ['two keys', 'x'.repeat(201)]) {
+   const invalidKey = await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: ackArgs }, keyed(badKey))
+   assert.equal(JSON.parse(invalidKey.result.content[0].text).error, 'INPUT', JSON.stringify(badKey))
+  }
   assert.equal(batch.letters, 1)
   assert.equal((await h.get(`/api/coffer/letters/${batch.id}`)).batch.status, 'prepared')
   const denied = await mcp.rpc('tools/call', { name: 'ack.approve', arguments: { batchId: batch.id, version: batch.version } }, { status: 400 })
@@ -52,9 +69,30 @@ export async function mcpJourney() {
   else await h.command('ack.approve', { batchId: batch.id, version: batch.version })
   const approved = await h.get(`/api/coffer/letters/${batch.id}`)
   assert.equal(approved.batch.status, 'approved'); assert.equal(approved.approval.prepared_by_role, 'agent'); assert.equal(approved.approval.approved_by_role, 'owner'); assert.equal(approved.approval.content_hash, batch.contentHash)
+  assert.deepEqual(await mcp.call('ack.prepare', ackArgs, ackKey), batch)
+  assert.equal((await h.get(`/api/coffer/letters/${batch.id}`)).batch.status, 'approved')
+  const later = new Date(Date.now() + 25 * 3600000).toISOString()
+  assert.deepEqual(await mcp.call('ack.prepare', ackArgs, {headers:{...ackKey.headers,'x-test-now':later}}), batch)
   await h.command('consent.record', { donorIds: [ana.id], channel: 'email', status: 'granted', method: 'paper form', evidence: 'Signed donor permission for appeals.', capturedOn: '2026-09-20' })
   const appeal = await mcp.call('appeal.prepare', { name: 'MCP appeal proposal', channel: 'email', subject: 'Help the reading room', body: 'Dear {{donor_name}}, thank you for supporting our reading room.' })
   assert.equal(appeal.recipients, 1)
+  const lostKey = keyed('synthetic-coffer-1202'), dropped = mcp.envelope('tools/call', {name:'appeal.prepare',arguments:lostArgs})
+  const lostResponse = await mcp.send(dropped, lostKey)
+  assert.equal(lostResponse.status, 200)
+  await lostResponse.arrayBuffer() // Simulate losing the response bytes before the client records an outcome.
+  const recovered = await mcp.call('appeal.prepare', lostArgs, lostKey)
+  const recoveredAgain = await mcp.call('appeal.prepare', {channel:'email',name:lostArgs.name}, lostKey)
+  assert.deepEqual(recoveredAgain, recovered)
+  const appealAudit = await h.get('/api/coffer/audit?action=appeal.prepare')
+  assert.equal(appealAudit.rows.filter(e => e.subject_id === recovered.id).length, 1)
+  const otherKey = await h.command('agent.create', {label:'Independent preparation principal'}), other = client(h, otherKey)
+  const independent = await other.call('appeal.prepare', lostArgs, lostKey)
+  assert.notEqual(independent.id, recovered.id)
+  assert.deepEqual(await other.call('appeal.prepare', lostArgs, lostKey), independent)
+  const changedArgs = await mcp.rpc('tools/call', {name:'appeal.prepare',arguments:{...lostArgs,name:'Changed appeal'}}, lostKey)
+  assert.equal(JSON.parse(changedArgs.result.content[0].text).error, 'idempotency_conflict')
+  assert.equal((await h.get(`/api/coffer/appeals/${recovered.id}`)).appeal.status, 'prepared')
+  assert.equal(h.messages.length, 0, 'Preparation and replay never submit mail')
   assert.equal((await h.get(`/api/coffer/appeals/${appeal.id}`)).appeal.status, 'prepared')
   const before = (await h.get('/api/coffer/donors')).total
   assert.equal((await mcp.rpc('tools/call', { name: 'donor.create', arguments: { name: 'Outside grant' } }, { status: 400 })).error.code, -32602)
@@ -93,12 +131,35 @@ export async function mcpJourney() {
   assert.equal(accepted.status, 202); assert.equal(await accepted.text(), '')
   assert.deepEqual((await old.rpc('ping')).result, {})
   assert.ok((await old.call('donors.list', { q: 'Ana MCP' })).donors.some(d => d.id === ana.id))
+  const legacyGift = await h.command('gift.record', {donorId:ana.id,amount:'250',receivedOn:'2026-09-20',method:'check',goods:'none'})
+  const legacyBatch = await old.call('ack.prepare', {giftIds:[legacyGift.id]})
+  assert.equal((await h.get(`/api/coffer/letters/${legacyBatch.id}`)).batch.status, 'prepared')
   const callWithoutId = mcp.envelope('tools/call', { name: 'ack.prepare' }); delete callWithoutId.id
   assert.equal((await mcp.send(callWithoutId)).status, 400)
   // Exercise expiry through the test clock at the network edge, not a DB edit.
   const expires = new Date(key.expiresAt + 1).toISOString()
   assert.equal((await mcp.send(invalid, { headers: { 'x-test-now': expires } })).status, 401)
+  const expiresReplay = mcp.envelope('tools/call', {name:'ack.prepare',arguments:ackArgs})
+  assert.equal((await mcp.send(expiresReplay, {headers:{...ackKey.headers,'x-test-now':expires}})).status, 401)
+  // Merge and erasure must withhold the original aggregate as well as prose.
+  const merged = await donor(h, 'Merged preparation donor')
+  const mergeGift = await h.command('gift.record', {donorId:merged.id,amount:'250',receivedOn:'2026-09-20',method:'check',goods:'none'})
+  const mergeArgs = {giftIds:[mergeGift.id]}, mergeKey = keyed('synthetic-coffer-1203')
+  const mergeBatch = await mcp.call('ack.prepare', mergeArgs, mergeKey)
+  await h.command('ack.discard', {batchId:mergeBatch.id,version:mergeBatch.version})
+  const survivor = await donor(h, 'Preparation merge survivor')
+  await h.command('donor.merge', {sourceDonorId:merged.id,sourceVersion:1,donorId:survivor.id,version:1,reason:'duplicate_record'})
+  const mergedReplay = await mcp.rpc('tools/call', {name:'ack.prepare',arguments:mergeArgs}, mergeKey)
+  assert.equal(JSON.parse(mergedReplay.result.content[0].text).error, 'PREPARATION_UNAVAILABLE')
+  await h.command('donor.erase', {donorId:ana.id,confirm:'ERASE'})
+  for (const [name,args,options] of [['ack.prepare',ackArgs,ackKey],['appeal.prepare',lostArgs,lostKey]]) {
+   const erasedReplay = await mcp.rpc('tools/call', {name,arguments:args}, options)
+   assert.equal(JSON.parse(erasedReplay.result.content[0].text).error, 'PREPARATION_UNAVAILABLE')
+   assert.ok(!JSON.stringify(erasedReplay).includes(batch.contentHash))
+  }
+  assert.equal(h.messages.length, 0)
   await h.command('agent.revoke', { id: key.id })
   assert.equal((await mcp.send(invalid)).status, 401)
+  assert.equal((await mcp.send(expiresReplay, ackKey)).status, 401)
  }, { entry: 'tests/advancing-clock-worker.ts' })
 }

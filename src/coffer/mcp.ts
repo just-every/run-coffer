@@ -1,3 +1,4 @@
+import { prepareIdempotently } from './mcp/preparation-idempotency'
 import { grantedRead } from './agent-grants-reads'
 import { commit, event } from './db'
 import { execute } from './commands'
@@ -97,7 +98,7 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
  const args = p.arguments === undefined ? {} : p.arguments
  if (!valid(args, tool.inputSchema)) return error(id, -32602, 'Tool arguments must match its inputSchema.', modern ? 400 : 200)
  try {
-  const value = c.actor.grant && ['donors.list','donors.context'].includes(tool.name) ? await grantedRead(c,tool.name as 'donors.list'|'donors.context',args) : tool.name === 'donors.list' ? await listDonors(c, args) : tool.name === 'donors.context' ? await donorHistory(c, args.donorId) : await execute(c, tool.name, args)
+  const value = c.actor.grant && ['donors.list','donors.context'].includes(tool.name) ? await grantedRead(c,tool.name as 'donors.list'|'donors.context',args) : tool.name === 'donors.list' ? await listDonors(c, args) : tool.name === 'donors.context' ? await donorHistory(c, args.donorId) : ['ack.prepare','appeal.prepare'].includes(tool.name) && request.headers.has('idempotency-key') ? await prepareIdempotently(c, request, tool.name as 'ack.prepare'|'appeal.prepare', args, staged => execute(staged, tool.name, args)) : await execute(c, tool.name, args)
   if(c.actor.preparationGrant)await commit(c,[event(c,'mcp.tool','agent_grant',c.actor.preparationGrant.id,tool.name==='donors.context'?String(args.donorId):null,{tool:tool.name},'cf_access_events')])
   return result({ content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value, isError: false })
  } catch (cause) {

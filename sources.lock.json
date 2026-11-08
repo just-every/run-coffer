@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "8233c8beecf8ab2433664e3af5d4ef2de8e2829a01dd23347dd3140e0a1281bf",
+      "sha256": "a6b38514002c4d6429ccd6acba716d3847312dd0c609afd796ebb1a5561a0d69",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -1600,6 +1600,10 @@
     },
     "migrations/core/0187_coffer_appeal_email_sources.sql": {
       "sha256": "1c82631b67370dde5bfea440c3c43aa01fa73b832753119748b66acf62179af2",
+      "executable": false
+    },
+    "migrations/core/0188_coffer_mcp_preparations.sql": {
+      "sha256": "0ba7d2c140fdf78fcb9cd0afe93e9061f8a2848b008d02fccaad222bc1b6f1b1",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3243,7 +3247,7 @@
       "executable": false
     },
     "src/coffer/archive-policy.mjs": {
-      "sha256": "4c102813e6105ba1919631c39a0a304543bc749e645d81bbfd7bf80996deb9d9",
+      "sha256": "d1d0daabcb12031992b7d1cfb3f8867eaf25b64543124a1dd537a9041e04a20b",
       "executable": false
     },
     "src/coffer/attribution.ts": {
@@ -3491,7 +3495,7 @@
       "executable": false
     },
     "src/coffer/db.ts": {
-      "sha256": "497215f7f541638ffb5cfa8ef7b81ae5d17f3212c20cfe8effc0df54e09fd6c1",
+      "sha256": "3f2e6c4b8e782316368592d910947d09770570580172e7f1bab927a90394b814",
       "executable": false
     },
     "src/coffer/demo/giving.ts": {
@@ -3995,7 +3999,11 @@
       "executable": false
     },
     "src/coffer/mcp.ts": {
-      "sha256": "0d32de59c78711223c1829182bc5cdcd702de857432d3249afd4e9eab0c8ab62",
+      "sha256": "08a2736ce2cb8feed01786ffc4191b114e3dfdb5256173533a7ee8e3c59501ee",
+      "executable": false
+    },
+    "src/coffer/mcp/preparation-idempotency.ts": {
+      "sha256": "0169464d1cc4bcbfebd20217660566eea5c196d851ff4ac168e26553e294f80c",
       "executable": false
     },
     "src/coffer/meeting-briefs.ts": {
@@ -7215,7 +7223,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "675fda98a81db8e0aebab6720962aebb3ad9714999c06c9ceb65bdfa133e0c3e",
+      "sha256": "9b06a9db473281941d18fabdec4c73e7ca32eddb7819fa565129a01d0dc244bb",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7819,7 +7827,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "00c2b5b35fd9cc52768f528e138f875eae007e18b70884a2bc50b4dab3305616",
+      "sha256": "f0e5adfba748a4bd946107953d8cee23f313974bd3f0dfa9b66d2442a45aa02c",
       "executable": false
     },
     "tests/meeting-briefs-browser.mjs": {

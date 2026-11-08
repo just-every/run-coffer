@@ -58,3 +58,33 @@ Daily usage is shared across every key attached to a grant and across HTTP/MCP. 
 ### Compatibility preparation grants
 
 Every existing and newly created unbound AGENT-001 key has a stored named preparation grant. It retains the existing all-record read permission and only `ack.prepare`/`appeal.prepare`; autonomous sending remains forbidden. Explicit grant attachment replaces that authority. `agentGrant.legacyLimits` accepts the preparation grant `id`, current `version`, `readLimit`, `prepareLimit` and optional `enabled`. Defaults allow 10,000 read/MCP requests and 500 preparation requests per organization calendar day. Every GET and MCP request reserves request quota, including discovery and refusals; HTTP preparation commands and MCP preparation tools reserve the same preparation quota. Reservations are atomic and conservative, so failed requests consume quota. Editing limits never resets usage. All bearer actions now cite their stored preparation or explicit grant ID/version in audit detail, and the global kill switch gates both kinds. Existing scheduled reconciliation, recovery notices, missing-receipt preparation and meeting readiness use separately named background grants with current scope, action limits and the same global switch.
+
+## Retrying local preparation
+
+Existing clients may continue to omit `Idempotency-Key`. To retry `ack.prepare`
+or `appeal.prepare` safely, send a visible ASCII key of 1–200 characters in that
+header. Keep the same key and arguments when retrying a dropped response, even
+with a different JSON-RPC id. Object property order does not matter; array order
+is retained. A key belongs to the individual agent key and its original grant,
+across grant revisions. Reusing it for another tool or changed arguments returns
+`idempotency_conflict` as a native tool error and creates nothing.
+
+Successful local preparation and its saved aggregate outcome publish together
+with any preparation-quota reservation. Concurrent duplicates return that same
+outcome and consume one preparation allowance. Replays still consume ordinary
+request quota. Validation failures publish no preparation or receipt. Without
+the header, the existing conservative reservation behavior remains unchanged.
+Receipts have no automatic expiry and survive at least 24 hours. They store key
+and argument hashes, native identifiers and the original aggregate outcome;
+credential and draft prose are not copied. They are installation-private and
+excluded from archives along with agent credentials. Erasure clears the cached
+aggregate and donor references while retaining a tombstone against repetition.
+
+Every replay rechecks current credential and grant authority, tool permission,
+record scope and native result custody. A changed grant cannot reopen another
+grant's result; a merged or erased donor cannot expose the old outcome. Replay
+returns the original preparation version and hash, never resets the native
+batch's current state, never creates an approval and never submits to a provider.
+A person still reviews and approves through the existing Letters or Appeals door.
+`ack.send` keeps its permanent dispatch claims and investigation requirements;
+this header adds no sending, revision-conflict or background-job capability.

@@ -39,7 +39,12 @@ export async function commit(c: { db: D1Database; authority: Authority; actor?: 
  // second boundary also protects services invoked without the HTTP dispatcher.
  if(c.actor?.teamAccess?.readOnly&&statements.some(s=>!s.check&&!/^INSERT INTO cf_(access_events|api_rate_windows)\b/i.test(s.sql.trim())))
   fail('READ_ONLY','Your Coffer access is read-only. Ask an owner or admin to change it.',403)
- if(c.transactionPlan){c.transactionPlan.statements.push(...statements);if(statements.length)c.transactionPlan.commits++;return}
+ if(c.transactionPlan){
+  // Preserve stronger authority supplied by a native service while staging.
+  c.transactionPlan.statements.push(guard(c.authority.sql, 'SESSION_CHANGED', 'Your access changed. Sign in again.', ...c.authority.params), ...statements)
+  if(statements.length)c.transactionPlan.commits++
+  return
+ }
  const batch = [guard(c.authority.sql, 'SESSION_CHANGED', 'Your access changed. Sign in again.', ...c.authority.params), ...statements, sql('DELETE FROM cf_assert')]
  try { await c.db.batch(batch.map(s => c.db.prepare(s.sql).bind(...s.params))) } catch (error) {
   const text = String(error)
