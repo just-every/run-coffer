@@ -606,6 +606,10 @@
       "sha256": "0c28f9be024760cd4be63aac2bee277283381e6ab647cb1fe058dda7d2332356",
       "executable": false
     },
+    "docs/BENEVITY-DISBURSEMENTS.md": {
+      "sha256": "b969e920ebf1af2e7013d82cbd1e59950f5dda20915d224f1f54179dc9b36570",
+      "executable": false
+    },
     "docs/blackbaud-move-in.md": {
       "sha256": "8e64038034b4be9b79a0b7e550eee65ff12938aa1560dbb3306d0cc85986f9c4",
       "executable": false
@@ -1608,6 +1612,14 @@
     },
     "migrations/core/0189_coffer_mcp_preparations.sql": {
       "sha256": "0ba7d2c140fdf78fcb9cd0afe93e9061f8a2848b008d02fccaad222bc1b6f1b1",
+      "executable": false
+    },
+    "migrations/core/0190_coffer_platform_disbursements.sql": {
+      "sha256": "a70ee995c8732b64674c1f791c8274823ead28f1a157fa6ccefa6c8b1128b529",
+      "executable": false
+    },
+    "migrations/core/0191_coffer_platform_source_custody.sql": {
+      "sha256": "27ce0114afef2196915e1e2e30b22b56eb38ccfa42d382aa10d93e40d3f7563b",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3543,7 +3555,7 @@
       "executable": false
     },
     "src/coffer/donor-file.ts": {
-      "sha256": "01b56356cf23245716e0d73d82bba3131782e1bb2e73d085a80ae42ee42fe71e",
+      "sha256": "e97513c584477ca4b2f4ee5f441b7ac772b0d8c018852746bb93b3e155bd8d0a",
       "executable": false
     },
     "src/coffer/donor-households.ts": {
@@ -3643,7 +3655,7 @@
       "executable": false
     },
     "src/coffer/gift-acknowledgments.ts": {
-      "sha256": "556032f145b2f6ba96148470b631c42edc003b06dd9584898df2716d1d8d8f20",
+      "sha256": "dfb2d802a1b93e06afec86c742e693fc63e6eb9094dfdc58a14a2fbb860e2ca4",
       "executable": false
     },
     "src/coffer/gift-batches.ts": {
@@ -3907,7 +3919,7 @@
       "executable": false
     },
     "src/coffer/imports/erasure.ts": {
-      "sha256": "e501daa2316cf0d8e34255479627d57f6bf89444f712d82bcb6d9213ab2f40c6",
+      "sha256": "14ec54f02d8f4cf7a2015e9b2dfe8fb268fdeeb22bbc51f5d134cd14d15fb064",
       "executable": false
     },
     "src/coffer/imports/index.ts": {
@@ -4351,11 +4363,11 @@
       "executable": false
     },
     "src/coffer/payments/donor-match-ui.ts": {
-      "sha256": "f19dcf2b8aa9353ec1e912321eda6b375429612dc8473fe2d122af5c15b2f5c2",
+      "sha256": "55da06e563b696dd85b1a3281b35f39bd79ceba281522f6fc8babf62b833136b",
       "executable": false
     },
     "src/coffer/payments/donor-match.ts": {
-      "sha256": "fe91986fd60957ae53ce142aa85a163f1ec2bde6a700bbc3c1aaba8c67a6885e",
+      "sha256": "ac273b53603d15b99db2f217c466d9b65d5d2824e2ba2319008f112f9f4a1bcc",
       "executable": false
     },
     "src/coffer/payments/entries.ts": {
@@ -4402,6 +4414,26 @@
       "sha256": "07f6b4e7107547bb51c1c2bf0e421e74936abcf332cb20eb611649df98e3377f",
       "executable": false
     },
+    "src/coffer/payments/platforms/benevity.ts": {
+      "sha256": "1798d81856103e6d9654522a5ad54f0b7ac9bfb744331c725daf37b34c7ed3cb",
+      "executable": false
+    },
+    "src/coffer/payments/platforms/custody.ts": {
+      "sha256": "5efeac975e2122cdcdfc6913d8dc02096038c700daed81e6d36dbc94e8b4594d",
+      "executable": false
+    },
+    "src/coffer/payments/platforms/http.ts": {
+      "sha256": "3f12046dc479c1f049a46de2b1468b4b680822134e60b0ff7a9ed5ef52ed19f5",
+      "executable": false
+    },
+    "src/coffer/payments/platforms/service.ts": {
+      "sha256": "0d4bbb93caf274950a766fe8b640c2c96f5860119fcfafda1d58ae6892eaa016",
+      "executable": false
+    },
+    "src/coffer/payments/platforms/ui.ts": {
+      "sha256": "081fc15ae7afc916b3a4d5454711322318944fd1de271cf2515cdd0bc398c64d",
+      "executable": false
+    },
     "src/coffer/payments/quickbooks/client.ts": {
       "sha256": "03716844710bce9ed70509c67c844960c2b5a2bac2f315192502ad348de1f0db",
       "executable": false
@@ -4443,7 +4475,7 @@
       "executable": false
     },
     "src/coffer/payments/ui.ts": {
-      "sha256": "f12f4f70747fab8b012e8ba7a9c5962294310e39607c0eea1fce9e7718f67f8f",
+      "sha256": "6d9fe38238a3d2ab886bc1d4a6eeb222dfa740a00bd00b44d511cb300c5ba10a",
       "executable": false
     },
     "src/coffer/payments/write.ts": {
@@ -7986,6 +8018,14 @@
       "sha256": "aa3af814252a194af5c16acb4ff25b756a9cf90d295b39caa68185befa3773de",
       "executable": false
     },
+    "tests/platform-disbursement-browser.mjs": {
+      "sha256": "2338628d0cb192b72c649b564f3990dd4cb5ac15a891f408fe60d214cdf93236",
+      "executable": false
+    },
+    "tests/platform-disbursement-journey.mjs": {
+      "sha256": "6d5c9df9da27e3d2a7f37ad6d76ff0e7861ccc7043a2d15d7a9525162ff4d6f6",
+      "executable": false
+    },
     "tests/platform-history-journey.mjs": {
       "sha256": "2a017ea1240ad4d0420e699839eeebedd3630df4871c0c7a711fadd8ea4e9e94",
       "executable": false
@@ -8431,7 +8471,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "2b838a5930595d3def97ca1acf06d21cfc753e4b6cd5379da276a6e1c20b29c0",
+      "sha256": "ac60934e8e8c6cfe7902cf969dcd4d3961ab0c5b7d1440924fa83dc1a56cd34e",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

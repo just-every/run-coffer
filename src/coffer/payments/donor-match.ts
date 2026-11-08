@@ -1,4 +1,3 @@
-import { platformErasure } from './platforms/custody'
 import { manager } from '../auth'
 import { all, commit, event, fail, guard, id, integer, one, sql, type Context, type Row, type Stmt } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
@@ -171,7 +170,7 @@ export async function approveDonorMatch(c: Context, env: GivingEnv, chargeId: st
 export function donorMatchErasure(donorId: string, placeholderId: string): Stmt[] {
  const affected=`donor_id=? OR EXISTS(SELECT 1 FROM json_each(candidates) WHERE json_extract(value,'$.id')=?)
  OR lower(email) IN (SELECT lower(email) FROM cf_donors WHERE id=? UNION SELECT lower(value) FROM cf_contact_points WHERE donor_id=? AND kind='email')`
- return [...platformErasure(donorId),sql(`INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_payment_donor_matches WHERE customer_id IS NOT NULL AND (${affected})`,placeholderId,donorId,donorId,donorId,donorId),
+ return [sql(`INSERT OR IGNORE INTO cf_erased_stripe_customers(customer_id,donor_id) SELECT customer_id,? FROM cf_payment_donor_matches WHERE customer_id IS NOT NULL AND (${affected})`,placeholderId,donorId,donorId,donorId,donorId),
  sql(`UPDATE cf_payment_donor_matches SET state='erased',email=NULL,customer_id=NULL,facts='{}',candidates='[]',
  donor_id=NULL,donor_version=NULL,approved_by=NULL,approved_actor_version=NULL,approved_at=NULL,version=version+1 WHERE ${affected}`,donorId,donorId,donorId,donorId)]
 }

@@ -39,20 +39,21 @@ export async function previewPlatform(c:Context,input:Row){
   for(const row of parsed.records){
    const prior=await one(c,'SELECT * FROM cf_platform_sources WHERE source_id=?',row.id)
    if(prior)fail('SOURCE_CONFLICT','A transaction already belongs to an uploaded disbursement. No money was changed.')
-   const erased=await one(c,'SELECT hash FROM cf_erasures WHERE hash=?',erasureHash(row.facts.email))
+   const erased=await one(c,'SELECT hash FROM cf_erasures WHERE hash=? UNION SELECT identity_hash AS hash FROM cf_platform_erased_donors WHERE identity_hash=?',erasureHash(row.facts.email),row.identityHash)
    if(erased)issues.push(`Row ${row.rowNumber}: Source identity was erased and cannot be imported.`)
    row.candidates=await emailCandidates(c,row.facts.email)
   }
  }
  const valid=issues.length===0
  statements.push(sql(`INSERT INTO cf_platform_batches(id,installation_id,provider,fingerprint,file_hash,source_key,state,source_csv,mapping,controls,issues,created_at)
- VALUES(?,?,'benevity',?,?,?,?,?,?,?,?,?)`,key,home,parsed.fingerprint,parsed.fileHash,valid?parsed.batchKey:null,valid?'review':'held',valid?parsed.csv:null,JSON.stringify(parsed.mapping),JSON.stringify(parsed.controls),JSON.stringify(issues),c.now))
+ VALUES(?,?,'benevity',?,?,?,?,?,?,?,?,?)`,key,home,parsed.fingerprint,parsed.fileHash,valid?parsed.batchKey:null,valid?'review':'held',valid?parsed.csv:null,JSON.stringify({columns:parsed.mapping,funds:parsed.fundMap,campaigns:parsed.campaignMap}),JSON.stringify(parsed.controls),JSON.stringify(issues),c.now))
  if(valid)for(const row of parsed.records){
   statements.push(
+   guard('NOT EXISTS(SELECT 1 FROM cf_erasures WHERE hash=?) AND NOT EXISTS(SELECT 1 FROM cf_platform_erased_donors WHERE identity_hash=?)','SOURCE_ERASED','This source identity was erased.',erasureHash(row.facts.email),row.identityHash),
    guard('NOT EXISTS(SELECT 1 FROM cf_platform_sources WHERE source_id=?)','SOURCE_CONFLICT','This source transaction already exists.',row.id),
    sql(`INSERT INTO cf_payment_donor_matches(charge_id,installation_id,account_id,state,email,facts,candidates,created_at,updated_at,provider)
     VALUES(?,?,?,'held',?,?,?,?,?,'benevity')`,row.id,home,parsed.batchKey,row.facts.email,JSON.stringify(row.facts),JSON.stringify(row.candidates),c.now,c.now),
-   sql('INSERT INTO cf_platform_sources(source_id,batch_id,facts_hash,row_number,evidence) VALUES(?,?,?,?,?)',row.id,key,row.factsHash,row.rowNumber,row.evidence))
+   sql('INSERT INTO cf_platform_sources(source_id,batch_id,facts_hash,row_number,evidence,identity_hash) VALUES(?,?,?,?,?,?)',row.id,key,row.factsHash,row.rowNumber,row.evidence,row.identityHash))
  }
  statements.push(event(c,'payments.platformPreview','platformBatch',key,null,{rows:parsed.records.length,held:!valid}))
  await commit(c,statements)
@@ -109,9 +110,10 @@ export async function approvePlatformBatch(c:Context,batchId:string,input:Row){
   statements.push(...matchGuards(row),candidateGuard(row.email,JSON.parse(row.candidates)),guard('EXISTS(SELECT 1 FROM cf_platform_sources WHERE source_id=? AND batch_id=? AND facts_hash=? AND gift_id IS NULL)','SOURCE_CONFLICT','This source changed or was recorded.',source.source_id,batch.id,source.facts_hash),
    guard('EXISTS(SELECT 1 FROM cf_funds WHERE name=?)','PROVENANCE','The source fund is unavailable.',facts.fund),
    sql(`INSERT INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,source,created_at,created_by)
-   VALUES(?,1,?,'gift',?,?,'bank transfer',?,?,'none',0,'benevity',?,?)`,giftId,row.donor_id,facts.date,facts.amount,source.source_id,facts.fund,c.now,c.actor.name),
+   VALUES(?,1,?,'gift',?,?,'bank transfer',?,?,'unknown',0,'manual',?,?)`,giftId,row.donor_id,facts.date,facts.amount,source.source_id,facts.fund,c.now,c.actor.name),
    sql(`INSERT INTO cf_payment_entries(id,source_id,charge_id,kind,amount_cents,fee_cents,net_cents,fund,gift_id,currency,received_on,created_at)
    VALUES(?,?,NULL,'charge',?,?,?,?,?,'usd',?,?)`,entryId,source.source_id,facts.amount,facts.fee,facts.net,facts.fund,giftId,facts.date,c.now),
+   sql('INSERT INTO cf_platform_gifts(gift_id,source,source_id,campaign_id,campaign_name,fee_cents) VALUES(?,?,?,?,?,?)',giftId,'Benevity',source.source_id,facts.sourceCampaign,facts.sourceCampaign,facts.fee),
    sql('UPDATE cf_platform_sources SET gift_id=? WHERE source_id=?',giftId,source.source_id),
    sql("UPDATE cf_payment_donor_matches SET state='resolved',version=version+1 WHERE charge_id=?",source.source_id),
    event(c,'payments.platformGift','gift',giftId,row.donor_id,{provider:'benevity',batchId:batch.id,amountCents:facts.amount,feeCents:facts.fee}))

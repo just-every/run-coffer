@@ -8,7 +8,7 @@ export const columns = [
  ['organization','Source organization ID'],['disbursement','Disbursement ID'],['transaction','Transaction ID'],
  ['donor','Source donor ID'],['name','Donor name'],['email','Donor email'],['date','Contribution date'],
  ['currency','Currency'],['gross','Gross contribution'],['fee','Actual fees'],['net','Net payout'],
- ['fund','Fund'],['campaign','Campaign ID or none'],['acknowledged','Source acknowledgment status'],
+ ['fund','Fund'],['campaign','Source campaign or none'],['acknowledged','Source acknowledgment status'],
  ['ackDate','Source acknowledgment date'],['ackMethod','Source acknowledgment method'],
 ] as const
 export type Upload = Awaited<ReturnType<typeof parseBenevity>>
@@ -30,6 +30,13 @@ export async function parseBenevity(input: Row) {
   if(selected&&(!source.headers.includes(selected)||typeof selected!=='string'))fail('MAPPING','A mapped column is absent from this upload.',400)
   mapping[key]=selected
  }
+ const translation=(name:string):Record<string,string>=>{
+  let value=input[name]??{}
+  if(typeof value==='string'){try{value=JSON.parse(value)}catch{fail('MAPPING','Choose explicit provenance mappings.',400)}}
+  if(!value||typeof value!=='object'||Array.isArray(value))fail('MAPPING','Use source labels mapped to existing destinations.',400)
+  return value
+ }
+ const fundMap=translation('fundMap'),campaignMap=translation('campaignMap')
  const used=Object.values(mapping).filter(Boolean)
  if(new Set(used).size!==used.length)fail('MAPPING','Each source column can have only one meaning.',400)
  const issues:string[]=[],records:Row[]=[]
@@ -48,8 +55,9 @@ export async function parseBenevity(input: Row) {
   read('fee',()=>money(raw.fee,'Actual fees',true))
   read('net',()=>money(raw.net,'Net payout',true))
   if(facts.amount!==null&&facts.fee!==null&&facts.net!==null&&facts.amount-facts.fee!==facts.net)rowIssues.push('Gross less actual fees must equal net payout.')
-  read('fund',()=>text(raw.fund,'Source fund',100))
-  read('campaign',()=>{if(!raw.campaign)fail('PROVENANCE','Supply a campaign ID or explicit none.',400);return raw.campaign==='none'?null:text(raw.campaign,'Campaign ID',100)})
+  facts.sourceFund=raw.fund;facts.sourceCampaign=raw.campaign
+  read('fund',()=>text(fundMap[raw.fund]??raw.fund,'Source fund',100))
+  read('campaign',()=>{if(!raw.campaign)fail('PROVENANCE','Supply source campaign provenance or explicit none.',400);const mapped=campaignMap[raw.campaign]??raw.campaign;return mapped==='none'?null:text(mapped,'Campaign ID',100)})
   facts.acknowledged=raw.acknowledged||'unknown';facts.ackDate=raw.ackDate||null;facts.ackMethod=raw.ackMethod||null
   if(!['unknown','acknowledged','not acknowledged','do not acknowledge'].includes(facts.acknowledged))rowIssues.push('Map the explicit source acknowledgment status, or leave it unknown.')
   if(facts.ackDate)read('ackDate',()=>date(raw.ackDate,'Source acknowledgment date'))
@@ -73,11 +81,12 @@ export async function parseBenevity(input: Row) {
    if(records.reduce((sum,r)=>sum+(r.facts[factKey]??0),0)!==controls[key])issues.push(`Source ${key} control does not reconcile with the rows.`)
   }
  }catch(error){if(!(error instanceof CofferError))throw error;issues.push(error.message)}
- const fileHash=await sha256(source.csv),fingerprint=await sha256(JSON.stringify({fileHash,mapping,controls,records:records.map(r=>r.facts)}))
+ const fileHash=await sha256(source.csv),fingerprint=await sha256(JSON.stringify({fileHash,mapping,fundMap,campaignMap,controls,records:records.map(r=>r.facts)}))
  const batchKey=await sha256(JSON.stringify(['benevity',first.organization,first.disbursement]))
  for(const row of records){
   row.id='benevity-'+await sha256(JSON.stringify(['benevity',row.facts.organization,row.facts.transaction]))
+  row.identityHash=await sha256(JSON.stringify(['benevity',row.facts.organization,row.facts.donor]))
   row.factsHash=await sha256(JSON.stringify(row.facts))
  }
- return {...source,mapping,records,issues,controls,fileHash,fingerprint,batchKey}
+ return {...source,mapping,fundMap,campaignMap,records,issues,controls,fileHash,fingerprint,batchKey}
 }

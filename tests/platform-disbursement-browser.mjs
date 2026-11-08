@@ -19,11 +19,14 @@ export async function platformDisbursementBrowser(h,input){
     return
    }
    await page.goto(origin+'/app/payouts/platforms/benevity')
-   await page.getByLabel('Or paste CSV').fill(input.upload.csv)
+   await page.getByLabel('Disbursement CSV',{exact:true}).setInputFiles({name:'synthetic-coffer-disbursement.csv',mimeType:'text/csv',buffer:Buffer.from(input.upload.csv)})
    await page.getByRole('button',{name:'Read source columns',exact:true}).click()
    await page.getByRole('heading',{name:'Map Benevity columns',exact:true}).waitFor()
    for(const [key,value] of Object.entries(input.upload.mapping))await page.locator('[name="map_'+key+'"]').selectOption(value)
    for(const [key,value] of Object.entries(input.upload.controls))await page.locator('[name="'+key+'"]').fill(value)
+   await page.getByRole('button',{name:'Review provenance mapping',exact:true}).click()
+   await page.getByRole('heading',{name:'Map source provenance',exact:true}).waitFor()
+   for(const kind of ['fund','campaign'])for(let i=0;await page.locator('[name="'+kind+'Source_'+i+'"]').count();i++){const label=await page.locator('[name="'+kind+'Source_'+i+'"]').inputValue();await page.locator('[name="'+kind+'Target_'+i+'"]').selectOption(input.upload[kind+'Map'][label])}
    await page.getByRole('button',{name:'Preview disbursement',exact:true}).click()
    await page.getByRole('heading',{name:'Disbursement preview',exact:true}).waitFor()
    assert.match(await page.locator('main').innerText(),/\$4\.45/);await capture('populated-preview')

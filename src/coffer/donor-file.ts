@@ -26,6 +26,7 @@ const PARENTS: Record<string, string> = {
 }
 // Rows that reach a donor but are not records about them.
 export const NOT_IN_FILE: Record<string, string> = {
+ cf_platform_erased_donors: 'Opaque replay suppression hashes are not donor records.',
  cf_platform_batches: 'Complete source uploads contain other donors and stay reviewer-private.',
  cf_platform_sources: 'Private source evidence and matching reviews stay in this installation.',
  cf_payment_donor_matches: 'Private matching evidence and other candidates stay in this installation.',
