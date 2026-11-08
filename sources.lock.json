@@ -783,7 +783,7 @@
       "executable": false
     },
     "docs/SHOP-ORDERS.md": {
-      "sha256": "d1e2b23da131b025486f75c8b274bf2d3b1a604c7ed462915a596de5f0b04a19",
+      "sha256": "72a345a31cdaaad7ac81e41a80711d06e53b75eabb4db95b333429b9b09e1caa",
       "executable": false
     },
     "docs/site.json": {
@@ -1630,6 +1630,10 @@
       "sha256": "97d8018c72d7a0d6da561033c8472e5580225eb304ac8eaf471df44311f1d8cb",
       "executable": false
     },
+    "migrations/core/0193_coffer_shop_conflicts.sql": {
+      "sha256": "694ee87f828cc07cd998268644710f1d5ff7fefea4e5c005bb1a0263d1a85eff",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -1647,7 +1651,7 @@
       "executable": false
     },
     "packaging.json": {
-      "sha256": "6edf8f74f86b1d0f771868ede4e11f48018bae6b7a85aeebd4e8f5a8774e33a2",
+      "sha256": "1151f1774d334d0d2e04ea4fef94706caa18be282beed1c1435320ea3c99a096",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -3663,7 +3667,7 @@
       "executable": false
     },
     "src/coffer/gift-acknowledgments.ts": {
-      "sha256": "dfb2d802a1b93e06afec86c742e693fc63e6eb9094dfdc58a14a2fbb860e2ca4",
+      "sha256": "b1c92eca27cfb6776e70b08f6dd5dc248051b6a5c4e155fcca48477bac69d5ff",
       "executable": false
     },
     "src/coffer/gift-batches.ts": {
@@ -4363,7 +4367,7 @@
       "executable": false
     },
     "src/coffer/payments/charges.ts": {
-      "sha256": "4bc0cc4b9305a1b0c20b5408d7bd27ff7481a7209889cbb74388e79398fad218",
+      "sha256": "841714639f35cc64d23073c18a13a8314ba03aba2a1c5efa6ce3eb4307537d48",
       "executable": false
     },
     "src/coffer/payments/disputes.ts": {
@@ -4483,15 +4487,15 @@
       "executable": false
     },
     "src/coffer/payments/shops/http.ts": {
-      "sha256": "9eae7bdc7ee2af96566051eff70590444a17cb7020fc9ab498378418254a37f6",
+      "sha256": "296b54632e15d761989b8ac5f92d2a0fb549148f42164182972b5b984e9be2fa",
       "executable": false
     },
     "src/coffer/payments/shops/provider.ts": {
-      "sha256": "0b30c3e4a8d109fc85cd61119b3c198c56a80167b5a05cbaa879e51e895ec87c",
+      "sha256": "d234f6284978b7617f29f396364be0df2624fcbf392fa439fe793a2c19fb0e22",
       "executable": false
     },
     "src/coffer/payments/shops/service.ts": {
-      "sha256": "46acca68f9df13f0a9882c3210b06c5e97253b313bd08669842c64277dc814ba",
+      "sha256": "23d9894e249c9e59c1701e095293e1371acbdd900f0b8443cbd0204241369a3e",
       "executable": false
     },
     "src/coffer/payments/stripe-data.ts": {
@@ -8279,11 +8283,11 @@
       "executable": false
     },
     "tests/shop-orders-browser.mjs": {
-      "sha256": "579b54ce03cdff81c01dda035b83c0a885e272ad7e100e093b468b32a6a91752",
+      "sha256": "041029f1048cf88d7f736c38f29018e3b72ceaeeb8b34284725ccca9324816ea",
       "executable": false
     },
     "tests/shop-orders-journey.mjs": {
-      "sha256": "ceeb36e5512f1648c2bce020f7814cbaf6f6a13b36bdfbe5143ea94c9f6c7c18",
+      "sha256": "56f809e52f1e5ae94c6492332809854c57a64e5178b7abdf8d0ba9a30e9526ad",
       "executable": false
     },
     "tests/single-letter-snapshots.mjs": {

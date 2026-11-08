@@ -20,10 +20,10 @@ export function orderFacts(order:Row){
  const email=String(order.email??'').trim().toLowerCase()
  if(!email||!email.includes('@')||!/^\d{4}-\d{2}-\d{2}T/.test(order.processed_at??'')||!Number.isFinite(Date.parse(order.processed_at)))fail('SHOP_FACTS','The order needs its source email and paid date.')
  const lines=order.line_items.map((l:Row)=>{
-  if(!Number.isInteger(l.quantity)||l.quantity<1||!Array.isArray(l.tax_lines)||!Array.isArray(l.properties)||l.total_discount!=='0.00')fail('SHOP_FACTS','Line quantities, discounts, tax and properties must be complete.')
+  if(!Number.isInteger(l.quantity)||l.quantity<1||!Array.isArray(l.tax_lines)||!Array.isArray(l.properties)||l.total_discount!=='0.00'||l.selling_plan_allocation||l.selling_plan_id)fail('SHOP_FACTS','Line quantities, discounts, tax and properties must be complete.')
   const properties:Record<string,string>={}
-  for(const p of l.properties){if(typeof p.name!=='string'||typeof p.value!=='string'||p.name in properties)fail('SHOP_FACTS','Source properties conflict.');properties[p.name]=p.value}
-  return {id:sourceId(l.id),quantity:l.quantity,price:decimal(l.price),tax:l.tax_lines.reduce((s:number,t:Row)=>s+decimal(t.price),0),properties}
+  for(const p of l.properties){if(typeof p.name!=='string'||typeof p.value!=='string'||p.name in properties)fail('SHOP_FACTS','Source properties conflict.');if(['_coffer_kind','_coffer_fund','_coffer_campaign'].includes(p.name))properties[p.name]=p.value}
+  return {id:sourceId(l.id),benefit:l.gift_card===true||l.requires_shipping===true,quantity:l.quantity,price:decimal(l.price),tax:l.tax_lines.reduce((s:number,t:Row)=>s+decimal(t.price),0),properties}
  })
  if(new Set(lines.map((l:Row)=>l.id)).size!==lines.length)fail('SHOP_FACTS','Source lines conflict.')
  const total=decimal(order.total_price),tax=decimal(order.total_tax),shipping=decimal(order.total_shipping_price_set?.shop_money?.amount)
@@ -56,7 +56,7 @@ export async function observe(env:ShopEnv,orderId:string){
  if(refunds.length>1||refunds.some(r=>String(r.parent_id)!==payment||r.gateway!==capture.gateway||decimal(r.amount)!==facts.total))fail('SHOP_FACTS','Partial or ambiguous refunds stay held.')
  const refund=refunds[0],refundId=refund?sourceId(refund.id):null
  if((order.financial_status==='refunded')!==Boolean(refundId))fail('SHOP_FACTS','Order and full-refund observations conflict.')
- let fee=0,refundFee=0,settlement:string|null=null,chargeId:string|null=null,account:string|null=null,balances:Row[]=[]
+ let processorRefs:string[]=[],fee=0,refundFee=0,settlement:string|null=null,chargeId:string|null=null,account:string|null=null,balances:Row[]=[]
  if(capture.gateway==='shopify_payments'){
   let path='shopify_payments/balance/transactions.json?limit=250'
   const seen=new Set<string>()
@@ -86,6 +86,8 @@ export async function observe(env:ShopEnv,orderId:string){
   chargeId=capture.authorization
   const charge=await stripe(env,'/charges/'+encodeURIComponent(chargeId!))
   if(charge.id!==chargeId||charge.currency!=='usd'||charge.amount!==facts.total||charge.paid!==true||charge.status!=='succeeded'||charge.amount_refunded!==(refund?facts.total:0)||typeof charge.balance_transaction!=='string')fail('SHOP_BINDING','The linked charge does not confirm the complete order.')
+  if(charge.metadata?.coffer_intent||charge.metadata?.coffer_pledge_checkout)fail('SHOP_PROCESSOR_CONFLICT','This charge already belongs to a Coffer checkout.')
+  processorRefs=[chargeId!,charge.payment_intent,typeof charge.invoice==='string'?charge.invoice:null].filter((v):v is string=>typeof v==='string'&&Boolean(v))
   const b=await stripe(env,'/balance_transactions/'+encodeURIComponent(charge.balance_transaction))
   if(b.id!==charge.balance_transaction||b.source!==chargeId||b.currency!=='usd'||b.amount!==facts.total||!Number.isSafeInteger(b.fee)||b.net!==b.amount-b.fee||b.status!=='available')fail('SHOP_FEES','The linked payment fee is incomplete.')
   fee=b.fee;balances=[b]
@@ -94,5 +96,5 @@ export async function observe(env:ShopEnv,orderId:string){
   if(refund)fail('SHOP_FACTS','Linked gateway refund qualification remains held.')
  }else fail('SHOP_GATEWAY','This gateway or shared processor ownership is unsupported and stays held.')
  if(fee<0||fee>facts.total)fail('SHOP_FEES','The actual payment fee is invalid.')
- return {facts,payment,refundId,fee,refundFee,settlement,chargeId,account,balances}
+ return {facts,payment,refundId,fee,refundFee,settlement,chargeId,account,balances:balances.map(b=>({id:String(b.id),amount:b.amount,fee:b.fee,net:b.net,currency:b.currency,source_order_id:b.source_order_id,source_order_transaction_id:b.source_order_transaction_id,source_type:b.source_type,payout_id:b.payout_id,payout_status:b.payout_status,source:typeof b.source==='string'?b.source:undefined,status:b.status})),processorRefs}
 }

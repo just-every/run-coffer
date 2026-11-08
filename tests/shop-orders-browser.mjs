@@ -44,6 +44,7 @@ export async function shopOrdersBrowser(h,{id,stage,review,chosen}){
     assert.match(body,stage==='refunded'?/Contribution refunded/:/Contribution recorded/)
     assert.match(body,/\$25\.00/);assert.match(body,/\$49\.20/)
     await capture(stage)
+    if(stage==='reconciled'){await page.goto(origin+'/app/payouts/fees');await page.getByRole('heading',{name:'All recorded transactions',exact:true}).waitFor();assert.match(await page.locator('main').innerText(),/not whole shop payouts/);assert.match(await page.locator('main').innerText(),/\$24\.00/);await capture('qualified-fee-report')}
    }
   }finally{await page.close()}
  })

@@ -6,7 +6,7 @@ import { identify, recordGift } from '../giving/recording'
 import { runGiftRules } from '../gift-rules'
 import { canonicalDonor } from '../donor-merge'
 import { approvedMatch, emailCandidates, holdDonorMatch, holdErasedMatch, matchGuards } from './donor-match'
-import { email, fail, one, sql, type Context } from '../db'
+import { email, fail, guard, one, sql, type Context, type Stmt } from '../db'
 import { settings } from '../settings'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { cents, day, stripeId, stripePages } from './stripe-data'
@@ -24,6 +24,13 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
  if (charge.currency !== 'usd') fail('currency', 'Only USD payments can be reconciled.', 409)
  if(charge.metadata?.coffer_pledge_checkout)await pledgeSessionForCharge(env,charge.metadata.coffer_pledge_checkout)
  if(charge.id!==chargeId)fail('payment_mismatch','Stripe returned a different charge.',409)
+ const unbound=()=>guard('NOT EXISTS(SELECT 1 FROM cf_shop_processor_bindings WHERE charge_id=?)','SHOP_PROCESSOR_BOUND','This charge is reserved for reviewed shop contribution recording.',chargeId)
+ async function writeCharge(statements:Stmt[]){
+  try{await paymentWrite(env,[unbound(),...statements],authority)}catch(error){
+   if(!authority&&await shopStripeBound(env,chargeId))fail('SHOP_PROCESSOR_BOUND','This charge is reserved for reviewed shop contribution recording.')
+   throw error
+  }
+ }
  const gross = cents(charge.amount), customerId = stripeId(charge.customer), pi = stripeId(charge.payment_intent)
  const refs = [charge.id, pi, stripeId(charge.invoice)].filter(Boolean)
  const savedIntent = customerId ? await one(c, 'SELECT i.*,c.fund FROM cf_giving_intents i JOIN cf_campaigns c ON c.id=i.campaign_id WHERE i.customer_id=? ORDER BY i.created_at DESC LIMIT 1', customerId) : null
@@ -89,7 +96,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
   if (!donor && !mail) fail('donor_match_required', 'Add a donor email to this Stripe payment before syncing it.', 409)
   if (!donor) {
    const donorId = 'stripe-donor-' + (customerId || charge.id)
-   await paymentWrite(env, [sql('INSERT INTO cf_identity_ingest VALUES(1)'),sql("INSERT OR IGNORE INTO cf_donors(id,version,name,email,source,source_ref,created_at) VALUES(?,1,?,?,'stripe',?,?)", donorId, donorName, mail, customerId || charge.id, now),sql('DELETE FROM cf_identity_ingest')], authority)
+   await writeCharge([sql('INSERT INTO cf_identity_ingest VALUES(1)'),sql("INSERT OR IGNORE INTO cf_donors(id,version,name,email,source,source_ref,created_at) VALUES(?,1,?,?,'stripe',?,?)", donorId, donorName, mail, customerId || charge.id, now),sql('DELETE FROM cf_identity_ingest')])
    donor = await one(c,'SELECT * FROM cf_donors WHERE id=? AND erased_at IS NULL',donorId)
   }
   if (donor) donor = await one(c, 'SELECT * FROM cf_donors WHERE id=?', await canonicalDonor(c,donor.id))
@@ -98,7 +105,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
   const fund = String(intent?.fund ?? charge.metadata?.fund ?? 'Unrestricted').trim().slice(0, 100) || 'Unrestricted'
   // A Coffer Checkout return and a charge event use the same reference and ID.
   const reference = intent ? (refs.find(ref => ref.startsWith('in_')) ?? (pi || charge.id)) : charge.id
-  await paymentWrite(env, [
+  await writeCharge([
    ...(match?matchGuards(match):[]),
    sql(`INSERT OR IGNORE INTO cf_gifts(id,version,donor_id,kind,received_on,amount_cents,method,reference,fund,goods,goods_cents,source,created_at,created_by)
     VALUES(?,1,?,'gift',?,?,'card',?,?,?,0,'stripe',?,?)`, giftId, donor.id, day(charge.created, (await settings(c)).timezone), gross, reference, fund, intent ? 'none' : 'unknown', now,intent?.staff_actor_name??'Stripe'),
@@ -107,7 +114,7 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
     SELECT ?,'stripe','Stripe','agent','payments.gift','gift',id,donor_id,? FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'
     AND NOT EXISTS(SELECT 1 FROM cf_events WHERE action='payments.gift' AND subject_id=cf_gifts.id)`, now, JSON.stringify({ chargeId, amountCents: gross }), reference),
    ...(match?[sql('INSERT OR IGNORE INTO cf_stripe_charges(id,gift_id,refund_baseline,created_at) VALUES(?,?,0,?)',charge.id,giftId,now)]:[]),
-  ], authority)
+  ])
   gift = await one(c, "SELECT * FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'", reference)
   if(gift)await runGiftRules(env,gift.id)
   }
@@ -115,6 +122,6 @@ export async function syncCharge(env: GivingEnv, chargeId: string, authority?: C
  if (!gift || gift.amount_cents > gross) fail('payment_mismatch', 'The saved gift differs from this Stripe charge.', 409)
  // Saved-page move-in already netted refunds. Preserve those originals, and
  // apply only later changes to contribution totals; accounting retains gross.
- await paymentWrite(env, [sql('INSERT OR IGNORE INTO cf_stripe_charges(id,gift_id,refund_baseline,created_at) VALUES(?,?,?,?)', charge.id, gift.id, gross - gift.amount_cents, now)], authority)
+ await writeCharge([sql('INSERT OR IGNORE INTO cf_stripe_charges(id,gift_id,refund_baseline,created_at) VALUES(?,?,?,?)', charge.id, gift.id, gross - gift.amount_cents, now)])
  return one(c, 'SELECT * FROM cf_stripe_charges WHERE id=?', charge.id)
 }

@@ -20,7 +20,7 @@ The webhook address is `/api/coffer/shops/shopify/webhook`.
   verify the base64 `X-Shopify-Hmac-Sha256` with HMAC SHA-256 over the original
   request bytes before decoding JSON. Bind `X-Shopify-Shop-Domain` to the exact
   configured shop and retain the event identity from `X-Shopify-Event-Id`.
-  Supported topics are `orders/paid` and `refunds/create`.
+  Supported topics denote paid orders and created refunds.
 - [Shop resource](https://shopify.dev/docs/api/admin-rest/2026-10/resources/shop):
   read the current shop's `id` and `myshopify_domain` before review. No credential
   may redirect to a different host.
@@ -95,9 +95,11 @@ unsupported or conflicting prior imports remain held; they do not rewrite
 historical gifts or suppress unrelated charges. Linked-gateway refunds remain
 unsupported and held. No metadata guess claims ownership of an entire account.
 
-Signed source payloads, order/payment/line/refund references and candidate
+Signed observation hashes, private order, payment, line and refund references and candidate
 identities are reviewer-private. Portable archives keep this evidence with its
-installation binding. Donor-request files omit it. Erasure scrubs full payloads
+installation binding. Donor-request files omit it. Erasure scrubs retained source facts
 and review evidence, retaining opaque replay and source-identity tombstones and
 anonymous ledger amounts. A changed email for the same erased shop customer
 cannot recreate that identity.
+
+Observations retain the original byte digest and allowlisted source facts. Provider session tokens, customer blobs, order-status capabilities and unrelated gateway response fields are never retained.

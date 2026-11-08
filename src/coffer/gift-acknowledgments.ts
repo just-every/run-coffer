@@ -13,7 +13,7 @@ export const UNRESOLVED_THANK_YOU = `(EXISTS(SELECT 1 FROM cf_welcome_enrollment
 export async function withGiftAcknowledgments(c: {db:D1Database}, gifts:Row[]) {
  if(!gifts.length)return
  const ids=JSON.stringify(gifts.map(g=>g.id))
- const platforms=await all(c,'SELECT gift_id,source,source_id FROM cf_platform_gifts WHERE gift_id IN (SELECT value FROM json_each(?))',ids)
+ const platforms=await all(c,'SELECT gift_id,source,source_id FROM cf_platform_gifts WHERE gift_id IN (SELECT value FROM json_each(?)) UNION ALL SELECT e.id AS gift_id,p.source,p.source_id FROM cf_payment_entries e JOIN cf_platform_gifts p ON p.gift_id=e.gift_id WHERE e.id IN (SELECT value FROM json_each(?))',ids,ids)
  for(const gift of gifts){const platform=platforms.find(p=>p.gift_id===gift.id);if(platform){gift.source_provider=platform.source;gift.source_transaction_id=platform.source_id}}
  const [recorded,prior,held,cutoff]=await Promise.all([
   all(c,`SELECT k.*,a.delivery_status,a.submitted_at,CASE WHEN EXISTS(SELECT 1 FROM cf_letter_events e WHERE e.letter_id=a.id AND e.event='delivered' AND e.signature_verified=1) THEN 1 ELSE 0 END AS provider_delivered, i.notes AS interaction_content,n.body AS note_content,COALESCE(n.confidential,0) AS note_confidential FROM cf_gift_acknowledgments k LEFT JOIN cf_acks a ON a.id=k.letter_id LEFT JOIN cf_interactions i ON i.id=k.interaction_id LEFT JOIN cf_donor_notes n ON n.id=k.note_id WHERE k.gift_id IN (SELECT value FROM json_each(?))`,ids),

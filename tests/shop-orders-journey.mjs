@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import {createHmac} from 'node:crypto'
 import {run,donor,reviewed,settings,archive,restore,installation} from './harness.mjs'
+import {fixedNow} from './fixed-clock.mjs'
 import {shopOrdersBrowser} from './shop-orders-browser.mjs'
 
 const mail=n=>'synthetic-coffer-'+n+String.fromCharCode(64)+'example.test'
 const secret='synthetic-coffer-3001',domain='synthetic-coffer-3002.myshopify.com',shopId='3003'
+const paidTopic=['orders','paid'].join('/'),refundTopic=['refunds','create'].join('/')
 const root='/api/coffer/payments/shops',match=id=>'/api/coffer/payments/donor-matches/'+id
 const order=(id,email,{donation=true}={})=>({id,email,customer:{id:8000+id},currency:'USD',financial_status:'paid',cancelled_at:null,processed_at:'2026-09-01T12:00:00Z',total_price:'74.20',total_tax:'3.20',total_discounts:'0.00',total_shipping_price_set:{shop_money:{amount:'6.00',currency_code:'USD'}},line_items:[{id:id*10+1,quantity:1,price:'40.00',total_discount:'0.00',tax_lines:[{price:'3.20'}],properties:[{name:'_coffer_kind',value:'merchandise'}]},{id:id*10+2,quantity:1,price:'25.00',total_discount:'0.00',tax_lines:[],properties:[{name:'_coffer_kind',value:donation?'donation':'merchandise'},{name:'_coffer_fund',value:'Reading'},{name:'_coffer_campaign',value:'none'}]}]})
 const capture=o=>({id:o.id*10+3,order_id:o.id,amount:'74.20',currency:'USD',status:'success',kind:'sale',gateway:'shopify_payments'})
@@ -12,13 +14,14 @@ const balance=(o,tx)=>({id:tx.id+10000,source_order_id:o.id,source_order_transac
 const approval=r=>({version:r.version,fingerprint:r.fingerprint,confirm:'yes'})
 const selection=(v,d)=>({version:v.version,donorId:d.id,donorVersion:v.candidates.find(c=>c.id===d.id)?.version??1,confirm:'yes'})
 export async function shopOrdersJourney(){
- const orders=new Map(),transactions=new Map(),balances=[],stripeObjects=new Map();let calls=0,settlementAvailable=true,shop=shopId,paused,entered
+ const orders=new Map(),transactions=new Map(),balances=[],stripeObjects=new Map();let pauseStripeId,pausedStripe,enterStripe,stripeReads=0;let calls=0,settlementAvailable=true,shop=shopId,paused,entered
  const put=o=>{orders.set(o.id,o);const t=capture(o);transactions.set(o.id,[t]);balances.push(balance(o,t));return o}
  const addRefund=o=>{o.financial_status='refunded';const t={...capture(o),id:o.id*10+4,kind:'refund',parent_id:o.id*10+3};transactions.get(o.id).push(t);balances.push(balance(o,t));return {id:o.id*10+5,order_id:o.id,transactions:[t]}}
  const edge=async request=>{
   calls++;assert.equal(request.method,'GET','Shop flows never initiate provider writes')
   const u=new URL(request.url)
   if(u.hostname==='api.stripe.com'){
+   if(u.pathname==='/v1/charges/'+pauseStripeId&&++stripeReads===2){enterStripe();await pausedStripe}
    if(u.pathname==='/v1/account')return Response.json({id:'acct_synthetic_coffer_3005'})
    const o=stripeObjects.get(u.pathname);if(o)return Response.json(o)
   }
@@ -41,8 +44,8 @@ export async function shopOrdersJourney(){
   await h.command('settings.update',{...settings,threshold:'20',version:(await h.get('/api/coffer/settings')).version})
   await h.command('fund.define',{name:'Reading',restriction:'purpose',detail:'Literacy instruction'})
   const first=await donor(h,'Synthetic Shop First',{email:mail(3010),household:'Synthetic shop household'}),chosen=await donor(h,'Synthetic Shop Chosen',{email:mail(3010),household:'Synthetic shop household'})
-  const paid=put(order(3011,mail(3010)))
-  const send=async(payload,{topic='orders/paid',event='synthetic-coffer-event-'+payload.id,bad=false,shopDomain=domain}={})=>{
+  const paid=put({...order(3011,mail(3010)),token:'synthetic-coffer-private-session-3050',order_status_url:'https://synthetic-coffer-shop.test/private-session'}),paidOriginal=structuredClone(paid)
+  const send=async(payload,{topic=paidTopic,event='synthetic-coffer-event-'+payload.id,bad=false,shopDomain=domain}={})=>{
    const raw=JSON.stringify(payload),sig=createHmac('sha256',bad?'invalid':secret).update(raw).digest('base64')
    return h.request('/api/coffer/shops/shopify/webhook',{method:'POST',raw,as:'',headers:{'x-shopify-shop-domain':shopDomain,'x-shopify-topic':topic,'x-shopify-event-id':event,'x-shopify-hmac-sha256':sig}})
   }
@@ -55,7 +58,7 @@ export async function shopOrdersJourney(){
   const emptyMoney=async()=>{assert.equal((await h.get('/api/coffer/donors/'+chosen.id)).gifts.length,0);assert.deepEqual((await h.get('/api/coffer/payments/fees')).totals,{gross_cents:0,fee_cents:0,net_cents:0})}
   await emptyMoney()
   let r=await h.get(root+'/'+key)
-  assert.equal(r.state,'held');assert.equal(r.donorReview.candidates.length,2)
+  assert.equal(r.state,'held');assert.equal(r.donorReview.candidates.length,2);assert.ok(!JSON.stringify(r).includes('private-session'))
   await h.api(root+'/'+key+'/approve',approval(r),{status:409})
   const review={donationLineId:String(paid.id*10+2),fund:'Reading',campaign:'none',contributionFee:'1.00',noncontributionFee:'1.50',allocationReason:'Reviewed explicit allocation from actual order fee; not a provider donation fee.',confirm:'yes'}
   settlementAvailable=false
@@ -88,7 +91,7 @@ export async function shopOrdersJourney(){
   await h.api(root+'/'+key+'/approve',decision)
   r=await h.get(root+'/'+key);assert.equal(r.state,'reconciled')
   const gifts=await h.get('/api/coffer/donors/'+chosen.id),gift=gifts.gifts[0]
-  assert.equal(gifts.gifts.length,1);assert.equal(gift.amount_cents,2500);assert.equal(gifts.totals.lifetimeCents,2500);assert.equal(gifts.consents.length,0)
+  assert.equal(gifts.gifts.length,1);assert.equal(gift.amount_cents,2500);assert.equal(gift.source_provider,'Shopify contribution allocation');assert.equal(gift.source_fee_cents,100);assert.equal(gifts.totals.lifetimeCents,2500);assert.equal(gifts.consents.length,0)
   assert.equal((await h.get('/api/coffer/donors/'+first.id)).gifts.length,0)
   const fees=await h.get('/api/coffer/payments/fees')
   assert.deepEqual(fees.totals,{gross_cents:2500,fee_cents:100,net_cents:2400});assert.deepEqual(fees.byForm,[{id:null,name:'No recorded giving form',...fees.totals}]);assert.equal(fees.lines[0].provider,'shopify');assert.match(fees.lines[0].allocation_label,/allocation/)
@@ -100,29 +103,34 @@ export async function shopOrdersJourney(){
   await h.command('ack.approve',{batchId:receipt.id,version:1})
   assert.equal(h.messages.filter(m=>/receipt/i.test(m.subject??'')).length,0)
   const file=await h.api('/api/coffer/donors/'+chosen.id+'/data-request',{requestedOn:'2026-09-04',method:'other',reference:'synthetic-coffer-3014'})
-  assert.ok(!file.records.shop_orders);assert.ok(!file.records.shop_events);assert.ok(!file.records.payment_donor_matches);assert.ok(!JSON.stringify(file).includes('source_hash'))
+  assert.ok(!file.records.shop_orders);assert.ok(!file.records.shop_events);assert.ok(!file.records.payment_donor_matches);assert.ok(!JSON.stringify(file).includes('source_hash'));assert.ok(!JSON.stringify(file).includes('\"source_id\":\"'+String(paid.id*10+3)+'\"'))
   await shopOrdersBrowser(h,{id:key,stage:'reconciled'})
   const originalAfterReceipt=(await h.get('/api/coffer/donors/'+chosen.id)).gifts.find(g=>g.id===gift.id)
   const refund=addRefund(paid)
-  assert.equal((await send(refund,{topic:'refunds/create'})).status,200)
+  assert.equal((await send(refund,{topic:refundTopic})).status,200)
   r=await h.get(root+'/'+key);assert.equal(r.state,'refund-held');await h.api(root+'/'+key+'/refund',approval(r),{status:409})
   assert.equal((await h.get('/api/coffer/donors/'+chosen.id)).totals.lifetimeCents,2500)
+  await h.api(root+'/'+key+'/review',{...review,refundContributionFee:'1.00',refundNoncontributionFee:'-1.00',version:r.version},{status:409})
   r=await h.api(root+'/'+key+'/review',{...review,refundContributionFee:'0.00',refundNoncontributionFee:'0.00',version:r.version})
   await h.api(root+'/'+key+'/refund',approval(r))
-  await h.api(root+'/'+key+'/refund',approval(r));assert.equal((await send(refund,{topic:'refunds/create'})).status,200)
+  await h.api(root+'/'+key+'/refund',approval(r));assert.equal((await send(refund,{topic:refundTopic})).status,200)
+  assert.equal((await send(refund,{topic:refundTopic,event:'synthetic-coffer-refund-redelivery'})).status,200)
+  assert.equal((await h.get(root+'/'+key)).state,'refunded')
   const reversed=await h.get('/api/coffer/donors/'+chosen.id)
-  assert.equal(reversed.gifts.filter(g=>g.kind==='reversal').length,1);assert.equal(reversed.totals.lifetimeCents,0)
+  assert.equal(reversed.gifts.filter(g=>g.kind==='reversal').length,1);assert.equal(reversed.gifts.find(g=>g.kind==='reversal').source_provider,'Shopify contribution allocation');assert.equal(reversed.totals.lifetimeCents,0)
   assert.deepEqual(reversed.gifts.find(g=>g.id===gift.id),originalAfterReceipt)
   assert.ok((await h.get('/api/coffer/letters/'+receipt.id)).letters[0].void_reason)
   await h.command('ack.correct',{letterId:letter.id},{status:409})
   assert.deepEqual((await h.get('/api/coffer/payments/fees')).totals,{gross_cents:0,fee_cents:100,net_cents:-100})
+  const refundTotals=(await h.get(root+'/'+key)).reconciliation
+  assert.equal(refundTotals.gross_cents,0);assert.equal(refundTotals.fee_cents,100);assert.equal(refundTotals.net_cents,-100);assert.equal(refundTotals.noncontribution_net_cents,-150);assert.equal(refundTotals.order_net_cents,-250)
   await shopOrdersBrowser(h,{id:key,stage:'refunded'})
   const merchandise=put(order(3020,mail(3010),{donation:false})),merchResponse=await send(merchandise),merchKey=(await merchResponse.json()).id
   let merch=await h.get(root+'/'+merchKey)
   await h.api(root+'/'+merchKey+'/review',{...review,donationLineId:String(merchandise.id*10+2),version:merch.version},{status:409})
   assert.equal((await h.get('/api/coffer/donors/'+chosen.id)).totals.lifetimeCents,0)
   const early=put(order(3021,mail(3010))),earlyRefund=addRefund(early)
-  const earlyKey=(await (await send(earlyRefund,{topic:'refunds/create'})).json()).id
+  const earlyKey=(await (await send(earlyRefund,{topic:refundTopic})).json()).id
   assert.equal((await send({...early,financial_status:'paid'})).status,200)
   let er=await h.get(root+'/'+earlyKey)
   er=await h.api(root+'/'+earlyKey+'/review',{...review,donationLineId:String(early.id*10+2),version:er.version,refundContributionFee:'0.00',refundNoncontributionFee:'0.00'})
@@ -137,7 +145,80 @@ export async function shopOrdersJourney(){
   let p=await h.get(root+'/'+pendingKey)
   p=await h.api(root+'/'+pendingKey+'/review',{...review,donationLineId:String(pending.id*10+2),version:p.version})
   await h.api(match(pendingKey)+'/approve',selection(p.donorReview,chosen));p=await h.get(root+'/'+pendingKey)
-  const backup=await archive(h),fresh=await installation({...options,givingProtection:false})
+  const inFlightAdmin=await h.person(mail(3040),'admin'),beforeInFlight=(await h.get('/api/coffer/donors/'+chosen.id)).gifts.length
+  let release,notify
+  paused=new Promise(resolve=>{release=resolve})
+  const reached=new Promise(resolve=>{notify=resolve});entered=notify
+  const inFlight=h.request(root+'/'+pendingKey+'/approve',{method:'POST',body:approval(p),as:inFlightAdmin.cookie})
+  await reached
+  await h.api('/auth/operator/status',{operatorId:inFlightAdmin.id,status:'inactive'})
+  release();assert.equal((await inFlight).status,401)
+  assert.equal((await h.get('/api/coffer/donors/'+chosen.id)).gifts.length,beforeInFlight,'Revocation during provider reads cannot release money')
+  const sendStripe=async (id,expected=200)=>{
+   const raw=JSON.stringify({id:'synthetic-coffer-stripe-event-'+id,type:'charge.succeeded',data:{object:{id}}}),t=Date.parse(fixedNow)/1000
+   const sig=createHmac('sha256',bindings.STRIPE_WEBHOOK_SECRET).update(`${t}.${raw}`).digest('hex')
+   const response=await h.request('/api/coffer/giving/webhook',{method:'POST',raw,as:'',headers:{'stripe-signature':`t=${t},v1=${sig}`}})
+   assert.equal(response.status,expected,await response.text())
+  }
+  const stripeCharge=(id,email,amount=7420)=>{
+   const c={id,status:'succeeded',paid:true,amount,currency:'usd',created:Date.parse(fixedNow)/1000,amount_refunded:0,metadata:{fund:'Reading'},billing_details:{name:'Synthetic shop processor',email},balance_transaction:'txn_'+id}
+   const b={id:c.balance_transaction,source:id,amount,fee:250,net:amount-250,currency:'usd',status:'available',type:'charge',created:c.created}
+   stripeObjects.set('/v1/charges/'+id,c);stripeObjects.set('/v1/balance_transactions/'+b.id,b);return c
+  }
+  const campaign=await h.api('/api/coffer/giving/campaigns',{name:'Synthetic shop campaign',slug:'synthetic-shop-campaign',description:'Community support.',fund:'Reading',goal:'1000'})
+  const linked=put(order(3041,mail(3010))),linkedCharge=stripeCharge('ch_synthetic_coffer_shop_3041',mail(3010))
+  linked.line_items[1].properties.find(p=>p.name==='_coffer_campaign').value=campaign.id
+  transactions.set(linked.id,[{...capture(linked),gateway:'stripe',authorization:linkedCharge.id}])
+  const linkedKey=(await (await send(linked)).json()).id
+  let linkedReview=await h.get(root+'/'+linkedKey)
+  linkedReview=await h.api(root+'/'+linkedKey+'/review',{...review,donationLineId:String(linked.id*10+2),campaign:campaign.id,version:linkedReview.version})
+  assert.equal(linkedReview.state,'review')
+  await sendStripe(linkedCharge.id)
+  assert.equal((await h.get('/api/coffer/donors/'+chosen.id)).gifts.length,beforeInFlight,'Bound processor observation cannot record a whole order as a gift')
+  await h.api(match(linkedKey)+'/approve',selection(linkedReview.donorReview,chosen))
+  linkedReview=await h.get(root+'/'+linkedKey)
+  await h.api(root+'/'+linkedKey+'/approve',approval(linkedReview))
+  await sendStripe(linkedCharge.id)
+  assert.equal((await h.get('/api/coffer/donors/'+chosen.id)).totals.lifetimeCents,2500)
+  assert.equal((await h.get('/api/coffer/giving/campaigns')).campaigns.find(c=>c.id===campaign.id).raised_cents,2500)
+  assert.equal((await h.get('/api/coffer/payments/fees')).byCampaign.find(c=>c.id===campaign.id).gross_cents,2500)
+  const unrelated=await donor(h,'Synthetic Shop Unrelated',{email:mail(3042)})
+  const independent=stripeCharge('ch_synthetic_coffer_unrelated_3042',mail(3042),5000)
+  await sendStripe(independent.id)
+  assert.equal((await h.get('/api/coffer/donors/'+unrelated.id)).totals.lifetimeCents,5000,'Shop binding never suppresses unrelated Stripe payments')
+  const conflicting=put(order(3043,mail(3010))),priorCharge=stripeCharge('ch_synthetic_coffer_prior_3043',mail(3042))
+  await sendStripe(priorCharge.id)
+  const originalPrior=(await h.get('/api/coffer/donors/'+unrelated.id)).gifts.find(g=>g.reference===priorCharge.id)
+  transactions.set(conflicting.id,[{...capture(conflicting),gateway:'stripe',authorization:priorCharge.id}])
+  const conflictKey=(await (await send(conflicting)).json()).id,conflictReview=await h.get(root+'/'+conflictKey)
+  await h.api(root+'/'+conflictKey+'/review',{...review,donationLineId:String(conflicting.id*10+2),version:conflictReview.version},{status:409})
+  assert.deepEqual((await h.get('/api/coffer/donors/'+unrelated.id)).gifts.find(g=>g.id===originalPrior.id),originalPrior,'Prior processor imports remain unchanged')
+  const unsupported=put(order(3044,mail(3010)))
+  transactions.set(unsupported.id,[{...capture(unsupported),gateway:'unsupported-shared-gateway'}])
+  const unsupportedKey=(await (await send(unsupported)).json()).id
+  let unsupportedReview=await h.get(root+'/'+unsupportedKey)
+  unsupportedReview=await h.api(root+'/'+unsupportedKey+'/review',{...review,donationLineId:String(unsupported.id*10+2),version:unsupportedReview.version})
+  assert.equal(unsupportedReview.state,'held');assert.match(unsupportedReview.issues.join(' '),/ownership is unsupported/)
+  const changed=put(order(3045,mail(3010))),changedKey=(await (await send(changed)).json()).id
+  assert.equal((await send({...changed,line_items:changed.line_items.map((l,i)=>i?{...l,price:'26.00'}:l),total_price:'75.20'},{event:'synthetic-coffer-source-change'})).status,200)
+  const changedReview=await h.get(root+'/'+changedKey)
+  await h.api(root+'/'+changedKey+'/review',{...review,donationLineId:String(changed.id*10+2),version:changedReview.version},{status:409})
+  const racing=put(order(3051,mail(3010))),racingCharge=stripeCharge('ch_synthetic_coffer_race_3051',mail(3042))
+  transactions.set(racing.id,[{...capture(racing),gateway:'stripe',authorization:racingCharge.id}])
+  const racingKey=(await (await send(racing)).json()).id
+  const racingReview=await h.get(root+'/'+racingKey)
+  let releaseStripe,notifyStripe
+  pausedStripe=new Promise(resolve=>{releaseStripe=resolve})
+  const stripeReached=new Promise(resolve=>{notifyStripe=resolve});enterStripe=notifyStripe;pauseStripeId=racingCharge.id
+  const genericInFlight=sendStripe(racingCharge.id,409)
+  await stripeReached
+  assert.equal((await h.api(root+'/'+racingKey+'/review',{...review,donationLineId:String(racing.id*10+2),version:racingReview.version})).state,'review')
+  releaseStripe();await genericInFlight;pauseStripeId=null
+  await sendStripe(racingCharge.id)
+  assert.equal((await h.get('/api/coffer/donors/'+unrelated.id)).totals.lifetimeCents,12420,'A binding committed during generic recording wins before any whole-charge gift')
+  const backup=await archive(h)
+  assert.ok(!JSON.stringify(backup).includes('private-session'));assert.ok(!JSON.stringify(backup).includes(bindings.SHOPIFY_ACCESS_TOKEN))
+  const fresh=await installation({...options,givingProtection:false})
   try{
    await restore(fresh,backup)
    assert.equal((await fresh.get(root+'/'+key)).state,'refunded')
@@ -145,6 +226,7 @@ export async function shopOrdersJourney(){
    await fresh.api(root+'/'+pendingKey+'/approve',approval(p),{status:409})
    assert.ok((await fresh.get(root+'/'+pendingKey)).source)
   }finally{await fresh.close()}
+  await h.command('ack.discard',{batchId:receipt.id,version:2})
   const merge=await h.get('/api/coffer/duplicates/compare?source='+first.id+'&target='+chosen.id)
   await h.command('donor.merge',{sourceDonorId:first.id,donorId:chosen.id,sourceVersion:merge.source.version,version:merge.target.version,reason:'duplicate_record'})
   await h.api(root+'/'+pendingKey+'/approve',approval(p),{status:409})
@@ -152,11 +234,12 @@ export async function shopOrdersJourney(){
   const erased=await h.get(root+'/'+key)
   assert.equal(erased.state,'erased');assert.equal(erased.source,null);assert.deepEqual(erased.facts,{});assert.equal(erased.evidence,null)
   assert.equal((await h.get(match(pendingKey))).state,'erased')
-  assert.equal((await send(paid)).status,200)
+  assert.equal((await send(paidOriginal)).status,200)
   const later=put({...order(3023,mail(3099)),customer:paid.customer})
   const laterKey=(await (await send(later)).json()).id
   assert.equal((await h.get(root+'/'+laterKey)).state,'erased','Opaque shop customer custody blocks changed-email resurrection')
-  assert.equal((await h.get('/api/coffer/donors')).total,0)
+  assert.equal((await h.get('/api/coffer/donors')).total,1)
+  assert.equal((await h.get('/api/coffer/donors/'+unrelated.id)).totals.lifetimeCents,12420)
   const after=await archive(h),copy=await installation({...options,givingProtection:false})
   try{await restore(copy,backup,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}})}finally{await copy.close()}
  },options)
