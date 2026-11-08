@@ -1,0 +1,10 @@
+# FIX plan — sx-coffer-f174fix1
+
+Repository: just-every/run-coffer. Product branch: cloud/sx-coffer-f174fix1.
+Start: ef73001250888e694b3fc9106270ef353d89ed5d. Scope: the three blocking PAY-006 regressions only.
+
+1. Preserve the existing PAY-006 claim and all contract status/gap/evidence cells. Merge current main, taking its contract and generated views and ID map whole. Renumber candidate migrations only if main overlaps. Regenerate contract views when required, restore views from main, and regenerate/check the source lock last.
+2. Extend the existing Shopify journey with one regression assertion for each blocking item: a resolved shared-email match survives an unselected candidate's erasure and still refunds; refund-first delivery retains customer erasure custody after the paid observation; linked Stripe delivery before human review cannot record the merchandise order as a gift. Capture failures on the original source, then passing results after the fixes.
+3. Scope resolved Shopify erasure to the selected donor while removing erased candidate references. Fill customer identity custody when a paid observation follows a refund. Reserve verified linked processor charges during signed webhook observation instead of waiting for human review; retain atomic generic-recorder guards and prior-import conflict behavior.
+4. Run the touched Shopify/payment and donor-erasure checks and typecheck; keep all existing assertions. No UI change, publication scan, contract status change, provider write, or held-key claim. Commit only product changes and the generated source lock. Inspect every candidate commit identity/trailer, push with the fleet guard, and require the exact-SHA Verify result within the ten-call API budget.
+5. Keep non-secret reports, actual test receipts and CI receipts in this packet; publish selected files only to evidence/sx-coffer-f174fix1 using the separate evidence entrypoint. Return branch/SHA, counts, unchanged clause state, CI run IDs, claim, and lane POST line.

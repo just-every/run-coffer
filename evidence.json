@@ -1,0 +1,130 @@
+{
+  "files": [
+    {
+      "blob": "a05f80c5548fabc2287b115616c181e27cbd2246",
+      "bytes": 2007,
+      "path": "PLAN.md",
+      "sha256": "854c70a0eeeaff7b0ac931b949f0e437fc03c2444d9d86064d9b0f77bd68adeb"
+    },
+    {
+      "blob": "22df93fef1e2bc15b186e1e17d53f2690ce0a12f",
+      "bytes": 2081,
+      "path": "PRODUCT-RECEIPT.json",
+      "sha256": "e8577dd03d6f3f1f0b73cc1b4ef8f66244235c44a00b8485b4c1ecdf2b27c273"
+    },
+    {
+      "blob": "43873a587356c926c170adad553a8e5ecb8f5870",
+      "bytes": 7457,
+      "path": "REPORT.md",
+      "sha256": "fa8fc136cbf498022dac8ea75232746ca35a2e744a60d150b0450c5d5508b15b"
+    },
+    {
+      "blob": "fb1fcabfcbe4c76d575aaf83ea144da7ca660575",
+      "bytes": 217,
+      "path": "after-regressions.txt",
+      "sha256": "9502b1c622221a52a2ecea3759a0794c2e472fbe8556d2eade4969792a4ecbf2"
+    },
+    {
+      "blob": "f50b109b9872ef5fcc0d0f9cb8a1e9367cc9d09e",
+      "bytes": 3555,
+      "path": "before-regressions.txt",
+      "sha256": "ca23ae667b7cff8d8a2c3891253accccbc46c3c608338185e17327a3bde1c128"
+    },
+    {
+      "blob": "bde6d63df837fbdc671381177d0c46aa0b867a3e",
+      "bytes": 736,
+      "path": "candidate-push.txt",
+      "sha256": "73ffe721ac769e9e240640bb2bee8c84c9e6f0852a5f01991e0c0cbe8132efe1"
+    },
+    {
+      "blob": "2641ea86ea85632c5bb05f1a6702658a35f6afb4",
+      "bytes": 301,
+      "path": "ci-call-2.json",
+      "sha256": "80669023e1260289111fce7cd94dc8b5fbf9b77c5f8520d44fcaa582f1b50d08"
+    },
+    {
+      "blob": "28c5a60d2cac614fc9f536b4d94905c8749f15ad",
+      "bytes": 281,
+      "path": "ci-call-3.json",
+      "sha256": "d145f64cade41e237d7a71fea01c3236ebb5e08ede18ef938d44ca74808387d3"
+    },
+    {
+      "blob": "8d91051cda056ba7ce9820fc426bcad173b6b2a2",
+      "bytes": 284,
+      "path": "ci-call-4.json",
+      "sha256": "c89aa5dce81d10ad82eb315d75e48138e02b2f38f7c72a5e77b95d404c44542b"
+    },
+    {
+      "blob": "ba4859a43a4357eeea6495f228e68acee6fce2d9",
+      "bytes": 21,
+      "path": "ci-discovery.json",
+      "sha256": "8af7ae98b21622f60ebf8ce55fe92e997748828197c931ab3394dc0b11906c6a"
+    },
+    {
+      "blob": "2a247c5b8dc4a804bf5055fc8785a0af40a166d8",
+      "bytes": 317,
+      "path": "ci-status.json",
+      "sha256": "a5e1d404a1d221d90e34529cc318e0a1b5fe48d87736b920434b663af19e40b6"
+    },
+    {
+      "blob": "19948f31cf1875d8e34deee44d11bef87fe30c5a",
+      "bytes": 184,
+      "path": "contract-generation.txt",
+      "sha256": "6a4221f87ea580d16d0bf3abbe3f32d5ca327d64d7742a7561baff7e653515fa"
+    },
+    {
+      "blob": "d818b0d7536d1525bcea9c2f67e1a8820a80dca6",
+      "bytes": 681,
+      "path": "final-shop-journey.txt",
+      "sha256": "1a17fbbb2813e411f68e1604e014211201901f3a0c27a9e0607646e1686d7e6d"
+    },
+    {
+      "blob": "2a35ffd6bb4587d93f3870e39da0ec2ca3e8f20e",
+      "bytes": 1190,
+      "path": "github-calls.json",
+      "sha256": "56c59d23b242bf3b3bb9844a5a9591f66deb39b663e3a355231ec6dae71bb536"
+    },
+    {
+      "blob": "6eeea5acbc321be4539cd513b6514bfd8e4c1614",
+      "bytes": 425,
+      "path": "identity-audit.txt",
+      "sha256": "bebd14c2976af3c82732395800b1877f2bce97efc547cdf8d38d82d3d735928d"
+    },
+    {
+      "blob": "6ceb455fa92c55670414ee3d52d8142de60e1788",
+      "bytes": 929,
+      "path": "save-push.txt",
+      "sha256": "7f0fb9f2f43abb60471908d5458de9ff782c4a639d7a0cc6a5ce6da082393ee0"
+    },
+    {
+      "blob": "adc214699ba7a2a63dc2bfe61940d5f5482895a6",
+      "bytes": 282,
+      "path": "source-lock-receipt.json",
+      "sha256": "769aae6e7148d603cfb50ad1d01d2ee654a9ed0c02c1b7c5cdc744811f94745f"
+    },
+    {
+      "blob": "a4f49fe9e4d6a5048f1f55724801cda79d27beab",
+      "bytes": 696124,
+      "path": "source-lock.txt",
+      "sha256": "517bd5b5cdd4814e16be7c880e1cb6780078aaea5a831257f3624c0f91bb97de"
+    },
+    {
+      "blob": "e39747c8ae820d03d9956623a3fcac0019e0e075",
+      "bytes": 995,
+      "path": "touched-payments.txt",
+      "sha256": "e5846671320c0cb9436253c77b49dd36ba7f9e39b0dc2eae15d1bb2244997123"
+    },
+    {
+      "blob": "9a5e5b740da897e4c3b1c940df39fed16e2f46e4",
+      "bytes": 131,
+      "path": "typecheck.txt",
+      "sha256": "115924fa808e6b405f1cf101d1e19738bde4da364ffa6e743160ba69de307dc4"
+    }
+  ],
+  "product_branch": "cloud/sx-coffer-f174fix1",
+  "product_head": "47d268f79a32c00016d076f6333f905cf9d6b489",
+  "ref": "refs/heads/evidence/sx-coffer-f174fix1",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-f174fix1"
+}

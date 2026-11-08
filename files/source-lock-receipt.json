@@ -1,0 +1,9 @@
+{
+  "commands": [
+    "node scripts/edition-authoring/cli.mjs lock",
+    "node scripts/edition-authoring/cli.mjs check"
+  ],
+  "check_ok": true,
+  "complete_output": "source-lock.txt",
+  "complete_output_sha256": "517bd5b5cdd4814e16be7c880e1cb6780078aaea5a831257f3624c0f91bb97de"
+}

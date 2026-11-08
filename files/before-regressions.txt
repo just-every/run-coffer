@@ -1,0 +1,84 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+EXPECTED FAILURE shared-candidate-refund
+AssertionError [ERR_ASSERTION]: Erasing an unselected shared-email candidate must preserve the chosen donor full contribution refund
++ actual - expected
+
+  {
++   lifetime: 2500,
++   refundStatus: 409
+-   lifetime: 0,
+-   refundStatus: 200
+  }
+
+    at file:///home/agent/rer-consolidation/work/sx-coffer-f174fix1/before/tests/shop-orders-journey.mjs:301:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async run (file:///home/agent/rer-consolidation/work/sx-coffer-f174fix1/before/tests/harness.mjs:64:86)
+    at async shopOrdersJourney (file:///home/agent/rer-consolidation/work/sx-coffer-f174fix1/before/tests/shop-orders-journey.mjs:262:126)
+    at async file:///tmp/coffer-before.mjs:3:6
+EXPECTED FAILURE refund-first-erasure
+AssertionError [ERR_ASSERTION]: Refund-first then paid delivery must retain customer custody through erasure and a changed email
++ actual - expected
+
+  {
++   facts: {
++     date: '2026-09-01',
++     email: 'synthetic-coffer-3066@example.test',
++     lines: [
++       {
++         benefit: false,
++         id: '30651',
++         price: 4000,
++         properties: {
++           _coffer_kind: 'merchandise'
++         },
++         quantity: 1,
++         tax: 320
++       },
++       {
++         benefit: false,
++         id: '30652',
++         price: 2500,
++         properties: {
++           _coffer_campaign: 'none',
++           _coffer_fund: 'Reading',
++           _coffer_kind: 'donation'
++         },
++         quantity: 1,
++         tax: 0
++       }
++     ],
++     orderId: '3065',
++     shipping: 600,
++     tax: 320,
++     total: 7420
++   },
++   source: '{"orderId":"3065","email":"synthetic-coffer-3066@example.test","date":"2026-09-01","total":7420,"tax":320,"shipping":600,"lines":[{"id":"30651","benefit":false,"quantity":1,"price":4000,"tax":320,"properties":{"_coffer_kind":"merchandise"}},{"id":"30652","benefit":false,"quantity":1,"price":2500,"tax":0,"properties":{"_coffer_kind":"donation","_coffer_fund":"Reading","_coffer_campaign":"none"}}]}',
++   state: 'held'
+-   facts: {},
+-   source: null,
+-   state: 'erased'
+  }
+
+    at file:///home/agent/rer-consolidation/work/sx-coffer-f174fix1/before/tests/shop-orders-journey.mjs:288:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async run (file:///home/agent/rer-consolidation/work/sx-coffer-f174fix1/before/tests/harness.mjs:64:86)
+    at async shopOrdersJourney (file:///home/agent/rer-consolidation/work/sx-coffer-f174fix1/before/tests/shop-orders-journey.mjs:262:126)
+    at async file:///tmp/coffer-before.mjs:3:6
+EXPECTED FAILURE stripe-before-review
+AssertionError [ERR_ASSERTION]: A linked Stripe delivery after signed Shopify observation but before review must not credit the whole merchandise order
++ actual - expected
+
+  {
++   gifts: 1,
++   lifetime: 7420
+-   gifts: 0,
+-   lifetime: 0
+  }
+
+    at file:///home/agent/rer-consolidation/work/sx-coffer-f174fix1/before/tests/shop-orders-journey.mjs:282:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async run (file:///home/agent/rer-consolidation/work/sx-coffer-f174fix1/before/tests/harness.mjs:64:86)
+    at async shopOrdersJourney (file:///home/agent/rer-consolidation/work/sx-coffer-f174fix1/before/tests/shop-orders-journey.mjs:262:126)
+    at async file:///tmp/coffer-before.mjs:3:6

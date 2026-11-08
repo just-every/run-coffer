@@ -1,0 +1,46 @@
+[
+  {
+    "call": 1,
+    "at": 1794167421.785231,
+    "command": [
+      "gh",
+      "api",
+      "repos/just-every/run-coffer/actions/runs?head_sha=47d268f79a32c00016d076f6333f905cf9d6b489&per_page=100",
+      "--jq",
+      "{workflow_runs:[.workflow_runs[]|{id,name,status,conclusion,head_sha,html_url,created_at,updated_at}]}"
+    ]
+  },
+  {
+    "call": 2,
+    "at": 1794167721.8139389,
+    "command": [
+      "gh",
+      "api",
+      "repos/just-every/run-coffer/actions/runs?head_sha=47d268f79a32c00016d076f6333f905cf9d6b489&per_page=100",
+      "--jq",
+      "{workflow_runs:[.workflow_runs[]|{id,name,status,conclusion,head_sha,html_url,created_at,updated_at}]}"
+    ]
+  },
+  {
+    "call": 3,
+    "at": 1794168021.8401437,
+    "command": [
+      "gh",
+      "api",
+      "repos/just-every/run-coffer/actions/runs/42517036282",
+      "--jq",
+      "{id,name,status,conclusion,head_sha,html_url,created_at,updated_at}"
+    ]
+  },
+  {
+    "call": 4,
+    "at": 1794168321.8892303,
+    "command": [
+      "gh",
+      "api",
+      "repos/just-every/run-coffer/actions/runs/42517036282",
+      "--jq",
+      "{id,name,status,conclusion,head_sha,html_url,created_at,updated_at}"
+    ]
+  }
+]

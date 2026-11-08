@@ -1,0 +1,62 @@
+{
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-f174fix1",
+  "head": "47d268f79a32c00016d076f6333f905cf9d6b489",
+  "base": "ef73001250888e694b3fc9106270ef353d89ed5d",
+  "main_merged": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+  "contract_counts_before": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "contract_counts_after": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "clause_status_changes": [],
+  "new_regression_assertions": 3,
+  "new_test_registrations": 0,
+  "before_failures": 3,
+  "after_failures": 0,
+  "source_lock_sha256": "d1de51e6910c3c581f2b7354ad411e890230358cf2d0cf0bd0213b4e8593be10",
+  "source_lock_check": "passed",
+  "contract_source_unchanged": true,
+  "generated_views_not_committed": true,
+  "publication_scan": "not run, as assigned",
+  "live_provider_qualification": "not claimed; network-edge fixtures only",
+  "typecheck": "passed",
+  "initial_touched_tests": {
+    "selected": 2,
+    "passed": 2,
+    "failed": 0,
+    "receipt": "touched-payments.txt"
+  },
+  "final_journey": {
+    "passed": 1,
+    "failed": 0,
+    "head": "47d268f79a32c00016d076f6333f905cf9d6b489",
+    "receipt": "final-shop-journey.txt"
+  },
+  "exact_sha_verify": {
+    "conclusion": "success",
+    "created_at": "2026-11-08T19:50:23Z",
+    "head_sha": "47d268f79a32c00016d076f6333f905cf9d6b489",
+    "html_url": "https://github.com/just-every/run-coffer/actions/runs/42517036282",
+    "id": 42517036282,
+    "name": "Verify",
+    "status": "completed",
+    "updated_at": "2026-11-08T20:04:16Z"
+  },
+  "product_push": "succeeded",
+  "save_head": "e895dcba4e6a33246af7f828dbf28349c8c4e107",
+  "save_push": "succeeded",
+  "claim": "CLAIM PAY-006 PARTIAL points=none tests=tests/shop-orders-journey.mjs#shopOrdersJourney; tests/shop-orders-browser.mjs#shopOrdersBrowser",
+  "original_claim_evidence_ref": "refs/heads/evidence/sx-coffer-c-f174",
+  "original_claim_evidence_head": "0b7c3a79bdaa7cf7ea99dbc7f70c99a4ab54b8cd",
+  "github_api_calls": 4,
+  "blockers": [],
+  "custody": "READY"
+}

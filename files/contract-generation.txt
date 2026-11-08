@@ -1,0 +1,2 @@
+Contract views write passed for REPORT-004, DATA-004, MOVE-004, MOVE-010, MOVE-012, PAY-006
+Contract views check passed for REPORT-004, DATA-004, MOVE-004, MOVE-010, MOVE-012, PAY-006
