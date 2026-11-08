@@ -40,7 +40,7 @@
 .docs-prose ol { counter-reset: step; display: grid; gap: 14px; }
 .docs-prose ol > li { counter-increment: step; position: relative; padding-left: 50px; min-height: 32px; }
 .docs-prose ol > li::before { content: counter(step); position: absolute; left: 0; top: -1px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--violet); color: #fff; font: 700 15px/1 var(--font-body); }
-.docs-prose code { font-family: var(--font-mono); font-size: .84em; padding: 2px 6px; border-radius: 6px; background: var(--violet-tint); color: #2b2470; }
+.docs-prose code { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: .84em; padding: 2px 6px; border-radius: 6px; background: var(--violet-tint); color: #2b2470; }
 .docs-code { position: relative; border-radius: 14px; background: var(--terminal); color: #ebe8ff; border: 1px solid var(--terminal-line); box-shadow: 0 18px 36px -22px rgba(10, 12, 40, .7); }
 .docs-code pre { margin: 0; padding: 56px 22px 20px; white-space: pre-wrap; overflow-wrap: anywhere; font: 400 15px/1.75 var(--font-mono); }
 .docs-code pre code { padding: 0; background: none; color: inherit; font-size: inherit; }
