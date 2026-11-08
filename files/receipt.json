@@ -112,6 +112,18 @@
       "sha256": "1e770fa7751e8c020283fc4e69645d7eca8d98ae658e4f18ff9bd1d648f59935"
     }
   ],
+  "ci": {
+    "conclusion": null,
+    "event": "push",
+    "github_api_budget": 10,
+    "github_api_calls_used": 4,
+    "head_sha": "6b16ac867cd8bec68603f1b7addc7efef16b48ed",
+    "html_url": "https://github.com/just-every/run-coffer/actions/runs/42485097456",
+    "id": 42485097456,
+    "name": "Verify",
+    "observed_at": "2026-11-08T13:38:49.920478+00:00",
+    "status": "in_progress"
+  },
   "contract": {
     "generated_views_committed": false,
     "source_changed": false,

@@ -8,6 +8,9 @@ Candidate: 6b16ac867cd8bec68603f1b7addc7efef16b48ed
 Observed main: a96722be87079872a12454dbf494d8feff5b37aa
 Published save: 47f48091e8a7fb79d1f4a1201562351baf5cbe7e
 PR: none; the branch push is the existing Verify entry point.
+Branch Verify: 42485097456, push event, exact candidate SHA; status=in_progress, conclusion=None, observed 2026-11-08T13:38:49.920478+00:00. This is a branch handoff, not a claim of green CI. The guarded fleet lander enforces exact-SHA success before landing.
+Observed main Verify: 42480648831, push event, completed success.
+Observed main Run site: 42480648829, push event, completed success.
 
 ## Change and scope
 
@@ -89,10 +92,12 @@ PROBE BASE-AGENT-008 5: real key-prepared receipt and appeal, followed by signed
 PROBE BASE-AGENT-008 6: both MCP grant profiles and stored receipt delegation -> prepared record, populated activity, audit and downloaded CSV agree on the native creator attribution at the proved native doors.
 PROBE BASE-AGENT-008 custody: revoke key and deactivate creator -> stored run returns 401; retained record and filtered audit CSV keep their original attribution. Existing erased and merged preparation replays remain refused.
 
-Pre-ready self-check: selected behaviors have public-door assertions; none of the old assertions was removed or weakened; the authority, erasure and replay paths retain their refusals. Changed screens retain existing components and readable type, with no new icon-only control or configuration surface. Added text contains no email-shaped fixture string. Required MIME values and actual file paths remain ordinary protocol and path strings. The cloud does not claim a publication scan or main equality.
+Pre-ready self-check: selected behaviors have public-door assertions; none of the old assertions was removed or weakened; the authority, erasure and replay paths retain their refusals. Changed screens retain existing components and readable type, with no new icon-only control or configuration surface. Added text contains no email-shaped fixture string. Required MIME values and actual file paths remain ordinary protocol and path strings. Publication scan commit=6b16ac867cd8bec68603f1b7addc7efef16b48ed complete=NOT_RUN historyScanned=NOT_RUN findings=NOT_ESTABLISHED. The cloud does not claim main equality. The guarded lander must establish both.
 
 The initial local attempt exposed a new test's incorrect activity URL (404) and an unavailable default Playwright executable. The URL was corrected to the existing agent summary route, and Chromium was selected at the VM's installed path. Touched tests then passed, including their exact-candidate run. No CI repair round or test weakening occurred.
 
 GAP BASE-AGENT-008: Shared Base identity and policy integration, OAuth scope and specialist roles, Business-token sponsorship, non-key Development-agent attribution, outside sender attribution, agent decisions, signatures, field confirmations and full clause acceptance remain owed. Old rows without reliable immutable creator evidence remain unpromoted. Existing account, ct, Base, device, prerequisite and gate-loop holds are unchanged.
 
 CLAIM BASE-AGENT-008 PARTIAL points=5 tests=tests/coffer.test.mjs#API-004: MCP donor context, generated catalog documentation and preparation retain native keys and human approval; tests/coffer.test.mjs#DEV-012: named and preparation grants enforce scope, template approval, atomic limits and immediate stops through HTTP, MCP and scheduled jobs; tests/audit.test.mjs#TEAM-003: owner filters changes by person, record and action and downloads the same audit as CSV
+
+Product custody: the named branch was pushed successfully and its advertised head matched the candidate. The first evidence publication was fetched back and all 30 then-selected file hashes and bytes matched. This final packet includes the updated CI observation and main baseline; its separate evidence commit is reported in the terminal EVIDENCE line.

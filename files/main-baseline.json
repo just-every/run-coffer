@@ -1,0 +1,20 @@
+{
+  "head": "a96722be87079872a12454dbf494d8feff5b37aa",
+  "runs": [
+    {
+      "conclusion": "success",
+      "event": "push",
+      "id": 42480648831,
+      "name": "Verify",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "push",
+      "id": 42480648829,
+      "name": "Run site",
+      "status": "completed"
+    }
+  ],
+  "source": "Initial exact-SHA REST discovery during this task"
+}
