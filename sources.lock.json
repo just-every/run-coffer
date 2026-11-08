@@ -3031,11 +3031,11 @@
       "executable": false
     },
     "src/coffer/agent-grant-context.ts": {
-      "sha256": "dd49a11f8af9cd3b0cefd1fb4048a6443bdc1f96e4d2382d2d1fa353e4ab2097",
+      "sha256": "87a8ca174bf6d5617d9d66e8ff330ea7de46a546b9421a995b8fd55ff60c0418",
       "executable": false
     },
     "src/coffer/agent-grants-execution.ts": {
-      "sha256": "a2291732f1d1b2420c6676424bc5c075889fd74a909fe4f72307622d84274568",
+      "sha256": "f752ff00365b7dc3b16d547525776ae01289648a94fbde7373163fbb7d34ff4a",
       "executable": false
     },
     "src/coffer/agent-grants-legacy.ts": {
@@ -3295,7 +3295,7 @@
       "executable": false
     },
     "src/coffer/auth.ts": {
-      "sha256": "2ed13c6adf83472e699f7d46525fd27003956f77f8f8d0dbf6eacf5af44e3e1e",
+      "sha256": "baa04c9a94de6a3f3124bfc088125e4d1a8c1758307d1b91b992476972a0c1ad",
       "executable": false
     },
     "src/coffer/automation-grants.ts": {
@@ -3499,7 +3499,7 @@
       "executable": false
     },
     "src/coffer/db.ts": {
-      "sha256": "bcfca297439cd044365b11a5c7ffc158d5574e74a7359856f8c7a4a57edefa32",
+      "sha256": "678a20dbf101751401085637c07a00b7e746a8c47d05cae9012b8d5b2361f869",
       "executable": false
     },
     "src/coffer/demo/giving.ts": {
@@ -4302,6 +4302,10 @@
       "sha256": "d3314e39ced1c9f6669e49ef16997445d5d5d3c46064f42640a9400b20492ca5",
       "executable": false
     },
+    "src/coffer/native-key-attribution.ts": {
+      "sha256": "ae1dd185d28157c49d768637a1de87e5a097dd714342d667f8db54fef06e00ac",
+      "executable": false
+    },
     "src/coffer/opportunity-close.ts": {
       "sha256": "5d023cbce846cd28620e72ebfb53ee53729e170c122c4aa74f4c21c49c7a2e1e",
       "executable": false
@@ -5019,7 +5023,7 @@
       "executable": false
     },
     "src/coffer/ui/letters.ts": {
-      "sha256": "297512013e7de6c1cef79b48fe8b226a52f772328c4b8505596661a971e96b17",
+      "sha256": "114e0116f7c5eb9edec5833bd0a4aa39c88597de29eefb54203ee34354ebb14b",
       "executable": false
     },
     "src/coffer/ui/major-gifts.ts": {
@@ -7259,7 +7263,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "7588d9029698fa5ef40bfff26a6984e32cbdfa5c5a690f5ad37c564940a6715a",
+      "sha256": "2cb71ad0331a0dcc22e542b0c7060d8c4471eebf0fff5e68320d3b1a800f53cd",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7311,7 +7315,7 @@
       "executable": false
     },
     "tests/audit.test.mjs": {
-      "sha256": "9e6ec75c0ceb40c0a5b69de8f0287dfee719e2b6a9e4e4585f3ba0f044eacb83",
+      "sha256": "f95049d6991f51cf2048bb7d89af58f467584df6d771716112f9ae2d19daae3d",
       "executable": false
     },
     "tests/automation-grants-journey.mjs": {
@@ -7859,7 +7863,7 @@
       "executable": false
     },
     "tests/mcp-browser.mjs": {
-      "sha256": "48cb849b7e2b2b2cd480413ace0035635dee56628ee7b05ec0f34eab873b2456",
+      "sha256": "332ee5ec0d6837d0e9d51cd879307c3d430865d0d013d38fd423ae42b53a8ba6",
       "executable": false
     },
     "tests/mcp-docs-browser.mjs": {
@@ -7867,7 +7871,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "ed0334a3ebe6f26d30dcfa0bc5b496416950d3640b5160893f774a7129cabeda",
+      "sha256": "c023360f3d12cd76c5c44294dd006ad72491814ea965632b695c6029159999e3",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {
