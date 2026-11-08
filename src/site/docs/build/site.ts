@@ -4,6 +4,7 @@ import { PATHS, startLine, type RunData } from '../../../base/run-site'
 import { runPricing } from '../../../base/run-pricing'
 import type { DocsBody, DocsSection } from '../types.ts'
 import { docsDirectory, manifestPath, readManifest } from './manifest.ts'
+import { agentsDocumentation, documentationSources } from '../../../coffer/mcp/documentation'
 import { renderMarkdown } from './render.ts'
 
 // The whole docs site from the tree as it is: every page in docs/site.json rendered, every link to another docs page and
@@ -22,12 +23,12 @@ export function buildDocs(root: string): DocsSite {
   const recipe: Record<string, string> = {
     startLine: startLine(run), clone: run.clone, requirements: PATHS.self.requirements,
   }
-  const files = [join(root, manifestPath), runFile]
+  const files = [join(root, manifestPath), runFile, ...documentationSources.map(file => join(root, file))]
   const rendered = new Map(pages.map(page => {
     const file = join(root, docsDirectory, page.file)
     files.push(file)
     // A file's own leading title (kept for reading it on GitHub) gives way to the title in docs/site.json.
-    const markdown = readFileSync(file, 'utf8').replace(/\{\{run\.(\w+)\}\}/g, (_, key: string) => {
+    const markdown = readFileSync(file, 'utf8').replace('<!-- coffer:mcp-current-surface -->', agentsDocumentation()).replace(/\{\{run\.(\w+)\}\}/g, (_, key: string) => {
       if (!Object.hasOwn(recipe, key)) throw new Error(`${docsDirectory}/${page.file}: unknown run recipe ${key}`)
       return recipe[key]
     })

@@ -34,5 +34,9 @@ const standingSendTool = { name:'ack.send',description:'Dispatch this named gran
 
 /** Discovery and execution select from the same catalog. Listing is not a grant:
  * native services still enforce current scope, permissions and standing approval. */
-export const catalogFor = (c: Context) => c.actor.grant ? [...preparationTools, standingSendTool] : preparationTools
+const selectCatalog = (named: boolean) => named ? [...preparationTools, standingSendTool] : preparationTools
+export const catalogFor = (c: Context) => selectCatalog(Boolean(c.actor.grant))
 export const describeTool = ({ run: _run, ...descriptor }: ReturnType<typeof catalogFor>[number]) => descriptor
+
+/** Public descriptors only: no actor, credential, record, or executable binding. */
+export const describeCatalog = (named: boolean) => selectCatalog(named).map(describeTool)

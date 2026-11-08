@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "982ec75670a6ea73350554f95867323031c73eb4c1051bddb458344208956288",
+      "sha256": "a248a8eae5f77f615d2fda05998d76fb8817a92322db260e2376e1f5b80f9479",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -779,7 +779,7 @@
       "executable": false
     },
     "docs/site.json": {
-      "sha256": "70b1cffcd821122d9270a149dd02796c9165f54588238b7ec34dc4eca6c7d56a",
+      "sha256": "823f5b28023b9b70ee8d3806c6bda9f247b43bbecfe43f59b83b60f84c2c6b65",
       "executable": false
     },
     "docs/SOURCES.md": {
@@ -4003,15 +4003,19 @@
       "executable": false
     },
     "src/coffer/mcp.ts": {
-      "sha256": "5b547273d572a60d01f43e02f2bde7f17f64c625532ff1ac452a1e3e2476c85c",
+      "sha256": "3b207a9ce7fef0701eac18110bd14797fd5b31c2894da982a609aad9b0f1025c",
       "executable": false
     },
     "src/coffer/mcp/catalog.ts": {
-      "sha256": "922dbb8e3aa0e206b73bd33bc0db63dea9cb3ed4049e4046be8bd444e548fdf7",
+      "sha256": "8f4c68708108ae0a934307c29d6af7888e74a61da03e25f045b317de030d2e3b",
+      "executable": false
+    },
+    "src/coffer/mcp/documentation.ts": {
+      "sha256": "e0e7e1b377c4c543525a20a96dfb53affc533e5cd69defa40a65f9628d815023",
       "executable": false
     },
     "src/coffer/mcp/donor-resources.ts": {
-      "sha256": "4eb9d0d0c9cf3145c97c389f50b00832496dc5b5ea0ddf433b4c83ea0a1b2ca3",
+      "sha256": "9284d850cfc2c0c3be67f5dd6e83470df8d09d8bd8f454c5f7afc23f91fa6ac9",
       "executable": false
     },
     "src/coffer/mcp/input.ts": {
@@ -7027,7 +7031,7 @@
       "executable": false
     },
     "src/site/docs/build/plugin.ts": {
-      "sha256": "cdbe60a7982c71990c09d112b6b43e721220a1ac8575a3f6d504680883b6bfc3",
+      "sha256": "0bb665a56e08d962f848294d44f5f552ab44490475b63fd9b42fa816daaada2b",
       "executable": false
     },
     "src/site/docs/build/render.ts": {
@@ -7035,7 +7039,7 @@
       "executable": false
     },
     "src/site/docs/build/site.ts": {
-      "sha256": "b3d520ffaf68d488eda134c2828606807b61e97338a925b5c90069edd533a069",
+      "sha256": "c8b8ab66eebd78907e7cb83fe3642ba49245ce1d356509e4b842e2da886a764f",
       "executable": false
     },
     "src/site/docs/build/slug.ts": {
