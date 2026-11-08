@@ -4495,11 +4495,11 @@
       "executable": false
     },
     "src/coffer/payments/shops/provider.ts": {
-      "sha256": "43629d76266deb3edde23dd66908846d247c0610934d7deca7d6a91e16a86ce2",
+      "sha256": "f8f69fe989543cd1dd0b2988f2119d78af95930fbeced0d0bba9150c8450ba85",
       "executable": false
     },
     "src/coffer/payments/shops/service.ts": {
-      "sha256": "cf29fca693d2fdcaaeee30761892850230154b15687da0af0ac7671adecce8aa",
+      "sha256": "4196c5c268b3d930de633f5859835214e14e8b7008ac6110b13cb390aa39c265",
       "executable": false
     },
     "src/coffer/payments/stripe-data.ts": {

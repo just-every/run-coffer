@@ -59,12 +59,12 @@ async function orderObservation(env:ShopEnv,orderId:string){
  return {facts,payment,refundId,capture,refund}
 }
 
-async function linkedProcessor(env:ShopEnv,facts:Row,capture:Row,refund:Row|undefined){
+async function linkedProcessor(env:ShopEnv,facts:Row,capture:Row,refund:Row|undefined,ownershipOnly=false){
  if(!env.SHOPIFY_STRIPE_ACCOUNT||!/^ch_[A-Za-z0-9_]+$/.test(capture.authorization??''))fail('SHOP_GATEWAY','This gateway or shared processor ownership is unsupported and stays held.')
  const account=(await stripe(env,'/account')).id
  if(account!==env.SHOPIFY_STRIPE_ACCOUNT)fail('SHOP_BINDING','The linked processor account is not this shop connection.')
  const chargeId=String(capture.authorization),charge=await stripe(env,'/charges/'+encodeURIComponent(chargeId))
- if(charge.id!==chargeId||charge.currency!=='usd'||charge.amount!==facts.total||charge.paid!==true||charge.status!=='succeeded'||charge.amount_refunded!==(refund?facts.total:0)||typeof charge.balance_transaction!=='string')fail('SHOP_BINDING','The linked charge does not confirm the complete order.')
+ if(charge.id!==chargeId||charge.currency!=='usd'||charge.amount!==facts.total||charge.paid!==true||charge.status!=='succeeded'||!ownershipOnly&&(charge.amount_refunded!==(refund?facts.total:0)||typeof charge.balance_transaction!=='string'))fail('SHOP_BINDING','The linked charge does not confirm the complete order.')
  if(charge.metadata?.coffer_intent||charge.metadata?.coffer_pledge_checkout)fail('SHOP_PROCESSOR_CONFLICT','This charge already belongs to a Coffer checkout.')
  const processorRefs=[chargeId,charge.payment_intent,typeof charge.invoice==='string'?charge.invoice:null].filter((v):v is string=>typeof v==='string'&&Boolean(v))
  return {account,chargeId,charge,processorRefs}
@@ -73,8 +73,17 @@ async function linkedProcessor(env:ShopEnv,facts:Row,capture:Row,refund:Row|unde
 /** Establish linked-charge ownership at signed observation, before fee allocation
  * or donor review. Missing settlement evidence must not release merchandise. */
 export async function processorObservation(env:ShopEnv,orderId:string){
- const {facts,capture,refund}=await orderObservation(env,orderId)
- return capture.gateway==='stripe'?linkedProcessor(env,facts,capture,refund):null
+ const bound=connection(env),shop=(await read(env,'shop.json')).body.shop
+ if(String(shop?.id)!==bound.shop||shop?.myshopify_domain!==bound.domain)fail('SHOP_BINDING','Shopify did not confirm this installation shop.')
+ const order=(await read(env,'orders/'+orderId+'.json')).body.order
+ if(!order||sourceId(order.id)!==orderId)fail('SHOP_BINDING','Shopify returned a different order.')
+ const result=await read(env,'orders/'+orderId+'/transactions.json')
+ if(result.link||!Array.isArray(result.body.transactions))fail('SHOP_PROVIDER','The payment history is incomplete.',502)
+ const captures=result.body.transactions.filter((t:Row)=>['sale','capture'].includes(t.kind)&&t.gateway==='stripe'&&t.status==='success')
+ if(!captures.length)return null
+ const capture=captures[0],facts={total:decimal(order.total_price)}
+ if(captures.length!==1||String(capture.order_id)!==orderId||capture.currency!=='USD'||order.currency!=='USD'||decimal(capture.amount)!==facts.total)fail('SHOP_BINDING','The linked payment does not confirm this complete order.')
+ return linkedProcessor(env,facts,capture,undefined,true)
 }
 
 export async function observe(env:ShopEnv,orderId:string){

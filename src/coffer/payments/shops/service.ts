@@ -63,7 +63,9 @@ export async function shopWebhook(request:Request,env:ShopEnv):Promise<Response>
   }else if(topic===paidTopic&&existing.source_hash!==sourceHash){
    stmts.push(sql("UPDATE cf_shop_orders SET state='held',conflicted=1,issues=?,version=version+1,fingerprint=NULL WHERE id=?",JSON.stringify(['Conflicting source facts. Historical money remains unchanged.']),key))
   }else if(topic===refundTopic&&!(existing.state==='refunded'&&existing.evidence&&Array.isArray(payload.transactions)&&payload.transactions.some((t:Row)=>String(t.id)===JSON.parse(existing.evidence).refundId&&t.kind==='refund'&&t.status==='success')))stmts.push(sql("UPDATE cf_shop_orders SET state='refund-held',refund_pending=1,version=version+1,fingerprint=NULL,issues=? WHERE id=?",JSON.stringify(['A refund was observed. Refresh exact payment and allocation evidence before human approval.']),key))
-  if(!erased){
+  // A refund hold must persist even while provider reads lag or fail. The paid
+  // observation establishes the linked charge; refunds retain that reservation.
+  if(!erased&&topic===paidTopic){
    const processor=await processorObservation(env,orderId)
    if(processor)stmts.push(
     guard('NOT EXISTS(SELECT 1 FROM cf_shop_processor_bindings WHERE charge_id=? AND (order_key<>? OR account_id<>?))','SHOP_PROCESSOR_CONFLICT','This processor payment belongs to another shop observation.',processor.chargeId,key,processor.account),
