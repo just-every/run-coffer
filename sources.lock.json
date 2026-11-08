@@ -783,7 +783,7 @@
       "executable": false
     },
     "docs/SHOP-ORDERS.md": {
-      "sha256": "72a345a31cdaaad7ac81e41a80711d06e53b75eabb4db95b333429b9b09e1caa",
+      "sha256": "566bd2cf5141b6194d312579331aa3766e5c78d3ba829e4c3400f0a79c2de684",
       "executable": false
     },
     "docs/site.json": {
@@ -1632,6 +1632,10 @@
     },
     "migrations/core/0193_coffer_shop_conflicts.sql": {
       "sha256": "694ee87f828cc07cd998268644710f1d5ff7fefea4e5c005bb1a0263d1a85eff",
+      "executable": false
+    },
+    "migrations/core/0194_coffer_shop_refund_holds.sql": {
+      "sha256": "f09669fed2b25106c4fe431166b7e5bd34703e599be5e872488224c116e9bdef",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -4483,7 +4487,7 @@
       "executable": false
     },
     "src/coffer/payments/shops/custody.ts": {
-      "sha256": "2fead0f98b124beb2a927c6d1c5cb2d9818e555c52b74dbfee64ce601bc364a9",
+      "sha256": "7304e17896c621590f5ea8783bd87518d865c1ab57c20785f6c989af0973e43c",
       "executable": false
     },
     "src/coffer/payments/shops/http.ts": {
@@ -4495,7 +4499,7 @@
       "executable": false
     },
     "src/coffer/payments/shops/service.ts": {
-      "sha256": "23d9894e249c9e59c1701e095293e1371acbdd900f0b8443cbd0204241369a3e",
+      "sha256": "c1d6fb2f015a20fc7a6bc3a4b9a4fedaab1dc5cd1de4d41a93c0996b31feadfd",
       "executable": false
     },
     "src/coffer/payments/stripe-data.ts": {
@@ -4659,7 +4663,7 @@
       "executable": false
     },
     "src/coffer/receipt-corrections.ts": {
-      "sha256": "7f95e49f2a2d39028d36d6f6ddd09aa13d46a99e5bd0e803d80a5e13cc931a98",
+      "sha256": "bfe91376b3f26c624def555c79aa9406f0065d9ebf8f9d1c647d9ec70ede869f",
       "executable": false
     },
     "src/coffer/receipt-format.ts": {
@@ -8287,7 +8291,7 @@
       "executable": false
     },
     "tests/shop-orders-journey.mjs": {
-      "sha256": "56f809e52f1e5ae94c6492332809854c57a64e5178b7abdf8d0ba9a30e9526ad",
+      "sha256": "418b61766e5439f7b00626c4dece7e017ee186ae93004fbcdedf1f912bc7b26a",
       "executable": false
     },
     "tests/single-letter-snapshots.mjs": {

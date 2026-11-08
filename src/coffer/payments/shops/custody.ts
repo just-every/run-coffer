@@ -8,5 +8,5 @@ export function shopErasure(donorId:string,emails:string[]=[]):Stmt[]{
  const args=[donorId,donorId,donorId,donorId,JSON.stringify(emails)]
  return [sql(`INSERT OR IGNORE INTO cf_shop_erased_identities(hash) SELECT identity_hash FROM cf_shop_orders WHERE identity_hash IS NOT NULL AND id IN (${affected})`,...args),
  sql(`UPDATE cf_shop_events SET payload=NULL WHERE order_key IN (${affected})`,...args),
- sql(`UPDATE cf_shop_orders SET state='erased',source=NULL,facts='{}',review=NULL,evidence=NULL,fingerprint=NULL,issues='[]',approved_by=NULL,approved_at=NULL,version=version+1 WHERE id IN (${affected})`,...args)]
+ sql(`UPDATE cf_shop_orders SET state='erased',refund_pending=0,source=NULL,facts='{}',review=NULL,evidence=NULL,fingerprint=NULL,issues='[]',approved_by=NULL,approved_at=NULL,version=version+1 WHERE id IN (${affected})`,...args)]
 }

@@ -56,13 +56,13 @@ export async function shopWebhook(request:Request,env:ShopEnv):Promise<Response>
   const stmts:Stmt[]=[guard(`NOT EXISTS(SELECT 1 FROM cf_shop_orders WHERE id=? AND state='erased') AND NOT EXISTS(SELECT 1 FROM cf_erasures WHERE hash=?) AND NOT EXISTS(SELECT 1 FROM cf_shop_erased_identities WHERE hash=?)`,'SHOP_ERASED','This source identity was erased.',key,erasureHash(mail),identityHash??'')]
   if(erased)stmts.length=0
   if(!existing){
-   stmts.push(sql("INSERT INTO cf_shop_orders(id,installation_id,shop_id,shop_domain,order_id,state,source_hash,source,facts,issues,created_at,identity_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",key,home(env),b.shop,b.domain,orderId,erased?'erased':'held',sourceHash,erased?null:topic===paidTopic?JSON.stringify(facts):null,JSON.stringify(facts),JSON.stringify(issues),now,identityHash),
+   stmts.push(sql("INSERT INTO cf_shop_orders(id,installation_id,shop_id,shop_domain,order_id,state,source_hash,source,facts,issues,created_at,identity_hash,refund_pending) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",key,home(env),b.shop,b.domain,orderId,erased?'erased':'held',sourceHash,erased?null:topic===paidTopic?JSON.stringify(facts):null,JSON.stringify(facts),JSON.stringify(issues),now,identityHash,topic===refundTopic&&!erased?1:0),
     sql("INSERT INTO cf_payment_donor_matches(charge_id,installation_id,account_id,state,email,facts,candidates,created_at,updated_at,provider) VALUES(?,?,?,?,?,?,?,?,?,'shopify')",key,home(env),b.shop,erased?'erased':'held',erased?null:mail||null,JSON.stringify({amount:0}),erased?'[]':JSON.stringify(candidates),now,now))
   }else if(topic===paidTopic&&!existing.source_hash&&sourceHash){
    stmts.push(sql("UPDATE cf_shop_orders SET source_hash=?,source=?,facts=?,issues='[]',version=version+1 WHERE id=?",sourceHash,JSON.stringify(facts),JSON.stringify(facts),key),sql("UPDATE cf_payment_donor_matches SET email=?,candidates=?,version=version+1 WHERE charge_id=?",mail,JSON.stringify(candidates),key))
   }else if(topic===paidTopic&&existing.source_hash!==sourceHash){
    stmts.push(sql("UPDATE cf_shop_orders SET state='held',conflicted=1,issues=?,version=version+1,fingerprint=NULL WHERE id=?",JSON.stringify(['Conflicting source facts. Historical money remains unchanged.']),key))
-  }else if(topic===refundTopic&&!(existing.state==='refunded'&&existing.evidence&&Array.isArray(payload.transactions)&&payload.transactions.some((t:Row)=>String(t.id)===JSON.parse(existing.evidence).refundId&&t.kind==='refund'&&t.status==='success')))stmts.push(sql("UPDATE cf_shop_orders SET state='refund-held',version=version+1,fingerprint=NULL,issues=? WHERE id=?",JSON.stringify(['A refund was observed. Refresh exact payment and allocation evidence before human approval.']),key))
+  }else if(topic===refundTopic&&!(existing.state==='refunded'&&existing.evidence&&Array.isArray(payload.transactions)&&payload.transactions.some((t:Row)=>String(t.id)===JSON.parse(existing.evidence).refundId&&t.kind==='refund'&&t.status==='success')))stmts.push(sql("UPDATE cf_shop_orders SET state='refund-held',refund_pending=1,version=version+1,fingerprint=NULL,issues=? WHERE id=?",JSON.stringify(['A refund was observed. Refresh exact payment and allocation evidence before human approval.']),key))
   stmts.push(sql('INSERT INTO cf_shop_events(id,order_key,topic,payload_hash,payload,created_at) VALUES(?,?,?,?,?,?)',eventKey,key,topic,hash,erased?null:JSON.stringify(topic===paidTopic?facts:{id:String(payload.id??''),order_id:orderId,transactions:Array.isArray(payload.transactions)?payload.transactions.map((t:Row)=>({id:String(t.id??''),kind:t.kind,status:t.status,amount:t.amount,currency:t.currency,parent_id:t.parent_id})):[]}),now))
   await paymentWrite(env,stmts)
   return Response.json({id:key,state:erased?'erased':'held'})
@@ -91,10 +91,15 @@ export async function selectShopDonor(c:Context,key:string,input:Row){
 
 export async function reviewShopOrder(c:Context,key:string,input:Row){
  authorize(c);const r=await shopOrder(c,key);bound(c,r)
+ if(r.state==='refunded'){await commit(c,[]);return r}
  if(r.conflicted)fail('SHOP_SOURCE_CONFLICT','Conflicting signed source facts require separate investigation. Historical money is unchanged.')
  if(r.state==='erased'||Number(input.version)!==r.version)fail('SHOP_CHANGED','Review the current order version.')
  let o:Awaited<ReturnType<typeof observe>>
  try{o=await observe(c.env as ShopEnv,r.order_id)}catch(e){if(!(e instanceof CofferError))throw e;await commit(c,[sourceGuard(r),sql("UPDATE cf_shop_orders SET state='held',issues=?,fingerprint=NULL,version=version+1 WHERE id=?",JSON.stringify([e.message]),key)]);return shopOrder(c,key)}
+ if(r.refund_pending&&!o.refundId){
+  await commit(c,[sourceGuard(r),sql("UPDATE cf_shop_orders SET state='refund-held',issues=?,fingerprint=NULL,version=version+1 WHERE id=?",JSON.stringify(['The signed refund is ahead of the provider read. Money and receipts stay held.']),key)])
+  return shopOrder(c,key)
+ }
  if(await sha256(JSON.stringify(o.facts))!==r.source_hash)fail('SHOP_CHANGED','Current Shopify order facts conflict with the signed paid order. Money stays held.')
  const donation=o.facts.lines.find((l:Row)=>l.id===String(input.donationLineId))
  if(!donation||donation.price<=0||donation.benefit||donation.quantity!==1||donation.tax!==0||donation.properties._coffer_kind!=='donation'||o.facts.lines.some((l:Row)=>l.id!==donation.id&&l.properties._coffer_kind!=='merchandise'))fail('SHOP_CLASSIFICATION','Explicit source donation and merchandise classification is required; unsupported lines stay held.')
@@ -113,7 +118,7 @@ export async function reviewShopOrder(c:Context,key:string,input:Row){
   stmts.push(guard('NOT EXISTS(SELECT 1 FROM cf_stripe_charges WHERE id=?) AND NOT EXISTS(SELECT 1 FROM cf_gifts WHERE source=\'stripe\' AND reference IN (SELECT value FROM json_each(?)))','SHOP_PROCESSOR_CONFLICT','This charge already has conflicting custody.',o.chargeId,JSON.stringify(o.processorRefs)),sql('INSERT OR IGNORE INTO cf_shop_processor_bindings(charge_id,account_id,order_key) VALUES(?,?,?)',o.chargeId,o.account,key))
  }
  const fingerprint=await sha256(JSON.stringify({review,o}))
- stmts.push(sql("UPDATE cf_shop_orders SET review=?,evidence=?,fingerprint=?,state=?,issues='[]',version=version+1 WHERE id=?",JSON.stringify(review),JSON.stringify(o),fingerprint,o.refundId?'refund-held':'review',key),sql("UPDATE cf_payment_donor_matches SET facts=? WHERE charge_id=?",JSON.stringify({amount:donation.price,fund:input.fund,order:r.order_id}),key),event(c,'payments.shopReviewed','shopOrder',key,null,{amountCents:donation.price,excludedCents:o.facts.total-donation.price}))
+ stmts.push(sql("UPDATE cf_shop_orders SET review=?,evidence=?,fingerprint=?,state=?,refund_pending=?,issues='[]',version=version+1 WHERE id=?",JSON.stringify(review),JSON.stringify(o),fingerprint,o.refundId?'refund-held':'review',o.refundId?1:0,key),sql("UPDATE cf_payment_donor_matches SET facts=? WHERE charge_id=?",JSON.stringify({amount:donation.price,fund:input.fund,order:r.order_id}),key),event(c,'payments.shopReviewed','shopOrder',key,null,{amountCents:donation.price,excludedCents:o.facts.total-donation.price}))
  await commit(c,stmts);return shopOrder(c,key)
 }
 
@@ -121,6 +126,7 @@ export async function approveShopOrder(c:Context,key:string,input:Row,refund=fal
  authorize(c);const r=await shopOrder(c,key);bound(c,r)
  if(r.state==='erased')fail('SHOP_ERASED','This source was erased.')
  if(r.state===(refund?'refunded':'reconciled')){await commit(c,[]);return r}
+ if(r.refund_pending&&!refund)fail('SHOP_REFUND_PENDING','Resolve the observed refund before recording contribution money.')
  if(input.confirm!=='yes'||Number(input.version)!==r.version||input.fingerprint!==r.fingerprint||!r.fingerprint||!r.review)fail('SHOP_CHANGED','Approve the exact current reviewed contribution and allocation.')
  const o=await observe(c.env as ShopEnv,r.order_id),v=r.review
  if(JSON.stringify(o)!==JSON.stringify(r.evidence)||Boolean(o.refundId)!==refund)fail('SHOP_CHANGED','Payment or refund facts changed. Refresh the review before money.')
@@ -142,7 +148,7 @@ export async function approveShopOrder(c:Context,key:string,input:Row,refund=fal
  if(refund){
   stmts.push(sql("INSERT INTO cf_payment_entries(id,source_id,kind,amount_cents,fee_cents,net_cents,fund,gift_id,contribution_cents,currency,received_on,created_at) VALUES(?,?,'refund',?,?,?,?,?,?,'usd',?,?)",'shop-refund-'+key,'shop-refund-source-'+key,-v.amount,v.refundContributionFee,-v.amount-v.refundContributionFee,v.fund,giftId,-v.amount,c.now.slice(0,10),c.now))
  }
- stmts.push(sql('UPDATE cf_shop_orders SET gift_id=?,state=?,approved_by=?,approved_at=?,version=version+1 WHERE id=?',giftId,refund?'refunded':'reconciled',c.actor.id,c.now,key),event(c,refund?'payments.shopRefundApproved':'payments.shopMoneyApproved','gift',giftId,donor.id,{orderKey:key,contributionCents:v.amount,feeCents:v.contributionFee}))
+ stmts.push(sql('UPDATE cf_shop_orders SET gift_id=?,state=?,refund_pending=0,approved_by=?,approved_at=?,version=version+1 WHERE id=?',giftId,refund?'refunded':'reconciled',c.actor.id,c.now,key),event(c,refund?'payments.shopRefundApproved':'payments.shopMoneyApproved','gift',giftId,donor.id,{orderKey:key,contributionCents:v.amount,feeCents:v.contributionFee}))
  await commit(c,stmts);return shopOrder(c,key)
 }
 

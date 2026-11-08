@@ -108,6 +108,16 @@ export async function shopOrdersJourney(){
   const originalAfterReceipt=(await h.get('/api/coffer/donors/'+chosen.id)).gifts.find(g=>g.id===gift.id)
   const refund=addRefund(paid)
   assert.equal((await send(refund,{topic:refundTopic})).status,200)
+  await h.command('ack.send',{batchId:receipt.id,version:2},{status:409})
+  assert.ok((await h.get('/api/coffer/letters/'+receipt.id)).letters[0].void_reason)
+  await h.command('ack.correct',{letterId:letter.id},{status:409})
+  const refundTransaction=transactions.get(paid.id).pop();paid.financial_status='paid'
+  let lagged=await h.get(root+'/'+key)
+  lagged=await h.api(root+'/'+key+'/review',{...review,version:lagged.version})
+  assert.equal(lagged.state,'refund-held');assert.equal(lagged.refund_pending,1);assert.equal(lagged.fingerprint,null)
+  await h.command('ack.prepare',{giftIds:[gift.id]},{status:409})
+  await h.api(root+'/'+key+'/approve',approval(lagged),{status:409})
+  transactions.get(paid.id).push(refundTransaction);paid.financial_status='refunded'
   r=await h.get(root+'/'+key);assert.equal(r.state,'refund-held');await h.api(root+'/'+key+'/refund',approval(r),{status:409})
   assert.equal((await h.get('/api/coffer/donors/'+chosen.id)).totals.lifetimeCents,2500)
   await h.api(root+'/'+key+'/review',{...review,refundContributionFee:'1.00',refundNoncontributionFee:'-1.00',version:r.version},{status:409})
@@ -133,6 +143,11 @@ export async function shopOrdersJourney(){
   const earlyKey=(await (await send(earlyRefund,{topic:refundTopic})).json()).id
   assert.equal((await send({...early,financial_status:'paid'})).status,200)
   let er=await h.get(root+'/'+earlyKey)
+  const earlyTransaction=transactions.get(early.id).pop();early.financial_status='paid'
+  er=await h.api(root+'/'+earlyKey+'/review',{...review,donationLineId:String(early.id*10+2),version:er.version})
+  assert.equal(er.state,'refund-held');assert.equal(er.gift_id,null);assert.equal(er.refund_pending,1)
+  await h.api(root+'/'+earlyKey+'/approve',approval(er),{status:409})
+  transactions.get(early.id).push(earlyTransaction);early.financial_status='refunded'
   er=await h.api(root+'/'+earlyKey+'/review',{...review,donationLineId:String(early.id*10+2),version:er.version,refundContributionFee:'0.00',refundNoncontributionFee:'0.00'})
   assert.equal(er.state,'refund-held');assert.equal(er.gift_id,null)
   await h.api(match(earlyKey)+'/approve',selection(er.donorReview,chosen))

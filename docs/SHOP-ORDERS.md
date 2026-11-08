@@ -77,7 +77,7 @@ provenance explicit. Actual fees never reduce the contribution receipt.
 
 ## Refunds and processor custody
 
-A signed refund observation first holds the order. Refresh current complete
+A signed refund observation first persists a hold independently of later reads and voids existing receipts. A provider read that still shows the paid order cannot clear it. New receipts and corrected replacements remain blocked while the refund or a source conflict is unresolved. Refresh current complete
 provider facts, review the actual refund fee and both signed allocations, then
 approve the exact full contribution reversal. This appends one reversal and
 voids existing receipts using native correction rules. A fully reversed receipt

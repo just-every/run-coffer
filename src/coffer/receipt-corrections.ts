@@ -11,6 +11,7 @@ import { settings } from './settings'
  * this exact replacement must receive ordinary human approval before sending. */
 export async function correctReceipt(c: Context, p: Row): Promise<Row> {
  const original = await one(c, `SELECT a.*,b.kind,b.statement_year FROM cf_acks a JOIN cf_ack_batches b ON b.id=a.batch_id WHERE a.id=?`, id(p.letterId, 'Receipt'))
+ if(original?.gift_id&&await one(c,'SELECT id FROM cf_shop_orders WHERE gift_id=? AND (refund_pending=1 OR conflicted=1)',original.gift_id))fail('SHOP_MONEY_HELD','Resolve the shop refund or conflicting source before preparing a replacement receipt.')
  if (!original) fail('NOT_FOUND', 'That receipt does not exist.', 404)
  if (original.void_reason && original.kind === 'statement' && original.household_id) return (await import('./household-statements')).prepareHouseholdStatement(c, original.statement_year, original.household_id, original)
  if (original.void_reason && original.kind === 'statement') return (await import('./year-end')).prepareStatements(c, {year:original.statement_year,donorId:original.donor_id,onePiecePer:'constituent'}, {original})
