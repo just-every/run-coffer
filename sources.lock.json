@@ -3031,7 +3031,7 @@
       "executable": false
     },
     "src/coffer/agent-grant-context.ts": {
-      "sha256": "dd49a11f8af9cd3b0cefd1fb4048a6443bdc1f96e4d2382d2d1fa353e4ab2097",
+      "sha256": "87a8ca174bf6d5617d9d66e8ff330ea7de46a546b9421a995b8fd55ff60c0418",
       "executable": false
     },
     "src/coffer/agent-grants-execution.ts": {
@@ -3295,7 +3295,7 @@
       "executable": false
     },
     "src/coffer/auth.ts": {
-      "sha256": "2ed13c6adf83472e699f7d46525fd27003956f77f8f8d0dbf6eacf5af44e3e1e",
+      "sha256": "baa04c9a94de6a3f3124bfc088125e4d1a8c1758307d1b91b992476972a0c1ad",
       "executable": false
     },
     "src/coffer/automation-grants.ts": {
@@ -3499,7 +3499,7 @@
       "executable": false
     },
     "src/coffer/db.ts": {
-      "sha256": "c3e5fd123fa8a58ecd63843bd5cb8abaa60a945f3e3f0a0f7b470b79c22b54be",
+      "sha256": "de7afa6ce31ce12d4d3d10963beb62fd8f9eb59e2a36f9a8af0d10012160a04e",
       "executable": false
     },
     "src/coffer/demo/giving.ts": {
@@ -5015,7 +5015,7 @@
       "executable": false
     },
     "src/coffer/ui/letters.ts": {
-      "sha256": "297512013e7de6c1cef79b48fe8b226a52f772328c4b8505596661a971e96b17",
+      "sha256": "114e0116f7c5eb9edec5833bd0a4aa39c88597de29eefb54203ee34354ebb14b",
       "executable": false
     },
     "src/coffer/ui/major-gifts.ts": {
@@ -7255,7 +7255,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "33f98293d3a757c1a75d58b140e47e6fd200b1702094b1e3b10511eb008a03aa",
+      "sha256": "55b8342c4e9db4d0aeed212771305cea0077cca37ab74926a074ecdc7bd55976",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7307,7 +7307,7 @@
       "executable": false
     },
     "tests/audit.test.mjs": {
-      "sha256": "ea27be9c35ee9f432f7a5af71b9cf4578899a270b6f97a3128cc7e9b3a4256cb",
+      "sha256": "1fb9fe11501c0c620fcfd6668b40609cefcc6fd85593984edde2749df0d01b35",
       "executable": false
     },
     "tests/automation-grants-journey.mjs": {
@@ -7855,7 +7855,7 @@
       "executable": false
     },
     "tests/mcp-browser.mjs": {
-      "sha256": "48cb849b7e2b2b2cd480413ace0035635dee56628ee7b05ec0f34eab873b2456",
+      "sha256": "7b9622ae80ce5b983062807440fd0ca6869ba7f9d23bc17ef3d50d6f57049f21",
       "executable": false
     },
     "tests/mcp-docs-browser.mjs": {
@@ -7863,7 +7863,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "b07be9d05cc9c33e8a1ab7d5598e1a906244b0d8211b411ff80fd3539fb5a0a9",
+      "sha256": "fded0d7e16293ac27f340249f50bedb4daff2408e9b3c04ab6ae4c3bd8dde585",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {

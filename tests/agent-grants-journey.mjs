@@ -75,7 +75,15 @@ export async function agentGrantsJourney() {
   const ana=await donor(h,'Scoped Ana'),ben=await donor(h,'Private Ben'),house=await donor(h,'Scoped Household',{household:'Private household label'})
   const relative=await donor(h,'Private household member',{household:'Private household label'})
   const relation=await h.command('relationship.create',{donorId:ana.id,relatedDonorId:ben.id,type:'friend'})
-  const key=await h.command('agent.create',{label:'Named receipt assistant'}),otherKey=await h.command('agent.create',{label:'Second named client'})
+  const invite=await h.request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email:'grant.creator'+String.fromCharCode(64)+'example.test',role:'admin',displayName:'Native key creator'}).toString()})
+  assert.equal(invite.status,303)
+  const invitation=messages.at(-1).content.find(c=>c.type==='text/plain').value
+  const token=new URL(invitation.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]).searchParams.get('token')
+  const confirmed=await h.request('/auth/confirm',{method:'POST',as:'',body:{token}});assert.equal(confirmed.status,303)
+  const creatorCookie=confirmed.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ')
+  const creator=(await h.get('/auth/session',{as:creatorCookie})).operator
+  const key=await h.command('agent.create',{label:'Named receipt assistant'},{as:creatorCookie}),otherKey=await h.command('agent.create',{label:'Second named client'})
+  const attribution='Named receipt assistant for Native key creator',initialMessages=messages.length
   const permissions=['donors.list','donors.context','ack.prepare','ack.send']
   const grantInput={name:'Standard receipt approval',donorIds:[ana.id,house.id],permissions,dailyLimit:2,standingApproval:true}
   await h.command('agentGrant.save',{...grantInput,standingApproval:false},{status:400})
@@ -140,19 +148,22 @@ export async function agentGrantsJourney() {
    for(const duplicate of duplicates)assert.deepEqual(duplicate,duplicates[0])
    batches.push(duplicates[0])
   }
-  assert.equal(messages.length,0,'Keyed preparation never consumes a sending approval or submits mail')
+  assert.equal(messages.length,initialMessages,'Keyed preparation never consumes a sending approval or submits mail')
   const preparationAudit=await h.get('/api/coffer/audit?action=ack.prepare')
   assert.equal(preparationAudit.rows.filter(e=>e.subject_id===batches[1].id).length,1)
   const freezes=await Promise.all(batches.map(batch=>h.get(`/api/coffer/letters/${batch.id}`)))
   for(const freeze of freezes){
    assert.equal(freeze.batch.status,'prepared');assert.equal(freeze.batch.prepared_by_role,'agent')
+   assert.equal(freeze.batch.prepared_by_id,key.id);assert.equal(freeze.batch.prepared_by_name,attribution)
+   assert.equal(freeze.events[0].actor_id,key.id);assert.equal(freeze.events[0].actor_name,attribution)
+   assert.equal(JSON.parse(freeze.events[0].detail).nativeKey.creatorId,creator.id)
    assert.equal(freeze.letters[0].amount_cents,25000)
    assert.deepEqual(freeze.events.map(e=>e.action),['ack.prepare'])
   }
   await h.command('donor.erase',{donorId:house.id,confirm:'ERASE'})
   assert.equal((await api.mcp('donors.list')).total,1)
   await api.mcp('donors.context',{donorId:house.id},'NOT_FOUND')
-  assert.equal(messages.length,0,'Erasure and refused reads submit no mail')
+  assert.equal(messages.length,initialMessages,'Erasure and refused reads submit no mail')
   // Both doors share one atomic daily counter. Parallel calls reach the same
   // real native letter-delivery reservation and network submission service.
   proof('dispatching under standing approval')
@@ -163,13 +174,19 @@ export async function agentGrantsJourney() {
   const sent=race.find(r=>!r.isError)
   catalogSchemas(catalog)('ack.send',sent.value)
   const held=batches[1+race.findIndex(r=>r.isError)]
-  assert.equal(messages.length,2)
+  assert.equal(messages.length,initialMessages+2)
   const replay=await api.http('ack.send',{batchId:batches[0].id,version:1},409)
   assert.equal(replay.error,'VERSION')
   await api.mcp('ack.send',{batchId:batches[0].id,version:1},replay.error)
-  assert.equal(messages.length,2,'Replaying the submitted batch sends nothing')
+  assert.equal(messages.length,initialMessages+2,'Replaying the submitted batch sends nothing')
   const detail=await h.get(`/api/coffer/letters/${batches[0].id}`)
   assert.equal(detail.approval.prepared_by_role,'agent');assert.equal(detail.approval.approved_by_role,'owner');assert.equal(detail.approval.content_hash,batches[0].contentHash)
+  assert.equal(detail.approval.prepared_by_id,key.id);assert.equal(detail.approval.prepared_by_name,attribution)
+  assert.equal(detail.approval.approved_by_name,'Morgan Lee');assert.notEqual(detail.approval.approved_by_id,creator.id)
+  const standing=detail.events.find(e=>e.action==='ack.standingApproval')
+  assert.equal(standing.actor_id,key.id);assert.equal(standing.actor_name,attribution)
+  assert.equal(JSON.parse(standing.detail).approvedById,detail.approval.approved_by_id)
+  assert.ok((await (await h.request('/app/letters/'+batches[0].id)).text()).includes('under a standing grant'))
   assert.ok(detail.events.filter(e=>e.actor_role==='agent').every(e=>{const d=JSON.parse(e.detail);return d.grantId===grant.id&&d.grantVersion===1}))
   assert.equal((await api.http('ack.send',{batchId:held.id,version:1},409)).error,'DAILY_LIMIT')
   await api.mcp('ack.send',{batchId:held.id,version:1},'DAILY_LIMIT')
@@ -211,7 +228,11 @@ export async function agentGrantsJourney() {
   await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},'GRANT_SCOPE',200,replayHeaders)
   await h.command('agent.revoke',{id:key.id})
   await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},null,401,replayHeaders)
-  assert.equal(messages.length,2,'Refusals never submit more mail')
+  const retained=await h.get('/api/coffer/letters/'+batches[0].id)
+  assert.equal(retained.approval.prepared_by_name,attribution);assert.equal(retained.approval.approved_by_name,'Morgan Lee')
+  const retainedCsv=await (await h.request('/api/coffer/audit.csv?person='+key.id)).text()
+  assert.ok(retainedCsv.includes(attribution));assert.ok(!retainedCsv.includes(key.token))
+  assert.equal(messages.length,initialMessages+2,'Refusals never submit more mail')
   // Legacy keys retain their AGENT-001 behavior until explicitly attached.
   const legacyKey=await h.command('agent.create',{label:'Legacy preparation client'}),legacy=doors(h,legacyKey)
   const preparation=(await h.get('/api/coffer/agent-grants')).preparationGrants.find(g=>g.key_id===legacyKey.id)
