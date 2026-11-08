@@ -1,0 +1,57 @@
+Heavy job admitted: Coffer build:workflow [5d48de2851d3]
+Checking pinned pnpm
+10.12.4
+Building your application
+build:app
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 135 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore               0.02 kB
+dist/client/assets/index-yFbwrrUW.js  311.19 kB │ gzip: 100.86 kB
+
+✓ built in 393ms
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 1331 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/server/wrangler.json                                      1.67 kB │ gzip:     0.83 kB
+dist/server/.vite/manifest.json                                5.62 kB │ gzip:     0.97 kB
+dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:     0.18 kB
+dist/server/assets/start-F3eVvvda.js                           0.28 kB │ gzip:     0.20 kB
+dist/server/assets/_tanstack-start-manifest_v-9XsaHq3q.js      0.39 kB │ gzip:     0.28 kB
+dist/server/assets/font-head-HgDHZCdz.js                       0.44 kB │ gzip:     0.30 kB
+dist/server/assets/activity-C1hfr8J_.js                        1.06 kB │ gzip:     0.61 kB
+dist/server/assets/rolldown-runtime-DC62tzP2.js                1.44 kB │ gzip:     0.67 kB
+dist/server/assets/hash-PXZrq_ja.js                            4.70 kB │ gzip:     2.16 kB
+dist/server/assets/db-C8U8qRee.js                              8.16 kB │ gzip:     3.19 kB
+dist/server/assets/household-statements-8FtIZ4f0.js            9.10 kB │ gzip:     3.34 kB
+dist/server/assets/common-CCO-CAXJ.js                         12.31 kB │ gzip:     5.19 kB
+dist/server/assets/recovery-notices-rules-CLBBDUFH.js         13.52 kB │ gzip:     3.89 kB
+dist/server/assets/year-end-BffgghZ7.js                       16.62 kB │ gzip:     5.33 kB
+dist/server/assets/solicitation-DhwVMU09.js                   31.36 kB │ gzip:     8.70 kB
+dist/server/assets/router-DfsbCemJ.js                         37.25 kB │ gzip:    10.08 kB
+dist/server/assets/Match-CHZesyjQ.js                         161.10 kB │ gzip:    40.32 kB
+dist/server/assets/pledges-DhIVuhrQ.js                       216.20 kB │ gzip:    58.69 kB
+dist/server/assets/list-members-D8eEc_sY.js                  242.27 kB │ gzip:    66.34 kB
+dist/server/assets/settings-CXuQo7l7.js                      427.30 kB │ gzip:   107.67 kB
+dist/server/index.js                                       6,537.77 kB │ gzip: 1,939.85 kB
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/agent/development-report-sources.ts is dynamically imported by src/coffer/agent/development-report-delivery.ts but also statically imported by src/coffer/agent/development-report-http.ts, src/coffer/agent/development-report-scheduler.ts, src/coffer/agent/development-report-ui.ts, src/coffer/agent/development-report.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/agent/recovery-policy.ts is dynamically imported by src/coffer/agent/recovery-ui.ts but also statically imported by src/coffer/agent/http.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/agent/receipt-autonomy.ts is dynamically imported by src/coffer/agent/receipts.ts but also statically imported by src/coffer/agent/http.ts, src/coffer/agent/receipts-ui.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/agent/journey-delivery.ts is dynamically imported by src/coffer/agent/appeals.ts but also statically imported by src/coffer/agent/http.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/coffer/retention.ts is dynamically imported by src/coffer/dashboard-ledger.ts but also statically imported by src/coffer/agent/development-report-sources.ts, src/coffer/call-outcomes.ts, src/coffer/dashboard.ts, src/coffer/exports-report-dashboard.ts, src/coffer/exports-report-retention.ts, ..., dynamic import will not move module into another chunk.
+
+✓ built in 1.61s
+Your application is built
+build: complete (exit 0)

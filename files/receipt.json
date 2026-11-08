@@ -1,0 +1,143 @@
+{
+  "branch": "cloud/sx-coffer-c-f171",
+  "browser": {
+    "assertion_width": 1440,
+    "chromium": "/usr/bin/chromium",
+    "screenshots": [
+      {
+        "path": "screenshots/API-004-human-approved-1440.png",
+        "sha256": "86791ed3d1d9af70ceade84712578ab7e21d1240ef2f91d913f24408a17e1068"
+      },
+      {
+        "path": "screenshots/API-004-human-approved-390.png",
+        "sha256": "0af09382cfd134a54b12c594574c1a526adb06201c5eaa0503a89e150906bb39"
+      },
+      {
+        "path": "screenshots/API-004-human-review-1440.png",
+        "sha256": "7d3ee34ad05e7855e4778f3b78e714440bb0fc0f08e940f38e64f50da84e1a3f"
+      },
+      {
+        "path": "screenshots/API-004-human-review-390.png",
+        "sha256": "21b6f5bdef5bdf35ae69a7092d11fb92b73ba5983342b854f3bc1f28e31d9090"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-appeal-approved-1440.png",
+        "sha256": "28a378a772262d80f87b9614c20bed28cd031822a8a20560ac5de80b1eee98ef"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-appeal-approved-390.png",
+        "sha256": "602d134b61ec57cc48b230c64b2e6e60e10c25e35f2ff2e8e4ffbfb7231be61b"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-appeal-review-1440.png",
+        "sha256": "b8a275a10d49f00a2ba83d09af0199d9d08da7be6ba33474d6b96a16c1b67bd2"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-appeal-review-390.png",
+        "sha256": "632450dd5290186199a2fac76acdc7eacab6399bad5423474b6586eda7b8e5b8"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-audit-1440.png",
+        "sha256": "5436e256229bce5ee335564b183051665afa613b21a2d1e49b56963ee70ca9b6"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-audit-390.png",
+        "sha256": "9e0fe4554e1edbb81d7f296f04f854f8db473c745ab1fab391ae7d23fa2378b2"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-stored-activity-1440.png",
+        "sha256": "294b0cae520a27aa3da41cbbdf493eddec10baad1228cc27325454c436fb0c99"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-stored-activity-390.png",
+        "sha256": "8e24be7e1975f90a7e90cf0955da1b229312afe28e96f393e65266e8366d570b"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-stored-audit-1440.png",
+        "sha256": "78d07024fd244056d23e3c6dfd603c600ab0663534b6f8f524bb7775001e76a2"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-stored-audit-390.png",
+        "sha256": "abbfb5119f58589dfd808455069d0c9b1105b3181758351069e56b42c5d4134f"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-stored-receipt-1440.png",
+        "sha256": "544ce3644613b0fdb93c7424464fe1fbabe6c0bafca3fae2169f4dea1596458b"
+      },
+      {
+        "path": "screenshots/BASE-AGENT-008-stored-receipt-390.png",
+        "sha256": "e648e858c85f2f217e14ad30a5d93701a88d0b5554dd974ed26c43023ef92d41"
+      }
+    ],
+    "viewports": [
+      1440,
+      390
+    ]
+  },
+  "checks": [
+    {
+      "command": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0,
+      "output": "LOCK-CHECK.json",
+      "sha256": "33b3355e737687725d3474eeb11a0e291bdb470ab5da48a975544c3c7e355dd6"
+    },
+    {
+      "command": "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012",
+      "exit": 0,
+      "output": "views-check.log",
+      "sha256": "30fd2267fd8af0821aa08bfbf8fc44090d5eb0bfcd49e20c875f2af11b7d8756"
+    },
+    {
+      "command": "pnpm run typecheck",
+      "exit": 0,
+      "output": "typecheck.log",
+      "sha256": "b55726077e4f647bd0ffed81d3d9b1c8f0f69df1a1a6c90440171dc20279508d"
+    },
+    {
+      "command": "npx -y @runeditrun/rer check --profile first-party",
+      "exit": 0,
+      "output": "first-party.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "timeout 1200 node --test --test-reporter=tap --test-concurrency=1 --test-name-pattern='^(API-004:|DEV-012:|TEAM-003:)' tests/coffer.test.mjs tests/audit.test.mjs",
+      "exit": 0,
+      "output": "tests.log",
+      "sha256": "1911d33ccd7c4dfa57f9c64abccca228b18d1d4265698e319963f6e37e03619f"
+    },
+    {
+      "command": "npx -y @runeditrun/rer build",
+      "exit": 0,
+      "output": "build.log",
+      "sha256": "1e770fa7751e8c020283fc4e69645d7eca8d98ae658e4f18ff9bd1d648f59935"
+    }
+  ],
+  "contract": {
+    "generated_views_committed": false,
+    "source_changed": false,
+    "status_cells_changed": false
+  },
+  "head": "6b16ac867cd8bec68603f1b7addc7efef16b48ed",
+  "migration_ledger": {
+    "applicable": false,
+    "reason": "No migration changed"
+  },
+  "node": "v22.20.0",
+  "observed_at": "2026-11-08T13:29:07.526507+00:00",
+  "publication_scan": {
+    "commit": "6b16ac867cd8bec68603f1b7addc7efef16b48ed",
+    "complete": null,
+    "findings": null,
+    "historyScanned": null,
+    "status": "NOT RUN in cloud; guarded fleet lander required"
+  },
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-c-f171",
+  "tests": {
+    "registered_added": 0,
+    "registered_removed": 0,
+    "selected_failed": 0,
+    "selected_passed": 4
+  }
+}

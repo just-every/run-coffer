@@ -1,0 +1,36 @@
+TAP version 13
+# [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+# Subtest: TEAM-003: owner filters changes by person, record and action and downloads the same audit as CSV
+ok 1 - TEAM-003: owner filters changes by person, record and action and downloads the same audit as CSV
+  ---
+  duration_ms: 10948.137741
+  type: 'test'
+  ...
+# Subtest: TEAM-003: the log pages without losing events and identity changes retain their actor
+ok 2 - TEAM-003: the log pages without losing events and identity changes retain their actor
+  ---
+  duration_ms: 7453.935543
+  type: 'test'
+  ...
+# [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+# Subtest: API-004: MCP donor context, generated catalog documentation and preparation retain native keys and human approval
+ok 3 - API-004: MCP donor context, generated catalog documentation and preparation retain native keys and human approval
+  ---
+  duration_ms: 34944.223094
+  type: 'test'
+  ...
+# Subtest: DEV-012: named and preparation grants enforce scope, template approval, atomic limits and immediate stops through HTTP, MCP and scheduled jobs
+ok 4 - DEV-012: named and preparation grants enforce scope, template approval, atomic limits and immediate stops through HTTP, MCP and scheduled jobs
+  ---
+  duration_ms: 25022.096317
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 81378.583703

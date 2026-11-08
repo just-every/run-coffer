@@ -1,0 +1,22 @@
+file:///home/agent/rer-consolidation/work/sx-coffer-c-f171/run-coffer/scripts/contract-docs.mjs:25
+ if(!point)throw Error('Clause has no acceptance '+id)
+                 ^
+
+Error: Clause has no acceptance BASE-AGENT-008
+    at file:///home/agent/rer-consolidation/work/sx-coffer-c-f171/run-coffer/scripts/contract-docs.mjs:25:18
+    at ModuleJob.run (node:internal/modules/esm/module_job:345:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.20.0
+file:///home/agent/rer-consolidation/work/sx-coffer-c-f171/run-coffer/scripts/contract-docs.mjs:25
+ if(!point)throw Error('Clause has no acceptance '+id)
+                 ^
+
+Error: Clause has no acceptance BASE-AGENT-008
+    at file:///home/agent/rer-consolidation/work/sx-coffer-c-f171/run-coffer/scripts/contract-docs.mjs:25:18
+    at ModuleJob.run (node:internal/modules/esm/module_job:345:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.20.0
