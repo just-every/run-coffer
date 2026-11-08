@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "a9b8799db34b55d121ccf7cfb49f61f26566afe60b97cc908b0cbe39075c60ac",
+      "sha256": "3e310ba0ce23b96079bf2cb84539deb874b5abe9868b0fdbb64986da3579baca",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -3035,7 +3035,7 @@
       "executable": false
     },
     "src/coffer/agent-grants-reads.ts": {
-      "sha256": "508af6f017d33332f3a93a7ebf377f85d95d6085668b9a77746586364460f398",
+      "sha256": "97926a4935e49840b52df50141e98c559ee642d55c6df495abc1590747f6e600",
       "executable": false
     },
     "src/coffer/agent-grants.ts": {
@@ -3995,11 +3995,15 @@
       "executable": false
     },
     "src/coffer/mcp.ts": {
-      "sha256": "f7ed6cebc5ca866632f70f2c47edd244f6bd5119f8b134b9fe7d39cb9d00b76c",
+      "sha256": "87616102aac3756f3c2b2fefb0cce07ecc244eee1a15f7543c306fc959858623",
       "executable": false
     },
     "src/coffer/mcp/catalog.ts": {
-      "sha256": "6a315e3cd535719cb6de873602c5e97f32afcf783db0169dc679f1085c02036a",
+      "sha256": "922dbb8e3aa0e206b73bd33bc0db63dea9cb3ed4049e4046be8bd444e548fdf7",
+      "executable": false
+    },
+    "src/coffer/mcp/donor-resources.ts": {
+      "sha256": "4eb9d0d0c9cf3145c97c389f50b00832496dc5b5ea0ddf433b4c83ea0a1b2ca3",
       "executable": false
     },
     "src/coffer/mcp/input.ts": {
@@ -7227,7 +7231,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "8f6ddaebfa51ff7dd47236c873b43d7bb11f09a34bacfd6d82a6a7797e7f7192",
+      "sha256": "4627842bdb490e5507c46950e6632495744976c203f891618c9a1aa6459498e6",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7831,7 +7835,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "adec93190086370b98c45a212e6f282d80f502ed92885195a2e262151cb931a8",
+      "sha256": "3b21cc41cc25f140bb8aa1cf8a4616db4eed13770b584e8a95690c7ce486cc39",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {

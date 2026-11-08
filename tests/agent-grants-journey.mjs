@@ -7,9 +7,12 @@ function doors(h,key) {
  let sequence=0, validateResult
  const http=(command,input,status=200)=>h.command(command,input,{as:'',headers,status})
  const get=(path,status=200)=>h.get(path,{as:'',headers,status})
+ const rpc=async(method,params={},status=200,id=++sequence)=>{
+  const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':method,...(method==='tools/call'?{'mcp-name':params.name}:{})},body:{jsonrpc:'2.0',id,method,params:{...params,_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
+  const answer=await response.json();assert.equal(response.status,status,JSON.stringify(answer));return answer
+ }
  const mcp=async(name,args={},expectedError=null,status=200)=>{
-  const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':'tools/call','mcp-name':name},body:{jsonrpc:'2.0',id:++sequence,method:'tools/call',params:{name,arguments:args,_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
-  const answer=await response.json();assert.equal(response.status,status,JSON.stringify(answer))
+  const answer=await rpc('tools/call',{name,arguments:args},status)
   if(status!==200)return answer
   assert.equal(answer.error,undefined,JSON.stringify(answer))
   const value=answer.result.structuredContent??JSON.parse(answer.result.content[0].text)
@@ -26,13 +29,15 @@ function doors(h,key) {
   validateResult=catalogSchemas(tools)
   return tools
  }
- return {http,get,mcp,catalog}
+ return {http,get,mcp,catalog,rpc}
 }
 
 /** One public-door journey for the named-grant authority boundary, through
  * ordinary HTTP and MCP. Only the paid mail submission edge is replaced. */
 export async function agentGrantsJourney() {
  const proof=label=>{if(process.env.COFFER_GRANT_PROOF)console.info(`agent-grants: ${label}`)}
+ // Hold every request on one calendar day, including concurrent reservations.
+ const clock={entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:new Date(Date.now()+86400000).toISOString()}}
  proof('starting manager authority journey')
  const messages=[]
  await run(async h=>{
@@ -42,7 +47,26 @@ export async function agentGrantsJourney() {
   const admin=await h.person('grant.admin@example.test','admin'),record=await donor(h,'Admin scoped donor')
   const grant=await h.command('agentGrant.save',{name:'Admin read grant',donorIds:[record.id],permissions:['donors.list'],dailyLimit:1},{as:admin.cookie})
   assert.equal((await h.get('/api/coffer/agent-grants')).grants.find(g=>g.id===grant.id).approved_by_role,'admin')
- })
+  const key=await h.command('agent.create',{label:'List-only resource client'})
+  await h.command('agentGrant.attach',{keyId:key.id,grantId:grant.id})
+  const api=doors(h,key),template=(await api.rpc('resources/templates/list')).result.resourceTemplates[0]
+  const read=id=>api.rpc('resources/read',{uri:template.uriTemplate.replace('{donorId}',id)},200,'synthetic-coffer-1')
+  assert.deepEqual(await read(record.id),await read('synthetic-coffer-404'),'Listing permission does not grant context reads or disclose existence')
+  const outside=await donor(h,'Unapproved merge survivor'),erasable=await donor(h,'Scoped erasure identity')
+  await h.command('agentGrant.save',{id:grant.id,version:1,name:'Admin read grant',donorIds:[record.id,erasable.id],permissions:['donors.list','donors.context'],dailyLimit:1},{as:admin.cookie})
+  assert.equal(JSON.parse((await read(record.id)).result.contents[0].text).donor.id,record.id)
+  const missing=await read('synthetic-coffer-404'),comparison=await h.get(`/api/coffer/duplicates/compare?source=${record.id}&target=${outside.id}`)
+  await h.command('donor.merge',{sourceDonorId:record.id,donorId:outside.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
+  assert.deepEqual(await read(record.id),missing,'A scoped alias must not follow its merge into an unapproved donor')
+  assert.deepEqual(await read(outside.id),missing)
+  await h.command('donor.erase',{donorId:outside.id,confirm:'ERASE'})
+  assert.deepEqual(await read(record.id),missing,'Erasure and replay cannot recover scoped personal data')
+  assert.deepEqual(await read(record.id),missing)
+  assert.equal(JSON.parse((await read(erasable.id)).result.contents[0].text).donor.name,'Scoped erasure identity')
+  await h.command('donor.erase',{donorId:erasable.id,confirm:'ERASE'})
+  assert.deepEqual(await read(erasable.id),missing)
+  assert.deepEqual(await read(erasable.id),missing)
+ },clock)
  proof('starting receipt authority journey')
  return run(async h=>{
   proof('receipt installation ready')
@@ -68,6 +92,22 @@ export async function agentGrantsJourney() {
   assert.deepEqual(await api.mcp('donors.list'),list)
   const native=await api.get(`/api/coffer/donors/${house.id}`),rpc=await api.mcp('donors.context',{donorId:house.id})
   assert.deepEqual(native,rpc);assert.ok(!JSON.stringify(native).includes(relative.id));assert.ok(!JSON.stringify(native).includes('Private household'))
+  const resourceTemplate=(await api.rpc('resources/templates/list')).result.resourceTemplates[0]
+  const uri=id=>resourceTemplate.uriTemplate.replace('{donorId}',encodeURIComponent(id))
+  const read=(id,status=200)=>api.rpc('resources/read',{uri:uri(id)},status,'synthetic-coffer-2')
+  const householdResource=(await read(house.id)).result.contents[0]
+  assert.deepEqual(JSON.parse(householdResource.text),native);assert.equal(householdResource._meta.untrusted,true)
+  assert.ok(!householdResource.text.includes(relative.id));assert.ok(!householdResource.text.includes('Private household'))
+  const links=(await api.rpc('tools/call',{name:'donors.list',arguments:{}})).result.content.filter(c=>c.type==='resource_link')
+  assert.deepEqual(new Set(links.map(link=>link.uri)),new Set([uri(ana.id),uri(house.id)]))
+  const contextLinks=(await api.rpc('tools/call',{name:'donors.context',arguments:{donorId:house.id}})).result.content.filter(c=>c.type==='resource_link')
+  assert.deepEqual(contextLinks.map(link=>link.uri),[uri(house.id)])
+  assert.deepEqual((await api.rpc('resources/read',{uri:contextLinks[0].uri})).result.contents[0],householdResource)
+  const missing=await read('synthetic-coffer-404')
+  assert.deepEqual(await read(ben.id),missing,'Missing and out-of-scope reads have identical complete RPC responses')
+  for(const forged of [uri(ben.id).replace(h.origin,'https://elsewhere.test'),uri(ana.id)+'?donorId='+ben.id,uri('../'+ben.id)])assert.deepEqual(await api.rpc('resources/read',{uri:forged},200,'synthetic-coffer-2'),missing)
+  const resourceAudit=await h.get(`/api/coffer/audit?person=${key.id}&action=mcp.resource`)
+  assert.ok(resourceAudit.rows.some(e=>e.donor_id===house.id&&JSON.parse(e.detail).grantId===grant.id&&JSON.parse(e.detail).grantVersion===1))
   assert.equal((await api.get(`/api/coffer/donors/${ana.id}`)).household,undefined)
   assert.equal((await api.get(`/api/coffer/donors/${ben.id}`,403)).error,'GRANT_SCOPE')
   await api.mcp('donors.context',{donorId:ben.id},'GRANT_SCOPE')
@@ -86,6 +126,11 @@ export async function agentGrantsJourney() {
   await h.command('relationship.remove',{donorId:ana.id,relationshipId:relation.id})
   const gifts=[relatedGift]
   for(let i=0;i<2;i++)gifts.push(await h.command('gift.record',{donorId:ana.id,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'}))
+  const giftResource=(await read(ana.id)).result.contents[0]
+  assert.deepEqual(JSON.parse(giftResource.text),await api.get(`/api/coffer/donors/${ana.id}`))
+  assert.deepEqual(JSON.parse(giftResource.text),await api.mcp('donors.context',{donorId:ana.id}))
+  assert.deepEqual(new Set(JSON.parse(giftResource.text).gifts.map(g=>g.id)),new Set(gifts.map(g=>g.id)))
+  assert.ok(!giftResource.text.includes(privateGift.id),'Resource content never traverses an unapproved donor')
   proof('scope refusals complete; preparing receipts')
   const batches=[]
   for(const [index,gift] of gifts.entries())batches.push(index===1?await api.mcp('ack.prepare',{giftIds:[gift.id]}):await api.http('ack.prepare',{giftIds:[gift.id]}))
@@ -132,6 +177,7 @@ export async function agentGrantsJourney() {
   await api.http('ack.send',{batchId:held.id,version:1},401)
   await api.mcp('ack.send',{batchId:held.id,version:1},null,401)
   await api.get('/api/coffer/donors',401)
+  await read(ana.id,401)
   await h.command('agentGrant.kill',{version:control.version+1,enabled:true})
   const narrow=await h.command('agentGrant.save',{...grantInput,id:grant.id,version:1,donorIds:[ana.id],permissions:['donors.list','donors.context'],standingApproval:false})
   assert.equal((await api.get('/api/coffer/donors')).total,1)
@@ -140,10 +186,14 @@ export async function agentGrantsJourney() {
   assert.ok(stillListed.some(t=>t.name==='ack.send'),'Discovery does not grant sending permission')
   await api.mcp('ack.send',{batchId:held.id,version:1},'GRANT_FORBIDDEN')
   assert.equal((await h.get(`/api/coffer/letters/${held.id}`)).batch.status,'prepared')
+  assert.deepEqual(await read(house.id),missing,'Narrowing applies to the next resource read')
   assert.equal((await api.http('ack.prepare',{giftIds:[gifts[2].id]},403)).error,'GRANT_FORBIDDEN')
+  await h.command('agent.revoke',{id:otherKey.id})
+  await second.rpc('resources/read',{uri:uri(ana.id)},401)
   await h.command('agentGrant.disable',{id:grant.id,version:narrow.version})
   await api.get('/api/coffer/donors',403)
   await api.mcp('donors.list',{},null,401)
+  await read(ana.id,401)
   assert.equal(messages.length,2,'Refusals never submit more mail')
   // Legacy keys retain their AGENT-001 behavior until explicitly attached.
   const legacyKey=await h.command('agent.create',{label:'Legacy preparation client'}),legacy=doors(h,legacyKey)
@@ -153,7 +203,12 @@ export async function agentGrantsJourney() {
   assert.ok((await legacy.mcp('donors.list')).total>1)
   await legacy.get('/api/coffer/donors',409)
   await legacy.mcp('donors.list',{},null,409)
-  await h.command('agentGrant.legacyLimits',{id:preparation.id,version:2,readLimit:10,prepareLimit:1})
+  await legacy.rpc('resources/read',{uri:uri(ana.id)},409)
+  await h.command('agentGrant.legacyLimits',{id:preparation.id,version:2,readLimit:3,prepareLimit:1})
+  const legacyResource=(await legacy.rpc('resources/read',{uri:uri(ana.id)})).result.contents[0]
+  await legacy.rpc('resources/read',{uri:uri(ana.id)},409)
+  await h.command('agentGrant.legacyLimits',{id:preparation.id,version:3,readLimit:10,prepareLimit:1})
+  assert.deepEqual(JSON.parse(legacyResource.text),await legacy.get(`/api/coffer/donors/${ana.id}`))
   await legacy.http('ack.prepare',{giftIds:[privateGift.id]})
   assert.equal((await legacy.http('appeal.prepare',{name:'Over preparation limit',channel:'email'},409)).error,'DAILY_LIMIT')
   await legacy.mcp('appeal.prepare',{name:'Over preparation limit',channel:'email'},'DAILY_LIMIT')
@@ -164,8 +219,9 @@ export async function agentGrantsJourney() {
   await h.command('agentGrant.kill',{version:liveControl.version,enabled:false})
   await legacy.get('/api/coffer/donors',401)
   await legacy.mcp('donors.list',{},null,401)
+  await legacy.rpc('resources/read',{uri:uri(ana.id)},401)
   if(process.env.COFFER_GRANT_BROWSER){const {agentGrantsBrowser}=await import('./agent-grants-browser.mjs');await agentGrantsBrowser(h,ana.id,process.env.COFFER_GRANT_BROWSER)}
- },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1'},outbound:async request=>{
+ },{...clock,bindings:{...clock.bindings,MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1'},outbound:async request=>{
   assert.equal(new URL(request.url).hostname,'api.sendgrid.com');assert.equal(new URL(request.url).pathname,'/v3/mail/send')
   messages.push(await request.json())
   return new Response(null,{status:202,headers:{'x-message-id':`synthetic-coffer-${messages.length}`}})
