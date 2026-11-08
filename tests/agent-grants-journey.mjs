@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
+import { catalogSchemas } from './mcp-schemas.mjs'
 import { run, donor, reviewed, settings } from './harness.mjs'
 
 function doors(h,key) {
  const headers={authorization:`Bearer ${key.token}`},version='2026-07-28'
- let sequence=0
+ let sequence=0, validateResult
  const http=(command,input,status=200)=>h.command(command,input,{as:'',headers,status})
  const get=(path,status=200)=>h.get(path,{as:'',headers,status})
  const mcp=async(name,args={},expectedError=null,status=200)=>{
@@ -15,9 +16,17 @@ function doors(h,key) {
   if(expectedError==='either')return {isError:answer.result.isError,value}
   assert.equal(answer.result.isError,!!expectedError,JSON.stringify(answer))
   if(expectedError)assert.equal(value.error,expectedError)
+  if(!expectedError)validateResult?.(name,value)
   return value
  }
- return {http,get,mcp}
+ const catalog=async()=>{
+  const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':'tools/list'},body:{jsonrpc:'2.0',id:++sequence,method:'tools/list',params:{_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
+  assert.equal(response.status,200)
+  const tools=(await response.json()).result.tools
+  validateResult=catalogSchemas(tools)
+  return tools
+ }
+ return {http,get,mcp,catalog}
 }
 
 /** One public-door journey for the named-grant authority boundary, through
@@ -50,8 +59,13 @@ export async function agentGrantsJourney() {
   const grant=await h.command('agentGrant.save',grantInput)
   for(const k of [key,otherKey])await h.command('agentGrant.attach',{keyId:k.id,grantId:grant.id})
   const api=doors(h,key),second=doors(h,otherKey)
+  const catalog=await api.catalog()
+  assert.deepEqual(await second.catalog(),catalog)
+  const sending=catalog.find(t=>t.name==='ack.send')
+  assert.ok(sending);assert.equal(sending.annotations.openWorldHint,true);assert.equal(sending.annotations.readOnlyHint,false)
+  assert.equal(sending._meta.nativeAction,'ack.send');assert.ok(sending._meta.coreClauseIds.includes('DEV-012'))
   const list=await api.get('/api/coffer/donors');assert.equal(list.total,2);assert.deepEqual(new Set(list.donors.map(d=>d.id)),new Set([ana.id,house.id]))
-  assert.equal((await api.mcp('donors.list')).total,2)
+  assert.deepEqual(await api.mcp('donors.list'),list)
   const native=await api.get(`/api/coffer/donors/${house.id}`),rpc=await api.mcp('donors.context',{donorId:house.id})
   assert.deepEqual(native,rpc);assert.ok(!JSON.stringify(native).includes(relative.id));assert.ok(!JSON.stringify(native).includes('Private household'))
   assert.equal((await api.get(`/api/coffer/donors/${ana.id}`)).household,undefined)
@@ -75,6 +89,12 @@ export async function agentGrantsJourney() {
   proof('scope refusals complete; preparing receipts')
   const batches=[]
   for(const [index,gift] of gifts.entries())batches.push(index===1?await api.mcp('ack.prepare',{giftIds:[gift.id]}):await api.http('ack.prepare',{giftIds:[gift.id]}))
+  const freezes=await Promise.all(batches.map(batch=>h.get(`/api/coffer/letters/${batch.id}`)))
+  for(const freeze of freezes){
+   assert.equal(freeze.batch.status,'prepared');assert.equal(freeze.batch.prepared_by_role,'agent')
+   assert.equal(freeze.letters[0].amount_cents,25000)
+   assert.deepEqual(freeze.events.map(e=>e.action),['ack.prepare'])
+  }
   // Both doors share one atomic daily counter. Parallel calls reach the same
   // real native letter-delivery reservation and network submission service.
   proof('dispatching under standing approval')
@@ -82,6 +102,8 @@ export async function agentGrantsJourney() {
   const race=await Promise.all(batches.slice(1).map(batch=>api.mcp('ack.send',{batchId:batch.id,version:1},'either')))
   assert.equal(race.filter(r=>!r.isError&&r.value.submitted===1).length,1)
   assert.equal(race.filter(r=>r.isError&&r.value.error==='DAILY_LIMIT').length,1)
+  const sent=race.find(r=>!r.isError)
+  catalogSchemas(catalog)('ack.send',sent.value)
   const held=batches[1+race.findIndex(r=>r.isError)]
   assert.equal(messages.length,2)
   const detail=await h.get(`/api/coffer/letters/${batches[0].id}`)
@@ -89,6 +111,7 @@ export async function agentGrantsJourney() {
   assert.ok(detail.events.filter(e=>e.actor_role==='agent').every(e=>{const d=JSON.parse(e.detail);return d.grantId===grant.id&&d.grantVersion===1}))
   assert.equal((await api.http('ack.send',{batchId:held.id,version:1},409)).error,'DAILY_LIMIT')
   await api.mcp('ack.send',{batchId:held.id,version:1},'DAILY_LIMIT')
+  assert.equal((await h.get(`/api/coffer/letters/${held.id}`)).batch.status,'prepared')
   // The other key cannot consume its colleague’s prepared batch, despite
   // sharing the same grant and daily counter.
   await second.mcp('ack.send',{batchId:held.id,version:1},'GRANT_SCOPE')
@@ -105,6 +128,10 @@ export async function agentGrantsJourney() {
   const narrow=await h.command('agentGrant.save',{...grantInput,id:grant.id,version:1,donorIds:[ana.id],permissions:['donors.list','donors.context'],standingApproval:false})
   assert.equal((await api.get('/api/coffer/donors')).total,1)
   await api.mcp('donors.context',{donorId:house.id},'GRANT_SCOPE')
+  const stillListed=await api.catalog()
+  assert.ok(stillListed.some(t=>t.name==='ack.send'),'Discovery does not grant sending permission')
+  await api.mcp('ack.send',{batchId:held.id,version:1},'GRANT_FORBIDDEN')
+  assert.equal((await h.get(`/api/coffer/letters/${held.id}`)).batch.status,'prepared')
   assert.equal((await api.http('ack.prepare',{giftIds:[gifts[2].id]},403)).error,'GRANT_FORBIDDEN')
   await h.command('agentGrant.disable',{id:grant.id,version:narrow.version})
   await api.get('/api/coffer/donors',403)

@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "8233c8beecf8ab2433664e3af5d4ef2de8e2829a01dd23347dd3140e0a1281bf",
+      "sha256": "a9b8799db34b55d121ccf7cfb49f61f26566afe60b97cc908b0cbe39075c60ac",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -1615,7 +1615,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "1e6aaa0a46b5ff86d536dc15624c359344609fe02a754440117702ba10a22f95",
+      "sha256": "25585e28d70fb67eea75c5c21de9b80e599938f59ad72a3de72b539058774754",
       "executable": false
     },
     "packaging.json": {
@@ -1623,7 +1623,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "050e7200136c08defdb3290c15d919bbc1203f831c1d81a2e39fc6689c5d4f66",
+      "sha256": "21b9fc3c2e0360dc87b1a74bc45d715c128d01b0d7df1759b9af1511901faf98",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -3995,7 +3995,19 @@
       "executable": false
     },
     "src/coffer/mcp.ts": {
-      "sha256": "0d32de59c78711223c1829182bc5cdcd702de857432d3249afd4e9eab0c8ab62",
+      "sha256": "f7ed6cebc5ca866632f70f2c47edd244f6bd5119f8b134b9fe7d39cb9d00b76c",
+      "executable": false
+    },
+    "src/coffer/mcp/catalog.ts": {
+      "sha256": "9506fb3e8df1f1c28be63198f44a47c25100cd46a5c68a74ac83a227a14f4fd2",
+      "executable": false
+    },
+    "src/coffer/mcp/input.ts": {
+      "sha256": "3996832a2fcf465ea535a6d8c3f52acb288a49e5be060287160fdd1c236e2927",
+      "executable": false
+    },
+    "src/coffer/mcp/output.ts": {
+      "sha256": "a3301a5e4fae39f62e48e2006ab5a8c557c122560a16a778244db378604e52c8",
       "executable": false
     },
     "src/coffer/meeting-briefs.ts": {
@@ -7215,7 +7227,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "675fda98a81db8e0aebab6720962aebb3ad9714999c06c9ceb65bdfa133e0c3e",
+      "sha256": "deab4c1d5f9756bf31934bcb321695d2d9f67aa7e72cf5e0961dfc501f62148d",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7819,7 +7831,11 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "00c2b5b35fd9cc52768f528e138f875eae007e18b70884a2bc50b4dab3305616",
+      "sha256": "ed6e60b6b1f7a699078d32b3668add332f35e7d13cb97e7bb7c99efbae2e57e8",
+      "executable": false
+    },
+    "tests/mcp-schemas.mjs": {
+      "sha256": "d97b769c8535f2facfda8766c8abd3fd326beec76bed21f197c0054bdd6307ea",
       "executable": false
     },
     "tests/meeting-briefs-browser.mjs": {

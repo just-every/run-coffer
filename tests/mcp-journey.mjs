@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
+import { catalogSchemas } from './mcp-schemas.mjs'
 import { run, donor, reviewed } from './harness.mjs'
 
 const path = '/api/coffer/mcp', current = '2026-07-28', legacy = '2025-11-25'
 // A real JSON-RPC client over the public Worker door, with no application fake.
 function client(h, key, version = current) {
- let sequence = 0
+ let sequence = 0, validateResult
  const envelope = (method, params = {}, id = ++sequence) => ({ jsonrpc: '2.0', id, method, params: version === current ? { ...params, _meta: { 'io.modelcontextprotocol/protocolVersion': version, 'io.modelcontextprotocol/clientInfo': { name: 'coffer-journey', version: '1.0.0' }, 'io.modelcontextprotocol/clientCapabilities': {} } } : params })
  const headers = message => ({ authorization: `Bearer ${key.token}`, accept: 'application/json, text/event-stream', 'mcp-protocol-version': version, ...(version === current ? { 'mcp-method': message.method, ...(message.method === 'tools/call' ? { 'mcp-name': message.params.name } : {}) } : {}) })
  const send = async (message, options = {}) => h.request(path, { method: 'POST', as: '', body: message, ...options, headers: { ...headers(message), ...options.headers } })
@@ -20,9 +21,10 @@ function client(h, key, version = current) {
   const answer = await rpc('tools/call', { name, arguments: args })
   assert.equal(answer.error, undefined); assert.equal(answer.result.isError, false)
   assert.deepEqual(JSON.parse(answer.result.content[0].text), answer.result.structuredContent)
+  validateResult?.(name, answer.result.structuredContent)
   return answer.result.structuredContent
  }
- return { envelope, headers, send, rpc, call }
+ return { envelope, headers, send, rpc, call, useCatalog(catalog) { validateResult = catalogSchemas(catalog) } }
 }
 
 export async function mcpJourney() {
@@ -34,17 +36,44 @@ export async function mcpJourney() {
   const catalog = (await mcp.rpc('tools/list')).result.tools
   for (const name of ['donors.list', 'donors.context', 'ack.prepare', 'appeal.prepare']) assert.ok(catalog.some(tool => tool.name === name && tool.inputSchema.type === 'object'))
   assert.ok(!catalog.some(tool => /approve|send|export/.test(tool.name)))
+  mcp.useCatalog(catalog)
+  assert.deepEqual((await mcp.rpc('tools/list')).result.tools, catalog)
+  for (const tool of catalog) {
+   assert.equal(tool._meta.nativeAction, tool.name)
+   assert.ok(tool._meta.coreClauseIds.length > 0)
+   assert.equal(tool.annotations.readOnlyHint, tool.name.startsWith('donors.'))
+   assert.equal(tool.annotations.openWorldHint, false)
+  }
   const found = await mcp.call('donors.list', { q: 'Ana MCP' })
   assert.deepEqual(found.donors.map(d => d.id), [ana.id])
+  const agentOptions = { as: '', headers: { authorization: `Bearer ${key.token}` } }
+  assert.deepEqual(found, await h.get('/api/coffer/donors?q=Ana%20MCP', agentOptions))
   const context = await mcp.call('donors.context', { donorId: ana.id })
   assert.ok(context.gifts.some(g => g.id === gift.id))
+  assert.deepEqual(context, await h.get(`/api/coffer/donors/${ana.id}`, agentOptions))
+  assert.equal(context.totals.lifetimeCents, 25000)
   const unreviewed = await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: { giftIds: [gift.id] } })
   assert.equal(unreviewed.result.isError, true)
-  assert.equal(JSON.parse(unreviewed.result.content[0].text).error, 'SETTINGS_UNREVIEWED')
+  const unreviewedHttp = await h.command('ack.prepare', { giftIds: [gift.id] }, { ...agentOptions, status: 409 })
+  assert.equal(JSON.parse(unreviewed.result.content[0].text).error, unreviewedHttp.error)
+  assert.equal(unreviewedHttp.error, 'SETTINGS_UNREVIEWED')
   await reviewed(h)
   const batch = await mcp.call('ack.prepare', { giftIds: [gift.id] })
   assert.equal(batch.letters, 1)
-  assert.equal((await h.get(`/api/coffer/letters/${batch.id}`)).batch.status, 'prepared')
+  const prepared = await h.get(`/api/coffer/letters/${batch.id}`)
+  assert.equal(prepared.batch.status, 'prepared')
+  assert.equal(prepared.batch.content_hash, batch.contentHash)
+  assert.equal(prepared.letters[0].amount_cents, 25000)
+  assert.match(prepared.letters[0].body, /Ana MCP/)
+  assert.equal(prepared.events[0].action, 'ack.prepare')
+  // A second ordinary command uses the same freeze, state and audit event type.
+  const peer = await donor(h, 'Native MCP'), peerGift = await h.command('gift.record', { donorId: peer.id, amount: '250', receivedOn: '2026-09-20', method: 'check', goods: 'none' })
+  const nativeBatch = await h.command('ack.prepare', { giftIds: [peerGift.id] }, agentOptions)
+  const nativePrepared = await h.get(`/api/coffer/letters/${nativeBatch.id}`)
+  assert.equal(nativePrepared.batch.status, prepared.batch.status)
+  assert.equal(nativePrepared.batch.prepared_by_role, prepared.batch.prepared_by_role)
+  assert.equal(nativePrepared.letters[0].amount_cents, prepared.letters[0].amount_cents)
+  assert.deepEqual(nativePrepared.events.map(e => e.action), prepared.events.map(e => e.action))
   const denied = await mcp.rpc('tools/call', { name: 'ack.approve', arguments: { batchId: batch.id, version: batch.version } }, { status: 400 })
   assert.equal(denied.error.code, -32602)
   await h.command('ack.approve', { batchId: batch.id, version: batch.version }, { as: '', headers: { authorization: `Bearer ${key.token}` }, status: 403 })
@@ -55,7 +84,22 @@ export async function mcpJourney() {
   await h.command('consent.record', { donorIds: [ana.id], channel: 'email', status: 'granted', method: 'paper form', evidence: 'Signed donor permission for appeals.', capturedOn: '2026-09-20' })
   const appeal = await mcp.call('appeal.prepare', { name: 'MCP appeal proposal', channel: 'email', subject: 'Help the reading room', body: 'Dear {{donor_name}}, thank you for supporting our reading room.' })
   assert.equal(appeal.recipients, 1)
-  assert.equal((await h.get(`/api/coffer/appeals/${appeal.id}`)).appeal.status, 'prepared')
+  const appealState = await h.get(`/api/coffer/appeals/${appeal.id}`)
+  assert.equal(appealState.appeal.status, 'prepared')
+  assert.equal(appealState.appeal.content_hash, appeal.contentHash)
+  assert.equal(appealState.recipients[0].donor_id, ana.id)
+  const nativeAppeal = await h.command('appeal.prepare', { name: 'Native appeal proposal', channel: 'email', subject: 'Help the reading room', body: 'Dear {{donor_name}}, thank you for supporting our reading room.' }, agentOptions)
+  const nativeAppealState = await h.get(`/api/coffer/appeals/${nativeAppeal.id}`)
+  assert.equal(nativeAppealState.appeal.status, appealState.appeal.status)
+  assert.deepEqual(nativeAppealState.recipients.map(r => [r.donor_id, r.rendered_subject, r.rendered_body]), appealState.recipients.map(r => [r.donor_id, r.rendered_subject, r.rendered_body]))
+  const appealAudit = await h.get('/api/coffer/audit?action=appeal.prepare')
+  assert.ok([appeal.id, nativeAppeal.id].every(id => appealAudit.rows.some(e => e.subject_id === id && e.action === 'appeal.prepare' && e.actor_role === 'agent')))
+  const refusedNative = await h.command('ack.prepare', { giftIds: [gift.id] }, { ...agentOptions, status: 409 })
+  const refusedTool = await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: { giftIds: [gift.id] } })
+  assert.equal(refusedTool.result.isError, true)
+  assert.equal(JSON.parse(refusedTool.result.content[0].text).error, refusedNative.error)
+  assert.equal((await h.get(`/api/coffer/letters/${batch.id}`)).batch.status, 'approved')
+  await mcp.call('donors.context', { donorId: ana.id })
   const before = (await h.get('/api/coffer/donors')).total
   assert.equal((await mcp.rpc('tools/call', { name: 'donor.create', arguments: { name: 'Outside grant' } }, { status: 400 })).error.code, -32602)
   assert.equal((await h.get('/api/coffer/donors')).total, before)
@@ -92,6 +136,9 @@ export async function mcpJourney() {
   const accepted = await old.send(notification)
   assert.equal(accepted.status, 202); assert.equal(await accepted.text(), '')
   assert.deepEqual((await old.rpc('ping')).result, {})
+  const legacyCatalog = (await old.rpc('tools/list')).result.tools
+  assert.deepEqual(legacyCatalog, catalog)
+  old.useCatalog(legacyCatalog)
   assert.ok((await old.call('donors.list', { q: 'Ana MCP' })).donors.some(d => d.id === ana.id))
   const callWithoutId = mcp.envelope('tools/call', { name: 'ack.prepare' }); delete callWithoutId.id
   assert.equal((await mcp.send(callWithoutId)).status, 400)

@@ -13,7 +13,7 @@ The available tools are:
 | `ack.prepare` | Save frozen letters for eligible gifts using reviewed organization settings. Optional `giftIds` selects gifts from donor history; otherwise prepare up to 500 due gifts. |
 | `appeal.prepare` | Save a frozen, consent-checked appeal audience and optional email wording. Supports channel, giving cutoff, minimum giving and fund filters. |
 
-Every tool publishes its complete accepted JSON Schema in `tools/list`. Donor notes and other record text are data, not trusted instructions. Preparation goes through the same Coffer command services and atomic authority checks as the ordinary API. The assistant receives the draft ID and version. A person opens `/app/letters/{id}` or `/app/appeals/{id}`, reviews the exact content and approves it through Coffer. Approval records both identities and the frozen content hash. Legacy keys expose no approve, export, send, gift-recording or settings tools; attempts to call them are refused. Named keys additionally expose `ack.send`, which requires an explicit standing approval in their current grant. A listed tool never implies permission to run it.
+Every tool publishes its complete accepted input JSON Schema and its native success `outputSchema` in `tools/list`. Donor notes and other record text are data, not trusted instructions. Preparation goes through the same Coffer command services and atomic authority checks as the ordinary API. The assistant receives the draft ID and version. A person opens `/app/letters/{id}` or `/app/appeals/{id}`, reviews the exact content and approves it through Coffer. Approval records both identities and the frozen content hash. Legacy keys expose no approve, export, send, gift-recording or settings tools; attempts to call them are refused. Named keys additionally expose `ack.send`, which requires an explicit standing approval in their current grant. A listed tool never implies permission to run it.
 
 ## Wire protocol
 
@@ -58,3 +58,48 @@ Daily usage is shared across every key attached to a grant and across HTTP/MCP. 
 ### Compatibility preparation grants
 
 Every existing and newly created unbound AGENT-001 key has a stored named preparation grant. It retains the existing all-record read permission and only `ack.prepare`/`appeal.prepare`; autonomous sending remains forbidden. Explicit grant attachment replaces that authority. `agentGrant.legacyLimits` accepts the preparation grant `id`, current `version`, `readLimit`, `prepareLimit` and optional `enabled`. Defaults allow 10,000 read/MCP requests and 500 preparation requests per organization calendar day. Every GET and MCP request reserves request quota, including discovery and refusals; HTTP preparation commands and MCP preparation tools reserve the same preparation quota. Reservations are atomic and conservative, so failed requests consume quota. Editing limits never resets usage. All bearer actions now cite their stored preparation or explicit grant ID/version in audit detail, and the global kill switch gates both kinds. Existing scheduled reconciliation, recovery notices, missing-receipt preparation and meeting readiness use separately named background grants with current scope, action limits and the same global switch.
+
+## Executable catalog
+
+The permitted tools are defined once in `src/coffer/mcp/catalog.ts`. Discovery
+serializes those descriptors and calls execute their bound native actions. The
+transport does not keep a second name switch. Inputs are defined with the existing
+validator in `src/coffer/mcp/input.ts`; output schemas are in
+`src/coffer/mcp/output.ts`. Successful structured content and its text representation
+are the unchanged native result. Native business failures retain `isError: true`
+and their existing stable code in the text result; the success schema does not
+pretend that an error is a successful record.
+
+Each descriptor carries `_meta.coreClauseIds` for the Core duties that its current
+native action serves, and `_meta.nativeAction` identifies that action. These are
+implementation links, not a claim that every acceptance point of those clauses
+is complete. The catalog retains the established tool names:
+
+| Tool | Native action | Core duties | Hints |
+| --- | --- | --- | --- |
+| `donors.list` | `listDonors` or the named-grant read | DONOR-001, GIFT-001, CONSENT-001 | Read only, closed world |
+| `donors.context` | `donorHistory` or the named-grant read | DONOR-001, DONOR-004, GIFT-001, CONSENT-001 | Read only, closed world |
+| `ack.prepare` | `execute` with `ack.prepare` | ACK-001, AGENT-001 | Writes a draft, nondestructive, not idempotent, closed world |
+| `appeal.prepare` | `execute` with `appeal.prepare` | APPEAL-001, CONSENT-001, AGENT-001 | Writes a draft, nondestructive, not idempotent, closed world |
+| `ack.send` | `execute` with `ack.send` | ACK-001, RCPT-001, DEV-012 | Writes and contacts the mail provider, nondestructive, not idempotent, open world |
+
+The read schemas describe both existing authority projections. Named donor lists
+omit household, source and consent summaries. Named context omits related records
+and histories; preparation context retains the native history and its computed
+facts. SQL record extension columns are typed as nullable scalars; computed objects
+and arrays are declared separately. Amounts use integer cents, counts use integers,
+and explicit nulls remain distinct from absent optional fields. Preparation results
+include draft identity, version and frozen content hash. Receipt submission counts
+retain the native distinction between submitted and delivered.
+
+The same catalog selection as before exposes four tools to preparation keys and
+also `ack.send` to explicitly attached named keys. Permission checks remain inside
+the native services: discovery does not grant any listed action. In particular,
+named appeal preparation remains refused, and named sending still requires its
+own standing approval, current scope, frozen templates and daily reservation.
+
+This extraction supplies the currently permitted catalog slice of BASE-AGENT-002.
+Complete Core-job coverage and legitimate exemptions, canonical seed-prefixed
+names, embedded-agent adoption and the shared Base registry, check and conformance
+integration remain owed. No approval, export, document, scope or sending authority
+is added by schema or metadata.
