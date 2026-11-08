@@ -259,7 +259,7 @@ export async function shopOrdersJourney({regressionOnly}={}){
   try{await restore(copy,backup,{status:400,laterJournal:{sourceIdentity:after[0].sourceIdentity,epoch:after[0].epoch,journal:after[0].journal}})}finally{await copy.close()}
  },options)
  // These delivery-order regressions share the existing public-door journey.
- for(const item of regressionOnly?[regressionOnly]:['shared-candidate-refund','refund-first-erasure','stripe-before-review'])await run(async h=>{
+ for(const item of regressionOnly?[regressionOnly]:['shared-candidate-refund','refund-first-erasure','stripe-before-review','stripe-first-refund'])await run(async h=>{
   await reviewed(h)
   await h.command('fund.define',{name:'Reading',restriction:'purpose',detail:'Literacy instruction'})
   const chosen=await donor(h,'Synthetic Regression Chosen',{email:mail(3060),household:'Synthetic regression household'})
@@ -270,16 +270,26 @@ export async function shopOrdersJourney({regressionOnly}={}){
    return h.api('/api/coffer/shops/shopify/webhook',undefined,{method:'POST',raw,as:'',headers:{'x-shopify-shop-domain':domain,'x-shopify-topic':topic,'x-shopify-event-id':'synthetic-coffer-regression-'+payload.id,'x-shopify-hmac-sha256':sig}})
   }
   if(item==='refund-first-erasure')await send(addRefund(paid),refundTopic)
-  if(item==='stripe-before-review'){
+  if(item==='stripe-before-review'||item==='stripe-first-refund'){
    const charge={id:'ch_synthetic_coffer_before_review_3062',status:'succeeded',paid:true,amount:7420,currency:'usd',created:Date.parse(fixedNow)/1000,amount_refunded:0,metadata:{fund:'Reading'},billing_details:{name:'Synthetic Regression Chosen',email:mail(3060)},balance_transaction:'txn_synthetic_coffer_3063'}
    stripeObjects.set('/v1/charges/'+charge.id,charge)
    stripeObjects.set('/v1/balance_transactions/'+charge.balance_transaction,{id:charge.balance_transaction,source:charge.id,amount:7420,fee:250,net:7170,currency:'usd',status:'available',type:'charge',created:charge.created})
    transactions.set(paid.id,[{...capture(paid),gateway:'stripe',authorization:charge.id}])
-   await send(paid)
+   if(item==='stripe-before-review')await send(paid)
    const raw=JSON.stringify({id:'synthetic-coffer-before-review-event-3064',type:'charge.succeeded',data:{object:{id:charge.id}}}),t=Date.parse(fixedNow)/1000,sig=createHmac('sha256',bindings.STRIPE_WEBHOOK_SECRET).update(`${t}.${raw}`).digest('hex')
    await h.api('/api/coffer/giving/webhook',undefined,{method:'POST',raw,as:'',headers:{'stripe-signature':`t=${t},v1=${sig}`}})
    const d=await h.get('/api/coffer/donors/'+chosen.id)
-   assert.deepEqual({lifetime:d.totals.lifetimeCents,gifts:d.gifts.length},{lifetime:0,gifts:0},'A linked Stripe delivery after signed Shopify observation but before review must not credit the whole merchandise order')
+   if(item==='stripe-first-refund'){
+    await send(paid)
+    const refund={id:'re_synthetic_coffer_shop_3067',charge:charge.id,status:'succeeded',amount:7420,currency:'usd',balance_transaction:'txn_synthetic_coffer_shop_refund_3068'}
+    charge.amount_refunded=7420
+    stripeObjects.set('/v1/refunds/'+refund.id,refund)
+    stripeObjects.set('/v1/balance_transactions/'+refund.balance_transaction,{id:refund.balance_transaction,source:refund.id,type:'refund',amount:-7420,fee:0,net:-7420,currency:'usd',created:charge.created})
+    await send(addRefund(paid),refundTopic)
+    const raw=JSON.stringify({id:'synthetic-coffer-stripe-first-refund-event-3069',type:'refund.created',data:{object:{id:refund.id}}}),sig=createHmac('sha256',bindings.STRIPE_WEBHOOK_SECRET).update(`${t}.${raw}`).digest('hex')
+    await h.api('/api/coffer/giving/webhook',undefined,{method:'POST',raw,as:'',headers:{'stripe-signature':`t=${t},v1=${sig}`}})
+    assert.deepEqual({before:d.totals.lifetimeCents,after:(await h.get('/api/coffer/donors/'+chosen.id)).totals.lifetimeCents},{before:7420,after:0},'A Shopify observation must not suppress the full refund of a Stripe payment already recorded before that observation')
+   }else assert.deepEqual({lifetime:d.totals.lifetimeCents,gifts:d.gifts.length},{lifetime:0,gifts:0},'A linked Stripe delivery after signed Shopify observation but before review must not credit the whole merchandise order')
   }else{
    const {id:key}=await send({...paid,financial_status:'paid'})
    if(item==='refund-first-erasure'){

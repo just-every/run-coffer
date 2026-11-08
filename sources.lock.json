@@ -4371,7 +4371,7 @@
       "executable": false
     },
     "src/coffer/payments/charges.ts": {
-      "sha256": "841714639f35cc64d23073c18a13a8314ba03aba2a1c5efa6ce3eb4307537d48",
+      "sha256": "b6ceebd2e655aa9d2a808403d23396535675e6180445d8842c256b28c6a80385",
       "executable": false
     },
     "src/coffer/payments/disputes.ts": {
@@ -4387,7 +4387,7 @@
       "executable": false
     },
     "src/coffer/payments/entries.ts": {
-      "sha256": "cc6d5031aaecb9d77198100ca142f69f76c277d04967db536b284b0467e0c190",
+      "sha256": "64ba6f8a2814b13ca1b51195941a54ae502c9a8f4c70806f4c0e79e81695ea62",
       "executable": false
     },
     "src/coffer/payments/events.ts": {
@@ -8291,7 +8291,7 @@
       "executable": false
     },
     "tests/shop-orders-journey.mjs": {
-      "sha256": "ba13d1d8967ba3265aae4a4ce74e3d1484009d8dfeb7ffac6b2e6f0fc9bfb644",
+      "sha256": "d219d7e5414003918530c1f24d5662150285785fbe903ea1aa0169b0de0761f5",
       "executable": false
     },
     "tests/single-letter-snapshots.mjs": {
