@@ -88,6 +88,7 @@ import { researchPage } from './ui/research'
 import { volunteering, volunteerCsv } from './volunteering'
 import { volunteeringPage } from './ui/volunteering'
 import { mcpResponse } from './mcp'
+import { mcpCredentialBoundary } from './mcp/credential-boundary'
 import { reserveMcpRequest } from './mcp/request-capacity'
 import { taxReport } from './tax-reports'
 import { taxReportsPage } from './ui/tax-reports'
@@ -258,6 +259,8 @@ async function pages(data: FormData, name: string) {
 const responseAuthorities = new WeakMap<Request, Context>()
 const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)|^\/mcp$/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
+ const credentialRefusal = mcpCredentialBoundary(request)
+ if (credentialRefusal) return credentialRefusal
  const response = await cofferHandler(request, original)
  const path = new URL(request.url).pathname
  const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook' || path === '/api/coffer/sms/registration/events' || path === '/api/coffer/calendar/bookings'

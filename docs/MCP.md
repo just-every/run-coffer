@@ -4,6 +4,23 @@ A nonprofit can connect its own assistant to `POST /mcp` (also available at `POS
 
 Keys without an explicitly attached grant retain the AGENT-001 read-and-prepare role under a real named preparation grant (`preparation:<key id>`), with per-day read/request and preparation limits and no sending permission. An owner or admin can attach a DEV-012 named grant, replacing that authority with explicit donor scope and permissions. The client continues to use the same bearer credential; there is no OAuth flow.
 
+## Credential boundary
+
+Both MCP routes refuse query parameters named `access_token`, `refresh_token`,
+`id_token`, `token`, `bearer_token`, `api_key`, `apikey`, `key`, `authorization`,
+`client_secret` or `password`. Names are checked after URL decoding, without case
+sensitivity; empty values and repeated parameters are also refused. This applies
+to every method, including requests that also supply a valid Authorization header.
+The application returns HTTP 400 with `error: "query_credentials_not_allowed"`
+and `message: "Send MCP credentials only in the Authorization header."` before
+authentication, quota reservation or execution. It records no application audit
+event or diagnostic for this refusal and never includes supplied values in the
+response. Header-only requests retain their existing native-key authority.
+
+This application boundary does not control hosting or proxy URL logs. Never put
+credentials in URLs. It supplies no OAuth metadata, JWT validation, Business
+identity or issuer qualification; those BASE-AGENT-004 obligations remain owed.
+
 The available tools are:
 
 | Tool | Result |

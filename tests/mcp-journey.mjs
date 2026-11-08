@@ -28,6 +28,7 @@ function client(h, key, version = current, endpoint = path) {
 }
 
 export async function mcpJourney() {
+ const diagnostics = []
  await run(async h => {
   const ana = await donor(h, 'Ana MCP'), gift = await h.command('gift.record', { donorId: ana.id, amount: '250', receivedOn: '2026-09-20', method: 'check', goods: 'none' })
   const related = await donor(h, 'Related MCP')
@@ -40,6 +41,7 @@ export async function mcpJourney() {
   await h.command('volunteer.record', { donorId: ana.id, role: 'Tutor', occurredOn: '2026-09-20', hours: '2' })
   await h.command('inKind.save', { donorId: ana.id, description: 'Synthetic donated shelves', quantity: '1', statedValue: '6000', receivedOn: '2026-09-20', goods: 'none' })
   const key = await h.command('agent.create', { label: 'Nonprofit MCP assistant' }), mcp = client(h, key)
+  await credentialBoundaryJourney(h, key, ana, gift, diagnostics)
   const discovery = (await mcp.rpc('server/discover')).result
   assert.ok(discovery.supportedVersions.includes(current)); assert.ok(discovery.supportedVersions.includes(legacy)); assert.ok(discovery.capabilities.tools)
   const catalog = (await mcp.rpc('tools/list')).result.tools
@@ -229,8 +231,61 @@ export async function mcpJourney() {
   await h.command('agent.revoke', { id: key.id })
   assert.equal((await mcp.send(invalid)).status, 401)
   assert.equal((await mcp.send(mcp.envelope('resources/read', { uri: resourceUri(ana.id) }))).status, 401)
- }, { entry: 'tests/advancing-clock-worker.ts' })
+ }, { entry: 'tests/advancing-clock-worker.ts', handleStructuredLogs: log => diagnostics.push(log) })
  await mcpCapacityJourney()
+}
+
+// Extend the registered MCP journey through actual Worker HTTP and D1. No
+// authentication, quota, donor or preparation service is replaced.
+async function credentialBoundaryJourney(h, key, ana, gift, diagnostics) {
+ const db = await h.mf.getD1Database('DB')
+ const state = async () => {
+  const tables = ['cf_events', 'cf_access_events', 'oa_auth_audit', 'cf_mcp_request_capacity', 'cf_agent_preparation_usage', 'cf_agent_grant_usage', 'cf_agent_grant_dispatches']
+  const rows = await Promise.all(tables.map(table => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()))
+  return { rows: rows.map(result => result.results), letters: await h.get('/api/coffer/letters'), appeals: await h.get('/api/coffer/appeals'), messages: h.messages.length }
+ }
+ const before = await state(), sentinels = []
+ let refusal
+ for (const endpoint of ['/mcp', path]) {
+  const api = client(h, key, current, endpoint)
+  const parameters = ['access_token', 'refresh_token', 'id_token', 'token', 'bearer_token', 'api_key', 'apikey', 'key', 'authorization', 'client_secret', 'password']
+  const queries = parameters.map((name, i) => {
+   const value = `synthetic-coffer-${9400 + i}`; sentinels.push(value)
+   return new URLSearchParams({ [name]: value }).toString()
+  })
+  // Decoding, case, empty and duplicate credentials cannot bypass the boundary.
+  queries.push('%61ccess_token=synthetic-coffer-9500', 'ACCESS_TOKEN=synthetic-coffer-9501', 'access_token=', 'safe=1&access_token=&access_token=synthetic-coffer-9502', new URLSearchParams({ access_token: key.token }).toString())
+  sentinels.push('synthetic-coffer-9500', 'synthetic-coffer-9501', 'synthetic-coffer-9502', key.token)
+  for (const query of queries) {
+   for (const withHeader of [false, true]) {
+    for (const [name, args] of [['donors.context', { donorId: ana.id }], ['ack.prepare', { giftIds: [gift.id] }], ['appeal.prepare', { name: 'Refused query draft', channel: 'email' }]]) {
+     const message = api.envelope('tools/call', { name, arguments: args })
+     const response = await h.request(endpoint + '?' + query, { method: 'POST', as: '', body: message, headers: { ...api.headers(message), ...(withHeader ? {} : { authorization: '' }) } })
+     assert.equal(response.status, 400, 'Query credentials are refused before native authentication or execution')
+     assert.equal(response.headers.get('cache-control'), 'no-store')
+     const text = await response.text()
+     const exposed = text + JSON.stringify([...response.headers])
+     assert.ok(sentinels.every(value => !exposed.includes(value)), 'A refusal never echoes credentials')
+     assert.ok(!exposed.includes(ana.id) && !exposed.includes('Ana MCP'), 'A refusal reveals no seeded donor context')
+     refusal ??= text
+     assert.equal(text, refusal, 'Every credential refusal has the same credential-free response')
+     assert.deepEqual(JSON.parse(text), { error: 'query_credentials_not_allowed', message: 'Send MCP credentials only in the Authorization header.' })
+    }
+   }
+  }
+  for (const method of ['GET', 'DELETE', 'POST']) {
+   const response = await h.request(endpoint + '?access_token=synthetic-coffer-9600', { method, as: '', headers: { authorization: 'Bearer synthetic-coffer-9601', origin: 'https://elsewhere.test' }, ...(method === 'POST' ? { raw: '{' } : {}) })
+   assert.equal(response.status, 400)
+   assert.equal(await response.text(), refusal, 'Query refusal precedes Origin, method, body and authentication errors')
+  }
+ }
+ sentinels.push('synthetic-coffer-9600', 'synthetic-coffer-9601')
+ assert.deepEqual(await state(), before, 'Refused reads and preparation leave audit, quotas, drafts and provider submissions unchanged')
+ const audit = await h.get('/api/coffer/audit')
+ const output = JSON.stringify({ audit, diagnostics })
+ assert.ok(sentinels.every(value => !output.includes(value)), 'No query credential reaches application audit or Worker diagnostics')
+ // The following registered journey still exercises real header-only discovery,
+ // reads, preparation, expiry, revocation, Origin and resource custody guards.
 }
 
 // Installation capacity is exercised through the same public transport, with a

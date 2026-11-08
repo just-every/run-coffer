@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "35ba7033c5568aab621678d23d7e5aa72a49f9d5ca5bfcebb9abf76dce41eda9",
+      "sha256": "af0e839d535de1ff1e79ae2103e369839368978aa9f9bdd523bb56712747bfc1",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -3891,7 +3891,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "261267de74616d0c402505aafb6841e485ae75a532292f92d13faadeadd00a06",
+      "sha256": "f71dffb8728bff1aaa240c14790e4d42a382177426e12c5715e1475e7c8630b6",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -4004,6 +4004,10 @@
     },
     "src/coffer/mcp/catalog.ts": {
       "sha256": "922dbb8e3aa0e206b73bd33bc0db63dea9cb3ed4049e4046be8bd444e548fdf7",
+      "executable": false
+    },
+    "src/coffer/mcp/credential-boundary.ts": {
+      "sha256": "ba325488a77fcb85394d48b7f54d843b347945db454c4bbb3d0c5de2415b43ae",
       "executable": false
     },
     "src/coffer/mcp/donor-resources.ts": {
@@ -7755,7 +7759,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "8dc1afb9b8569cb2af3d724ffbe59c023a145a5d415810c033e24024b1dd5558",
+      "sha256": "43bbb3525f14a0d61ca714026e0e7569add52d7b8f8781c9f6647a89fc5255e7",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -7843,7 +7847,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "d16c8f86bc2dda577fc807c69fc7a0c8c5f4a1c42a2c41b74fe8196352a61b2c",
+      "sha256": "c4e7c146fa59dc43e7f03408f910bd7a5621d52fff77c1093ba585ce2eca26fd",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {
