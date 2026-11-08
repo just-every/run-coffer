@@ -1,0 +1,130 @@
+{
+  "files": [
+    {
+      "blob": "15885a8a80b27eacb15318ccffa1abeb1281d13a",
+      "bytes": 1948,
+      "path": "PLAN.md",
+      "sha256": "6a427db8877dbc27eb127b8d5217f89aa06cd25990fc3670a1f578123ab7e3b1"
+    },
+    {
+      "blob": "781ffeb87e703fc4e225d4a418f912ced2fe64aa",
+      "bytes": 14143,
+      "path": "REPORT.md",
+      "sha256": "92d2c2a100db7fd640fa6dee32701117dce1a93e610b8c4d22eae703f4b24b39"
+    },
+    {
+      "blob": "4a7ef489c43ebe6f61e335b84da351addcb0324f",
+      "bytes": 470,
+      "path": "base-clause-generator-check.log",
+      "sha256": "13f410a22dce46ed72a52c2d0e090fb86256058a53ae16dbf1f2167b72239ca2"
+    },
+    {
+      "blob": "4a7ef489c43ebe6f61e335b84da351addcb0324f",
+      "bytes": 470,
+      "path": "base-clause-generator-write.log",
+      "sha256": "13f410a22dce46ed72a52c2d0e090fb86256058a53ae16dbf1f2167b72239ca2"
+    },
+    {
+      "blob": "b30a60b2a7495a5f3084b7f6ceed12751229b8ca",
+      "bytes": 224,
+      "path": "candidate-ci.jsonl",
+      "sha256": "6a3a87ff88f2a65dd49b3124025df2c9727500cb998302e35cc899d55a8afd74"
+    },
+    {
+      "blob": "765522af8bc6a400b54f89faff7830e15db8d085",
+      "bytes": 2955,
+      "path": "checks.json",
+      "sha256": "d55e0e6739c85bec3794ab3760a144fe8de5b9442bc3936758cf1c89ee5078db"
+    },
+    {
+      "blob": "54bbe4d1fd286538482e02de3d0ccc8f32cac7d8",
+      "bytes": 126,
+      "path": "commit-identities.txt",
+      "sha256": "8165ef3b62ea95bef5fd8e531cb6e9537bed837c4d05127b1fb8e53dead65775"
+    },
+    {
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "path": "diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "path": "first-party.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blob": "0453911a5995031abd986908363b525287a05fe1",
+      "bytes": 342690,
+      "path": "lock-check.log",
+      "sha256": "ebbe953d267f4d0f12d26a968137e818dbf1b25d6754618f29366f146251ae67"
+    },
+    {
+      "blob": "fd26460342d1ed5d3b94bf47ebcf3f26b0825b61",
+      "bytes": 342676,
+      "path": "lock-write.log",
+      "sha256": "9bc709fbe1984ccf976735b8c987b8ec3ea3522f56994f59f972ef009712bfa7"
+    },
+    {
+      "blob": "07408eef99c339a594d3bbed889175b5f0952089",
+      "bytes": 1375,
+      "path": "main-ci.jsonl",
+      "sha256": "b49501a6e6ec88bbe20245738c4ec7ec0bca0d947eb36b9d7637dd2b4d04870d"
+    },
+    {
+      "blob": "36b94450f9fa48050bb7cd0e3a0461d0c078918f",
+      "bytes": 1083,
+      "path": "product-push.log",
+      "sha256": "ab9ff6ba33e3e7b29bdc7544abef1cf6d5d111f79f9411d151c08d6c3a7bd75d"
+    },
+    {
+      "blob": "20bcfe3c19aec69e28906b2c66af9107a4a5952d",
+      "bytes": 1726,
+      "path": "receipt.json",
+      "sha256": "ec9c9d21d80dd697da3850909976a920e58828bf9a85d939b5d583d94c9ed2d8"
+    },
+    {
+      "blob": "a95adab6a340dd923c5e79dec389a73fc6c7ae2c",
+      "bytes": 132,
+      "path": "remote-refs.txt",
+      "sha256": "ccd23411278f1f7713c5e6261a2fb9986ded33c00191229679f3b72b7736ba0c"
+    },
+    {
+      "blob": "25be5f675a369ee38c426f0b15194142de636d93",
+      "bytes": 518,
+      "path": "touched-tests.log",
+      "sha256": "376dcceffd175450cb28e1339e1d56f77d199382bc087f5b54dcd92ac292e7d7"
+    },
+    {
+      "blob": "220776ee664c3b17c67f8914b5967e2743aca23a",
+      "bytes": 194,
+      "path": "typecheck.log",
+      "sha256": "144a3ebbc903396085f8d659cf977755b51a2f1531474aab26ac818d58f1cfc3"
+    },
+    {
+      "blob": "bcaad54cca36d14d98771bf3d545557fdb2e0bd6",
+      "bytes": 83,
+      "path": "views-check.log",
+      "sha256": "30fd2267fd8af0821aa08bfbf8fc44090d5eb0bfcd49e20c875f2af11b7d8756"
+    },
+    {
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "path": "views-restore.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blob": "639605c86b08dce9a0bc849c70ec0dba49fb2f12",
+      "bytes": 83,
+      "path": "views-write.log",
+      "sha256": "5f35ce4920cca000035702b453b497125cb2dc22179dde7bf0df5d75e8f6256b"
+    }
+  ],
+  "product_branch": "cloud/sx-coffer-c-f165",
+  "product_head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+  "ref": "refs/heads/evidence/sx-coffer-c-f165",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-c-f165"
+}

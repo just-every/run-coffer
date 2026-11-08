@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "tag": "sx-coffer-c-f165",
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f165",
+  "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+  "base": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf",
+  "product_push": {
+    "status": "pushed",
+    "attempts": 1,
+    "remote_verified": true,
+    "log": "product-push.log"
+  },
+  "candidate_verify": {
+    "id": 42456407840,
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "head_sha": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18"
+  },
+  "base_verify": [
+    42233287757,
+    42230330264,
+    42228057357
+  ],
+  "base_run_site": 42230330057,
+  "github_api_calls": 2,
+  "pr": null,
+  "contract_status_cells_changed": false,
+  "contract_status_before": "missing",
+  "contract_status_after": "missing",
+  "claimed_status": "PARTIAL",
+  "proven_acceptance_points": [
+    3,
+    6
+  ],
+  "counts_before": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "counts_after": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "publication_scan": {
+    "commit": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+    "complete": null,
+    "historyScanned": null,
+    "findings": null,
+    "status": "not_run_cloud",
+    "custodian": "Mac guarded lander"
+  },
+  "main_equals_candidate": false,
+  "run_site_for_candidate": null,
+  "migrations_changed": false,
+  "browser_proof": "not applicable; no screens changed",
+  "new_test_registrations": 0,
+  "blockers": [],
+  "known_mechanical_limitation": "The unchanged legacy generator does not recognize the Base clause acceptance heading. The exact documented AGENTS.md generator command succeeds; CONTRACT.md was not edited."
+}

@@ -1,0 +1,135 @@
+{
+  "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+  "checks": [
+    {
+      "check": "touched-tests",
+      "command": [
+        "python3",
+        "/tmp/rer-reap.py",
+        "timeout",
+        "1200",
+        "node",
+        "--test",
+        "--test-name-pattern=API-004: MCP|DEV-012: named",
+        "tests/coffer.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 25.766,
+      "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+      "log": "touched-tests.log"
+    },
+    {
+      "check": "typecheck",
+      "command": [
+        "pnpm",
+        "typecheck"
+      ],
+      "exit": 0,
+      "seconds": 0.409,
+      "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+      "log": "typecheck.log"
+    },
+    {
+      "check": "views-write",
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "write",
+        "REPORT-004",
+        "DATA-004",
+        "MOVE-004",
+        "MOVE-010",
+        "MOVE-012"
+      ],
+      "exit": 0,
+      "seconds": 0.094,
+      "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+      "log": "views-write.log"
+    },
+    {
+      "check": "views-check",
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "check",
+        "REPORT-004",
+        "DATA-004",
+        "MOVE-004",
+        "MOVE-010",
+        "MOVE-012"
+      ],
+      "exit": 0,
+      "seconds": 0.086,
+      "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+      "log": "views-check.log"
+    },
+    {
+      "check": "views-restore",
+      "command": [
+        "git",
+        "checkout",
+        "origin/main",
+        "--",
+        "ACCEPTANCE.md",
+        "docs/CLAIMS.md"
+      ],
+      "exit": 0,
+      "seconds": 0.004,
+      "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+      "log": "views-restore.log"
+    },
+    {
+      "check": "lock-write",
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "lock"
+      ],
+      "exit": 0,
+      "seconds": 0.241,
+      "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+      "log": "lock-write.log"
+    },
+    {
+      "check": "lock-check",
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "check"
+      ],
+      "exit": 0,
+      "seconds": 0.254,
+      "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+      "log": "lock-check.log"
+    },
+    {
+      "check": "first-party",
+      "command": [
+        "python3",
+        "/tmp/rer-reap.py",
+        "npx",
+        "-y",
+        "@runeditrun/rer",
+        "check",
+        "--profile",
+        "first-party"
+      ],
+      "exit": 0,
+      "seconds": 0.882,
+      "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+      "log": "first-party.log"
+    },
+    {
+      "check": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.007,
+      "head": "9f41938797d563a2b7ca2ce62fdc1576b09f2f18",
+      "log": "diff-check.log"
+    }
+  ]
+}
