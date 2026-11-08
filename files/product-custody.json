@@ -1,0 +1,10 @@
+{
+  "repository": "just-every/run-coffer",
+  "head": "2c86a9af1c658e9965b17a35985fd336b9e9ef97",
+  "refs": {
+    "refs/heads/cloud/sx-coffer-c-f172": "2c86a9af1c658e9965b17a35985fd336b9e9ef97",
+    "refs/heads/main": "a96722be87079872a12454dbf494d8feff5b37aa"
+  },
+  "productBranchMatches": true,
+  "mainEqualsCandidate": false
+}

@@ -1,0 +1,88 @@
+{
+  "files": [
+    {
+      "blob": "c7384226874f70633d8d26415518a3c4c9824723",
+      "bytes": 2893,
+      "path": "PLAN.md",
+      "sha256": "4d28d76e6813fb32b4470d90685a1525d6038f2980f4b012ba753e3fcf915bbc"
+    },
+    {
+      "blob": "289ef54a35cf8c3e9b0c84f171ff91aeaec43790",
+      "bytes": 19361,
+      "path": "REPORT.md",
+      "sha256": "431a187a2b2b96ab5a1ac7e55ebe0aff26701e7569d8d5cd4c507d36d7da68ee"
+    },
+    {
+      "blob": "4d9b30a0f43a1eae5ce628b3ecbed468ca2496e7",
+      "bytes": 224,
+      "path": "ci-discovery.jsonl",
+      "sha256": "7a9987a60c69280876043d8fb5865d7eb0fd6bd03b86e30735e47dde456cf54d"
+    },
+    {
+      "blob": "b1cef452d414fd107c9621dfb81dd3c0b5da20fb",
+      "bytes": 176,
+      "path": "ci-status.json",
+      "sha256": "f707748f62f546d19ca635d10cfe2d8c6105ccaac8a37d6c89ec14284580c463"
+    },
+    {
+      "blob": "f8695aa292f01ae83e52e980f9fa966a26382235",
+      "bytes": 166,
+      "path": "contract-views.log",
+      "sha256": "6e3b8c0ddccc1be304ee845b4715edafc3b8134bd7b5cc4dfb8d8de12b6393db"
+    },
+    {
+      "blob": "63f624283d364adc6a3063a2fe1cbaa7c6fb34ab",
+      "bytes": 91,
+      "path": "first-party.log",
+      "sha256": "4c67bc88060def0c7500ac3afa1c5c14789827eede9477f3d46008fde8d62d2f"
+    },
+    {
+      "blob": "9529bf8c1f874991ea39aba818c7f8ee46b42ed7",
+      "bytes": 330,
+      "path": "product-custody.json",
+      "sha256": "a4326974a15f9b9030f0fa609a4be75fbaa422fb5410dd9de945ee3afa47a5b9"
+    },
+    {
+      "blob": "15efbabfcf411bd04e4f52ac690d4d1bf36ab739",
+      "bytes": 24859,
+      "path": "runtime-probe.json",
+      "sha256": "9a88d5d5d4081edde64b497bda3f698374672dc107253453dcf39b2f98d7e774"
+    },
+    {
+      "blob": "567d18c84caab50001ae341d53692fedfbcb4dfb",
+      "bytes": 250,
+      "path": "runtime-probe.log",
+      "sha256": "e5bd96f54fc500004d09087c123c708bf2c6d6f7bfaf2f418cb23a5d0d31f8af"
+    },
+    {
+      "blob": "899ae574332a466b2fe0f06174ec688f559f0341",
+      "bytes": 4390,
+      "path": "runtime-probe.mjs",
+      "sha256": "78ece1523c7c4222c00941f0bf196e588f3c8ede3642288d1b7aab364cd8c5ad"
+    },
+    {
+      "blob": "7fbb783126d88f7adc140069ca52910ffad1c7e7",
+      "bytes": 1561,
+      "path": "touched-node22.tap",
+      "sha256": "167a745946f43215a1bd6ccdf89ed812df1478b747e34c3522cbae26df8fca05"
+    },
+    {
+      "blob": "a684aa9510e11f3c6174650f2813a0f48ab66ab3",
+      "bytes": 89,
+      "path": "typecheck.log",
+      "sha256": "18a00d30306db3bd7a665c5f1fc6edf506a9c8ecf36edfe59ba49ae53ff4fe4d"
+    },
+    {
+      "blob": "c1c813050072dc98770c26acae7018b44f63c5be",
+      "bytes": 3792,
+      "path": "validation-receipt.json",
+      "sha256": "73cd707467a0015e9238f8f75c7895c14b9dbb33a1d4a930843e1fa68a40658b"
+    }
+  ],
+  "product_branch": "cloud/sx-coffer-c-f172",
+  "product_head": "2c86a9af1c658e9965b17a35985fd336b9e9ef97",
+  "ref": "refs/heads/evidence/sx-coffer-c-f172",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-c-f172"
+}

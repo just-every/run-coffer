@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "repository": "just-every/run-coffer",
+  "tag": "sx-coffer-c-f172",
+  "branch": "cloud/sx-coffer-c-f172",
+  "head": "2c86a9af1c658e9965b17a35985fd336b9e9ef97",
+  "tree": "7b089c91a3fb4276c7f46848ebd279b38fe05c22",
+  "baseMain": "a96722be87079872a12454dbf494d8feff5b37aa",
+  "checks": [
+    {
+      "command": "node --test --test-concurrency=1 --test-name-pattern='^(API-004|DEV-012|TEAM-003):' tests/coffer.test.mjs tests/audit.test.mjs",
+      "runtime": "Node 22.20.0",
+      "exit": 0,
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "log": "touched-node22.tap"
+    },
+    {
+      "command": "pnpm run typecheck",
+      "runtime": "Node 22.20.0",
+      "exit": 0,
+      "log": "typecheck.log"
+    },
+    {
+      "command": "node scripts/contract-docs.mjs write REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012; node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012",
+      "runtime": "Node 22.20.0",
+      "exit": 0,
+      "log": "contract-views.log",
+      "generatedFilesRestored": [
+        "ACCEPTANCE.md",
+        "docs/CLAIMS.md"
+      ],
+      "contractStatusDiff": false
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs lock; node scripts/edition-authoring/cli.mjs check",
+      "runtime": "Node 22.20.0",
+      "exit": 0,
+      "sourceLockFreshAfterRebase": true
+    },
+    {
+      "command": "pnpm run check --profile first-party",
+      "runtime": "Node 22.20.0",
+      "exit": 0,
+      "log": "first-party.log"
+    }
+  ],
+  "files": {
+    "src/coffer/db.ts": "bcfca297439cd044365b11a5c7ffc158d5574e74a7359856f8c7a4a57edefa32",
+    "src/coffer/http.ts": "46780a4cbc6adc7a5f99061c4dfd8cdb9e590367e3e88f6ac4b6800549d7b025",
+    "src/coffer/mcp.ts": "0dc240fba34b9e2e389231aab0e1d5ca0392a6c3a7fa188e475c30f4dd54a6a0",
+    "src/coffer/mcp/audit.ts": "b91435f63c7c27d47fd81a8fddc5ab394689f372e18c421f83dfab2e925a3b7e",
+    "tests/mcp-journey.mjs": "ed0334a3ebe6f26d30dcfa0bc5b496416950d3640b5160893f774a7129cabeda",
+    "tests/agent-grants-journey.mjs": "7588d9029698fa5ef40bfff26a6984e32cbdfa5c5a690f5ad37c564940a6715a",
+    "tests/audit.test.mjs": "9e6ec75c0ceb40c0a5b69de8f0287dfee719e2b6a9e4e4585f3ba0f044eacb83",
+    "sources.lock.json": "abc05d34d6d22163525a156ce2703775c2ce40253ffcdc467179393ec52257c8"
+  },
+  "countsBefore": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "countsAfter": {
+    "done": 96,
+    "partial": 37,
+    "missing": 20,
+    "total": 153
+  },
+  "registrationsAdded": 0,
+  "existingAssertionsRemoved": 0,
+  "migrationsChanged": false,
+  "push": {
+    "command": "python3 $HOME/rer-consolidation/.tools/cloud-push.py origin cloud/sx-coffer-c-f172",
+    "exit": 0,
+    "attempt": 1,
+    "observedMarker": "PUSH_OK branch=cloud/sx-coffer-c-f172"
+  },
+  "identityAndTrailers": {
+    "allCandidateCommits": 1,
+    "fleetAuthorsAndCommitters": true,
+    "trailers": []
+  },
+  "mainVerify": [
+    42480648831,
+    42479271389
+  ],
+  "mainRunSite": 42480648829,
+  "candidateVerify": {
+    "id": 42485216600,
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "head_sha": "2c86a9af1c658e9965b17a35985fd336b9e9ef97",
+    "html_url": "https://github.com/just-every/run-coffer/actions/runs/42485216600"
+  },
+  "githubApiCalls": 3,
+  "publicationScan": {
+    "head": "2c86a9af1c658e9965b17a35985fd336b9e9ef97",
+    "complete": null,
+    "historyScanned": null,
+    "findings": null,
+    "status": "not-run-in-cloud; guarded lander owns this gate"
+  },
+  "mainEquality": false,
+  "candidateRunSite": null,
+  "pr": null,
+  "productCustody": "product-custody.json",
+  "runtimeProbe": "runtime-probe.json",
+  "runtimeProbeExit": 0,
+  "runtimeProbeAttempts": 12,
+  "runtimeProbeOutcomes": 12,
+  "runtimeProbeProviderSubmissions": 0
+}

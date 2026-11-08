@@ -1,0 +1,409 @@
+{
+  "head": "2c86a9af1c658e9965b17a35985fd336b9e9ef97",
+  "door": "/api/coffer/mcp",
+  "profiles": [
+    {
+      "profile": "preparation-only",
+      "keyId": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+      "grantId": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+      "transport": [
+        {
+          "rpcId": 7,
+          "requestId": "aa210301-25e5-4e25-95c7-b11b78510ba4",
+          "tool": "donors.context",
+          "outcome": "done",
+          "code": "OK"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "0fa214a2-6e4a-46d1-abbf-f3d89708cfd4",
+          "tool": "donors.context",
+          "outcome": "done",
+          "code": "OK"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "c633dd0e-9802-4af1-9309-df8d3870f29f",
+          "tool": "donors.context",
+          "outcome": "done",
+          "code": "OK"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "b87e9c39-bc10-4155-9e39-2c1fc65b8187",
+          "tool": "donors.context",
+          "outcome": "refused",
+          "code": "NOT_FOUND"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "fa8f2188-8441-46c5-9321-2f6ee7721727",
+          "tool": "ack.prepare",
+          "outcome": "done",
+          "code": "OK"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "42c07e69-7cd0-41d9-9dc3-047bb94ec6a6",
+          "tool": "ack.prepare",
+          "outcome": "done",
+          "code": "OK"
+        }
+      ],
+      "rows": [
+        {
+          "id": "access:33",
+          "at": "2026-11-08T13:31:28.443Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"bbe65e84-e231-4056-be23-e257c54d788d\",\"requestId\":\"42c07e69-7cd0-41d9-9dc3-047bb94ec6a6\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"ack.prepare\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:27",
+          "at": "2026-11-08T13:31:28.386Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"776fb788-c400-47ff-81d5-0d2bdce9c5f6\",\"requestId\":\"fa8f2188-8441-46c5-9321-2f6ee7721727\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"ack.prepare\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:22",
+          "at": "2026-11-08T13:31:28.354Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"8588b30a-27bb-4240-a691-4fdf410153ca\",\"requestId\":\"b87e9c39-bc10-4155-9e39-2c1fc65b8187\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:14",
+          "at": "2026-11-08T13:31:28.243Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"000ce6e7-062c-4cae-bae3-90d7168ec7de\",\"requestId\":\"c633dd0e-9802-4af1-9309-df8d3870f29f\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:13",
+          "at": "2026-11-08T13:31:28.243Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"058f7709-ad05-47cf-aa6f-4a64c5601019\",\"requestId\":\"0fa214a2-6e4a-46d1-abbf-f3d89708cfd4\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:7",
+          "at": "2026-11-08T13:31:28.172Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"66830cfd-d308-4f3c-8b65-77b468fdae76\",\"requestId\":\"aa210301-25e5-4e25-95c7-b11b78510ba4\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:36",
+          "at": "2026-11-08T13:31:28.451Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"bbe65e84-e231-4056-be23-e257c54d788d\",\"requestId\":\"42c07e69-7cd0-41d9-9dc3-047bb94ec6a6\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"ack.prepare\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"ack_batch\",\"id\":\"46d263e0-7dc1-4ad9-bde1-11c25b93166f\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:30",
+          "at": "2026-11-08T13:31:28.437Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"776fb788-c400-47ff-81d5-0d2bdce9c5f6\",\"requestId\":\"fa8f2188-8441-46c5-9321-2f6ee7721727\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"ack.prepare\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"ack_batch\",\"id\":\"46d263e0-7dc1-4ad9-bde1-11c25b93166f\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:23",
+          "at": "2026-11-08T13:31:28.360Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"8588b30a-27bb-4240-a691-4fdf410153ca\",\"requestId\":\"b87e9c39-bc10-4155-9e39-2c1fc65b8187\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"outcome\":\"refused\",\"code\":\"NOT_FOUND\",\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:18",
+          "at": "2026-11-08T13:31:28.343Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": "5adfc3b1-e831-4e51-b32a-fbe970176d17",
+          "detail": "{\"attemptId\":\"000ce6e7-062c-4cae-bae3-90d7168ec7de\",\"requestId\":\"c633dd0e-9802-4af1-9309-df8d3870f29f\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"donor\",\"id\":\"5adfc3b1-e831-4e51-b32a-fbe970176d17\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:17",
+          "at": "2026-11-08T13:31:28.342Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": "5adfc3b1-e831-4e51-b32a-fbe970176d17",
+          "detail": "{\"attemptId\":\"058f7709-ad05-47cf-aa6f-4a64c5601019\",\"requestId\":\"0fa214a2-6e4a-46d1-abbf-f3d89708cfd4\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"donor\",\"id\":\"5adfc3b1-e831-4e51-b32a-fbe970176d17\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:9",
+          "at": "2026-11-08T13:31:28.237Z",
+          "actor_id": "a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "actor_name": "Synthetic preparation-only probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9",
+          "donor_id": "5adfc3b1-e831-4e51-b32a-fbe970176d17",
+          "detail": "{\"attemptId\":\"66830cfd-d308-4f3c-8b65-77b468fdae76\",\"requestId\":\"aa210301-25e5-4e25-95c7-b11b78510ba4\",\"keyId\":\"a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantProfile\":\"preparation-only\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"donor\",\"id\":\"5adfc3b1-e831-4e51-b32a-fbe970176d17\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"preparation:a9c6e8c8-7ef0-4d06-82fc-c2e94f1ecfc9\",\"grantVersion\":1}"
+        }
+      ],
+      "attempts": 6,
+      "outcomes": 6,
+      "revocationRetained": true,
+      "approvalRequired": true,
+      "approvalAfterHuman": "approved",
+      "preparationReplaySameBatch": true
+    },
+    {
+      "profile": "named-grant",
+      "keyId": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+      "grantId": "09886dca-1f62-4fd4-af73-5a8277c55795",
+      "transport": [
+        {
+          "rpcId": 7,
+          "requestId": "7f47c966-6571-41a0-a534-d1459976d487",
+          "tool": "donors.context",
+          "outcome": "done",
+          "code": "OK"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "5a96c41c-6fc5-41b9-a2cc-451de311918f",
+          "tool": "donors.context",
+          "outcome": "done",
+          "code": "OK"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "03b08f60-7abc-4c2a-915e-bf1a10c55709",
+          "tool": "donors.context",
+          "outcome": "done",
+          "code": "OK"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "28750377-cf8a-4cd7-8756-9694824ee963",
+          "tool": "donors.context",
+          "outcome": "refused",
+          "code": "GRANT_SCOPE"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "a9360420-d56a-42d9-9497-b3d934563557",
+          "tool": "ack.prepare",
+          "outcome": "done",
+          "code": "OK"
+        },
+        {
+          "rpcId": 7,
+          "requestId": "750a2bc7-bead-4094-bbbc-7176fd8533b8",
+          "tool": "ack.prepare",
+          "outcome": "done",
+          "code": "OK"
+        }
+      ],
+      "rows": [
+        {
+          "id": "access:72",
+          "at": "2026-11-08T13:31:28.740Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"bae5fb7c-69fe-41c7-8f4f-ea5ec90d22c6\",\"requestId\":\"750a2bc7-bead-4094-bbbc-7176fd8533b8\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"ack.prepare\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:68",
+          "at": "2026-11-08T13:31:28.691Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"4d9280b1-a83b-427b-8590-2b7c70370cdd\",\"requestId\":\"a9360420-d56a-42d9-9497-b3d934563557\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"ack.prepare\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:63",
+          "at": "2026-11-08T13:31:28.665Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"01e9911d-3187-429d-9c1b-f415885421e2\",\"requestId\":\"28750377-cf8a-4cd7-8756-9694824ee963\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:55",
+          "at": "2026-11-08T13:31:28.640Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"eba3e92d-bf82-429d-b4d6-17afb884054b\",\"requestId\":\"03b08f60-7abc-4c2a-915e-bf1a10c55709\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:54",
+          "at": "2026-11-08T13:31:28.640Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"85b44fb0-5ba2-4dc7-bfd6-4f0088254e9b\",\"requestId\":\"5a96c41c-6fc5-41b9-a2cc-451de311918f\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:48",
+          "at": "2026-11-08T13:31:28.627Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.attempt",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"c59b43f2-0e6f-4d95-85b1-e9d2500fd0ce\",\"requestId\":\"7f47c966-6571-41a0-a534-d1459976d487\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:74",
+          "at": "2026-11-08T13:31:28.747Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"bae5fb7c-69fe-41c7-8f4f-ea5ec90d22c6\",\"requestId\":\"750a2bc7-bead-4094-bbbc-7176fd8533b8\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"ack.prepare\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"ack_batch\",\"id\":\"493a37b4-2667-45c9-a5a5-fff317061039\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:69",
+          "at": "2026-11-08T13:31:28.734Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"4d9280b1-a83b-427b-8590-2b7c70370cdd\",\"requestId\":\"a9360420-d56a-42d9-9497-b3d934563557\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"ack.prepare\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"ack_batch\",\"id\":\"493a37b4-2667-45c9-a5a5-fff317061039\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:64",
+          "at": "2026-11-08T13:31:28.669Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": null,
+          "detail": "{\"attemptId\":\"01e9911d-3187-429d-9c1b-f415885421e2\",\"requestId\":\"28750377-cf8a-4cd7-8756-9694824ee963\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[],\"outcome\":\"refused\",\"code\":\"GRANT_SCOPE\",\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:59",
+          "at": "2026-11-08T13:31:28.654Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": "5adfc3b1-e831-4e51-b32a-fbe970176d17",
+          "detail": "{\"attemptId\":\"eba3e92d-bf82-429d-b4d6-17afb884054b\",\"requestId\":\"03b08f60-7abc-4c2a-915e-bf1a10c55709\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"donor\",\"id\":\"5adfc3b1-e831-4e51-b32a-fbe970176d17\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:58",
+          "at": "2026-11-08T13:31:28.654Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": "5adfc3b1-e831-4e51-b32a-fbe970176d17",
+          "detail": "{\"attemptId\":\"85b44fb0-5ba2-4dc7-bfd6-4f0088254e9b\",\"requestId\":\"5a96c41c-6fc5-41b9-a2cc-451de311918f\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"donor\",\"id\":\"5adfc3b1-e831-4e51-b32a-fbe970176d17\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        },
+        {
+          "id": "access:50",
+          "at": "2026-11-08T13:31:28.634Z",
+          "actor_id": "4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30",
+          "actor_name": "Synthetic named-grant probe",
+          "actor_role": "agent",
+          "action": "mcp.tool.outcome",
+          "subject_kind": "agent_grant",
+          "subject_id": "09886dca-1f62-4fd4-af73-5a8277c55795",
+          "donor_id": "5adfc3b1-e831-4e51-b32a-fbe970176d17",
+          "detail": "{\"attemptId\":\"c59b43f2-0e6f-4d95-85b1-e9d2500fd0ce\",\"requestId\":\"7f47c966-6571-41a0-a534-d1459976d487\",\"keyId\":\"4e7fbd03-a2cc-4750-bdbb-4ee8b37ece30\",\"grantProfile\":\"named-grant\",\"tool\":\"donors.context\",\"traceparent\":\"00-abcdef0123456789abcdef0123456789-abcdef0123456789-01\",\"targets\":[{\"kind\":\"donor\",\"id\":\"5adfc3b1-e831-4e51-b32a-fbe970176d17\"}],\"outcome\":\"done\",\"code\":\"OK\",\"grantId\":\"09886dca-1f62-4fd4-af73-5a8277c55795\",\"grantVersion\":1}"
+        }
+      ],
+      "attempts": 6,
+      "outcomes": 6,
+      "revocationRetained": true,
+      "approvalRequired": true,
+      "approvalAfterHuman": "approved",
+      "preparationReplaySameBatch": true
+    }
+  ],
+  "providerSubmissions": 0
+}
