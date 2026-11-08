@@ -1,0 +1,26 @@
+{
+  "branch": "cloud/sx-coffer-c-f164",
+  "candidateCommits": [
+    "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+    "93e95a6fa8213f68e8d2ea3db4530a4a7736e3cf"
+  ],
+  "cleanWorktree": true,
+  "command": [
+    "git",
+    "ls-remote",
+    "--refs",
+    "origin",
+    "refs/heads/cloud/sx-coffer-c-f164",
+    "refs/heads/main"
+  ],
+  "exit": 0,
+  "fleetIdentityAndTrailersVerified": true,
+  "head": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+  "mainEqualsCandidate": false,
+  "observedAt": "2026-11-08T06:59:50.528717+00:00",
+  "refs": {
+    "refs/heads/cloud/sx-coffer-c-f164": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+    "refs/heads/main": "c0bc83c0d2a0f1bf8c6ae730dc088a823ea923cf"
+  },
+  "repository": "just-every/run-coffer"
+}

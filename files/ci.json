@@ -1,0 +1,34 @@
+{
+  "githubApiCalls": 4,
+  "head": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+  "observedAt": "2026-11-08T06:53:54Z",
+  "pollNotBefore": "2026-11-08T07:09:03Z",
+  "polls": [
+    {
+      "conclusion": null,
+      "head_sha": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42456540787",
+      "observedAt": "2026-11-08T06:58:58Z",
+      "status": "in_progress"
+    },
+    {
+      "conclusion": null,
+      "head_sha": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42456540787",
+      "observedAt": "2026-11-08T07:04:03Z",
+      "status": "in_progress"
+    }
+  ],
+  "repository": "just-every/run-coffer",
+  "workflow_runs": [
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+      "html_url": "https://github.com/just-every/run-coffer/actions/runs/42456540787",
+      "id": 42456540787,
+      "name": "Verify",
+      "status": "in_progress"
+    }
+  ]
+}

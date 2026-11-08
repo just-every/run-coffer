@@ -1,0 +1,70 @@
+{
+  "files": [
+    {
+      "blob": "b8f6c76cd28d53909f9cd6a8a1929c5f03a29399",
+      "bytes": 13000,
+      "path": "REPORT.md",
+      "sha256": "0c62d0f448f883db384fb2638ade803c16f5093ebace5fbfac5381b99d944bf9"
+    },
+    {
+      "blob": "f79c66b59d2ba9099f33d8940f095b15fb896e0d",
+      "bytes": 215,
+      "path": "baseline.json",
+      "sha256": "29e67536e6b75a6e3eaeaf29545e277ff7cb8c347726b896ad79e3d44975245e"
+    },
+    {
+      "blob": "f89077752d4dd3a89941ac8d19855b60a7b30860",
+      "bytes": 2901,
+      "path": "checks.json",
+      "sha256": "11fe754d7942cfd35be845c281a2fd9033c18289d73bd6e580c497880628f67f"
+    },
+    {
+      "blob": "764290b4c2d890ba1e61074bdde3d759f92b6f5f",
+      "bytes": 1060,
+      "path": "ci.json",
+      "sha256": "563049ae30330a006922bb96a4b6f4df1e51145979ff710c89b09c4af14f5e78"
+    },
+    {
+      "blob": "7cc05e9caceee9084dc819c118872758d35aab6a",
+      "bytes": 733,
+      "path": "custody.json",
+      "sha256": "4cf04a2231a6fa1364abc0cd54eedf1f55c3ddf8097f2bfe8272b720779c45cb"
+    },
+    {
+      "blob": "13a8b65c2df5b65031f17d9529baaf1cf08e5bf4",
+      "bytes": 90,
+      "path": "first-party.txt",
+      "sha256": "744c3816bc048a4f28057c55d135e11ca297cb1f65c91915f97cbfdd31f6294f"
+    },
+    {
+      "blob": "b78949f33d1afa1c4ffc8bfb698ea13a6bf1d8fa",
+      "bytes": 1688,
+      "path": "probes.txt",
+      "sha256": "5fadd7b0f51b8a98c0bc195d9156393ec6c88cad5e807c5867e7b5a4e4da097f"
+    },
+    {
+      "blob": "9de229c0ae9750916fa29fe0731814193c889b50",
+      "bytes": 849,
+      "path": "tests.txt",
+      "sha256": "11f09e4bc1e5140f6f61dd9b194496b2e734e5b895f9f74044d7b4dc53527dda"
+    },
+    {
+      "blob": "d424d9dc81386304fb020264e11300e09f5a82fc",
+      "bytes": 88,
+      "path": "typecheck.txt",
+      "sha256": "117e785213daa97aa7d63aff3a5b0f80a4c38e75fa9fc5d72520fa529c47023b"
+    },
+    {
+      "blob": "bcaad54cca36d14d98771bf3d545557fdb2e0bd6",
+      "bytes": 83,
+      "path": "views.txt",
+      "sha256": "30fd2267fd8af0821aa08bfbf8fc44090d5eb0bfcd49e20c875f2af11b7d8756"
+    }
+  ],
+  "product_branch": "cloud/sx-coffer-c-f164",
+  "product_head": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+  "ref": "refs/heads/evidence/sx-coffer-c-f164",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-c-f164"
+}

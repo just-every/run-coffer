@@ -1,0 +1,97 @@
+{
+  "branch": "cloud/sx-coffer-c-f164",
+  "checks": [
+    {
+      "command": [
+        "timeout",
+        "300",
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-name-pattern=^(API-004|DEV-012):",
+        "tests/coffer.test.mjs"
+      ],
+      "ended": "2026-11-08T06:54:03.081805+00:00",
+      "exit": 0,
+      "head": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+      "name": "touched-journeys",
+      "started": "2026-11-08T06:53:34.366088+00:00",
+      "stdoutBytes": 849,
+      "stdoutFile": "tests.txt",
+      "stdoutSha256": "11f09e4bc1e5140f6f61dd9b194496b2e734e5b895f9f74044d7b4dc53527dda"
+    },
+    {
+      "command": [
+        "pnpm",
+        "run",
+        "typecheck"
+      ],
+      "ended": "2026-11-08T06:54:03.425198+00:00",
+      "exit": 0,
+      "head": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+      "name": "typecheck",
+      "started": "2026-11-08T06:54:03.082313+00:00",
+      "stdoutBytes": 88,
+      "stdoutFile": "typecheck.txt",
+      "stdoutSha256": "117e785213daa97aa7d63aff3a5b0f80a4c38e75fa9fc5d72520fa529c47023b"
+    },
+    {
+      "command": [
+        "pnpm",
+        "run",
+        "check",
+        "--profile",
+        "first-party"
+      ],
+      "ended": "2026-11-08T06:54:03.973457+00:00",
+      "exit": 0,
+      "head": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+      "name": "first-party",
+      "started": "2026-11-08T06:54:03.425636+00:00",
+      "stdoutBytes": 90,
+      "stdoutFile": "first-party.txt",
+      "stdoutSha256": "744c3816bc048a4f28057c55d135e11ca297cb1f65c91915f97cbfdd31f6294f"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "check"
+      ],
+      "ended": "2026-11-08T06:54:04.214770+00:00",
+      "exit": 0,
+      "head": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+      "name": "source-lock",
+      "started": "2026-11-08T06:54:03.973905+00:00",
+      "stdoutBytes": 343131,
+      "stdoutSha256": "1a3a14e5699c8fbfac376b9568178410066a739490dadc8636d05f89c5dea00d"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/contract-docs.mjs",
+        "check",
+        "REPORT-004",
+        "DATA-004",
+        "MOVE-004",
+        "MOVE-010",
+        "MOVE-012"
+      ],
+      "ended": "2026-11-08T06:54:04.278231+00:00",
+      "exit": 0,
+      "head": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+      "name": "contract-views",
+      "started": "2026-11-08T06:54:04.215317+00:00",
+      "stdoutBytes": 83,
+      "stdoutFile": "views.txt",
+      "stdoutSha256": "30fd2267fd8af0821aa08bfbf8fc44090d5eb0bfcd49e20c875f2af11b7d8756"
+    }
+  ],
+  "cleanWorktree": true,
+  "head": "4e4efb9eefdedc9f87b2a307658052470ee9fd78",
+  "node": "v22.20.0",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "sourceLockSha256": "fc5728eebedf74bcb39830c890a196bb41cb88f97990e5621cd1935514dd89eb",
+  "tree": "7756620025ab774a023eb15168aac8c18443a73f"
+}
