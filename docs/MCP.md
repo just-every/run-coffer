@@ -21,14 +21,9 @@ This application boundary does not control hosting or proxy URL logs. Never put
 credentials in URLs. It supplies no OAuth metadata, JWT validation, Business
 identity or issuer qualification; those BASE-AGENT-004 obligations remain owed.
 
-The available tools are:
+<!-- coffer:mcp-current-surface -->
 
-| Tool | Result |
-| --- | --- |
-| `donors.list` | Search and page through native donor summaries, totals and consent. |
-| `donors.context` | Read the native donor record and history, resolving merges. |
-| `ack.prepare` | Save frozen letters for eligible gifts using reviewed organization settings. Optional `giftIds` selects gifts from donor history; otherwise prepare up to 500 due gifts. |
-| `appeal.prepare` | Save a frozen, consent-checked appeal audience and optional email wording. Supports channel, giving cutoff, minimum giving and fund filters. |
+The on-site [MCP for assistants](/docs/agents) page publishes the current inventory and schemas from the live tool and resource descriptors. Authenticated discovery supplies the calling key’s catalog profile. The public page reads no installation records and contains no donor data or credentials. The transport and grant guide follows.
 
 Every tool publishes its complete accepted input JSON Schema and its native success `outputSchema` in `tools/list`. Donor notes and other record text are data, not trusted instructions. Preparation goes through the same Coffer command services and atomic authority checks as the ordinary API. The assistant receives the draft ID and version. A person opens `/app/letters/{id}` or `/app/appeals/{id}`, reviews the exact content and approves it through Coffer. Approval records both identities and the frozen content hash. Legacy keys expose no approve, export, send, gift-recording or settings tools; attempts to call them are refused. Named keys additionally expose `ack.send`, which requires an explicit standing approval in their current grant. A listed tool never implies permission to run it.
 
@@ -86,6 +81,36 @@ Daily usage is shared across every key attached to a grant and across HTTP/MCP. 
 
 Every existing and newly created unbound AGENT-001 key has a stored named preparation grant. It retains the existing all-record read permission and only `ack.prepare`/`appeal.prepare`; autonomous sending remains forbidden. Explicit grant attachment replaces that authority. `agentGrant.legacyLimits` accepts the preparation grant `id`, current `version`, `readLimit`, `prepareLimit` and optional `enabled`. Defaults allow 10,000 read/MCP requests and 500 preparation requests per organization calendar day. Every GET and MCP request reserves request quota, including discovery and refusals; HTTP preparation commands and MCP preparation tools reserve the same preparation quota. Reservations are atomic and conservative, so failed requests consume quota. Editing limits never resets usage. All bearer actions now cite their stored preparation or explicit grant ID/version in audit detail, and the global kill switch gates both kinds. Existing scheduled reconciliation, recovery notices, missing-receipt preparation and meeting readiness use separately named background grants with current scope, action limits and the same global switch.
 
+## Retrying local preparation
+
+Existing clients may continue to omit `Idempotency-Key`. To retry `ack.prepare`
+or `appeal.prepare` safely, send a visible ASCII key of 1–200 characters in that
+header. Keep the same key and arguments when retrying a dropped response, even
+with a different JSON-RPC id. Object property order does not matter; array order
+is retained. A key belongs to the individual agent key and its original grant,
+across grant revisions. Reusing it for another tool or changed arguments returns
+`idempotency_conflict` as a native tool error and creates nothing.
+
+Successful local preparation and its saved aggregate outcome publish together
+with any preparation-quota reservation. Concurrent duplicates return that same
+outcome and consume one preparation allowance. Replays still consume ordinary
+request quota. Validation failures publish no preparation or receipt. Without
+the header, the existing conservative reservation behavior remains unchanged.
+Receipts have no automatic expiry and survive at least 24 hours. They store key
+and argument hashes, native identifiers and the original aggregate outcome;
+credential and draft prose are not copied. They are installation-private and
+excluded from archives along with agent credentials. Erasure clears the cached
+aggregate and donor references while retaining a tombstone against repetition.
+
+Every replay rechecks current credential and grant authority, tool permission,
+record scope and native result custody. A changed grant cannot reopen another
+grant's result; a merged or erased donor cannot expose the old outcome. Replay
+returns the original preparation version and hash, never resets the native
+batch's current state, never creates an approval and never submits to a provider.
+A person still reviews and approves through the existing Letters or Appeals door.
+`ack.send` keeps its permanent dispatch claims and investigation requirements;
+this header adds no sending, revision-conflict or background-job capability.
+
 ## Executable catalog
 
 The permitted tools are defined once in `src/coffer/mcp/catalog.ts`. Discovery
@@ -100,15 +125,7 @@ pretend that an error is a successful record.
 Each descriptor carries `_meta.coreClauseIds` for the Core duties that its current
 native action serves, and `_meta.nativeAction` identifies that action. These are
 implementation links, not a claim that every acceptance point of those clauses
-is complete. The catalog retains the established tool names:
-
-| Tool | Native action | Core duties | Hints |
-| --- | --- | --- | --- |
-| `donors.list` | `listDonors` or the named-grant read | DONOR-001, GIFT-001, CONSENT-001 | Read only, closed world |
-| `donors.context` | `donorHistory` or the named-grant read | DONOR-001, DONOR-004, GIFT-001, CONSENT-001 | Read only, closed world |
-| `ack.prepare` | `execute` with `ack.prepare` | ACK-001, AGENT-001 | Writes a draft, nondestructive, not idempotent, closed world |
-| `appeal.prepare` | `execute` with `appeal.prepare` | APPEAL-001, CONSENT-001, AGENT-001 | Writes a draft, nondestructive, not idempotent, closed world |
-| `ack.send` | `execute` with `ack.send` | ACK-001, RCPT-001, DEV-012 | Writes and contacts the mail provider, nondestructive, not idempotent, open world |
+is complete. The generated catalog above retains the established tool names and native bindings.
 
 The read schemas describe both existing authority projections. Named donor lists
 omit household, source and consent summaries. Named context omits related records

@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "af0e839d535de1ff1e79ae2103e369839368978aa9f9bdd523bb56712747bfc1",
+      "sha256": "2a1bcf9f3b7ecf098b03f2c06c104574dc5dfb901374f5e9ea1e0201f040a0a1",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -779,7 +779,7 @@
       "executable": false
     },
     "docs/site.json": {
-      "sha256": "70b1cffcd821122d9270a149dd02796c9165f54588238b7ec34dc4eca6c7d56a",
+      "sha256": "823f5b28023b9b70ee8d3806c6bda9f247b43bbecfe43f59b83b60f84c2c6b65",
       "executable": false
     },
     "docs/SOURCES.md": {
@@ -1604,6 +1604,10 @@
     },
     "migrations/core/0188_coffer_mcp_request_capacity.sql": {
       "sha256": "ec2a5c136eed1fa86b2b110118a8ba0d10588dd8e871e9b5d9460c87f9218a4c",
+      "executable": false
+    },
+    "migrations/core/0189_coffer_mcp_preparations.sql": {
+      "sha256": "0ba7d2c140fdf78fcb9cd0afe93e9061f8a2848b008d02fccaad222bc1b6f1b1",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3247,7 +3251,7 @@
       "executable": false
     },
     "src/coffer/archive-policy.mjs": {
-      "sha256": "6511ea73b8fdc09ef6036f947e778b64b5efcc474b330aa9f60f53ed81ef4846",
+      "sha256": "233ebbd5ebb8de11d35b1793e4aa2c414e1f1f699914615228be49d7292e7288",
       "executable": false
     },
     "src/coffer/attribution.ts": {
@@ -3495,7 +3499,7 @@
       "executable": false
     },
     "src/coffer/db.ts": {
-      "sha256": "b439065a4f3e5c91978d8629b43407f90361edd93e91850314a6768d3233d167",
+      "sha256": "c3e5fd123fa8a58ecd63843bd5cb8abaa60a945f3e3f0a0f7b470b79c22b54be",
       "executable": false
     },
     "src/coffer/demo/giving.ts": {
@@ -3999,19 +4003,23 @@
       "executable": false
     },
     "src/coffer/mcp.ts": {
-      "sha256": "87616102aac3756f3c2b2fefb0cce07ecc244eee1a15f7543c306fc959858623",
+      "sha256": "ab119818eb46a2332f2d2b67069c6c839aff62bae2ae8597d197941d1b726aee",
       "executable": false
     },
     "src/coffer/mcp/catalog.ts": {
-      "sha256": "922dbb8e3aa0e206b73bd33bc0db63dea9cb3ed4049e4046be8bd444e548fdf7",
+      "sha256": "8f4c68708108ae0a934307c29d6af7888e74a61da03e25f045b317de030d2e3b",
       "executable": false
     },
     "src/coffer/mcp/credential-boundary.ts": {
       "sha256": "ba325488a77fcb85394d48b7f54d843b347945db454c4bbb3d0c5de2415b43ae",
       "executable": false
     },
+    "src/coffer/mcp/documentation.ts": {
+      "sha256": "e0e7e1b377c4c543525a20a96dfb53affc533e5cd69defa40a65f9628d815023",
+      "executable": false
+    },
     "src/coffer/mcp/donor-resources.ts": {
-      "sha256": "4eb9d0d0c9cf3145c97c389f50b00832496dc5b5ea0ddf433b4c83ea0a1b2ca3",
+      "sha256": "9284d850cfc2c0c3be67f5dd6e83470df8d09d8bd8f454c5f7afc23f91fa6ac9",
       "executable": false
     },
     "src/coffer/mcp/input.ts": {
@@ -4020,6 +4028,10 @@
     },
     "src/coffer/mcp/output.ts": {
       "sha256": "a3301a5e4fae39f62e48e2006ab5a8c557c122560a16a778244db378604e52c8",
+      "executable": false
+    },
+    "src/coffer/mcp/preparation-idempotency.ts": {
+      "sha256": "0169464d1cc4bcbfebd20217660566eea5c196d851ff4ac168e26553e294f80c",
       "executable": false
     },
     "src/coffer/mcp/request-capacity.ts": {
@@ -7023,7 +7035,7 @@
       "executable": false
     },
     "src/site/docs/build/plugin.ts": {
-      "sha256": "cdbe60a7982c71990c09d112b6b43e721220a1ac8575a3f6d504680883b6bfc3",
+      "sha256": "0bb665a56e08d962f848294d44f5f552ab44490475b63fd9b42fa816daaada2b",
       "executable": false
     },
     "src/site/docs/build/render.ts": {
@@ -7031,7 +7043,7 @@
       "executable": false
     },
     "src/site/docs/build/site.ts": {
-      "sha256": "b3d520ffaf68d488eda134c2828606807b61e97338a925b5c90069edd533a069",
+      "sha256": "c8b8ab66eebd78907e7cb83fe3642ba49245ce1d356509e4b842e2da886a764f",
       "executable": false
     },
     "src/site/docs/build/slug.ts": {
@@ -7155,7 +7167,7 @@
       "executable": false
     },
     "src/site/styles/docs.css": {
-      "sha256": "d804035a4531701d7d6fe3c48d1a5064ae61030b829cf305f117eb790dc0bcee",
+      "sha256": "fc8086d77671a0ce761dbc532b6947a19886cc74a25915e1c15b92f5530ddf2d",
       "executable": false
     },
     "src/site/styles/landing.css": {
@@ -7243,7 +7255,7 @@
       "executable": false
     },
     "tests/agent-grants-journey.mjs": {
-      "sha256": "4627842bdb490e5507c46950e6632495744976c203f891618c9a1aa6459498e6",
+      "sha256": "33f98293d3a757c1a75d58b140e47e6fd200b1702094b1e3b10511eb008a03aa",
       "executable": false
     },
     "tests/agent-quickbooks-browser.mjs": {
@@ -7367,7 +7379,7 @@
       "executable": false
     },
     "tests/coffer.test.mjs": {
-      "sha256": "b86233c978de58b16b764b3c3a7cc304901a39a36ab20fd4781fb6a0439b359b",
+      "sha256": "55779af34ab39718dfb0307fd050e29593dbcbae78f58f176c3156b0466dc606",
       "executable": false
     },
     "tests/communication-authority-journey.mjs": {
@@ -7846,8 +7858,12 @@
       "sha256": "48cb849b7e2b2b2cd480413ace0035635dee56628ee7b05ec0f34eab873b2456",
       "executable": false
     },
+    "tests/mcp-docs-browser.mjs": {
+      "sha256": "5897748ec215e25d8544a5e83f11701a6599c6532bc71210a43b86927571ead4",
+      "executable": false
+    },
     "tests/mcp-journey.mjs": {
-      "sha256": "c4e7c146fa59dc43e7f03408f910bd7a5621d52fff77c1093ba585ce2eca26fd",
+      "sha256": "b07be9d05cc9c33e8a1ab7d5598e1a906244b0d8211b411ff80fd3539fb5a0a9",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {
@@ -8183,7 +8199,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "9723a8c64f6f5f9c4614fb9cc07b97a090a5c4485182c65ee003756d54f16e76",
+      "sha256": "59a6937bae7f7eca225c70ec3947749b33d4ddcfd2f5b2e0dbb49ded8673c5b5",
       "executable": false
     },
     "tests/saved-lists-journey.mjs": {
@@ -8407,7 +8423,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "cd7b11f0d1f400eda1af4c83dff19b23c95968db34ee0fad19074e6b9b9972af",
+      "sha256": "2b838a5930595d3def97ca1acf06d21cfc753e4b6cd5379da276a6e1c20b29c0",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

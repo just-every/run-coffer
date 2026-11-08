@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { build } from 'esbuild'
 import { catalogSchemas } from './mcp-schemas.mjs'
 import { run, donor, reviewed } from './harness.mjs'
 
@@ -17,8 +18,8 @@ function client(h, key, version = current, endpoint = path) {
   assert.equal(answer.jsonrpc, '2.0'); assert.equal(answer.id, message.id)
   return answer
  }
- const call = async (name, args = {}) => {
-  const answer = await rpc('tools/call', { name, arguments: args })
+ const call = async (name, args = {}, options = {}) => {
+  const answer = await rpc('tools/call', { name, arguments: args }, options)
   assert.equal(answer.error, undefined); assert.equal(answer.result.isError, false)
   assert.deepEqual(JSON.parse(answer.result.content[0].text), answer.result.structuredContent)
   validateResult?.(name, answer.result.structuredContent)
@@ -29,6 +30,7 @@ function client(h, key, version = current, endpoint = path) {
 
 export async function mcpJourney() {
  const diagnostics = []
+ await mcpDocumentationJourney()
  await run(async h => {
   const ana = await donor(h, 'Ana MCP'), gift = await h.command('gift.record', { donorId: ana.id, amount: '250', receivedOn: '2026-09-20', method: 'check', goods: 'none' })
   const related = await donor(h, 'Related MCP')
@@ -115,7 +117,24 @@ export async function mcpJourney() {
   assert.equal(JSON.parse(unreviewed.result.content[0].text).error, unreviewedHttp.error)
   assert.equal(unreviewedHttp.error, 'SETTINGS_UNREVIEWED')
   await reviewed(h)
-  const batch = await mcp.call('ack.prepare', { giftIds: [gift.id] })
+  const keyed = key => ({ headers: { 'idempotency-key': key } })
+  const ackKey = keyed('synthetic-coffer-1201'), ackArgs = { giftIds: [gift.id] }
+  const copies = await Promise.all(Array.from({length: 4}, () => mcp.call('ack.prepare', ackArgs, ackKey)))
+  const batch = copies[0]
+  for (const copy of copies) assert.deepEqual(copy, batch)
+  assert.equal((await h.get('/api/coffer/letters')).batches.filter(b => b.id === batch.id).length, 1)
+  const ackAudit = await h.get('/api/coffer/audit?action=ack.prepare')
+  assert.equal(ackAudit.rows.filter(e => e.subject_id === batch.id).length, 1)
+  // A request that loses its response still publishes the same durable receipt.
+  const lostArgs = { name: 'Dropped preparation response', channel: 'email' }
+  const conflict = await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: {} }, ackKey)
+  assert.equal(JSON.parse(conflict.result.content[0].text).error, 'idempotency_conflict')
+  const changedTool = await mcp.rpc('tools/call', { name: 'appeal.prepare', arguments: lostArgs }, ackKey)
+  assert.equal(JSON.parse(changedTool.result.content[0].text).error, 'idempotency_conflict')
+  for (const badKey of ['two keys', 'x'.repeat(201)]) {
+   const invalidKey = await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: ackArgs }, keyed(badKey))
+   assert.equal(JSON.parse(invalidKey.result.content[0].text).error, 'INPUT', JSON.stringify(badKey))
+  }
   assert.equal(batch.letters, 1)
   const prepared = await h.get(`/api/coffer/letters/${batch.id}`)
   assert.equal(prepared.batch.status, 'prepared')
@@ -142,9 +161,31 @@ export async function mcpJourney() {
   else await h.command('ack.approve', { batchId: batch.id, version: batch.version })
   const approved = await h.get(`/api/coffer/letters/${batch.id}`)
   assert.equal(approved.batch.status, 'approved'); assert.equal(approved.approval.prepared_by_role, 'agent'); assert.equal(approved.approval.approved_by_role, 'owner'); assert.equal(approved.approval.content_hash, batch.contentHash)
+  assert.deepEqual(await mcp.call('ack.prepare', ackArgs, ackKey), batch)
+  assert.equal((await h.get(`/api/coffer/letters/${batch.id}`)).batch.status, 'approved')
+  const later = new Date(Date.now() + 25 * 3600000).toISOString()
+  assert.deepEqual(await mcp.call('ack.prepare', ackArgs, {headers:{...ackKey.headers,'x-test-now':later}}), batch)
   await h.command('consent.record', { donorIds: [ana.id], channel: 'email', status: 'granted', method: 'paper form', evidence: 'Signed donor permission for appeals.', capturedOn: '2026-09-20' })
   const appeal = await mcp.call('appeal.prepare', { name: 'MCP appeal proposal', channel: 'email', subject: 'Help the reading room', body: 'Dear {{donor_name}}, thank you for supporting our reading room.' })
   assert.equal(appeal.recipients, 1)
+  const lostKey = keyed('synthetic-coffer-1202'), dropped = mcp.envelope('tools/call', {name:'appeal.prepare',arguments:lostArgs})
+  const lostResponse = await mcp.send(dropped, lostKey)
+  assert.equal(lostResponse.status, 200)
+  await lostResponse.arrayBuffer() // Simulate losing the response bytes before the client records an outcome.
+  const recovered = await mcp.call('appeal.prepare', lostArgs, lostKey)
+  const recoveredAgain = await mcp.call('appeal.prepare', {channel:'email',name:lostArgs.name}, lostKey)
+  assert.deepEqual(recoveredAgain, recovered)
+  const appealAudit = await h.get('/api/coffer/audit?action=appeal.prepare')
+  assert.equal(appealAudit.rows.filter(e => e.subject_id === recovered.id).length, 1)
+  const otherKey = await h.command('agent.create', {label:'Independent preparation principal'}), other = client(h, otherKey)
+  const independent = await other.call('appeal.prepare', lostArgs, lostKey)
+  assert.notEqual(independent.id, recovered.id)
+  assert.deepEqual(await other.call('appeal.prepare', lostArgs, lostKey), independent)
+  const changedArgs = await mcp.rpc('tools/call', {name:'appeal.prepare',arguments:{...lostArgs,name:'Changed appeal'}}, lostKey)
+  assert.equal(JSON.parse(changedArgs.result.content[0].text).error, 'idempotency_conflict')
+  assert.equal((await h.get(`/api/coffer/appeals/${recovered.id}`)).appeal.status, 'prepared')
+  assert.equal(h.messages.length, 0, 'Preparation and replay never submit mail')
+  assert.equal((await h.get(`/api/coffer/appeals/${appeal.id}`)).appeal.status, 'prepared')
   const appealState = await h.get(`/api/coffer/appeals/${appeal.id}`)
   assert.equal(appealState.appeal.status, 'prepared')
   assert.equal(appealState.appeal.content_hash, appeal.contentHash)
@@ -153,8 +194,8 @@ export async function mcpJourney() {
   const nativeAppealState = await h.get(`/api/coffer/appeals/${nativeAppeal.id}`)
   assert.equal(nativeAppealState.appeal.status, appealState.appeal.status)
   assert.deepEqual(nativeAppealState.recipients.map(r => [r.donor_id, r.rendered_subject, r.rendered_body]), appealState.recipients.map(r => [r.donor_id, r.rendered_subject, r.rendered_body]))
-  const appealAudit = await h.get('/api/coffer/audit?action=appeal.prepare')
-  assert.ok([appeal.id, nativeAppeal.id].every(id => appealAudit.rows.some(e => e.subject_id === id && e.action === 'appeal.prepare' && e.actor_role === 'agent')))
+  const nativeAppealAudit = await h.get('/api/coffer/audit?action=appeal.prepare')
+  assert.ok([appeal.id, nativeAppeal.id].every(id => nativeAppealAudit.rows.some(e => e.subject_id === id && e.action === 'appeal.prepare' && e.actor_role === 'agent')))
   const refusedNative = await h.command('ack.prepare', { giftIds: [gift.id] }, { ...agentOptions, status: 409 })
   const refusedTool = await mcp.rpc('tools/call', { name: 'ack.prepare', arguments: { giftIds: [gift.id] } })
   assert.equal(refusedTool.result.isError, true)
@@ -201,6 +242,9 @@ export async function mcpJourney() {
   assert.deepEqual(legacyCatalog, catalog)
   old.useCatalog(legacyCatalog)
   assert.ok((await old.call('donors.list', { q: 'Ana MCP' })).donors.some(d => d.id === ana.id))
+  const legacyGift = await h.command('gift.record', {donorId:ana.id,amount:'250',receivedOn:'2026-09-20',method:'check',goods:'none'})
+  const legacyBatch = await old.call('ack.prepare', {giftIds:[legacyGift.id]})
+  assert.equal((await h.get(`/api/coffer/letters/${legacyBatch.id}`)).batch.status, 'prepared')
   assert.deepEqual((await old.rpc('resources/templates/list')).result.resourceTemplates, templates.resourceTemplates)
   assert.deepEqual((await old.rpc('resources/read', { uri: resourceUri(ana.id) })).result.contents, [(await resource(ana.id))])
   // Preparation keys retain native canonical identity and erasure behaviour.
@@ -227,8 +271,29 @@ export async function mcpJourney() {
   // Exercise expiry through the test clock at the network edge, not a DB edit.
   const expires = new Date(key.expiresAt + 1).toISOString()
   assert.equal((await mcp.send(invalid, { headers: { 'x-test-now': expires } })).status, 401)
-  assert.equal((await mcp.send(mcp.envelope('resources/read', { uri: resourceUri(ana.id) }), { headers: { 'x-test-now': expires } })).status, 401)
+  const expiresReplay = mcp.envelope('tools/call', {name:'ack.prepare',arguments:ackArgs})
+  assert.equal((await mcp.send(expiresReplay, {headers:{...ackKey.headers,'x-test-now':expires}})).status, 401)
+  // Merge and erasure must withhold the original aggregate as well as prose.
+  const merged = await donor(h, 'Merged preparation donor')
+  const mergeGift = await h.command('gift.record', {donorId:merged.id,amount:'250',receivedOn:'2026-09-20',method:'check',goods:'none'})
+  const mergeArgs = {giftIds:[mergeGift.id]}, mergeKey = keyed('synthetic-coffer-1203')
+  const mergeBatch = await mcp.call('ack.prepare', mergeArgs, mergeKey)
+  await h.command('ack.discard', {batchId:mergeBatch.id,version:mergeBatch.version})
+  const preparationSurvivor = await donor(h, 'Preparation merge survivor')
+  await h.command('donor.merge', {sourceDonorId:merged.id,sourceVersion:1,donorId:preparationSurvivor.id,version:1,reason:'duplicate_record'})
+  const mergedReplay = await mcp.rpc('tools/call', {name:'ack.prepare',arguments:mergeArgs}, mergeKey)
+  assert.equal(JSON.parse(mergedReplay.result.content[0].text).error, 'PREPARATION_UNAVAILABLE')
+  await h.command('donor.erase', {donorId:ana.id,confirm:'ERASE'})
+  for (const [name,args,options] of [['ack.prepare',ackArgs,ackKey],['appeal.prepare',lostArgs,lostKey]]) {
+   const erasedReplay = await mcp.rpc('tools/call', {name,arguments:args}, options)
+   assert.equal(JSON.parse(erasedReplay.result.content[0].text).error, 'PREPARATION_UNAVAILABLE')
+   assert.ok(!JSON.stringify(erasedReplay).includes(batch.contentHash))
+  }
+  assert.equal(h.messages.length, 0)
   await h.command('agent.revoke', { id: key.id })
+  assert.equal((await mcp.send(invalid)).status, 401)
+  assert.equal((await mcp.send(expiresReplay, ackKey)).status, 401)
+  assert.equal((await mcp.send(mcp.envelope('resources/read', { uri: resourceUri(ana.id) }), { headers: { 'x-test-now': expires } })).status, 401)
   assert.equal((await mcp.send(invalid)).status, 401)
   assert.equal((await mcp.send(mcp.envelope('resources/read', { uri: resourceUri(ana.id) }))).status, 401)
  }, { entry: 'tests/advancing-clock-worker.ts', handleStructuredLogs: log => diagnostics.push(log) })
@@ -364,4 +429,95 @@ async function mcpCapacityJourney() {
   assert.deepEqual(await h.get('/api/coffer/letters'), after)
   assert.equal(h.messages.length, before.messages)
  }, { entry: 'tests/advancing-clock-worker.ts', bindings: { COFFER_TEST_NOW: now } })
+}
+
+// Read what the docs build actually publishes; expected catalogs come from RPC,
+// rather than importing the documentation producer into the assertions.
+export function documentationBlocks(html) {
+ const decode = text => text.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+ return [...html.matchAll(/<code class="language-json">([\s\S]*?)<\/code>/g)].map(match => JSON.parse(decode(match[1])))
+}
+
+export async function builtAgentDocumentation() {
+ const bundle = await build({ entryPoints: ['src/site/docs/build/site.ts'], bundle: true, write: false, format: 'esm', platform: 'node', external: ['node:*', 'cloudflare:*'] })
+ const { buildDocs } = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'))
+ return buildDocs(process.cwd()).bodies.agents
+}
+
+async function mcpDocumentationJourney() {
+ const page = await builtAgentDocumentation(), blocks = documentationBlocks(page.html)
+ const inventories = blocks.filter(block => block.profile)
+ assert.deepEqual(inventories.map(block => block.profile), ['preparation-key', 'named-grant'])
+ const descriptors = blocks.filter(block => block.inputSchema)
+ const examples = blocks.find(Array.isArray)
+ assert.ok(examples?.length)
+ await run(async h => {
+  await reviewed(h)
+  const allowed = await donor(h, 'synthetic-coffer-documentation-1', { email: '' })
+  const privateDonor = await donor(h, 'synthetic-coffer-documentation-2', { email: '' })
+  const keys = []
+  for (const [index, profile] of inventories.entries()) {
+   const key = await h.command('agent.create', { label: 'synthetic-coffer-documentation-' + index })
+   keys.push(key.token)
+   if (profile.profile === 'named-grant') {
+    const grant = await h.command('agentGrant.save', { name: 'Documentation examples', donorIds: [allowed.id], permissions: ['donors.list', 'donors.context', 'ack.prepare'], dailyLimit: 1 })
+    await h.command('agentGrant.attach', { keyId: key.id, grantId: grant.id })
+   }
+   const api = client(h, key)
+   const catalog = (await api.rpc('tools/list')).result.tools
+   const templates = (await api.rpc('resources/templates/list')).result.resourceTemplates
+   const discovery = (await api.rpc('server/discover')).result.instructions
+   const discoveryBlocks = [...discovery.matchAll(/```json\n([\s\S]*?)\n```/g)].map(match => JSON.parse(match[1]))
+   const discovered = discoveryBlocks.find(block => block.profile)
+   assert.equal(discovered.profile, profile.profile)
+   assert.deepEqual(discovered.tools, catalog.map(tool => tool.name))
+   assert.deepEqual(discovered.resourceTemplates, templates)
+   assert.deepEqual(profile.tools, catalog.map(tool => tool.name))
+   assert.deepEqual(profile.resourceTemplates.map(template => ({ ...template, uriTemplate: template.uriTemplate.replace('https://your-coffer.example', h.origin) })), templates)
+   for (const tool of catalog) {
+    assert.deepEqual(descriptors.find(descriptor => descriptor.name === tool.name), tool)
+    assert.deepEqual(discoveryBlocks.find(descriptor => descriptor.name === tool.name), tool)
+   }
+   // Established clients receive the same generated, authority-specific guide.
+   const old = client(h, key, legacy)
+   const initialized = await old.rpc('initialize', { protocolVersion: legacy, capabilities: {}, clientInfo: { name: 'documentation', version: '1' } })
+   assert.equal(initialized.result.instructions, discovery)
+   for (const text of [page.html, discovery]) {
+    for (const secret of [...keys, allowed.id, privateDonor.id, 'synthetic-coffer-documentation-1', 'synthetic-coffer-documentation-2']) assert.ok(!text.includes(secret), 'No credential or donor data enters documentation')
+   }
+   api.useCatalog(catalog)
+   const listExample = examples[0]
+   const found = await api.call(listExample.params.name, listExample.params.arguments)
+   assert.ok(found.donors.some(donor => donor.id === allowed.id))
+   if (profile.profile === 'named-grant') assert.deepEqual(found.donors.map(donor => donor.id), [allowed.id])
+   // Values come from authorized results, never an invented identifier or scope.
+   const donorId = found.donors.find(donor => donor.id === allowed.id).id
+   const context = await api.call(examples[1].params.name, { donorId })
+   const uri = examples[2].params.uri.replace('https://your-coffer.example', h.origin).replace('<donorId from the authorized list>', donorId)
+   const resource = (await api.rpc(examples[2].method, { uri })).result.contents[0]
+   assert.deepEqual(JSON.parse(resource.text), context)
+   const gift = await h.command('gift.record', { donorId, amount: '250', receivedOn: '2026-09-20', method: 'check', goods: 'none' })
+   const currentContext = await api.call(examples[1].params.name, { donorId })
+   const eligible = currentContext.gifts.find(row => row.id === gift.id)
+   assert.ok(eligible)
+   const batch = await api.call(examples[3].params.name, { giftIds: [eligible.id] })
+   assert.equal((await h.get('/api/coffer/letters/' + batch.id)).batch.status, 'prepared')
+   assert.equal(h.messages.length, 0, 'The documented preparation example sends nothing')
+   const letters = await h.get('/api/coffer/letters')
+   if (profile.profile === 'named-grant') {
+    const missing = (await api.rpc('resources/read', { uri: templates[0].uriTemplate.replace('{donorId}', 'synthetic-coffer-absent') })).error
+    assert.deepEqual((await api.rpc('resources/read', { uri: templates[0].uriTemplate.replace('{donorId}', privateDonor.id) })).error, missing)
+    for (const [name, args] of [['appeal.prepare', { name: 'Unavailable example', channel: 'email' }], ['ack.send', { batchId: batch.id, version: batch.version }]]) {
+     const refused = (await api.rpc('tools/call', { name, arguments: args })).result
+     assert.equal(refused.isError, true)
+     assert.equal(JSON.parse(refused.content[0].text).error, 'GRANT_FORBIDDEN')
+    }
+    assert.deepEqual(await h.get('/api/coffer/letters'), letters)
+    await h.command('donor.erase', { donorId, confirm: 'ERASE' })
+    for (let replay = 0; replay < 2; replay++) assert.deepEqual((await api.rpc('resources/read', { uri })).error, missing)
+   }
+   await h.command('agent.revoke', { id: key.id })
+   assert.equal((await api.send(api.envelope('resources/read', { uri }))).status, 401)
+  }
+ })
 }

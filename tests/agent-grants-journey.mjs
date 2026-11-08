@@ -7,12 +7,12 @@ function doors(h,key) {
  let sequence=0, validateResult
  const http=(command,input,status=200)=>h.command(command,input,{as:'',headers,status})
  const get=(path,status=200)=>h.get(path,{as:'',headers,status})
- const rpc=async(method,params={},status=200,id=++sequence)=>{
-  const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':method,...(method==='tools/call'?{'mcp-name':params.name}:{})},body:{jsonrpc:'2.0',id,method,params:{...params,_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
+ const rpc=async(method,params={},status=200,id=++sequence,extraHeaders={})=>{
+  const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':method,...extraHeaders,...(method==='tools/call'?{'mcp-name':params.name}:{})},body:{jsonrpc:'2.0',id,method,params:{...params,_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
   const answer=await response.json();assert.equal(response.status,status,JSON.stringify(answer));return answer
  }
- const mcp=async(name,args={},expectedError=null,status=200)=>{
-  const answer=await rpc('tools/call',{name,arguments:args},status)
+ const mcp=async(name,args={},expectedError=null,status=200,extraHeaders={})=>{
+  const answer=await rpc('tools/call',{name,arguments:args},status,++sequence,extraHeaders)
   if(status!==200)return answer
   assert.equal(answer.error,undefined,JSON.stringify(answer))
   const value=answer.result.structuredContent??JSON.parse(answer.result.content[0].text)
@@ -133,7 +133,16 @@ export async function agentGrantsJourney() {
   assert.ok(!giftResource.text.includes(privateGift.id),'Resource content never traverses an unapproved donor')
   proof('scope refusals complete; preparing receipts')
   const batches=[]
-  for(const [index,gift] of gifts.entries())batches.push(index===1?await api.mcp('ack.prepare',{giftIds:[gift.id]}):await api.http('ack.prepare',{giftIds:[gift.id]}))
+  const replayHeaders={'idempotency-key':'synthetic-coffer-1210'}
+  for(const [index,gift] of gifts.entries()) {
+   if(index!==1){batches.push(await api.http('ack.prepare',{giftIds:[gift.id]}));continue}
+   const duplicates=await Promise.all([1,2,3].map(()=>api.mcp('ack.prepare',{giftIds:[gift.id]},null,200,replayHeaders)))
+   for(const duplicate of duplicates)assert.deepEqual(duplicate,duplicates[0])
+   batches.push(duplicates[0])
+  }
+  assert.equal(messages.length,0,'Keyed preparation never consumes a sending approval or submits mail')
+  const preparationAudit=await h.get('/api/coffer/audit?action=ack.prepare')
+  assert.equal(preparationAudit.rows.filter(e=>e.subject_id===batches[1].id).length,1)
   const freezes=await Promise.all(batches.map(batch=>h.get(`/api/coffer/letters/${batch.id}`)))
   for(const freeze of freezes){
    assert.equal(freeze.batch.status,'prepared');assert.equal(freeze.batch.prepared_by_role,'agent')
@@ -179,7 +188,10 @@ export async function agentGrantsJourney() {
   await api.get('/api/coffer/donors',401)
   await read(ana.id,401)
   await h.command('agentGrant.kill',{version:control.version+1,enabled:true})
-  const narrow=await h.command('agentGrant.save',{...grantInput,id:grant.id,version:1,donorIds:[ana.id],permissions:['donors.list','donors.context'],standingApproval:false})
+  const scoped=await h.command('agentGrant.save',{...grantInput,id:grant.id,version:1,donorIds:[ben.id],permissions:['donors.list','donors.context','ack.prepare'],standingApproval:false})
+  await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},'GRANT_SCOPE',200,replayHeaders)
+  const narrow=await h.command('agentGrant.save',{...grantInput,id:grant.id,version:scoped.version,donorIds:[ana.id],permissions:['donors.list','donors.context'],standingApproval:false})
+  await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},'GRANT_FORBIDDEN',200,replayHeaders)
   assert.equal((await api.get('/api/coffer/donors')).total,1)
   await api.mcp('donors.context',{donorId:house.id},'GRANT_SCOPE')
   const stillListed=await api.catalog()
@@ -194,6 +206,11 @@ export async function agentGrantsJourney() {
   await api.get('/api/coffer/donors',403)
   await api.mcp('donors.list',{},null,401)
   await read(ana.id,401)
+  const replacement=await h.command('agentGrant.save',{...grantInput,donorIds:[ana.id],name:'Replacement preparation grant',permissions:['ack.prepare'],standingApproval:false})
+  await h.command('agentGrant.attach',{keyId:key.id,grantId:replacement.id})
+  await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},'GRANT_SCOPE',200,replayHeaders)
+  await h.command('agent.revoke',{id:key.id})
+  await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},null,401,replayHeaders)
   assert.equal(messages.length,2,'Refusals never submit more mail')
   // Legacy keys retain their AGENT-001 behavior until explicitly attached.
   const legacyKey=await h.command('agent.create',{label:'Legacy preparation client'}),legacy=doors(h,legacyKey)
@@ -209,7 +226,12 @@ export async function agentGrantsJourney() {
   await legacy.rpc('resources/read',{uri:uri(ana.id)},409)
   await h.command('agentGrant.legacyLimits',{id:preparation.id,version:3,readLimit:10,prepareLimit:1})
   assert.deepEqual(JSON.parse(legacyResource.text),await legacy.get(`/api/coffer/donors/${ana.id}`))
-  await legacy.http('ack.prepare',{giftIds:[privateGift.id]})
+  const legacyHeaders={'idempotency-key':'synthetic-coffer-1211'}
+  const legacyCopies=await Promise.all([1,2,3].map(()=>legacy.mcp('ack.prepare',{giftIds:[privateGift.id]},null,200,legacyHeaders)))
+  for(const copy of legacyCopies)assert.deepEqual(copy,legacyCopies[0])
+  assert.deepEqual(await legacy.mcp('ack.prepare',{giftIds:[privateGift.id]},null,200,legacyHeaders),legacyCopies[0])
+  const quota=(await h.get('/api/coffer/agent-grants')).preparationGrants.find(g=>g.id===preparation.id)
+  assert.equal(quota.prepare_limit,1)
   assert.equal((await legacy.http('appeal.prepare',{name:'Over preparation limit',channel:'email'},409)).error,'DAILY_LIMIT')
   await legacy.mcp('appeal.prepare',{name:'Over preparation limit',channel:'email'},'DAILY_LIMIT')
   await legacy.http('ack.send',{batchId:held.id,version:1},403)

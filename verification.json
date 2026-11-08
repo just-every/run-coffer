@@ -36,6 +36,7 @@
       "hosted": true,
       "commands": [
         "pnpm run build",
+        "pnpm exec rer build --site",
         "pnpm run test:runtime"
       ]
     },

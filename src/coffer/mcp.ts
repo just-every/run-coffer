@@ -1,4 +1,6 @@
+import { prepareIdempotently } from './mcp/preparation-idempotency'
 import { catalogFor, describeTool } from './mcp/catalog'
+import { discoveryInstructions } from './mcp/documentation'
 import { validInput } from './mcp/input'
 import { commit, event } from './db'
 import { CofferError, type Context, type Row } from './db'
@@ -6,7 +8,7 @@ import { donorResourceLinks, donorResourceTemplate, readDonorResource } from './
 
 const CURRENT = '2026-07-28', LEGACY = '2025-11-25', versions = [CURRENT, LEGACY]
 const serverInfo = { name: 'coffer', version: '1.0.0' }, capabilities = { tools: {}, resources: {} }
-const instructions = 'Read donor context and prepare drafts under the key’s current authority. People approve ordinary drafts. Named grants may separately authorize sending standard receipts under a standing human approval; scope, templates, daily limits and kill switches apply to every call.'
+
 const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' }
 const json = (value: unknown, status = 200, extra = {}) => Response.json(value, { status, headers: { ...headers, ...extra } })
 const error = (id: string | number | null, code: number, message: string, status = 400, data?: unknown) => json({ jsonrpc: '2.0', id, error: { code, message, ...(data === undefined ? {} : { data }) } }, status)
@@ -24,6 +26,7 @@ function headerName(value: string | null): string | null {
  * UTF-8 text with its bounded private-body reader (1 MiB). No sessions are kept. */
 export async function mcpResponse(request: Request, c: Context, readBody: () => Promise<string>): Promise<Response> {
  const availableTools = catalogFor(c)
+ const instructions = () => discoveryInstructions(Boolean(c.actor.grant), c.env!.AUTH_ORIGIN)
  if(c.actor.grant)await commit(c,[event(c,'mcp.request','agent_grant',c.actor.grant.id,null,{},'cf_access_events')])
  if (c.actor.role !== 'agent') return error(null, -32600, 'Use an existing Coffer agent bearer key.', 403)
  if (request.method !== 'POST') return json({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Use POST; this endpoint does not offer a GET stream or sessions.' } }, 405, { allow: 'POST' })
@@ -53,9 +56,9 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
  }
  if (message.method === 'initialize' && !modern) {
   if (typeof p.protocolVersion !== 'string' || !object(p.capabilities) || !object(p.clientInfo) || typeof p.clientInfo.name !== 'string' || typeof p.clientInfo.version !== 'string') return error(id, -32602, 'Supply protocolVersion, clientInfo and capabilities.')
-  return result({ protocolVersion: LEGACY, capabilities, serverInfo, instructions })
+  return result({ protocolVersion: LEGACY, capabilities, serverInfo, instructions: instructions() })
  }
- if (message.method === 'server/discover' && modern) return result({ supportedVersions: versions, capabilities, instructions })
+ if (message.method === 'server/discover' && modern) return result({ supportedVersions: versions, capabilities, instructions: instructions() })
  if (message.method === 'ping' && !modern) return result({})
  if (message.method === 'resources/templates/list' || message.method === 'resources/list') {
   if (p.cursor !== undefined) return error(id, -32602, 'This catalog has one page; omit cursor.')
@@ -84,7 +87,7 @@ export async function mcpResponse(request: Request, c: Context, readBody: () => 
  const args = p.arguments === undefined ? {} : p.arguments
  if (!validInput(args, tool.inputSchema)) return error(id, -32602, 'Tool arguments must match its inputSchema.', modern ? 400 : 200)
  try {
-  const value = await tool.run(c, args)
+  const value = ['ack.prepare','appeal.prepare'].includes(tool.name) && request.headers.has('idempotency-key') ? await prepareIdempotently(c, request, tool.name as 'ack.prepare'|'appeal.prepare', args, staged => tool.run(staged, args)) : await tool.run(c, args)
   if(c.actor.preparationGrant)await commit(c,[event(c,'mcp.tool','agent_grant',c.actor.preparationGrant.id,tool.name==='donors.context'?String(args.donorId):null,{tool:tool.name},'cf_access_events')])
   return result({ content: [{ type: 'text', text: JSON.stringify(value) }, ...donorResourceLinks(c, tool.name, value)], structuredContent: value, isError: false })
  } catch (cause) {
