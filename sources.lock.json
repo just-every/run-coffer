@@ -1602,6 +1602,10 @@
       "sha256": "1c82631b67370dde5bfea440c3c43aa01fa73b832753119748b66acf62179af2",
       "executable": false
     },
+    "migrations/core/0188_coffer_mcp_request_capacity.sql": {
+      "sha256": "ec2a5c136eed1fa86b2b110118a8ba0d10588dd8e871e9b5d9460c87f9218a4c",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -4012,6 +4016,10 @@
     },
     "src/coffer/mcp/output.ts": {
       "sha256": "a3301a5e4fae39f62e48e2006ab5a8c557c122560a16a778244db378604e52c8",
+      "executable": false
+    },
+    "src/coffer/mcp/request-capacity.ts": {
+      "sha256": "8ea37f3f89d7ab6ef641bbdc118c09b372e59444a3492684bb184d10315bdeff",
       "executable": false
     },
     "src/coffer/meeting-briefs.ts": {
@@ -7835,7 +7843,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "ddb4de5453ac89ec4e590a268cf76ed21bc2838ce450a0c42dc69bff1ef0d070",
+      "sha256": "d16c8f86bc2dda577fc807c69fc7a0c8c5f4a1c42a2c41b74fe8196352a61b2c",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {

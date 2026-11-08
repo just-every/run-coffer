@@ -242,7 +242,8 @@ async function mcpCapacityJourney() {
   const ana = await donor(h, 'Capacity review donor')
   const gifts = []
   for (let i = 0; i < 3; i++) gifts.push(await h.command('gift.record', { donorId: ana.id, amount: '250', receivedOn: now.slice(0, 10), method: 'check', goods: 'none' }))
-  const humanBatch = await h.command('ack.prepare', { giftIds: [gifts[0].id] })
+  const reviewKey = await h.command('agent.create', { label: 'Human-reviewed preparation client' })
+  const humanBatch = await client(h, reviewKey).call('ack.prepare', { giftIds: [gifts[0].id] })
   const key = await h.command('agent.create', { label: 'Capacity client' })
   const primary = client(h, key), alias = client(h, key, current, '/mcp'), old = client(h, key, legacy, '/mcp')
   const send = (api, name = 'server/discover', args = {}, options = {}) => api.send(api.envelope(name, args), options)
