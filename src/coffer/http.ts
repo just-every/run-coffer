@@ -88,6 +88,7 @@ import { researchPage } from './ui/research'
 import { volunteering, volunteerCsv } from './volunteering'
 import { volunteeringPage } from './ui/volunteering'
 import { mcpResponse } from './mcp'
+import { reserveMcpRequest } from './mcp/request-capacity'
 import { taxReport } from './tax-reports'
 import { taxReportsPage } from './ui/tax-reports'
 import { inKindState, inKindAcknowledgment } from './in-kind'
@@ -255,7 +256,7 @@ async function pages(data: FormData, name: string) {
 // Retain the authority that produced a response: re-identifying after a read
 // must never relabel an all-record response with a newly narrowed grant.
 const responseAuthorities = new WeakMap<Request, Context>()
-const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
+const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)|^\/mcp$/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
  const response = await cofferHandler(request, original)
  const path = new URL(request.url).pathname
@@ -280,7 +281,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  const publicGiving = await givingResponse(request, original); if (publicGiving) return publicGiving
  const url = new URL(request.url), path = url.pathname
  if (!ROUTES.test(path)) return null
- const env = runtimeBindings(original), isApi = path.startsWith('/api/')
+ const isMcp = path === '/api/coffer/mcp' || path === '/mcp'
+ const env = runtimeBindings(original), isApi = path.startsWith('/api/') || isMcp
  let actor: Actor | undefined
  try {
   const auth = await identity(request, env); actor = auth.actor
@@ -299,10 +301,12 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if(path==='/app/settings/team-access'&&request.method==='GET')return page('Team access',await teamAccessPage(c),actor,200,path)
   if(path==='/api/coffer/team-access'&&request.method==='GET')return json(await teamAccessState(c))
   if(path==='/app/calendar/google/callback'&&request.method==='GET'){await calendarCallback(c,url);return redirect('/app/settings#calendar-settings')}
-  if(c.actor.preparationGrant&&(request.method==='GET'||path==='/api/coffer/mcp'))await reservePreparationGrant(c,'read')
-  if (path === '/api/coffer/mcp') {
+  if(c.actor.preparationGrant&&request.method==='GET'&&!isMcp)await reservePreparationGrant(c,'read')
+  if (isMcp) {
    if (!auth.bearer || actor.role !== 'agent') fail('agent_key_required', 'Use an existing Coffer agent key for MCP.', 403)
    if (request.headers.has('origin') && request.headers.get('origin') !== url.origin) fail('invalid_origin', 'This MCP request came from another origin.', 403)
+   await reserveMcpRequest(c)
+   if(c.actor.preparationGrant)await reservePreparationGrant(c,'read')
    return await mcpResponse(request, c, () => textBody(request, LIMIT))
   }
   if(actor.grant) {
@@ -461,7 +465,11 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   const status = known ? (error.status ?? 409) : kitCode ? 409 : 500, code = error?.code ?? kitCode ?? 'operation_failed'
   const message = known ? error.message : kitCode ? kitMessage(kitCode) : 'The operation failed.'
   if (status === 500) console.error('coffer request failed', error)
-  if (isApi) return json({ error: code, message, details: error?.details ?? undefined }, status)
+  if (isApi) {
+   const response = json({ error: code, message, details: error?.details ?? undefined }, status)
+   if (error instanceof CofferError && error.retryAfter !== undefined) response.headers.set('retry-after', String(error.retryAfter))
+   return response
+  }
   if (status === 401) return redirect('/signin?returnTo=' + encodeURIComponent(path))
   const back = path.startsWith('/app/actions') || path.startsWith('/app/move-in/') ? (request.headers.get('referer') && new URL(request.headers.get('referer')!).origin === url.origin ? new URL(request.headers.get('referer')!).pathname : '/app') : '/app'
   return page('Could not complete that', `<p role="alert" class="alert">${esc(message)}</p>${error?.details ? `<details class="facts"><summary>Details</summary><pre>${esc(JSON.stringify(error.details, null, 2))}</pre></details>` : ''}<p><a href="${esc(back)}">Go back</a></p>`, actor, status, path)

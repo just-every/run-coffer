@@ -707,7 +707,7 @@
       "executable": false
     },
     "docs/MCP.md": {
-      "sha256": "3e310ba0ce23b96079bf2cb84539deb874b5abe9868b0fdbb64986da3579baca",
+      "sha256": "35ba7033c5568aab621678d23d7e5aa72a49f9d5ca5bfcebb9abf76dce41eda9",
       "executable": false
     },
     "docs/move-in-givebutter-definitions.md": {
@@ -3243,7 +3243,7 @@
       "executable": false
     },
     "src/coffer/archive-policy.mjs": {
-      "sha256": "4c102813e6105ba1919631c39a0a304543bc749e645d81bbfd7bf80996deb9d9",
+      "sha256": "6511ea73b8fdc09ef6036f947e778b64b5efcc474b330aa9f60f53ed81ef4846",
       "executable": false
     },
     "src/coffer/attribution.ts": {
@@ -3491,7 +3491,7 @@
       "executable": false
     },
     "src/coffer/db.ts": {
-      "sha256": "497215f7f541638ffb5cfa8ef7b81ae5d17f3212c20cfe8effc0df54e09fd6c1",
+      "sha256": "b439065a4f3e5c91978d8629b43407f90361edd93e91850314a6768d3233d167",
       "executable": false
     },
     "src/coffer/demo/giving.ts": {
@@ -3887,7 +3887,7 @@
       "executable": false
     },
     "src/coffer/http.ts": {
-      "sha256": "78fdb18b6b04caabfd72b3b841ec2df133d23deffea32d6a26f94637d7056a6d",
+      "sha256": "261267de74616d0c402505aafb6841e485ae75a532292f92d13faadeadd00a06",
       "executable": false
     },
     "src/coffer/imports/context.ts": {
@@ -7835,7 +7835,7 @@
       "executable": false
     },
     "tests/mcp-journey.mjs": {
-      "sha256": "3b21cc41cc25f140bb8aa1cf8a4616db4eed13770b584e8a95690c7ce486cc39",
+      "sha256": "ddb4de5453ac89ec4e590a268cf76ed21bc2838ce450a0c42dc69bff1ef0d070",
       "executable": false
     },
     "tests/mcp-schemas.mjs": {

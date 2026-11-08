@@ -1,6 +1,6 @@
 # Coffer MCP
 
-A nonprofit can connect its own assistant to `POST /api/coffer/mcp` on its Coffer origin. Create an agent key in **Data & access** (`/app/data`) as the owner or an admin, then configure the MCP client to send `Authorization: Bearer <key>` on every request. Store the key privately in the client’s secret configuration. Coffer shows it once, stores its hash, expires it after 30 days and lets a person revoke it. Removing the creator’s authority also invalidates it. This endpoint accepts agent bearer keys; a browser sign-in alone does not authorize MCP calls.
+A nonprofit can connect its own assistant to `POST /mcp` (also available at `POST /api/coffer/mcp`) on its Coffer origin. Create an agent key in **Data & access** (`/app/data`) as the owner or an admin, then configure the MCP client to send `Authorization: Bearer <key>` on every request. Store the key privately in the client’s secret configuration. Coffer shows it once, stores its hash, expires it after 30 days and lets a person revoke it. Removing the creator’s authority also invalidates it. This endpoint accepts agent bearer keys; a browser sign-in alone does not authorize MCP calls.
 
 Keys without an explicitly attached grant retain the AGENT-001 read-and-prepare role under a real named preparation grant (`preparation:<key id>`), with per-day read/request and preparation limits and no sending permission. An owner or admin can attach a DEV-012 named grant, replacing that authority with explicit donor scope and permissions. The client continues to use the same bearer credential; there is no OAuth flow.
 
@@ -113,3 +113,26 @@ Complete Core-job coverage and legitimate exemptions, canonical seed-prefixed
 names, embedded-agent adoption and the shared Base registry, check and conformance
 integration remain owed. No approval, export, document, scope or sending authority
 is added by schema or metadata.
+
+
+## Short-window request capacity
+
+Each authenticated bearer key may make **120 MCP requests in a 60-second window**.
+The window starts with the first reserved request; after it expires, the next
+currently authorized request starts a fresh window. Both `/mcp` and
+`/api/coffer/mcp` share the same atomic D1 counter for that key, across concurrent
+Worker requests and both supported protocol revisions. Discovery, notifications,
+malformed calls and tool refusals consume capacity after authentication and origin
+checks. An overrun returns HTTP 429 with code `MCP_CAPACITY` and a positive integer
+`Retry-After` header in seconds. Wait that long before retrying; rejection neither
+extends the window nor executes a tool.
+
+This is installation protection, separate from organization-calendar grant
+quotas, preparation budgets, daily receipt limits and any future company policy
+or provider spend accounting. Capacity rejection creates no draft and submits
+nothing to a provider. Requests admitted by capacity still undergo the existing
+grant quota, scope, approval and current-authority checks. Window expiry cannot
+restore a revoked, expired, paused or otherwise unauthorized key. Each key has
+its own capacity; native browser review uses its existing human session and
+remains usable when a key is throttled. These transient counters are not included
+in installation archives.
