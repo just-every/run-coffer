@@ -1,0 +1,4 @@
+
+> @nonprofit/coffer@0.1.1 typecheck /workspace/coffer-f173
+> tsc --build --incremental
+

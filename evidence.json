@@ -1,0 +1,136 @@
+{
+  "files": [
+    {
+      "blob": "50eabd687af9eebf3c9a90364aa9d24f63ba2155",
+      "bytes": 1988,
+      "path": "BROWSER-RECEIPT.json",
+      "sha256": "fca4437616bebd245cc904e7c9bdf1b1c8bf89382a31d26b26e4f20820e12e3d"
+    },
+    {
+      "blob": "49c3eab8f240da14bd06eade8232934a39f5b7ba",
+      "bytes": 4570,
+      "path": "BUILD.log",
+      "sha256": "7e8931ce8d19ce85177be82a42c60587f89467eed0d1ca0faf06717a1cd43779"
+    },
+    {
+      "blob": "e43604742cf95f006760194087c715a1f97ee3f1",
+      "bytes": 434,
+      "path": "CI-RECEIPT.json",
+      "sha256": "9f38aece452d4dcb24918a159bc629c06197a656d8a7f2b4df377356866428d7"
+    },
+    {
+      "blob": "9f6f9b34ca71e9f6091e09112f992b6abf53a1b7",
+      "bytes": 91,
+      "path": "FIRST-PARTY.log",
+      "sha256": "73a52b4bf8f4dbf615a7f9e9b9098bcfa15b2d3dce317294f7eba4bc0d92e0f5"
+    },
+    {
+      "blob": "8a7f611dffe366d2b51dddc64f15aa17ee1fe3cf",
+      "bytes": 346442,
+      "path": "LOCK-CHECK.json",
+      "sha256": "85047e1e8c48a5f853bae7459badbac9285304f3065089317e240a70f5822263"
+    },
+    {
+      "blob": "555b13559f3fd55fc45cb9b75e910662748a2f18",
+      "bytes": 421,
+      "path": "MECHANICAL.log",
+      "sha256": "2921808e0f1133f17f2cbb6832fba06856e72bbbe89df2dad90afc6a46c732f9"
+    },
+    {
+      "blob": "2b321e8eec8f970c6e740e6b9bf4a5ce28234946",
+      "bytes": 1037,
+      "path": "MIGRATION-CHECK.mjs",
+      "sha256": "a942c7f684e7f934e06759abbcb9c3667245a1a41e89adf81fcc3c1a9ff4a0c6"
+    },
+    {
+      "blob": "30227ecb028fcbd97ca7b25bdb2ceb16bb75b287",
+      "bytes": 405,
+      "path": "MIGRATION-RECEIPT.json",
+      "sha256": "0d4abee0c6802ed6948eb57979d3c41f878675460174fd832d50c5f49a9d92ec"
+    },
+    {
+      "blob": "7dfa1222aff2343f4805342ef4dd3d26f14a02bd",
+      "bytes": 2286,
+      "path": "PAYMENT-TEST.log",
+      "sha256": "e9d29f42ff785329e8925738dac6b46ab543b1298dddeb95dadd4b9ed087a8f2"
+    },
+    {
+      "blob": "632fe2eee01ab11f7de5fbc754c75a418307ceb1",
+      "bytes": 731,
+      "path": "PRODUCT-PUSH.log",
+      "sha256": "31d56978ce26c83ce48510cab6932f45e2da82e5d1fbf6aaad362e23e2b0bf35"
+    },
+    {
+      "blob": "8aa977a0a52b9e8e14abd47d3870517fec00232a",
+      "bytes": 4514,
+      "path": "RECEIPT.json",
+      "sha256": "c834aa8bf85287250a47ca5e2d133390739f611e602399044fab2a82b2646152"
+    },
+    {
+      "blob": "963a3a32dd01ea31b7e060215df3b9349f2c1c9a",
+      "bytes": 15143,
+      "path": "REPORT.md",
+      "sha256": "fb8f8ff1b9c5bd4e11c18cef740a101954abe0053a5a1b9ff616a1bee89d8619"
+    },
+    {
+      "blob": "73ac3c2b21053fdbc2461ceb336c1146eaf633bd",
+      "bytes": 89,
+      "path": "TYPECHECK.log",
+      "sha256": "5a38a479bb1d4257fbac5866d5e9fbe298b895b6037417bffd6f19912ea20be1"
+    },
+    {
+      "blob": "cc6f1dd537486679750dc02b6b7f070dba911c66",
+      "bytes": 178489,
+      "path": "screens/approved-gifts-1440.png",
+      "sha256": "e3354c1750de7d25cd994f306e3917ac8169e4fa1b4ef6e8dca4f8d33931f194"
+    },
+    {
+      "blob": "c5afed92305eab5c15b66f96c85b0f8b2f9ec60e",
+      "bytes": 106489,
+      "path": "screens/approved-gifts-390.png",
+      "sha256": "ada09e72b919eb117401f3db7248a517d2cb7236ad1935ae31f1d573a5fcfe32"
+    },
+    {
+      "blob": "831ee20a75221765e7b774407f3620648a7cf3d2",
+      "bytes": 215361,
+      "path": "screens/held-donor-review-1440.png",
+      "sha256": "088c757d43db68916ab4b4cff1d301a7cb72facd014f319a3b263232f0f24246"
+    },
+    {
+      "blob": "2d9645aeed2384ba86b9136329c00c7a400d23db",
+      "bytes": 141910,
+      "path": "screens/held-donor-review-390.png",
+      "sha256": "077b0e078f282cfba11e319df7f0c2ed02083c8ace11af5d8f41968eb43ed49c"
+    },
+    {
+      "blob": "68435039b6782e5ccfdb0a2e3f3eef4c4a80277f",
+      "bytes": 188796,
+      "path": "screens/populated-preview-1440.png",
+      "sha256": "d808962b058de3cd31127fa59d1b3215f7a51b419f659a1805b79325b7870961"
+    },
+    {
+      "blob": "fec0777339d1a6a08c055bfe8ae6f0844d17bb67",
+      "bytes": 116324,
+      "path": "screens/populated-preview-390.png",
+      "sha256": "cdde4cf2aaeae0ba2a9f0adc38f2c3a309b31f95e8c63d4a95fe06831577bda1"
+    },
+    {
+      "blob": "f0a51e7cbc020e07fd82b949ed6cd6d5b1cb9b6e",
+      "bytes": 252075,
+      "path": "screens/reconciled-payout-1440.png",
+      "sha256": "686f42aa268c4bd601876de92d475b558458ad39af4eb89ac00c71e2d7584cc8"
+    },
+    {
+      "blob": "c62167f9a56522351bf821ac78ae143464e71b0b",
+      "bytes": 186772,
+      "path": "screens/reconciled-payout-390.png",
+      "sha256": "867dd8ad393da05e4426c60a4bf6fcd3a9f5caac7eb63bcd1ce96a801f1df6a7"
+    }
+  ],
+  "product_branch": "cloud/sx-coffer-c-f173",
+  "product_head": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+  "ref": "refs/heads/evidence/sx-coffer-c-f173",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-c-f173"
+}

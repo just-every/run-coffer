@@ -1,0 +1,60 @@
+{
+  "head": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+  "journey": "tests/platform-disbursement-browser.mjs#platformDisbursementBrowser",
+  "assertionWidth": 1440,
+  "captureWidths": [
+    1440,
+    390
+  ],
+  "chromium": "/usr/bin/chromium",
+  "files": [
+    {
+      "path": "screens/populated-preview-1440.png",
+      "bytes": 188796,
+      "sha256": "d808962b058de3cd31127fa59d1b3215f7a51b419f659a1805b79325b7870961",
+      "modifiedUtcEpoch": 1794153108.4679441
+    },
+    {
+      "path": "screens/populated-preview-390.png",
+      "bytes": 116324,
+      "sha256": "cdde4cf2aaeae0ba2a9f0adc38f2c3a309b31f95e8c63d4a95fe06831577bda1",
+      "modifiedUtcEpoch": 1794153108.5399456
+    },
+    {
+      "path": "screens/held-donor-review-1440.png",
+      "bytes": 215361,
+      "sha256": "088c757d43db68916ab4b4cff1d301a7cb72facd014f319a3b263232f0f24246",
+      "modifiedUtcEpoch": 1794153108.7839506
+    },
+    {
+      "path": "screens/held-donor-review-390.png",
+      "bytes": 141910,
+      "sha256": "077b0e078f282cfba11e319df7f0c2ed02083c8ace11af5d8f41968eb43ed49c",
+      "modifiedUtcEpoch": 1794153108.859952
+    },
+    {
+      "path": "screens/approved-gifts-1440.png",
+      "bytes": 178489,
+      "sha256": "e3354c1750de7d25cd994f306e3917ac8169e4fa1b4ef6e8dca4f8d33931f194",
+      "modifiedUtcEpoch": 1794153110.0759764
+    },
+    {
+      "path": "screens/approved-gifts-390.png",
+      "bytes": 106489,
+      "sha256": "ada09e72b919eb117401f3db7248a517d2cb7236ad1935ae31f1d573a5fcfe32",
+      "modifiedUtcEpoch": 1794153110.1519778
+    },
+    {
+      "path": "screens/reconciled-payout-1440.png",
+      "bytes": 252075,
+      "sha256": "686f42aa268c4bd601876de92d475b558458ad39af4eb89ac00c71e2d7584cc8",
+      "modifiedUtcEpoch": 1794153110.4399836
+    },
+    {
+      "path": "screens/reconciled-payout-390.png",
+      "bytes": 186772,
+      "sha256": "867dd8ad393da05e4426c60a4bf6fcd3a9f5caac7eb63bcd1ce96a801f1df6a7",
+      "modifiedUtcEpoch": 1794153110.5239851
+    }
+  ]
+}

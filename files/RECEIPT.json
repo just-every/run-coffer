@@ -1,0 +1,144 @@
+{
+  "repository": "just-every/run-coffer",
+  "branch": "cloud/sx-coffer-c-f173",
+  "head": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+  "baseMain": "8a6fd3d093f2c9c1b44ecb74be12f72db09b4cc0",
+  "node": "22.20.0",
+  "productTreeClean": true,
+  "claim": "PARTIAL",
+  "provenAcceptanceSentences": [
+    2
+  ],
+  "note": "Sentence 1 remains partial because Givebutter ingestion and changed transactions are not implemented. The assigned Benevity slice is covered.",
+  "checks": {
+    "payments": {
+      "exit": 0,
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "durationMs": 285145.014248,
+      "command": "COFFER_CHROMIUM_PATH=/usr/bin/chromium COFFER_PLATFORM_BROWSER=<packet>/screens timeout 1200 python3 /tmp/rer-reap.py node --test tests/payments.test.mjs",
+      "node": "22.20.0"
+    },
+    "typecheck": {
+      "exit": 0
+    },
+    "firstParty": {
+      "exit": 0
+    },
+    "build": {
+      "exit": 0
+    },
+    "sourceLock": {
+      "exit": 0
+    },
+    "contractWriteAndCheck": {
+      "exit": 0
+    },
+    "migrationInventory": {
+      "exit": 0
+    }
+  },
+  "sourceHashes": {
+    "src/coffer/payments/platforms/benevity.ts": "bb2f9f0a3975b3676dec41d9116a427563ba5fd2632e34fec6dea59d084a1253",
+    "src/coffer/payments/platforms/service.ts": "520e807a30ddde9f556b16e8f824a1b96b3a618d260e3e2518449af8f8562caf",
+    "src/coffer/payments/platforms/custody.ts": "5efeac975e2122cdcdfc6913d8dc02096038c700daed81e6d36dbc94e8b4594d",
+    "tests/platform-disbursement-journey.mjs": "5efec01e230f967052963679fe74810cede57285ce7f02fe2805131b644cd155",
+    "tests/platform-disbursement-browser.mjs": "f9e7ec767c35a5fb1dd0e23f2513317bb667635f3113497f218faca3b966bd9b"
+  },
+  "independentMoney": {
+    "grossCents": 15000,
+    "actualFeeCents": 445,
+    "netCents": 14555,
+    "giftCents": [
+      10000,
+      5000
+    ],
+    "receiptCents": 10000,
+    "funds": {
+      "Reading": [
+        10000,
+        320,
+        9680
+      ],
+      "Meals": [
+        5000,
+        125,
+        4875
+      ]
+    }
+  },
+  "beforeAfterCounts": {
+    "before": {
+      "done": 96,
+      "partial": 37,
+      "missing": 20
+    },
+    "after": {
+      "done": 96,
+      "partial": 37,
+      "missing": 20
+    }
+  },
+  "proofMap": {
+    "mappedUploadAndAmbiguity": "tests/platform-disbursement-journey.mjs:26",
+    "missingOrConflictingFacts": "tests/platform-disbursement-journey.mjs:46",
+    "authorityAndVersionRefusals": "tests/platform-disbursement-journey.mjs:63",
+    "concurrentApprovalAndReplay": "tests/platform-disbursement-journey.mjs:87",
+    "giftSourceFeesPayoutAndReports": "tests/platform-disbursement-journey.mjs:96",
+    "fullContributionReceipt": "tests/platform-disbursement-journey.mjs:110",
+    "sourcePrivacy": "tests/platform-disbursement-journey.mjs:120",
+    "restoreAndPendingAuthority": "tests/platform-disbursement-journey.mjs:130",
+    "mergeAndErasure": "tests/platform-disbursement-journey.mjs:139",
+    "changedEmailReplay": "tests/platform-disbursement-journey.mjs:152",
+    "olderArchiveRefusal": "tests/platform-disbursement-journey.mjs:158"
+  },
+  "publicationScan": {
+    "commit": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+    "complete": null,
+    "historyScanned": null,
+    "findings": null,
+    "custodian": "Mac lander"
+  },
+  "baselineRuns": {
+    "verify": 42488923453,
+    "runSite": 42488923555
+  },
+  "pr": null,
+  "sourceLockSha256": "dfd62f1f6071be5a72caa5ff8684ae544ee234306bdbe6a4b12bd732ba649d89",
+  "packetLogs": {
+    "PAYMENT-TEST.log": {
+      "bytes": 2286,
+      "sha256": "e9d29f42ff785329e8925738dac6b46ab543b1298dddeb95dadd4b9ed087a8f2"
+    },
+    "TYPECHECK.log": {
+      "bytes": 89,
+      "sha256": "5a38a479bb1d4257fbac5866d5e9fbe298b895b6037417bffd6f19912ea20be1"
+    },
+    "FIRST-PARTY.log": {
+      "bytes": 91,
+      "sha256": "73a52b4bf8f4dbf615a7f9e9b9098bcfa15b2d3dce317294f7eba4bc0d92e0f5"
+    },
+    "BUILD.log": {
+      "bytes": 4570,
+      "sha256": "7e8931ce8d19ce85177be82a42c60587f89467eed0d1ca0faf06717a1cd43779"
+    },
+    "LOCK-CHECK.json": {
+      "bytes": 346442,
+      "sha256": "85047e1e8c48a5f853bae7459badbac9285304f3065089317e240a70f5822263"
+    }
+  },
+  "push": {
+    "status": "pushed",
+    "remoteHead": "73ba072819742dc675195fa3f9c5f772d49fecf0",
+    "branch": "cloud/sx-coffer-c-f173",
+    "mainHead": "8a6fd3d093f2c9c1b44ecb74be12f72db09b4cc0"
+  },
+  "ci": {
+    "runId": 42497143310,
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "head": "73ba072819742dc675195fa3f9c5f772d49fecf0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "status": "pass",
+  "unchangedMainMigrations": 191,
+  "totalMigrations": 193,
+  "added": [
+    {
+      "name": "0190_coffer_platform_disbursements.sql",
+      "sha256": "a70ee995c8732b64674c1f791c8274823ead28f1a157fa6ccefa6c8b1128b529"
+    },
+    {
+      "name": "0191_coffer_platform_source_custody.sql",
+      "sha256": "27ce0114afef2196915e1e2e30b22b56eb38ccfa42d382aa10d93e40d3f7563b"
+    }
+  ]
+}
