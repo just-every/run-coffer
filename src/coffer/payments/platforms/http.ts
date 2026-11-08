@@ -14,9 +14,13 @@ export async function platformResponse(request:Request,c:Context,input:()=>Promi
  }
  if(['/columns','/values','/preview'].includes(sub)&&request.method==='POST'){
   const data=await input()
+  if(data.csvEncoded!==undefined){
+   if(typeof data.csvEncoded!=='string'||data.csvEncoded.length>200000)fail('CSV','The source file is too large.',400)
+   try{data.csv=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(Uint8Array.from(atob(data.csvEncoded),v=>v.charCodeAt(0)))}catch{fail('CSV','The source file could not be read.',400)}
+  }
   if(data.file instanceof File&&data.file.size){
    if(data.file.size>150000||!data.file.name.toLowerCase().endsWith('.csv'))fail('CSV','Choose a UTF-8 CSV no larger than 150 KB.',400)
-   data.csv=await data.file.text()
+   try{data.csv=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(await data.file.arrayBuffer())}catch{fail('CSV','The source file must be valid UTF-8.',400)}
   }
   if(typeof data.controls==='string'){try{data.controls=JSON.parse(data.controls)}catch{fail('MAPPING','The source controls could not be read.',400)}}
   if(!api&&sub==='/preview'){

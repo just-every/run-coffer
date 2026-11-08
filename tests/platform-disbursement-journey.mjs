@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {createHash} from 'node:crypto'
 import {run,donor,reviewed,settings,archive,restore,installation} from './harness.mjs'
 import {platformDisbursementBrowser} from './platform-disbursement-browser.mjs'
 
@@ -23,6 +24,7 @@ export async function platformDisbursementJourney(){
   const rows=[row('synthetic-coffer-2905','Synthetic Platform Second',mail(2903),'100.00','3.20','96.80','Literacy donations','synthetic-coffer-source-campaign'),row('synthetic-coffer-2906','Synthetic Platform Third',mail(2904),'50.00','1.25','48.75','Meals','none','acknowledged','2026-09-02','email')]
   const upload={csv:csv(rows),mapping,fundMap:{'Literacy donations':'Reading',Meals:'Meals'},campaignMap:{'synthetic-coffer-source-campaign':campaign.id,none:'none'},controls:{arrivalOn:'2026-09-03',gross:'150.00',fee:'4.45',net:'145.55'}}
   const preview=await h.api(root+'/preview',upload)
+  assert.equal(preview.source_csv,upload.csv);assert.equal(preview.file_hash,createHash('sha256').update(upload.csv).digest('hex'))
   assert.equal(preview.state,'review');assert.equal(preview.rows.length,2);assert.equal(preview.issues.length,0)
   assert.equal(preview.rows[0].review.provider,'benevity');assert.deepEqual(preview.rows[0].review.candidates.map(c=>c.id).sort(),[first.id,second.id].sort())
   assert.equal((await h.get('/api/coffer/donors/'+second.id)).gifts.length,0)
@@ -41,6 +43,17 @@ export async function platformDisbursementJourney(){
   const held=await h.api(root+'/preview',{...upload,csv:csv(missing)})
   assert.equal(held.state,'held');assert.ok(held.issues.some(i=>i.includes('Actual fees')))
   await h.api(root+'/'+held.id+'/approve',approval(held),{status:409})
+  for(const [reason,change] of [
+   ['currency',r=>{r[0][7]='CAD'}],['net',r=>{r[0][10]='96.81'}],
+   ['gross',r=>{r[0][8]=''}],['fund',r=>{r[0][11]=''}],['campaign',r=>{r[0][12]=''}],
+   ['duplicate',r=>{r[1][2]=r[0][2]}],['organization',r=>{r[1][0]='synthetic-coffer-other-organization'}],
+  ]){
+   const bad=rows.map(r=>r.map((v,i)=>i===1?'synthetic-coffer-held-'+reason:i===2?v+'-'+reason:v));change(bad)
+   const refused=await h.api(root+'/preview',{...upload,csv:csv(bad)})
+   assert.equal(refused.state,'held',reason);assert.ok(refused.issues.length>0,reason)
+   await h.api(root+'/'+refused.id+'/approve',approval(refused),{status:409})
+  }
+  assert.equal((await h.get('/api/coffer/donors/'+second.id)).gifts.length,0,'Incomplete or conflicting facts cannot create money')
   const sourcePath=match(preview.rows[0].source_id),otherPath=match(preview.rows[1].source_id)
   let view=await h.get(sourcePath)
   await h.api(sourcePath+'/approve',{...selection(view,second),donorVersion:99},{status:409})
@@ -88,10 +101,13 @@ export async function platformDisbursementJourney(){
   assert.deepEqual(fees.byForm,[{id:null,name:'No recorded giving form',...fees.totals}]);assert.equal(fees.byCampaign.find(g=>g.id===campaign.id).gross_cents,10000);assert.equal(fees.byCampaign.find(g=>g.id===null).gross_cents,5000)
   assert.equal((await h.get('/api/coffer/giving/campaigns')).campaigns.find(c=>c.id===campaign.id).raised_cents,10000)
   assert.equal(h.messages.filter(m=>/receipt/i.test(m.subject??'')).length,0,'Upload sends no automatic receipt')
+  await h.command('ack.prepare',{giftIds:[a.gifts[0].id]},{status:409})
   await h.command('gift.classify',{giftId:a.gifts[0].id,version:a.gifts[0].version,goods:'none'})
   const receipt=await h.command('ack.prepare',{giftIds:[a.gifts[0].id]})
   const letters=await h.get('/api/coffer/letters/'+receipt.id)
-  assert.match(JSON.stringify(letters),/100\.00/,'Receipt includes full contribution, not the deposit net')
+  assert.equal(letters.letters.length,1);assert.equal(letters.letters[0].amount_cents,10000)
+  assert.match(letters.letters[0].body,/100\.00/,'Receipt includes the full contribution')
+  assert.doesNotMatch(letters.letters[0].body,/96\.80/)
   await h.command('ack.approve',{batchId:receipt.id,version:1})
   await h.command('ack.send',{batchId:receipt.id,version:2})
   // Private source originals and other candidate identities never enter donor files.

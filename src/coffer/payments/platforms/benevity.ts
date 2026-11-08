@@ -13,7 +13,9 @@ export const columns = [
 ] as const
 export type Upload = Awaited<ReturnType<typeof parseBenevity>>
 export function csvInput(input: Row) {
- const csv=text(input.csv,'UTF-8 CSV',150000)
+ text(input.csv,'UTF-8 CSV',150000)
+ const csv=input.csv as string
+ if(new TextEncoder().encode(csv).byteLength>150000)fail('CSV','Choose a UTF-8 CSV no larger than 150 KB.',400)
  let rows
  try { rows=parseCsv(csv) } catch(error) { fail('CSV',error instanceof Error?error.message:'Cannot read CSV.',400) }
  const headers=(rows[0]??[]).map(v=>String(v??'').trim())

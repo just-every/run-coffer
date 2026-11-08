@@ -15,6 +15,7 @@ export async function platformDisbursementBrowser(h,input){
     await page.getByRole('heading',{name:'Disbursement recorded',exact:true}).waitFor()
     assert.match(await page.locator('main').innerText(),/\$150\.00/);await capture('approved-gifts')
     await page.getByRole('link',{name:'Open reconciled payout',exact:true}).click()
+    await page.getByRole('heading',{name:'Payout lines',exact:true}).waitFor()
     assert.match(await page.locator('main').innerText(),/\$145\.55/);await capture('reconciled-payout')
     return
    }

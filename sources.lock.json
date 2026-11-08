@@ -4415,7 +4415,7 @@
       "executable": false
     },
     "src/coffer/payments/platforms/benevity.ts": {
-      "sha256": "1798d81856103e6d9654522a5ad54f0b7ac9bfb744331c725daf37b34c7ed3cb",
+      "sha256": "6675a56fe598ea91636c4eff7514bd90976113fcecb3ed06b85c8865fbab644a",
       "executable": false
     },
     "src/coffer/payments/platforms/custody.ts": {
@@ -4423,7 +4423,7 @@
       "executable": false
     },
     "src/coffer/payments/platforms/http.ts": {
-      "sha256": "3f12046dc479c1f049a46de2b1468b4b680822134e60b0ff7a9ed5ef52ed19f5",
+      "sha256": "54ec53c266abb04b26a34011cc3fbd8267fff45176a0cc5905d64b150a4ec382",
       "executable": false
     },
     "src/coffer/payments/platforms/service.ts": {
@@ -4431,7 +4431,7 @@
       "executable": false
     },
     "src/coffer/payments/platforms/ui.ts": {
-      "sha256": "081fc15ae7afc916b3a4d5454711322318944fd1de271cf2515cdd0bc398c64d",
+      "sha256": "9f3802ec49803c6c467ed18528e451285c83f632cffd409cb30244970bcb5364",
       "executable": false
     },
     "src/coffer/payments/quickbooks/client.ts": {
@@ -8019,11 +8019,11 @@
       "executable": false
     },
     "tests/platform-disbursement-browser.mjs": {
-      "sha256": "2338628d0cb192b72c649b564f3990dd4cb5ac15a891f408fe60d214cdf93236",
+      "sha256": "f9e7ec767c35a5fb1dd0e23f2513317bb667635f3113497f218faca3b966bd9b",
       "executable": false
     },
     "tests/platform-disbursement-journey.mjs": {
-      "sha256": "6d5c9df9da27e3d2a7f37ad6d76ff0e7861ccc7043a2d15d7a9525162ff4d6f6",
+      "sha256": "446c5e5380e721e52e6f7ca536e97851f27d934fed7f42174056bf06aa47ce59",
       "executable": false
     },
     "tests/platform-history-journey.mjs": {
