@@ -1,0 +1,9 @@
+Contract views write passed for REPORT-004, DATA-004, MOVE-004, MOVE-010, MOVE-012
+Contract views check passed for REPORT-004, DATA-004, MOVE-004, MOVE-010, MOVE-012
+
+Restored ACCEPTANCE.md and docs/CLAIMS.md from origin/main.
+CONTRACT.md diff against main: empty.
+node scripts/edition-authoring/cli.mjs lock: exit 0
+node scripts/edition-authoring/cli.mjs check: exit 0
+Exact candidate lock check: exit 0
+No migration changed; migration ledger check not applicable.

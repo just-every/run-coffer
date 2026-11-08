@@ -1,0 +1,26 @@
+{
+  "observed_at": "2026-11-08T11:19:47Z",
+  "github_calls": 3,
+  "poll_interval_seconds": 308,
+  "candidate": {
+    "conclusion": null,
+    "event": "push",
+    "head_sha": "d60c997d0b9c1124c9ba32be0eafb430584f09c9",
+    "html_url": "https://github.com/just-every/run-coffer/actions/runs/42474853714",
+    "id": 42474853714,
+    "status": "in_progress"
+  },
+  "initial_discovery": {
+    "workflow_runs": [
+      {
+        "conclusion": null,
+        "event": "push",
+        "head_sha": "d60c997d0b9c1124c9ba32be0eafb430584f09c9",
+        "html_url": "https://github.com/just-every/run-coffer/actions/runs/42474853714",
+        "id": 42474853714,
+        "name": "Verify",
+        "status": "in_progress"
+      }
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "files": [
+    {
+      "blob": "c460d2564047af1b2cbde42e04428e9f08981a23",
+      "bytes": 726,
+      "path": "CI.json",
+      "sha256": "e8cfeb94b47d09810033ecb90ae609755996a1e192b916695f329e536c868ee3"
+    },
+    {
+      "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "bytes": 0,
+      "path": "FIRST-PARTY.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blob": "4758599ef6fb42462193e9672b31753fb62d399d",
+      "bytes": 1168,
+      "path": "MAIN-CI.json",
+      "sha256": "653dbbf7482b0066b0902ad573a9bf679acda10040b20c96ff0f8f2e89e58831"
+    },
+    {
+      "blob": "7a65df42db34258992627308c50e9b37525e4a7f",
+      "bytes": 466,
+      "path": "MECHANICAL.txt",
+      "sha256": "ad09d10de1a02e6dee00a50c9c8ec1c43bd0fc97f7e15f3383fada8ee0a00c3c"
+    },
+    {
+      "blob": "00212c1449d8241a2f7a42bbabfa831e57e1a27a",
+      "bytes": 2800,
+      "path": "RECEIPT.json",
+      "sha256": "c869162aadf5d6b6bd135dbdcc3218f0a71acc998b8b0106834772c29041c642"
+    },
+    {
+      "blob": "b7e26a16f3a63729baa2f78f341fe6488c505e2d",
+      "bytes": 75,
+      "path": "REMOTE-HEAD.txt",
+      "sha256": "6b150fd625a02936f30f5f2112b317cd5fbe312c56b07cff6f4fe1ac6eb8a7fd"
+    },
+    {
+      "blob": "c5eb822f83a8f44be2d6a5bd161e00c60802b249",
+      "bytes": 14162,
+      "path": "REPORT.md",
+      "sha256": "fb7a2a643918e75f982c694eb5f6c63eaaec7e66bd563aae443f8e4346975b52"
+    },
+    {
+      "blob": "23fdb015b3208984a6eb259b9d3e6b00f4a3c660",
+      "bytes": 519,
+      "path": "TOUCHED-TESTS.txt",
+      "sha256": "bc325d6a4dde5b574f47dde33328471ae681374971605823578008264c7320c8"
+    },
+    {
+      "blob": "e48fc1fc503c44ad7a09a0d41448b1ff316c8e9b",
+      "bytes": 235,
+      "path": "TYPECHECK.txt",
+      "sha256": "83454715527377dc699bdcedaefeab43257f9ea047257eb1f59f11e0278a8bd1"
+    }
+  ],
+  "product_branch": "cloud/sx-coffer-c-f169",
+  "product_head": "d60c997d0b9c1124c9ba32be0eafb430584f09c9",
+  "ref": "refs/heads/evidence/sx-coffer-c-f169",
+  "repository": "just-every/run-coffer",
+  "schema": 1,
+  "tag": "sx-coffer-c-f169"
+}
