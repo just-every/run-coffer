@@ -1,6 +1,7 @@
+import { emailSourceGuards } from '../giving/email-source'
 import { providerPreferenceCommand } from './provider-preferences'
 import { constantContactCommand } from './constant-contact'
-import { fail, id, integer, one, type Context, type Row } from '../db'
+import { fail, guard, id, integer, one, type Context, type Row } from '../db'
 import { appealDetail, hashOf } from '../appeals'
 import { submitMessage, refreshMessages } from './outbound'
 import { syncPreferences } from './preferences'
@@ -28,10 +29,11 @@ export async function marketingCommand(c:Context,command:string,p:Row):Promise<R
  const message=await one(c,'SELECT * FROM cf_appeal_messages WHERE appeal_id=?',appealId)
  if(!message)fail('NO_MESSAGE','This appeal has no email subject and message. Prepare it again with both to send by email.',409)
  if(await hashOf(appeal.name,appeal.channel,recipients,message,mailPieces)!==appeal.content_hash)fail('CONTENT_CHANGED','The approved audience or frozen wording changed. Prepare and approve a fresh audience before sending.',409)
+ const emailLink=await one(c,'SELECT url FROM cf_appeal_email_sources WHERE appeal_id=?',appealId)
  const waiting=recipients.filter(r=>!r.communication_id),pending=waiting.slice(0,sendBatch(conn.provider))
  let submitted=0,listed=0,suppressed=0,uncertain=0
  for(const r of pending){
-  const result=await submitMessage(c,{key:`appeal:${appealId}:${r.donor_id}`,donorId:r.donor_id,sourceKind:'appeal',sourceId:appealId,listName:appealListName(appeal),subject:message.subject,body:message.body,merge:r,...(r.rendered_subject!==null&&r.rendered_subject!==undefined?{rendered:{subject:r.rendered_subject,body:r.rendered_body}}:{}),expectedEmail:r.email,emailType:JSON.parse(appeal.segment).emailType,expectedContactId:r.email_contact_id,expectedContactVersion:r.email_contact_version})
+  const result=await submitMessage(c,{key:`appeal:${appealId}:${r.donor_id}`,donorId:r.donor_id,sourceKind:'appeal',sourceId:appealId,listName:appealListName(appeal),checks:async()=>[...await emailSourceGuards(c,appealId),guard("EXISTS(SELECT 1 FROM cf_appeals WHERE id=? AND version=? AND status IN ('approved','exported','sent'))",'VERSION','The approved appeal changed before submission.',appealId,version)],subject:message.subject,body:message.body,donationUrl:emailLink?.url,merge:r,...(r.rendered_subject!==null&&r.rendered_subject!==undefined?{rendered:{subject:r.rendered_subject,body:r.rendered_body}}:{}),expectedEmail:r.email,emailType:JSON.parse(appeal.segment).emailType,expectedContactId:r.email_contact_id,expectedContactVersion:r.email_contact_version})
   if(result.status==='submitted')submitted++;else if(result.status==='listed')listed++;else if(result.status==='suppressed')suppressed++;else uncertain++
  }
  return {id:appealId,provider:conn.provider,submitted,listed,suppressed,uncertain,remaining:waiting.length-pending.length}

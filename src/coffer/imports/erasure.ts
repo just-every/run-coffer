@@ -1,3 +1,5 @@
+import { shopErasure } from '../payments/shops/custody'
+import { platformErasure } from '../payments/platforms/custody'
 import { peerErasureStatements } from '../peer/custody'
 import { developmentReportErasureStatements } from '../agent/development-report-custody'
 import { retireD1ImportCustody, upgradeD1ImportErasureIndex, type D1Database, type D1Sql } from '../../modules/import-kit/src/d1/index.ts'
@@ -18,6 +20,8 @@ export function donorErasureStatements(donor: { id: string; email: string | null
   const donorId = donor.id
   const referencingMoveInJobs="SELECT id FROM cf_move_in_jobs WHERE EXISTS(SELECT 1 FROM json_each(COALESCE(json_extract(report,'$.previewNativeDonors'),json_extract(report,'$.neonNativeDonors'),json_extract(report,'$.spreadsheetNativeDonors'),'[]')) WHERE value=?)"
   return [
+    ...shopErasure(donorId,[donor.email,...(donor.emails??[])].filter((v):v is string=>Boolean(v))),
+    ...platformErasure(donorId,[donor.email,...(donor.emails??[])].filter((v):v is string=>Boolean(v))),
     sql(`DELETE FROM cf_move_in_parts WHERE job_id IN (${referencingMoveInJobs})`,donorId),
     sql(`DELETE FROM cf_move_in_issues WHERE job_id IN (${referencingMoveInJobs})`,donorId),
     sql(`UPDATE cf_move_in_jobs SET report='{}',accepted_reason=NULL,check_report=NULL,redacted=1 WHERE id IN (${referencingMoveInJobs})`,donorId),

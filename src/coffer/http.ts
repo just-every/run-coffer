@@ -1,3 +1,5 @@
+import { shopWebhook } from './payments/shops/service'
+import { shopSettingsPanel } from './payments/shops/http'
 import { restrictedRead, teamAccessState } from './team-access'
 import { readOnlyPage, teamAccessPage } from './ui/team-access'
 import { membershipResponse } from './memberships/http'
@@ -19,6 +21,7 @@ import { restApiResponse } from './api/http'
 import { apiKeysPage, apiKeySecretPage } from './ui/api-keys'
 import { auctionState, auctionUploadResponse } from './auction'
 import { auctionPage } from './auction-ui'
+import { donorMatchErasure } from './payments/donor-match'
 import { auctionErasureStatements } from './auction-custody'
 import { developmentReportResponse } from './agent/development-report-http'
 import { taskTeam } from './task-team'
@@ -87,6 +90,9 @@ import { researchPage } from './ui/research'
 import { volunteering, volunteerCsv } from './volunteering'
 import { volunteeringPage } from './ui/volunteering'
 import { mcpResponse } from './mcp'
+import { mcpCredentialBoundary } from './mcp/credential-boundary'
+import { reserveMcpRequest } from './mcp/request-capacity'
+import { auditAdmissionRefusal } from './mcp/audit'
 import { taxReport } from './tax-reports'
 import { taxReportsPage } from './ui/tax-reports'
 import { inKindState, inKindAcknowledgment } from './in-kind'
@@ -254,11 +260,13 @@ async function pages(data: FormData, name: string) {
 // Retain the authority that produced a response: re-identifying after a read
 // must never relabel an all-record response with a newly narrowed grant.
 const responseAuthorities = new WeakMap<Request, Context>()
-const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)/
+const ROUTES = /^\/(app|api\/coffer|api\/portability)(\/|$)|^\/mcp$/
 export async function cofferResponse(request: Request, original: Bindings): Promise<Response | null> {
+ const credentialRefusal = mcpCredentialBoundary(request)
+ if (credentialRefusal) return credentialRefusal
  const response = await cofferHandler(request, original)
  const path = new URL(request.url).pathname
- const provider = path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook' || path === '/api/coffer/sms/registration/events' || path === '/api/coffer/calendar/bookings'
+ const provider = path === '/api/coffer/shops/shopify/webhook' || path === '/api/coffer/giving/webhook' || path === '/api/coffer/mail/events' || path === '/api/coffer/postal/events' || path === '/api/coffer/sms/webhook' || path === '/api/coffer/sms/registration/events' || path === '/api/coffer/calendar/bookings'
  if (response && response.status < 400 && !provider && !response.headers.get('location')?.startsWith('/signin') && ROUTES.test(path)) {
   const env = runtimeBindings(original), captured=responseAuthorities.get(request)
   const auth=captured?null:await identity(request,env)
@@ -269,6 +277,7 @@ export async function cofferResponse(request: Request, original: Bindings): Prom
  return response
 }
 async function cofferHandler(request: Request, original: Bindings): Promise<Response | null> {
+ if(new URL(request.url).pathname==='/api/coffer/shops/shopify/webhook')return shopWebhook(request,runtimeBindings(original))
  if(new URL(request.url).pathname==='/api/coffer/calendar/bookings')return bookingWebhook(request,runtimeBindings(original))
  const rest=await restApiResponse(request,original)
  if(rest){if(rest.context)responseAuthorities.set(request,rest.context);return rest.response}
@@ -279,7 +288,8 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
  const publicGiving = await givingResponse(request, original); if (publicGiving) return publicGiving
  const url = new URL(request.url), path = url.pathname
  if (!ROUTES.test(path)) return null
- const env = runtimeBindings(original), isApi = path.startsWith('/api/')
+ const isMcp = path === '/api/coffer/mcp' || path === '/mcp'
+ const env = runtimeBindings(original), isApi = path.startsWith('/api/') || isMcp
  let actor: Actor | undefined
  try {
   const auth = await identity(request, env); actor = auth.actor
@@ -289,7 +299,7 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
    const callbackHeaders=new Headers(request.headers);callbackHeaders.delete('sec-fetch-site')
    originGuard(new Request(request,{headers:callbackHeaders}),env,auth.bearer)
   } else originGuard(request, env, auth.bearer, request.method === 'GET' && path === '/app/settings/quickbooks/callback')
-  const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), env }
+  const c: Context = { db: env.DB, actor, authority: auth.authority, now: new Date().toISOString(), requestId: crypto.randomUUID(), env }
   responseAuthorities.set(request,c)
   if(actor.teamAccess?.readOnly){
    const read=await restrictedRead(c,request)
@@ -298,11 +308,20 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   if(path==='/app/settings/team-access'&&request.method==='GET')return page('Team access',await teamAccessPage(c),actor,200,path)
   if(path==='/api/coffer/team-access'&&request.method==='GET')return json(await teamAccessState(c))
   if(path==='/app/calendar/google/callback'&&request.method==='GET'){await calendarCallback(c,url);return redirect('/app/settings#calendar-settings')}
-  if(c.actor.preparationGrant&&(request.method==='GET'||path==='/api/coffer/mcp'))await reservePreparationGrant(c,'read')
-  if (path === '/api/coffer/mcp') {
+  if(c.actor.preparationGrant&&request.method==='GET'&&!isMcp)await reservePreparationGrant(c,'read')
+  if (isMcp) {
    if (!auth.bearer || actor.role !== 'agent') fail('agent_key_required', 'Use an existing Coffer agent key for MCP.', 403)
    if (request.headers.has('origin') && request.headers.get('origin') !== url.origin) fail('invalid_origin', 'This MCP request came from another origin.', 403)
-   return await mcpResponse(request, c, () => textBody(request, LIMIT))
+   try {
+    await reserveMcpRequest(c)
+    if(c.actor.preparationGrant)await reservePreparationGrant(c,'read')
+   } catch (cause) {
+    if (cause instanceof CofferError && ['MCP_CAPACITY', 'DAILY_LIMIT'].includes(cause.code)) await auditAdmissionRefusal(c, request, () => textBody(request, LIMIT), cause.code)
+    throw cause
+   }
+   const response = await mcpResponse(request, c, () => textBody(request, LIMIT))
+   response.headers.set('x-request-id', c.requestId!)
+   return response
   }
   if(actor.grant) {
    if(request.method==='GET' && path==='/api/coffer/donors')return json(await grantedRead(c,'donors.list',Object.fromEntries(url.searchParams)))
@@ -460,7 +479,12 @@ async function cofferHandler(request: Request, original: Bindings): Promise<Resp
   const status = known ? (error.status ?? 409) : kitCode ? 409 : 500, code = error?.code ?? kitCode ?? 'operation_failed'
   const message = known ? error.message : kitCode ? kitMessage(kitCode) : 'The operation failed.'
   if (status === 500) console.error('coffer request failed', error)
-  if (isApi) return json({ error: code, message, details: error?.details ?? undefined }, status)
+  if (isApi) {
+   const response = json({ error: code, message, details: error?.details ?? undefined }, status)
+   if (isMcp && responseAuthorities.get(request)?.requestId) response.headers.set('x-request-id', responseAuthorities.get(request)!.requestId!)
+   if (error instanceof CofferError && error.retryAfter !== undefined) response.headers.set('retry-after', String(error.retryAfter))
+   return response
+  }
   if (status === 401) return redirect('/signin?returnTo=' + encodeURIComponent(path))
   const back = path.startsWith('/app/actions') || path.startsWith('/app/move-in/') ? (request.headers.get('referer') && new URL(request.headers.get('referer')!).origin === url.origin ? new URL(request.headers.get('referer')!).pathname : '/app') : '/app'
   return page('Could not complete that', `<p role="alert" class="alert">${esc(message)}</p>${error?.details ? `<details class="facts"><summary>Details</summary><pre>${esc(JSON.stringify(error.details, null, 2))}</pre></details>` : ''}<p><a href="${esc(back)}">Go back</a></p>`, actor, status, path)
@@ -491,6 +515,7 @@ async function eraseSingleDonor(c: Context, authority: Authority, donorId: strin
  const auctionErasure=await auctionErasureStatements(c,donorId,placeholder)
  const nativeErasure = imports.donorErasureStatements({...donor,emails:aliases.results.map(a=>a.email)}, placeholder, c.now,auctionErasure)
  const givingErasure = [
+  ...donorMatchErasure(donorId,placeholder),
   {sql:'DELETE FROM cf_membership_reminders WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
   {sql:'DELETE FROM cf_membership_payments WHERE membership_id IN (SELECT id FROM cf_memberships WHERE donor_id=?)',params:[donorId]},
   {sql:'DELETE FROM cf_memberships WHERE donor_id=?',params:[donorId]},
@@ -824,7 +849,7 @@ async function screen(c: Context, url: URL, request: Request): Promise<Response>
  if ((m = path.match(/^\/app\/appeals\/([^/]+)\/recipients\.csv$/))) return recipientsFile(c, m[1])
  if (path === '/app/more') return show('More', morePage(actor))
  if(path==='/app/calendar')return show('Your calendar',await calendarPage(c,url))
- if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c)+await calendarSettingsPanel(c)+await smsRegistrationPanel(c))
+ if (path === '/app/settings') return show('Letter settings', await settingsPage(c, url.searchParams.has('saved'))+await constantContactPreferencesPanel(c)+await journeySettingsPanel(c)+await calendarSettingsPanel(c)+await smsRegistrationPanel(c)+shopSettingsPanel)
  if (path === '/app/data') {
   if (!manager(actor)) fail('manager_required', 'Only the owner or an admin manages data and access.', 403)
   return show('Data & access', dataPage(actor, (await c.db.prepare('SELECT id,label,expires_at,revoked_at FROM cf_agent_keys ORDER BY created_at DESC').all()).results, await people(request, c, c.env!), { local: c.env?.AUTH_LOCAL === 'true', invited: url.searchParams.get('invited'), now: Date.parse(c.now), timeZone: (await settings(c)).timezone }) + await agentGrantsPanel(c))

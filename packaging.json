@@ -55,7 +55,12 @@
         "QBO_CLIENT_ID",
         "QBO_CLIENT_SECRET",
         "QBO_SANDBOX",
-        "COFFER_REPLY_ADDRESS"
+        "COFFER_REPLY_ADDRESS",
+        "SHOPIFY_SHOP_DOMAIN",
+        "SHOPIFY_SHOP_ID",
+        "SHOPIFY_ACCESS_TOKEN",
+        "SHOPIFY_WEBHOOK_SECRET",
+        "SHOPIFY_STRIPE_ACCOUNT"
       ],
       "migrationPrefix": "core-",
       "healthPath": "/health",

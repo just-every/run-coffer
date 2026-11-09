@@ -1,10 +1,11 @@
+import { nativeKeyActor } from './native-key-attribution'
 import { commit, fail, one, type Context } from './db'
 
 /** Delegation uses the key's real identity and the same live predicates as a
  * bearer request. No token is recovered and no operator role is borrowed. */
 export async function storedAgentContext(c: Context, keyId: string): Promise<Context> {
- const key=await one(c,`SELECT k.id,k.label,k.grant_id,g.version AS grant_version,control.version AS control_version
- FROM cf_agent_keys k JOIN cf_agent_grants g ON g.id=k.grant_id CROSS JOIN cf_agent_grant_control control WHERE k.id=?`,keyId)
+ const key=await one<{id:string;label:string;creator_id:string;creator_name:string;grant_id:string;grant_version:number;control_version:number}>(c,`SELECT k.id,k.label,k.created_by AS creator_id,creator.display_name AS creator_name,k.grant_id,g.version AS grant_version,control.version AS control_version
+ FROM cf_agent_keys k JOIN oa_operators creator ON creator.id=k.created_by JOIN cf_agent_grants g ON g.id=k.grant_id CROSS JOIN cf_agent_grant_control control WHERE k.id=?`,keyId)
  if(!key)fail('GRANT_REQUIRED','Select an active key with a named standing receipt grant.',403)
  const authority={sql:`(${c.authority.sql}) AND EXISTS(
  SELECT 1 FROM cf_agent_keys k JOIN oa_operators creator ON creator.id=k.created_by
@@ -13,7 +14,7 @@ export async function storedAgentContext(c: Context, keyId: string): Promise<Con
  AND creator.status='active' AND creator.version=k.creator_version AND creator.role IN ('owner','admin')
  AND g.version=? AND g.enabled=1 AND approver.status='active' AND approver.version=g.approver_version AND approver.role IN ('owner','admin'))
  AND EXISTS(SELECT 1 FROM cf_agent_grant_control WHERE id=1 AND version=? AND enabled=1)`,params:[...c.authority.params,key.id,key.grant_id,Date.now(),key.grant_version,key.control_version]}
- const delegated:Context={...c,actor:{id:key.id,name:key.label,role:'agent',grant:{id:key.grant_id,version:key.grant_version}},authority}
+ const delegated:Context={...c,actor:{...nativeKeyActor(key),grant:{id:key.grant_id,version:key.grant_version}},authority}
  await commit(delegated,[])
  return delegated
 }

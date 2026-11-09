@@ -13,12 +13,12 @@ const full = reason => ({ coverage: 'full', skip: false, reason, readers: [] });
 // full-push-proof is emitted only for branch refs, after all push shards.
 const pushCandidate = run => run.event === 'push' && Boolean(run.head_branch);
 export async function planVerification({ env = process.env, fetch = globalThis.fetch, cwd = process.cwd(), plan,
- sleep = wait, readers = lightReaders } = {}) {
+ sleep = wait, readers = lightReaders, pushMatrix = plan?.push } = {}) {
  const tier = env.GITHUB_REF?.startsWith('refs/tags/v') ? 'all' : env.GITHUB_EVENT_NAME === 'schedule' ? 'nightly' : env.TIER || 'push';
  if (!['push', 'nightly', 'all'].includes(tier)) throw Error('Unknown verification tier');
  const result = full('No qualifying push evidence');
  const finish = decision => ({ ...decision, tier, matrix: { include: (decision.skip || decision.coverage === 'light' ? []
-  : tier === 'all' ? [...plan.push, ...plan.nightly] : plan[tier]).map(({ name, browser }) => ({ name, browser })) } });
+  : tier === 'all' ? [...pushMatrix, ...plan.nightly] : tier === 'push' ? pushMatrix : plan[tier]).map(({ name, browser }) => ({ name, browser })) } });
  if (env.GITHUB_REF?.startsWith('refs/tags/')) return finish(full('Release tags require all coverage'));
  try {
   const api = githubEvidence(env, fetch), current = await api.run(env.GITHUB_RUN_ID);
@@ -51,7 +51,7 @@ export async function planVerification({ env = process.env, fetch = globalThis.f
    for (let poll = 0; poll < 4; poll++) {
     const evidence = await api.newest(current, head, run => pushCandidate(run) && run.head_branch === headBranch);
     if (evidence?.status === 'completed') {
-     if (await api.proof(evidence, ['plan', 'full-push-proof', 'verify', ...plan.push.map(shard => `shards (${shard.name})`)])) {
+     if (await api.proof(evidence, ['plan', 'full-push-proof', 'verify', ...pushMatrix.map(shard => `shards (${shard.name})`)])) {
       return finish({ ...result, coverage: 'reuse', skip: true, reason: 'Head push verified the identical merge tree' });
      }
      return finish(full('Head push did not complete full verification'));
@@ -64,7 +64,7 @@ export async function planVerification({ env = process.env, fetch = globalThis.f
    || current.head_branch !== env.GITHUB_REF.slice('refs/heads/'.length)) return finish(result);
   const exact = await api.newest(current, head, run => pushCandidate(run) && run.head_branch !== headBranch);
   if (exact) {
-   if (await api.proof(exact, ['plan', 'full-push-proof', 'verify', ...plan.push.map(shard => `shards (${shard.name})`)])) {
+   if (await api.proof(exact, ['plan', 'full-push-proof', 'verify', ...pushMatrix.map(shard => `shards (${shard.name})`)])) {
     return finish({ ...result, coverage: 'reuse', skip: true, reason: 'Full push proof on another branch' });
    }
    return finish(full('Newest eligible push has no full proof'));
@@ -74,7 +74,7 @@ export async function planVerification({ env = process.env, fetch = globalThis.f
   const parent = await api.get(`commits/${commit.parents[0].sha}`);
   if (!commitShape(parent) || parent.sha !== commit.parents[0].sha) return finish(result);
   const evidence = await api.newest(current, parent.sha, pushCandidate);
-  if (!await api.proof(evidence, ['plan', 'full-push-proof', 'verify', ...plan.push.map(shard => `shards (${shard.name})`)])) return finish(full('Direct parent is not push verified'));
+  if (!await api.proof(evidence, ['plan', 'full-push-proof', 'verify', ...pushMatrix.map(shard => `shards (${shard.name})`)])) return finish(full('Direct parent is not push verified'));
   if (commit.commit.tree.sha === parent.commit.tree.sha) return finish({ ...result, coverage: 'reuse', skip: true, reason: 'Direct push-verified parent has the same tree' });
   // Local Git gives the complete diff with both rename sides, without the REST
   // compare endpoint's truncated file list. Checkout fetches the parent too.

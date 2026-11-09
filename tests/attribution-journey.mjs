@@ -68,8 +68,7 @@ export async function attributionJourney() {
   const db = await h.mf.getD1Database('DB')
   const ledger = (await db.prepare('SELECT COALESCE(SUM(amount_cents),0) AS cents FROM cf_fund_ledger WHERE received_on BETWEEN ? AND ?').bind('2025-01-01', day).first()).cents
   assert.equal(report.ledgerCents, ledger); assert.equal(ledger, 10000 + 25000 - 25000 + 6000 + 4000 + 7500 + 3000 + 2000)
-  for (const dimension of ['fund', 'campaign', 'appeal', 'channel'])
-   assert.equal(report[dimension].reduce((sum, r) => sum + r.amountCents, 0), ledger, `${dimension} sums to the ledger`)
+  assertAttributionTotals(report, ledger)
   const row = (dimension, key) => report[dimension].find(r => r.key === key)
   assert.deepEqual([row('fund', 'Reading').amountCents, row('fund', 'General').amountCents], [10000 + 4000 + 4000 + 3000, 2000 + 7500 + 2000])
   assert.deepEqual([row('campaign', campaign.id).amountCents, row('campaign', campaign.id).gifts], [10000 + 4000, 2])
@@ -87,4 +86,10 @@ export async function attributionJourney() {
   assert.match(page, /name="command" value="appealCode.define"/)
   assert.doesNotMatch(await (await h.request('/app/gifts/attribution', { as: member })).text(), /value="appealCode.define"/)
  }, { bindings: { STRIPE_SECRET_KEY: 'synthetic-coffer-6000', MAIL_PROVIDER: 'sendgrid' }, outbound: edge.outbound })
+}
+
+export function assertAttributionTotals(report, expected) {
+ assert.equal(report.ledgerCents, expected)
+ for (const dimension of ['fund', 'campaign', 'appeal', 'channel'])
+  assert.equal(report[dimension].reduce((sum, r) => sum + r.amountCents, 0), expected, `${dimension} sums to the ledger`)
 }

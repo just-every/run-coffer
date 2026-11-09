@@ -2,7 +2,7 @@ import type { Actor, Authority } from './auth'
 import type { Bindings } from '../auth.server'
 
 export class CofferError extends Error {
- constructor(public code: string, message: string, public status = 409, public details: unknown = null) { super(message); this.name = 'CofferError' }
+ constructor(public code: string, message: string, public status = 409, public details: unknown = null, public retryAfter?: number) { super(message); this.name = 'CofferError' }
 }
 export function fail(code: string, message: string, status = 409, details: unknown = null): never { throw new CofferError(code, message, status, details) }
 
@@ -10,7 +10,7 @@ export type Stmt = { sql: string; params: unknown[]; check?: { condition: string
 /** Reviewed local-only adapters may collect native writes, then publish them
  * with their own receipt in one transaction. Never use with provider calls. */
 export type TransactionPlan = { statements: Stmt[]; commits: number }
-export type Context = { db: D1Database; actor: Actor; authority: Authority; now: string; env?: Bindings; transactionPlan?: TransactionPlan }
+export type Context = { db: D1Database; actor: Actor; authority: Authority; now: string; requestId?: string; env?: Bindings; transactionPlan?: TransactionPlan }
 export type Row = Record<string, any>
 
 export const sql = (text: string, ...params: unknown[]): Stmt => ({ sql: text, params })
@@ -27,21 +27,31 @@ export async function all<T = Row>(c: { db: D1Database }, text: string, ...param
 }
 
 /** The audit row for a change: identifiers and amounts only, never donor personal data. */
-export function event(c: { now: string; actor: { id: string; name: string; role: string; grant?: { id: string; version: number }; preparationGrant?: {id:string;version:number}; apiKey?: {id:string;scope:string} } }, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}, table: 'cf_events' | 'cf_access_events' = 'cf_events'): Stmt {
+export function event(c: { now: string; actor: { id: string; name: string; role: string; grant?: { id: string; version: number }; preparationGrant?: {id:string;version:number}; apiKey?: {id:string;scope:string}; nativeKey?: Actor['nativeKey'] } }, action: string, subjectKind: string, subjectId: string, donorId: string | null, detail: Row = {}, table: 'cf_events' | 'cf_access_events' = 'cf_events'): Stmt {
  return sql(`INSERT INTO ${table}(at,actor_id,actor_name,actor_role,action,subject_kind,subject_id,donor_id,detail) VALUES(?,?,?,?,?,?,?,?,?)`,
-  c.now, c.actor.id, c.actor.name, c.actor.role, action, subjectKind, subjectId, donorId, JSON.stringify({ ...detail, ...(c.actor.apiKey ? {apiKeyId:c.actor.apiKey.id,apiKeyScope:c.actor.apiKey.scope}:{}), ...((c.actor.grant??c.actor.preparationGrant) ? { grantId: (c.actor.grant??c.actor.preparationGrant)!.id, grantVersion: (c.actor.grant??c.actor.preparationGrant)!.version } : {}) }))
+  c.now, c.actor.id, c.actor.name, c.actor.role, action, subjectKind, subjectId, donorId, JSON.stringify({ ...detail, ...(c.actor.nativeKey ? {nativeKey:c.actor.nativeKey}:{}), ...(c.actor.apiKey ? {apiKeyId:c.actor.apiKey.id,apiKeyScope:c.actor.apiKey.scope}:{}), ...((c.actor.grant??c.actor.preparationGrant) ? { grantId: (c.actor.grant??c.actor.preparationGrant)!.id, grantVersion: (c.actor.grant??c.actor.preparationGrant)!.version } : {}) }))
 }
 
 /** One D1 transaction: the caller's current authority, then the writes and
  * their guards. A failed guard is re-read to report which promise broke. */
 export async function commit(c: { db: D1Database; authority: Authority; actor?: {id:string;teamAccess?:Actor['teamAccess']}; transactionPlan?: TransactionPlan }, statements: Stmt[]) {
+ await commitResults(c, statements)
+}
+
+/** Return transaction results when a caller needs its own atomic reservation. */
+export async function commitResults(c: { db: D1Database; authority: Authority; actor?: {id:string;teamAccess?:Actor['teamAccess']}; transactionPlan?: TransactionPlan }, statements: Stmt[]) {
  // Restricted reads may retain access audit and rate accounting only. This
  // second boundary also protects services invoked without the HTTP dispatcher.
  if(c.actor?.teamAccess?.readOnly&&statements.some(s=>!s.check&&!/^INSERT INTO cf_(access_events|api_rate_windows)\b/i.test(s.sql.trim())))
   fail('READ_ONLY','Your Coffer access is read-only. Ask an owner or admin to change it.',403)
- if(c.transactionPlan){c.transactionPlan.statements.push(...statements);if(statements.length)c.transactionPlan.commits++;return}
+ if(c.transactionPlan){
+  // Preserve stronger authority supplied by a native service while staging.
+  c.transactionPlan.statements.push(guard(c.authority.sql, 'SESSION_CHANGED', 'Your access changed. Sign in again.', ...c.authority.params), ...statements)
+  if(statements.length)c.transactionPlan.commits++
+  return
+ }
  const batch = [guard(c.authority.sql, 'SESSION_CHANGED', 'Your access changed. Sign in again.', ...c.authority.params), ...statements, sql('DELETE FROM cf_assert')]
- try { await c.db.batch(batch.map(s => c.db.prepare(s.sql).bind(...s.params))) } catch (error) {
+ try { return await c.db.batch(batch.map(s => c.db.prepare(s.sql).bind(...s.params))) } catch (error) {
   const text = String(error)
   if (/CHECK constraint failed/i.test(text) && /cf_assert|ok = 1|ok=1/i.test(text)) {
    for (const s of batch) {

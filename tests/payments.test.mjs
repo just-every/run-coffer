@@ -259,3 +259,17 @@ test('FIN-002: closed check deposits retain evidence, approval and uncertain-sub
 test('FIN-001: QuickBooks owner connects, maps three funds and posts exact deposits and separate adjustments once across failure and restore',async()=>{
  const {quickbooksJourney}=await import('./quickbooks/journey.mjs');await quickbooksJourney()
 })
+
+test('PAY-001: external donor review holds money and releases exact gifts, fees and prior refunds once under current authority',async()=>{
+ const {paymentDonorMatchJourney}=await import('./payment-donor-match-journey.mjs');await paymentDonorMatchJourney()
+})
+
+test('PAY-005: reviewed Benevity disbursements hold ambiguous donors and record exact source gifts, fees and payouts once with private custody',async()=>{
+ const {platformDisbursementJourney}=await import('./platform-disbursement-journey.mjs')
+ await platformDisbursementJourney()
+})
+
+test('PAY-006: signed Shopify orders hold exact donation classification, actual fee allocation and current donor authority, then record and fully reverse only the contribution once',async()=>{
+ const {shopOrdersJourney}=await import('./shop-orders-journey.mjs')
+ await shopOrdersJourney()
+})

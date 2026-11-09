@@ -62,7 +62,7 @@ jobs:
     needs: plan
     if: ${{ needs.plan.outputs.has_shards == 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ inputs.timeout || ((matrix.name == 'pipeline' || matrix.name == 'donors') && 20 || 12) }}
+    timeout-minutes: ${{ inputs.timeout || 20 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -117,7 +117,7 @@ jobs:
           set -euo pipefail
           stat -c 'Before browser: %n uid=%u gid=%g mode=%a' "$PLAYWRIGHT_BROWSERS_PATH" "$RUNNER_TEMP/rer-apt/archives"
           pnpm exec playwright install chromium
-          probe() { node --input-type=module -e "import { chromium } from '@playwright/test'; try { const browser = await chromium.launch({headless: true}); await browser.close(); } catch (error) { console.error(error); process.exit(/EACCES|permission denied/i.test(String(error)) ? 77 : 1); }"; }
+          probe() { node scripts/ci/chromium-probe.mjs; }
           if probe; then
             :
           else
@@ -138,7 +138,12 @@ jobs:
       - name: Run this shard
         env:
           SHARD: ${{ matrix.name }}
-        run: node scripts/verify-ci.mjs "$SHARD"
+        run: |
+          if [[ "$SHARD" == balanced-* ]]; then
+            node scripts/ci/shards.mjs "$SHARD" push
+          else
+            node scripts/verify-ci.mjs "$SHARD"
+          fi
 
   light:
     needs: plan

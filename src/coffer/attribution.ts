@@ -50,11 +50,11 @@ export async function entryAttribution(c: Context, p: Row, fund: string, split: 
  return { campaignId, appeal, channel, statements }
 }
 
-/** Online gifts: the giving form is the channel and the tracked link's appeal travels on the intent. */
+/** The captured native source chooses email; ordinary tracked links retain the form channel. */
 export function onlineAttribution(intent: Row, reference: string): Stmt[] {
  const gift = "SELECT id FROM cf_gifts WHERE source='stripe' AND reference=? AND kind='gift'"
  return [
-  sql(`INSERT OR IGNORE INTO cf_gift_channels(gift_id,channel) SELECT id,? FROM (${gift})`, intent.staff_channel ?? (intent.giving_channel === 'event' ? 'event' : intent.giving_channel === 'text' ? 'text' : 'form'), reference),
+  sql(`INSERT OR IGNORE INTO cf_gift_channels(gift_id,channel) SELECT id,? FROM (${gift})`, intent.staff_channel ?? (intent.email_source_id ? 'email' : intent.giving_channel === 'event' ? 'event' : intent.giving_channel === 'text' ? 'text' : 'form'), reference),
   ...(intent.appeal ? [sql(`INSERT OR IGNORE INTO cf_gift_appeals(gift_id,appeal) SELECT id,? FROM (${gift})`, intent.appeal, reference)] : []),
  ]
 }

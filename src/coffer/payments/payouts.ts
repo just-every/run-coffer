@@ -2,13 +2,13 @@ import { paymentFundLines } from '../gift-splits'
 import { all, fail, guard, one, sql, text, type Context } from '../db'
 import { stripe, type GivingEnv } from '../giving/stripe'
 import { syncEntry } from './entries'
-import { cents, stripePages, utcDay } from './stripe-data'
+import { cents, stripeId, stripePages, utcDay } from './stripe-data'
 import { paymentWrite } from './write'
 
 export async function payoutDetail(c: { db: D1Database }, id: string) {
- const payout = await one(c, `SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p WHERE id=?`, id)
+ const payout = await one(c, `SELECT p.*,COALESCE((SELECT provider FROM cf_platform_batches WHERE payout_id=p.id),'stripe') AS provider,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p WHERE id=?`, id)
  if (!payout) fail('not_found', 'That payout is not available.', 404)
- const lines = await all(c, `SELECT e.*,d.name AS donor_name FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id LEFT JOIN cf_gifts g ON g.id=e.gift_id LEFT JOIN cf_donors d ON d.id=g.donor_id WHERE x.payout_id=? ORDER BY e.received_on,e.id`, id)
+ const lines = await all(c, `SELECT e.*,COALESCE(pb.provider,'stripe') AS provider,d.name AS donor_name FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id LEFT JOIN cf_platform_sources ps ON ps.gift_id=e.gift_id LEFT JOIN cf_platform_batches pb ON pb.id=ps.batch_id LEFT JOIN cf_gifts g ON g.id=e.gift_id LEFT JOIN cf_donors d ON d.id=g.donor_id WHERE x.payout_id=? ORDER BY e.received_on,e.id`, id)
  const definitions=await all(c,'SELECT * FROM cf_funds')
  const withRestriction=(line:Record<string,any>):Record<string,any>=>{const f=definitions.find(f=>f.name===line.fund);return {...line,restriction:f?.restriction??'unrestricted',detail:f?.detail??null,release_on:f?.release_on??null}}
  const accountingLines=(await paymentFundLines(c,lines)).map(withRestriction), funds=new Map<string,{fund:string;gross_cents:number;fee_cents:number;net_cents:number}>()
@@ -19,7 +19,7 @@ export async function payoutDetail(c: { db: D1Database }, id: string) {
 export async function payoutList(c: { db: D1Database }) {
  const postings = await all(c, 'SELECT * FROM cf_payout_postings'), qboPostings = await all(c, "SELECT * FROM cf_qbo_postings WHERE kind='payout'")
  return {
-  payouts: (await all(c, 'SELECT p.*,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p ORDER BY arrival_on DESC,id DESC LIMIT 100')).map(p => ({ ...p, posting: postings.find(x => x.payout_id === p.id) ?? null, qboPosting: qboPostings.find(x => x.source_id === p.id) ?? null })),
+  payouts: (await all(c, `SELECT p.*,COALESCE((SELECT provider FROM cf_platform_batches WHERE payout_id=p.id),'stripe') AS provider,COALESCE((SELECT SUM(e.net_cents) FROM cf_payout_entries x JOIN cf_payment_entries e ON e.id=x.entry_id WHERE x.payout_id=p.id),0) AS matched_cents FROM cf_payouts p ORDER BY arrival_on DESC,id DESC LIMIT 100`)).map(p => ({ ...p, posting: postings.find(x => x.payout_id === p.id) ?? null, qboPosting: qboPostings.find(x => x.source_id === p.id) ?? null })),
   failures: await all(c, 'SELECT * FROM cf_payment_failures ORDER BY created_at DESC LIMIT 30'),
  }
 }
@@ -39,7 +39,7 @@ export async function matchManualPayout(env: GivingEnv, c: Context, id: string, 
  }
  if (entries.reduce((sum, txn) => sum + cents(txn.net), 0) !== payout.amount) fail('PAYOUT_NOT_READY', 'The selected transactions do not equal this payout.')
  await syncPayout(env, id, c)
- for (const txn of entries) await syncEntry(env, txn, c)
+ for (const txn of entries) if(!await syncEntry(env,txn,c))fail('DONOR_MATCH_REQUIRED','Review held donor matches before completing this payout.')
  const view = await payoutDetail(c, id)
  if (view.payout.complete) {
   if (view.lines.length !== ids.length || view.lines.some(line => !ids.includes(line.id))) fail('PAYOUT_CHANGED', 'This payout already has a different match.')
@@ -62,14 +62,26 @@ export async function syncPayout(env: GivingEnv, id: string, authority?: Context
  // Stripe only provides exact payout membership for automatic payouts.
  // Manual payouts remain unmatched instead of guessing by date or amount.
  if (!payout.automatic || payout.reconciliation_status === 'in_progress') return payoutDetail({ db: env.DB }, id)
+ let held=false
  for await (const txn of stripePages(env, '/balance_transactions?payout=' + encodeURIComponent(id) + '&expand[]=data.source')) {
   if (txn.type === 'payout') continue
-  await syncEntry(env, txn, authority)
+  const entry=await syncEntry(env,txn,authority)
+  if(!entry){
+   held=true
+   const sourceId=stripeId(txn.source)
+   const source=typeof txn.source==='object'?txn.source:
+    /^(re_|pyr_)/.test(sourceId)?await stripe(env,'/refunds/'+encodeURIComponent(sourceId)):
+    sourceId.startsWith('dp_')?await stripe(env,'/disputes/'+encodeURIComponent(sourceId)):null
+   const chargeId=stripeId(source?.charge)||sourceId
+   await paymentWrite(env,[sql(`INSERT OR IGNORE INTO cf_payment_match_payouts(charge_id,payout_id)
+    SELECT charge_id,? FROM cf_payment_donor_matches WHERE charge_id=?`,id,chargeId)],authority)
+   continue
+  }
   const member = await one({ db: env.DB }, 'SELECT payout_id FROM cf_payout_entries WHERE entry_id=?', txn.id)
   if (member && member.payout_id !== id) fail('payout_changed', 'A transaction is already matched to another payout.', 409)
   if (!member) await paymentWrite(env, [sql('INSERT OR IGNORE INTO cf_payout_entries(entry_id,payout_id) VALUES(?,?)', txn.id, id)], authority)
  }
- await paymentWrite(env, [sql('UPDATE cf_payouts SET complete=1 WHERE id=?', id)], authority)
+ await paymentWrite(env, [sql('UPDATE cf_payouts SET complete=? WHERE id=?',held?0:1,id)],authority)
  return payoutDetail({ db: env.DB }, id)
 }
 export async function syncPayouts(env: GivingEnv, id?: string, authority?: Context) {

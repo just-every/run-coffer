@@ -26,6 +26,14 @@ const PARENTS: Record<string, string> = {
 }
 // Rows that reach a donor but are not records about them.
 export const NOT_IN_FILE: Record<string, string> = {
+ cf_shop_orders: 'Complete shop source facts and money review stay reviewer-private.',
+ cf_shop_events: 'Signed shop payloads stay reviewer-private.',
+ cf_shop_processor_bindings: 'Private processor custody references are withheld.',
+ cf_shop_erased_identities: 'Opaque replay suppression is not a donor record.',
+ cf_platform_erased_donors: 'Opaque replay suppression hashes are not donor records.',
+ cf_platform_batches: 'Complete source uploads contain other donors and stay reviewer-private.',
+ cf_platform_sources: 'Private source evidence and matching reviews stay in this installation.',
+ cf_payment_donor_matches: 'Private matching evidence and other candidates stay in this installation.',
  cf_meeting_links: 'Private scheduling capabilities and staff authorization stay in this installation.',
  cf_auction_jobs: 'Complete source files contain other bidders and stay private.',
  cf_auction_donors: 'Internal undo snapshots contain complete imported contact records.',

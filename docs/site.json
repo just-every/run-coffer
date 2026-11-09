@@ -25,6 +25,7 @@
       "title": "Keep it yours",
       "pages": [
         { "slug": "people", "title": "People and roles", "file": "people.md", "summary": "Owner, admin, member and agent keys: who can approve, export, move in, back up and erase." },
+        { "slug": "agents", "title": "MCP for assistants", "file": "MCP.md", "summary": "Discover the current tools, schemas and donor resource under preparation keys and named grants." },
         { "slug": "agent-commands", "title": "Agent keys and commands", "file": "AGENT-COMMANDS.md", "summary": "Every endpoint and command an agent or script can call, and who may call it." },
         { "slug": "move-in", "title": "Move in from Stripe", "file": "MOVE-IN.md", "summary": "Read donors, gifts and monthly plans from Stripe, preview and check the totals, then approve or undo." },
         { "slug": "move-in-crm", "title": "Move in from a CRM", "file": "MOVE-IN-SOURCES.md", "summary": "Follow six switching guides, review supported import evidence and keep unfinished payment migration visible." },

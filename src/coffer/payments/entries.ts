@@ -1,3 +1,4 @@
+import { shopStripeBound } from './shops/service'
 import { notifyAdjustment } from './adjustment-notices'
 import { fail, one, sql, type Context } from '../db'
 import { settings } from '../settings'
@@ -27,6 +28,8 @@ export async function syncEntry(env: GivingEnv, input: any, authority?: Context)
  let gift: any = null
  if (chargeId) {
   const saved = await syncCharge(env, chargeId, authority)
+  if(!saved&&await shopStripeBound(env,chargeId))return null
+  if(!saved&&await one({db:env.DB},'SELECT charge_id FROM cf_payment_donor_matches WHERE charge_id=?',chargeId))return null
   if (!saved) fail('payment_mismatch', 'A balance transaction has no successful gift.', 409)
   gift = await one({ db: env.DB }, 'SELECT * FROM cf_gifts WHERE id=?', saved.gift_id)
  }

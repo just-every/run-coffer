@@ -37,6 +37,8 @@ for(const id of ids){
 // touched mapping change; all other claim rows retain their approved source.
 let claims=readFileSync('docs/CLAIMS.md','utf8')
 const claimMappings={
+ // This clause's source evidence changes without changing approved homepage copy.
+ 'COMM-002':{},
  'GIVE-004':{
   24:['partly','Card and Link use Stripe Checkout on the installation’s own account, once or on a subscription; Apple Pay is offered on eligible devices. Ordinary one-time campaign forms now offer hosted ACH with instant verification requested, current-state settlement and return reconciliation. Live ACH qualification and broader bank, wallet and PayPal acceptance remain owed (`GIVE-004`, `tests/ach-checkout-journey.mjs`).'],
   31:['partly','The native bank checkout stays pending without a gift, receipt, recognition or raised total until independently verified success; a late insufficient-funds return appends a reversal and an owned non-ask task. A predicted clearing date and live settlement qualification remain unclaimed (`GIVE-004`, `tests/ach-checkout-journey.mjs`, `tests/ach-checkout-browser.mjs`).'],

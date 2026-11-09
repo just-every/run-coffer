@@ -14,6 +14,8 @@
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
+        "node --test tests/ci-shards.test.mjs",
+        "node --test scripts/ci/shards.test.mjs",
         "node scripts/contract-docs.mjs check REPORT-004 DATA-004 MOVE-004 MOVE-010 MOVE-012",
         "node --test --test-name-pattern=\"^MOVE-010: Bloomerang\" tests/move-in.test.mjs"
       ]
@@ -34,6 +36,7 @@
       "hosted": true,
       "commands": [
         "pnpm run build",
+        "pnpm exec rer build --site",
         "pnpm run test:runtime"
       ]
     },
@@ -112,7 +115,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments pnpm run test:payments",
+        "COFFER_RECON_BROWSER=.cache/reconciliation COFFER_ADJUSTMENTS_BROWSER=.cache/payment-adjustments COFFER_PLATFORM_BROWSER=.cache/platform-disbursements pnpm run test:payments",
         "COFFER_ACK_FILTER_BROWSER=.cache/acknowledgment-filters node --test --test-name-pattern='^RCPT-012:' tests/receipts.test.mjs",
         "node --test tests/hosted-mail.test.mjs"
       ]

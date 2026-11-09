@@ -376,3 +376,13 @@ saved states run at 1440/390. The solicitationJourney additionally exercises
 month and quarter resets across UTC and New York midnight, cross-channel
 counting, competing approved exports, versioned period changes and native
 period controls.
+
+## Email appeal donation attribution
+
+An owner or admin preparing a written email appeal can select an existing donation campaign. Preparation appends a run-wide one-time giving link to the message and freezes that exact wording, campaign, fund and permanent run code for approval. Mailchimp receives the frozen recipient wording; the Mango list handoff shows the same link in the approved message to copy. A Mango list membership establishes no campaign send or delivery.
+
+The public giving page and checkout resolve this source on the server. Unknown, unapproved, discarded and cross-campaign sources are refused. A source cannot change an existing checkout, authorize a recurring gift or combine with a different giving door. A plain tracked appeal code remains a giving-form gift, even when the caller supplies an email channel flag. The source contains no recipient identity and grants no marketing consent. A giver enters their own details and makes their own separate consent choice.
+
+The saved checkout source follows the existing once-only payment recorder, actual processor fees, full paid receipt and signed corrections. Response and attribution reports use the same fund ledger. A gift from someone outside the frozen audience can count toward the appeal's dollars without claiming that an audience recipient responded or that any message was delivered. Campaign links and their historical attribution survive an archive restore; provider connections still require their existing explicit setup.
+
+This native link does not complete COMM-002: tag synchronization, scheduled appeals, broader provider campaign creation and rendering, recipient result binding and the complete engagement timeline remain owed. No live provider or Managed availability is claimed.

@@ -1,29 +1,47 @@
 import assert from 'node:assert/strict'
+import { catalogSchemas } from './mcp-schemas.mjs'
 import { run, donor, reviewed, settings } from './harness.mjs'
+import { assertToolAudit } from './mcp-journey.mjs'
 
 function doors(h,key) {
  const headers={authorization:`Bearer ${key.token}`},version='2026-07-28'
- let sequence=0
+ let sequence=0, validateResult
+ const calls=[]
  const http=(command,input,status=200)=>h.command(command,input,{as:'',headers,status})
  const get=(path,status=200)=>h.get(path,{as:'',headers,status})
- const mcp=async(name,args={},expectedError=null,status=200)=>{
-  const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':'tools/call','mcp-name':name},body:{jsonrpc:'2.0',id:++sequence,method:'tools/call',params:{name,arguments:args,_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
+ const rpc=async(method,params={},status=200,id=++sequence,extraHeaders={})=>{
+  const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':method,...extraHeaders,...(method==='tools/call'?{'mcp-name':params.name}:{})},body:{jsonrpc:'2.0',id,method,params:{...params,_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
   const answer=await response.json();assert.equal(response.status,status,JSON.stringify(answer))
+  if(method==='tools/call'&&response.status!==401&&response.headers.has('x-request-id'))calls.push({requestId:response.headers.get('x-request-id'),tool:params.name,answer})
+  return answer
+ }
+ const mcp=async(name,args={},expectedError=null,status=200,extraHeaders={})=>{
+  const answer=await rpc('tools/call',{name,arguments:args},status,++sequence,extraHeaders)
   if(status!==200)return answer
   assert.equal(answer.error,undefined,JSON.stringify(answer))
   const value=answer.result.structuredContent??JSON.parse(answer.result.content[0].text)
   if(expectedError==='either')return {isError:answer.result.isError,value}
   assert.equal(answer.result.isError,!!expectedError,JSON.stringify(answer))
   if(expectedError)assert.equal(value.error,expectedError)
+  if(!expectedError)validateResult?.(name,value)
   return value
  }
- return {http,get,mcp}
+ const catalog=async()=>{
+  const response=await h.request('/api/coffer/mcp',{method:'POST',as:'',headers:{...headers,accept:'application/json, text/event-stream','mcp-protocol-version':version,'mcp-method':'tools/list'},body:{jsonrpc:'2.0',id:++sequence,method:'tools/list',params:{_meta:{'io.modelcontextprotocol/protocolVersion':version,'io.modelcontextprotocol/clientCapabilities':{}}}}})
+  assert.equal(response.status,200)
+  const tools=(await response.json()).result.tools
+  validateResult=catalogSchemas(tools)
+  return tools
+ }
+ return {http,get,mcp,catalog,rpc,calls}
 }
 
 /** One public-door journey for the named-grant authority boundary, through
  * ordinary HTTP and MCP. Only the paid mail submission edge is replaced. */
 export async function agentGrantsJourney() {
  const proof=label=>{if(process.env.COFFER_GRANT_PROOF)console.info(`agent-grants: ${label}`)}
+ // Hold every request on one calendar day, including concurrent reservations.
+ const clock={entry:'tests/advancing-clock-worker.ts',bindings:{COFFER_TEST_NOW:new Date(Date.now()+86400000).toISOString()}}
  proof('starting manager authority journey')
  const messages=[]
  await run(async h=>{
@@ -33,7 +51,26 @@ export async function agentGrantsJourney() {
   const admin=await h.person('grant.admin@example.test','admin'),record=await donor(h,'Admin scoped donor')
   const grant=await h.command('agentGrant.save',{name:'Admin read grant',donorIds:[record.id],permissions:['donors.list'],dailyLimit:1},{as:admin.cookie})
   assert.equal((await h.get('/api/coffer/agent-grants')).grants.find(g=>g.id===grant.id).approved_by_role,'admin')
- })
+  const key=await h.command('agent.create',{label:'List-only resource client'})
+  await h.command('agentGrant.attach',{keyId:key.id,grantId:grant.id})
+  const api=doors(h,key),template=(await api.rpc('resources/templates/list')).result.resourceTemplates[0]
+  const read=id=>api.rpc('resources/read',{uri:template.uriTemplate.replace('{donorId}',id)},200,'synthetic-coffer-1')
+  assert.deepEqual(await read(record.id),await read('synthetic-coffer-404'),'Listing permission does not grant context reads or disclose existence')
+  const outside=await donor(h,'Unapproved merge survivor'),erasable=await donor(h,'Scoped erasure identity')
+  await h.command('agentGrant.save',{id:grant.id,version:1,name:'Admin read grant',donorIds:[record.id,erasable.id],permissions:['donors.list','donors.context'],dailyLimit:1},{as:admin.cookie})
+  assert.equal(JSON.parse((await read(record.id)).result.contents[0].text).donor.id,record.id)
+  const missing=await read('synthetic-coffer-404'),comparison=await h.get(`/api/coffer/duplicates/compare?source=${record.id}&target=${outside.id}`)
+  await h.command('donor.merge',{sourceDonorId:record.id,donorId:outside.id,sourceVersion:comparison.source.version,version:comparison.target.version,reason:'duplicate_record'})
+  assert.deepEqual(await read(record.id),missing,'A scoped alias must not follow its merge into an unapproved donor')
+  assert.deepEqual(await read(outside.id),missing)
+  await h.command('donor.erase',{donorId:outside.id,confirm:'ERASE'})
+  assert.deepEqual(await read(record.id),missing,'Erasure and replay cannot recover scoped personal data')
+  assert.deepEqual(await read(record.id),missing)
+  assert.equal(JSON.parse((await read(erasable.id)).result.contents[0].text).donor.name,'Scoped erasure identity')
+  await h.command('donor.erase',{donorId:erasable.id,confirm:'ERASE'})
+  assert.deepEqual(await read(erasable.id),missing)
+  assert.deepEqual(await read(erasable.id),missing)
+ },clock)
  proof('starting receipt authority journey')
  return run(async h=>{
   proof('receipt installation ready')
@@ -42,7 +79,15 @@ export async function agentGrantsJourney() {
   const ana=await donor(h,'Scoped Ana'),ben=await donor(h,'Private Ben'),house=await donor(h,'Scoped Household',{household:'Private household label'})
   const relative=await donor(h,'Private household member',{household:'Private household label'})
   const relation=await h.command('relationship.create',{donorId:ana.id,relatedDonorId:ben.id,type:'friend'})
-  const key=await h.command('agent.create',{label:'Named receipt assistant'}),otherKey=await h.command('agent.create',{label:'Second named client'})
+  const invite=await h.request('/app/people/invite',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams({email:'grant.creator'+String.fromCharCode(64)+'example.test',role:'admin',displayName:'Native key creator'}).toString()})
+  assert.equal(invite.status,303)
+  const invitation=messages.at(-1).content.find(c=>c.type==='text/plain').value
+  const token=new URL(invitation.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0]).searchParams.get('token')
+  const confirmed=await h.request('/auth/confirm',{method:'POST',as:'',body:{token}});assert.equal(confirmed.status,303)
+  const creatorCookie=confirmed.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ')
+  const creator=(await h.get('/auth/session',{as:creatorCookie})).operator
+  const key=await h.command('agent.create',{label:'Named receipt assistant'},{as:creatorCookie}),otherKey=await h.command('agent.create',{label:'Second named client'})
+  const attribution='Named receipt assistant for Native key creator',initialMessages=messages.length
   const permissions=['donors.list','donors.context','ack.prepare','ack.send']
   const grantInput={name:'Standard receipt approval',donorIds:[ana.id,house.id],permissions,dailyLimit:2,standingApproval:true}
   await h.command('agentGrant.save',{...grantInput,standingApproval:false},{status:400})
@@ -50,10 +95,31 @@ export async function agentGrantsJourney() {
   const grant=await h.command('agentGrant.save',grantInput)
   for(const k of [key,otherKey])await h.command('agentGrant.attach',{keyId:k.id,grantId:grant.id})
   const api=doors(h,key),second=doors(h,otherKey)
+  const catalog=await api.catalog()
+  assert.deepEqual(await second.catalog(),catalog)
+  const sending=catalog.find(t=>t.name==='ack.send')
+  assert.ok(sending);assert.equal(sending.annotations.openWorldHint,true);assert.equal(sending.annotations.readOnlyHint,false)
+  assert.equal(sending._meta.nativeAction,'ack.send');assert.ok(sending._meta.coreClauseIds.includes('DEV-012'))
   const list=await api.get('/api/coffer/donors');assert.equal(list.total,2);assert.deepEqual(new Set(list.donors.map(d=>d.id)),new Set([ana.id,house.id]))
-  assert.equal((await api.mcp('donors.list')).total,2)
+  assert.deepEqual(await api.mcp('donors.list'),list)
   const native=await api.get(`/api/coffer/donors/${house.id}`),rpc=await api.mcp('donors.context',{donorId:house.id})
   assert.deepEqual(native,rpc);assert.ok(!JSON.stringify(native).includes(relative.id));assert.ok(!JSON.stringify(native).includes('Private household'))
+  const resourceTemplate=(await api.rpc('resources/templates/list')).result.resourceTemplates[0]
+  const uri=id=>resourceTemplate.uriTemplate.replace('{donorId}',encodeURIComponent(id))
+  const read=(id,status=200)=>api.rpc('resources/read',{uri:uri(id)},status,'synthetic-coffer-2')
+  const householdResource=(await read(house.id)).result.contents[0]
+  assert.deepEqual(JSON.parse(householdResource.text),native);assert.equal(householdResource._meta.untrusted,true)
+  assert.ok(!householdResource.text.includes(relative.id));assert.ok(!householdResource.text.includes('Private household'))
+  const links=(await api.rpc('tools/call',{name:'donors.list',arguments:{}})).result.content.filter(c=>c.type==='resource_link')
+  assert.deepEqual(new Set(links.map(link=>link.uri)),new Set([uri(ana.id),uri(house.id)]))
+  const contextLinks=(await api.rpc('tools/call',{name:'donors.context',arguments:{donorId:house.id}})).result.content.filter(c=>c.type==='resource_link')
+  assert.deepEqual(contextLinks.map(link=>link.uri),[uri(house.id)])
+  assert.deepEqual((await api.rpc('resources/read',{uri:contextLinks[0].uri})).result.contents[0],householdResource)
+  const missing=await read('synthetic-coffer-404')
+  assert.deepEqual(await read(ben.id),missing,'Missing and out-of-scope reads have identical complete RPC responses')
+  for(const forged of [uri(ben.id).replace(h.origin,'https://elsewhere.test'),uri(ana.id)+'?donorId='+ben.id,uri('../'+ben.id)])assert.deepEqual(await api.rpc('resources/read',{uri:forged},200,'synthetic-coffer-2'),missing)
+  const resourceAudit=await h.get(`/api/coffer/audit?person=${key.id}&action=mcp.resource`)
+  assert.ok(resourceAudit.rows.some(e=>e.donor_id===house.id&&JSON.parse(e.detail).grantId===grant.id&&JSON.parse(e.detail).grantVersion===1))
   assert.equal((await api.get(`/api/coffer/donors/${ana.id}`)).household,undefined)
   assert.equal((await api.get(`/api/coffer/donors/${ben.id}`,403)).error,'GRANT_SCOPE')
   await api.mcp('donors.context',{donorId:ben.id},'GRANT_SCOPE')
@@ -64,6 +130,8 @@ export async function agentGrantsJourney() {
   const privateGift=await h.command('gift.record',{donorId:ben.id,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'})
   assert.equal((await api.http('ack.prepare',{giftIds:[privateGift.id]},403)).error,'GRANT_SCOPE')
   await api.mcp('ack.prepare',{giftIds:[privateGift.id]},'GRANT_SCOPE')
+  const unsafe='synthetic-coffer-outside-private-record'
+  await api.mcp('donors.context',{donorId:unsafe},'GRANT_SCOPE',200,{traceparent:'synthetic-coffer-invalid-trace'})
   await api.http('ack.prepare',{},400)
   // Related-recipient rendering is refused even on a scoped donor. The limited
   // context above never traversed that relationship or household.
@@ -72,9 +140,36 @@ export async function agentGrantsJourney() {
   await h.command('relationship.remove',{donorId:ana.id,relationshipId:relation.id})
   const gifts=[relatedGift]
   for(let i=0;i<2;i++)gifts.push(await h.command('gift.record',{donorId:ana.id,amount:'250',receivedOn:'2025-08-10',method:'check',goods:'none'}))
+  const giftResource=(await read(ana.id)).result.contents[0]
+  assert.deepEqual(JSON.parse(giftResource.text),await api.get(`/api/coffer/donors/${ana.id}`))
+  assert.deepEqual(JSON.parse(giftResource.text),await api.mcp('donors.context',{donorId:ana.id}))
+  assert.deepEqual(new Set(JSON.parse(giftResource.text).gifts.map(g=>g.id)),new Set(gifts.map(g=>g.id)))
+  assert.ok(!giftResource.text.includes(privateGift.id),'Resource content never traverses an unapproved donor')
   proof('scope refusals complete; preparing receipts')
   const batches=[]
-  for(const [index,gift] of gifts.entries())batches.push(index===1?await api.mcp('ack.prepare',{giftIds:[gift.id]}):await api.http('ack.prepare',{giftIds:[gift.id]}))
+  const replayHeaders={'idempotency-key':'synthetic-coffer-1210'}
+  for(const [index,gift] of gifts.entries()) {
+   if(index!==1){batches.push(await api.http('ack.prepare',{giftIds:[gift.id]}));continue}
+   const duplicates=await Promise.all([1,2,3].map(()=>api.mcp('ack.prepare',{giftIds:[gift.id]},null,200,replayHeaders)))
+   for(const duplicate of duplicates)assert.deepEqual(duplicate,duplicates[0])
+   batches.push(duplicates[0])
+  }
+  assert.equal(messages.length,initialMessages,'Keyed preparation never consumes a sending approval or submits mail')
+  const preparationAudit=await h.get('/api/coffer/audit?action=ack.prepare')
+  assert.equal(preparationAudit.rows.filter(e=>e.subject_id===batches[1].id).length,1)
+  const freezes=await Promise.all(batches.map(batch=>h.get(`/api/coffer/letters/${batch.id}`)))
+  for(const freeze of freezes){
+   assert.equal(freeze.batch.status,'prepared');assert.equal(freeze.batch.prepared_by_role,'agent')
+   assert.equal(freeze.batch.prepared_by_id,key.id);assert.equal(freeze.batch.prepared_by_name,attribution)
+   assert.equal(freeze.events[0].actor_id,key.id);assert.equal(freeze.events[0].actor_name,attribution)
+   assert.equal(JSON.parse(freeze.events[0].detail).nativeKey.creatorId,creator.id)
+   assert.equal(freeze.letters[0].amount_cents,25000)
+   assert.deepEqual(freeze.events.map(e=>e.action),['ack.prepare'])
+  }
+  await h.command('donor.erase',{donorId:house.id,confirm:'ERASE'})
+  assert.equal((await api.mcp('donors.list')).total,1)
+  await api.mcp('donors.context',{donorId:house.id},'NOT_FOUND')
+  assert.equal(messages.length,initialMessages,'Erasure and refused reads submit no mail')
   // Both doors share one atomic daily counter. Parallel calls reach the same
   // real native letter-delivery reservation and network submission service.
   proof('dispatching under standing approval')
@@ -82,34 +177,79 @@ export async function agentGrantsJourney() {
   const race=await Promise.all(batches.slice(1).map(batch=>api.mcp('ack.send',{batchId:batch.id,version:1},'either')))
   assert.equal(race.filter(r=>!r.isError&&r.value.submitted===1).length,1)
   assert.equal(race.filter(r=>r.isError&&r.value.error==='DAILY_LIMIT').length,1)
+  const sent=race.find(r=>!r.isError)
+  catalogSchemas(catalog)('ack.send',sent.value)
   const held=batches[1+race.findIndex(r=>r.isError)]
-  assert.equal(messages.length,2)
+  assert.equal(messages.length,initialMessages+2)
+  const replay=await api.http('ack.send',{batchId:batches[0].id,version:1},409)
+  assert.equal(replay.error,'VERSION')
+  await api.mcp('ack.send',{batchId:batches[0].id,version:1},replay.error)
+  assert.equal(messages.length,initialMessages+2,'Replaying the submitted batch sends nothing')
   const detail=await h.get(`/api/coffer/letters/${batches[0].id}`)
   assert.equal(detail.approval.prepared_by_role,'agent');assert.equal(detail.approval.approved_by_role,'owner');assert.equal(detail.approval.content_hash,batches[0].contentHash)
+  assert.equal(detail.approval.prepared_by_id,key.id);assert.equal(detail.approval.prepared_by_name,attribution)
+  assert.equal(detail.approval.approved_by_name,'Morgan Lee');assert.notEqual(detail.approval.approved_by_id,creator.id)
+  const standing=detail.events.find(e=>e.action==='ack.standingApproval')
+  assert.equal(standing.actor_id,key.id);assert.equal(standing.actor_name,attribution)
+  assert.equal(JSON.parse(standing.detail).approvedById,detail.approval.approved_by_id)
+  assert.equal(JSON.parse(standing.detail).approvedByName,'Morgan Lee')
+  assert.equal(JSON.parse(standing.detail).approvedByRole,'owner')
+  assert.equal(JSON.parse(standing.detail).approvalBasis,'standing-grant')
+  assert.ok((await (await h.request('/app/letters/'+batches[0].id)).text()).includes('under a standing grant'))
   assert.ok(detail.events.filter(e=>e.actor_role==='agent').every(e=>{const d=JSON.parse(e.detail);return d.grantId===grant.id&&d.grantVersion===1}))
   assert.equal((await api.http('ack.send',{batchId:held.id,version:1},409)).error,'DAILY_LIMIT')
   await api.mcp('ack.send',{batchId:held.id,version:1},'DAILY_LIMIT')
+  assert.equal((await h.get(`/api/coffer/letters/${held.id}`)).batch.status,'prepared')
   // The other key cannot consume its colleague’s prepared batch, despite
   // sharing the same grant and daily counter.
   await second.mcp('ack.send',{batchId:held.id,version:1},'GRANT_SCOPE')
   await h.command('letterTemplate.save',{templateId:template.id,version:1,name:'Revised standard thank-you',minAmount:'250',subject:settings.letterSubject,body:settings.letterTemplate+' Thank you again.'})
   assert.equal((await api.http('ack.send',{batchId:held.id,version:1},409)).error,'TEMPLATES_CHANGED')
   await api.mcp('ack.send',{batchId:held.id,version:1},'TEMPLATES_CHANGED')
+  const beforeStops=await assertToolAudit(h,{...key,label:attribution},'named-grant',api.calls,[unsafe,ben.id,privateGift.id,relative.id,'Private Ben','Private household','synthetic-coffer-invalid-trace','Forbidden audience','synthetic-coffer-1210'])
+  const outcomes=beforeStops.filter(row=>row.action==='mcp.tool.outcome').map(row=>JSON.parse(row.detail))
+  assert.ok(outcomes.every(row=>row.grantId===grant.id&&row.grantVersion===1))
+  for(const code of ['OK','GRANT_SCOPE','GRANT_FORBIDDEN','DAILY_LIMIT','VERSION','TEMPLATES_CHANGED'])assert.ok(outcomes.some(row=>row.code===code),code)
+  assert.ok(outcomes.some(row=>row.tool==='ack.send'&&row.outcome==='done'))
+  assert.ok(outcomes.some(row=>row.tool==='ack.prepare'&&row.targets.some(target=>target.id===batches[1].id)))
   proof('daily and template limits complete; testing kill switches')
   const control=(await h.get('/api/coffer/agent-grants')).control
   await h.command('agentGrant.kill',{version:control.version,enabled:false})
   await api.http('ack.send',{batchId:held.id,version:1},401)
   await api.mcp('ack.send',{batchId:held.id,version:1},null,401)
   await api.get('/api/coffer/donors',401)
+  await read(ana.id,401)
   await h.command('agentGrant.kill',{version:control.version+1,enabled:true})
-  const narrow=await h.command('agentGrant.save',{...grantInput,id:grant.id,version:1,donorIds:[ana.id],permissions:['donors.list','donors.context'],standingApproval:false})
+  const scoped=await h.command('agentGrant.save',{...grantInput,id:grant.id,version:1,donorIds:[ben.id],permissions:['donors.list','donors.context','ack.prepare'],standingApproval:false})
+  await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},'GRANT_SCOPE',200,replayHeaders)
+  const narrow=await h.command('agentGrant.save',{...grantInput,id:grant.id,version:scoped.version,donorIds:[ana.id],permissions:['donors.list','donors.context'],standingApproval:false})
+  await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},'GRANT_FORBIDDEN',200,replayHeaders)
   assert.equal((await api.get('/api/coffer/donors')).total,1)
   await api.mcp('donors.context',{donorId:house.id},'GRANT_SCOPE')
+  const stillListed=await api.catalog()
+  assert.ok(stillListed.some(t=>t.name==='ack.send'),'Discovery does not grant sending permission')
+  await api.mcp('ack.send',{batchId:held.id,version:1},'GRANT_FORBIDDEN')
+  assert.equal((await h.get(`/api/coffer/letters/${held.id}`)).batch.status,'prepared')
+  assert.deepEqual(await read(house.id),missing,'Narrowing applies to the next resource read')
   assert.equal((await api.http('ack.prepare',{giftIds:[gifts[2].id]},403)).error,'GRANT_FORBIDDEN')
+  await h.command('agent.revoke',{id:otherKey.id})
+  await second.rpc('resources/read',{uri:uri(ana.id)},401)
   await h.command('agentGrant.disable',{id:grant.id,version:narrow.version})
   await api.get('/api/coffer/donors',403)
   await api.mcp('donors.list',{},null,401)
-  assert.equal(messages.length,2,'Refusals never submit more mail')
+  await read(ana.id,401)
+  const replacement=await h.command('agentGrant.save',{...grantInput,donorIds:[ana.id],name:'Replacement preparation grant',permissions:['ack.prepare'],standingApproval:false})
+  await h.command('agentGrant.attach',{keyId:key.id,grantId:replacement.id})
+  await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},'GRANT_SCOPE',200,replayHeaders)
+  const retainedAudit=await assertToolAudit(h,{...key,label:attribution},'named-grant',api.calls,[unsafe,privateGift.id,relative.id])
+  await h.command('agent.revoke',{id:key.id})
+  await api.mcp('ack.prepare',{giftIds:[gifts[1].id]},null,401,replayHeaders)
+  assert.deepEqual(await assertToolAudit(h,{...key,label:attribution},'named-grant'),retainedAudit)
+  const retained=await h.get('/api/coffer/letters/'+batches[0].id)
+  assert.equal(retained.approval.prepared_by_name,attribution);assert.equal(retained.approval.approved_by_name,'Morgan Lee')
+  const retainedCsv=await (await h.request('/api/coffer/audit.csv?person='+key.id)).text()
+  assert.ok(retainedCsv.includes(attribution));assert.ok(!retainedCsv.includes(key.token))
+  assert.equal(messages.length,initialMessages+2,'Refusals never submit more mail')
   // Legacy keys retain their AGENT-001 behavior until explicitly attached.
   const legacyKey=await h.command('agent.create',{label:'Legacy preparation client'}),legacy=doors(h,legacyKey)
   const preparation=(await h.get('/api/coffer/agent-grants')).preparationGrants.find(g=>g.key_id===legacyKey.id)
@@ -118,10 +258,22 @@ export async function agentGrantsJourney() {
   assert.ok((await legacy.mcp('donors.list')).total>1)
   await legacy.get('/api/coffer/donors',409)
   await legacy.mcp('donors.list',{},null,409)
-  await h.command('agentGrant.legacyLimits',{id:preparation.id,version:2,readLimit:10,prepareLimit:1})
-  await legacy.http('ack.prepare',{giftIds:[privateGift.id]})
+  await legacy.rpc('resources/read',{uri:uri(ana.id)},409)
+  await h.command('agentGrant.legacyLimits',{id:preparation.id,version:2,readLimit:3,prepareLimit:1})
+  const legacyResource=(await legacy.rpc('resources/read',{uri:uri(ana.id)})).result.contents[0]
+  await legacy.rpc('resources/read',{uri:uri(ana.id)},409)
+  await h.command('agentGrant.legacyLimits',{id:preparation.id,version:3,readLimit:10,prepareLimit:1})
+  assert.deepEqual(JSON.parse(legacyResource.text),await legacy.get(`/api/coffer/donors/${ana.id}`))
+  const legacyHeaders={'idempotency-key':'synthetic-coffer-1211'}
+  const legacyCopies=await Promise.all([1,2,3].map(()=>legacy.mcp('ack.prepare',{giftIds:[privateGift.id]},null,200,legacyHeaders)))
+  for(const copy of legacyCopies)assert.deepEqual(copy,legacyCopies[0])
+  assert.deepEqual(await legacy.mcp('ack.prepare',{giftIds:[privateGift.id]},null,200,legacyHeaders),legacyCopies[0])
+  const quota=(await h.get('/api/coffer/agent-grants')).preparationGrants.find(g=>g.id===preparation.id)
+  assert.equal(quota.prepare_limit,1)
   assert.equal((await legacy.http('appeal.prepare',{name:'Over preparation limit',channel:'email'},409)).error,'DAILY_LIMIT')
   await legacy.mcp('appeal.prepare',{name:'Over preparation limit',channel:'email'},'DAILY_LIMIT')
+  const preparationEvents=await assertToolAudit(h,{...legacyKey,label:'Legacy preparation client for Morgan Lee'},'preparation-only',legacy.calls,['Over preparation limit','synthetic-coffer-1211'])
+  assert.ok(preparationEvents.some(row=>{const detail=JSON.parse(row.detail);return detail.outcome==='refused'&&detail.code==='DAILY_LIMIT'&&detail.grantId===preparation.id}))
   await legacy.http('ack.send',{batchId:held.id,version:1},403)
   const legacyAudit=await h.get('/api/coffer/audit?person='+legacyKey.id+'&action=mcp.tool')
   assert.ok(legacyAudit.rows.some(e=>JSON.parse(e.detail).grantId===preparation.id))
@@ -129,8 +281,9 @@ export async function agentGrantsJourney() {
   await h.command('agentGrant.kill',{version:liveControl.version,enabled:false})
   await legacy.get('/api/coffer/donors',401)
   await legacy.mcp('donors.list',{},null,401)
+  await legacy.rpc('resources/read',{uri:uri(ana.id)},401)
   if(process.env.COFFER_GRANT_BROWSER){const {agentGrantsBrowser}=await import('./agent-grants-browser.mjs');await agentGrantsBrowser(h,ana.id,process.env.COFFER_GRANT_BROWSER)}
- },{bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1'},outbound:async request=>{
+ },{...clock,bindings:{...clock.bindings,MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-coffer-1'},outbound:async request=>{
   assert.equal(new URL(request.url).hostname,'api.sendgrid.com');assert.equal(new URL(request.url).pathname,'/v3/mail/send')
   messages.push(await request.json())
   return new Response(null,{status:202,headers:{'x-message-id':`synthetic-coffer-${messages.length}`}})

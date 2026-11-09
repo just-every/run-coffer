@@ -139,7 +139,11 @@ export async function composeMailchimpCampaign(conn: Connection, row: Row, draft
  const recipients = saved?.recipients, segment = recipients?.segment_opts
  if (saved?.status !== 'save' || saved.type !== 'regular' || recipients?.list_id !== connection(conn).list || recipients.recipient_count !== 1 || String(segment?.saved_segment_id) !== draft.revisionId || segment.prebuilt_segment_id || segment.conditions?.length) fail('MAILCHIMP_CAMPAIGN', 'The saved Mailchimp campaign changed. Review it before sending.', 409)
  if (typeof row.subject !== 'string' || !row.subject.trim() || /[\r\n]/.test(row.subject) || typeof row.body !== 'string' || !row.body.trim()) fail('MAILCHIMP_CONTENT', 'Mailchimp needs a subject and message body.', 400)
- const html = row.body.split(/\n\s*\n/).map((p: string) => `<p>${escape(p).replaceAll('\n','<br>')}</p>`).join('')
+ const html = row.body.split(/\n\s*\n/).map((p: string) => {
+  let content=escape(p).replaceAll('\n','<br>')
+  if(row.donationUrl){const url=escape(row.donationUrl);content=content.replaceAll(url,`<a href="${url}">${url}</a>`)}
+  return `<p>${content}</p>`
+ }).join('')
  const footer = '<hr><p>*|LIST:DESCRIPTION|*</p><p>*|HTML:LIST_ADDRESS_HTML|*</p><p><a href="*|UNSUB|*">Unsubscribe</a> · <a href="*|UPDATE_PROFILE|*">Update your preferences</a></p>*|IF:REWARDS|* *|HTML:REWARDS|* *|END:IF|*'
  await request(conn, path, 'PATCH', {settings:{...settings,subject_line:row.subject}})
  await request(conn, `${path}/content`, 'PUT', {html:html+footer,plain_text:`${row.body}\n\n*|LIST:DESCRIPTION|*\n*|LIST:ADDRESS|*\nUnsubscribe: *|UNSUB|*\nUpdate your preferences: *|UPDATE_PROFILE|*\n*|IF:REWARDS|* *|REWARDS|* *|END:IF|*`})
