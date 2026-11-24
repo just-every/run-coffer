@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The minute Cron no longer reads the whole database every minute.** Task reminders, overdue-pledge tasks, journey enrolment, the welcome series and the email-preference sync used to scan every task, installment and gift on each run (about 36,000 D1 rows a minute at 400 donors and 1,200 gifts, ten times the free Workers allowance of 5,000,000 rows a day, shared by everything on the account). Each sweep now runs when the organisation's day turns or its audit trail grows, and due steps, pending notices and stale preference checks are index lookups, so an unchanged minute reads about 50 rows. Partial indexes over open tasks and pending steps, a payment-entry index and index-friendly donor gift-depth and pledge-history reads ship in migration 0195. Nothing changes for a person: every change they make is picked up within the minute.
 - **The run site's homepage follows one spring appeal.** It is rebuilt on the owner-approved page structure (17 October 2026): after the hero, a calendar of the appeal's seven dates leads through moving in, choosing who to ask, sending, a gift, the thank-you, the first night, reconciling, the morning calls, the board report and year-end statements, each drawn as real product cards, then the closing. The old twelve-section layout is gone. `docs/CLAIMS.md` tracks every claim the new page makes.
 
 ## 0.1.0 — 2026-10-18

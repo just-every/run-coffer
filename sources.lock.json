@@ -567,7 +567,7 @@
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "cf79546f870e43c388b1b5a894b830de2b898691f92c49b7bee6f946c0781471",
+      "sha256": "457136c18673778c0d674beb0603b422084a7ae67700f57a06fc7597af4b88c8",
       "executable": false
     },
     "CONTRACT.md": {
@@ -1636,6 +1636,10 @@
     },
     "migrations/core/0194_coffer_shop_refund_holds.sql": {
       "sha256": "f09669fed2b25106c4fe431166b7e5bd34703e599be5e872488224c116e9bdef",
+      "executable": false
+    },
+    "migrations/core/0195_coffer_scheduler_reads.sql": {
+      "sha256": "c257ea4416f38670aa3beee35d3c394652266b99995c73569b22189c18ab643a",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3351,7 +3355,7 @@
       "executable": false
     },
     "src/coffer/call-tasks.ts": {
-      "sha256": "5960b5155b4ca07deb52cc511596553e93cf70595751b3f3cc6a5149c53007fe",
+      "sha256": "178371804fdf435d55554eb58f3f57e233344a7b1c93e0123da17cc0b1f6eefd",
       "executable": false
     },
     "src/coffer/campaign-progress.ts": {
@@ -3391,7 +3395,7 @@
       "executable": false
     },
     "src/coffer/communications/journey-runner.ts": {
-      "sha256": "fa2f5a4fa5a8ea952d94acefcbd297212faacb55000374073656d068cb717270",
+      "sha256": "efd23437cba07d5633ee381222bdc03b3154736c60ee501eeb0ee24d5c3534ed",
       "executable": false
     },
     "src/coffer/communications/journey-triggers.ts": {
@@ -3419,7 +3423,7 @@
       "executable": false
     },
     "src/coffer/communications/outbound.ts": {
-      "sha256": "28a114d180a531e2826f51f328fb6e77623cebe92f0cc4388f9e9228648c0e56",
+      "sha256": "b8df3a73e9ede0870c30aacb31276e605b6e235ab0823871c444be48df36f0fa",
       "executable": false
     },
     "src/coffer/communications/preference-rules.ts": {
@@ -3435,7 +3439,7 @@
       "executable": false
     },
     "src/coffer/communications/preferences.ts": {
-      "sha256": "783e15462da2d2791d8aaf152a0a7e5e466e545ad61613aac39adb97bb55b9c5",
+      "sha256": "afa2fdec256dea732641dfb133e2dfd00885fccb29f5d7d60b9637ce63a061aa",
       "executable": false
     },
     "src/coffer/communications/profile-fields.ts": {
@@ -3463,7 +3467,7 @@
       "executable": false
     },
     "src/coffer/communications/scheduler.ts": {
-      "sha256": "5622fbde9ac1a466cbfffeed0f1de45a3774d81de02f61b122ead624197ab2b3",
+      "sha256": "1b3740d3a91105f11bc4a1c47fadea3ef69c2c73da210a3277c30ec3c110c681",
       "executable": false
     },
     "src/coffer/communications/welcome-ui.ts": {
@@ -3471,7 +3475,7 @@
       "executable": false
     },
     "src/coffer/communications/welcome.ts": {
-      "sha256": "246dbbc533e7b855673ca35ea0d5b32e5c70734d3e18358e4861405b6b58cfcb",
+      "sha256": "7ef711561d93a483aab33db3166482b21a57a9a13400521de8bbffd76cb059fb",
       "executable": false
     },
     "src/coffer/contact-points.ts": {
@@ -3679,7 +3683,7 @@
       "executable": false
     },
     "src/coffer/gift-depth.ts": {
-      "sha256": "73419b1dac03fac320fdcc5147b5e21ca109f03200567adddf185b2839d0ef17",
+      "sha256": "19cc8d6dce0c8754e1c2307f112ecc26098e1f4335778f0b642848cc6cba878a",
       "executable": false
     },
     "src/coffer/gift-list.ts": {
@@ -4587,7 +4591,7 @@
       "executable": false
     },
     "src/coffer/pledges.ts": {
-      "sha256": "ebd6cf9ed39c35059f847803346355b5d37476253b6d2c5bfebda2198a4b6b22",
+      "sha256": "92e88892b591551138b2957672c7e8fc3866902ddfdfb22da912417b34c1efd1",
       "executable": false
     },
     "src/coffer/portability/http.d.mts": {
@@ -4780,6 +4784,10 @@
     },
     "src/coffer/scheduled-report-selection.ts": {
       "sha256": "4d7a468c09b76d6cacba489ddca3d3c5a6bf2e8550aa642576440ec06b3f0306",
+      "executable": false
+    },
+    "src/coffer/scheduler-gate.ts": {
+      "sha256": "a71c9c655bef040f1a4a62cfe904801b7fcfcb88762385f69d61ee38631d82ac",
       "executable": false
     },
     "src/coffer/settings.ts": {
@@ -7479,7 +7487,7 @@
       "executable": false
     },
     "tests/communications.test.mjs": {
-      "sha256": "63e297221e83db50a174675ba79246197ecd00c198cd3c716f15acfd0808b941",
+      "sha256": "5333b8d92fd804fd5cd8fea259dd24b9e2453c151e74346d6b497590aff0e858",
       "executable": false
     },
     "tests/contact-points-journey.mjs": {
@@ -7488,6 +7496,14 @@
     },
     "tests/contribution-types-journey.mjs": {
       "sha256": "91403785017810c610d86aea441d2bd7bf49e42759b760d0d8bc83f63ed4e3b0",
+      "executable": false
+    },
+    "tests/cron-budget-worker.ts": {
+      "sha256": "9b72e64bd68b8f45c0afc7d733bf9a01cbb98180ea0d6edbc32eabc1af36b291",
+      "executable": false
+    },
+    "tests/cron-d1-budget.mjs": {
+      "sha256": "574012af880fd203f3b6969e47f8b65b52e121f159df885808c70c44f8a2d59f",
       "executable": false
     },
     "tests/cultivation-journey.mjs": {

@@ -8,6 +8,7 @@ import { requireRole } from './auth'
 import { addDays, all, commit, date, event, fail, guard, id, integer, newId, object, one, optional, sql, today, type Context, type Row, type Stmt } from './db'
 import { amount, usd } from './money'
 import { longDate, settings } from './settings'
+import { sweepGate } from './scheduler-gate'
 
 /** User-facing availability is also the preflight: suppressed mail is never sent. */
 export function pledgeMailUnavailable(env?: Bindings): string | null {
@@ -94,7 +95,9 @@ export async function pledgeHistory(c: { db: D1Database }, donorId: string): Pro
  const [pledges, installments, adjustments, plans, allocations] = await Promise.all([
   all(c, `SELECT p.*,COALESCE((SELECT SUM(g.amount_cents - CASE WHEN g.kind='reversal' THEN -1 ELSE 1 END *
    COALESCE((SELECT SUM(a.amount_cents) FROM cf_pledge_active_allocations a WHERE a.gift_id=COALESCE(g.reverses,g.id)),0))
-   FROM cf_monetary_contributions g WHERE g.pledge_id=p.id),0) AS legacy_paid_cents FROM cf_pledge_totals p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
+   FROM (SELECT id,kind,reverses,amount_cents FROM cf_gifts WHERE pledge_id=p.id
+    UNION ALL SELECT e.id,CASE WHEN e.contribution_cents<0 THEN 'reversal' ELSE 'gift' END,CASE WHEN e.contribution_cents<0 THEN x.id END,e.contribution_cents
+     FROM cf_payment_entries e JOIN cf_gifts x ON x.id=e.gift_id WHERE x.pledge_id=p.id AND e.contribution_cents<>0) g),0) AS legacy_paid_cents FROM cf_pledge_totals p WHERE p.donor_id=? ORDER BY p.pledged_on DESC,p.id`, donorId),
   all(c, 'SELECT i.*,f.status AS followup_status FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id LEFT JOIN cf_pledge_followups f ON f.installment_id=i.id WHERE p.donor_id=? ORDER BY i.position', donorId),
   all(c,'SELECT a.* FROM cf_pledge_adjustments a JOIN cf_pledges p ON p.id=a.pledge_id WHERE p.donor_id=? ORDER BY a.created_at,a.id',donorId),
   all(c,'SELECT l.* FROM cf_pledge_plans l JOIN cf_pledges p ON p.id=l.pledge_id WHERE p.donor_id=?',donorId),
@@ -169,7 +172,8 @@ export async function runPledgeReminders(env: Bindings, at = new Date()): Promis
  * manual creation and concurrent or replayed ticks share the same unique source. */
 export async function advancePledgeTasks(env: Bindings, at: Date) {
  const c: Context = { db: env.DB, env, now: at.toISOString(), actor: { id: 'coffer-scheduler', name: 'Pledge scheduler', role: 'owner' }, authority: { sql: 'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)', params: [] } }
- const day = today((await settings(c)).timezone, at)
+ const gate = await sweepGate(c, 'pledge-tasks'), day = gate.day
+ if (!gate.due) return
  const current = `FROM cf_pledge_balances i JOIN cf_pledges p ON p.id=i.pledge_id JOIN cf_donors d ON d.id=p.donor_id
   WHERE i.due_on<? AND i.paid_cents<i.amount_cents AND d.erased_at IS NULL AND d.constituent_status='active'
   AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)
@@ -189,4 +193,5 @@ export async function advancePledgeTasks(env: Bindings, at: Date) {
     c.now, c.actor.id, c.actor.name, c.actor.role, JSON.stringify({ installmentId: i.id }), taskId),
   ])
  }
+ await gate.done()
 }

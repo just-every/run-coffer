@@ -8,20 +8,28 @@ import { journeyCap } from './journey-cap'
 import { enrollJourneys, enrollmentReason, journeyConsent, journeyLive, stopEnrollment } from './journey-triggers'
 import { journeyMessage } from './welcome'
 import { submitMessage } from './outbound'
+import { sweepGate } from '../scheduler-gate'
 
+/** A day past `now`: a string prefilter that keeps the due-step lookup on the due_at index and never excludes a step julianday() would accept. */
+const laterDay=(now:string)=>new Date(Date.parse(now)+86400000).toISOString()
 const order=`CASE step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END`
 async function settle(c:Context,id:string,claim:string,status:string,note:string){
  await c.db.prepare("UPDATE cf_journey_steps SET status=?,note=? WHERE id=? AND status='uncertain' AND note=?").bind(status,note,id,claim).run()
 }
-export async function runJourneys(c:Context):Promise<Row>{
- await enrollJourneys(c)
- const active=await all(c,"SELECT e.* FROM cf_journey_enrollments e WHERE e.status='active' ORDER BY e.enrolled_at,e.id")
- for(const e of active){const j=(await one(c,'SELECT * FROM cf_journeys WHERE id=?',e.journey_id))!,reason=await enrollmentReason(c,e,j);if(reason)await stopEnrollment(c,e.id,reason)}
+/** `scheduled` runs the enrolment and stop sweeps (every gift and every active enrolment) only when the day turns or the audit
+ * trail grows; due steps are an index range every minute. A person pressing Run always sweeps. */
+export async function runJourneys(c:Context,options:{scheduled?:boolean}={}):Promise<Row>{
+ const gate=options.scheduled?await sweepGate(c,'journey-sweep'):null,sweep=!gate||gate.due
+ if(sweep){
+  await enrollJourneys(c)
+  const active=await all(c,"SELECT e.* FROM cf_journey_enrollments e WHERE e.status='active' ORDER BY e.enrolled_at,e.id")
+  for(const e of active){const j=(await one(c,'SELECT * FROM cf_journeys WHERE id=?',e.journey_id))!,reason=await enrollmentReason(c,e,j);if(reason)await stopEnrollment(c,e.id,reason)}
+ }
  const due=await all(c,`SELECT s.*,e.journey_id,e.gift_id AS first_gift_id,t.kind,t.is_ask,t.condition,v.subject,v.body,v.list_name,j.owner_id
  FROM cf_journey_steps s JOIN cf_journey_enrollments e ON e.id=s.enrollment_id JOIN cf_journeys j ON j.id=e.journey_id
  JOIN cf_journey_templates t ON t.journey_id=j.id AND t.step=s.step JOIN cf_journey_step_publications v ON v.code=t.code
- WHERE s.status='pending' AND e.status='active' AND julianday(s.due_at)<=julianday(?)
- ORDER BY COALESCE(s.checked_at,''),julianday(s.due_at),CASE s.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END,s.id LIMIT 24`,c.now)
+ WHERE s.status='pending' AND e.status='active' AND s.due_at<=? AND julianday(s.due_at)<=julianday(?)
+ ORDER BY COALESCE(s.checked_at,''),julianday(s.due_at),CASE s.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END,s.id LIMIT 24`,laterDay(c.now),c.now)
  let submitted=0,uncertain=0,cancelled=0,held=0,tasks=0,waited=0
  for(const s of due){
   await commit(c,[sql("UPDATE cf_journey_steps SET checked_at=? WHERE id=? AND status='pending'",c.now,s.id)])
@@ -65,7 +73,8 @@ export async function runJourneys(c:Context):Promise<Row>{
    throw error
   }
  }
- await commit(c,[sql(`UPDATE cf_journey_enrollments SET status='completed',stopped_at=? WHERE status='active' AND NOT EXISTS(SELECT 1 FROM cf_journey_steps s WHERE s.enrollment_id=cf_journey_enrollments.id AND s.status IN ('pending','uncertain'))`,c.now)])
+ if(sweep||due.length)await commit(c,[sql(`UPDATE cf_journey_enrollments SET status='completed',stopped_at=? WHERE status='active' AND NOT EXISTS(SELECT 1 FROM cf_journey_steps s WHERE s.enrollment_id=cf_journey_enrollments.id AND s.status IN ('pending','uncertain'))`,c.now)])
+ if(gate?.due)await gate.done()
  return {submitted,uncertain,cancelled,held,tasks,waited}
 }
-export function runScheduledJourneys(env:Bindings,at:Date){return runJourneys({db:env.DB,env,now:at.toISOString(),actor:{id:'coffer-scheduler',name:'Journey scheduler',role:'owner'},authority:{sql:'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)',params:[]}})}
+export function runScheduledJourneys(env:Bindings,at:Date){return runJourneys({db:env.DB,env,now:at.toISOString(),actor:{id:'coffer-scheduler',name:'Journey scheduler',role:'owner'},authority:{sql:'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)',params:[]}},{scheduled:true})}

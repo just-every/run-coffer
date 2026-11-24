@@ -7,6 +7,7 @@ import { requireRole } from './auth'
 import { settings } from './settings'
 import { lapses } from './lapses'
 import { annualLapses } from './annual-lapses'
+import { sweepGate } from './scheduler-gate'
 
 export const taskOwners = (c: Context) => all(c, "SELECT id,display_name AS name FROM oa_operators WHERE status='active' AND role IN ('owner','admin','member') ORDER BY display_name,id")
 /** Call sources split into those a person can call and those held back, counted under the constituent's status. */
@@ -116,21 +117,46 @@ export async function escalationOwner(c:Context,operatorId:string){
 export async function taskNotices(c:Context,operatorId=c.actor.id){
  return all(c,`SELECT n.*,t.reason,t.due_on,t.donor_id,t.status AS task_status FROM cf_task_notices n JOIN cf_call_tasks t ON t.id=n.task_id JOIN cf_donors d ON d.id=t.donor_id WHERE n.recipient_id=? AND d.erased_at IS NULL ORDER BY n.day DESC,n.id`,operatorId)
 }
-/** Durable daily notices share the same current assignment and business-day calculation as the daily list. */
-export async function runTaskReminders(env:Bindings,at:Date){
- const c:Context={db:env.DB,env,now:at.toISOString(),actor:{id:'coffer-scheduler',name:'Task scheduler',role:'owner'},authority:{sql:'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)',params:[]}}
- const s=await settings(c),day=today(s.timezone,at),tasks=await callTasks(c)
- for(const task of tasks.filter(t=>t.status!=='done'&&t.due_on<=addDays(day,1))){
+/** Open tasks due tomorrow or earlier, with the manager an overdue task escalates to. Reads only the open range of
+ * the task list (never completed tasks), and looks each owner's manager up once. */
+async function dueTasks(c:Context,day:string){
+ const policy=await taskPolicy(c),managers=new Map<string,string|null>()
+ const manager=async(ownerId:string)=>{if(!managers.has(ownerId))managers.set(ownerId,await escalationOwner(c,ownerId));return managers.get(ownerId)!}
+ const rows=await all(c,`SELECT t.* FROM cf_call_tasks t JOIN cf_donors d ON d.id=t.donor_id AND d.erased_at IS NULL WHERE t.status<>'done' AND t.due_on<=? ORDER BY t.due_on,t.created_at`,addDays(day,1))
+ for(const task of rows)task.escalated_to=businessDue(task.due_on,policy.escalation_days)<day?await manager(task.owner_id):null
+ return rows
+}
+async function createTaskNotices(c:Context,day:string){
+ const tasks=await dueTasks(c,day)
+ if(!tasks.length)return
+ const have=new Set((await all(c,'SELECT task_id,task_version,recipient_id,kind FROM cf_task_notices WHERE day=?',day)).map(n=>[n.task_id,n.task_version,n.recipient_id,n.kind].join('|')))
+ for(const task of tasks){
   const targets=[{id:task.owner_id,kind:'reminder'},...(task.escalated_to&&task.escalated_to!==task.owner_id?[{id:task.escalated_to,kind:'escalation'}]:[])]
   for(const target of targets){
+   if(have.has([task.id,task.version,target.id,target.kind].join('|')))continue
    await commit(c,[sql(`INSERT OR IGNORE INTO cf_task_notices(id,task_id,task_version,recipient_id,day,kind) SELECT ?,t.id,t.version,o.id,?,? FROM cf_call_tasks t JOIN oa_operators o ON o.id=? AND o.status='active' WHERE t.id=? AND t.version=? AND t.status<>'done'`,newId(),day,target.kind,target.id,task.id,task.version)])
   }
  }
+}
+/** The task a pending notice is for, only while it is still open at that version and still reaches the recipient. */
+async function noticeTask(c:Context,notice:Row,day:string){
+ const task=await one(c,"SELECT t.* FROM cf_call_tasks t JOIN cf_donors d ON d.id=t.donor_id AND d.erased_at IS NULL WHERE t.id=? AND t.version=? AND t.status<>'done'",notice.task_id,notice.task_version)
+ if(!task)return null
+ if(task.owner_id===notice.recipient_id)return task
+ const policy=await taskPolicy(c)
+ return businessDue(task.due_on,policy.escalation_days)<day&&await escalationOwner(c,task.owner_id)===notice.recipient_id?task:null
+}
+/** Durable daily notices share the same current assignment and business-day calculation as the daily list.
+ * The notice sweep runs when the day turns or the audit trail grows; sending pending notices is an index lookup every minute. */
+export async function runTaskReminders(env:Bindings,at:Date){
+ const c:Context={db:env.DB,env,now:at.toISOString(),actor:{id:'coffer-scheduler',name:'Task scheduler',role:'owner'},authority:{sql:'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)',params:[]}}
+ const gate=await sweepGate(c,'task-notices'),day=gate.day
+ if(gate.due){await createTaskNotices(c,day);await gate.done()}
  if(donorMailUnavailable(env))return
  await commit(c,[sql("UPDATE cf_task_notices SET status='uncertain' WHERE status='sending' AND attempted_at<=?",new Date(at.getTime()-15*60000).toISOString())])
  const pending=await all(c,`SELECT n.*,o.email FROM cf_task_notices n JOIN oa_operators o ON o.id=n.recipient_id AND o.status='active' JOIN cf_task_reminder_preferences p ON p.operator_id=o.id AND p.email_enabled=1 JOIN cf_call_tasks t ON t.id=n.task_id AND t.version=n.task_version AND t.status<>'done' JOIN cf_donors d ON d.id=t.donor_id AND d.erased_at IS NULL AND d.constituent_status='active' WHERE n.day=? AND n.status='pending' LIMIT 40`,day)
  for(const notice of pending){
-  const current=(await callTasks(c,notice.recipient_id)).find(t=>t.id===notice.task_id&&t.version===notice.task_version&&t.status!=='done')
+  const current=await noticeTask(c,notice,day)
   if(!current)continue
   const claimed=await env.DB.prepare("UPDATE cf_task_notices SET status='sending',attempted_at=? WHERE id=? AND status='pending'").bind(c.now,notice.id).run()
   if(!claimed.meta.changes)continue

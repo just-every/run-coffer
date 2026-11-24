@@ -108,10 +108,13 @@ async function listMessage(c:Context,conn:Awaited<ReturnType<typeof requireConne
   throw error
  }
 }
-export async function refreshMessages(c:Context,source?:{kind:string;id:string}) {
+/** `scheduled` polls the provider only for messages from the last 14 days, each at most every 10 minutes: older
+ * submissions never confirm, and re-asking about them every minute would grow with all the mail ever sent. */
+export async function refreshMessages(c:Context,source?:{kind:string;id:string},options:{scheduled?:boolean}={}) {
+ const recent=options.scheduled?new Date(Date.parse(c.now)-14*86400000).toISOString():null,recheck=options.scheduled?new Date(Date.parse(c.now)-10*60000).toISOString():null
  const conn=await savedConnection(c)
  if(conn?.provider!=='mailchimp')return {checked:0,...(conn?.provider==='mango'?{unavailable:'Mango has no send or delivery result for these saved messages. Check the campaign in Mango.'}:{})}
- const rows=await all(c,`SELECT * FROM cf_communications WHERE provider='mailchimp' AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') AND (? IS NULL OR (source_kind=? AND source_id=?)) ORDER BY COALESCE(checked_at,''),created_at,id LIMIT 8`,source?.kind??null,source?.kind??null,source?.id??null)
+ const rows=await all(c,`SELECT * FROM cf_communications WHERE provider='mailchimp' AND campaign_id IS NOT NULL AND status IN ('submitted','uncertain') AND (? IS NULL OR (source_kind=? AND source_id=?)) AND (? IS NULL OR (created_at>=? AND COALESCE(checked_at,'')<?)) ORDER BY COALESCE(checked_at,''),created_at,id LIMIT 8`,source?.kind??null,source?.kind??null,source?.id??null,recent,recent,recheck)
  for(const row of rows){
   const report=await providerResults(conn,row)
   if(!Array.isArray(report.rows))fail('MAILCHIMP_RESPONSE','Mailchimp did not return send results.',502)

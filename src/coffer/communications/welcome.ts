@@ -10,6 +10,7 @@ import { listMembers } from '../list-members'
 import { prepareSolicitationRun, solicitationReason } from '../solicitation'
 import { emailConnection } from './connection'
 import type { Bindings } from '../../auth.server'
+import { sweepGate } from '../scheduler-gate'
 import { requireRole } from '../auth'
 import { all, choice, commit, event, fail, guard, integer, longText, newId, one, sql, text, type Context, type Row, type Stmt } from '../db'
 import { submitMessage } from './outbound'
@@ -131,14 +132,16 @@ async function stop(c: Context) {
  ])
 }
 
-async function run(c: Context,options:{emailType?:string}={}): Promise<Row> {
+/** `scheduled` enrols and stops (every gift and every active enrolment) only when the day turns or the audit trail grows;
+ * due steps are an index range every minute. A person pressing Run always sweeps. */
+async function run(c: Context,options:{emailType?:string;scheduled?:boolean}={}): Promise<Row> {
  const {unavailable}=await emailConnection(c); if(unavailable) return {unavailable,submitted:0}
  if (!await one(c, "SELECT id FROM cf_welcome WHERE id='welcome'")) return { published: false, submitted: 0, uncertain: 0, cancelled: 0 }
- await enroll(c)
- await stop(c)
+ const gate=options.scheduled?await sweepGate(c,'welcome-sweep'):null,sweep=!gate||gate.due
+ if(sweep){await enroll(c);await stop(c)}
  const due = await all(c, `SELECT s.id FROM cf_welcome_steps s JOIN cf_welcome_enrollments e ON e.donor_id=s.donor_id
-  WHERE s.status='pending' AND e.status='active' AND julianday(s.due_at)<=julianday(?)
-  ORDER BY COALESCE(s.merge_checked_at,''),julianday(s.due_at),CASE s.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END,s.id LIMIT 24`, c.now)
+  WHERE s.status='pending' AND e.status='active' AND s.due_at<=? AND julianday(s.due_at)<=julianday(?)
+  ORDER BY COALESCE(s.merge_checked_at,''),julianday(s.due_at),CASE s.step WHEN 'thank' THEN 0 WHEN 'impact' THEN 1 ELSE 2 END,s.id LIMIT 24`, new Date(Date.parse(c.now)+86400000).toISOString(), c.now)
  let submitted = 0, uncertain = 0, cancelled = 0;const held:Row[]=[]
  for (const row of due) {
   const queued=await one(c,`SELECT s.*,e.first_gift_id,COALESCE(v.subject,CASE s.step WHEN 'thank' THEN w.thank_subject WHEN 'impact' THEN w.impact_subject ELSE w.ask_subject END) AS subject,COALESCE(v.body,CASE s.step WHEN 'thank' THEN w.thank_body WHEN 'impact' THEN w.impact_body ELSE w.ask_body END) AS body FROM cf_welcome_steps s JOIN cf_welcome_enrollments e ON e.donor_id=s.donor_id JOIN cf_welcome w ON w.id='welcome' LEFT JOIN cf_journey_step_publications v ON v.code=s.response_code WHERE s.id=?`,row.id)
@@ -192,9 +195,12 @@ async function run(c: Context,options:{emailType?:string}={}): Promise<Row> {
   else if (state === 'cancelled') cancelled++
   else uncertain++
  }
- await stop(c)
- await commit(c, [sql(`UPDATE cf_welcome_enrollments SET status='completed',stopped_at=? WHERE status='active'
-  AND NOT EXISTS(SELECT 1 FROM cf_welcome_steps s WHERE s.donor_id=cf_welcome_enrollments.donor_id AND s.status='pending')`, c.now)])
+ if(sweep||due.length){
+  await stop(c)
+  await commit(c, [sql(`UPDATE cf_welcome_enrollments SET status='completed',stopped_at=? WHERE status='active'
+   AND NOT EXISTS(SELECT 1 FROM cf_welcome_steps s WHERE s.donor_id=cf_welcome_enrollments.donor_id AND s.status='pending')`, c.now)])
+ }
+ if(gate?.due)await gate.done()
  return { published: true, submitted, uncertain, cancelled, held }
 }
 
@@ -206,7 +212,7 @@ async function outcome(c: Context, stepId: string, claim: string, state: string,
 
 export async function runWelcome(env: Bindings, at: Date): Promise<Row> {
  return run({ db: env.DB, env, now: at.toISOString(), actor: { id: 'coffer-scheduler', name: 'Welcome scheduler', role: 'owner' },
-  authority: { sql: 'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)', params: [] } })
+  authority: { sql: 'EXISTS(SELECT 1 FROM cf_settings WHERE id=1)', params: [] } },{scheduled:true})
 }
 
 export async function welcomeState(c: Context): Promise<Row> {
