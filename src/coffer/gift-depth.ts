@@ -75,9 +75,9 @@ export async function donorGiftDepth(c: { db: D1Database; actor?:Actor }, donorI
    FROM cf_soft_credits s JOIN cf_gift_balances g ON g.id=s.gift_id JOIN cf_donors d ON d.id=g.donor_id JOIN cf_donors credited ON credited.id=s.donor_id
    LEFT JOIN cf_soft_credit_acknowledgments a ON a.soft_credit_id=s.id
    LEFT JOIN cf_interactions i ON i.id=a.interaction_id LEFT JOIN cf_donor_notes n ON n.id=a.note_id
-   WHERE s.donor_id=? OR g.donor_id=? ORDER BY g.received_on DESC`, c.actor&&manager(c.actor)?1:0, donorId, donorId),
+   WHERE s.donor_id=? OR s.gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=?) ORDER BY g.received_on DESC`, c.actor&&manager(c.actor)?1:0, donorId, donorId),
   all(c, `SELECT t.*,g.donor_id AS gift_donor_id,g.received_on,g.amount_cents AS gift_amount_cents,CASE WHEN ${ACTIVE} THEN 1 ELSE 0 END AS active
-   FROM cf_gift_tributes t JOIN cf_gift_balances g ON g.id=t.gift_id JOIN cf_donors d ON d.id=g.donor_id WHERE g.donor_id=? OR t.donor_id=? ORDER BY g.received_on DESC`, donorId, donorId),
+   FROM cf_gift_tributes t JOIN cf_gift_balances g ON g.id=t.gift_id JOIN cf_donors d ON d.id=g.donor_id WHERE t.gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=?) OR t.donor_id=? ORDER BY g.received_on DESC`, donorId, donorId),
   all(c, `SELECT m.*,g.donor_id AS gift_donor_id,d.name AS gift_donor_name,employer.name AS employer_name,g.received_on,
     actual.net_cents AS received_amount_cents,actual.received_on AS matched_on,
     CASE WHEN NOT (${ACTIVE}) THEN 'reversed'
@@ -85,7 +85,7 @@ export async function donorGiftDepth(c: { db: D1Database; actor?:Actor }, donorI
      WHEN m.due_by<? THEN 'overdue' ELSE 'expected' END AS status,
     CASE WHEN actual.id IS NOT NULL AND actual.net_cents>=m.amount_cents THEN 0 ELSE 1 END AS can_receive
    FROM cf_employer_matches m JOIN cf_gift_balances g ON g.id=m.gift_id JOIN cf_donors d ON d.id=g.donor_id JOIN cf_donors employer ON employer.id=m.employer_donor_id LEFT JOIN cf_gift_balances actual ON actual.id=m.received_gift_id
-   WHERE g.donor_id=? OR m.employer_donor_id=? ORDER BY m.due_by,m.id`, day, donorId, donorId),
+   WHERE m.gift_id IN (SELECT id FROM cf_gifts WHERE donor_id=?) OR m.employer_donor_id=? ORDER BY m.due_by,m.id`, day, donorId, donorId),
  ])
  for (const credit of credits) credit.acknowledgment = {
   status: credit.acknowledgment_status, version: credit.acknowledgment_version,

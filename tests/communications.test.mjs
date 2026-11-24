@@ -8,6 +8,11 @@ const recorded=JSON.parse(await readFile(new URL('./fixtures/mango/audience.json
 const chimp=JSON.parse(await readFile(new URL('./fixtures/mailchimp/responses.json',import.meta.url),'utf8'))
 const form=(h,fields)=>h.request('/app/actions',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},raw:new URLSearchParams(fields).toString()})
 
+test('CRON-001: an unchanged minute of the scheduled Worker reads a flat handful of D1 rows however much history is stored',async()=>{
+ const {cronBudgetJourney}=await import('./cron-d1-budget.mjs')
+ await cronBudgetJourney()
+})
+
 test('COMM-001: portal topics and channel frequency fence current outreach and retain original preference custody',async()=>{
  const {communicationPreferencesJourney}=await import('./communication-preferences-journey.mjs')
  await communicationPreferencesJourney()

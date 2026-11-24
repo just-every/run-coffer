@@ -6,6 +6,7 @@ import { settings } from '../settings'
 import { providerTitle, providerContact, captureProviderConsent, restricted, subscribed, suppressProvider } from './provider'
 import { emailConnection, requireConnection } from './connection'
 import { syncMailchimpNames } from './mailchimp'
+import { sweepGate } from '../scheduler-gate'
 
 export async function reconcileDonor(c: Context, donorId: string, capture = false,options:{emailType?:string}={}): Promise<Row> {
  const donor = await one(c, `SELECT d.*,k.id AS consent_id,k.status AS consent,k.evidence,k.captured_on FROM cf_donors d
@@ -67,6 +68,27 @@ export async function syncPreferences(c: Context, donorIds?: string[]): Promise<
     ON CONFLICT(donor_id) DO UPDATE SET state='pending',checked_at=excluded.checked_at,note=excluded.note`,c.now,donor.id)])
   }
  }
+ return { synced,pending }
+}
+/** The minute Cron's share of the preference sync: donors the provider has not been asked about for four hours, oldest first
+ * (an index range, not a walk of every donor), plus donors with no check yet when the day turns or the audit trail grows. */
+export async function syncStalePreferences(c: Context): Promise<Row> {
+ const { unavailable } = await emailConnection(c)
+ if (unavailable) return { unavailable, synced:0 }
+ const live = `d.erased_at IS NULL AND d.email IS NOT NULL AND NOT EXISTS(SELECT 1 FROM cf_donor_merges m WHERE m.donor_id=d.id)`
+ const stale = await all(c, `SELECT d.id FROM cf_preference_sync p JOIN cf_donors d ON d.id=p.donor_id WHERE p.checked_at<? AND ${live} ORDER BY p.checked_at,d.id LIMIT 8`, new Date(Date.parse(c.now) - 4 * 3600000).toISOString())
+ const gate = await sweepGate(c, 'preference-first-check'), room = 8 - stale.length
+ const fresh = gate.due && room > 0 ? await all(c, `SELECT d.id FROM cf_donors d WHERE ${live} AND NOT EXISTS(SELECT 1 FROM cf_preference_sync p WHERE p.donor_id=d.id) ORDER BY d.id LIMIT ?`, room) : []
+ let synced=0,pending=0
+ for (const donor of [...stale, ...fresh]) {
+  try { await reconcileDonor(c,donor.id); synced++ } catch {
+   pending++
+   await commit(c,[sql(`INSERT INTO cf_preference_sync(donor_id,email,state,checked_at,note) SELECT id,email,'pending',?,'The email provider could not confirm preferences. Sending remains blocked until a successful check.' FROM cf_donors WHERE id=?
+    ON CONFLICT(donor_id) DO UPDATE SET state='pending',checked_at=excluded.checked_at,note=excluded.note`,c.now,donor.id)])
+  }
+ }
+ // A full batch may leave donors unchecked: keep the gate open so the next minute continues.
+ if (gate.due && fresh.length < room) await gate.done()
  return { synced,pending }
 }
 export const preferenceState = (c: Context) => all(c, `SELECT p.*,d.name FROM cf_preference_sync p JOIN cf_donors d ON d.id=p.donor_id ORDER BY p.checked_at DESC LIMIT 50`)
