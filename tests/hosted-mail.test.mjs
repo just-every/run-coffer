@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import {randomBytes} from 'node:crypto'
 import {run,donor,reviewed} from './harness.mjs'
+import {ownerSigninDigest} from '../src/modules/operator-auth/owner-signin-grant.mjs'
 
 const relay='https://relay.example.test/send'
 const bindings={MAIL_PROVIDER:'rer',MAIL_RELAY_URL:relay,MAIL_API_KEY:'synthetic-coffer-3001',MAIL_FROM:'receipts@example.test',RER_INSTALLATION_ID:'synthetic-coffer-3002',RER_MANAGEMENT_ORIGIN:'https://runeditrun.com'}
@@ -63,4 +65,25 @@ test('Managed pledge reminders retain the due consent checks and submit a durabl
   assert.equal((await h.command('pledge.remind',{pledgeId:p.id})).submitted,0)
   assert.equal(messages.length,1);assert.ok(messages[0].messageKey);assert.match(messages[0].text,/100\.00/)
  },{bindings,outbound:async request=>{assert.equal(request.url,relay);messages.push(await request.json());return Response.json({messageId:'<synthetic-coffer-3008@relay.example.test>'},{status:202})}})
+})
+
+test('mail off: no sender or key is needed, receipts are refused as mail_off, and the owner signs in with the link rer signin writes',async()=>{
+ let wire=0
+ await run(async h=>{
+  const {b}=await approved(h)
+  const refused=await h.command('ack.send',{batchId:b.id,version:2},{status:503})
+  assert.match(refused.error?.message??JSON.stringify(refused),/mail_off/)
+  assert.equal(wire,0,'Nothing reaches a mail edge')
+  // The sign-in page offers no emailed link while mail is off.
+  assert.doesNotMatch(await (await h.request('/signin',{as:''})).text(),/Email me|Send (me )?a (sign-in )?link/i)
+  // What `rer signin` does: write a one-time grant into oa_owner_signins for the claimed owner, then the owner opens its link.
+  const token=randomBytes(32).toString('base64url'),now=Date.now(),db=await h.mf.getD1Database('DB')
+  const {id,version}=await db.prepare("SELECT id,version FROM oa_operators WHERE role='owner' AND status='active'").first()
+  await db.prepare('INSERT INTO oa_owner_signins(id,token_hash,operator_id,operator_version,created_at,expires_at) VALUES(?,?,?,?,?,?)').bind('synthetic-coffer-3011',await ownerSigninDigest(token),id,version,now,now+900000).run()
+  const opened=await h.request('/auth/owner-signin',{method:'POST',as:'',body:{token}})
+  assert.equal(opened.status,303,await opened.text())
+  const cookie=opened.headers.getSetCookie().map(x=>x.split(';')[0]).join('; ')
+  assert.equal((await h.api('/auth/session',undefined,{as:cookie})).operator.id,id)
+  assert.equal((await h.request('/auth/owner-signin',{method:'POST',as:'',body:{token}})).status,400,'The link works once')
+ },{bindings:{MAIL_PROVIDER:'none'},outbound:async()=>{wire++;return new Response(null,{status:500})}})
 })

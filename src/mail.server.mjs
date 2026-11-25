@@ -1,6 +1,9 @@
 import { createMailSender } from './modules/mail/index.mjs'
 
 export function operatorMail(env) {
+ // Mail off (MAIL_PROVIDER=none, rer's mail-off deploy): there is no sign-in mail, so the sign-in page offers no email link;
+ // the owner signs in with `rer signin`.
+ if (env.MAIL_PROVIDER === 'none') return undefined
  if (env.RER_DEMO === '1' || env.AUTH_LOCAL === 'true') {
   return createMailSender({ provider: 'development', mode: 'development' })
  }

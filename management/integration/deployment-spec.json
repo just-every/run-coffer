@@ -1126,6 +1126,66 @@
       "name": "core-0184_coffer_webhook_network.sql",
       "sha256": "e6c39987216360284e00e1979501394762ae715742900a3b7e068fda875c2d9e",
       "sql": "-- Stable outcomes only; DNS answers and receiver response bodies stay unretained.\nALTER TABLE cf_webhook_attempts ADD COLUMN failure_code TEXT;\nALTER TABLE cf_webhook_deliveries ADD COLUMN last_failure_code TEXT;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0185_coffer_payment_donor_match.sql",
+      "sha256": "26821f804262ba895402456dd4c84d098ccecd689256451dc99c297f0bce5ed9",
+      "sql": "-- Private review evidence never grants a reusable customer association.\nCREATE TABLE cf_payment_donor_matches (\n charge_id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, account_id TEXT NOT NULL,\n version INTEGER NOT NULL DEFAULT 1,\n state TEXT NOT NULL CHECK(state IN ('held','approved','resolved','erased')),\n customer_id TEXT, email TEXT, facts TEXT NOT NULL CHECK(json_valid(facts)),\n candidates TEXT NOT NULL CHECK(json_valid(candidates)),\n donor_id TEXT REFERENCES cf_donors(id), donor_version INTEGER,\n approved_version INTEGER, approved_by TEXT, approved_actor_version INTEGER, approved_at TEXT,\n created_at TEXT NOT NULL, updated_at TEXT NOT NULL\n);\nCREATE TABLE cf_payment_match_payouts (\n charge_id TEXT NOT NULL REFERENCES cf_payment_donor_matches(charge_id),\n payout_id TEXT NOT NULL REFERENCES cf_payouts(id),\n PRIMARY KEY(charge_id,payout_id)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0186_coffer_vault_mapping.sql",
+      "sha256": "dc762d7f82e3b47a6b3aaa6b30f35677285bebfbb4cb587bf417ea9a95175fa7",
+      "sql": "-- Reviewed references are evidence only. They never authorize provider activity.\nCREATE TABLE cf_vault_reviews (\n id TEXT PRIMARY KEY,\n fingerprint TEXT NOT NULL UNIQUE,\n source TEXT NOT NULL,\n source_account TEXT NOT NULL,\n destination_account TEXT NOT NULL,\n state TEXT NOT NULL CHECK(state IN ('reviewed','saved','invalidated','removed','erased')),\n created_at TEXT NOT NULL,\n created_by TEXT NOT NULL,\n saved_at TEXT,\n version INTEGER NOT NULL DEFAULT 1\n);\nCREATE TABLE cf_vault_rows (\n id TEXT PRIMARY KEY,\n review_id TEXT NOT NULL REFERENCES cf_vault_reviews(id) ON DELETE CASCADE,\n position INTEGER NOT NULL,\n donor_id TEXT NOT NULL REFERENCES cf_donors(id) ON DELETE CASCADE,\n donor_version INTEGER NOT NULL,\n source_identity_hash TEXT NOT NULL,\n source_plan_id TEXT NOT NULL,\n payload TEXT NOT NULL,\n category TEXT NOT NULL CHECK(category IN ('matched','missing','conflicting','unsupported')),\n reason TEXT NOT NULL,\n UNIQUE(review_id,position)\n);\nCREATE INDEX cf_vault_rows_donor ON cf_vault_rows(donor_id);\nCREATE TABLE cf_vault_erased_sources (identity_hash TEXT PRIMARY KEY);\n-- Minimal hashed identity custody survives removal of the uploaded evidence.\nCREATE TABLE cf_vault_identities (\n identity_hash TEXT PRIMARY KEY,\n donor_id TEXT NOT NULL REFERENCES cf_donors(id) ON DELETE CASCADE\n);\n-- Erasure clears the entire multi-person file, including references in other\n-- rows. Tombstones prevent the same erased source identity being reassigned.\nCREATE TRIGGER cf_vault_erasure BEFORE UPDATE OF erased_at ON cf_donors\nWHEN OLD.erased_at IS NULL AND NEW.erased_at IS NOT NULL\nBEGIN\n INSERT OR IGNORE INTO cf_vault_erased_sources SELECT identity_hash FROM cf_vault_identities WHERE donor_id=NEW.id;\n DELETE FROM cf_vault_identities WHERE donor_id=NEW.id;\n UPDATE cf_vault_reviews SET state='erased',version=version+1,source='',source_account='',destination_account=''\n WHERE id IN (SELECT review_id FROM cf_vault_rows WHERE donor_id=NEW.id);\n DELETE FROM cf_vault_rows WHERE review_id IN (SELECT id FROM cf_vault_reviews WHERE state='erased');\nEND;\n-- A changed identity cannot retain the original review's authority.\nCREATE TRIGGER cf_vault_identity_changed AFTER UPDATE OF donor_id ON cf_vault_rows\nWHEN OLD.donor_id<>NEW.donor_id\nBEGIN\n UPDATE cf_vault_reviews SET state='invalidated',version=version+1 WHERE id=NEW.review_id AND state IN ('reviewed','saved');\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0187_coffer_appeal_email_sources.sql",
+      "sha256": "1c82631b67370dde5bfea440c3c43aa01fa73b832753119748b66acf62179af2",
+      "sql": "-- A run-wide public source binds the exact approved wording to its ordinary campaign.\n-- No recipient identity, consent, provider delivery or provider credential is inferred.\nCREATE TABLE cf_appeal_email_sources (\n id TEXT PRIMARY KEY,\n appeal_id TEXT NOT NULL UNIQUE REFERENCES cf_appeals(id),\n campaign_id TEXT NOT NULL REFERENCES cf_campaigns(id),\n slug TEXT NOT NULL,\n fund TEXT NOT NULL,\n code TEXT NOT NULL REFERENCES cf_appeal_codes(code),\n url TEXT NOT NULL,\n content_hash TEXT NOT NULL\n);\nCREATE TRIGGER cf_appeal_email_source_frozen BEFORE UPDATE ON cf_appeal_email_sources\nBEGIN SELECT RAISE(ABORT,'email appeal sources are immutable'); END;\nALTER TABLE cf_giving_intents ADD COLUMN email_source_id TEXT REFERENCES cf_appeal_email_sources(id);\nCREATE TRIGGER cf_intent_email_source_frozen BEFORE UPDATE OF email_source_id ON cf_giving_intents\nWHEN NEW.email_source_id IS NOT OLD.email_source_id\nBEGIN SELECT RAISE(ABORT,'checkout email source is immutable'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0188_coffer_mcp_request_capacity.sql",
+      "sha256": "ec2a5c136eed1fa86b2b110118a8ba0d10588dd8e871e9b5d9460c87f9218a4c",
+      "sql": "-- Short-window installation capacity, independent of daily grant accounting.\nCREATE TABLE cf_mcp_request_capacity (\n key_id TEXT PRIMARY KEY REFERENCES cf_agent_keys(id) ON DELETE CASCADE,\n expires_at INTEGER NOT NULL,\n requests INTEGER NOT NULL CHECK(requests > 0)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0189_coffer_mcp_preparations.sql",
+      "sha256": "0ba7d2c140fdf78fcb9cd0afe93e9061f8a2848b008d02fccaad222bc1b6f1b1",
+      "sql": "-- Permanent local preparation receipts; no automatic expiry or provider claims.\nCREATE TABLE cf_mcp_preparations (\n principal TEXT NOT NULL,\n key_hash TEXT NOT NULL,\n request_hash TEXT NOT NULL,\n grant_id TEXT NOT NULL,\n tool TEXT NOT NULL CHECK(tool IN ('ack.prepare','appeal.prepare')),\n result_id TEXT NOT NULL,\n outcome TEXT NOT NULL CHECK(json_valid(outcome)),\n donor_ids TEXT NOT NULL CHECK(json_valid(donor_ids)),\n created_at TEXT NOT NULL,\n unavailable INTEGER NOT NULL DEFAULT 0 CHECK(unavailable IN (0,1)),\n PRIMARY KEY(principal,key_hash)\n);\n\n-- Erasure keeps the key tombstone to prevent another effect, without retaining\n-- the frozen aggregate or its donor references in this private replay cache.\nCREATE TRIGGER cf_mcp_preparation_erasure BEFORE DELETE ON cf_donors BEGIN\n UPDATE cf_mcp_preparations SET unavailable=1,outcome='{}',donor_ids='[]'\n WHERE EXISTS(SELECT 1 FROM json_each(donor_ids) WHERE value=OLD.id);\nEND;\nCREATE TRIGGER cf_mcp_preparation_erased_update AFTER UPDATE OF erased_at ON cf_donors\nWHEN NEW.erased_at IS NOT NULL BEGIN\n UPDATE cf_mcp_preparations SET unavailable=1,outcome='{}',donor_ids='[]'\n WHERE EXISTS(SELECT 1 FROM json_each(donor_ids) WHERE value=OLD.id);\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0190_coffer_platform_disbursements.sql",
+      "sha256": "a70ee995c8732b64674c1f791c8274823ead28f1a157fa6ccefa6c8b1128b529",
+      "sql": "-- Uploaded sources share the private donor-review lifecycle without Stripe objects.\nALTER TABLE cf_payment_donor_matches ADD COLUMN provider TEXT NOT NULL DEFAULT 'stripe';\nCREATE TABLE cf_platform_batches (\n id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, provider TEXT NOT NULL CHECK(provider='benevity'),\n fingerprint TEXT NOT NULL, file_hash TEXT NOT NULL, source_key TEXT,\n version INTEGER NOT NULL DEFAULT 1, state TEXT NOT NULL CHECK(state IN ('held','review','recorded','erased')),\n source_csv TEXT, mapping TEXT NOT NULL, controls TEXT NOT NULL, issues TEXT NOT NULL,\n payout_id TEXT, approved_by TEXT, approved_at TEXT, created_at TEXT NOT NULL\n);\nCREATE UNIQUE INDEX cf_platform_disbursement ON cf_platform_batches(source_key) WHERE source_key IS NOT NULL;\nCREATE TABLE cf_platform_sources (\n source_id TEXT PRIMARY KEY REFERENCES cf_payment_donor_matches(charge_id),\n batch_id TEXT NOT NULL REFERENCES cf_platform_batches(id),\n facts_hash TEXT NOT NULL, gift_id TEXT REFERENCES cf_gifts(id),\n row_number INTEGER NOT NULL, evidence TEXT\n);\nCREATE INDEX cf_platform_source_batch ON cf_platform_sources(batch_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0191_coffer_platform_source_custody.sql",
+      "sha256": "27ce0114afef2196915e1e2e30b22b56eb38ccfa42d382aa10d93e40d3f7563b",
+      "sql": "CREATE TABLE cf_platform_erased_donors (identity_hash TEXT PRIMARY KEY);\nALTER TABLE cf_platform_sources ADD COLUMN identity_hash TEXT;\nCREATE TRIGGER cf_platform_source_identity BEFORE UPDATE ON cf_platform_sources\nWHEN NEW.source_id<>OLD.source_id OR NEW.batch_id<>OLD.batch_id OR NEW.facts_hash<>OLD.facts_hash\n OR NEW.identity_hash IS NOT OLD.identity_hash OR NEW.row_number<>OLD.row_number\n OR (OLD.gift_id IS NOT NULL AND NEW.gift_id IS NOT OLD.gift_id)\nBEGIN SELECT RAISE(ABORT,'COFFER_PLATFORM_SOURCE_IMMUTABLE'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0192_coffer_shop_orders.sql",
+      "sha256": "97d8018c72d7a0d6da561033c8472e5580225eb304ac8eaf471df44311f1d8cb",
+      "sql": "-- Private signed observations and exact reviewed money decisions. No credentials.\nCREATE TABLE cf_shop_orders (\n id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, shop_id TEXT NOT NULL, shop_domain TEXT NOT NULL,\n order_id TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, state TEXT NOT NULL DEFAULT 'held',\n identity_hash TEXT, source_hash TEXT, source TEXT, facts TEXT NOT NULL DEFAULT '{}', issues TEXT NOT NULL DEFAULT '[]',\n review TEXT, fingerprint TEXT, evidence TEXT, gift_id TEXT REFERENCES cf_gifts(id),\n approved_by TEXT, approved_at TEXT, created_at TEXT NOT NULL,\n UNIQUE(installation_id,shop_id,order_id)\n);\nCREATE TABLE cf_shop_events (\n id TEXT PRIMARY KEY, order_key TEXT NOT NULL REFERENCES cf_shop_orders(id), topic TEXT NOT NULL,\n payload_hash TEXT NOT NULL, payload TEXT, created_at TEXT NOT NULL\n);\nCREATE TABLE cf_shop_processor_bindings (\n charge_id TEXT PRIMARY KEY, account_id TEXT NOT NULL, order_key TEXT NOT NULL REFERENCES cf_shop_orders(id)\n);\nCREATE TABLE cf_shop_erased_identities (hash TEXT PRIMARY KEY);\nCREATE TRIGGER cf_shop_source_identity BEFORE UPDATE ON cf_shop_orders\nWHEN NEW.id<>OLD.id OR NEW.installation_id<>OLD.installation_id OR NEW.shop_id<>OLD.shop_id\n OR NEW.shop_domain<>OLD.shop_domain OR NEW.order_id<>OLD.order_id\n OR (OLD.gift_id IS NOT NULL AND NEW.gift_id IS NOT OLD.gift_id)\nBEGIN SELECT RAISE(ABORT,'COFFER_SHOP_IDENTITY'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0193_coffer_shop_conflicts.sql",
+      "sha256": "694ee87f828cc07cd998268644710f1d5ff7fefea4e5c005bb1a0263d1a85eff",
+      "sql": "-- Conflicting signed source facts cannot be cleared by an ordinary refresh.\nALTER TABLE cf_shop_orders ADD COLUMN conflicted INTEGER NOT NULL DEFAULT 0 CHECK(conflicted IN (0,1));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "core-0194_coffer_shop_refund_holds.sql",
+      "sha256": "f09669fed2b25106c4fe431166b7e5bd34703e599be5e872488224c116e9bdef",
+      "sql": "-- A signed refund can precede the provider read. Keep the hold independently\n-- of a refresh result, and invalidate documents without rewriting money.\nALTER TABLE cf_shop_orders ADD COLUMN refund_pending INTEGER NOT NULL DEFAULT 0 CHECK(refund_pending IN (0,1));\nUPDATE cf_shop_orders SET refund_pending=1 WHERE state<>'erased' AND NOT EXISTS(SELECT 1 FROM cf_payment_entries p WHERE p.id='shop-refund-'||cf_shop_orders.id)\n AND (state='refund-held' OR EXISTS(SELECT 1 FROM cf_shop_events e WHERE e.order_key=cf_shop_orders.id AND e.topic='refunds'||'/'||'create'));\nCREATE TRIGGER cf_shop_receipt_hold AFTER UPDATE OF refund_pending,conflicted ON cf_shop_orders\nWHEN NEW.gift_id IS NOT NULL AND (NEW.refund_pending=1 OR NEW.conflicted=1)\nBEGIN\n UPDATE cf_acks SET void_reason=COALESCE(void_reason,'Shop refund or source conflict awaiting review')\n WHERE gift_id=NEW.gift_id OR EXISTS(SELECT 1 FROM json_each(statement_gifts) j WHERE json_extract(j.value,'$.id')=NEW.gift_id);\nEND;\nCREATE TRIGGER cf_shop_receipt_prepare BEFORE INSERT ON cf_acks\nWHEN EXISTS(SELECT 1 FROM cf_shop_orders s WHERE (s.refund_pending=1 OR s.conflicted=1) AND\n (s.gift_id=NEW.gift_id OR EXISTS(SELECT 1 FROM json_each(NEW.statement_gifts) j WHERE json_extract(j.value,'$.id')=s.gift_id)))\nBEGIN SELECT RAISE(ABORT,'COFFER_SHOP_MONEY_HELD'); END;\nUPDATE cf_acks SET void_reason=COALESCE(void_reason,'Shop refund or source conflict awaiting review')\nWHERE EXISTS(SELECT 1 FROM cf_shop_orders s WHERE (s.refund_pending=1 OR s.conflicted=1) AND\n (s.gift_id=cf_acks.gift_id OR EXISTS(SELECT 1 FROM json_each(cf_acks.statement_gifts) j WHERE json_extract(j.value,'$.id')=s.gift_id)));\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
@@ -1161,7 +1221,12 @@
     "QBO_CLIENT_ID",
     "QBO_CLIENT_SECRET",
     "QBO_SANDBOX",
-    "COFFER_REPLY_ADDRESS"
+    "COFFER_REPLY_ADDRESS",
+    "SHOPIFY_SHOP_DOMAIN",
+    "SHOPIFY_SHOP_ID",
+    "SHOPIFY_ACCESS_TOKEN",
+    "SHOPIFY_WEBHOOK_SECRET",
+    "SHOPIFY_STRIPE_ACCOUNT"
   ],
   "schedules": [
     "* * * * *"

@@ -77,6 +77,10 @@
           "label": "Local development (mail suppressed)"
         },
         {
+          "value": "none",
+          "label": "Mail off (sign in with rer signin)"
+        },
+        {
           "value": "rer",
           "label": "RER managed mail"
         },
@@ -93,7 +97,7 @@
           "label": "Cloudflare Email Sending"
         }
       ],
-      "help": "Select the provider for sign-in and donor mail. SendGrid supports delivery tracking; RER managed mail uses the supplied relay."
+      "help": "Select the provider for sign-in and donor mail. SendGrid supports delivery tracking; RER managed mail uses the supplied relay. Choose Mail off when this installation has no mail provider: nothing is sent, and the owner signs in with rer signin."
     },
     {
       "name": "MAIL_FROM",

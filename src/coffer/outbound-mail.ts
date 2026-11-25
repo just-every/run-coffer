@@ -9,6 +9,7 @@ type Message = Parameters<typeof sendSendGrid>[0]['message']
 /** Validate the configured provider before claiming any donor submission. */
 export function donorMailUnavailable(env?: Bindings): string | null {
  if (!env) return 'Configure a mail provider and sender address to send email.'
+ if (env.MAIL_PROVIDER === 'none') return 'Outbound email is off for this installation (mail_off). Nothing is sent; print letters instead, or turn mail on with rer deploy.'
  if (env.AUTH_LOCAL === 'true' || env.RER_DEMO === '1' || env.MAIL_PROVIDER === 'development') return 'Email is suppressed in local and demo mode. No email is sent.'
  if (!['sendgrid', 'resend', 'cloudflare', 'rer'].includes(env.MAIL_PROVIDER ?? '') || !env.MAIL_FROM?.trim()) return 'Configure a mail provider and sender address to send email.'
  if (env.MAIL_PROVIDER === 'rer' && (env.COFFER_REPLY_ADDRESS?.trim() || env.COFFER_REPLY_DOMAIN?.trim())) return 'Managed mail cannot carry a custom reply address. Remove that setting before sending.'
@@ -16,7 +17,11 @@ export function donorMailUnavailable(env?: Bindings): string | null {
  return null
 }
 
+/** With mail off every send is refused at once, so each flow records why nothing was delivered. */
+const mailOff = { send: async () => ({ status: 'rejected', provider: 'none', providerMessageId: null, code: 'mail_off' }) }
+
 function sender(env: Bindings) {
+ if (env.MAIL_PROVIDER === 'none') return mailOff
  return createMailSender({ provider: env.MAIL_PROVIDER, mode: 'production', apiKey: env.MAIL_API_KEY,
   ...(env.MAIL_PROVIDER === 'rer' ? { relayUrl: env.MAIL_RELAY_URL } : {}),
   ...(env.MAIL_PROVIDER === 'cloudflare' ? { accountId: env.MAIL_ACCOUNT_ID } : {}) })
