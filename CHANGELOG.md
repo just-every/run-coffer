@@ -1,8 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 — 2026-11-25
 
-- **Deploy with mail off.** `MAIL_PROVIDER=none` deploys a hosted Coffer with no sender and no key: nothing is sent, emailed receipts and letters are refused as `mail_off`, and the owner signs in with `rer signin`. The mail settings are now declared optional in `deploy.json`, so a chosen provider reaches the Worker. rer moves to 0.2.134; secret entries in `deploy.json` no longer carry a `label`.
+Coffer 0.1.1 supports hosted setup with mail off and owner sign-in through rer. It pins rer 0.2.134.
+
+Deploy with `MAIL_PROVIDER=none` to set up hosted Coffer without a mail sender or API key. The setup owner signs in with `rer signin`. Donor receipts and letters that require email report that mail is off.
+
+This release also brings forward Coffer’s donor, gift, follow-up and reporting work since 0.1.0. New agent keys expire 30 days after issuance.
+
+Back up Coffer 0.1.0 before updating in place. Adopt 0.1.1 with the pinned rer 0.2.134 and apply the 153 pending migrations through the normal upgrade runner. Preserve the existing migration ledger and already applied SQL. Confirm owner access and check existing records before resuming writes.
+
 - **The run site's homepage follows one spring appeal.** It is rebuilt on the owner-approved page structure (17 October 2026): after the hero, a calendar of the appeal's seven dates leads through moving in, choosing who to ask, sending, a gift, the thank-you, the first night, reconciling, the morning calls, the board report and year-end statements, each drawn as real product cards, then the closing. The old twelve-section layout is gone. `docs/CLAIMS.md` tracks every claim the new page makes.
 
 ## 0.1.0 — 2026-10-18
