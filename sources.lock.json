@@ -567,7 +567,7 @@
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "cf79546f870e43c388b1b5a894b830de2b898691f92c49b7bee6f946c0781471",
+      "sha256": "a2d8dbdd44fd3a5df46ac7e760cb900d7b52de14cbc23209a00da96b618c7c98",
       "executable": false
     },
     "CONTRACT.md": {
@@ -583,7 +583,7 @@
       "executable": false
     },
     "deploy.json": {
-      "sha256": "3fe870d57933527c339d296018f61a6c814caf904c1f562f0ffe73cadb781a26",
+      "sha256": "48fcee1c945d576db590d6db2bf630b9d89625f60a095fceed70bad6f72e3364",
       "executable": false
     },
     "docs/AGENT-COMMANDS.md": {
@@ -851,7 +851,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "f238ed930b9611d9cdcbbc4740185c03452143e28ac1c351ce381c1c3b283f4a",
+      "sha256": "280b05c53cc9c6ac32cacc1577295dacb61c9eb9474ce147d98d3b3e68f1f787",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1651,7 +1651,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "25585e28d70fb67eea75c5c21de9b80e599938f59ad72a3de72b539058774754",
+      "sha256": "c695f4e976c87bd276393ab68baf8f859a957fc0292616e7922f42756d158cb5",
       "executable": false
     },
     "packaging.json": {
@@ -1659,7 +1659,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "21b9fc3c2e0360dc87b1a74bc45d715c128d01b0d7df1759b9af1511901faf98",
+      "sha256": "404a5daecb7c3cd51e3848cdcb2b74d3f4392148e02304c7be088312c43e6ee5",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -2035,7 +2035,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "829c93be7eeb86dc001c8bb10abdd0eeeb33609886dc1f1c19a7b50bc3bc203a",
+      "sha256": "eb6693bd261d0bb3ab19a3de78d1a04c005dcd408e0ccea331eb9352f63411d8",
       "executable": false
     },
     "release-history/0.1.0.json": {
@@ -2047,11 +2047,11 @@
       "executable": false
     },
     "rer-project.json": {
-      "sha256": "a9af57016a68992b18db3540946efb885b9fa3c1f869e13e1af81a8513318fdd",
+      "sha256": "e688acf2e2fa787bb8862a72259804fa5ff05f9ded21be3650389953155dd2c8",
       "executable": false
     },
     "rer-setup.json": {
-      "sha256": "4071b12090d14f73535cbfec09ef320b07eb1e5a6d07327902456aad9b3148ff",
+      "sha256": "7eeb8b1dc4a27f5d7f28033874dadcffec69a727083849cf34d3d0c99f215472",
       "executable": false
     },
     "RULINGS.md": {
@@ -2799,7 +2799,7 @@
       "executable": false
     },
     "scripts/installer/local.mjs": {
-      "sha256": "18d1ec988d818a4239371b3284d1ba9a597d1cb431c797d0456c96cbaadf348f",
+      "sha256": "4b935fbd397959dea633f977f1c68d836b409f76663aad11d805ef8249dc87e7",
       "executable": false
     },
     "scripts/installer/seed.mjs": {
@@ -2871,7 +2871,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "fb9bed7acddadb253feadd5f7c111327361765df0b1f867e01d5db8553f1441a",
+      "sha256": "e795655ecf1272e63a4bd1601eadf5c82c2ec5a992a3a8564c7636f165119171",
       "executable": false
     },
     "src/base/contract-filter.ts": {
@@ -4347,7 +4347,7 @@
       "executable": false
     },
     "src/coffer/outbound-mail.ts": {
-      "sha256": "2610e0d9141757cec468a207816f1cfc58e48f7a5ee77f68585984ff1f5f35c3",
+      "sha256": "e11ec0bb468a30142635e11f06e0412b58df5e3ac6eb76c77b084352613281dc",
       "executable": false
     },
     "src/coffer/payments/adjustment-notices.ts": {
@@ -5319,7 +5319,7 @@
       "executable": false
     },
     "src/mail.server.mjs": {
-      "sha256": "180302b71a131f6429f1ae11ddb6b637de9bc03f8295dea522cabb0212d687b4",
+      "sha256": "60373a266a3aa25f8164a4a4786ef7a82f2e6a67a809205d25d39775a8419bd8",
       "executable": false
     },
     "src/modules/ai/client.mjs": {
@@ -7847,7 +7847,7 @@
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
-      "sha256": "8fe03cab2f8493fd8e6ba5f1dcea1639f8f4e9b594127bd1535d51ced5c99ad8",
+      "sha256": "1d728c80587e4446b35d3d3e474cea1d28c3faf1986d926ce7eed0029eefdab7",
       "executable": false
     },
     "tests/hosted-restore.test.mjs": {
