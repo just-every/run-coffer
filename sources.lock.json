@@ -567,7 +567,7 @@
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "a2d8dbdd44fd3a5df46ac7e760cb900d7b52de14cbc23209a00da96b618c7c98",
+      "sha256": "43ede5e22f5abb03067ed4ae379b1c2582cbd9ea5a678ceff455ec0f26e3a3b1",
       "executable": false
     },
     "CONTRACT.md": {
@@ -2043,7 +2043,7 @@
       "executable": false
     },
     "RELEASE.json": {
-      "sha256": "bc0543b0b1e029d8fbe5ee5e05ab2da2a7e03c7f4b7097efd3f05942e45fc2a3",
+      "sha256": "039586ed910048850450431d783b5b8cfb4b4e469a5c348ab43931b8a5deb69a",
       "executable": false
     },
     "rer-project.json": {
