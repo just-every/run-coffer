@@ -3359,7 +3359,7 @@
       "executable": false
     },
     "src/coffer/commands.ts": {
-      "sha256": "a4410e1405540d8c2e7e281cb95fa830e08709f02850c5898e4ece5535df7af9",
+      "sha256": "a692e3fff25ed647dd637fc0c67af2712dd9184610fb88abaed18530f749af90",
       "executable": false
     },
     "src/coffer/communications/commands.ts": {

@@ -185,7 +185,8 @@ async function agentKey(c: Context, command: string, p: Row) {
  }
  const label = text(p.label, 'Agent label', 100)
  const token = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
- const keyId = newId(), now = Date.now(), expiresAt = now + 30 * 86400000
+ // A key lasts 30 days from the database clock: the key check refuses any key whose expiry is behind it, so a request that runs on an earlier instant (the tests' fixed clock) cannot mint a key that is already expired.
+ const keyId = newId(), now = Date.now(), expiresAt = Math.max(now, (await c.db.prepare("SELECT unixepoch('now')*1000 AS n").first<{ n: number }>())!.n) + 30 * 86400000
  await commit(c, [sql('INSERT INTO cf_agent_keys(id,token_hash,label,created_by,creator_version,expires_at,revoked_at,created_at) SELECT ?,?,?,id,version,?,NULL,? FROM oa_operators WHERE id=?', keyId, await digest(token), label, expiresAt, now, c.actor.id), event(c, 'agent.create', 'agent', keyId, null, { expiresAt,grantId:'preparation:'+keyId,grantVersion:1 })])
  return { id: keyId, label, token, expiresAt }
 }
