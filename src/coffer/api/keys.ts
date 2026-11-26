@@ -21,8 +21,9 @@ export async function apiKeyCommand(c:Context,command:string,p:Row):Promise<Row|
   return {id:keyId,revoked:true}
  }
  const label=text(p.label,'API key label',100),scope=choice(p.scope,API_SCOPES,'API key scope'),now=Date.now()
- const expiresAt=p.expiresOn?Date.parse(date(p.expiresOn,'Expiry date')+'T23:59:59.999Z'):now+30*86400000
- if(expiresAt<=now||expiresAt>now+90*86400000)fail('INPUT','Choose a future expiry within 90 days.',400)
+ // A default key lasts 30 days from the later of the request clock and the database clock, the two the key check compares: a request on an earlier instant (the tests' fixed clock) cannot mint a default key that is already expired. In production they are the same instant. The 90-day range applies to a chosen date.
+ const expiresAt=p.expiresOn?Date.parse(date(p.expiresOn,'Expiry date')+'T23:59:59.999Z'):Math.max(now,(await c.db.prepare("SELECT unixepoch('now')*1000 AS n").first<{n:number}>())!.n)+30*86400000
+ if(p.expiresOn&&(expiresAt<=now||expiresAt>now+90*86400000))fail('INPUT','Choose a future expiry within 90 days.',400)
  const token='cfv1_'+btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','')
  const keyId=newId()
  await commit(c,[sql(`INSERT INTO cf_api_keys(id,token_hash,label,scope,created_by,creator_version,created_at,expires_at)

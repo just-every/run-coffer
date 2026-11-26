@@ -3243,7 +3243,7 @@
       "executable": false
     },
     "src/coffer/api/keys.ts": {
-      "sha256": "b22a71126d4593e91f67eb3530ff1ddc164f00c1c40be2fce5775c18e5467549",
+      "sha256": "fcdac02f6db24a22656a8fad30818f7e4e8ab8005210e932dcbd5f1aa4405024",
       "executable": false
     },
     "src/coffer/api/openapi.ts": {
