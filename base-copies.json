@@ -13,7 +13,16 @@
       },
       "originFiles": [
         "export/run-demo.yml"
-      ]
+      ],
+      "adapted": {
+        ".github/workflows/run-demo.yml": "114ef7a61f080da053af783c5fbe06f625d692cc"
+      },
+      "acknowledged": {
+        ".github/workflows/run-demo.yml": {
+          "sha256": "1267cb0fe077804f182acd04776a9ba6c770c4c0cdb1025d184be3cf0d754722",
+          "mode": "100644"
+        }
+      }
     },
     {
       "path": ".github/workflows/verify-nightly.yml",
